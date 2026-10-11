@@ -26,6 +26,7 @@ export type ToggleKey =
   | "previewBigCard"
   | "previewPopup"
   | "donUpright"
+  | "totalPower"
   | "oppHandTopRight"
   | "tiltedBoard"
   | "bigBoard"
@@ -150,7 +151,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     id: "visual",
     title: "Visual aids",
     chip: "Visual aids",
-    rows: ["textSize", "attackGlow", "battleArrow", "donUpright", "shortcutTags"],
+    rows: ["textSize", "attackGlow", "battleArrow", "donUpright", "totalPower", "shortcutTags"],
   },
   {
     id: "motion",

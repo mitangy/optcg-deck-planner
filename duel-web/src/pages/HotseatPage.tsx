@@ -74,6 +74,8 @@ type SeatBag = {
   /** Seat 0's matchup-brief ticket and whether the room is ranked, from its welcome. */
   brief?: BriefTicketWire | null;
   ranked?: boolean | null;
+  /** How the current game's turn order was decided (null = coin flip), from seat 0's welcome. */
+  firstSeatPickedBy?: Seat | null;
 };
 
 function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
@@ -236,9 +238,10 @@ export function HotseatPage() {
 
     function bindBagHandlers(bag: SeatBag) {
       bag.client.setHandlers({
-        onWelcome: ({ matchId: id, view, ranked, brief }) => {
+        onWelcome: ({ matchId: id, view, ranked, brief, firstSeatPickedBy }) => {
           // The brief is always from seat 0's side (the player's deck against the practice opponent).
           if (bag.seat === 0) {
+            bag.firstSeatPickedBy = firstSeatPickedBy;
             bag.ranked = typeof ranked === "boolean" ? ranked : null;
             bag.brief = ranked === false ? (brief ?? null) : null;
           }
@@ -320,8 +323,8 @@ export function HotseatPage() {
           if (!alive()) return;
           bump((n) => n + 1);
         },
-        onUndoApplied: ({ toTurn, toStep, by, action }) => {
-          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label);
+        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
+          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label, scope === "turn");
           if (!alive()) return;
           bump((n) => n + 1);
         },
@@ -990,6 +993,7 @@ export function HotseatPage() {
         errorBanner={bag.error}
         matchOver={bag.matchOver}
         battleLog={bag.battleLog}
+        firstSeatPickedBy={bags.current[0]?.firstSeatPickedBy}
         matchBrief={{ brief: bags.current[0]?.brief ?? null, ranked: bags.current[0]?.ranked ?? null, ticketSeat: 0 }}
         hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
         rematch={{
@@ -1020,9 +1024,9 @@ export function HotseatPage() {
         undo={{
           state: bag.undo ?? null,
           autoAccept: true,
-          onAction: (action) => {
+          onAction: (action, opts) => {
             try {
-              bag.client.sendUndo(action);
+              bag.client.sendUndo(action, opts);
             } catch {
               /* disconnected; the board shows the reconnect state */
             }

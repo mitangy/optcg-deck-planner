@@ -1,7 +1,8 @@
 /* —— Floating-card prompts (FloatingPrompt.tsx; /demo?box shows the old pop-up) ——
    The cards an effect works with float over the board in one row instead of a
    pop-up panel. The layer covers only the board column on wide layouts, so the
-   log, rail and hand stay put; the scrim dims the mat without hiding it. */
+   log, rail and hand stay put. Nothing dims the mat (#542): the header, note and
+   buttons carry their own small backing instead of a full-board scrim. */
 
 .float-layer {
   position: fixed;
@@ -24,21 +25,6 @@
 .arena.arena-wide .float-layer {
   left: var(--left-w);
   right: var(--rail-w);
-}
-
-/* The scrim covers the board column, not the top bar: the bar stays whole and
-   undimmed (logo, status, Leave) instead of dimmed across its middle only. */
-.arena:has(.float-scrim) .hud-bar {
-  position: relative;
-  z-index: 47;
-}
-
-.float-scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 80% 65% at center, rgb(var(--abyss-rgb) / 0.9), rgb(var(--abyss-rgb) / 0.7) 70%, rgb(var(--abyss-rgb) / 0.5));
-  backdrop-filter: blur(1.5px);
-  animation: float-fade 160ms ease-out;
 }
 
 .float-stage {
@@ -124,7 +110,7 @@
   width: 100%;
   height: auto;
   aspect-ratio: 5 / 7;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 .float-card .card-tile .card-caption {
@@ -201,6 +187,9 @@
   align-items: center;
   gap: 0.15rem;
   height: 1.6rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: rgb(var(--deep-rgb) / 0.82);
 }
 
 .float-nudge button {
@@ -287,6 +276,9 @@
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.9rem;
+  background: rgb(var(--deep-rgb) / 0.82);
 }
 
 .float-side .choice-place {
@@ -395,15 +387,8 @@
   }
 }
 
-@keyframes float-fade {
-  from {
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .float-card,
-  .float-scrim {
+  .float-card {
     animation: none;
   }
   .float-card-inner {
@@ -436,20 +421,29 @@
   cursor: grabbing;
 }
 
-/* Effect ordering (#449): no scrim, and only the header, cards and buttons catch the
-   pointer, so the board (and the battle arrow) behind the empty parts stays in reach.
-   The header drags the stage (usePromptDrag; the offset rides on `translate`). */
-.float-layer-free .float-row,
-.float-layer-free .float-axis,
-.float-layer-free .float-stage-free {
+/* No scrim (#449, #542): only the header, cards and buttons catch the pointer, so the
+   board (and the battle arrow) behind the empty parts stays in reach and a stray click
+   there never reaches the prompt. Effect ordering's header also drags the stage
+   (usePromptDrag; the offset rides on `translate`). */
+.float-layer .float-row,
+.float-layer .float-axis,
+.float-layer .float-stage {
   pointer-events: none;
 }
 
-.float-layer-free .float-head,
-.float-layer-free .float-card,
-.float-layer-free .float-note,
-.float-layer-free .float-actions {
+.float-layer .float-head,
+.float-layer .float-card,
+.float-layer .float-note,
+.float-layer .float-actions {
   pointer-events: auto;
+}
+
+/* Over the live board the header needs its own backing (there is no scrim to read against). */
+.float-head {
+  padding: 0.25rem 0.9rem;
+  border-radius: 0.9rem;
+  background: rgb(var(--deep-rgb) / 0.88);
+  border: 1px solid var(--line-strong);
 }
 
 .prompt-hide-wrap .float-stage-free {
@@ -461,10 +455,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  padding: 0.25rem 0.9rem;
   border-radius: 999px;
-  background: rgb(var(--deep-rgb) / 0.88);
-  border: 1px solid var(--line-strong);
 }
 
 .float-stage-free > .float-head > strong::before {
@@ -478,10 +469,9 @@
   cursor: grabbing;
 }
 
-/* Over the live board the text needs its own backing (there is no scrim to read against). */
-.float-layer-free .float-effect-text,
-.float-layer-free .float-note,
-.float-layer-free .float-axis > span:not(.float-axis-line) {
+.float-layer .float-effect-text,
+.float-layer .float-note,
+.float-layer .float-axis > span:not(.float-axis-line) {
   padding: 0.1rem 0.5rem;
   border-radius: 0.5rem;
   background: rgb(var(--deep-rgb) / 0.82);

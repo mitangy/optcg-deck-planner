@@ -32,6 +32,7 @@ import type {
   RematchState,
   SeatSkin,
   UndoAction,
+  UndoRequestOptions,
   UndoState,
 } from "../net/protocol";
 import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS } from "../net/protocol";
@@ -126,6 +127,8 @@ type DuelSession = {
   players: SeatPlayers | null;
   /** Whether the room is ranked, from the welcome; null until then or from an older server. */
   ranked: boolean | null;
+  /** How the turn order was decided, from the welcome: null = coin flip, a seat = who chose; undefined from an older server. */
+  firstSeatPickedBy: Seat | null | undefined;
   /** The key to a Log Pose matchup brief (players of unranked rooms only). */
   brief: BriefTicketWire | null;
   battleLog: BattleLogEntry[];
@@ -147,7 +150,7 @@ type DuelSession = {
   /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
   sendRematch: (action: RematchAction, deck?: PlayerDeckWire) => void;
-  sendUndo: (action: UndoAction) => void;
+  sendUndo: (action: UndoAction, opts?: UndoRequestOptions) => void;
   rating: number | null;
   lastServerUrl: string | null;
   /** `launchGen` is the startMatch generation; a superseded launch never reaches the client. */
@@ -197,6 +200,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [view, setView] = useState<PlayerView | null>(null);
   const [players, setPlayers] = useState<SeatPlayers | null>(null);
   const [ranked, setRanked] = useState<boolean | null>(null);
+  const [firstSeatPickedBy, setFirstSeatPickedBy] = useState<Seat | null | undefined>(undefined);
   const [brief, setBrief] = useState<BriefTicketWire | null>(null);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
@@ -233,8 +237,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, brief: b }) => {
+        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, firstSeatPickedBy: pb, brief: b }) => {
           setPlayers(p ?? null);
+          setFirstSeatPickedBy(pb);
           setRanked(typeof rk === "boolean" ? rk : null);
           setBrief(r === "player" ? (b ?? null) : null);
           seatRef.current = s;
@@ -342,9 +347,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onUndoState: (state) => setUndo(state),
         onPresence: (away) => setAwayUntil(away),
         onRematchState: (state) => setRematch(state),
-        onUndoApplied: ({ toTurn, toStep, by, action }) => {
+        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
           const youSeat = viewRef.current?.spectator ? null : seatRef.current;
-          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label));
+          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label, scope === "turn"));
         },
         onTakenOver: () => {
           // The seat is theirs now: keep the last board on screen, stop every
@@ -414,6 +419,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setView(null);
       setPlayers(null);
       setRanked(null);
+      setFirstSeatPickedBy(undefined);
       setBrief(null);
       setMatchOver(null);
       setTimer(null);
@@ -455,6 +461,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       view,
       players,
       ranked,
+      firstSeatPickedBy,
       brief,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
@@ -481,9 +488,9 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
         }
       },
-      sendUndo(action) {
+      sendUndo(action, opts) {
         try {
-          client.sendUndo(action);
+          client.sendUndo(action, opts);
         } catch (e) {
           setErrorBanner(e instanceof Error ? e.message : "Undo failed");
         }
@@ -503,6 +510,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setUndo(null);
         setView(null);
         setRanked(null);
+        setFirstSeatPickedBy(undefined);
         setBrief(null);
         setQueueing(false);
         setResuming(false);
@@ -706,6 +714,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     view,
     players,
     ranked,
+    firstSeatPickedBy,
     brief,
     battleLog,
     errorBanner,

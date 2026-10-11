@@ -33,6 +33,7 @@ import {
   type RematchAction,
   type RematchState,
   type UndoAction,
+  type UndoRequestOptions,
   type UndoApplied,
   type UndoState,
   TAKEN_OVER_CLOSE_CODE,
@@ -49,6 +50,7 @@ export type DuelClientHandlers = {
     role: "player" | "spectator";
     players?: SeatPlayers;
     ranked?: boolean;
+    firstSeatPickedBy?: Seat | null;
     brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
@@ -402,9 +404,15 @@ export class DuelClient {
     this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
-  sendUndo(action: UndoAction) {
+  /** `opts` (a "request" only): take back the whole turn, and/or force past a reveal (#536). */
+  sendUndo(action: UndoAction, opts?: UndoRequestOptions) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("undo", { protocolVersion: PROTOCOL_VERSION, action });
+    this.room.send("undo", {
+      protocolVersion: PROTOCOL_VERSION,
+      action,
+      ...(action === "request" && opts?.scope ? { scope: opts.scope } : {}),
+      ...(action === "request" && opts?.force ? { force: true } : {}),
+    });
   }
 
   ping(t = Date.now()) {
@@ -558,6 +566,7 @@ export class DuelClient {
           role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
           players: msg.players,
           ranked: msg.ranked,
+          firstSeatPickedBy: msg.firstSeatPickedBy,
           brief: msg.brief,
         });
         this.endTurnSentOn = null;

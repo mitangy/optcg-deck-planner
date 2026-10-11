@@ -31,6 +31,8 @@ type PlayerView = {
 
 type SeatBag = {
   welcome?: PlayerView;
+  /** The latest welcome's firstSeatPickedBy (null = coin flip). */
+  pickedBy?: 0 | 1 | null;
   players?: { name: string | null }[];
   views: PlayerView[];
   errors: { code: string; message: string }[];
@@ -48,8 +50,9 @@ function joinOpts(devUserId: string, preferredSeat?: 0 | 1) {
 function attach(client: ClientRoom, bag: SeatBag) {
   client.onMessage(
     "welcome",
-    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[] }) => {
+    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[]; firstSeatPickedBy?: 0 | 1 | null }) => {
       bag.welcome = msg.view;
+      bag.pickedBy = msg.firstSeatPickedBy;
       bag.players = msg.players;
       bag.views.push(msg.view);
     },
@@ -1078,50 +1081,229 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("undo cannot go back past an action that revealed cards (#497)", async () => {
+  /** Two seated players, unranked, with an undo listener per seat; `active` is the seat to move. */
+  async function undoRoom(seed: number) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
-      seed: 21,
+      seed,
       autoSkipMulligan: true,
     });
-    type UndoState = { targetTurn: number | null; action: unknown };
+    type Opt = { available: boolean; steps: number; blockedReason?: string; forceable: boolean; revealReason?: string };
+    type UState = {
+      targetTurn: number | null;
+      action: { seat: number; label: string } | null;
+      options: { action: Opt; turn: Opt } | null;
+      blockedReason: string | null;
+      pending: { from: number; scope: string; steps: number; force: boolean; revealReason: string | null } | null;
+    };
+    type Applied = { toStep: number; toTurn: number; scope: string; steps: number; action: { label: string } };
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
     ];
-    const undo: UndoState[] = [];
+    const undo: UState[][] = [[], []];
+    const applied: Applied[] = [];
     const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
     attach(c0, bags[0]);
-    c0.onMessage("undo_state", (msg: UndoState) => undo.push(msg));
+    c0.onMessage("undo_state", (m: UState) => undo[0]!.push(m));
+    c0.onMessage("undo_applied", (m: Applied) => applied.push(m));
     const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
     attach(c1, bags[1]);
+    c1.onMessage("undo_state", (m: UState) => undo[1]!.push(m));
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
     const clients: [ClientRoom, ClientRoom] = [c0, c1];
-    const active = bags[0].views.at(-1)!.activeSeat;
-
-    // A harmless action first: it can be undone.
-    const give = bags[active].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
-    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: give });
-    await waitUntil(() => undo.at(-1)?.action != null, 5000);
-
-    // Swap a hand card for one that looks at the top of the deck (OP01-016 Nami, cost 1) and play it.
-    const m = internals(room).match as unknown as {
-      players: { hand: { defId: string }[]; costArea: { rested: boolean }[]; donDeck: { rested: boolean }[] }[];
+    const active = bags[0].views.at(-1)!.activeSeat as 0 | 1;
+    const steps = () => internals(room).replay!.intents.length;
+    const act = async (seat: 0 | 1, intent: { type: string }) => {
+      const n = steps();
+      clients[seat].send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
+      await waitUntil(() => steps() === n + 1, 5000);
     };
-    m.players[active]!.hand[0]!.defId = "OP01-016";
-    // The one DON!! was given away; hand the player another to pay with.
-    m.players[active]!.costArea.push(m.players[active]!.donDeck.pop()!);
-    clients[active].send("intent", {
-      protocolVersion: PROTOCOL_VERSION,
-      intent: { type: "play_card", handIndex: 0 },
-    });
-    await waitUntil(() => internals(room).replay!.intents.length === 2, 5000);
-    await waitUntil(() => undo.at(-1)?.action == null, 5000);
-    assert.equal(undo.at(-1)!.targetTurn, null);
+    const give = (seat: 0 | 1) => bags[seat].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
+    /** Swap the first hand card for Nami (looks at the deck: a reveal) and make sure there is a DON!! to pay with. */
+    const playRevealer = async (seat: 0 | 1) => {
+      const m = internals(room).match as unknown as {
+        players: { hand: { defId: string }[]; costArea: { rested: boolean }[]; donDeck: { rested: boolean }[] }[];
+      };
+      m.players[seat]!.hand[0]!.defId = "OP01-016";
+      m.players[seat]!.costArea.push(m.players[seat]!.donDeck.pop()!);
+      await act(seat, { type: "play_card", handIndex: 0 } as never);
+    };
+    const request = (seat: 0 | 1, extra: Record<string, unknown> = {}) =>
+      clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", ...extra });
+    const accept = (seat: 0 | 1) => clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    const last = (seat: 0 | 1) => undo[seat]!.at(-1)!;
+    const close = async () => {
+      await c0.leave(true);
+      await c1.leave(true);
+    };
+    return { room, bags, undo, applied, clients, active, other: (1 - active) as 0 | 1, steps, act, give, playRevealer, request, accept, last, close };
+  }
 
-    await c0.leave(true);
-    await c1.leave(true);
+  it("whole-turn undo rewinds every action of the turn to its start (#536)", async () => {
+    const t = await undoRoom(21);
+    // Turn 1 by the opening seat: give DON!!, then end the turn. Turn 2 by the other seat: give DON!! twice.
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    const turnTwoStart = JSON.stringify(internals(t.room).match);
+    const stepsAtStart = t.steps();
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    assert.notEqual(JSON.stringify(internals(t.room).match), turnTwoStart);
+
+    await waitUntil(() => t.last(t.other).options?.turn.steps === 2, 5000);
+    const opts = t.last(t.other).options!;
+    assert.equal(opts.turn.available, true);
+    assert.equal(opts.action.steps, 1);
+
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.deepEqual(
+      { scope: t.last(t.active).pending!.scope, steps: t.last(t.active).pending!.steps, force: t.last(t.active).pending!.force },
+      { scope: "turn", steps: 2, force: false },
+    );
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: 2, toStep: stepsAtStart });
+    // The match is exactly the state before the turn's first action, and only that turn went.
+    assert.equal(JSON.stringify(internals(t.room).match), turnTwoStart);
+    assert.equal(t.steps(), stepsAtStart);
+    await waitUntil(() => t.last(t.other).options?.action.steps === 1 && t.last(t.other).action?.label === "end turn", 5000);
+    await t.close();
+  });
+
+  it("a request without a scope still takes back one action (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    t.request(t.other);
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.scope, "action");
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.equal(t.applied[0]!.steps, 1);
+    assert.equal(t.steps(), 1);
+    await t.close();
+  });
+
+  it("action undo is blocked after a reveal, with the reason, until forced (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    await waitUntil(() => t.last(t.other).options?.action.forceable === true, 5000);
+    const o = t.last(t.other);
+    assert.equal(o.options!.action.available, false);
+    assert.match(o.options!.action.blockedReason!, /^Undo stops here: .+/);
+    assert.equal(o.blockedReason, o.options!.action.blockedReason);
+    assert.equal(o.options!.action.revealReason, "a deck or Life card was looked at");
+
+    t.request(t.other);
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.code === "illegal_intent"), 5000);
+    assert.match(t.bags[t.other].errors.at(-1)!.message, /^Undo stops here: /);
+    assert.equal(t.last(t.active).pending, null);
+    assert.equal(t.steps(), 2);
+    await t.close();
+  });
+
+  it("forcing an undo past a reveal works, and the opponent's request says it was forced (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    await waitUntil(() => t.last(t.other).options?.action.forceable === true, 5000);
+
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    const pending = t.last(t.active).pending!;
+    assert.equal(pending.force, true);
+    assert.equal(pending.revealReason, "a deck or Life card was looked at");
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.equal(t.steps(), 1);
+    assert.match(t.applied[0]!.action.label, /^play /);
+    // Back to the plain give-DON!! as the last action (the hand swap above was made on the live match).
+    assert.equal(t.last(t.other).action?.label.startsWith("give DON!!"), true);
+    await t.close();
+  });
+
+  it("force is only taken when a reveal is the blocker (#536)", async () => {
+    const t = await undoRoom(21);
+    // Nothing to undo yet: force does not change that.
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.bags[t.other].errors.length > 0, 5000);
+    assert.equal(t.bags[t.other].errors.at(-1)!.message, "Nothing to undo yet");
+    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    // A plain action: force adds nothing, the request is not marked forced.
+    await t.act(t.active, t.give(t.active));
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.force, false);
+    assert.equal(t.last(t.active).pending!.revealReason, null);
+    await t.close();
+  });
+
+  it("whole-turn undo is blocked by a reveal mid-turn unless forced (#536)", async () => {
+    const t = await undoRoom(21);
+    const atStart = JSON.stringify(internals(t.room).match);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    // Nami's look leaves a choice to answer before the turn can end.
+    for (let i = 0; i < 4 && !t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "end_turn"); i += 1) {
+      await waitUntil(() => t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "resolve_pending_choice"), 5000);
+      await t.act(t.active, t.bags[t.active].views.at(-1)!.legalIntents.find((x) => x.type === "resolve_pending_choice")!);
+    }
+    await t.act(t.active, { type: "end_turn" });
+    const turnSteps = t.steps();
+    await waitUntil(() => t.last(t.other).action?.label === "end turn", 5000);
+    const o = t.last(t.other).options!;
+    // The last action alone is fine; the turn as a whole crosses the reveal.
+    assert.equal(o.action.available, true);
+    assert.equal(o.turn.available, false);
+    assert.equal(o.turn.forceable, true);
+    assert.equal(o.turn.steps, turnSteps);
+    assert.ok(turnSteps >= 4);
+    assert.match(o.turn.blockedReason!, /^Undo stops here: /);
+    assert.equal(t.last(t.other).blockedReason, null);
+
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.code === "illegal_intent"), 5000);
+    assert.equal(t.last(t.active).pending, null);
+
+    t.request(t.other, { scope: "turn", force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.force, true);
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: turnSteps, toStep: 0 });
+    assert.equal(t.steps(), 0);
+    assert.equal(JSON.stringify(internals(t.room).match), atStart);
+    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    await t.close();
+  });
+
+  it("whole-turn undo is unavailable once the history no longer reaches the turn start (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    // Pad the history to the limit with turn-2 snapshots, then take two more turn-2 actions: the oldest one falls off.
+    const stack = (t.room as unknown as { undoStack: { turnNumber: number }[] }).undoStack;
+    const template = stack.at(-1)!;
+    stack.length = 0;
+    for (let i = 0; i < 39; i += 1) stack.push({ ...template, turnNumber: 2 });
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    assert.equal(stack.length, 40);
+    await waitUntil(() => t.last(t.active).options?.turn.blockedReason === "Undo history limit reached", 5000);
+    const o = t.last(t.active).options!;
+    assert.equal(o.turn.available, false);
+    assert.equal(o.turn.forceable, false);
+    assert.equal(o.action.available, true);
+    t.request(t.other, { scope: "turn", force: true });
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.message === "Undo history limit reached"), 5000);
+    assert.equal(t.last(t.active).pending, null);
+    await t.close();
   });
 
   it("undo is disabled in ranked rooms", async () => {
@@ -1142,7 +1324,8 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bag);
     await waitUntil(() => states.length > 0, 5000);
     assert.equal(states.at(-1)!.enabled, false);
-    c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    assert.equal((states.at(-1) as { blockedReason?: string }).blockedReason, "No undo in ranked");
+    c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", scope: "turn", force: true });
     await waitUntil(() => bag.errors.some((e) => e.code === "unauthorized"), 5000);
 
     await c0.leave(true);
@@ -1240,6 +1423,35 @@ describe("DuelRoom", () => {
     }
   });
 
+  it("the first game starts with the seat the room was created for and calls it a coin flip (#549)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 41,
+      firstSeat: 1,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    for (const bag of bags) {
+      const view = bag.welcome as PlayerView & { firstSeat?: number };
+      assert.equal(view.firstSeat, 1);
+      assert.equal(view.activeSeat, 1);
+      assert.equal(bag.pickedBy, null);
+    }
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1281,6 +1493,9 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
+    // The mulligan banner credits the loser (seat 0) with the choice (#549).
+    assert.equal(bags[0].pickedBy, 0);
+    assert.equal(bags[1].pickedBy, 0);
 
     await c0.leave(true);
     await c1.leave(true);

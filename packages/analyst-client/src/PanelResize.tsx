@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Mous
 import { clampPos, dragPos, keyPos, readPos, roomAt, writePos, type Pos } from "./panelPos";
 import { clampDockW, dockAt, dragDockW, floatBeside, floatSize, keyDock, looseAt, pulledLoose, type Dock, type DockSide } from "./panelDock";
 import type { Rect } from "./panelMotion";
-import { clampSheet, clampSize, dragSheet, dragSize, keySize, maxSize, MIN_H, MIN_W, readSheet, readSize, writeSheet, writeSize, type Edge, type Size } from "./panelSize";
+import { clampSheet, clampSize, dragRect, dragSheet, keyRect, maxSize, MIN_H, MIN_W, readSheet, readSize, writeSheet, writeSize, type Edge, type Frame, type Size } from "./panelSize";
 
 const viewportSize = (): Size => ({ w: window.innerWidth, h: window.innerHeight });
 
@@ -52,49 +52,78 @@ export function useDrawerSize() {
 export type DrawerSize = ReturnType<typeof useDrawerSize>;
 
 const LABELS: Record<Edge, string> = {
-  top: "Resize Log Pose taller or shorter. Use the up and down arrow keys, or double-click to reset.",
-  left: "Resize Log Pose wider or narrower. Use the left and right arrow keys, or double-click to reset.",
-  corner: "Resize Log Pose from its corner. Use the arrow keys, or double-click to reset.",
+  top: "Resize Log Pose taller or shorter from the top. Use the up and down arrow keys, or double-click to reset.",
+  bottom: "Resize Log Pose taller or shorter from the bottom. Use the up and down arrow keys, or double-click to reset.",
+  left: "Resize Log Pose wider or narrower from the left. Use the left and right arrow keys, or double-click to reset.",
+  right: "Resize Log Pose wider or narrower from the right. Use the left and right arrow keys, or double-click to reset.",
+  "top-left": "Resize Log Pose from its top-left corner. Use the arrow keys, or double-click to reset.",
+  "top-right": "Resize Log Pose from its top-right corner. Use the arrow keys, or double-click to reset.",
+  "bottom-left": "Resize Log Pose from its bottom-left corner. Use the arrow keys, or double-click to reset.",
+  "bottom-right": "Resize Log Pose from its bottom-right corner. Use the arrow keys, or double-click to reset.",
 };
 
 function Handle({ edge, drawer, panelRef }: { edge: Edge; drawer: DrawerSize; panelRef: RefObject<HTMLDivElement | null> }) {
-  const drag = useRef<{ x: number; y: number; size: Size } | null>(null);
-  const measure = (): Size => {
+  const drag = useRef<{ x: number; y: number; start: Frame } | null>(null);
+  // The window now: the remembered size and place, or (for the default drawer) what is on screen.
+  const current = (): Frame => {
     const r = panelRef.current?.getBoundingClientRect();
-    return r ? { w: Math.round(r.width), h: Math.round(r.height) } : { w: MIN_W, h: MIN_H };
+    const { viewport } = drawer;
+    // The default drawer's measured size is used as it is (it can be the full viewport height), so a drag starts from what is on screen.
+    const size = drawer.size ?? (r ? { w: Math.round(r.width), h: Math.round(r.height) } : { w: MIN_W, h: MIN_H });
+    const pos = drawer.pos ?? (r ? clampPos({ r: viewport.w - r.right, b: viewport.h - r.bottom }, size, viewport) : { r: 0, b: 0 });
+    return { size, pos };
   };
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, y: e.clientY, size: drawer.size ?? measure() };
+    drag.current = { x: e.clientX, y: e.clientY, start: current() };
   };
-  const next = (e: PointerEvent<HTMLDivElement>) => dragSize(drag.current!.size, edge, e.clientX - drag.current!.x, e.clientY - drag.current!.y, drawer.vp);
+  const next = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current!;
+    return dragRect(d.start, edge, e.clientX - d.x, e.clientY - d.y, drawer.viewport);
+  };
+  // Dragging only the top or left edge leaves the place alone, so the window stays in the corner it was in.
+  const place = (rect: Frame, apply: (s: Size, p: Pos | null) => void) => {
+    const start = drag.current!.start.pos;
+    apply(rect.size, rect.pos.r !== start.r || rect.pos.b !== start.b || drawer.pos ? rect.pos : null);
+  };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (drag.current) drawer.set(next(e));
+    if (!drag.current) return;
+    place(next(e), (s, p) => {
+      drawer.set(s);
+      if (p) drawer.setPos(p);
+    });
   };
   const onUp = (e: PointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
-    drawer.commit(next(e));
+    place(next(e), (s, p) => {
+      drawer.commit(s);
+      if (p) drawer.commitPos(p);
+    });
     drag.current = null;
   };
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const size = keySize(drawer.size ?? measure(), edge, e.key, e.shiftKey, drawer.vp);
-    if (!size) return;
+    const start = current();
+    const rect = keyRect(start, edge, e.key, e.shiftKey, drawer.viewport);
+    if (!rect) return;
     e.preventDefault();
-    drawer.commit(size);
+    drawer.commit(rect.size);
+    if (drawer.pos || rect.pos.r !== start.pos.r || rect.pos.b !== start.pos.b) drawer.commitPos(rect.pos);
   };
   const max = maxSize(drawer.vp);
-  const now = edge === "top" ? (drawer.size?.h ?? drawer.vp.h) : edge === "left" ? (drawer.size?.w ?? Math.min(420, drawer.vp.w)) : undefined;
+  const vertical = edge === "top" || edge === "bottom";
+  const horizontal = edge === "left" || edge === "right";
+  const now = vertical ? (drawer.size?.h ?? drawer.vp.h) : horizontal ? (drawer.size?.w ?? Math.min(420, drawer.vp.w)) : undefined;
   return (
     <div
       className={`lp-resize lp-resize-${edge}`}
       role="separator"
-      aria-orientation={edge === "top" ? "horizontal" : edge === "left" ? "vertical" : undefined}
+      aria-orientation={vertical ? "horizontal" : horizontal ? "vertical" : undefined}
       aria-label={LABELS[edge]}
       aria-valuenow={now}
-      aria-valuemin={edge === "top" ? MIN_H : edge === "left" ? MIN_W : undefined}
-      aria-valuemax={edge === "top" ? max.h : edge === "left" ? max.w : undefined}
+      aria-valuemin={vertical ? MIN_H : horizontal ? MIN_W : undefined}
+      aria-valuemax={vertical ? max.h : horizontal ? max.w : undefined}
       tabIndex={0}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -106,13 +135,15 @@ function Handle({ edge, drawer, panelRef }: { edge: Edge; drawer: DrawerSize; pa
   );
 }
 
-/** Drag handles on the panel's top edge, left edge and top-left corner. */
+const EDGES: Edge[] = ["top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
+
+/** Drag handles on all four edges and all four corners of the floating window. */
 export function ResizeHandles({ drawer, panelRef }: { drawer: DrawerSize; panelRef: RefObject<HTMLDivElement | null> }) {
   return (
     <>
-      <Handle edge="top" drawer={drawer} panelRef={panelRef} />
-      <Handle edge="left" drawer={drawer} panelRef={panelRef} />
-      <Handle edge="corner" drawer={drawer} panelRef={panelRef} />
+      {EDGES.map((edge) => (
+        <Handle key={edge} edge={edge} drawer={drawer} panelRef={panelRef} />
+      ))}
     </>
   );
 }

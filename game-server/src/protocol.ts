@@ -3,7 +3,7 @@
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
 import type { GameEvent, Intent, Seat } from "@optcg/rules";
-import { gameSeed } from "./matchmakeGuard.js";
+import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
 
@@ -50,6 +50,8 @@ export type DuelCreateOptions = {
   seed?: number;
   /** Default true for Step 2 scripts. */
   autoSkipMulligan?: boolean;
+  /** Who goes first in the first game. Honored only on local/dev servers; deployed servers flip a coin (#549). */
+  firstSeat?: 0 | 1;
   players?: [PlayerDeckWire, PlayerDeckWire];
   /**
    * Optional clocks. Ranked queue always forces a 15 minute chess clock per player (seatSeconds), no match clock and no turn clock.
@@ -105,6 +107,11 @@ export type WelcomeMessage = {
   players?: [SeatPlayerInfo, SeatPlayerInfo];
   /** Whether the room is ranked. Absent from older servers. */
   ranked?: boolean;
+  /**
+   * How this game's turn order was decided: null = coin flip (the first game), otherwise the seat that
+   * chose (a rematch's loser). Absent from older servers.
+   */
+  firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
   brief?: BriefTicketWire;
 };
@@ -280,6 +287,8 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
+  /** Seat that goes first in the room's first game. */
+  firstSeat: Seat;
   autoSkipMulligan: boolean;
   ranked: boolean;
   seatUserIds?: [number, number];
@@ -295,6 +304,10 @@ export function parseCreateOptions(raw: unknown): {
   const seed = gameSeed(
     typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
   );
+  if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
+    throw Object.assign(new Error("firstSeat must be 0 or 1"), { code: "bad_protocol" as const });
+  }
+  const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);
   const autoSkipMulligan = o.autoSkipMulligan !== false;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.
@@ -356,6 +369,7 @@ export function parseCreateOptions(raw: unknown): {
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
+    firstSeat,
     autoSkipMulligan,
     ranked,
     seatUserIds,
@@ -534,13 +548,34 @@ export function parseHandOrderMessage(raw: unknown): string[] {
 }
 
 /**
- * Undo (unranked rooms only). A seat requests taking back the last action (#497);
- * the other seat accepts or declines. Practice clients auto-accept.
+ * Undo (unranked rooms only). A seat requests taking back the last action (#497)
+ * or the whole turn (#536); the other seat accepts or declines. Practice
+ * clients auto-accept.
  */
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
+/** What a request takes back: the last action, or every action of that turn. */
+export type UndoScope = "action" | "turn";
+
+/** A parsed undo message: `scope` / `force` only matter on a "request". */
+export type UndoRequestBody = { action: UndoAction; scope: UndoScope; force: boolean };
+
 /** One undoable action: who took it and a short description ("play Nami"). */
 export type UndoActionInfo = { seat: Seat; label: string };
+
+/** Whether one scope can be undone right now, and why not. */
+export type UndoOption = {
+  /** Can be requested without force. */
+  available: boolean;
+  /** Actions it would take back (0 when none). */
+  steps: number;
+  /** Why it cannot be requested plainly; absent when `available`. */
+  blockedReason?: string;
+  /** Blocked only by a reveal, so a forced request is accepted. */
+  forceable: boolean;
+  /** What was revealed, when a reveal sits in the range (forced undo lets them redo it). */
+  revealReason?: string;
+};
 
 /** Undo availability + any open request, pushed on join / sync / change. */
 export type UndoStateMessage = {
@@ -551,8 +586,23 @@ export type UndoStateMessage = {
   targetTurn: number | null;
   /** The action an undo would take back (the last one, by either seat), or null. */
   action: UndoActionInfo | null;
+  /** Per-scope availability (#536); absent from older servers. */
+  options: { action: UndoOption; turn: UndoOption } | null;
+  /** Why no scope can be requested plainly ("Nothing to undo yet", "Undo stops here: ..."); null when one can. */
+  blockedReason: string | null;
   /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number; action: UndoActionInfo | null } | null;
+  pending: {
+    from: Seat;
+    toTurn: number;
+    action: UndoActionInfo | null;
+    scope: UndoScope;
+    /** Actions the request takes back. */
+    steps: number;
+    /** Requested past a reveal. */
+    force: boolean;
+    /** What was revealed, set when `force`. */
+    revealReason: string | null;
+  } | null;
 };
 
 /** Broadcast after an accepted undo rewinds the match. */
@@ -563,8 +613,12 @@ export type UndoAppliedMessage = {
   toStep: number;
   /** Seat that asked for the undo. */
   by: Seat;
-  /** The action that was taken back. */
+  /** The action that was taken back (the last one when the whole turn went). */
   action: UndoActionInfo;
+  /** What was taken back; "action" from older servers. */
+  scope: UndoScope;
+  /** How many actions went. */
+  steps: number;
 };
 
 /**
@@ -609,7 +663,7 @@ export function parseRematchMessage(raw: unknown): { action: RematchAction; deck
   return { action: o.action, deck: asPlayerDeck(o.deck) };
 }
 
-export function parseUndoMessage(raw: unknown): UndoAction {
+export function parseUndoMessage(raw: unknown): UndoRequestBody {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("undo message body required"), {
       code: "bad_protocol" as const,
@@ -631,5 +685,11 @@ export function parseUndoMessage(raw: unknown): UndoAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.scope !== undefined && o.scope !== "action" && o.scope !== "turn") {
+    throw Object.assign(new Error("undo scope must be action|turn"), { code: "bad_protocol" as const });
+  }
+  if (o.force !== undefined && typeof o.force !== "boolean") {
+    throw Object.assign(new Error("undo force must be a boolean"), { code: "bad_protocol" as const });
+  }
+  return { action: o.action, scope: o.scope ?? "action", force: o.force === true };
 }

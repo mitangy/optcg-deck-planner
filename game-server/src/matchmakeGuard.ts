@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import type { Seat } from "@optcg/rules";
 import { requireGameToken } from "./env.js";
 import { verifyGameToken } from "./gameToken.js";
 
@@ -54,4 +55,14 @@ export function releaseCreatorRoom(uid: number | null): void {
 export function gameSeed(clientSeed?: number): number {
   if (clientSeed !== undefined && !requireGameToken()) return clientSeed;
   return randomInt(0, 2 ** 32);
+}
+
+/**
+ * Who goes first in a room's first game (#549). Deployed servers always flip a
+ * coin from a CSPRNG and ignore the client, so nobody can pin the order. Local
+ * dev and tests may still pin a seat (default 0) so scripted games repeat.
+ */
+export function gameFirstSeat(clientFirstSeat?: Seat): Seat {
+  if (!requireGameToken()) return clientFirstSeat ?? 0;
+  return randomInt(0, 2) as Seat;
 }

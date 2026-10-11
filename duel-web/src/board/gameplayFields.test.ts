@@ -66,7 +66,7 @@ describe("Gameplay settings groups (#496)", () => {
     "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan", "sideColumns",
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
-    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "oppHandTopRight",
+    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "totalPower", "oppHandTopRight",
     "tiltedBoard", "bigBoard", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
   ];
 

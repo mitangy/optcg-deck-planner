@@ -542,9 +542,14 @@ export function rewindBattleLog(
   youSeat: number | null,
   toStep?: number,
   actionLabel?: string,
+  wholeTurn = false,
 ): BattleLogEntry[] {
   const who = youSeat == null ? playerLabel(by) : by === youSeat ? "You" : "Opponent";
-  const text = actionLabel ? `${who} undid: ${actionLabel}.` : `${who} undid the last action.`;
+  const text = wholeTurn
+    ? `${who} undid the whole turn.`
+    : actionLabel
+      ? `${who} undid: ${actionLabel}.`
+      : `${who} undid the last action.`;
   return [
     ...entries.filter((e) => (e.step !== undefined && toStep !== undefined ? e.step <= toStep : e.turn <= toTurn)),
     {

@@ -13,7 +13,7 @@ import {
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
   RULES_VERSION,
-  revealsHiddenInfo,
+  revealReason,
   seatLog,
   serializeMatch,
   skipMulligans,
@@ -63,6 +63,8 @@ import {
   type RematchAction,
   type RematchStateMessage,
   type UndoAction,
+  type UndoOption,
+  type UndoScope,
   type UndoAppliedMessage,
   type UndoStateMessage,
   type BriefTicketWire,
@@ -122,6 +124,8 @@ type UndoSnapshot = {
   seat: Seat;
   /** Short description of that action ("play Nami"). */
   label: string;
+  /** Why this action exposed hidden cards ("cards were drawn"); absent when it did not (#536). */
+  revealReason?: string;
 };
 
 export class DuelRoom extends Room implements PresenceSource {
@@ -141,6 +145,10 @@ export class DuelRoom extends Room implements PresenceSource {
   private rng: Rng | null = null;
   private matchId = "";
   private seed = 0;
+  /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
+  private firstGameSeat: Seat = 0;
+  /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
+  private firstSeatPickedBy: Seat | null = null;
   /** This game's inputs, sent with the result for the backend to keep. Never sent to players. */
   private replay: MatchReplay | null = null;
   private autoSkipMulligan = true;
@@ -205,6 +213,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private lastTimerActiveSeat: Seat | null = null;
   /** States before each applied action, oldest first (unranked rooms only). */
   private undoStack: UndoSnapshot[] = [];
+  /** Oldest snapshots fell off the stack (UNDO_HISTORY_LIMIT), so the earliest kept turn may be cut short. */
+  private undoTruncated = false;
   private undoRequest: UndoStateMessage["pending"] = null;
   private lastUndoStateKey = "";
   /** Turn of the last progress snapshot, so the log is saved once per turn. */
@@ -236,6 +246,7 @@ export class DuelRoom extends Room implements PresenceSource {
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);
     this.seed = parsed.seed;
+    this.firstGameSeat = parsed.firstSeat;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
     if (parsed.players) {
@@ -524,7 +535,7 @@ export class DuelRoom extends Room implements PresenceSource {
     });
 
     if (this.seats[0] && this.seats[1] && !this.matchStarted) {
-      this.startMatch();
+      this.startMatch(this.firstGameSeat, null);
     } else if (this.matchStarted && this.match) {
       this.sendSync(client);
     }
@@ -833,7 +844,8 @@ export class DuelRoom extends Room implements PresenceSource {
     return null;
   }
 
-  private startMatch(firstSeat: Seat = 0) {
+  private startMatch(firstSeat: Seat, pickedBy: Seat | null) {
+    this.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
@@ -917,6 +929,7 @@ export class DuelRoom extends Room implements PresenceSource {
         view,
         players: this.playersInfo(),
         ranked: this.ranked,
+        firstSeatPickedBy: this.firstSeatPickedBy,
         brief: this.briefFor(slot.seat),
       };
       client.send("welcome", welcome);
@@ -1226,6 +1239,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.replay = null;
     this.progressTurn = null;
     this.undoStack = [];
+    this.undoTruncated = false;
     this.undoRequest = null;
     this.lastUndoStateKey = "";
     this.turnEndsAt = null;
@@ -1324,7 +1338,7 @@ export class DuelRoom extends Room implements PresenceSource {
           const picked = this.rematchDecks[s];
           if (picked) this.seatDecks[s] = picked;
         }
-        this.startMatch(firstSeat);
+        this.startMatch(firstSeat, seat);
         return;
       }
     }
@@ -1350,9 +1364,10 @@ export class DuelRoom extends Room implements PresenceSource {
 
   /**
    * Bookkeeping after every state change. Pushes the snapshot taken before the
-   * applied action, unless that action revealed hidden cards: then nothing
-   * before it can be undone any more (#497). A state change also voids any
-   * open undo request, since it named an action relative to the old state.
+   * applied action; one that revealed hidden cards carries the reason, and an
+   * undo that would take it back needs a forced request (#497, #536). A state
+   * change also voids any open undo request, since it named an action relative
+   * to the old state.
    */
   private recordUndoStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
     if (this.match && this.match.winner === null && this.match.turnNumber !== this.progressTurn) {
@@ -1362,26 +1377,76 @@ export class DuelRoom extends Room implements PresenceSource {
     const after = this.match;
     if (this.ranked || !after) return;
     if (snap && before) {
-      if (revealsHiddenInfo(before, after, events)) {
-        this.undoStack = [];
-      } else {
-        this.undoStack.push(snap);
-        if (this.undoStack.length > UNDO_HISTORY_LIMIT) this.undoStack.shift();
+      const reason = revealReason(before, after, events);
+      this.undoStack.push(reason ? { ...snap, revealReason: reason } : snap);
+      if (this.undoStack.length > UNDO_HISTORY_LIMIT) {
+        this.undoStack.shift();
+        this.undoTruncated = true;
       }
     }
     this.undoRequest = null;
     this.broadcastUndoState();
   }
 
+  /**
+   * Index of the snapshot `scope` rewinds to, or null when it cannot (nothing
+   * to undo, or the whole turn is no longer in the history). A turn is every
+   * action since the first one of the last action's turn, by either seat.
+   */
+  private undoTargetIndex(scope: UndoScope): number | null {
+    const last = this.undoStack.length - 1;
+    if (last < 0) return null;
+    if (scope === "action") return last;
+    const turn = this.undoStack[last]!.turnNumber;
+    let start = last;
+    while (start > 0 && this.undoStack[start - 1]!.turnNumber === turn) start -= 1;
+    if (start === 0 && this.undoTruncated) return null;
+    return start;
+  }
+
+  private undoOption(scope: UndoScope): UndoOption {
+    if (this.undoStack.length === 0) {
+      return { available: false, steps: 0, blockedReason: "Nothing to undo yet", forceable: false };
+    }
+    const idx = this.undoTargetIndex(scope);
+    if (idx === null) {
+      return { available: false, steps: 0, blockedReason: "Undo history limit reached", forceable: false };
+    }
+    const range = this.undoStack.slice(idx);
+    const reveal = [...range].reverse().find((snap) => snap.revealReason)?.revealReason;
+    if (reveal) {
+      return {
+        available: false,
+        steps: range.length,
+        blockedReason: `Undo stops here: ${reveal}`,
+        forceable: true,
+        revealReason: reveal,
+      };
+    }
+    return { available: true, steps: range.length, forceable: false };
+  }
+
   private undoState(): UndoStateMessage {
     const enabled = !this.ranked;
     const over = !this.match || this.match.winner !== null || this.matchOverSent;
     const top = enabled && !over ? (this.undoStack.at(-1) ?? null) : null;
+    let options: UndoStateMessage["options"] = null;
+    let blockedReason: string | null = null;
+    if (!enabled) {
+      blockedReason = "No undo in ranked";
+    } else if (!over) {
+      options = { action: this.undoOption("action"), turn: this.undoOption("turn") };
+      if (!options.action.available && !options.turn.available) {
+        blockedReason = options.action.blockedReason ?? options.turn.blockedReason ?? "Nothing to undo yet";
+      }
+    }
     return {
       protocolVersion: PROTOCOL_VERSION,
       enabled,
       targetTurn: top ? top.turnNumber : null,
       action: top ? { seat: top.seat, label: top.label } : null,
+      options,
+      blockedReason,
       pending: over ? null : this.undoRequest,
     };
   }
@@ -1409,8 +1474,10 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     let action: UndoAction;
+    let scope: UndoScope;
+    let force: boolean;
     try {
-      action = parseUndoMessage(message);
+      ({ action, scope, force } = parseUndoMessage(message));
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1433,19 +1500,32 @@ export class DuelRoom extends Room implements PresenceSource {
     switch (action) {
       case "request": {
         const top = this.undoStack.at(-1);
-        if (!top) {
-          this.sendError(client, "illegal_intent", "Nothing to undo yet");
+        const idx = this.undoTargetIndex(scope);
+        const option = this.undoOption(scope);
+        if (!top || idx === null) {
+          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
+          return;
+        }
+        // A reveal in range blocks a plain request; force goes past it, and only it.
+        if (!option.available && !(force && option.forceable)) {
+          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
           return;
         }
         this.undoRequest = {
           from: seat,
-          toTurn: top.turnNumber,
+          toTurn: this.undoStack[idx]!.turnNumber,
           action: { seat: top.seat, label: top.label },
+          scope,
+          steps: option.steps,
+          force: option.revealReason !== undefined,
+          revealReason: option.revealReason ?? null,
         };
         this.log("info", "undo_requested", {
           matchId: this.matchId,
           seat,
           toTurn: this.undoRequest.toTurn,
+          scope,
+          force: this.undoRequest.force,
         });
         this.broadcastUndoState();
         return;
@@ -1471,19 +1551,23 @@ export class DuelRoom extends Room implements PresenceSource {
           this.sendError(client, "unauthorized", "The other player must accept the undo");
           return;
         }
-        this.applyUndo(req.from);
+        this.applyUndo(req.from, req.scope);
         return;
       }
     }
   }
 
-  private applyUndo(by: Seat) {
-    const snap = this.undoStack.pop();
-    if (!snap) {
+  private applyUndo(by: Seat, scope: UndoScope) {
+    const idx = this.undoTargetIndex(scope);
+    const last = this.undoStack.at(-1);
+    const snap = idx === null ? undefined : this.undoStack[idx];
+    if (!snap || !last) {
       this.undoRequest = null;
       this.broadcastUndoState();
       return;
     }
+    const steps = this.undoStack.length - idx!;
+    this.undoStack.length = idx!;
     this.match = deserializeMatch(snap.match);
     this.rng = createSeededRng(snap.rng);
     this.replay?.intents.splice(snap.intentCount);
@@ -1496,7 +1580,9 @@ export class DuelRoom extends Room implements PresenceSource {
       matchId: this.matchId,
       by,
       toTurn: snap.turnNumber,
-      label: snap.label,
+      label: last.label,
+      scope,
+      steps,
     });
 
     const applied: UndoAppliedMessage = {
@@ -1504,7 +1590,9 @@ export class DuelRoom extends Room implements PresenceSource {
       toTurn: snap.turnNumber,
       toStep: snap.intentCount,
       by,
-      action: { seat: snap.seat, label: snap.label },
+      action: { seat: last.seat, label: last.label },
+      scope,
+      steps,
     };
     this.broadcast("undo_applied", applied);
     this.syncPublicState();
@@ -2043,6 +2131,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
       brief: this.briefFor(seat),
     };
     client.send("welcome", welcome);
@@ -2107,6 +2196,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
     };
     client.send("welcome", welcome);
     client.send("view", {

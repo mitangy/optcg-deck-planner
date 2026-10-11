@@ -107,6 +107,11 @@ const TOGGLES: Toggle[] = [
     hint: "DON!! given to a Leader or Character stays upright under it when the card rests, instead of turning sideways with it.",
   },
   {
+    key: "totalPower",
+    label: "Show total power",
+    hint: "Power on board cards shows just the total (green when raised, red when lowered) instead of the printed power plus the bonus. Hover or inspect a card for the breakdown.",
+  },
+  {
     key: "shortcutTags",
     label: "Shortcut key tags",
     hint: "Shows the key for each action (Space, A, E, P, D, 1 to 9) on its button. The keys still work with the tags off.",
