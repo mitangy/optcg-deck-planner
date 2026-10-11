@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-11
+  { date: "2026-10-11", app: "duel", pr: 548, title: "Summoning sick icon no longer comes back", text: "A Character that gained Rush from an effect, or any Character you just played, no longer shows the Summoning sick icon again during your opponent's turn." },
   { date: "2026-10-11", app: "duel", pr: 538, title: "Marshall.D.Teach negate ends with the turn", text: "The 10-cost Marshall.D.Teach (OP09-093) now negates the Character it targets only for the turn you use it. \"Cannot attack\" still lasts through your opponent's next turn." },
   { date: "2026-10-11", app: "duel", pr: 542, title: "Search pop-ups no longer gray out the board", text: "Search pop-ups no longer gray out the board; the cards hover over it." },
   // 2026-10-10
