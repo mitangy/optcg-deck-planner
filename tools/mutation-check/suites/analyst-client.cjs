@@ -267,5 +267,16 @@ module.exports = {
     { id: "client-delete-gone-is-error", file: "packages/analyst-client/src/client.ts", from: "&& res.status !== 404", to: "", kills: ["deletes a chat with the cookie and treats an already-gone chat as deleted (#446)"] },
     { id: "client-delete-no-cookie", file: "packages/analyst-client/src/client.ts", from: "{ method: \"DELETE\", credentials: \"include\" }", to: "{ method: \"DELETE\" }", kills: ["deletes a chat with the cookie and treats an already-gone chat as deleted (#446)"] },
     { id: "session-spots-left-dropped", file: "packages/analyst-client/src/session.ts", from: "if (spotsLeft !== undefined) out.spotsLeft = spotsLeft;", to: "", kills: ["reads the free spots a player who can ask is offered (#446)"] },
+    // card mentions in a Log Pose answer (#533)
+    { id: "mention-prb-ids-missed", file: "packages/analyst-client/src/mentions.ts", from: "(?:(?:OP|ST|EB|PRB)\\\\d{2}|P)-\\\\d{3}", to: "(?:(?:OP|ST|EB)\\\\d{2}|P)-\\\\d{3}", kills: ["finds card numbers of every printed shape and cuts the text around them (#533)"] },
+    { id: "mention-promo-ids-missed", file: "packages/analyst-client/src/mentions.ts", from: "(?:(?:OP|ST|EB|PRB)\\\\d{2}|P)-\\\\d{3}", to: "(?:(?:OP|ST|EB|PRB)\\\\d{2})-\\\\d{3}", kills: ["finds card numbers of every printed shape and cuts the text around them (#533)"] },
+    { id: "mention-id-inside-longer-code", file: "packages/analyst-client/src/mentions.ts", from: "(?<![\\\\p{L}\\\\p{N}-])${ID_SOURCE}(?!${WORD}|-\\\\d)", to: "${ID_SOURCE}", kills: ["does not treat parts of longer codes or words as a card number (#533)"] },
+    { id: "mention-imageless-wrapped", file: "packages/analyst-client/src/mentions.ts", from: "    if (!hasImage(id)) continue;\n", to: "", kills: ["skips a card that has no picture (#533)"] },
+    { id: "mention-names-shortest-first", file: "packages/analyst-client/src/mentions.ts", from: "b.length - a.length || a.localeCompare(b)", to: "a.length - b.length || a.localeCompare(b)", kills: ["finds the cited card names as whole words, the longest first (#533)"] },
+    { id: "mention-name-inside-word", file: "packages/analyst-client/src/mentions.ts", from: "`(?<!${WORD})${escapeRe(n)}(?!${WORD})`", to: "escapeRe(n)", kills: ["finds the cited card names as whole words, the longest first (#533)"] },
+    { id: "mention-names-case-blind", file: "packages/analyst-client/src/mentions.ts", from: "new RegExp(alts.join(\"|\"), \"gu\")", to: "new RegExp(alts.join(\"|\"), \"giu\")", kills: ["matches names with the exact case (#533)"] },
+    { id: "mention-image-by-text-not-id", file: "packages/analyst-client/src/mentions.ts", from: "    const id = names.get(m[0]) ?? m[0];", to: "    const id = m[0];", kills: ["looks up a name's picture by its card number (#533)"] },
+    { id: "mention-name-from-title-first", file: "packages/analyst-client/src/mentions.ts", from: "cardName(id) ?? ", to: "", kills: ["takes names only from cited cards, the host's name before the citation title's (#533)"] },
+    { id: "mention-names-from-any-source", file: "packages/analyst-client/src/mentions.ts", from: "    if (e.parsed.kind !== \"card\") continue;\n", to: "", kills: ["takes names only from cited cards, the host's name before the citation title's (#533)"] },
   ],
 };
