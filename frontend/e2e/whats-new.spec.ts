@@ -3,6 +3,7 @@
  * the signed-in pages. Runs at desktop-1200 and phone-375.
  */
 import type { Page } from "@playwright/test";
+import { notesFor } from "../../packages/patch-notes/src/helpers";
 import { expect, formatIssues, test } from "./fixtures";
 
 const KEY = "optcg.patchNotes.lastSeen.planner";
@@ -25,7 +26,7 @@ test("the card shows after an update, overlays the page, and Got it keeps it awa
   await seedLastSeen(page, "2026-10-05");
   await planner.open("/decks");
   await expect(card(page)).toBeVisible();
-  await expect(card(page)).toContainText("Meta deck browser");
+  await expect(card(page)).toContainText(notesFor("planner")[0].title);
   await expect(card(page)).not.toContainText("Choose your DON!! art"); // duel-only note
 
   const vp = page.viewportSize()!;
