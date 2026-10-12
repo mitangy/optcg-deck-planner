@@ -315,6 +315,11 @@ module.exports = {
       { file: "duel-web/src/board/usePromptDodge.ts", from: "      const placedByPlayer = wrap.dataset.dragged != null;\n", to: "      const placedByPlayer = false;\n" },
       { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
     ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
+    // The Life check pop-up has no header: its tools row is the drag grip (#565)
+    { id: "e2e-life-trigger-not-draggable", args: "life-trigger-drag -g \"moves it\"", file: "duel-web/src/board/promptDrag.ts", from: ", .life-trigger-card > .life-trigger-tools\";", to: "\";", kills: [
+      "life-trigger-drag.spec.ts > dragging the Life check's top row moves it, and the next one opens there (#565) [desktop-1280]",
+      "life-trigger-drag.spec.ts > dragging the Life check's top row moves it, and the next one opens there (#565) [phone-375]",
+    ] },
     // The effect-order pop-up does not dim the board and drags by its header (#449)
     { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      <div ref={stageRef} className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div ref={stageRef} className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: [
       "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [desktop-1280]",
