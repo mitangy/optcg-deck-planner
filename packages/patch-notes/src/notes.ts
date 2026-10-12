@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-12
-  { date: "2026-10-12", app: "duel", title: "EB05 cards show preview art", text: "EB05 cards now show preview art until the official card images are out." },
+  { date: "2026-10-12", app: "duel", pr: 575, title: "EB05 cards show preview art", text: "EB05 cards now show preview art until the official card images are out." },
   { date: "2026-10-12", app: "duel", pr: 569, title: "Monkey.D.Luffy (OP16-015) no longer asks twice", text: "Monkey.D.Luffy (OP16-015) no longer asks again when your opponent attacks after its effect already made your Leader and Luffy 7000 base power this turn. It asks again if something changed either base power since." },
   { date: "2026-10-12", app: "duel", title: "Rested Leader no longer covers the DON!! area", text: "In Bigger playing area, a rested Leader no longer sits on top of the gray DON!! cost area box beside it." },
   { date: "2026-10-12", app: "duel", pr: 558, title: "Pop-up size setting", text: "A new Pop-up size setting (Gameplay settings, 70% to 160%) makes every pop-up in a match smaller or bigger: the hover card, choices and searches, card actions, DON!! and hand confirms, reveals and the pick bar. The − and + buttons in the hover card's top bar and in choice pop-ups change it too. Reset layout puts it back to 100%. The DON!! card in the card actions pop-up is also bigger, so it is easier to see what +1, +2 and All give." },

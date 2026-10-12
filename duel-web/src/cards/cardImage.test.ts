@@ -38,7 +38,7 @@ describe("artAfterError", () => {
 });
 
 describe("EB05 preview art", () => {
-  it("EB05 cards fall back to preview art when TCGPlayer art fails (#PR)", () => {
+  it("EB05 cards fall back to preview art when TCGPlayer art fails (#575)", () => {
     const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
     const preview = artAfterError(cdn, "EB05-001");
     expect(preview).toBe("/cards/preview/EB05-001.webp");
