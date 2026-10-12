@@ -49,9 +49,9 @@ export function CardPreviewPopup() {
   // A placed pop-up must never end up out of reach: keep it inside the window after
   // every render (a taller card) and when the window shrinks.
   useLayoutEffect(() => {
-    // App applies --popup-scale in its own layout effect, which runs after this one (children first):
+    // App applies --preview-popup-scale in its own layout effect, which runs after this one (children first):
     // set it here too, so a size change is measured at the new width and re-clamped now.
-    applyPopupSize(settings.popupSize);
+    applyPopupSize(settings.previewPopupSize, document.documentElement, "previewPopupSize");
     const fit = () => {
       const box = boxRef.current;
       if (!box || !pos) return;
@@ -101,11 +101,11 @@ export function CardPreviewPopup() {
     head.addEventListener("pointercancel", end);
   };
 
-  const style: CSSProperties | undefined = pos ? { left: pos.x, top: pos.y, right: "auto", maxHeight: "calc(100dvh - 16px)" } : undefined;
+  const style: CSSProperties | undefined = pos ? { left: pos.x, top: pos.y, right: "auto" } : undefined;
   return (
     <div
       ref={boxRef}
-      className={`card-preview-popup${drag ? " is-dragging" : ""}`}
+      className={`card-preview-popup${settings.previewBigCard ? " card-preview-popup-big" : ""}${pos ? " card-preview-popup-placed" : ""}${drag ? " is-dragging" : ""}`}
       style={style}
       role="dialog"
       aria-label="Card preview"
@@ -125,7 +125,7 @@ export function CardPreviewPopup() {
           ⠿
         </span>
         <span className="card-preview-popup-title">{lookupCard(preview.defId).name}</span>
-        <PopupSizeButtons className="card-preview-popup-size" what="card preview" />
+        <PopupSizeButtons className="card-preview-popup-size" what="card preview" setting="previewPopupSize" />
         <button
           type="button"
           className={`card-preview-popup-pin${pinned ? " is-pinned" : ""}`}

@@ -248,6 +248,17 @@ describe("account settings", () => {
     expect(loadSettings().popupSize).toBe(160);
   });
 
+  it("keeps the card pop-up size on this device apart from the pop-up size, and pulls a bad size back into range (#572)", () => {
+    stubStored({ popupSize: 130, previewPopupSize: 80 });
+    const synced = syncedSettings(loadSettings());
+    expect(synced).not.toHaveProperty("previewPopupSize");
+    expect(mergeRemoteSettings(loadSettings(), { previewPopupSize: 160 })).toMatchObject({ previewPopupSize: 80, popupSize: 130 });
+    stubStored({ previewPopupSize: 900, popupSize: 100 });
+    expect(loadSettings()).toMatchObject({ previewPopupSize: 160, popupSize: 100 });
+    stubStored({});
+    expect(loadSettings().previewPopupSize).toBe(100);
+  });
+
   it("takes the one-column choice from the account and falls back to one column on the right for an unknown value (#529)", () => {
     stubStored({ sideColumns: "left" });
     expect(syncedSettings(loadSettings()).sideColumns).toBe("left");
