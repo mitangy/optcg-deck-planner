@@ -18,6 +18,15 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // A rested Leader stays clear of the DON!! cost area's gray box (#566). Desktop two-row mats: the cost area loses its inset on both mats.
+    { id: "e2e-rested-leader-on-don-area-desktop", args: "rested-leader-don.spec --project=desktop-1280", file: "duel-web/src/board.css", from: ".side-field .zone-cost {\n  --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));", to: ".side-field .zone-cost {\n  --cost-inset: 0px;", kills: [
+      "rested-leader-don.spec.ts > A rested Leader stays clear of the DON!! cost area at desktop 1280x720 (#566) [desktop-1280]",
+      "rested-leader-don.spec.ts > A rested Leader stays clear of the DON!! cost area at desktop 1440x900 (#566) [desktop-1280]",
+    ] },
+    // Landscape phone two-row mats.
+    { id: "e2e-rested-leader-on-don-area-landscape-phone", args: "rested-leader-don.spec --project=desktop-1280", file: "duel-web/src/board.css", from: "  .arena.arena-big.arena-lp .side-field .zone-cost {\n    --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));", to: "  .arena.arena-big.arena-lp .side-field .zone-cost {\n    --cost-inset: 0px;", kills: [
+      "rested-leader-don.spec.ts > A rested Leader stays clear of the DON!! cost area at phone landscape 812x375 (#566) [desktop-1280]",
+    ] },
     // Pop-up size (#555)
     { id: "e2e-hover-popup-not-refit-after-growing", args: "popup-size-drag.spec --project=desktop-1280 -g \"made bigger\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "    applyPopupSize(settings.popupSize);\n", to: "", kills: ["popup-size-drag.spec.ts > a hover card pop-up dragged to the right edge stays on screen when it is made bigger (#555) [desktop-1280]"] },
     { id: "e2e-choice-popup-ignores-size", args: "popup-size-drag.spec --project=desktop-1280 -g \"choice pop-up has\"", file: "duel-web/src/popupScale.css", from: ":root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {\n  scale: var(--popup-scale, 1);", to: ":root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {\n  scale: 1;", kills: ["popup-size-drag.spec.ts > the choice pop-up has its own − / + that step the same setting and the pop-up grows (#555) [desktop-1280]"] },

@@ -750,6 +750,8 @@ module.exports = {
     // OP08-045 Thatch: the trash that replaces a K.O. is not a K.O. (Q&A).
     scn("thatch-replacement-kos", "OP08-045", (a) => { a[0].replacement.instead.steps[0] = { do: "ko", target: { ref: "self" } }; }, ["EB01-047 does not trigger when Thatch is trashed instead of being K.O.'d"]),
     // OP12-040 Kuzan: only {Navy} card effects, which includes Borsalino's replacement (Q&A).
+    {"id":"luffy-op16-015-always-offered","file":"packages/rules/src/cards/manualAbilities.ts","from":"    conditions: [{ c: \"or\", conds: [\n      cmp({ count: { of: \"leader_base_power\", player: \"you\" } }, \"!=\", 7000),\n      exists(myChar({ onlySelf: true, basePower: { op: \"!=\", value: 7000 } })),\n    ] }],\n","to":"","kills":["OP16-015 is not offered again once both base powers are 7000 (#567)"]},
+    {"id":"luffy-op16-015-only-leader-checked","file":"packages/rules/src/cards/manualAbilities.ts","from":"      cmp({ count: { of: \"leader_base_power\", player: \"you\" } }, \"!=\", 7000),\n","to":"","kills":["OP16-015 is offered again when an effect changed the Leader's base power (#567)"]},
     scnManual("kuzan-any-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you" }, effect: draw(1) }]),`, ["OP12-040 does not draw when a card that is not {Navy}"]),
     scnManual("kuzan-wrong-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Marines"] } }, effect: draw(1) }]),`, ["OP12-040 draws when Borsalino trashes a card"]),
   ],
