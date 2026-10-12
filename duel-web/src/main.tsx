@@ -13,6 +13,7 @@ import "./themes.css";
 import "./ui.css";
 import "./board.css";
 import "./interactions.css";
+import "./popupScale.css";
 import "./auth/username.css";
 import "./light.css";
 import "./metaDecks.css";

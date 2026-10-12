@@ -303,8 +303,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 /* +1 / +2 / All chips inside the card-actions popover. */
 .don-quick-icon {
-  width: 22px;
-  height: 31px;
+  width: 32px;
+  height: 45px;
   flex: none;
   border-radius: 2px;
   object-fit: cover;
@@ -804,8 +804,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 .reveal-card img,
 .reveal-fallback {
   display: block;
-  height: min(62dvh, 26rem);
-  max-width: min(78vw, 22rem);
+  height: min(calc(62dvh / var(--popup-scale, 1)), 26rem);
+  max-width: min(calc(78vw / var(--popup-scale, 1)), 22rem);
   width: auto;
   aspect-ratio: 5 / 7;
   object-fit: contain;
@@ -820,7 +820,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   color: var(--chrome-bright, #f0dca8);
 }
 .reveal-caption {
-  max-width: min(90vw, 26rem);
+  max-width: min(calc(90vw / var(--popup-scale, 1)), 26rem);
   padding: 6px 12px;
   border-radius: 999px;
   background: rgba(8, 14, 20, 0.92);
@@ -848,7 +848,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
   .reveal-card img,
   .reveal-fallback {
-    height: min(78dvh, 20rem);
+    height: min(calc(78dvh / var(--popup-scale, 1)), 20rem);
   }
 }
 :root[data-motion="reduce"] .reveal-card {

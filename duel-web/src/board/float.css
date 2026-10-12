@@ -19,7 +19,7 @@
   --gap: 0.6rem;
   --per-row: var(--n);
   /* Height budget for one row of cards: header, axis, note and actions ≈ 11rem. */
-  --card-max: min(176px, calc((100dvh - 11rem) * 0.714));
+  --card-max: min(176px, calc((100dvh / var(--popup-scale, 1) - 11rem) * 0.714));
 }
 
 .arena.arena-wide .float-layer {
@@ -320,7 +320,7 @@
 @media (max-width: 560px) and (orientation: portrait) {
   .float-layer {
     --per-row: min(var(--n), 3);
-    --card-max: min(150px, calc((100dvh - 14rem) / 2 * 0.714));
+    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 14rem) / 2 * 0.714));
   }
 }
 
@@ -328,7 +328,7 @@
 @media (orientation: landscape) and (max-height: 499px) {
   .float-layer {
     --gap: 0.4rem;
-    --card-max: min(150px, calc((100dvh - 8.6rem) * 0.714));
+    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 8.6rem) * 0.714));
   }
   .float-stage {
     gap: 0.3rem;
@@ -374,6 +374,65 @@
   align-items: center;
   min-height: 1.75rem;
   padding-right: 4.5rem;
+}
+
+/* Pop-up size − / + beside Hide (and the dock buttons on desktop). */
+.prompt-size-tools {
+  position: absolute;
+  top: 0.75rem;
+  right: 4.6rem;
+  z-index: 1;
+  display: flex;
+}
+
+.ability-prompt:has(> .prompt-dock-tools) > .prompt-size-tools {
+  right: 8.6rem;
+}
+
+.ability-prompt:has(> .prompt-size-tools) > h3 {
+  padding-right: 8.6rem;
+}
+
+.ability-prompt:has(> .prompt-size-tools):has(> .prompt-dock-tools) > h3 {
+  padding-right: 12.6rem;
+}
+
+.popup-size-btns {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.prompt-size-btn,
+.float-size-btn {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgb(var(--mid-rgb) / 0.95);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.prompt-size-btn:hover:not(:disabled),
+.float-size-btn:hover:not(:disabled) {
+  border-color: var(--chrome);
+  color: var(--chrome-bright);
+}
+
+.prompt-size-btn:disabled,
+.float-size-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.float-head .popup-size-btns {
+  margin-top: 0.1rem;
 }
 
 .prompt-hide-wrap[hidden] {
@@ -557,4 +616,20 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   pointer-events: none;
+}
+
+/* Narrow windows: smaller − / + so a big pop-up size still leaves the title room. */
+@media (max-width: 640px) {
+  .prompt-size-tools {
+    right: 4.4rem;
+  }
+
+  .prompt-size-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .ability-prompt:has(> .prompt-size-tools) > h3 {
+    padding-right: 7.4rem;
+  }
 }

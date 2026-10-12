@@ -15,6 +15,7 @@ import {
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
+import { POPUP_SIZE_MAX, POPUP_SIZE_MIN, POPUP_SIZE_STEP, clampPopupSize } from "./popupSize";
 import { playTurnChime } from "./turnAlert";
 import {
   showToggleShown,
@@ -521,6 +522,25 @@ export function GameplaySettingsFields() {
             </p>
           </div>
 
+        );
+      case "popupSize":
+        return (
+          <div className="field">
+            <label htmlFor="popup-size">Pop-up size · {settings.popupSize}%</label>
+            <input
+              id="popup-size"
+              type="range"
+              className="range"
+              min={POPUP_SIZE_MIN}
+              max={POPUP_SIZE_MAX}
+              step={POPUP_SIZE_STEP}
+              value={settings.popupSize}
+              onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
+            />
+            <p className="field-hint">
+              How big the pop-ups are: the hover card, choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. Reset layout puts it back to 100%.
+            </p>
+          </div>
         );
       case "showOnScreen":
         return (

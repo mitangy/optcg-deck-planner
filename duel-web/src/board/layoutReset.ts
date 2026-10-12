@@ -1,6 +1,6 @@
 import type { DuelSettings } from "../settings";
 
-/** Everything "Reset layout" puts back: side panels and their sizes, the player's fan, the pinned opponent hand, both spectator fans, the card preview pop-up and where pop-ups open and the column they dock into. */
+/** Everything "Reset layout" puts back: side panels and their sizes, the player's fan, the pinned opponent hand, both spectator fans, the card preview pop-up (spot and size) and where pop-ups open and the column they dock into. */
 export const LAYOUT_RESET = {
   panelLayout: "",
   panelSizes: "",
@@ -11,6 +11,7 @@ export const LAYOUT_RESET = {
   spectatorFarFanPos: "",
   promptPos: "",
   previewPopupPos: "",
+  popupSize: 100,
   promptDock: "",
 } as const satisfies Partial<DuelSettings>;
 

@@ -18,6 +18,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Pop-up size (#555)
+    { id: "e2e-hover-popup-not-refit-after-growing", args: "popup-size-drag.spec --project=desktop-1280 -g \"made bigger\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "    applyPopupSize(settings.popupSize);\n", to: "", kills: ["popup-size-drag.spec.ts > a hover card pop-up dragged to the right edge stays on screen when it is made bigger (#555) [desktop-1280]"] },
+    { id: "e2e-choice-popup-ignores-size", args: "popup-size-drag.spec --project=desktop-1280 -g \"choice pop-up has\"", file: "duel-web/src/popupScale.css", from: ":root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {\n  scale: var(--popup-scale, 1);", to: ":root .arena .prompt-hide-wrap:not([data-docked]) .ability-prompt {\n  scale: 1;", kills: ["popup-size-drag.spec.ts > the choice pop-up has its own − / + that step the same setting and the pop-up grows (#555) [desktop-1280]"] },
+    { id: "e2e-float-row-not-fitted", args: "popup-size-drag.spec --project=phone-375 -g \"floating search row stays on screen at 160%\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  useFitPopupScale(stageRef);\n", to: "", kills: ["popup-size-drag.spec.ts > floating search row stays on screen at 160% (#555) [phone-375]"] },
     // One-tap actions: a double-click inspects, it never plays / attacks (#513). Both hand and board tiles go back to firing on the first click.
     { id: "e2e-one-tap-dblclick-acts", args: "one-tap.spec --project=desktop-1280 -g 513", edits: [
       { file: "duel-web/src/board/DuelBoard.tsx", from: "          instantClick={!prefs.oneTapActions}\n", to: "          instantClick\n" },
@@ -312,7 +316,7 @@ module.exports = {
       { file: "duel-web/src/board/promptDrag.ts", from: "      if (next.x !== offset.x || next.y !== offset.y) write(next);\n", to: "" },
     ], kills: ["prompt-drag.spec.ts > a prompt dragged during a battle stays on screen where it was dropped (#335) [desktop-1280]"] },
     // The effect-order pop-up does not dim the board and drags by its header (#449)
-    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: [
+    { id: "e2e-effect-order-scrim", args: "effect-order-popup -g \"undimmed\"", file: "duel-web/src/board/FloatingPrompt.tsx", from: "      <div ref={stageRef} className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", to: "      <div className=\"float-scrim\" aria-hidden />\n      <div ref={stageRef} className={`float-stage${free ? \" float-stage-free\" : \"\"}`}>", kills: [
       "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [desktop-1280]",
       "effect-order-popup.spec.ts > ordering simultaneous effects leaves the board undimmed and clickable behind it (#449) [phone-375]",
     ] },

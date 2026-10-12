@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { asDonArtId } from "./board/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
+import { clampPopupSize } from "./board/popupSize";
 import { PROMPT_DOCKS, type PromptDock } from "./board/promptDock";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
@@ -95,6 +96,8 @@ export type DuelSettings = {
   previewPopupPos: string;
   /** Desktop card preview pop-up: pinned = it stays open on the last hovered card instead of only showing while the mouse is on a card. Stays on this device. */
   previewPopupPinned: boolean;
+  /** Desktop card preview pop-up: its size as a percent of the default width (70 to 160, steps of 10). Stays on this device. */
+  popupSize: number;
   /**
    * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
    * float. Follows the account; phones and landscape phones (no side columns)
@@ -238,6 +241,7 @@ const DEFAULTS: DuelSettings = {
   promptPos: "",
   previewPopupPos: "",
   previewPopupPinned: false,
+  popupSize: 100,
   promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
@@ -348,6 +352,7 @@ function sanitize(
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;
   if (!SIDE_COLUMNS.includes(next.sideColumns)) next.sideColumns = DEFAULTS.sideColumns;
+  next.popupSize = clampPopupSize(next.popupSize);
   // Accounts store "no art" as 0 (their settings take only strings, numbers and booleans).
   next.donArt = asDonArtId(next.donArt);
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
@@ -362,6 +367,7 @@ const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
   "previewPopupPos",
   "previewPopupPinned",
+  "popupSize",
   "devUserKey",
   "promptPos",
 ];

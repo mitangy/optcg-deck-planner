@@ -6,6 +6,7 @@ import type { Box } from "./battleArc";
 import { CardTile } from "./CardTile";
 import { confirmQuestion } from "./handPrompt";
 import { heldCardSpot } from "./heldCardSpot";
+import { usePopupScale } from "./PopupSizeButtons";
 import { useConfirmKeys } from "./useBoardHotkeys";
 
 const EDGE = 8;
@@ -29,10 +30,12 @@ export function HandConfirmPrompt({
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const yesRef = useRef<HTMLButtonElement | null>(null);
+  const scale = usePopupScale();
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
-    setWidth(ref.current?.offsetWidth ?? 0);
-  }, [choice.id]);
+    const bubble = ref.current?.querySelector<HTMLElement>(".hand-confirm-bubble");
+    setWidth(Math.max(ref.current?.offsetWidth ?? 0, (bubble?.offsetWidth ?? 0) * scale));
+  }, [choice.id, scale]);
   useEffect(() => {
     yesRef.current?.focus({ preventScroll: true });
   }, [choice.id]);

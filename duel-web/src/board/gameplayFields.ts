@@ -100,6 +100,7 @@ export type SelectRowKey =
   | "sideColumns"
   | "animationSpeed"
   | "cardSpotlight"
+  | "popupSize"
   | "showOnScreen";
 
 export type RowKey = ToggleKey | SelectRowKey;
@@ -146,6 +147,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
       "sideColumns",
       "previewBigCard",
       "previewPopup",
+      "popupSize",
       "layoutGrips",
       "sidePanels",
       "showOnScreen",
@@ -181,6 +183,9 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
     case "sideColumns":
     case "sidePanels":
       return d.desktop;
+    // Sizes every pop-up in a match, phones included.
+    case "popupSize":
+      return true;
     case "endTurnConfirm":
     case "responseStops":
     case "handLayout":

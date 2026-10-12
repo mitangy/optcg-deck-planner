@@ -6,6 +6,7 @@ import { usePromptDodge } from "./usePromptDodge";
 import { updateSettings, useDuelSettings } from "../settings";
 import { usePromptDrag } from "./promptDrag";
 import { PromptDockContext, usePromptDockControls, usePromptDockHost, type PromptDock } from "./promptDock";
+import { PopupSizeButtons } from "./PopupSizeButtons";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "./useMediaQuery";
 import "./float.css";
 
@@ -153,6 +154,9 @@ export function PromptHideButton({ onHide }: { onHide?: () => void }) {
   if (!onHide) return null;
   return (
     <>
+      <span className="prompt-size-tools">
+        <PopupSizeButtons className="prompt-size-btn" />
+      </span>
       <PromptDockButtons />
       <button type="button" className="prompt-hide" onClick={onHide} aria-label="Hide this prompt to see your hand and the board">
         Hide
