@@ -570,8 +570,6 @@ const ENTRIES: [string, ManualEntry][] = [
   ]),
   card("OP16-001", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] Up to 1 of your [Monkey.D.Luffy] Characters",
     effect: keyword(upTo(1, myChar({ power: ge(8000), any: [{ names: ["Monkey.D.Luffy"] }, { traitIncludes: [WB] }] })), "rush") }]),
-  card("OP16-015", [{ trigger: "static", text: "If your Leader's card name includes \"Ace\"",
-    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] }]),
   card("OP16-038", [{ trigger: "main", text: "[Main] You may rest 6 of your DON!! cards: If you have 5 {Impel Down}",
     costs: [{ k: "rest_don", count: 6 }],
     effect: when(cmp({ count: { of: "distinct_names", selector: myChar({ traits: ["Impel Down"] }) } }, ">=", 5),
@@ -699,6 +697,23 @@ ENTRIES.push(["EB01-029", { abilities: [
     ) },
   { id: "eb01-029#1", trigger: "trigger", text: "[Trigger] Return up to 1 Character with a cost of 8 or less to the owner's hand.",
     effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
+] }]);
+
+// Full replacement (#567): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's or this
+// Character's base power is not already 7000 (a second activation would change nothing).
+ENTRIES.push(["OP16-015", { abilities: [
+  { id: "op16-015#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 Character card with 8000 power from your hand: Your Leader and this Character's base power becomes 7000 during this turn.",
+    conditions: [{ c: "or", conds: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      exists(myChar({ onlySelf: true, basePower: { op: "!=", value: 7000 } })),
+    ] }],
+    costs: [{ k: "trash_hand", count: 1, filter: { types: ["character"], power: eq(8000) } }],
+    effect: seq(
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" },
+      { do: "base_power", target: self, value: 7000, duration: "turn" },
+    ) },
+  { id: "op16-015#1", trigger: "static", text: "If your Leader's card name includes \"Ace\" and you have 6 or more DON!! cards on your field, give this card in your hand -2 cost.",
+    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
 ] }]);
 
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);
