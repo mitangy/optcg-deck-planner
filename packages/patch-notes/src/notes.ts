@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-12
+  { date: "2026-10-12", app: "duel", pr: 0, title: "Marshall.D.Teach negate lasts through the next turn again", text: "The 10-cost Marshall.D.Teach (OP09-093) again negates the Character it targets until the end of your opponent's next turn, the same as \"Cannot attack\"." },
   // 2026-10-11
   { date: "2026-10-11", app: "duel", pr: 557, title: "Log Pose docks only to shown columns", text: "Log Pose now docks only to a side column that is shown, so dragging it to the hidden side no longer makes it vanish. When you change Side columns it moves to the column that is left, and goes back to its own side when Both returns." },
   { date: "2026-10-11", app: "duel", pr: 553, title: "Drag a card anywhere to play it", text: "Drag a card from your hand anywhere on the board to play it; drop it back on your hand to keep it." },
