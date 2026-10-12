@@ -6496,7 +6496,7 @@ body.is-panel-drag * {
 }
 
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-rail {
-  --don-w: calc(var(--c) * min(0.36, (2.78 - 0.03 * (var(--don-count, 1) - 1)) / max(1, var(--don-count, 1))));
+  --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
   flex: 1 1 0;
   min-height: 0;
   flex-wrap: wrap;
@@ -6544,8 +6544,10 @@ body.is-panel-drag * {
 }
 
 /* A rested Leader or Stage turns at 85%, so the pair (Leader, Stage back to back)
-   spills 0.1 of a card into the cost area on one side and the DON!! deck's
-   column on the other, never onto a DON!! chip. */
+   spills 0.1 of a card into the DON!! deck's column on one side, and the rested
+   Leader reaches about 0.19 of a card past its cell toward the cost area on the
+   other. The cost area keeps that edge inset (rested or not, so nothing shifts
+   when the Leader turns) so its gray box is never under the Leader or on a DON!! chip. */
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-leader,
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage {
   --rest-k: 0.85;
@@ -6559,6 +6561,16 @@ body.is-panel-drag * {
 
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-stage {
   --rest-shift: calc(var(--c) * -0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-cost {
+  --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+  padding-right: var(--cost-inset);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-cost {
+  padding-right: 0;
+  padding-left: var(--cost-inset);
 }
 
 /* The turn-order tag stays inside the Life column, off the first Character. */
@@ -6651,6 +6663,16 @@ body.is-panel-drag * {
     --rest-shift: calc(var(--c) * -0.095);
   }
 
+  .arena.arena-big.arena-lp .side-field .zone-cost {
+    --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+    padding-right: var(--cost-inset);
+  }
+
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-cost {
+    padding-right: 0;
+    padding-left: var(--cost-inset);
+  }
+
   .arena.arena-big.arena-lp .side-field .don-strip {
     width: 100%;
     height: 100%;
@@ -6674,7 +6696,7 @@ body.is-panel-drag * {
   }
 
   .arena.arena-big.arena-lp .side-field .don-strip-rail {
-    --don-w: calc(var(--c) * min(0.36, (2.78 - 0.03 * (var(--don-count, 1) - 1)) / max(1, var(--don-count, 1))));
+    --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
     flex: 1 1 0;
     min-height: 0;
     flex-wrap: wrap;
