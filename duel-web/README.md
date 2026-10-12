@@ -96,6 +96,10 @@ Official card names and Bandai cardlist art URLs are for **private prototype tes
 
 The curated atlas prefers **TCGPlayer CDN** URLs (`tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`), same as the deck planner. Regenerate with `cd packages/rules && npm run export-atlas` (also writes `duel-web/src/assets/tcgProducts.json` for runtime stubs). Local `/cards/` mirrors remain a fallback when no product id is mapped. Bandai cardlist hotlinks are blocked in browsers (CORP) and must not ship in atlas `imageUrl`.
 
+### Preview art for new cards
+
+After importing new cards and running `export-atlas`, run `python3 scripts/sync_preview_art.py` (`--dry-run` to see the plan). Cards TCGPlayer has no image for yet get an unofficial preview in `public/cards/preview/<ID>.webp`, listed in `src/cards/previewArt.json`. The app shows it only after the TCGPlayer image fails (or when a card has no image URL at all). The script also deletes previews whose card now has TCGPlayer art, so re-run it after each art sync and commit the result.
+
 ## Tests
 
 ```bash

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { artAfterError, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
@@ -22,7 +22,7 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
           alt=""
           draggable={false}
           // Same fallback as CardTile: CDN art first, then the preview / local mirror.
-          onError={() => (!local && isTcgplayerCdnUrl(primary) ? setLocal(true) : setFailed(true))}
+          onError={() => (!local && (isTcgplayerCdnUrl(primary) || isLocalCardsUrl(primary)) ? setLocal(true) : setFailed(true))}
           onLoad={(e) => {
             if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
               if (!local) setLocal(true);

@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { artAfterError, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -301,7 +301,7 @@ export function CardTile({
   }
 
   function handleImgError() {
-    if (localFallbackFor !== primaryUrl && isTcgplayerCdnUrl(primaryUrl)) {
+    if (localFallbackFor !== primaryUrl && (isTcgplayerCdnUrl(primaryUrl) || isLocalCardsUrl(primaryUrl))) {
       setLocalFallbackFor(primaryUrl);
       return;
     }
