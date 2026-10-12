@@ -10,6 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import { currentSettings } from "../settings";
 import type { BattleLogEntry } from "./battleLog";
 import { prefersReducedMotion } from "./BoardMotion";
@@ -147,15 +148,17 @@ export function CardSpotlightLayer({
 
 function SpotlightCardView({ card }: { card: SpotlightCard }) {
   const entry = lookupCard(card.defId);
-  const src = resolveCardImageUrl(card.defId, { ownerSeat: card.ownerSeat, size: "large" });
-  const [failed, setFailed] = useState(false);
+  const { src, fail } = useArtFallback(
+    resolveCardImageUrl(card.defId, { ownerSeat: card.ownerSeat, size: "large" }),
+    card.defId,
+  );
   return (
     <div className="card-spotlight-card" data-entry-id={card.entryId} data-def-id={card.defId}>
       <div className="card-spotlight-art">
         {/* Shown until the art loads, and instead of art that fails. */}
         <span className="card-spotlight-name">{entry.name || card.defId}</span>
-        {src && !failed ? (
-          <img src={src} alt={entry.name} draggable={false} onError={() => setFailed(true)} />
+        {src ? (
+          <img src={src} alt={entry.name} draggable={false} onError={fail} />
         ) : null}
       </div>
       <span className="card-spotlight-label">{card.label}</span>

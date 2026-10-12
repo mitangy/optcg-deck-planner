@@ -1,4 +1,6 @@
 /** TCGplayer CDN size rewrite — mirrors frontend/src/cardImage.ts for duel-web. */
+import { previewArtPath } from "./previewArt";
+
 const TCGPLAYER_PRODUCT_IMAGE =
   /^(https?:\/\/tcgplayer-cdn\.tcgplayer\.com\/product\/\d+)(?:_[^./]+)?(\.[a-z0-9]+)$/i;
 
@@ -34,11 +36,13 @@ export function isTcgplayerCdnUrl(src: string | undefined | null): boolean {
 }
 
 /**
- * The art to try after `failed` did not load: the local mirror once when the
- * TCGplayer CDN fails, then nothing (show the text fallback).
+ * The art to try after `failed` did not load: when the TCGplayer CDN fails, the
+ * card's preview image if it has one (EB05, until the real art is out), else
+ * the local mirror; then nothing (show the text fallback).
  */
 export function artAfterError(failed: string, defId: string): string | null {
-  return isTcgplayerCdnUrl(failed) ? localCardArtPath(defId) : null;
+  if (!isTcgplayerCdnUrl(failed)) return null;
+  return previewArtPath(defId) ?? localCardArtPath(defId);
 }
 
 /**

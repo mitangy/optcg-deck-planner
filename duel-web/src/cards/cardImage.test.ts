@@ -37,6 +37,16 @@ describe("artAfterError", () => {
   });
 });
 
+describe("EB05 preview art", () => {
+  it("EB05 cards fall back to preview art when TCGPlayer art fails (#PR)", () => {
+    const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
+    const preview = artAfterError(cdn, "EB05-001");
+    expect(preview).toBe("/cards/preview/EB05-001.webp");
+    expect(artAfterError(preview!, "EB05-001")).toBeNull();
+    expect(artAfterError(cdn, "OP01-016")).toBe("/cards/OP01-016.png");
+  });
+});
+
 describe("TCGplayer placeholder art (#276)", () => {
   const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg";
 

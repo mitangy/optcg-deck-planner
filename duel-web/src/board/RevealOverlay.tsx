@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import type { BattleLogEntry } from "./battleLog";
 import { newOpponentReveals, type OpponentReveal } from "./revealCues";
 
@@ -48,11 +49,11 @@ export function RevealOverlay({
   onDismiss: () => void;
 }) {
   const entry = useMemo(() => (reveal ? lookupCard(reveal.defId) : null), [reveal]);
-  const src = useMemo(
+  const tcgSrc = useMemo(
     () => (reveal ? resolveCardImageUrl(reveal.defId, { ownerSeat: oppSeat, size: "large" }) : null),
     [reveal, oppSeat],
   );
-  const [failed, setFailed] = useState<string | null>(null);
+  const { src, fail } = useArtFallback(tcgSrc, reveal?.defId);
   useEffect(() => {
     if (!reveal) return;
     const t = window.setTimeout(onDismiss, SHOW_MS);
@@ -73,8 +74,8 @@ export function RevealOverlay({
         onClick={onDismiss}
         aria-label={`Opponent reveals ${entry.name}. Dismiss`}
       >
-        {src && src !== failed ? (
-          <img src={src} alt={entry.name} draggable={false} onError={() => setFailed(src)} />
+        {src ? (
+          <img src={src} alt={entry.name} draggable={false} onError={fail} />
         ) : (
           <div className="reveal-fallback">{entry.id}</div>
         )}

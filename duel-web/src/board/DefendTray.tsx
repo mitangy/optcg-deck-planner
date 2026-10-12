@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { artAfterError, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";
@@ -13,7 +13,7 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
     setLocal(false);
   }, [defId]);
   const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-  const src = local ? localCardArtPath(defId) : primary;
+  const src = local ? (primary ? artAfterError(primary, defId) : null) : primary;
   return (
     <span className="defend-chip-thumb" aria-hidden>
       {src && !failed ? (
@@ -21,7 +21,7 @@ function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
           src={src}
           alt=""
           draggable={false}
-          // Same fallback as CardTile: CDN art first, then the local mirror.
+          // Same fallback as CardTile: CDN art first, then the preview / local mirror.
           onError={() => (!local && isTcgplayerCdnUrl(primary) ? setLocal(true) : setFailed(true))}
           onLoad={(e) => {
             if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
