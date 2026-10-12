@@ -103,7 +103,8 @@ export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promis
 
 type Duel = {
   /** Lobby → Practice → Start practice, with fixed decks and a fixed shuffle seed. */
-  startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList }): Promise<void>;
+  /** `storage` is written to localStorage after the profile is cleared, before the app loads. */
+  startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList; storage?: Record<string, string> }): Promise<void>;
   /** Audit the current screen; issues matching `known` keys are dropped. */
   audit(opts?: { ignore?: string[] }): Promise<AuditIssue[]>;
   /** Page errors and console errors collected so far (network noise excluded). */
@@ -113,8 +114,10 @@ type Duel = {
 export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
   /**
    * Specs written before #529 expect the two-column board with the card preview docked in a column; this
-   * fills those two settings in (never over a value the spec stored itself). A spec about the new defaults
-   * turns it off with `test.use({ legacyLayout: false })`.
+   * fills those two settings in (never over a value the spec stored itself). Specs written before #556 also
+   * expect the normal-size board with the buttons floating between the mats (Bigger playing area and Buttons
+   * beside the board are on by default now), so those two are turned off here too. A spec about the new
+   * defaults turns it off with `test.use({ legacyLayout: false })`.
    */
   legacyLayout: [true, { option: true }],
   page: async ({ page, legacyLayout }, use) => {
@@ -128,7 +131,7 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
             try {
               const key = "optcg-duel:settings";
               const cur = JSON.parse(localStorage.getItem(key) || "{}");
-              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, ...cur }));
+              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, bigBoard: false, bigBoardChosen: true, actionsBeside: false, ...cur }));
             } catch {
               /* storage blocked: the board keeps its defaults */
             }
@@ -165,7 +168,7 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
 
     const duel: Duel = {
       errors,
-      async startPractice({ seed, you = RED_VANILLA, opponent = RED_VANILLA }) {
+      async startPractice({ seed, you = RED_VANILLA, opponent = RED_VANILLA, storage = {} }) {
         // The browser never sends a seed; add one to the room-create request so
         // shuffles (and therefore the whole game) repeat run to run.
         await page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
@@ -176,13 +179,14 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
           { id: "e2e-you", name: "E2E You", ...you, updatedAt: 1 },
           { id: "e2e-opp", name: "E2E Opponent", ...opponent, updatedAt: 0 },
         ];
-        await page.addInitScript((d) => {
+        await page.addInitScript(([d, extra]) => {
           if (sessionStorage.getItem("e2e-seeded")) return;
           sessionStorage.setItem("e2e-seeded", "1");
           localStorage.clear();
           localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
           localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-        }, decks);
+          for (const [k, v] of Object.entries(extra as Record<string, string>)) localStorage.setItem(k, v);
+        }, [decks, storage] as const);
         await page.goto("/");
         await page.getByRole("button", { name: "Play", exact: true }).click();
         await page.getByRole("dialog").getByRole("button", { name: /^Practice/ }).click();

@@ -133,6 +133,11 @@ const TOGGLES: Toggle[] = [
     hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. You can still drag the column edges; this mode keeps its own widths, so the ones you set for the normal layout are untouched.",
   },
   {
+    key: "actionsBeside",
+    label: "Buttons beside the board",
+    hint: "Computers: Keep / Mulligan, End turn and the other action buttons sit in the side column under Turn and clocks, so the two playmats touch with no strip between them. Off: the buttons float in a strip between the mats. Phones keep their layout.",
+  },
+  {
     key: "turnSplash",
     label: "Turn banner",
     hint: "Shows “Your turn” / “Opponent's turn” over the board.",

@@ -74,7 +74,7 @@ export {
 } from "./citations";
 export { clampSheet, clampSize, dragSheet, dragRect, keyRect, readSheet, readSize, writeSheet, writeSize, type Edge, type Frame, type Size } from "./panelSize";
 export { clampPos, dragPos, keyPos, readPos, writePos, type Pos } from "./panelPos";
-export { clampDockW, dockAt, keyDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSide } from "./panelDock";
+export { clampDockW, dockAt, fitDock, keyDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSide, type DockSides } from "./panelDock";
 export { growOrigin, compassRect, type Rect } from "./panelMotion";
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";

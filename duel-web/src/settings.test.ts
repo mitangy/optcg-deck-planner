@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings } from "./settings";
+import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings, updateSettings } from "./settings";
 
 function stubStored(value: unknown) {
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(value) });
@@ -324,13 +324,45 @@ describe("Show on screen and Bigger playing area (#449)", () => {
   it("follow the account: saved with it and applied from it", () => {
     stubStored({});
     const synced = syncedSettings(loadSettings());
-    expect(synced).toMatchObject({ bigBoard: false, showChat: true, showRecentPlays: true, showCardPreview: true });
+    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showRecentPlays: true, showCardPreview: true });
     const merged = mergeRemoteSettings(loadSettings(), {
       bigBoard: true,
+      bigBoardChosen: true,
       showChat: false,
       showRecentPlays: false,
       showCardPreview: false,
     });
     expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
+  });
+});
+
+describe("Bigger playing area is on unless chosen off (#556)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a stored false nobody chose becomes the new default (on), a chosen false stays off (#556)", () => {
+    stubStored({ bigBoard: false });
+    expect(loadSettings().bigBoard).toBe(true);
+    stubStored({ bigBoard: false, bigBoardChosen: true });
+    expect(loadSettings().bigBoard).toBe(false);
+    // The same holds for the copy kept on the account.
+    stubStored({});
+    expect(mergeRemoteSettings(loadSettings(), { bigBoard: false }).bigBoard).toBe(true);
+    expect(mergeRemoteSettings(loadSettings(), { bigBoard: false, bigBoardChosen: true }).bigBoard).toBe(false);
+  });
+
+  it("switching it by hand records the choice so the next load keeps it (#556)", () => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+    });
+    updateSettings({ bigBoard: false });
+    expect(loadSettings().bigBoard).toBe(false);
+    updateSettings({ tiltedBoard: true });
+    expect(loadSettings().bigBoard).toBe(false);
   });
 });

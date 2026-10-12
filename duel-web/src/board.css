@@ -5284,6 +5284,189 @@ body.is-panel-drag * {
   box-shadow: none;
 }
 
+/* —— Buttons beside the board (#556) ——
+   Computers: the dock rides in the side column's "actions" slot under Turn and
+   clocks, so no strip is needed between the mats. The strip is taken out of the
+   flow and its share is given back to the mats (the mat math subtracts
+   --midline-h and 3 gaps; the two gaps the strip would have cost are -2 gaps
+   here and the mats touch via a -1 gap margin), so the board is the same size
+   whether the mulligan banner, a battle line or nothing is showing. */
+.arena.arena-side-actions .playmat {
+  --midline-h: calc(-2 * var(--mat-gap));
+}
+
+.arena.arena-side-actions .midline {
+  display: none;
+}
+
+.arena.arena-side-actions .playmat-inner > .side-field.side-you {
+  margin-top: calc(-1 * var(--mat-gap));
+}
+
+.arena.arena-wide .board-panel[data-panel="actions"] {
+  flex: 0 0 auto;
+  min-height: min-content;
+}
+
+/* The row never changes height (mulligan, your turn, waiting, nothing); the
+   caption under it keeps two lines of room for the common cases. */
+.arena.arena-wide .board-panel[data-panel="actions"] > .actions-slot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  /* Lines up with the Turn panel above (same side padding). */
+  padding: 0 0.7rem 0.55rem;
+}
+
+.primary-dock.primary-dock-inline {
+  position: static;
+  transform: none;
+  z-index: auto;
+  width: 100%;
+  flex: 0 0 var(--dock-h);
+  min-height: var(--dock-h);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.primary-dock-inline .primary-dock-main {
+  flex: 1 1 0;
+  width: auto;
+}
+
+.primary-dock-inline .intent-btn.dock-extra {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline .intent-btn.intent-btn-primary {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline.has-extras .intent-btn.intent-btn-primary {
+  font-size: 0.78rem;
+}
+
+/* The primary's label ("Keep opening hand") is the longer one: it gets the bigger share. */
+.primary-dock-inline.has-extras .primary-dock-main {
+  flex-grow: 1.4;
+}
+
+/* Two half-width buttons (Mulligan and Keep, Resolve trigger and the primary) wrap
+   their labels onto two lines: no room for the key tags on top of that (the keys
+   still work). A lone primary keeps its Space tag. */
+.primary-dock-inline.has-extras .intent-btn.dock-extra[data-key-tag]::after,
+.primary-dock-inline.has-extras.has-primary .primary-dock-main::after {
+  content: none;
+}
+
+.primary-dock-inline.has-extras .intent-btn.dock-extra {
+  padding-right: 0.4rem;
+}
+
+.primary-dock-inline .waiting-opp {
+  height: 100%;
+  min-height: 0;
+  padding: 0.2rem 0.6rem;
+}
+
+.dock-caption {
+  min-height: calc(2 * 1.25 * 0.72rem + 0.5rem + 2px);
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.dock-caption .prompt {
+  /* Chrome, like the strip's prompt: a double-click must not select a word (#314). */
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-align: center;
+  background: rgb(var(--deep-rgb) / 0.94);
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+.dock-caption .prompt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dock-caption .prompt.prompt-battle {
+  background: var(--arena-raised);
+  border-color: var(--chrome);
+  font-weight: 600;
+}
+
+.dock-caption .dock-caption-mulligan {
+  margin: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
+  color: var(--ink);
+}
+
+.dock-caption .dock-caption-mulligan strong {
+  color: var(--chrome-bright);
+}
+
+/* A short window (1280x720 is one) cannot spare the caption's lines: the column
+   would push Chat below the fold. There a battle line floats just under the
+   buttons, over the top of the Hand panel (no room reserved, nothing moves); the
+   mulligan text stays in the flow, the Hand panel's cards are what that choice is
+   about. */
+@media (max-height: 800px) {
+  .arena.arena-side-actions .turn-panel {
+    gap: 0.35rem;
+    padding: 0.5rem 0.7rem 0.5rem;
+  }
+
+  /* Above the Hand panel's own layer (each panel isolates its z-index). */
+  .arena.arena-wide .board-panel[data-panel="actions"] {
+    z-index: 4;
+  }
+
+  .arena.arena-wide .board-panel[data-panel="actions"] > .actions-slot {
+    position: relative;
+    gap: 0.25rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .dock-caption:not(:has(.dock-caption-mulligan)) {
+    position: absolute;
+    left: 0.7rem;
+    right: 0.7rem;
+    top: calc(100% - 0.3rem);
+    z-index: 3;
+    min-height: 0;
+    pointer-events: none;
+  }
+}
+
 /* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */
 .opp-hand-corner {
   --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);

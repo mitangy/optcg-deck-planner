@@ -22,19 +22,38 @@ export const FLOAT_DEFAULT: Size = { w: 420, h: 600 };
 export const DOCK_KEY = "optcg-logpose:dock";
 export const DOCK_W_KEY = "optcg-logpose:dock-w";
 
+/** Which sides a game board has a column for (the others are hidden, e.g. by the one-column setting). */
+export type DockSides = { left: boolean; right: boolean };
+
 export type DockColumns = { left?: { left: number; right: number } | null; right?: { left: number; right: number } | null };
 
 /**
  * The side a drag docks to: the pointer within DOCK_EDGE of that screen edge, or over a board column (`columns`,
- * the game's left and right columns). Null otherwise.
+ * the game's left and right columns). Null otherwise, and null for a side that `sides` says is not shown.
  */
-export function dockAt(x: number, vpW: number, columns?: DockColumns): Dock {
+export function dockAt(x: number, vpW: number, columns?: DockColumns, sides?: DockSides): Dock {
+  const side = dockUnder(x, vpW, columns);
+  return side && sides && !sides[side] ? null : side;
+}
+
+function dockUnder(x: number, vpW: number, columns?: DockColumns): Dock {
   if (x <= DOCK_EDGE) return "left";
   if (x >= vpW - DOCK_EDGE) return "right";
   const over = (c?: { left: number; right: number } | null) => Boolean(c && x >= c.left && x <= c.right);
   if (over(columns?.left)) return "left";
   if (over(columns?.right)) return "right";
   return null;
+}
+
+/**
+ * The side a remembered dock lands on when only some columns are shown: itself when that column exists, else the
+ * other column, else null (it floats). Without `sides` (not in a game) the dock is kept. The saved side is never
+ * rewritten, so it comes back when its column does.
+ */
+export function fitDock(dock: Dock, sides?: DockSides | null): Dock {
+  if (!dock || !sides || sides[dock]) return dock;
+  const other: DockSide = dock === "left" ? "right" : "left";
+  return sides[other] ? other : null;
 }
 
 /** Whether a drag of (dx, dy) on a docked panel's header is far enough to undock it. */
@@ -58,7 +77,12 @@ export function dragDockW(start: number, side: DockSide, dx: number, vpW: number
  * window already touches), "undock" lets a docked panel go (the key points away from its edge), null leaves
  * the key to plain moving.
  */
-export function keyDock(dock: Dock, key: string, touches: { left: boolean; right: boolean }): DockSide | "undock" | null {
+export function keyDock(dock: Dock, key: string, touches: { left: boolean; right: boolean }, sides?: DockSides): DockSide | "undock" | null {
+  const act = keyDockUnfitted(dock, key, touches);
+  return act === "left" || act === "right" ? (sides && !sides[act] ? null : act) : act;
+}
+
+function keyDockUnfitted(dock: Dock, key: string, touches: { left: boolean; right: boolean }): DockSide | "undock" | null {
   if (dock) return (dock === "right" && key === "ArrowLeft") || (dock === "left" && key === "ArrowRight") ? "undock" : null;
   if (key === "ArrowLeft" && touches.left) return "left";
   if (key === "ArrowRight" && touches.right) return "right";
