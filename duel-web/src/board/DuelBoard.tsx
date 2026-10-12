@@ -92,6 +92,7 @@ import { useHandOrderSync } from "./handOrderSync";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
+import { useSideDockPlacement } from "./sideDockPlacement";
 import { PrimaryDock } from "./PrimaryDock";
 import { waitingOnOpponent } from "./waitingOnOpponent";
 import { DefendTray } from "./DefendTray";
@@ -449,6 +450,7 @@ export function DuelBoard({
     return singleSide ? mergeIntoColumn(saved, singleSide) : saved;
   }, [prefs.panelLayout, singleSide]);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
+  const playmatRef = useRef<HTMLDivElement | null>(null);
   const panelDrag = usePanelDrag(
     arenaBodyRef,
     panelLayout,
@@ -613,6 +615,16 @@ export function DuelBoard({
   }, [over, isReplay]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  /**
+   * "Buttons beside the board" (#556, #564): on a computer the dock rides in a narrow gutter against the
+   * right edge of the two mats, its primary button centred on the line where they meet, so the mats touch
+   * and nothing is a strip between them. The gutter is reserved for the whole game (not tied to `over`), so
+   * the board never moves or resizes when the buttons change. The tilted board leans the mats in
+   * perspective, so it keeps the floating dock in the strip.
+   */
+  const sideActions = prefs.actionsBeside && wide && !lp && !spectating && !tilted;
+  // The playmat only exists once the match view has arrived, so the placement effect re-runs then.
+  useSideDockPlacement(playmatRef, sideActions && view != null);
   const brief = useMatchBrief({
     source: matchBrief,
     role: spectating ? "spectator" : "player",
@@ -1883,17 +1895,6 @@ export function DuelBoard({
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
       : undefined;
-  /**
-   * "Buttons beside the board" (#556): on a computer the dock rides in the side column under Turn and
-   * clocks, so the mats touch and nothing is a strip between them. Not tied to `over`, so the board keeps
-   * its size when the game ends. Without the Turn panel there is no slot, and the floating dock is used.
-   */
-  const turnCol: PanelColumn | null = shownPanels.left.includes("turn")
-    ? "left"
-    : shownPanels.right.includes("turn")
-      ? "right"
-      : null;
-  const sideActions = prefs.actionsBeside && wide && !lp && !spectating && turnCol != null;
   const docked = wide && !lp && !spectating && !over && !sideActions;
   const mulliganBody =
     mulliganPhase && !spectating ? (
@@ -1927,41 +1928,7 @@ export function DuelBoard({
     const panels = ids.map((id, i) =>
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
-    // Buttons beside the board: the dock and its caption ride right under Turn and clocks (not movable).
-    let after = ids.indexOf("turn") + 1;
-    if (sideActions && view && column === turnCol) {
-      panels.splice(
-        after,
-        0,
-        <div key="actions" className="board-panel" data-panel="actions">
-          <div className="actions-slot">
-            <PrimaryDock
-              inline
-              primary={over ? null : dock.primary}
-              extras={over ? [] : dock.extras}
-              keyOffset={cardIntents.length}
-              waiting={oppWait}
-              view={view}
-              disabled={over}
-              confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
-              defend={defendPrimary}
-              counterLabel={counterLabel}
-              onSend={sendPrimary}
-            />
-            <div className="dock-caption" role="status">
-              {mulliganBody ? (
-                <p className="dock-caption-mulligan">{mulliganBody}</p>
-              ) : midlineShown ? (
-                <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
-                  <span className="prompt-text">{midlineShown}</span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>,
-      );
-      after += 1;
-    }
+    const after = ids.indexOf("turn") + 1;
     // Answering an attack: the defend tray rides under Turn and clocks (not movable).
     if (column === defendCol && railDefend && defendTray) {
       panels.splice(
@@ -2388,7 +2355,7 @@ export function DuelBoard({
           </aside>
         ) : null}
 
-        <div className="playmat" data-mat-drop={wide && !lp ? "" : undefined}>
+        <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
           <div className="playmat-inner">
             {farHand && (specFans === "portrait" || (specFans === "desktop" && !shownFarPos)) ? (
               <SpectatorFarHand
@@ -2560,6 +2527,32 @@ export function DuelBoard({
               }
             />
           </div>
+          {sideActions ? (
+            <div className="side-dock" data-side-dock>
+              <PrimaryDock
+                inline
+                primary={over ? null : dock.primary}
+                extras={over ? [] : dock.extras}
+                keyOffset={cardIntents.length}
+                waiting={oppWait}
+                view={view}
+                disabled={over}
+                confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+                defend={defendPrimary}
+                counterLabel={counterLabel}
+                onSend={sendPrimary}
+              />
+              <div className="dock-caption" role="status">
+                {mulliganBody ? (
+                  <p className="dock-caption-mulligan">{mulliganBody}</p>
+                ) : midlineShown ? (
+                  <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
+                    <span className="prompt-text">{midlineShown}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {wide && !lp ? (
