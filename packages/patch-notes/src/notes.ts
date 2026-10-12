@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-12
+  { date: "2026-10-12", app: "duel", pr: 563, title: "Marshall.D.Teach negate lasts through the next turn again", text: "The 10-cost Marshall.D.Teach (OP09-093) again negates the Character it targets until the end of your opponent's next turn, the same as \"Cannot attack\"." },
   { date: "2026-10-12", app: "duel", pr: 559, title: "Buttons beside the board, bigger playing area on", text: "On a computer, Keep / Mulligan, End turn and the other action buttons now sit in the side column under Turn and clocks, so the two playmats touch and the board no longer grows or shifts when the mulligan ends. The Mulligan text and the battle line show right under the buttons. Turn it off with Buttons beside the board in Gameplay settings to bring back the floating buttons between the mats. Bigger playing area is now on for everyone who never changed it; switch it off in Gameplay settings if you prefer the old size." },
   // 2026-10-11
   { date: "2026-10-11", app: "duel", pr: 557, title: "Log Pose docks only to shown columns", text: "Log Pose now docks only to a side column that is shown, so dragging it to the hidden side no longer makes it vanish. When you change Side columns it moves to the column that is left, and goes back to its own side when Both returns." },
