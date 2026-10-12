@@ -48,6 +48,8 @@ function measure(root: HTMLElement) {
     const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
     columns[column] = { left: r.left, right: r.right, top: actions ? actions.getBoundingClientRect().bottom : r.top };
     for (const p of col.querySelectorAll<HTMLElement>(":scope > [data-panel]")) {
+      // The action buttons and the defend tray ride in the column but are not movable panels (#556).
+      if (p.dataset.panel === "actions" || p.dataset.panel === "defend") continue;
       const pr = p.getBoundingClientRect();
       panels.push({ id: p.dataset.panel as PanelId, column, top: pr.top, bottom: pr.bottom });
     }

@@ -64,9 +64,13 @@ export function columnMaxPx(vw: number): number {
   return Math.max(COLUMN_MIN_PX, Math.min(COLUMN_MAX_PX, (vw * COLUMN_MAX_VW) / 100));
 }
 
-/** The narrowest a column drags to: the widest minimum among the panels now in it. */
+/**
+ * The narrowest a column drags to: the widest minimum among the panels now in it.
+ * The column also holds slots that are not movable panels (the action buttons, the
+ * defend tray); they have no entry and count for nothing (#556).
+ */
 export function columnMinPx(ids: readonly PanelId[]): number {
-  return Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, ...ids.map((id) => PANEL_MIN_WIDTH_PX[id])));
+  return Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, ...ids.map((id) => PANEL_MIN_WIDTH_PX[id] ?? 0)));
 }
 
 export function clampColumnWidth(px: number, vw: number, min: number = COLUMN_MIN_PX): number {

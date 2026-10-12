@@ -30,6 +30,7 @@ export type ToggleKey =
   | "oppHandTopRight"
   | "tiltedBoard"
   | "bigBoard"
+  | "actionsBeside"
   | "turnSplash"
   | "reduceMotion"
   | "turnAlert"
@@ -57,6 +58,8 @@ export function showOrientation(d: FieldDevice): boolean {
 export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "tiltedBoard") return d.tiltFits;
   if (key === "layoutGrips") return d.desktop;
+  // Phones keep their own layout for the action buttons.
+  if (key === "actionsBeside") return d.desktop;
   // The card preview panel is the desktop side column; phones don't show it.
   if (key === "previewBigCard") return d.desktop;
   // The pop-up replaces that same panel.
@@ -133,6 +136,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     chip: "Board",
     rows: [
       "bigBoard",
+      "actionsBeside",
       "tiltedBoard",
       "compactOwnBoard",
       "screenOrientation",
