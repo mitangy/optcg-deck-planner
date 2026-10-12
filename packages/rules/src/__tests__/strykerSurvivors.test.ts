@@ -4,7 +4,7 @@ import { addModifier } from "../engine/modifiers.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Behavior pinned from the 2026-10-12 weekly Stryker run (#PRNUM).
+// Behavior pinned from the 2026-10-12 weekly Stryker run (#561).
 
 const RAYLEIGH = "OP08-118"; // 8-cost, [On Play] gives 1 of your opponent's Characters -3000 power until the end of your opponent's next turn.
 const KEEP_OUT = "OP07-018"; // 1-cost Event, [Counter] +2000 power to a {Revolutionary Army} Character until the end of your next turn.
@@ -62,7 +62,7 @@ function toTurnOf(h: Harness, seat: Seat): void {
 
 describe("duration expiry", () => {
   for (const seat of [0, 1] as const) {
-    it(`"until the start of your next turn" lasts through the opponent's turn and ends at the start of seat ${seat}'s next turn (#PRNUM)`, () => {
+    it(`"until the start of your next turn" lasts through the opponent's turn and ends at the start of seat ${seat}'s next turn (#561)`, () => {
       const h = new Harness();
       toTurnOf(h, seat);
       const base = leaderPower(h, seat);
@@ -82,7 +82,7 @@ describe("duration expiry", () => {
   }
 
   for (const seat of [0, 1] as const) {
-    it(`"until the end of your opponent's next turn" applied by seat ${seat} ends after the other seat's turn (#PRNUM)`, () => {
+    it(`"until the end of your opponent's next turn" applied by seat ${seat} ends after the other seat's turn (#561)`, () => {
       const h = new Harness();
       toTurnOf(h, seat);
       const opp: Seat = seat === 0 ? 1 : 0;
@@ -101,7 +101,7 @@ describe("duration expiry", () => {
       expect(powerOf(h.state, opp, target!)).toBe(base);
     });
 
-    it(`"until the end of your next turn" lasts through seat ${seat}'s next turn and ends with it (#PRNUM)`, () => {
+    it(`"until the end of your next turn" lasts through seat ${seat}'s next turn and ends with it (#561)`, () => {
       const h = new Harness();
       const opp: Seat = seat === 0 ? 1 : 0;
       toTurnOf(h, opp);
@@ -126,7 +126,7 @@ describe("duration expiry", () => {
 });
 
 describe("delayed effects and end-of-battle triggers", () => {
-  it("\"at the end of this turn\" fires at the end of its own turn, once, and leaves nothing queued (#PRNUM)", () => {
+  it("\"at the end of this turn\" fires at the end of its own turn, once, and leaves nothing queued (#561)", () => {
     const h = new Harness();
     const [thatch] = h.field(0, THATCH);
     h.act(0, { type: "activate_ability", sourceId: thatch!.id, abilityId: "op03-005#0" });
@@ -139,7 +139,7 @@ describe("delayed effects and end-of-battle triggers", () => {
     expect(h.state.delayed).toEqual([]);
   });
 
-  it("\"at the start of your opponent's next Main Phase\" waits through the end of the turn and rests their DON!! only then (#PRNUM)", () => {
+  it("\"at the start of your opponent's next Main Phase\" waits through the end of the turn and rests their DON!! only then (#561)", () => {
     const h = new Harness({ leaders: [MULTICOLOR_LEADER, "ST01-001"] });
     h.hand(0, PRB_LUFFY);
     h.don(0, 4);
@@ -156,7 +156,7 @@ describe("delayed effects and end-of-battle triggers", () => {
     expect(h.state.delayed).toEqual([]);
   });
 
-  it("\"at the end of this battle\" fires when the battle ends, not before and not at the end of the turn (#PRNUM)", () => {
+  it("\"at the end of this battle\" fires when the battle ends, not before and not at the end of the turn (#561)", () => {
     const h = new Harness();
     const [bentham] = h.field(0, BENTHAM);
     h.attach(0, bentham!, 1);
@@ -173,7 +173,7 @@ describe("delayed effects and end-of-battle triggers", () => {
     expect(h.state.delayed).toEqual([]);
   });
 
-  it("an attacker's \"battles your opponent's Character\" trigger fires for a Character target and not for a Leader target (#PRNUM)", () => {
+  it("an attacker's \"battles your opponent's Character\" trigger fires for a Character target and not for a Leader target (#561)", () => {
     for (const target of ["character", "leader"] as const) {
       const h = new Harness();
       const [hawkins] = h.field(0, HAWKINS);
@@ -188,7 +188,7 @@ describe("delayed effects and end-of-battle triggers", () => {
     }
   });
 
-  it("a defender's \"battles your opponent's Character\" trigger fires for a Character attacker and not for a Leader attacker (#PRNUM)", () => {
+  it("a defender's \"battles your opponent's Character\" trigger fires for a Character attacker and not for a Leader attacker (#561)", () => {
     for (const attackerKind of ["character", "leader"] as const) {
       const h = new Harness();
       const [defender] = h.field(0, BENTHAM_KO);
@@ -221,7 +221,7 @@ describe("K.O. protection in battle", () => {
   }
 
   for (const life of [2, 3]) {
-    it(`"cannot be K.O.'d in battle" holds while its condition is met: Kaido with ${life} Life ${life <= 2 ? "survives" : "is K.O.'d"} (#PRNUM)`, () => {
+    it(`"cannot be K.O.'d in battle" holds while its condition is met: Kaido with ${life} Life ${life <= 2 ? "survives" : "is K.O.'d"} (#561)`, () => {
       const h = attackDefender(KAIDO, (hh, kaido) => {
         hh.attach(0, kaido, 1);
         hh.life(0, ...Array.from({ length: life }, () => ROBIN));
@@ -232,7 +232,7 @@ describe("K.O. protection in battle", () => {
   }
 
   for (const counter of [true, false]) {
-    it(`"cannot be K.O.'d during this battle" from a Counter Event ${counter ? "stops" : "(not played) does not stop"} the battle K.O. (#PRNUM)`, () => {
+    it(`"cannot be K.O.'d during this battle" from a Counter Event ${counter ? "stops" : "(not played) does not stop"} the battle K.O. (#561)`, () => {
       const h = attackDefender(ROBIN, (hh) => {
         hh.hand(0, YASAKANI, KAROO);
         hh.don(0, 1);
@@ -244,7 +244,7 @@ describe("K.O. protection in battle", () => {
   }
 
   for (const attackerKind of ["leader", "character"] as const) {
-    it(`"cannot be K.O.'d in battle by Leaders" ${attackerKind === "leader" ? "stops a Leader's battle K.O." : "does not stop a Character's battle K.O."} (#PRNUM)`, () => {
+    it(`"cannot be K.O.'d in battle by Leaders" ${attackerKind === "leader" ? "stops a Leader's battle K.O." : "does not stop a Character's battle K.O."} (#561)`, () => {
       const h = attackDefender(UTA_FILM, () => {}, attackerKind === "leader" ? "leader" : ROBIN);
       h.act(0, { type: "pass_counter" });
       expect(h.state.players[0].characters.map((c) => c.defId)).toEqual(attackerKind === "leader" ? [UTA_FILM] : []);
@@ -252,7 +252,7 @@ describe("K.O. protection in battle", () => {
   }
 
   for (const [attacker, label, protectedFromIt] of [[ROBIN, "a Character without <Special>", true], [MARCO, "a <Special> Character", false], ["leader", "a Leader", false]] as const) {
-    it(`"cannot be K.O.'d in battle by Characters without <Special>" ${protectedFromIt ? "stops" : "does not stop"} the battle K.O. by ${label} (#PRNUM)`, () => {
+    it(`"cannot be K.O.'d in battle by Characters without <Special>" ${protectedFromIt ? "stops" : "does not stop"} the battle K.O. by ${label} (#561)`, () => {
       const h = attackDefender(SMOKER, (hh, smoker) => hh.attach(0, smoker, 1), attacker);
       h.act(0, { type: "pass_counter" });
       expect(h.state.players[0].characters.map((c) => c.defId)).toEqual(protectedFromIt ? [SMOKER] : []);
@@ -274,7 +274,7 @@ describe("effect damage", () => {
     return h;
   }
 
-  it("effect damage takes exactly one Life card and the game goes on (#PRNUM)", () => {
+  it("effect damage takes exactly one Life card and the game goes on (#561)", () => {
     const h = koRobinAndDamage([KAROO, ROBIN]);
     h.decline(0); // the Life check of the card taken
     expect(h.state.players[0].life).toEqual([ROBIN]);
@@ -283,7 +283,7 @@ describe("effect damage", () => {
     expect(h.state.phase).toBe("main");
   });
 
-  it("taking the last Life card to effect damage does not lose the game (#PRNUM)", () => {
+  it("taking the last Life card to effect damage does not lose the game (#561)", () => {
     const h = koRobinAndDamage([KAROO]);
     h.decline(0);
     expect(h.state.players[0].life).toEqual([]);
@@ -292,7 +292,7 @@ describe("effect damage", () => {
     expect(h.state.phase).toBe("main");
   });
 
-  it("effect damage at 0 Life wins the game for the player who dealt it (#PRNUM)", () => {
+  it("effect damage at 0 Life wins the game for the player who dealt it (#561)", () => {
     const h = koRobinAndDamage([]);
     expect(h.state.winner).toBe(1);
     expect(h.state.phase).toBe("game_over");
@@ -320,29 +320,29 @@ describe("who may block", () => {
     return h;
   }
 
-  it("\"cannot activate a [Blocker] with N power or less\" stops exactly N and below (#PRNUM)", () => {
+  it("\"cannot activate a [Blocker] with N power or less\" stops exactly N and below (#561)", () => {
     const h = attackIntoBlockers(ADIO, 1, [BLUENO, HIGURASHI]);
     // 2000 power is stopped, 3000 power is not.
     expect(blockers(h)).toEqual([HIGURASHI]);
   });
 
-  it("\"cannot activate a [Blocker] with N power or more\" stops exactly N and above (#PRNUM)", () => {
+  it("\"cannot activate a [Blocker] with N power or more\" stops exactly N and above (#561)", () => {
     const h = attackIntoBlockers(USOPP, 2, [BLOCKER_4000, BLOCKER_5000, WANDA]);
     expect(blockers(h)).toEqual([BLOCKER_4000]);
   });
 
-  it("\"cannot activate the [Blocker] of a Character with a cost of N or less\" stops exactly cost N and below (#PRNUM)", () => {
+  it("\"cannot activate the [Blocker] of a Character with a cost of N or less\" stops exactly cost N and below (#561)", () => {
     const h = attackIntoBlockers(MORLEY, 0, [HIGURASHI, HINA, WANDA]);
     // Cost 2 and cost 5 are stopped; cost 6 is not.
     expect(blockers(h)).toEqual([WANDA]);
   });
 
-  it("[Unblockable] alone stops every block (#PRNUM)", () => {
+  it("[Unblockable] alone stops every block (#561)", () => {
     const h = attackIntoBlockers(HANCOCK, 0, [HIGURASHI, WANDA]);
     expect(blockers(h)).toEqual([]);
   });
 
-  it("\"your opponent cannot activate [Blocker]\" without the keyword stops every block (#PRNUM)", () => {
+  it("\"your opponent cannot activate [Blocker]\" without the keyword stops every block (#561)", () => {
     const h = new Harness();
     h.hand(0, BOW_DOWN);
     h.don(0, 2);
@@ -356,7 +356,7 @@ describe("who may block", () => {
     expect(blockers(h)).toEqual([]);
   });
 
-  it("with no block restriction in play both Blockers may block (#PRNUM)", () => {
+  it("with no block restriction in play both Blockers may block (#561)", () => {
     const h = attackIntoBlockers(ROBIN, 0, [HIGURASHI, WANDA]);
     expect(blockers(h)).toEqual([WANDA, HIGURASHI].sort());
   });
@@ -371,7 +371,7 @@ describe("who may attack", () => {
   }
 
   for (const hand of [1, 2]) {
-    it(`attack hand tax of 2: a hand of ${hand} card${hand === 1 ? "" : "s"} ${hand === 2 ? "may" : "may not"} attack (#PRNUM)`, () => {
+    it(`attack hand tax of 2: a hand of ${hand} card${hand === 1 ? "" : "s"} ${hand === 2 ? "may" : "may not"} attack (#561)`, () => {
       const h = new Harness({ leaders: [NEWGATE_LEADER, "ST01-001"] });
       h.life(0, KAROO, KAROO);
       h.hand(0, NEWGATE);
@@ -388,7 +388,7 @@ describe("who may attack", () => {
     });
   }
 
-  it("a Character that cannot attack a Leader the turn it is played may still attack a rested Character (#PRNUM)", () => {
+  it("a Character that cannot attack a Leader the turn it is played may still attack a rested Character (#561)", () => {
     const h = new Harness();
     const [karoo] = h.field(1, KAROO);
     karoo!.rested = true;
@@ -402,7 +402,7 @@ describe("who may attack", () => {
     expect(attackTargets(h, 0, h.state.players[0].leader.id)).toEqual(["character", "leader"]);
   });
 
-  it("\"you cannot attack a Leader during this turn\" applies to the Leader and Characters that were already there (#PRNUM)", () => {
+  it("\"you cannot attack a Leader during this turn\" applies to the Leader and Characters that were already there (#561)", () => {
     const h = new Harness();
     const [karoo] = h.field(1, KAROO);
     karoo!.rested = true;
@@ -428,7 +428,7 @@ describe("returning DON!! to the DON!! deck", () => {
     return h;
   }
 
-  it("returns rested DON!! before active DON!! (#PRNUM)", () => {
+  it("returns rested DON!! before active DON!! (#561)", () => {
     // 2 active + 8 rested after Black Maria adds 5; the opponent has 8, so 2 go back and the active pair stays.
     const h = endOfTurnReturn((hh) => hh.don(0, 2, 3), 8);
     const p = h.state.players[0];
@@ -439,7 +439,7 @@ describe("returning DON!! to the DON!! deck", () => {
     expect(p.donDeck.some((d) => d.rested)).toBe(false);
   });
 
-  it("returns active DON!! once no rested DON!! is left (#PRNUM)", () => {
+  it("returns active DON!! once no rested DON!! is left (#561)", () => {
     // 5 active + 5 rested after Black Maria adds 5; the opponent has 3, so all 5 rested go and 2 of the 5 active.
     const h = endOfTurnReturn((hh) => hh.don(0, 5), 3);
     const p = h.state.players[0];
@@ -448,7 +448,7 @@ describe("returning DON!! to the DON!! deck", () => {
     expect(p.donDeck).toHaveLength(7);
   });
 
-  it("falls back to attached DON!! when the cost area runs out (#PRNUM)", () => {
+  it("falls back to attached DON!! when the cost area runs out (#561)", () => {
     // The Leader has 6 attached and the cost area 4 (the DON!! deck is empty, so Black Maria adds none). The opponent has 4:
     // all 4 in the cost area go back, then 2 of the attached.
     const h = endOfTurnReturn((hh) => {
@@ -468,7 +468,7 @@ describe("paying a cost needs exactly enough", () => {
     return h.legal(seat).some((i) => i.type === "activate_ability" && i.sourceId === sourceId && i.abilityId === abilityId);
   }
 
-  it("placing N cards from the trash at the bottom of the deck needs N in the trash (#PRNUM)", () => {
+  it("placing N cards from the trash at the bottom of the deck needs N in the trash (#561)", () => {
     for (const trashed of [1, 2, 3]) {
       const h = new Harness();
       const [shirahoshi] = h.field(0, SHIRAHOSHI);
@@ -477,7 +477,7 @@ describe("paying a cost needs exactly enough", () => {
     }
   });
 
-  it("a K.O. cost cannot pick a Character that cannot be K.O.'d, by itself or by effects (#PRNUM)", () => {
+  it("a K.O. cost cannot pick a Character that cannot be K.O.'d, by itself or by effects (#561)", () => {
     for (const [protection, payable] of [[null, true], ["cannot_be_ko", false], ["cannot_be_ko_by_effect", false]] as const) {
       const h = new Harness({ leaders: [MORIA_LEADER, "ST01-001"] });
       const [perona] = h.field(0, PERONA);
@@ -486,14 +486,14 @@ describe("paying a cost needs exactly enough", () => {
     }
   });
 
-  it("a K.O. cost is payable when another Character can be K.O.'d (#PRNUM)", () => {
+  it("a K.O. cost is payable when another Character can be K.O.'d (#561)", () => {
     const h = new Harness({ leaders: [MORIA_LEADER, "ST01-001"] });
     const [perona] = h.field(0, PERONA, LOLA);
     addModifier(h.state, 0, undefined, { kind: "card", id: perona!.id }, { type: "restrict", restriction: "cannot_be_ko" }, { kind: "end_of_turn", turn: h.state.turnNumber });
     expect(canActivate(h, 0, h.state.players[0].leader.id, "op14-080#0")).toBe(true);
   });
 
-  it("giving the opponent's rested DON!! needs a rested DON!! and one of their Characters (#PRNUM)", () => {
+  it("giving the opponent's rested DON!! needs a rested DON!! and one of their Characters (#561)", () => {
     for (const [rested, characters, payable] of [[1, 1, true], [0, 1, false], [1, 0, false]] as const) {
       const h = new Harness();
       const [alvida] = h.field(0, ALVIDA);

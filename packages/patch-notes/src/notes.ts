@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-12
-  { date: "2026-10-12", app: "duel", pr: 560, title: "Uta and Crocodile can't be K.O.'d by Leaders", text: "Uta (ST08-002) and Crocodile (OP09-025) now survive a battle with a Leader, as their \"cannot be K.O.'d in battle by Leaders\" text says. Before, a Leader could still K.O. them." },
+  { date: "2026-10-12", app: "duel", pr: 561, title: "Uta and Crocodile can't be K.O.'d by Leaders", text: "Uta (ST08-002) and Crocodile (OP09-025) now survive a battle with a Leader, as their \"cannot be K.O.'d in battle by Leaders\" text says. Before, a Leader could still K.O. them." },
   // 2026-10-11
   { date: "2026-10-11", app: "duel", pr: 557, title: "Log Pose docks only to shown columns", text: "Log Pose now docks only to a side column that is shown, so dragging it to the hidden side no longer makes it vanish. When you change Side columns it moves to the column that is left, and goes back to its own side when Both returns." },
   { date: "2026-10-11", app: "duel", pr: 553, title: "Drag a card anywhere to play it", text: "Drag a card from your hand anywhere on the board to play it; drop it back on your hand to keep it." },
