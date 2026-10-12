@@ -162,7 +162,7 @@ import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY,
 import { MatchMenu } from "./MatchMenu";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
-import { useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
+import { fitDock, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
 import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
@@ -365,10 +365,12 @@ export function DuelBoard({
   const logPoseDock = useLogPoseDock();
   const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
   const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
-  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR);
   /** Desktop with one combined side column (the `sideColumns` setting): its side, else null (two columns). */
   const singleSide: PanelColumn | null = wide && !lp && prefs.sideColumns !== "both" ? prefs.sideColumns : null;
-  const logPoseSide = wide && !lp && logPoseDock.open ? (singleSide ?? logPoseDock.dock) : null;
+  const logPoseSides = useMemo(() => ({ left: singleSide !== "right", right: singleSide !== "left" }), [singleSide]);
+  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR, logPoseSides);
+  // The same fit the panel uses (fitDock), so the host the board renders is the one the panel looks for (#554).
+  const logPoseSide = wide && !lp && logPoseDock.open ? fitDock(logPoseDock.dock, logPoseSides) : null;
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
