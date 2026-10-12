@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
 import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
-import { costOf, keywordsOf, powerOf } from "../engine/queries.js";
+import { basePowerOf, costOf, keywordsOf, powerOf } from "../engine/queries.js";
 
 describe("choose a cost and reveal (OP11-081)", () => {
   it("K.O.s when the revealed card has the chosen cost", () => {
@@ -408,5 +408,44 @@ describe("Life face-up/down costs that name a position (#492)", () => {
     expect(h.choice?.request?.type).toBe("mode");
     h.pick("Bottom");
     expect(h.state.players[0].faceUpLife).toEqual([false, false, true]);
+  });
+});
+
+describe("OP16-015 Luffy On Your Opponent's Attack (#567)", () => {
+  function setup() {
+    const h = new Harness();
+    const [luffy] = h.field(1, "OP16-015");
+    h.hand(1, "OP16-016", "OP16-016");
+    const [a, b] = h.field(0, FILLER, FILLER);
+    h.life(1, FILLER, FILLER, FILLER);
+    return { h, luffy: luffy!, a: a!, b: b! };
+  }
+
+  it("OP16-015 is not offered again once both base powers are 7000 (#567)", () => {
+    const { h, luffy, a, b } = setup();
+    const leader = h.state.players[1].leader;
+    h.attack(a, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("OP16-016");
+    expect(basePowerOf(h.state, 1, leader)).toBe(7000);
+    expect(basePowerOf(h.state, 1, luffy)).toBe(7000);
+    h.passBattle();
+    h.attack(b, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(1);
+  });
+
+  it("OP16-015 is offered again when an effect changed the Leader's base power (#567)", () => {
+    const { h, a, b } = setup();
+    const leader = h.state.players[1].leader;
+    h.attack(a, "leader");
+    h.accept();
+    h.pick("OP16-016");
+    h.passBattle();
+    h.state.modifiers = h.state.modifiers.filter((m) => !(m.target.kind === "card" && m.target.id === leader.id && m.effect.type === "base_power"));
+    expect(basePowerOf(h.state, 1, leader)).not.toBe(7000);
+    h.attack(b, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
   });
 });
