@@ -1,11 +1,9 @@
 /**
- * Pop-up size and the draggable card action pop-up (#555).
+ * Pop-up size (#555).
  *
  * The Pop-up size setting (70 to 160%) scales every in-game pop-up: the hover card, choice
  * and search pop-ups, effect order, card actions, DON!! and hand confirms, reveals and the
- * pick bar. The − / + buttons in the hover card and choice pop-up headers step it. The card
- * actions pop-up has a grip that moves it; where it was left is remembered as an offset
- * from its normal spot on the card, for every card.
+ * pick bar. The − / + buttons in the hover card and choice pop-up headers step it.
  *
  * SHOTS=1 also saves screenshots to /mnt/project-files/popup-size-drag/.
  */
@@ -17,11 +15,9 @@ test.use({ legacyLayout: false });
 const SHOT_DIR = "/mnt/project-files/popup-size-drag";
 const POPUP = ".card-preview-popup";
 const ACTIONS = ".card-actions";
-const GRIP = ".card-actions-grip";
 const YOU = (id: string) => `.side-you [data-instance-id="${id}"]`;
 const phone = () => test.info().project.name === "phone-375";
 const desktopOnly = () => test.skip(test.info().project.name !== "desktop-1280", "desktop window");
-const phoneOnly = () => test.skip(!phone(), "phone");
 
 async function openDemo(page: Page, query = "", settings: Record<string, unknown> = {}) {
   await page.addInitScript((s) => {
@@ -56,14 +52,10 @@ async function drag(page: Page, from: { x: number; y: number }, dx: number, dy: 
   await page.mouse.up();
 }
 
-async function dragGrip(page: Page, dx: number, dy: number) {
-  const g = await rect(page.locator(GRIP));
-  await drag(page, { x: g.x + g.width / 2, y: g.y + g.height / 2 }, dx, dy);
-}
-
 async function press(page: Page, target: Locator) {
   if (phone()) await target.tap();
-  else await target.click();
+  // dispatchEvent: at 160% the hover card that the pointer move opens covers the card being clicked.
+  else await target.dispatchEvent("click");
 }
 
 /** Selecting a card opens its actions pop-up; Escape / an empty tap closes it. */
@@ -73,16 +65,7 @@ async function selectCard(page: Page, id: string) {
   await page.waitForTimeout(150);
 }
 
-async function deselect(page: Page) {
-  await page.keyboard.press("Escape");
-  if (await page.locator(ACTIONS).count()) {
-    // Phones have no keyboard: tap an empty spot of the board instead.
-    await page.mouse.click(8, 300);
-  }
-  await expect(page.locator(ACTIONS)).toHaveCount(0);
-}
-
-/** Whole box in the window, `edge` px from each side (0 = just in the window; the dragged pop-ups keep 8). */
+/** Whole box in the window, `edge` px from each side (0 = just in the window). */
 function inside(box: { x: number; y: number; width: number; height: number }, vp: { width: number; height: number }, edge = 0, tol = 1) {
   return box.x >= edge - tol && box.y >= edge - tol && box.x + box.width <= vp.width - edge + tol && box.y + box.height <= vp.height - edge + tol;
 }
@@ -197,91 +180,6 @@ for (const size of [70, 160]) {
   }
 }
 
-test("dragging the grip moves the action pop-up, and every card's pop-up then opens at that offset (#555)", async ({ page }) => {
-  desktopOnly();
-  await openDemo(page, ACTION_QUERY);
-  await selectCard(page, "y-leader");
-  const home = await rect(page.locator(ACTIONS));
-  await deselect(page);
-
-  await selectCard(page, "y-c3");
-  const c3Home = await rect(page.locator(ACTIONS));
-  await dragGrip(page, -140, -70);
-  await expect(page.locator(ACTIONS)).toBeVisible();
-  const moved = await rect(page.locator(ACTIONS));
-  expect(moved.x).toBeCloseTo(c3Home.x - 140, 0);
-  expect(moved.y).toBeCloseTo(c3Home.y - 70, 0);
-  expect((await stored(page)).actionPopoverOffset).toBe("-140,-70");
-
-  await deselect(page);
-  await selectCard(page, "y-leader");
-  const again = await rect(page.locator(ACTIONS));
-  expect(again.x).toBeCloseTo(home.x - 140, 0);
-  expect(again.y).toBeCloseTo(home.y - 70, 0);
-
-  // Double-clicking the grip puts it back for every card.
-  await page.locator(GRIP).dblclick();
-  const reset = await rect(page.locator(ACTIONS));
-  expect(reset.x).toBeCloseTo(home.x, 0);
-  expect(reset.y).toBeCloseTo(home.y, 0);
-  expect((await stored(page)).actionPopoverOffset).toBe("");
-});
-
-test("the action pop-up cannot be dragged off screen, and its buttons do not start a drag (#555)", async ({ page }) => {
-  desktopOnly();
-  await openDemo(page, ACTION_QUERY);
-  await selectCard(page, "y-leader");
-  const vp = page.viewportSize()!;
-  await dragGrip(page, -3000, -3000);
-  const tl = await rect(page.locator(ACTIONS));
-  expect(tl.x).toBeCloseTo(8, 0);
-  expect(tl.y).toBeCloseTo(8, 0);
-  await dragGrip(page, 3000, 3000);
-  const br = await rect(page.locator(ACTIONS));
-  expect(br.x + br.width).toBeCloseTo(vp.width - 8, 0);
-  expect(br.y + br.height).toBeCloseTo(vp.height - 8, 0);
-  await page.locator(GRIP).dblclick();
-  // Dragging from a button leaves the pop-up where it is.
-  const home = await rect(page.locator(ACTIONS));
-  const b = await rect(page.locator(ACTIONS).getByRole("button", { name: /Attack/ }));
-  await page.mouse.move(b.x + 10, b.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(b.x - 150, b.y - 90, { steps: 6 });
-  await page.mouse.up();
-  const after = await rect(page.locator(ACTIONS)).catch(() => null);
-  if (after) expect(after.x).toBeCloseTo(home.x, 0);
-  expect((await stored(page)).actionPopoverOffset ?? "").toBe("");
-});
-
-for (const [name, vp] of [["portrait", null], ["landscape", { width: 812, height: 375 }]] as const) {
-  test(`phone ${name}: the action pop-up is on screen, its grip drags it and it reopens moved (#555)`, async ({ page }) => {
-    phoneOnly();
-    if (vp) await page.setViewportSize(vp);
-    await openDemo(page, ACTION_QUERY);
-    const size = page.viewportSize()!;
-    await selectCard(page, "y-leader");
-    const home = await rect(page.locator(ACTIONS));
-    expect(inside(home, size, 8)).toBe(true);
-    const grip = await rect(page.locator(GRIP));
-    expect(grip.width).toBeGreaterThanOrEqual(24);
-    expect(grip.height).toBeGreaterThanOrEqual(20);
-    await dragGrip(page, -60, -40);
-    const moved = await rect(page.locator(ACTIONS));
-    expect(inside(moved, size, 8)).toBe(true);
-    expect(Math.abs(moved.x - home.x) + Math.abs(moved.y - home.y)).toBeGreaterThan(20);
-    await deselect(page);
-    await selectCard(page, "y-leader");
-    const again = await rect(page.locator(ACTIONS));
-    expect(again.x).toBeCloseTo(moved.x, 0);
-    expect(again.y).toBeCloseTo(moved.y, 0);
-    // Flung off every edge, it still stops fully on screen.
-    await dragGrip(page, -3000, -3000);
-    expect(inside(await rect(page.locator(ACTIONS)), size, 8)).toBe(true);
-    await dragGrip(page, 3000, 3000);
-    expect(inside(await rect(page.locator(ACTIONS)), size, 8)).toBe(true);
-  });
-}
-
 test("SHOTS=1 saves the pop-ups at 70, 100 and 160% (#555)", async ({ page }) => {
   test.skip(!process.env.SHOTS, "set SHOTS=1 to save screenshots");
   test.setTimeout(600_000);
@@ -298,9 +196,11 @@ test("SHOTS=1 saves the pop-ups at 70, 100 and 160% (#555)", async ({ page }) =>
         await page.goto("/demo?faceup=2");
         await page.locator(".board-root").waitFor();
         await page.waitForTimeout(400);
-        await page.locator(YOU("y-leader")).hover();
+        await page.locator(YOU("y-leader")).hover({ force: true });
         await page.waitForTimeout(300);
         await shot("card-popup");
+        // Park the pointer: at 160% the hover card would otherwise cover what the next step touches.
+        await page.mouse.move(1, 1);
       }
       for (const p of EVERY_POPUP.filter((c) => c.name !== "card actions" && !(c.desktopOnly && phone()))) {
         await page.goto(`/demo${p.query}`);
@@ -315,9 +215,6 @@ test("SHOTS=1 saves the pop-ups at 70, 100 and 160% (#555)", async ({ page }) =>
       await page.waitForTimeout(400);
       await selectCard(page, "y-leader");
       await shot("actions");
-      await dragGrip(page, -90, -50);
-      await page.waitForTimeout(200);
-      await shot("actions-moved");
       await page.evaluate(() => localStorage.removeItem("optcg-duel:settings"));
     }
   }

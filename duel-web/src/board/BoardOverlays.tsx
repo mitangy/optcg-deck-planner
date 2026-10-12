@@ -1,20 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { fallbackToDefaultDon, useDonArt } from "./donArt";
 import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
-import { updateSettings, useDuelSettings } from "../settings";
-import {
-  applyPopoverOffset,
-  parsePopoverOffset,
-  popoverPlacement,
-  serializePopoverOffset,
-  type CardActionText,
-  type PopoverOffset,
-  type PopoverSize,
-} from "./cardActions";
+import { popoverPlacement, type CardActionText, type PopoverSize } from "./cardActions";
 import { usePopupScale } from "./PopupSizeButtons";
 import { useTrackedBoxes } from "./useTrackedBoxes";
 
@@ -159,43 +150,8 @@ export function CardActionPopover({
   const shape = `${actions.map((a) => a.id).join("|")}/${donCounts.join(",")}`;
   const scale = usePopupScale();
   const size = useMeasuredSize(ref, `${shape}/${box == null}`, scale);
-  const saved = parsePopoverOffset(useDuelSettings().actionPopoverOffset);
-  /** The offset while the grip is being dragged. */
-  const [drag, setDrag] = useState<PopoverOffset | null>(null);
-  /** The offset as last drawn (after the viewport clamp): what a drop saves. */
-  const shownOffset = useRef<PopoverOffset | null>(null);
   if (!box || typeof document === "undefined") return null;
-  const viewport = { width: window.innerWidth, height: window.innerHeight };
-  const normal = popoverPlacement(box, size, viewport);
-  const place = applyPopoverOffset(normal, size, drag ?? saved, viewport);
-  shownOffset.current = { dx: place.left - normal.left, dy: place.top - normal.top };
-
-  const onGripDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const grip = e.currentTarget;
-    const start = { x: e.clientX, y: e.clientY };
-    const from = shownOffset.current ?? { dx: 0, dy: 0 };
-    let moved = false;
-    e.preventDefault();
-    e.stopPropagation();
-    grip.setPointerCapture?.(e.pointerId);
-    const move = (ev: PointerEvent) => {
-      moved = true;
-      setDrag({ dx: from.dx + ev.clientX - start.x, dy: from.dy + ev.clientY - start.y });
-    };
-    const end = (ev: PointerEvent) => {
-      grip.removeEventListener("pointermove", move);
-      grip.removeEventListener("pointerup", end);
-      grip.removeEventListener("pointercancel", end);
-      if (moved && ev.type === "pointerup" && shownOffset.current) {
-        updateSettings({ actionPopoverOffset: serializePopoverOffset(shownOffset.current) });
-      }
-      setDrag(null);
-    };
-    grip.addEventListener("pointermove", move);
-    grip.addEventListener("pointerup", end);
-    grip.addEventListener("pointercancel", end);
-  };
+  const place = popoverPlacement(box, size, { width: window.innerWidth, height: window.innerHeight });
 
   const style: CSSProperties = {
     left: place.left,
@@ -215,19 +171,6 @@ export function CardActionPopover({
       aria-label={`Actions for ${cardName}`}
       style={style}
     >
-      <div
-        className={`card-actions-grip${drag ? " is-dragging" : ""}`}
-        role="button"
-        tabIndex={-1}
-        aria-label="Move actions"
-        title="Drag to move, double-click to put back"
-        onPointerDown={onGripDown}
-        onDoubleClick={() => {
-          if (saved) updateSettings({ actionPopoverOffset: "" });
-        }}
-      >
-        <span aria-hidden>⠿</span>
-      </div>
       {donCounts.length > 0 && onDon ? (
         <div className="card-actions-don" role="group" aria-label={`Give DON!! to ${cardName}`}>
           <img src={donArt()} alt="" className="don-quick-icon" draggable={false} onError={fallbackToDefaultDon} />

@@ -8,10 +8,7 @@ import {
   counterIntentForHand,
   counterPrimaryLabel,
   humanizeAbilityId,
-  applyPopoverOffset,
-  parsePopoverOffset,
   popoverPlacement,
-  serializePopoverOffset,
   soleCardButton,
   splitCardActions,
 } from "./cardActions";
@@ -204,45 +201,5 @@ describe("one-tap on a card with a single pop-up button (#502)", () => {
     expect(soleCardButton(["attack", "activate"], [])).toBeNull();
     expect(soleCardButton([], [1, 2])).toBeNull();
     expect(soleCardButton(["attack"], [1, 2])).toBeNull();
-  });
-});
-
-describe("card action pop-up drag offset (#555)", () => {
-  const vp = { width: 1280, height: 720 };
-  const size = { width: 160, height: 150 };
-  const above = { left: 650, top: 410, above: true };
-  const below = { left: 650, top: 230, above: false };
-
-  it("reads a saved dx,dy and writes it back rounded (#555)", () => {
-    expect(parsePopoverOffset("40,-120")).toEqual({ dx: 40, dy: -120 });
-    expect(serializePopoverOffset({ dx: 40.4, dy: -119.6 })).toBe("40,-120");
-  });
-
-  it("an empty, unreadable or zero offset means the normal spot (#555)", () => {
-    for (const bad of ["", "12", "a,b", "1,2,3", ",5", "5,", "0,0"]) expect(parsePopoverOffset(bad), bad).toBeNull();
-  });
-
-  it("no offset leaves the placement as it is (#555)", () => {
-    expect(applyPopoverOffset(above, size, null, vp)).toEqual(above);
-  });
-
-  it("moves the popover by the offset from where it normally opens, above or below the card (#555)", () => {
-    expect(applyPopoverOffset(above, size, { dx: 100, dy: -50 }, vp)).toEqual({ left: 750, top: 360, above: true });
-    expect(applyPopoverOffset(below, size, { dx: -100, dy: 60 }, vp)).toEqual({ left: 550, top: 290, above: false });
-  });
-
-  it("keeps the whole popover 8px inside the viewport on every side (#555)", () => {
-    const far = applyPopoverOffset(above, size, { dx: 5000, dy: 5000 }, vp);
-    expect(far.left + 80).toBe(vp.width - 8);
-    expect(far.top).toBe(vp.height - 8); // above: top is its bottom edge
-    const near = applyPopoverOffset(below, size, { dx: -5000, dy: -5000 }, vp);
-    expect(near.left - 80).toBe(8);
-    expect(near.top).toBe(8);
-  });
-
-  it("a popover taller than the window keeps its top on screen (#555)", () => {
-    const tall = { width: 160, height: 900 };
-    const out = applyPopoverOffset({ left: 650, top: 8, above: false }, tall, { dx: 0, dy: 40 }, vp);
-    expect(out.top).toBe(8);
   });
 });

@@ -303,8 +303,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 /* +1 / +2 / All chips inside the card-actions popover. */
 .don-quick-icon {
-  width: 22px;
-  height: 31px;
+  width: 32px;
+  height: 45px;
   flex: none;
   border-radius: 2px;
   object-fit: cover;
@@ -344,32 +344,6 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   border: 1px solid var(--chrome);
   background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
-}
-
-/* Drag handle at the top of the popover: the only part that moves it. */
-.card-actions-grip {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 24px;
-  margin: -2px 0 -2px;
-  color: var(--muted);
-  line-height: 1;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.card-actions-grip:hover,
-.card-actions-grip.is-dragging {
-  color: var(--chrome-bright);
-}
-
-.card-actions-grip.is-dragging {
-  cursor: grabbing;
 }
 
 .card-actions-don {

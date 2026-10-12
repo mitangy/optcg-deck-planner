@@ -99,11 +99,6 @@ export type DuelSettings = {
   /** Desktop card preview pop-up: its size as a percent of the default width (70 to 160, steps of 10). Stays on this device. */
   popupSize: number;
   /**
-   * Where the card action pop-up was dragged, as an "x,y" pixel offset from its normal spot
-   * on the card (e.g. "40,-120"); "" = the normal spot. Stays on this device.
-   */
-  actionPopoverOffset: string;
-  /**
    * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
    * float. Follows the account; phones and landscape phones (no side columns)
    * ignore it. See board/promptDock.ts.
@@ -247,7 +242,6 @@ const DEFAULTS: DuelSettings = {
   previewPopupPos: "",
   previewPopupPinned: false,
   popupSize: 100,
-  actionPopoverOffset: "",
   promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
@@ -374,7 +368,6 @@ const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "previewPopupPos",
   "previewPopupPinned",
   "popupSize",
-  "actionPopoverOffset",
   "devUserKey",
   "promptPos",
 ];

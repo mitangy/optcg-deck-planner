@@ -239,15 +239,11 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { previewPopupPos: "1,1" }).previewPopupPos).toBe("640,72");
   });
 
-  it("keeps the card pop-up size and the action pop-up spot on this device, and pulls a bad size back into range (#555)", () => {
-    stubStored({ popupSize: 130, actionPopoverOffset: "30,-40" });
+  it("keeps the pop-up size on this device, and pulls a bad size back into range (#555)", () => {
+    stubStored({ popupSize: 130 });
     const synced = syncedSettings(loadSettings());
     expect(synced).not.toHaveProperty("popupSize");
-    expect(synced).not.toHaveProperty("actionPopoverOffset");
-    expect(mergeRemoteSettings(loadSettings(), { popupSize: 70, actionPopoverOffset: "1,1" })).toMatchObject({
-      popupSize: 130,
-      actionPopoverOffset: "30,-40",
-    });
+    expect(mergeRemoteSettings(loadSettings(), { popupSize: 70 })).toMatchObject({ popupSize: 130 });
     stubStored({ popupSize: 900 });
     expect(loadSettings().popupSize).toBe(160);
   });
