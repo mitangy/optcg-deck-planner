@@ -1696,7 +1696,6 @@ export function DuelBoard({
   // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,
   // Resolve trigger) floats at the board's midline; there is no Actions panel.
   // Phones keep the bottom IntentBar.
-  const docked = wide && !lp && !spectating && !over;
   const oppWait =
     spectating || over || hotseatPass ? null : waitingOnOpponent(view, mySeat);
   const sendPrimary = (intent: Intent) => {
@@ -1882,17 +1881,89 @@ export function DuelBoard({
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
       : undefined;
+  /**
+   * "Buttons beside the board" (#556): on a computer the dock rides in the side column under Turn and
+   * clocks, so the mats touch and nothing is a strip between them. Not tied to `over`, so the board keeps
+   * its size when the game ends. Without the Turn panel there is no slot, and the floating dock is used.
+   */
+  const turnCol: PanelColumn | null = shownPanels.left.includes("turn")
+    ? "left"
+    : shownPanels.right.includes("turn")
+      ? "right"
+      : null;
+  const sideActions = prefs.actionsBeside && wide && !lp && !spectating && turnCol != null;
+  const docked = wide && !lp && !spectating && !over && !sideActions;
+  const mulliganBody =
+    mulliganPhase && !spectating ? (
+      view.you.mulliganDone ? (
+        <>
+          <strong>Mulligan locked in.</strong> Waiting for the other seat
+          {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
+        </>
+      ) : (
+        <>
+          <strong>
+            {firstSeatLine({
+              youFirst,
+              boardSeat,
+              pickedBy: firstSeatPickedBy,
+              opponentName: seatName(players, oppSeat) ?? undefined,
+            })}
+          </strong>{" "}
+          {youFirst
+            ? "No draw and 1 DON!! on your first turn."
+            : "You draw and get 2 DON!! on your first turn."}{" "}
+          <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
+          shuffle them back and draw a new hand of 5. Life is dealt after both
+          players decide.
+        </>
+      )
+    ) : null;
   function renderColumnPanels(column: PanelColumn) {
     const ids = shownPanels[column];
     const sized = ids.some((id) => panelResize.shown.heights[id] != null);
     const panels = ids.map((id, i) =>
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
+    // Buttons beside the board: the dock and its caption ride right under Turn and clocks (not movable).
+    let after = ids.indexOf("turn") + 1;
+    if (sideActions && view && column === turnCol) {
+      panels.splice(
+        after,
+        0,
+        <div key="actions" className="board-panel" data-panel="actions">
+          <div className="actions-slot">
+            <PrimaryDock
+              inline
+              primary={over ? null : dock.primary}
+              extras={over ? [] : dock.extras}
+              keyOffset={cardIntents.length}
+              waiting={oppWait}
+              view={view}
+              disabled={over}
+              confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+              defend={defendPrimary}
+              counterLabel={counterLabel}
+              onSend={sendPrimary}
+            />
+            <div className="dock-caption" role="status">
+              {mulliganBody ? (
+                <p className="dock-caption-mulligan">{mulliganBody}</p>
+              ) : midlineShown ? (
+                <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
+                  <span className="prompt-text">{midlineShown}</span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>,
+      );
+      after += 1;
+    }
     // Answering an attack: the defend tray rides under Turn and clocks (not movable).
     if (column === defendCol && railDefend && defendTray) {
-      const at = ids.indexOf("turn") + 1;
       panels.splice(
-        at,
+        after,
         0,
         <div key="defend" className="board-panel" data-panel="defend">
           {defendTray}
@@ -2012,7 +2083,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
@@ -2275,34 +2346,12 @@ export function DuelBoard({
 
       {copilot.pill}
 
-      {mulliganPhase && !spectating ? (
+      {mulliganBody && !sideActions ? (
         <div
           className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
           role="status"
         >
-          {view.you.mulliganDone ? (
-            <>
-              <strong>Mulligan locked in.</strong> Waiting for the other seat
-              {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
-            </>
-          ) : (
-            <>
-              <strong>
-                {firstSeatLine({
-                  youFirst,
-                  boardSeat,
-                  pickedBy: firstSeatPickedBy,
-                  opponentName: seatName(players, oppSeat) ?? undefined,
-                })}
-              </strong>{" "}
-              {youFirst
-                ? "No draw and 1 DON!! on your first turn."
-                : "You draw and get 2 DON!! on your first turn."}{" "}
-              <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
-              shuffle them back and draw a new hand of 5. Life is dealt after both
-              players decide.
-            </>
-          )}
+          {mulliganBody}
         </div>
       ) : null}
 

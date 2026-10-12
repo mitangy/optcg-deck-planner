@@ -30,6 +30,9 @@ async function expectInputVisible(page: Page) {
   expect(send.y, "Send below the panel top").toBeGreaterThanOrEqual(panel.y);
 }
 
+// The chat has to fit in today's defaults (Bigger playing area, buttons beside the board), not the old layout.
+test.use({ legacyLayout: false });
+
 test.beforeEach(({}, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop side columns");
 });

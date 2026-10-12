@@ -113,8 +113,10 @@ type Duel = {
 export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
   /**
    * Specs written before #529 expect the two-column board with the card preview docked in a column; this
-   * fills those two settings in (never over a value the spec stored itself). A spec about the new defaults
-   * turns it off with `test.use({ legacyLayout: false })`.
+   * fills those two settings in (never over a value the spec stored itself). Specs written before #556 also
+   * expect the normal-size board with the buttons floating between the mats (Bigger playing area and Buttons
+   * beside the board are on by default now), so those two are turned off here too. A spec about the new
+   * defaults turns it off with `test.use({ legacyLayout: false })`.
    */
   legacyLayout: [true, { option: true }],
   page: async ({ page, legacyLayout }, use) => {
@@ -128,7 +130,7 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
             try {
               const key = "optcg-duel:settings";
               const cur = JSON.parse(localStorage.getItem(key) || "{}");
-              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, ...cur }));
+              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, bigBoard: false, bigBoardChosen: true, actionsBeside: false, ...cur }));
             } catch {
               /* storage blocked: the board keeps its defaults */
             }
