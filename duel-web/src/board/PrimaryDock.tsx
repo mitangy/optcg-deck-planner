@@ -155,6 +155,8 @@ type DockProps = Omit<ButtonProps, "primary"> & {
   /** Hotkey numbers of the extras start here (the selected card's own actions come first). */
   keyOffset?: number;
   waiting: WaitingOnOpponent | null;
+  /** In the side column's slot (#556): in flow, always rendered, the same height whatever it holds. */
+  inline?: boolean;
 };
 
 /**
@@ -164,18 +166,18 @@ type DockProps = Omit<ButtonProps, "primary"> & {
  * on its left so the primary never moves. Fixed position, so showing, hiding
  * or relabelling it never moves anything on the board.
  */
-export function PrimaryDock({ primary, extras = [], keyOffset = 0, waiting, ...button }: DockProps) {
+export function PrimaryDock({ primary, extras = [], keyOffset = 0, waiting, inline = false, ...button }: DockProps) {
   const show = primary != null || extras.length > 0 || waiting != null;
-  const anchor = useDockAnchor(show);
+  const anchor = useDockAnchor(show && !inline);
   const showKeyTags = useDuelSettings().shortcutTags;
-  if (!show || !anchor) return null;
+  if (inline ? false : !show || !anchor) return null;
   const tags = actionKeyTags(extras, keyOffset);
   return (
     <div
-      className={`primary-dock${primary ? " has-primary" : ""}${extras.length > 0 ? " has-extras" : ""}${
-        showKeyTags ? "" : " no-key-tag"
-      }`}
-      style={{ left: anchor.x, top: anchor.y }}
+      className={`primary-dock${inline ? " primary-dock-inline" : ""}${primary ? " has-primary" : ""}${
+        extras.length > 0 ? " has-extras" : ""
+      }${showKeyTags ? "" : " no-key-tag"}`}
+      style={inline || !anchor ? undefined : { left: anchor.x, top: anchor.y }}
     >
       {extras.map((intent, i) => (
         <button

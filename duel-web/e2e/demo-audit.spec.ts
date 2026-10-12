@@ -198,6 +198,8 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
 
 // The strip between the mats draws no divider line or diamond, but keeps its height for the prompt text (#449).
 test("an idle midline strip has no divider line and keeps the height of one with a prompt (#449)", async ({ page }) => {
+  // The strip exists in the floating-dock layout; with the buttons beside the board it is gone (#556).
+  await page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: false })));
   await page.goto("/demo?cantattack");
   await page.locator(".board-root").waitFor();
   await expect(page.locator(".midline")).toHaveCount(1);
@@ -211,14 +213,23 @@ test("an idle midline strip has no divider line and keeps the height of one with
 });
 
 // The prompt text in the strip between the mats is chrome: double-clicking it must not select a word (#314).
-test("double-clicking the midline prompt text selects nothing (#314)", async ({ page }) => {
-  await page.goto("/demo?attacked");
-  const text = page.locator(".midline .prompt-text");
-  await expect(text).toBeVisible();
-  await text.dblclick();
-  const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
-  expect(selected).toBe("");
-});
+for (const [where, beside, sel] of [
+  ["midline", false, ".midline .prompt-text"],
+  ["caption under the buttons", true, ".dock-caption .prompt-text"],
+] as const) {
+  test(`double-clicking the ${where} prompt text selects nothing (#314, #556)`, async ({ page }, info) => {
+    test.skip(beside && info.project.name !== "desktop-1280", "the dock caption is desktop only");
+    // A tall window keeps the caption in the column's flow; on a short one it floats and lets clicks through.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.addInitScript((b) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: b })), beside);
+    await page.goto("/demo?attacked");
+    const text = page.locator(sel);
+    await expect(text).toBeVisible();
+    await text.dblclick();
+    const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
+    expect(selected).toBe("");
+  });
+}
 
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
 test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
@@ -865,7 +876,13 @@ for (const vp of [
       test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
       await page.setViewportSize(vp);
       const open = async (oppHandSpot: string) => {
-        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), { oppHandSpot });
+        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
+          oppHandSpot,
+          // The normal-size board with the floating dock: this is about the strip the mat gives up.
+          bigBoard: false,
+          bigBoardChosen: true,
+          actionsBeside: false,
+        });
         await page.goto("/demo?full");
         await page.locator(".board-root").waitFor();
         await page.waitForTimeout(400);

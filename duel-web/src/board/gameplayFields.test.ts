@@ -17,6 +17,11 @@ const desktop: FieldDevice = { desktop: true, tiltFits: true, finePointer: true 
 const phone: FieldDevice = { desktop: false, tiltFits: false, finePointer: false };
 
 describe("gameplay rows by device", () => {
+  it("lists Buttons beside the board on a desktop window only, phones keep their own layout (#556)", () => {
+    expect(toggleShown("actionsBeside", desktop)).toBe(true);
+    expect(toggleShown("actionsBeside", phone)).toBe(false);
+  });
+
   it("hides the screen orientation lock with a mouse and shows it on a phone (#281)", () => {
     expect(showOrientation(desktop)).toBe(false);
     expect(showOrientation(phone)).toBe(true);
@@ -67,7 +72,7 @@ describe("Gameplay settings groups (#496)", () => {
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
     "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "totalPower", "oppHandTopRight",
-    "tiltedBoard", "bigBoard", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
+    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
   ];
 
   it("every gameplay switch and select belongs to exactly one group and none is dropped (#496)", () => {

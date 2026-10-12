@@ -173,6 +173,18 @@ export type DuelSettings = {
    * board's margins, gaps and chrome are trimmed so the mats and cards grow.
    */
   bigBoard: boolean;
+  /**
+   * True once Bigger playing area was switched by hand. Builds before #556
+   * stored `bigBoard: false` for everyone, so a stored false only counts
+   * as a choice when this is set (the default flipped to on).
+   */
+  bigBoardChosen: boolean;
+  /**
+   * Computers: Keep / Mulligan, End turn and the other action buttons sit in
+   * the side column under Turn and clocks, so the two playmats touch (#556).
+   * Off: they float in a strip between the mats.
+   */
+  actionsBeside: boolean;
   /** Desktop: the Recent plays panel (the Battle log has no switch). */
   showRecentPlays: boolean;
   /** Match chat: desktop panel, phone pill, landscape rail button. */
@@ -249,7 +261,9 @@ const DEFAULTS: DuelSettings = {
   textSize: "medium",
   lifeFan: "down",
   tiltedBoard: false,
-  bigBoard: false,
+  bigBoard: true,
+  bigBoardChosen: false,
+  actionsBeside: true,
   showRecentPlays: true,
   showChat: true,
   showCardPreview: true,
@@ -307,6 +321,8 @@ function sanitize(
     ...rest
   } = parsed;
   const next = { ...DEFAULTS, ...rest };
+  // Stored before the default flipped (#556): an untouched false is not a choice.
+  if (rest.bigBoardChosen !== true) next.bigBoard = DEFAULTS.bigBoard;
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
   if (rest.responseStops === undefined) next.responseStops = deviceDefaults().responseStops;
@@ -425,6 +441,7 @@ export function saveSettings(next: DuelSettings, opts: { remote?: boolean } = {}
 /** Merge a patch into the stored settings (used by the in-match settings sheet). */
 export function updateSettings(patch: Partial<DuelSettings>): DuelSettings {
   const next = { ...snapshot(), ...patch };
+  if ("bigBoard" in patch) next.bigBoardChosen = true;
   saveSettings(next);
   return next;
 }

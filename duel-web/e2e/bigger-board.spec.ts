@@ -16,6 +16,9 @@ const VIEWPORTS = [
   { name: "phone landscape 812x375", width: 812, height: 375, twoRow: true },
 ];
 
+/** The normal-size layout, switched off by hand (it is on by default since #556). */
+const OFF = { bigBoard: false, bigBoardChosen: true };
+
 test.beforeEach(({}, info) => {
   test.skip(info.project.name !== "desktop-1280", "sets its own viewports");
 });
@@ -38,9 +41,23 @@ async function mine(page: Page) {
   });
 }
 
+test.describe("defaults", () => {
+  test.use({ legacyLayout: false });
+  test("Bigger playing area is on by default, also for a stored false nobody chose, and stays off once chosen (#556)", async ({ page }) => {
+    const vp = VIEWPORTS[0]!;
+    // Nothing stored; and an older build's stored false that was never a choice.
+    for (const stored of [{}, { bigBoard: false }]) {
+      await openDemo(page, vp, "", stored);
+      await expect(page.locator(".board-root"), JSON.stringify(stored)).toHaveClass(/arena-big/);
+    }
+    await openDemo(page, vp, "", OFF);
+    await expect(page.locator(".board-root")).not.toHaveClass(/arena-big/);
+  });
+});
+
 for (const vp of VIEWPORTS) {
   test(`Bigger playing area makes your mat and its cards bigger at ${vp.name} (#449)`, async ({ page }) => {
-    await openDemo(page, vp, "", {});
+    await openDemo(page, vp, "", OFF);
     const off = await mine(page);
     await expect(page.locator(".board-root")).not.toHaveClass(/arena-big/);
 
@@ -91,7 +108,7 @@ async function leaderRow(page: Page) {
 
 for (const vp of VIEWPORTS.filter((v) => v.twoRow)) {
   test(`Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at ${vp.name} (#468)`, async ({ page }) => {
-    await openDemo(page, vp, "", {});
+    await openDemo(page, vp, "", OFF);
     const off = await leaderRow(page);
     // Off, they have a row of their own under the Leader.
     expect(off.cost.mid, "cost area below the Leader").toBeGreaterThan(off.leader.bottom);
@@ -107,7 +124,7 @@ for (const vp of VIEWPORTS.filter((v) => v.twoRow)) {
 }
 
 test("a column width dragged out in the normal layout does not carry into Bigger playing area, and comes back when it is off (#529)", async ({ page }) => {
-  const saved = { panelSizes: "L=330;R=400", sideColumns: "both" };
+  const saved = { ...OFF, panelSizes: "L=330;R=400", sideColumns: "both" };
   const colWidths = () =>
     page.evaluate(() => ({
       left: document.querySelector(".arena-left")!.getBoundingClientRect().width,
