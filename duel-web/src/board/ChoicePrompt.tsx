@@ -708,11 +708,13 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
   if (choice.kind === "life_trigger" && request.type === "confirm" && showSource) {
     return (
       <div className="ability-prompt life-trigger-card choice-prompt choice-confirm" role="dialog" aria-label={choice.prompt}>
-        {onHide ? (
-          <div className="life-trigger-tools">
-            <PromptHideButton onHide={onHide} />
-          </div>
-        ) : null}
+        {/* The drag grip: the pop-up has no header (#565). */}
+        <div className="life-trigger-tools" title="Drag to move, double-click to put back">
+          <span className="life-trigger-grip" aria-hidden>
+            ⠿
+          </span>
+          <PromptHideButton onHide={onHide} />
+        </div>
         <CardTile defId={choice.cardDefId} inspectGestures viewingSeat={mySeat} />
         <ConfirmButtons choice={choice} onSend={onSend} />
       </div>

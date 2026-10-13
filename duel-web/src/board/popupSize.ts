@@ -16,12 +16,22 @@ export function stepPopupSize(current: number, dir: 1 | -1): number {
   return clampPopupSize(clampPopupSize(current) + dir * POPUP_SIZE_STEP);
 }
 
-/** Set (or, for 100%, clear) --popup-scale on the page root, where every pop-up (portals included) reads it. */
+/** The two size settings: every pop-up but the hover card, and the hover card on its own (#572). */
+export type PopupSizeKey = "popupSize" | "previewPopupSize";
+
+/** The page-root variable each size setting writes (1 = 100%). */
+export const POPUP_SCALE_VAR: Record<PopupSizeKey, string> = {
+  popupSize: "--popup-scale",
+  previewPopupSize: "--preview-popup-scale",
+};
+
+/** Set (or, for 100%, clear) a size variable on the page root, where every pop-up (portals included) reads it. */
 export function applyPopupSize(
   size: number,
   root: { style: { setProperty(name: string, value: string): void; removeProperty(name: string): void } } = document.documentElement,
+  key: PopupSizeKey = "popupSize",
 ): void {
   const pct = clampPopupSize(size);
-  if (pct === POPUP_SIZE_DEFAULT) root.style.removeProperty("--popup-scale");
-  else root.style.setProperty("--popup-scale", String(pct / 100));
+  if (pct === POPUP_SIZE_DEFAULT) root.style.removeProperty(POPUP_SCALE_VAR[key]);
+  else root.style.setProperty(POPUP_SCALE_VAR[key], String(pct / 100));
 }

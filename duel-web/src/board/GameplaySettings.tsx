@@ -538,7 +538,26 @@ export function GameplaySettingsFields() {
               onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
             />
             <p className="field-hint">
-              How big the pop-ups are: the hover card, choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. Reset layout puts it back to 100%.
+              How big the pop-ups are: choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. The hover card has its own size, below. Reset layout puts it back to 100%.
+            </p>
+          </div>
+        );
+      case "previewPopupSize":
+        return (
+          <div className="field">
+            <label htmlFor="preview-popup-size">Card pop-up size · {settings.previewPopupSize}%</label>
+            <input
+              id="preview-popup-size"
+              type="range"
+              className="range"
+              min={POPUP_SIZE_MIN}
+              max={POPUP_SIZE_MAX}
+              step={POPUP_SIZE_STEP}
+              value={settings.previewPopupSize}
+              onChange={(e) => updateSettings({ previewPopupSize: clampPopupSize(Number(e.target.value)) })}
+            />
+            <p className="field-hint">
+              How big the hover card pop-up is, apart from the other pop-ups. It stops growing once the card would no longer fit the window. The − and + buttons in its top bar change this too. Reset layout puts it back to 100%.
             </p>
           </div>
         );

@@ -835,9 +835,22 @@
   z-index: 41;
   top: 72px;
   right: calc(var(--rail-w, 0px) + 16px);
-  /* --popup-scale is the Card pop-up size setting (1 = 100%); never wider than the window. */
-  width: min(calc(clamp(280px, 22vw, 420px) * var(--popup-scale, 1)), calc(100vw - 16px));
-  max-height: calc(100dvh - 80px);
+  /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once
+     it has been dragged), the header, the padding and border, and for the small card + text view a share for the text.
+     The card is 5:7, so the box is never wider than that room allows; past it the pop-up stops growing instead of
+     the card stopping inside a bigger and bigger empty box. */
+  --pp-room: 80px;
+  --pp-head: 2.9rem;
+  --pp-pad: 0.6rem;
+  --pp-text: 7rem;
+  --pp-art-h: calc(100dvh - var(--pp-room) - var(--pp-head) - 2 * var(--pp-pad) - 2px - var(--pp-text));
+  /* --preview-popup-scale is the Card pop-up size setting (1 = 100%); never wider than the window. */
+  width: min(
+    calc(clamp(280px, 22vw, 420px) * var(--preview-popup-scale, 1)),
+    calc(100vw - 16px),
+    max(200px, calc(var(--pp-art-h) * 5 / 7 + 2 * var(--pp-pad) + 2px))
+  );
+  max-height: calc(100dvh - var(--pp-room));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -846,6 +859,16 @@
   background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
   overflow: hidden;
+}
+
+/* The big card has no text under it. */
+.arena .card-preview-popup.card-preview-popup-big {
+  --pp-text: 0px;
+}
+
+/* A dragged pop-up may use the whole window height. */
+.arena .card-preview-popup.card-preview-popup-placed {
+  --pp-room: 16px;
 }
 
 .arena .card-preview-popup.is-dragging {
@@ -964,9 +987,9 @@
   box-sizing: border-box;
 }
 
+/* No height cap here: the pop-up's width is capped instead (.card-preview-popup), so the art box stays 5:7 and fills it. */
 .card-preview-in-popup .card-preview-img,
 .card-preview-in-popup .card-preview-placeholder {
-  max-height: min(62dvh, 600px);
   object-fit: contain;
 }
 
@@ -2469,16 +2492,45 @@ body.is-panel-drag * {
 }
 /* Hide / dock stay reachable but small, in a row above the card (off the art). */
 .life-trigger-card .life-trigger-tools {
-  align-self: stretch;
+  /* As wide as the card (more only if the buttons need it), centred over it. */
+  align-self: center;
+  width: max-content;
+  min-width: var(--lt-w);
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 0.3rem;
   margin-bottom: -0.3rem;
+  min-height: 1.4rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.life-trigger-card.is-dragging .life-trigger-tools {
+  cursor: grabbing;
+}
+/* Grip mark on the left; Hide, dock and size buttons stay on the right. */
+.life-trigger-card .life-trigger-grip {
+  margin-right: auto;
+  padding-left: 0.2rem;
+  color: var(--muted, currentColor);
+  opacity: 0.7;
+  font-family: system-ui, sans-serif;
+  line-height: 1;
 }
 .life-trigger-card .life-trigger-tools .prompt-hide,
-.life-trigger-card .life-trigger-tools .prompt-dock-tools {
+.life-trigger-card .life-trigger-tools .prompt-dock-tools,
+.life-trigger-card .life-trigger-tools .prompt-size-tools {
   position: static;
+}
+.life-trigger-card .life-trigger-tools button {
+  cursor: pointer;
+}
+.life-trigger-card .prompt-size-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.85rem;
 }
 .life-trigger-card .prompt-hide {
   height: 1.4rem;
