@@ -5,7 +5,7 @@ import type { Intent, PendingChoiceView, Seat } from "../net/protocol";
 import type { Box } from "./battleArc";
 import { CardTile } from "./CardTile";
 import { confirmQuestion } from "./handPrompt";
-import { heldCardSpot } from "./heldCardSpot";
+import { clampHeldBottom, heldCardSpot } from "./heldCardSpot";
 import { usePopupScale } from "./PopupSizeButtons";
 import { useConfirmKeys } from "./useBoardHotkeys";
 
@@ -32,9 +32,18 @@ export function HandConfirmPrompt({
   const yesRef = useRef<HTMLButtonElement | null>(null);
   const scale = usePopupScale();
   const [width, setWidth] = useState(0);
+  const [height, setHeight] = useState(0);
+  const [viewportH, setViewportH] = useState(() => (typeof window === "undefined" ? 0 : window.innerHeight));
+  useEffect(() => {
+    const onResize = () => setViewportH(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   useLayoutEffect(() => {
     const bubble = ref.current?.querySelector<HTMLElement>(".hand-confirm-bubble");
     setWidth(Math.max(ref.current?.offsetWidth ?? 0, (bubble?.offsetWidth ?? 0) * scale));
+    // The bubble scales up from its bottom centre, so it grows upward past the layout box.
+    setHeight((ref.current?.offsetHeight ?? 0) + (bubble?.offsetHeight ?? 0) * (scale - 1));
   }, [choice.id, scale]);
   useEffect(() => {
     yesRef.current?.focus({ preventScroll: true });
@@ -55,7 +64,8 @@ export function HandConfirmPrompt({
   const spot = heldCardSpot(anchor, headerEl ? headerEl.getBoundingClientRect() : null);
   const style: CSSProperties = {
     left,
-    top: spot.bottom,
+    // Kept on screen even when the hand was tucked below the viewport when this was sent.
+    top: clampHeldBottom(spot.bottom, spot.lift, height, viewportH, EDGE),
     ["--hold-gap" as string]: `${spot.gap}px`,
     ["--card-lift" as string]: `${spot.lift}px`,
     // The card's centre stays over its old hand slot even when the bubble is clamped.
