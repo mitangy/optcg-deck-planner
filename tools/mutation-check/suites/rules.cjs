@@ -443,11 +443,10 @@ module.exports = {
     // "Your opponent chooses one" options are reworded for the opponent who picks (#305)
     { id: "opp-mode-labels-controller-view", file: "packages/rules/src/engine/runtime.ts", from: "label: chooser === frame.seat ? label : forOpponent(label)", to: "label", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
     { id: "opp-mode-sentences-unflipped", file: "packages/rules/src/engine/perspective.ts", from: "    const flipped = flipSentence(end ? trimmed.slice(0, -1) : trimmed);", to: "    const flipped = end ? trimmed.slice(0, -1) : trimmed;", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
-    // OP09-093 Teach: owner ruling (#537) - the Character negate lasts only this turn, "cannot attack" lasts through the opponent's next turn
-    { id: "teach-char-negate-next-turn", file: "packages/rules/src/cards/manualAbilities.ts", from: "{ do: \"negate\", target: upTo(1, oppChar(CHAR), { bind: \"_last\" }), duration: \"turn\" }", to: "{ do: \"negate\", target: upTo(1, oppChar(CHAR), { bind: \"_last\" }), duration: \"until_end_of_opponent_next_turn\" }", kills: ["Teach's Character negate ends with its turn but Cannot attack lasts through the opponent's next turn (#537)"] },
-    { id: "teach-cannot-attack-this-turn", file: "packages/rules/src/cards/manualAbilities.ts", from: "restrict(v(\"_last\"), \"cannot_attack\", \"until_end_of_opponent_next_turn\")", to: "restrict(v(\"_last\"), \"cannot_attack\", \"turn\")", kills: ["Teach's Character negate ends with its turn but Cannot attack lasts through the opponent's next turn (#537)"] },
-    { id: "teach-leader-negate-next-turn", file: "packages/rules/src/cards/manualAbilities.ts", from: "{ do: \"negate\", target: { ref: \"all\", selector: sel(\"opponent\", \"leader\", { types: [\"leader\"] }) }, duration: \"turn\" }", to: "{ do: \"negate\", target: { ref: \"all\", selector: sel(\"opponent\", \"leader\", { types: [\"leader\"] }) }, duration: \"until_end_of_opponent_next_turn\" }", kills: ["Teach's Character negate ends with its turn but Cannot attack lasts through the opponent's next turn (#537)"] },
-    { id: "teach-char-negate-never-expires", file: "packages/rules/src/engine/runtime.ts", from: "{ type: \"negate\" }, expiryFor(state, frame.seat, effect.duration));", to: "{ type: \"negate\" }, expiryFor(state, frame.seat, \"permanent\"));", kills: ["Teach's Character negate ends with its turn but Cannot attack lasts through the opponent's next turn (#537)"] },
+    // OP09-093 Teach: the Character's negation lasts as long as its "cannot attack"; the Leader's only this turn (#333)
+    { id: "teach-char-negate-this-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[1].steps[0].duration = "turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-leader-negate-next-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[0].then.duration = "until_end_of_opponent_next_turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-char-negate-never-expires", file: "packages/rules/src/engine/runtime.ts", from: "{ type: \"negate\" }, expiryFor(state, frame.seat, effect.duration));", to: "{ type: \"negate\" }, expiryFor(state, frame.seat, \"permanent\"));", kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
     // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
     {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
     // Life check on every hit: the opponent must not learn whether the card had a [Trigger] (#352)
@@ -658,7 +657,7 @@ module.exports = {
     { id: "lint-event-card-reads-skipped", file: LINT, from: `if (o.ref === "event_card") out.add("_event");`, to: "", kills: ["`_event` is bound only for event triggers"] },
     { id: "lint-filter-var-reads-skipped", file: LINT, from: `for (const key of FILTER_VAR_KEYS) if (typeof o[key] === "string") out.add(o[key] as string);`, to: "", kills: ["filters that name a variable read it", "header conditions and statics have no variables"] },
     { id: "lint-mill-bind-not-written", file: LINT, from: `if ((effect.do === "mill" || effect.do === "reveal_top") && effect.bind)`, to: `if (effect.do === "reveal_top" && effect.bind)`, kills: ["flags a read of a variable no step writes", "a binding on only one branch still counts"] },
-    { id: "lint-to-life-writes-affected", file: LINT, from: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play"])`, to: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "to_life"])`, kills: ["`_affected` is written by removals and plays but not by to_life"] },
+    { id: "lint-to-life-writes-affected", file: LINT, from: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"])`, to: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate", "to_life"])`, kills: ["`_affected` is written by removals and plays but not by to_life"] },
     { id: "lint-choose-bind-ignored", file: LINT, from: `case "select": case "mode": return [{ name: instr.bind, def: OTHER }];`, to: `case "mode": return [{ name: instr.bind, def: OTHER }];`, kills: ["reads before the binding step do not count"] },
     { id: "lint-join-requires-all-paths", file: LINT, from: "if (have) mergeInto(have, defs); else before[to] = cloneDefs(defs);", to: "if (have) { for (const k of [...have.keys()]) if (!defs.has(k)) have.delete(k); } else before[to] = cloneDefs(defs);", kills: ["a binding on only one branch still counts as bound afterwards"] },
     { id: "lint-event-always-bound", file: LINT, from: `if (events.every((e) => EVENT_CARRIES_CARD[e])) bind("_event");`, to: `bind("_event");`, kills: ["`_event` is bound only for event triggers"] },
@@ -751,6 +750,8 @@ module.exports = {
     // OP08-045 Thatch: the trash that replaces a K.O. is not a K.O. (Q&A).
     scn("thatch-replacement-kos", "OP08-045", (a) => { a[0].replacement.instead.steps[0] = { do: "ko", target: { ref: "self" } }; }, ["EB01-047 does not trigger when Thatch is trashed instead of being K.O.'d"]),
     // OP12-040 Kuzan: only {Navy} card effects, which includes Borsalino's replacement (Q&A).
+    {"id":"luffy-op16-015-always-offered","file":"packages/rules/src/cards/manualAbilities.ts","from":"    conditions: [{ c: \"or\", conds: [\n      cmp({ count: { of: \"leader_base_power\", player: \"you\" } }, \"!=\", 7000),\n      exists(myChar({ onlySelf: true, basePower: { op: \"!=\", value: 7000 } })),\n    ] }],\n","to":"","kills":["OP16-015 is not offered again once both base powers are 7000 (#567)"]},
+    {"id":"luffy-op16-015-only-leader-checked","file":"packages/rules/src/cards/manualAbilities.ts","from":"      cmp({ count: { of: \"leader_base_power\", player: \"you\" } }, \"!=\", 7000),\n","to":"","kills":["OP16-015 is offered again when an effect changed the Leader's base power (#567)"]},
     scnManual("kuzan-any-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you" }, effect: draw(1) }]),`, ["OP12-040 does not draw when a card that is not {Navy}"]),
     scnManual("kuzan-wrong-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Marines"] } }, effect: draw(1) }]),`, ["OP12-040 draws when Borsalino trashes a card"]),
     // Weekly Stryker survivors 2026-10-12 (#560)
@@ -793,5 +794,33 @@ module.exports = {
     {"id": "stryker-ko-cost-needs-more-than-count", "file": "packages/rules/src/engine/queries.ts", "from": "\"cannot_be_ko_by_effect\")).length >= cost.count;", "to": "\"cannot_be_ko_by_effect\")).length > cost.count;", "kills": ["a K.O. cost is payable when another Character can be K.O.'d"]},
     {"id": "stryker-give-opponent-don-needs-more-than-count", "file": "packages/rules/src/engine/queries.ts", "from": ".filter((d) => d.rested).length >= cost.count && o.characters.length > 0; }", "to": ".filter((d) => d.rested).length > cost.count && o.characters.length > 0; }", "kills": ["giving the opponent's rested DON!! needs a rested DON!! and one of their Characters"]},
     {"id": "stryker-give-opponent-don-needs-no-character", "file": "packages/rules/src/engine/queries.ts", "from": ".length >= cost.count && o.characters.length > 0; }", "to": ".length >= cost.count; }", "kills": ["giving the opponent's rested DON!! needs a rested DON!! and one of their Characters"]},
+    // OP18 import (#577): grammar and primitives learned for the 24 new cards.
+    { id: "op18-karoo-either-type", edits: [
+      { file: "packages/rules/src/tools/cardText/phrases.ts", from: "filter.traits = first; filter.all = [...(filter.all ?? []), { traits: second }]; continue;", to: "filter.traits = [...first, ...second]; continue;" },
+      { json: ABILITIES, patch: (a) => { for (const st of a["OP18-001"].abilities[0].statics) { const f = st.target.all.filter; f.traits = ["Animal", "Alabasta"]; delete f.all; } } },
+    ], kills: ["OP18-001 powers and grants Rush only to Characters with both {Animal} and {Alabasta}"] },
+    { id: "op18-gunko-any-zone", edits: [
+      { file: "packages/rules/src/tools/cardText/compileCard.ts", from: "fromZone: m[2]!.toLowerCase() as \"hand\" | \"trash\", ", to: "" },
+      { json: ABILITIES, patch: (a) => { delete a["OP18-060"].abilities[0].eventTrigger.fromZone; } },
+    ], kills: ["OP18-060 does nothing when the Character is played from the hand"] },
+    { id: "op18-gunko-hand-only", edits: [
+      { file: "packages/rules/src/tools/cardText/compileCard.ts", from: "fromZone: m[2]!.toLowerCase() as \"hand\" | \"trash\", ", to: "fromZone: \"hand\" as \"hand\" | \"trash\", " },
+      { json: ABILITIES, patch: (a) => { a["OP18-060"].abilities[0].eventTrigger.fromZone = "hand"; } },
+    ], kills: ["OP18-060 draws 2 and trashes 1 when a Character is played from your trash"] },
+    { id: "op18-shark-leader-unfiltered", edits: [
+      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"you\", zone: \"leader\" } }" },
+      { json: ABILITIES, patch: (a) => { delete a["OP18-076"].abilities[1].effect.steps[0].target.selector.filter; } },
+    ], kills: ["OP18-076 leaves a Leader above 5000 power alone"] },
+    { id: "op18-shark-wrong-leader", edits: [
+      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"opponent\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }" },
+      { json: ABILITIES, patch: (a) => { a["OP18-076"].abilities[1].effect.steps[0].target.selector.player = "opponent"; } },
+    ], kills: ["OP18-076 gives a 5000 power Leader and the chosen Characters +1000"] },
+    { id: "op18-activate-not-affected", file: "packages/rules/src/engine/runtime.ts", from: "if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }", to: "if (loc.card && isOnField(loc)) { loc.card.rested = false; }", kills: ["OP18-022 Monkey.D.Luffy setting the Leader active (and attacking again) keeps it rested through the next Refresh Phase"] },
+    { id: "op18-lint-activate-not-affected", file: LINT, from: `"play", "activate"])`, to: `"play"])`, kills: [LINT_REGISTRY] },
+    scn("op18-luffy-restrict-ungated", "OP18-022", (a) => { const s = a[0].effect.steps; s[1] = s[1].then; }, ["declining leaves the Leader rested and refreshes it normally"]),
+    { id: "op18-event-card-rush-target", edits: [
+      { file: GRAMMAR_FILE, from: "target: ctx.eventCard && /^that character/i.test(m[0]) ? { ref: \"event_card\" } : { ref: \"var\", name: \"_affected\" }", to: "target: { ref: \"var\", name: \"_affected\" }" },
+      { json: ABILITIES, patch: (a) => { a["OP16-079"].abilities[0].effect.target = { ref: "var", name: "_affected" }; } },
+    ], kills: ["OP16-079 the Character played from the trash gains Rush"] },
   ],
 };

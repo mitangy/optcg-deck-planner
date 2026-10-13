@@ -5,6 +5,7 @@ import { BackLink } from "./BackLink";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import {
   deleteDeck,
   ensureDefaultDeck,
@@ -140,9 +141,8 @@ function PlannerRow({
   /** Phones: swipe sideways to add; resolves false when nothing was added. */
   onSwipe?: () => Promise<boolean | undefined>;
 }) {
-  const art = deck.leader_image_url || null;
-  const [failedArt, setFailedArt] = useState<string | null>(null);
-  const showArt = Boolean(art) && art !== failedArt;
+  const { src: art, fail: failArt } = useArtFallback(deck.leader_image_url || null, deck.leader_card_id);
+  const showArt = Boolean(art);
   const count = deck.main_cards || deck.card_count;
   return (
     <SwipeRow
@@ -169,7 +169,7 @@ function PlannerRow({
             src={art!}
             alt=""
             loading="lazy"
-            onError={() => setFailedArt(art)}
+            onError={failArt}
           />
         ) : (
           <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>
@@ -199,10 +199,12 @@ function DeckRow({
   onDelete: () => void;
 }) {
   const leader = lookupCard(deck.leaderId);
-  const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
-  const [failedArtSrc, setFailedArtSrc] = useState<string | null>(null);
+  const { src: leaderArt, fail: failLeaderArt } = useArtFallback(
+    resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }),
+    deck.leaderId,
+  );
   const canDelete = !deck.id.startsWith("test-");
-  const showArt = Boolean(leaderArt) && leaderArt !== failedArtSrc;
+  const showArt = Boolean(leaderArt);
 
   return (
     <SwipeRow
@@ -216,7 +218,7 @@ function DeckRow({
             src={leaderArt!}
             alt=""
             loading="lazy"
-            onError={() => setFailedArtSrc(leaderArt ?? null)}
+            onError={failLeaderArt}
           />
         ) : (
           <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>

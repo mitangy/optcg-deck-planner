@@ -41,6 +41,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
+| `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
 | `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |
 

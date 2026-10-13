@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings } from "./settings";
+import { loadSettings, mergeRemoteSettings, resolveHandLayout, syncedSettings, updateSettings } from "./settings";
 
 function stubStored(value: unknown) {
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify(value) });
@@ -239,6 +239,26 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { previewPopupPos: "1,1" }).previewPopupPos).toBe("640,72");
   });
 
+  it("keeps the pop-up size on this device, and pulls a bad size back into range (#555)", () => {
+    stubStored({ popupSize: 130 });
+    const synced = syncedSettings(loadSettings());
+    expect(synced).not.toHaveProperty("popupSize");
+    expect(mergeRemoteSettings(loadSettings(), { popupSize: 70 })).toMatchObject({ popupSize: 130 });
+    stubStored({ popupSize: 900 });
+    expect(loadSettings().popupSize).toBe(160);
+  });
+
+  it("keeps the card pop-up size on this device apart from the pop-up size, and pulls a bad size back into range (#572)", () => {
+    stubStored({ popupSize: 130, previewPopupSize: 80 });
+    const synced = syncedSettings(loadSettings());
+    expect(synced).not.toHaveProperty("previewPopupSize");
+    expect(mergeRemoteSettings(loadSettings(), { previewPopupSize: 160 })).toMatchObject({ previewPopupSize: 80, popupSize: 130 });
+    stubStored({ previewPopupSize: 900, popupSize: 100 });
+    expect(loadSettings()).toMatchObject({ previewPopupSize: 160, popupSize: 100 });
+    stubStored({});
+    expect(loadSettings().previewPopupSize).toBe(100);
+  });
+
   it("takes the one-column choice from the account and falls back to one column on the right for an unknown value (#529)", () => {
     stubStored({ sideColumns: "left" });
     expect(syncedSettings(loadSettings()).sideColumns).toBe("left");
@@ -311,13 +331,45 @@ describe("Show on screen and Bigger playing area (#449)", () => {
   it("follow the account: saved with it and applied from it", () => {
     stubStored({});
     const synced = syncedSettings(loadSettings());
-    expect(synced).toMatchObject({ bigBoard: false, showChat: true, showRecentPlays: true, showCardPreview: true });
+    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showRecentPlays: true, showCardPreview: true });
     const merged = mergeRemoteSettings(loadSettings(), {
       bigBoard: true,
+      bigBoardChosen: true,
       showChat: false,
       showRecentPlays: false,
       showCardPreview: false,
     });
     expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
+  });
+});
+
+describe("Bigger playing area is on unless chosen off (#556)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a stored false nobody chose becomes the new default (on), a chosen false stays off (#556)", () => {
+    stubStored({ bigBoard: false });
+    expect(loadSettings().bigBoard).toBe(true);
+    stubStored({ bigBoard: false, bigBoardChosen: true });
+    expect(loadSettings().bigBoard).toBe(false);
+    // The same holds for the copy kept on the account.
+    stubStored({});
+    expect(mergeRemoteSettings(loadSettings(), { bigBoard: false }).bigBoard).toBe(true);
+    expect(mergeRemoteSettings(loadSettings(), { bigBoard: false, bigBoardChosen: true }).bigBoard).toBe(false);
+  });
+
+  it("switching it by hand records the choice so the next load keeps it (#556)", () => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+    });
+    updateSettings({ bigBoard: false });
+    expect(loadSettings().bigBoard).toBe(false);
+    updateSettings({ tiltedBoard: true });
+    expect(loadSettings().bigBoard).toBe(false);
   });
 });

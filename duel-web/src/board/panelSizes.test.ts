@@ -72,6 +72,12 @@ describe("panel sizes (#347)", () => {
     expect(nudgeColumnWidth(260, false, 1440, 250)).toBe(250);
   });
 
+  it("the action buttons' slot in a column does not turn its minimum width into NaN (#556)", () => {
+    // The column's children include [data-panel="actions"] and "defend", which are not panel ids.
+    expect(columnMinPx(["oppHand", "turn", "actions", "hand"] as never)).toBe(250);
+    expect(columnMinPx(["actions", "defend"] as never)).toBe(180);
+  });
+
   it("a content-sized panel keeps its natural height in a split, the others only their floor (#370)", () => {
     expect(panelMinHeight("turn", 0, 250)).toBe(250);
     expect(panelMinHeight("turn", 0, 40)).toBe(72);

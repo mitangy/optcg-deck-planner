@@ -265,9 +265,8 @@ describe("optional costs and K.O. (OP02-062 Luffy / OP01-006 Otama)", () => {
 
 describe("OP09-093 Marshall.D.Teach negate durations", () => {
   // Official text: 相手のキャラ1枚までを、次の相手のターン終了時まで、効果を無効にし、そのキャラはアタックできない。
-  // The official FAQ only rules on the attack duration (until the end of the opponent's next turn). The owner ruled (#537)
-  // that the Character's negation lasts only for the turn Teach is activated; the Leader's negation is also "this turn" only.
-  it("Teach's Character negate ends with its turn but Cannot attack lasts through the opponent's next turn (#537)", () => {
+  // The Character's negation and "cannot attack" share one duration; the Leader's negation is "this turn" only.
+  it("Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)", () => {
     const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });
     h.hand(0, "OP09-093");
     h.don(0, 10);
@@ -281,8 +280,7 @@ describe("OP09-093 Marshall.D.Teach negate durations", () => {
 
     h.act(0, { type: "end_turn" });
     expect(h.view(1).you.leader.statusLabels).not.toContain("Effects negated");
-    expect(h.view(1).you.characters[0]!.statusLabels).not.toContain("Effects negated");
-    expect(h.view(1).you.characters[0]!.statusLabels).toContain("Cannot attack");
+    expect(h.view(1).you.characters[0]!.statusLabels).toEqual(expect.arrayContaining(["Effects negated", "Cannot attack"]));
 
     h.act(1, { type: "end_turn" });
     expect(h.view(0).opponent.characters[0]!.statusLabels).not.toContain("Effects negated");

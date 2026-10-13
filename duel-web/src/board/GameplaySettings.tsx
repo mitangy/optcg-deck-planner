@@ -15,6 +15,7 @@ import {
 } from "../settings";
 import { useLockNote } from "./orientation";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
+import { POPUP_SIZE_MAX, POPUP_SIZE_MIN, POPUP_SIZE_STEP, clampPopupSize } from "./popupSize";
 import { playTurnChime } from "./turnAlert";
 import {
   showToggleShown,
@@ -130,6 +131,11 @@ const TOGGLES: Toggle[] = [
     key: "bigBoard",
     label: "Bigger playing area",
     hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. You can still drag the column edges; this mode keeps its own widths, so the ones you set for the normal layout are untouched.",
+  },
+  {
+    key: "actionsBeside",
+    label: "Buttons beside the board",
+    hint: "Computers: Keep / Mulligan, End turn and the other action buttons sit right beside the mats, at the line where they meet, so the two playmats touch with no strip between them. Off: the buttons float in a strip between the mats. The tilted board and phones keep their layout.",
   },
   {
     key: "turnSplash",
@@ -516,6 +522,44 @@ export function GameplaySettingsFields() {
             </p>
           </div>
 
+        );
+      case "popupSize":
+        return (
+          <div className="field">
+            <label htmlFor="popup-size">Pop-up size · {settings.popupSize}%</label>
+            <input
+              id="popup-size"
+              type="range"
+              className="range"
+              min={POPUP_SIZE_MIN}
+              max={POPUP_SIZE_MAX}
+              step={POPUP_SIZE_STEP}
+              value={settings.popupSize}
+              onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
+            />
+            <p className="field-hint">
+              How big the pop-ups are: choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. The hover card has its own size, below. Reset layout puts it back to 100%.
+            </p>
+          </div>
+        );
+      case "previewPopupSize":
+        return (
+          <div className="field">
+            <label htmlFor="preview-popup-size">Card pop-up size · {settings.previewPopupSize}%</label>
+            <input
+              id="preview-popup-size"
+              type="range"
+              className="range"
+              min={POPUP_SIZE_MIN}
+              max={POPUP_SIZE_MAX}
+              step={POPUP_SIZE_STEP}
+              value={settings.previewPopupSize}
+              onChange={(e) => updateSettings({ previewPopupSize: clampPopupSize(Number(e.target.value)) })}
+            />
+            <p className="field-hint">
+              How big the hover card pop-up is, apart from the other pop-ups. It stops growing once the card would no longer fit the window. The − and + buttons in its top bar change this too. Reset layout puts it back to 100%.
+            </p>
+          </div>
         );
       case "showOnScreen":
         return (

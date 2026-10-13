@@ -28,9 +28,12 @@ export function usePromptDodge(
       if (next === "top") {
         wrap.style.setProperty("--prompt-top", `${topPx}px`);
         wrap.style.setProperty("--prompt-bottom", "auto");
+        // The pop-up grows down from the top, not up from the bottom (popupScale.css).
+        wrap.dataset.top = "";
       } else {
         wrap.style.removeProperty("--prompt-top");
         wrap.style.removeProperty("--prompt-bottom");
+        delete wrap.dataset.top;
       }
     };
     let lastTop = -1;
@@ -45,10 +48,11 @@ export function usePromptDodge(
       if (el && mat && defender && el.offsetHeight > 0 && !placedByPlayer) {
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         const rect = el.getBoundingClientRect();
-        const height = el.offsetHeight;
+        // Scaled by the Pop-up size setting, like the rect.
+        const height = rect.height;
         const topTop = mat.getBoundingClientRect().top + TOP_GAP_PX;
         const next = promptSide({
-          width: el.offsetWidth,
+          width: rect.width,
           height,
           centerX: rect.left + rect.width / 2,
           bottomTop: window.innerHeight - BOTTOM_GAP_REM * rem - height,

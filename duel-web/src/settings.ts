@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { asDonArtId } from "./board/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
+import { clampPopupSize } from "./board/popupSize";
 import { PROMPT_DOCKS, type PromptDock } from "./board/promptDock";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
@@ -95,6 +96,10 @@ export type DuelSettings = {
   previewPopupPos: string;
   /** Desktop card preview pop-up: pinned = it stays open on the last hovered card instead of only showing while the mouse is on a card. Stays on this device. */
   previewPopupPinned: boolean;
+  /** Every in-game pop-up but the hover card: its size as a percent of normal (70 to 160, steps of 10). Stays on this device. */
+  popupSize: number;
+  /** Desktop hover card pop-up: its own size as a percent of the default width (70 to 160, steps of 10), apart from the other pop-ups. Stays on this device. */
+  previewPopupSize: number;
   /**
    * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
    * float. Follows the account; phones and landscape phones (no side columns)
@@ -173,6 +178,18 @@ export type DuelSettings = {
    * board's margins, gaps and chrome are trimmed so the mats and cards grow.
    */
   bigBoard: boolean;
+  /**
+   * True once Bigger playing area was switched by hand. Builds before #556
+   * stored `bigBoard: false` for everyone, so a stored false only counts
+   * as a choice when this is set (the default flipped to on).
+   */
+  bigBoardChosen: boolean;
+  /**
+   * Computers: Keep / Mulligan, End turn and the other action buttons sit in
+   * the side column under Turn and clocks, so the two playmats touch (#556).
+   * Off: they float in a strip between the mats.
+   */
+  actionsBeside: boolean;
   /** Desktop: the Recent plays panel (the Battle log has no switch). */
   showRecentPlays: boolean;
   /** Match chat: desktop panel, phone pill, landscape rail button. */
@@ -226,6 +243,8 @@ const DEFAULTS: DuelSettings = {
   promptPos: "",
   previewPopupPos: "",
   previewPopupPinned: false,
+  popupSize: 100,
+  previewPopupSize: 100,
   promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
@@ -249,7 +268,9 @@ const DEFAULTS: DuelSettings = {
   textSize: "medium",
   lifeFan: "down",
   tiltedBoard: false,
-  bigBoard: false,
+  bigBoard: true,
+  bigBoardChosen: false,
+  actionsBeside: true,
   showRecentPlays: true,
   showChat: true,
   showCardPreview: true,
@@ -307,6 +328,8 @@ function sanitize(
     ...rest
   } = parsed;
   const next = { ...DEFAULTS, ...rest };
+  // Stored before the default flipped (#556): an untouched false is not a choice.
+  if (rest.bigBoardChosen !== true) next.bigBoard = DEFAULTS.bigBoard;
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
   if (rest.responseStops === undefined) next.responseStops = deviceDefaults().responseStops;
@@ -332,6 +355,8 @@ function sanitize(
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;
   if (!SIDE_COLUMNS.includes(next.sideColumns)) next.sideColumns = DEFAULTS.sideColumns;
+  next.popupSize = clampPopupSize(next.popupSize);
+  next.previewPopupSize = clampPopupSize(next.previewPopupSize);
   // Accounts store "no art" as 0 (their settings take only strings, numbers and booleans).
   next.donArt = asDonArtId(next.donArt);
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
@@ -346,6 +371,8 @@ const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
   "previewPopupPos",
   "previewPopupPinned",
+  "popupSize",
+  "previewPopupSize",
   "devUserKey",
   "promptPos",
 ];
@@ -425,6 +452,7 @@ export function saveSettings(next: DuelSettings, opts: { remote?: boolean } = {}
 /** Merge a patch into the stored settings (used by the in-match settings sheet). */
 export function updateSettings(patch: Partial<DuelSettings>): DuelSettings {
   const next = { ...snapshot(), ...patch };
+  if ("bigBoard" in patch) next.bigBoardChosen = true;
   saveSettings(next);
   return next;
 }

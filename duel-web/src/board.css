@@ -835,8 +835,22 @@
   z-index: 41;
   top: 72px;
   right: calc(var(--rail-w, 0px) + 16px);
-  width: clamp(280px, 22vw, 420px);
-  max-height: calc(100dvh - 80px);
+  /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once
+     it has been dragged), the header, the padding and border, and for the small card + text view a share for the text.
+     The card is 5:7, so the box is never wider than that room allows; past it the pop-up stops growing instead of
+     the card stopping inside a bigger and bigger empty box. */
+  --pp-room: 80px;
+  --pp-head: 2.9rem;
+  --pp-pad: 0.6rem;
+  --pp-text: 7rem;
+  --pp-art-h: calc(100dvh - var(--pp-room) - var(--pp-head) - 2 * var(--pp-pad) - 2px - var(--pp-text));
+  /* --preview-popup-scale is the Card pop-up size setting (1 = 100%); never wider than the window. */
+  width: min(
+    calc(clamp(280px, 22vw, 420px) * var(--preview-popup-scale, 1)),
+    calc(100vw - 16px),
+    max(200px, calc(var(--pp-art-h) * 5 / 7 + 2 * var(--pp-pad) + 2px))
+  );
+  max-height: calc(100dvh - var(--pp-room));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -845,6 +859,16 @@
   background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
   overflow: hidden;
+}
+
+/* The big card has no text under it. */
+.arena .card-preview-popup.card-preview-popup-big {
+  --pp-text: 0px;
+}
+
+/* A dragged pop-up may use the whole window height. */
+.arena .card-preview-popup.card-preview-popup-placed {
+  --pp-room: 16px;
 }
 
 .arena .card-preview-popup.is-dragging {
@@ -898,6 +922,32 @@
   filter: grayscale(1);
 }
 
+.card-preview-popup-size {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-preview-popup-size:hover:not(:disabled),
+.card-preview-popup-size:focus-visible {
+  background: rgb(var(--chrome-bright-rgb) / 0.15);
+  color: var(--chrome-bright);
+}
+
+.card-preview-popup-size:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .card-preview-popup-pin:hover,
 .card-preview-popup-pin:focus-visible,
 .card-preview-popup-pin.is-pinned {
@@ -937,9 +987,9 @@
   box-sizing: border-box;
 }
 
+/* No height cap here: the pop-up's width is capped instead (.card-preview-popup), so the art box stays 5:7 and fills it. */
 .card-preview-in-popup .card-preview-img,
 .card-preview-in-popup .card-preview-placeholder {
-  max-height: min(62dvh, 600px);
   object-fit: contain;
 }
 
@@ -1319,8 +1369,7 @@
   min-height: min-content;
 }
 
-.arena.arena-wide .board-panel[data-panel="recent"],
-.arena.arena-wide .board-panel[data-panel="actions"] {
+.arena.arena-wide .board-panel[data-panel="recent"] {
   min-height: 4.5rem;
 }
 
@@ -2442,16 +2491,45 @@ body.is-panel-drag * {
 }
 /* Hide / dock stay reachable but small, in a row above the card (off the art). */
 .life-trigger-card .life-trigger-tools {
-  align-self: stretch;
+  /* As wide as the card (more only if the buttons need it), centred over it. */
+  align-self: center;
+  width: max-content;
+  min-width: var(--lt-w);
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 0.3rem;
   margin-bottom: -0.3rem;
+  min-height: 1.4rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.life-trigger-card.is-dragging .life-trigger-tools {
+  cursor: grabbing;
+}
+/* Grip mark on the left; Hide, dock and size buttons stay on the right. */
+.life-trigger-card .life-trigger-grip {
+  margin-right: auto;
+  padding-left: 0.2rem;
+  color: var(--muted, currentColor);
+  opacity: 0.7;
+  font-family: system-ui, sans-serif;
+  line-height: 1;
 }
 .life-trigger-card .life-trigger-tools .prompt-hide,
-.life-trigger-card .life-trigger-tools .prompt-dock-tools {
+.life-trigger-card .life-trigger-tools .prompt-dock-tools,
+.life-trigger-card .life-trigger-tools .prompt-size-tools {
   position: static;
+}
+.life-trigger-card .life-trigger-tools button {
+  cursor: pointer;
+}
+.life-trigger-card .prompt-size-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.85rem;
 }
 .life-trigger-card .prompt-hide {
   height: 1.4rem;
@@ -5257,6 +5335,174 @@ body.is-panel-drag * {
   box-shadow: none;
 }
 
+/* —— Buttons beside the board (#556, #564) ——
+   Computers: the dock rides in a narrow gutter against the right edge of the
+   two mats, so no strip is needed between them. The strip is taken out of the
+   flow and its share is given back to the mats (the mat math subtracts
+   --midline-h and 3 gaps; the two gaps the strip would have cost are -2 gaps
+   here and the mats touch via a -1 gap margin), so the board is the same size
+   whether the mulligan banner, a battle line or nothing is showing.
+   The gutter is the playmat's own right padding, reserved for the whole game:
+   every mat size rule reads the playmat's content box, so the mats lay out in
+   what is left and never move when the buttons change. The dock itself is
+   absolutely placed in it (left / seam are read from the laid-out mats by
+   sideDockPlacement.ts): the primary button is centred on the line where the
+   mats meet, extras stack above it, the caption sits below. */
+.arena {
+  --side-dock-w: 8rem;
+  --side-dock-gap: 0.4rem;
+}
+
+.arena.arena-side-actions .playmat {
+  --midline-h: calc(-2 * var(--mat-gap));
+  position: relative;
+}
+
+.arena.arena-wide.arena-side-actions .playmat {
+  padding-right: calc(var(--side-dock-w) + var(--side-dock-gap) + 2px);
+}
+
+.arena.arena-side-actions .midline {
+  display: none;
+}
+
+.arena.arena-side-actions .playmat-inner > .side-field.side-you {
+  margin-top: calc(-1 * var(--mat-gap));
+}
+
+/* A zero-height anchor on the seam; the primary hangs half its height below
+   it and the extras grow upward, so the primary never moves. */
+.side-dock {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--side-dock-left, 0px) + var(--side-dock-gap));
+  top: var(--side-dock-seam, 50%);
+  width: var(--side-dock-w);
+  height: 0;
+  pointer-events: none;
+}
+
+.side-dock .primary-dock.primary-dock-inline {
+  position: absolute;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: calc(-0.5 * var(--dock-h));
+  transform: none;
+  z-index: auto;
+  width: auto;
+  height: auto;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-sizing: border-box;
+}
+
+.primary-dock-inline .primary-dock-main {
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
+  width: auto;
+}
+
+.primary-dock-inline .intent-btn.dock-extra {
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
+  min-width: 0;
+  max-width: none;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline .intent-btn.intent-btn-primary {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline.has-extras .intent-btn.intent-btn-primary {
+  font-size: 0.78rem;
+}
+
+/* With extras the labels wrap onto two lines: no room for the key tags on top of
+   that (the keys still work). A lone primary keeps its Space tag. */
+.primary-dock-inline.has-extras .intent-btn.dock-extra[data-key-tag]::after,
+.primary-dock-inline.has-extras.has-primary .primary-dock-main::after {
+  content: none;
+}
+
+.primary-dock-inline .waiting-opp {
+  height: 100%;
+  min-height: 0;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+/* Under the primary, within the gutter's width. It stops at the bottom of the board
+   (scrolling inside if a long mulligan text needs more) and takes no part in layout. */
+.side-dock .dock-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--dock-h) / 2 + 0.4rem);
+  max-height: max(0px, calc(100cqh - var(--side-dock-seam, 0px) - var(--dock-h) / 2 - 1rem));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  pointer-events: auto;
+}
+
+.dock-caption .prompt {
+  /* Chrome, like the strip's prompt: a double-click must not select a word (#314). */
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  background: rgb(var(--deep-rgb) / 0.94);
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+.dock-caption .prompt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dock-caption .prompt.prompt-battle {
+  background: var(--arena-raised);
+  border-color: var(--chrome);
+  font-weight: 600;
+}
+
+.dock-caption .dock-caption-mulligan {
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
+  color: var(--ink);
+}
+
+.dock-caption .dock-caption-mulligan strong {
+  color: var(--chrome-bright);
+}
+
 /* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */
 .opp-hand-corner {
   --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);
@@ -6085,16 +6331,21 @@ body.is-panel-drag * {
 }
 
 /* —— Log Pose docked into a side column (desktop) ——
-   The host sits at the top of the column, only while the panel is open and docked to that side, and takes
-   most of its height (the panels below shrink to their minimum heights). It is not a movable panel (no
-   data-panel), so the drag and resize code leaves it alone. It is above its neighbours, so a card fan that
-   overhangs its own panel never draws over the Log Pose panel. */
-.arena.arena-wide .board-panel.lp-dock-host {
+   A docked, open Log Pose is a movable side panel like the others (data-panel="logpose": its grip and dividers
+   work, and its slot is saved in panelLayout); the .lp-dock-host inside it is where the panel renders. It takes
+   most of the column's height (the panels around it shrink to their minimum heights) and sits above its
+   neighbours, so a card fan that overhangs its own panel never draws over the Log Pose panel. */
+.arena.arena-wide .board-panel[data-panel="logpose"] {
   flex: 1 1 60%;
-  min-height: 340px;
+  /* The host's 340px plus the padding (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts). */
+  min-height: 352px;
   z-index: 2;
   /* A little air, so the panel reads as a card like the others and not as the column's own edge. */
   padding: 6px;
+}
+
+.arena.arena-wide .board-panel[data-panel="logpose"] > .lp-dock-host {
+  min-height: 340px;
 }
 
 /* While Log Pose is docked in a column, that column is at least as wide as the panel's minimum (320px), so its
@@ -6109,7 +6360,7 @@ body.is-panel-drag * {
 
 /* The opponent-hand fan hangs its cards from above its own top edge (the rest is clipped by the column). With the
    Log Pose host directly above it nothing is "above" any more, so it gets that room itself and shows whole. */
-.arena.arena-wide .lp-dock-host + .board-panel .opp-hand-fan {
+.arena.arena-wide .board-panel[data-panel="logpose"] + .board-panel .opp-hand-fan {
   padding-top: calc(var(--fan-w) * 0.5);
 }
 
@@ -6234,7 +6485,7 @@ body.is-panel-drag * {
 }
 
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-rail {
-  --don-w: calc(var(--c) * min(0.36, (2.78 - 0.03 * (var(--don-count, 1) - 1)) / max(1, var(--don-count, 1))));
+  --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
   flex: 1 1 0;
   min-height: 0;
   flex-wrap: wrap;
@@ -6282,8 +6533,10 @@ body.is-panel-drag * {
 }
 
 /* A rested Leader or Stage turns at 85%, so the pair (Leader, Stage back to back)
-   spills 0.1 of a card into the cost area on one side and the DON!! deck's
-   column on the other, never onto a DON!! chip. */
+   spills 0.1 of a card into the DON!! deck's column on one side, and the rested
+   Leader reaches about 0.19 of a card past its cell toward the cost area on the
+   other. The cost area keeps that edge inset (rested or not, so nothing shifts
+   when the Leader turns) so its gray box is never under the Leader or on a DON!! chip. */
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-leader,
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage {
   --rest-k: 0.85;
@@ -6297,6 +6550,16 @@ body.is-panel-drag * {
 
 .arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-stage {
   --rest-shift: calc(var(--c) * -0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-cost {
+  --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+  padding-right: var(--cost-inset);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-cost {
+  padding-right: 0;
+  padding-left: var(--cost-inset);
 }
 
 /* The turn-order tag stays inside the Life column, off the first Character. */
@@ -6389,6 +6652,16 @@ body.is-panel-drag * {
     --rest-shift: calc(var(--c) * -0.095);
   }
 
+  .arena.arena-big.arena-lp .side-field .zone-cost {
+    --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+    padding-right: var(--cost-inset);
+  }
+
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-cost {
+    padding-right: 0;
+    padding-left: var(--cost-inset);
+  }
+
   .arena.arena-big.arena-lp .side-field .don-strip {
     width: 100%;
     height: 100%;
@@ -6412,7 +6685,7 @@ body.is-panel-drag * {
   }
 
   .arena.arena-big.arena-lp .side-field .don-strip-rail {
-    --don-w: calc(var(--c) * min(0.36, (2.78 - 0.03 * (var(--don-count, 1) - 1)) / max(1, var(--don-count, 1))));
+    --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
     flex: 1 1 0;
     min-height: 0;
     flex-wrap: wrap;

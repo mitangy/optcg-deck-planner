@@ -7,6 +7,7 @@ import { isIncompleteDeck } from "../decks/deckStatus";
 import { NavMenu } from "../nav/NavMenu";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import { refreshLinkedDeck } from "../decks/planner";
 import {
   deckToWire,
@@ -168,10 +169,12 @@ function DeckPicker({
 }
 
 function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }) {
-  const art = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
-  const [failed, setFailed] = useState<string | null>(null);
-  return art && art !== failed ? (
-    <img className={className} src={art} alt="" onError={() => setFailed(art)} />
+  const { src: art, fail } = useArtFallback(
+    resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }),
+    deck.leaderId,
+  );
+  return art ? (
+    <img className={className} src={art} alt="" onError={fail} />
   ) : (
     <span className={`${className} ${className}-empty`} aria-hidden />
   );

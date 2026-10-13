@@ -105,7 +105,7 @@ test("a portrait phone keeps its compact top bar with Bigger playing area on (#4
 });
 
 test("F toggles full screen on the board, with or without Bigger playing area (#468)", async ({ page }) => {
-  for (const settings of [{ bigBoard: true }, {}]) {
+  for (const settings of [{ bigBoard: true }, { bigBoard: false, bigBoardChosen: true }]) {
     await openDemo(page, DESKTOP, settings);
     const inFullscreen = () => page.evaluate(() => document.fullscreenElement != null);
     test.skip(!(await page.evaluate(() => document.fullscreenEnabled)), "this browser has no Fullscreen API");

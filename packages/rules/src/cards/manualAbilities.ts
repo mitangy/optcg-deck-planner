@@ -570,8 +570,6 @@ const ENTRIES: [string, ManualEntry][] = [
   ]),
   card("OP16-001", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] Up to 1 of your [Monkey.D.Luffy] Characters",
     effect: keyword(upTo(1, myChar({ power: ge(8000), any: [{ names: ["Monkey.D.Luffy"] }, { traitIncludes: [WB] }] })), "rush") }]),
-  card("OP16-015", [{ trigger: "static", text: "If your Leader's card name includes \"Ace\"",
-    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] }]),
   card("OP16-038", [{ trigger: "main", text: "[Main] You may rest 6 of your DON!! cards: If you have 5 {Impel Down}",
     costs: [{ k: "rest_don", count: 6 }],
     effect: when(cmp({ count: { of: "distinct_names", selector: myChar({ traits: ["Impel Down"] }) } }, ">=", 5),
@@ -579,8 +577,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP16-041", [{ trigger: "on_event", don: 1, oncePerTurn: true, text: "[DON!! x1] [Once Per Turn] This effect can be activated when your {Impel Down}",
     eventTrigger: { event: "character_left_field", player: "you", filter: { traits: ["Impel Down"] } },
     effect: may(play(upTo(1, sel("you", "hand", { names: ["Prisoner of Impel Down"] })))) }]),
-  card("OP16-079", [{ trigger: "on_event", text: "When a {Land of Wano} type Character card is played from your trash",
-    eventTrigger: { event: "character_played", player: "you", fromZone: "trash", filter: { ...CHAR, traits: ["Land of Wano"] } }, effect: keyword({ ref: "event_card" }, "rush") }]),
   card("OP16-084", [{ trigger: "activate_main", text: "[Activate: Main] You may trash this Character with a cost of 20 or more",
     conditions: [exists(myChar({ onlySelf: true, cost: ge(20) }))], costs: [{ k: "trash_self" }],
     effect: when(cmp(donField("you"), ">=", 9), play(upTo(1, sel("you", "trash", { names: ["Kouzuki Momonosuke"], cost: eq(9) })))) }]),
@@ -701,20 +697,21 @@ ENTRIES.push(["EB01-029", { abilities: [
     effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
 ] }]);
 
-// Full replacement (#537). The official FAQ only rules on the attack duration ("cannot attack until the end of your opponent's
-// next turn"); the owner ruled that the Character's negation lasts only for the turn Teach is activated. The Leader negate is "turn" too.
-ENTRIES.push(["OP09-093", { abilities: [
-  { id: "op09-093#0", trigger: "static", text: "[Blocker]", statics: [{ s: "keyword", target: "self", keyword: "blocker" }] },
-  { id: "op09-093#1", trigger: "activate_main", oncePerTurn: true,
-    text: "[Activate: Main] [Once Per Turn] If your Leader has the {Blackbeard Pirates} type and this Character was played on this turn, negate the effect of up to 1 of your opponent's Leader during this turn. Then, negate the effect of up to 1 of your opponent's Characters and that Character cannot attack until the end of your opponent's next turn.",
+// Full replacement (#567): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's or this
+// Character's base power is not already 7000 (a second activation would change nothing).
+ENTRIES.push(["OP16-015", { abilities: [
+  { id: "op16-015#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 Character card with 8000 power from your hand: Your Leader and this Character's base power becomes 7000 during this turn.",
+    conditions: [{ c: "or", conds: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      exists(myChar({ onlySelf: true, basePower: { op: "!=", value: 7000 } })),
+    ] }],
+    costs: [{ k: "trash_hand", count: 1, filter: { types: ["character"], power: eq(8000) } }],
     effect: seq(
-      when({ c: "and", conds: [leaderTrait("Blackbeard Pirates"), { c: "self_played_this_turn" }] },
-        { do: "negate", target: { ref: "all", selector: sel("opponent", "leader", { types: ["leader"] }) }, duration: "turn" }),
-      seq(
-        { do: "negate", target: upTo(1, oppChar(CHAR), { bind: "_last" }), duration: "turn" },
-        restrict(v("_last"), "cannot_attack", "until_end_of_opponent_next_turn"),
-      ),
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" },
+      { do: "base_power", target: self, value: 7000, duration: "turn" },
     ) },
+  { id: "op16-015#1", trigger: "static", text: "If your Leader's card name includes \"Ace\" and you have 6 or more DON!! cards on your field, give this card in your hand -2 cost.",
+    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
 ] }]);
 
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

@@ -92,6 +92,7 @@ import { useHandOrderSync } from "./handOrderSync";
 import { EffectOrderPrompt } from "./EffectOrderPrompt";
 import { canFloat, FloatingPrompt } from "./FloatingPrompt";
 import { IntentBar } from "./IntentBar";
+import { useSideDockPlacement } from "./sideDockPlacement";
 import { PrimaryDock } from "./PrimaryDock";
 import { waitingOnOpponent } from "./waitingOnOpponent";
 import { DefendTray } from "./DefendTray";
@@ -117,7 +118,7 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
 import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, mergeIntoColumn, parsePanelLayout, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
+import { PANEL_LABELS, collapsedColumns, columnOf, mergeIntoColumn, parsePanelLayout, placeLogPose, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
 import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
@@ -360,7 +361,7 @@ export function DuelBoard({
   const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
-  // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
+  // Log Pose docked to a side: its panel renders into a host that is a movable panel of that side column, only while it is open.
   // Narrow windows and landscape phones have no side columns, so there it floats.
   const logPoseDock = useLogPoseDock();
   const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
@@ -444,19 +445,28 @@ export function DuelBoard({
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   // One combined column folds the other column's panels in for display only; the saved layout keeps its split.
-  const panelLayout = useMemo(() => {
-    const saved = parsePanelLayout(prefs.panelLayout);
-    return singleSide ? mergeIntoColumn(saved, singleSide) : saved;
-  }, [prefs.panelLayout, singleSide]);
+  // A docked Log Pose takes its slot in the column it is docked to (its saved place there, else the top).
+  const savedPanelLayout = useMemo(() => placeLogPose(parsePanelLayout(prefs.panelLayout), logPoseSide), [prefs.panelLayout, logPoseSide]);
+  const panelLayout = useMemo(
+    () => (singleSide ? mergeIntoColumn(savedPanelLayout, singleSide) : savedPanelLayout),
+    [savedPanelLayout, singleSide],
+  );
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
+  const playmatRef = useRef<HTMLDivElement | null>(null);
   const panelDrag = usePanelDrag(
     arenaBodyRef,
     panelLayout,
     // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
-    (next) =>
+    (next) => {
       updateSettings({
-        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, parsePanelLayout(prefs.panelLayout), singleSide) : next),
-      }),
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide) : next),
+      });
+      // Log Pose dragged to the other column (both shown): the dock side follows, so the two agree.
+      if (!singleSide && logPoseSide) {
+        const col = columnOf(next, "logpose");
+        if (col !== logPoseSide) logPoseDock.setDock(col);
+      }
+    },
     {
       id: "oppHand",
       spot: prefs.oppHandSpot || null,
@@ -613,6 +623,16 @@ export function DuelBoard({
   }, [over, isReplay]);
   const mySeat = seat ?? view?.seat ?? null;
   const spectating = spectator || Boolean(view?.spectator);
+  /**
+   * "Buttons beside the board" (#556, #564): on a computer the dock rides in a narrow gutter against the
+   * right edge of the two mats, its primary button centred on the line where they meet, so the mats touch
+   * and nothing is a strip between them. The gutter is reserved for the whole game (not tied to `over`), so
+   * the board never moves or resizes when the buttons change. The tilted board leans the mats in
+   * perspective, so it keeps the floating dock in the strip.
+   */
+  const sideActions = prefs.actionsBeside && wide && !lp && !spectating && !tilted;
+  // The playmat only exists once the match view has arrived, so the placement effect re-runs then.
+  useSideDockPlacement(playmatRef, sideActions && view != null);
   const brief = useMatchBrief({
     source: matchBrief,
     role: spectating ? "spectator" : "player",
@@ -1698,7 +1718,6 @@ export function DuelBoard({
   // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,
   // Resolve trigger) floats at the board's midline; there is no Actions panel.
   // Phones keep the bottom IntentBar.
-  const docked = wide && !lp && !spectating && !over;
   const oppWait =
     spectating || over || hotseatPass ? null : waitingOnOpponent(view, mySeat);
   const sendPrimary = (intent: Intent) => {
@@ -1843,6 +1862,10 @@ export function DuelBoard({
       </section>
     ) : null,
     chat: chatPanel,
+    // The host the docked Log Pose panel renders into; the panel wrapper gives it the grip and dividers.
+    logpose: logPoseSide ? (
+      <div ref={logPoseSide === "left" ? setLogPoseHostL : setLogPoseHostR} className="lp-dock-host" data-panel-host="logpose" />
+    ) : null,
   };
   /** Panels with something to show, top to bottom, in each column (the rest keep their places). */
   const shownPanels: Record<PanelColumn, PanelId[]> = {
@@ -1884,17 +1907,44 @@ export function DuelBoard({
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
       : undefined;
+  const docked = wide && !lp && !spectating && !over && !sideActions;
+  const mulliganBody =
+    mulliganPhase && !spectating ? (
+      view.you.mulliganDone ? (
+        <>
+          <strong>Mulligan locked in.</strong> Waiting for the other seat
+          {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
+        </>
+      ) : (
+        <>
+          <strong>
+            {firstSeatLine({
+              youFirst,
+              boardSeat,
+              pickedBy: firstSeatPickedBy,
+              opponentName: seatName(players, oppSeat) ?? undefined,
+            })}
+          </strong>{" "}
+          {youFirst
+            ? "No draw and 1 DON!! on your first turn."
+            : "You draw and get 2 DON!! on your first turn."}{" "}
+          <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
+          shuffle them back and draw a new hand of 5. Life is dealt after both
+          players decide.
+        </>
+      )
+    ) : null;
   function renderColumnPanels(column: PanelColumn) {
     const ids = shownPanels[column];
     const sized = ids.some((id) => panelResize.shown.heights[id] != null);
     const panels = ids.map((id, i) =>
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
+    const after = ids.indexOf("turn") + 1;
     // Answering an attack: the defend tray rides under Turn and clocks (not movable).
     if (column === defendCol && railDefend && defendTray) {
-      const at = ids.indexOf("turn") + 1;
       panels.splice(
-        at,
+        after,
         0,
         <div key="defend" className="board-panel" data-panel="defend">
           {defendTray}
@@ -2014,7 +2064,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
@@ -2277,34 +2327,12 @@ export function DuelBoard({
 
       {copilot.pill}
 
-      {mulliganPhase && !spectating ? (
+      {mulliganBody && !sideActions ? (
         <div
           className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
           role="status"
         >
-          {view.you.mulliganDone ? (
-            <>
-              <strong>Mulligan locked in.</strong> Waiting for the other seat
-              {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
-            </>
-          ) : (
-            <>
-              <strong>
-                {firstSeatLine({
-                  youFirst,
-                  boardSeat,
-                  pickedBy: firstSeatPickedBy,
-                  opponentName: seatName(players, oppSeat) ?? undefined,
-                })}
-              </strong>{" "}
-              {youFirst
-                ? "No draw and 1 DON!! on your first turn."
-                : "You draw and get 2 DON!! on your first turn."}{" "}
-              <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
-              shuffle them back and draw a new hand of 5. Life is dealt after both
-              players decide.
-            </>
-          )}
+          {mulliganBody}
         </div>
       ) : null}
 
@@ -2331,7 +2359,6 @@ export function DuelBoard({
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" data-col-off={singleSide === "right" ? "" : undefined} aria-label="Side panels, left">
             {actionsSide === "left" ? columnActions : null}
-            {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
@@ -2339,7 +2366,7 @@ export function DuelBoard({
           </aside>
         ) : null}
 
-        <div className="playmat" data-mat-drop={wide && !lp ? "" : undefined}>
+        <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
           <div className="playmat-inner">
             {farHand && (specFans === "portrait" || (specFans === "desktop" && !shownFarPos)) ? (
               <SpectatorFarHand
@@ -2511,12 +2538,37 @@ export function DuelBoard({
               }
             />
           </div>
+          {sideActions ? (
+            <div className="side-dock" data-side-dock>
+              <PrimaryDock
+                inline
+                primary={over ? null : dock.primary}
+                extras={over ? [] : dock.extras}
+                keyOffset={cardIntents.length}
+                waiting={oppWait}
+                view={view}
+                disabled={over}
+                confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+                defend={defendPrimary}
+                counterLabel={counterLabel}
+                onSend={sendPrimary}
+              />
+              <div className="dock-caption" role="status">
+                {mulliganBody ? (
+                  <p className="dock-caption-mulligan">{mulliganBody}</p>
+                ) : midlineShown ? (
+                  <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
+                    <span className="prompt-text">{midlineShown}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined}>
             {actionsSide === "right" ? columnActions : null}
-            {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />

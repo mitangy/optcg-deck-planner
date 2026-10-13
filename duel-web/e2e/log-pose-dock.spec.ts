@@ -417,7 +417,7 @@ test("on a board, docking puts the panel in that side's column in place of an em
   const col2 = (await right.boundingBox())!;
   expect(host.y).toBeGreaterThanOrEqual(col2.y - 1);
   expect(host.y + host.height).toBeLessThanOrEqual(col2.y + col2.height + 1);
-  const others = await right.locator(":scope > .board-panel:not(.lp-dock-host)").evaluateAll((els) => els.map((e) => ({ top: e.getBoundingClientRect().top, bottom: e.getBoundingClientRect().bottom })));
+  const others = await right.locator(":scope > .board-panel:not([data-panel='logpose'])").evaluateAll((els) => els.map((e) => ({ top: e.getBoundingClientRect().top, bottom: e.getBoundingClientRect().bottom })));
   expect(others.length).toBeGreaterThan(0);
   for (const o of others) expect(o.top).toBeGreaterThanOrEqual(host.y + host.height - 1);
   // The opponent's hand fan hangs from the panel under the host: its cards are all below the host, none peeking behind it.
@@ -435,7 +435,7 @@ test("on a board, docking puts the panel in that side's column in place of an em
   // The left column is narrower than the panel's minimum by default: it widens while the panel is docked in it.
   expect((await left.boundingBox())!.width).toBeGreaterThanOrEqual(320);
   const leftHost = (await left.locator(".lp-dock-host").boundingBox())!;
-  const below = await left.locator(":scope > .board-panel:not(.lp-dock-host)").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
+  const below = await left.locator(":scope > .board-panel:not([data-panel='logpose'])").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
   for (const top of below) expect(top).toBeGreaterThanOrEqual(leftHost.y + leftHost.height - 1);
   await expect(panel(page).locator(".lp-head")).toBeVisible();
   const headRows = await panel(page).locator(".lp-head").evaluate((h) => new Set([...h.children].filter((c) => c.getBoundingClientRect().width > 0).map((c) => Math.round((c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2) / 8))).size);
@@ -456,6 +456,97 @@ test("on a board, docking puts the panel in that side's column in place of an em
   await dragHeader(page, { x: 700, y: 300 });
   await expect(panel(page)).toHaveAttribute("data-sized", "true");
   await expect(page.locator(".lp-dock-host")).toHaveCount(0);
+});
+
+/** The panels of a desktop column, top to bottom, by id. */
+const columnOrder = (page: Page, col: "left" | "right") =>
+  page.$$eval(`[data-panel-col="${col}"] > [data-panel]`, (els) => els.map((e) => (e as HTMLElement).dataset.panel));
+
+/**
+ * Drags a side panel's grip so the pointer ends at `to` and lets go; the drop line must show on the way.
+ */
+async function dragPanelGrip(page: Page, id: string, to: { x: number; y: number }) {
+  const wrapper = page.locator(`[data-panel="${id}"]`);
+  await expect(wrapper.locator("> .panel-grip")).toBeAttached();
+  await wrapper.hover({ position: { x: 100, y: 4 } });
+  const grip = (await wrapper.locator("> .panel-grip").boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+  await expect(page.locator(".panel-drop-line")).toBeVisible();
+  await page.mouse.up();
+}
+
+test("a docked Log Pose is dragged by its grip below another panel, and stays there after closing and reopening (#568)", async ({ page, duel }) => {
+  await practiceBoard(page, duel);
+  const right = page.locator('[data-panel-col="right"]');
+  await dragHeader(page, { x: 1276, y: 300 });
+  await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  // Docked, it is the first panel of the column and has a grip like the others.
+  const before = (await columnOrder(page, "right")).filter((id) => id !== "actions" && id !== "defend");
+  expect(before[0]).toBe("logpose");
+  await expect(right.locator('[data-panel="logpose"] > .panel-grip')).toBeAttached();
+  await shot(page, "40-log-pose-docked-at-top");
+
+  // Drop it just under the Turn and clocks panel.
+  const turn = (await right.locator('[data-panel="turn"]').boundingBox())!;
+  await dragPanelGrip(page, "logpose", { x: turn.x + turn.width / 2, y: turn.y + turn.height - 1 });
+  await expect.poll(() => columnOrder(page, "right").then((o) => o.indexOf("logpose") > o.indexOf("turn"))).toBe(true);
+  await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  const moved = {
+    logpose: (await right.locator('[data-panel="logpose"]').boundingBox())!,
+    turn: (await right.locator('[data-panel="turn"]').boundingBox())!,
+  };
+  expect(moved.logpose.y).toBeGreaterThanOrEqual(moved.turn.y + moved.turn.height - 1);
+  expect((await right.locator(".lp-dock-host").boundingBox())!.height).toBeGreaterThanOrEqual(340);
+  expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("right");
+  await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible();
+  expect(await room(page)).toBeLessThanOrEqual(0);
+  await shot(page, "41-log-pose-moved-below-turn");
+
+  // Closing and reopening keeps the slot.
+  await page.getByRole("button", { name: "Close Log Pose" }).click();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(page.locator('[data-panel="logpose"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  const order = await columnOrder(page, "right");
+  expect(order.indexOf("logpose")).toBeGreaterThan(order.indexOf("turn"));
+  expect((await right.locator('[data-panel="logpose"]').boundingBox())!.y).toBeGreaterThanOrEqual(moved.turn.y + moved.turn.height - 1);
+});
+
+test("dragging a docked Log Pose's grip into the other column moves the dock there too (#568)", async ({ page, duel }) => {
+  await practiceBoard(page, duel);
+  const left = page.locator('[data-panel-col="left"]');
+  const right = page.locator('[data-panel-col="right"]');
+  await dragHeader(page, { x: 1276, y: 300 });
+  await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
+
+  // Drop it under the first panel of the left column.
+  const first = (await columnOrder(page, "left"))[0]!;
+  const box = (await left.locator(`[data-panel="${first}"]`).boundingBox())!;
+  await dragPanelGrip(page, "logpose", { x: box.x + box.width / 2, y: box.y + box.height - 1 });
+  await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  await expect(right.locator(".lp-dock-host")).toHaveCount(0);
+  const order = await columnOrder(page, "left");
+  expect(order.indexOf("logpose")).toBe(order.indexOf(first) + 1);
+  expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("left");
+  await expect(panel(page)).toBeVisible();
+  expect((await left.boundingBox())!.width).toBeGreaterThanOrEqual(320);
+  await shot(page, "42-log-pose-moved-to-left-column");
+
+  // Closing and reopening keeps it in that slot of the left column.
+  await page.getByRole("button", { name: "Close Log Pose" }).click();
+  await expect(panel(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  const again = await columnOrder(page, "left");
+  expect(again.indexOf("logpose")).toBe(again.indexOf(first) + 1);
+
+  // Docking it to the right with its header puts it at the top of that column (a docked side decides the column).
+  await dragHeader(page, { x: 1276, y: 300 });
+  await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
+  expect((await columnOrder(page, "right")).filter((id) => id !== "actions" && id !== "defend")[0]).toBe("logpose");
 });
 
 test.describe("one side column (#554)", () => {

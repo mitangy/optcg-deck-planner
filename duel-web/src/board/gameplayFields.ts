@@ -30,6 +30,7 @@ export type ToggleKey =
   | "oppHandTopRight"
   | "tiltedBoard"
   | "bigBoard"
+  | "actionsBeside"
   | "turnSplash"
   | "reduceMotion"
   | "turnAlert"
@@ -57,6 +58,8 @@ export function showOrientation(d: FieldDevice): boolean {
 export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "tiltedBoard") return d.tiltFits;
   if (key === "layoutGrips") return d.desktop;
+  // Phones keep their own layout for the action buttons.
+  if (key === "actionsBeside") return d.desktop;
   // The card preview panel is the desktop side column; phones don't show it.
   if (key === "previewBigCard") return d.desktop;
   // The pop-up replaces that same panel.
@@ -97,6 +100,8 @@ export type SelectRowKey =
   | "sideColumns"
   | "animationSpeed"
   | "cardSpotlight"
+  | "popupSize"
+  | "previewPopupSize"
   | "showOnScreen";
 
 export type RowKey = ToggleKey | SelectRowKey;
@@ -133,6 +138,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     chip: "Board",
     rows: [
       "bigBoard",
+      "actionsBeside",
       "tiltedBoard",
       "compactOwnBoard",
       "screenOrientation",
@@ -142,6 +148,8 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
       "sideColumns",
       "previewBigCard",
       "previewPopup",
+      "popupSize",
+      "previewPopupSize",
       "layoutGrips",
       "sidePanels",
       "showOnScreen",
@@ -176,6 +184,12 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
     case "oppHandSpot":
     case "sideColumns":
     case "sidePanels":
+      return d.desktop;
+    // Sizes every pop-up in a match, phones included.
+    case "popupSize":
+      return true;
+    // The hover card pop-up is a desktop window feature.
+    case "previewPopupSize":
       return d.desktop;
     case "endTurnConfirm":
     case "responseStops":

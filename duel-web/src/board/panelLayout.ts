@@ -12,7 +12,8 @@ export type PanelId =
   | "oppHand"
   | "turn"
   | "hand"
-  | "chat";
+  | "chat"
+  | "logpose";
 
 export type PanelColumn = "left" | "right";
 
@@ -26,11 +27,13 @@ export const PANEL_LABELS: Record<PanelId, string> = {
   turn: "Turn and clocks",
   hand: "Hand (Grid)",
   chat: "Chat",
+  logpose: "Log Pose",
 };
 
 export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   left: ["preview", "recent", "log"],
-  right: ["oppHand", "turn", "hand", "chat"],
+  // Log Pose has a slot only while it is docked and open; it sits at the top of the right column, where a docked panel always was.
+  right: ["logpose", "oppHand", "turn", "hand", "chat"],
 };
 
 const PANEL_IDS = [...DEFAULT_PANEL_LAYOUT.left, ...DEFAULT_PANEL_LAYOUT.right];
@@ -59,6 +62,11 @@ export function parsePanelLayout(saved: string): PanelLayout {
     return out;
   };
   const layout: PanelLayout = { left: read(leftRaw), right: read(rightRaw) };
+  // Older saves never mention Log Pose: it goes back to the top of its column (where a docked panel sat before it was movable), not the end.
+  if (!seen.has("logpose")) {
+    seen.add("logpose");
+    layout[defaultColumnOf("logpose")].unshift("logpose");
+  }
   for (const id of PANEL_IDS) if (!seen.has(id)) layout[defaultColumnOf(id)].push(id);
   return layout;
 }
@@ -97,6 +105,17 @@ export function movePanel(
   if (at < 0) list.push(id);
   else list.splice(at, 0, id);
   return next;
+}
+
+/**
+ * Log Pose's column is decided by the side it is docked to (`side`; null = not docked on the board, the layout is
+ * left alone so its saved slot survives). Its place in that column is its saved slot; when it was saved in the
+ * other column it comes in at the top.
+ */
+export function placeLogPose(layout: PanelLayout, side: PanelColumn | null): PanelLayout {
+  if (side == null || layout[side].includes("logpose")) return layout;
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  return { [side]: ["logpose", ...layout[side]], [other]: layout[other].filter((p) => p !== "logpose") } as PanelLayout;
 }
 
 export type PanelRect = { id: PanelId; column: PanelColumn; top: number; bottom: number };

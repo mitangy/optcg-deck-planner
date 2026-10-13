@@ -17,6 +17,11 @@ const desktop: FieldDevice = { desktop: true, tiltFits: true, finePointer: true 
 const phone: FieldDevice = { desktop: false, tiltFits: false, finePointer: false };
 
 describe("gameplay rows by device", () => {
+  it("lists Buttons beside the board on a desktop window only, phones keep their own layout (#556)", () => {
+    expect(toggleShown("actionsBeside", desktop)).toBe(true);
+    expect(toggleShown("actionsBeside", phone)).toBe(false);
+  });
+
   it("hides the screen orientation lock with a mouse and shows it on a phone (#281)", () => {
     expect(showOrientation(desktop)).toBe(false);
     expect(showOrientation(phone)).toBe(true);
@@ -43,6 +48,20 @@ describe("gameplay rows by device", () => {
     expect(toggleShown("previewPopup", phone)).toBe(false);
   });
 
+  it("lists the Pop-up size row on phones and desktop windows, in the Board group (#555)", () => {
+    expect(rowShown("popupSize", desktop)).toBe(true);
+    expect(rowShown("popupSize", phone)).toBe(true);
+    expect(groupOf("popupSize")).toBe("board");
+  });
+
+  it("lists the Card pop-up size row only on a desktop window, in the Board group next to Pop-up size (#572)", () => {
+    expect(rowShown("previewPopupSize", desktop)).toBe(true);
+    expect(rowShown("previewPopupSize", phone)).toBe(false);
+    expect(groupOf("previewPopupSize")).toBe("board");
+    const board = GAMEPLAY_GROUPS.find((g) => g.id === "board")!.rows;
+    expect(board.indexOf("previewPopupSize")).toBe(board.indexOf("popupSize") + 1);
+  });
+
   it("lists Simple board only on phones and tablets, not a desktop window (#445)", () => {
     expect(toggleShown("compactOwnBoard", phone)).toBe(true);
     expect(toggleShown("compactOwnBoard", desktop)).toBe(false);
@@ -66,8 +85,8 @@ describe("Gameplay settings groups (#496)", () => {
     "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan", "sideColumns",
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
-    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "donUpright", "totalPower", "oppHandTopRight",
-    "tiltedBoard", "bigBoard", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
+    "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "popupSize", "previewPopupSize", "donUpright", "totalPower", "oppHandTopRight",
+    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
   ];
 
   it("every gameplay switch and select belongs to exactly one group and none is dropped (#496)", () => {

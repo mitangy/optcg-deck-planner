@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -144,7 +144,7 @@ export function CardTile({
     return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
   }, [defId, artTick, ownerSeat]);
   const imageUrl =
-    localFallbackFor === primaryUrl ? localCardArtPath(defId) : primaryUrl;
+    localFallbackFor === primaryUrl ? (primaryUrl ? artAfterError(primaryUrl, defId) : null) : primaryUrl;
   const imgFailed = failedSrc != null && failedSrc === imageUrl;
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
@@ -301,7 +301,7 @@ export function CardTile({
   }
 
   function handleImgError() {
-    if (localFallbackFor !== primaryUrl && isTcgplayerCdnUrl(primaryUrl)) {
+    if (localFallbackFor !== primaryUrl && (isTcgplayerCdnUrl(primaryUrl) || isLocalCardsUrl(primaryUrl))) {
       setLocalFallbackFor(primaryUrl);
       return;
     }
