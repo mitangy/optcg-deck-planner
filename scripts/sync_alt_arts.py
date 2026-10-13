@@ -12,12 +12,20 @@ really differs:
 
 - a product is a candidate when its productId is not already the card's
   productId or one of its alts (catalog, curated atlas, tcgProducts.json);
-- with an image, it is an alt only when a 16x16 difference hash of its 200w
-  picture is more than HASH_THRESHOLD bits away from the primary and from every
-  alt already kept (foils, stamps and release events reprint the same art and
-  stay under it);
+- with a usable image, it is an alt whenever a 16x16 difference hash of its
+  200w picture is more than HASH_THRESHOLD bits away from the primary and from
+  every alt already kept (foils, stamps and release events reprint the same art
+  and stay under it). No name marker is needed (#590), so promo, event and pack
+  printings (Dash Pack, Wanted Poster, anniversary sets, Judge packs...) count.
+  Without a marker the card's primary must have a real picture too: a card
+  whose own scan is still "Image Coming Soon" has nothing to compare with;
 - with no image yet (`imageCount` 0), it cannot be hashed, so it is an alt only
   when its name carries a distinct-art marker ("Alternate Art", "(SP)", ...).
+
+Labels: a product with a marker keeps the old label (Special Art, Treasure Rare,
+Manga Rare, Alternate Art, PCC ...). One without is labelled from the last
+parenthesised part of its TCGPlayer name ("Dash Pack", "Gift Collection 2023"),
+shortened to about LABEL_MAX characters, or "Promo" when it has none.
 
 Append only: existing alt ids (`p1`, `p2`, ...) are never reordered or removed,
 because saved art choices point at them. New alts take the next free `pN`.
@@ -59,8 +67,8 @@ HASH_SIDE = 16  # 16x16 = 256 bits
 # different art >= 109. 75 sits in the middle of the gap.
 HASH_THRESHOLD = 75
 
-# A product is a candidate alt only when its name says the art differs. Promo,
-# event and pack reprints without one of these are left out (and counted).
+# Image-less products can only be judged by name: they are alts only when it
+# carries one of these. Products with a picture are judged by the hash alone.
 DISTINCT_ART_MARKERS = (
     "alternate art",
     "alt art",
@@ -116,6 +124,58 @@ def label_for(name: str) -> str:
     return alt_label(name)
 
 
+LABEL_MAX = 28
+TRAILING_BRACKET = re.compile(r"\s*\[[^\]]*\]\s*$")  # "[Participant]", "[Serial Number]"
+SUFFIX = re.compile(r"\(([^()]*)\)\s*$")
+# "(OP12-020)", "(001)", "(Store)": not a printing name.
+NOT_A_NAME = re.compile(r"^(?:(?:[A-Z]{1,3}\d{0,2}-)?\d{1,3}|store|reprint)$", re.I)
+ANNIVERSARY = re.compile(
+    r"(?:(english|japanese)(?: version)?\s+)?(\d)(st|nd|rd|th) anniversary set$|"
+    r"^one piece japanese version (\d)(st|nd|rd|th) anniversary set$",
+    re.I,
+)
+# Tried in order until the label fits LABEL_MAX.
+TRIM_STEPS = (
+    (re.compile(r"\bOne Piece Card Game\b ?", re.I), ""),
+    (re.compile(r"\bOne Piece\b ?", re.I), ""),
+    (re.compile(r"\bPromotion Cards?\b ?", re.I), ""),
+    (re.compile(r"\bParticipation\b ?", re.I), ""),
+    (re.compile(r"\bTreasure Campaign Pack\b", re.I), "Treasure Campaign"),
+    (re.compile(r"\bOffline ", re.I), ""),
+    (re.compile(r"\bAnniversary\b", re.I), "Anniv."),
+    (re.compile(r"\bVersion\b ?", re.I), ""),
+    (re.compile(r"\bEdition\b ?", re.I), ""),
+    (re.compile(r"\bCard Set\b", re.I), "Set"),
+    (re.compile(r"\bThe ", re.I), ""),
+    (re.compile(r"\bOfficial Playmat\b", re.I), "Playmat"),
+    (re.compile(r"\bBandai Card Games\b", re.I), "Bandai"),
+    (re.compile(r"\bSet\b ?", re.I), ""),
+    (re.compile(r"\bPack\b ?", re.I), ""),
+)
+
+
+def suffix_label(name: str) -> str:
+    """Label from the last parenthesised part of a TCGPlayer name, else "Promo"."""
+    m = SUFFIX.search(TRAILING_BRACKET.sub("", name).strip())
+    s = re.sub(r"\s+", " ", m.group(1)).strip(" -") if m else ""
+    if not s or NOT_A_NAME.match(s):
+        return "Promo"
+    a = ANNIVERSARY.search(s)
+    if a:
+        lang = (a.group(1) or "japanese").lower() if a.group(2) else "japanese"
+        n, ordinal = (a.group(2), a.group(3)) if a.group(2) else (a.group(4), a.group(5))
+        return f"Anniversary ({n}{ordinal}, {'EN' if lang == 'english' else 'JP'})"
+    s = s.replace("Seven Warlords of the Sea Binder Set", "Seven Warlords Binder")
+    s = re.sub(r"\bRegional(?:s)? Participation Pack\b", "Regional", s, flags=re.I)
+    for pattern, repl in TRIM_STEPS:
+        if len(s) <= LABEL_MAX:
+            break
+        s = re.sub(r"\s+", " ", pattern.sub(repl, s)).strip(" -")
+    if len(s) > LABEL_MAX:
+        s = s[: LABEL_MAX - 1].rsplit(" ", 1)[0].rstrip(" -,:") + "\u2026"
+    return s
+
+
 def next_alt_number(taken_ids: set[str]) -> int:
     """The number after the highest `pN` in use (gaps are never reused)."""
     nums = [int(m.group(1)) for i in taken_ids if (m := ALT_NUM.match(i))]
@@ -148,8 +208,9 @@ def plan_card(
     Number. `hashes`: productId -> hex hash (None when the picture is missing).
     `ref_pids`: primary and existing alts, the art new alts must differ from.
     """
-    stats = {"same_art": 0, "no_marker": 0}
+    stats = {"same_art": 0, "no_marker": 0, "no_primary_art": 0}
     refs = [hashes[p] for p in ref_pids if hashes.get(p)]
+    primary_has_art = bool(primary_pid and hashes.get(primary_pid))
     ids = set(taken_ids)
     labels = list(taken_labels)
     out: list[dict] = []
@@ -157,10 +218,14 @@ def plan_card(
         pid = prod["productId"]
         if pid == primary_pid or pid in known_pids:
             continue
-        if not has_distinct_marker(prod["name"]):
-            stats["no_marker"] += 1
-            continue
+        marked = has_distinct_marker(prod["name"])
         h = hashes.get(pid) if int(prod.get("imageCount") or 0) > 0 else None
+        if not h and not marked:
+            stats["no_marker"] += 1  # nothing to hash and no name marker
+            continue
+        if h and not marked and not primary_has_art:
+            stats["no_primary_art"] += 1
+            continue
         if h and refs and not is_new_art(h, refs):
             stats["same_art"] += 1
             continue
@@ -168,7 +233,9 @@ def plan_card(
             refs.append(h)
         alt_id = f"p{next_alt_number(ids)}"
         ids.add(alt_id)
-        label = unique_label(label_for(prod["name"]), labels)
+        label = unique_label(
+            label_for(prod["name"]) if marked else suffix_label(prod["name"]), labels
+        )
         labels.append(label)
         out.append(
             {
@@ -294,9 +361,7 @@ def main() -> int:
         if not candidates:
             continue
         cards[card_id] = {"primary": primary, "known": known, "candidates": candidates}
-        image_candidates = [
-            p["productId"] for p in candidates if p["imageCount"] > 0 and has_distinct_marker(p["name"])
-        ]
+        image_candidates = [p["productId"] for p in candidates if p["imageCount"] > 0]
         if image_candidates:
             need_hash.update(image_candidates)
             need_hash.update(p for p in [primary, *known] if p)
@@ -340,13 +405,14 @@ def main() -> int:
         )
     save_hashes(cache)  # a cache only: kept on --dry-run so a second run is cheap
 
-    by_label = Counter(a["label"].rstrip("0123456789 ").strip() for _, a in added)
+    by_label = Counter(a["label"] for _, a in added)
     tag = " (dry run, nothing written)" if args.dry_run else ""
     print(f"\nAlt art sync{tag}")
     print(f"  cards changed:        {changed}")
     print(f"  alts added:           {len(added)}")
     print(f"  skipped (same art):   {totals['same_art']}")
-    print(f"  skipped (no distinct-art marker, promo/event/pack): {totals['no_marker']}")
+    print(f"  skipped (no picture and no distinct-art marker): {totals['no_marker']}")
+    print(f"  skipped (no marker and the card's own picture is missing): {totals['no_primary_art']}")
     print(f"  by label: {dict(by_label.most_common())}")
     kinds = Counter(
         (m.group(1).lower() if (m := re.search(r"\(([^)]*)\)\s*$", a["name"])) else "(no suffix)")
