@@ -11,6 +11,8 @@ import {
   type SavedDeck,
 } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
+import { isPlaceholderArt } from "../cards/cardImage";
+import { useArtFallback } from "../cards/useArtFallback";
 import {
   abilitySupportNote,
   resolveAbilitySupport,
@@ -79,6 +81,8 @@ export function CardInspect({
       }) ?? entry.imageUrl
     );
   }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat, deck]);
+
+  const { src: artSrc, fail: failArt } = useArtFallback(imageUrl, defId);
 
   const sheetRef = useRef<HTMLDivElement>(null);
   const swipeStartY = useRef<number | null>(null);
@@ -175,8 +179,17 @@ export function CardInspect({
         </div>
         <div className="card-inspect-scroll">
           <div className="card-inspect-art">
-            {imageUrl ? (
-              <img src={imageUrl} alt={entry.name} className="card-inspect-img" draggable={false} />
+            {artSrc ? (
+              <img
+                src={artSrc}
+                alt={entry.name}
+                className="card-inspect-img"
+                draggable={false}
+                onError={failArt}
+                onLoad={(e) => {
+                  if (isPlaceholderArt(artSrc, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) failArt();
+                }}
+              />
             ) : (
               <div className="card-inspect-fallback">{entry.id}</div>
             )}

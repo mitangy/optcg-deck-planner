@@ -100,6 +100,8 @@ The curated atlas prefers **TCGPlayer CDN** URLs (`tcgplayer-cdn.tcgplayer.com/p
 
 After importing new cards and running `export-atlas`, run `python3 scripts/sync_preview_art.py` (`--dry-run` to see the plan). Cards TCGPlayer has no image for yet get an unofficial preview in `public/cards/preview/<ID>.webp`, listed in `src/cards/previewArt.json`. The app shows it only after the TCGPlayer image fails (or when a card has no image URL at all). The script also deletes previews whose card now has TCGPlayer art, so re-run it after each art sync and commit the result.
 
+Alternate-art printings TCGPlayer lists after the catalog was built are added by `python3 scripts/sync_alt_arts.py` (`--dry-run` first; needs Pillow; append-only so saved art choices keep their `p1`/`p2` ids). Alts that still have no TCGPlayer image get a preview from `sync_preview_art.py` as `public/cards/preview/p<productId>.webp`, listed in `src/cards/previewArtAlts.json`; when that alt's image fails the app shows it before the card's own preview. Run the alt sync, then the preview sync, and commit both.
+
 ## Tests
 
 ```bash

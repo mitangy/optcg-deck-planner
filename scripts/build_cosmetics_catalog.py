@@ -31,6 +31,9 @@ SPECIAL_MARKERS = (
     "winner",
     "championship",
     "promo stamp",
+    "(sp)",
+    "(tr)",
+    "premium card collection",
 )
 
 CARD_ID_RE = re.compile(r"^[A-Z0-9]+-\d+[A-Z]?$", re.I)
@@ -117,6 +120,10 @@ def alt_label(name: str) -> str:
         return "Promo"
     if "promo" in n:
         return "Promo"
+    if "premium card collection" in n:
+        return "Premium Card Collection"
+    if "(sp)" in n:
+        return "Special Art"
     if "alternate art" in n or "alt art" in n or "parallel" in n:
         return "Alternate Art"
     return "Special Art"
