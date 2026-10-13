@@ -224,6 +224,14 @@ export function registerAtlasStub(
   return entry;
 }
 
+/** Default per-card-number deck limit. */
+export const MAX_COPIES_PER_CARD = 4;
+
+/** Copies of `defId` a deck may hold: unlimited for "you may have any number of this card" cards. */
+export function maxCopiesFor(defId: string): number {
+  return lookupCard(defId).deckRules?.includes("any_number") ? Infinity : MAX_COPIES_PER_CARD;
+}
+
 export function lookupCard(defId: string): CardAtlasEntry {
   const hit = resolveAtlasEntry(defId);
   const base =

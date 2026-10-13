@@ -1,7 +1,6 @@
-import { lookupCard } from "../cards/atlas";
+import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import { getSavedDeck, saveDeck, type SavedDeck } from "./storage";
 
-export const MAX_COPIES_PER_CARD = 4;
 export const MAX_MAIN_DECK_SIZE = 50;
 
 export type DeckEditResult =
@@ -31,10 +30,11 @@ export function addCard(cards: readonly string[], defId: string): CardsEditResul
     return { ok: false, error: `Main deck is full (${MAX_MAIN_DECK_SIZE})` };
   }
   const copies = countInDeck(cards, defId);
-  if (copies >= MAX_COPIES_PER_CARD) {
+  const maxCopies = maxCopiesFor(defId);
+  if (copies >= maxCopies) {
     return {
       ok: false,
-      error: `${defId} already has ${MAX_COPIES_PER_CARD} copies`,
+      error: `${defId} already has ${maxCopies} copies`,
     };
   }
   return { ok: true, cards: [...cards, defId] };

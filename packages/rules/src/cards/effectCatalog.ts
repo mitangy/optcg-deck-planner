@@ -95,8 +95,8 @@ export function unsupportedCardsForDeck(deck: { leaderId: string; deck: readonly
 export function enrichAtlasAbilitySupport<T extends { abilitySupport?: AbilitySupport; unsupportedText?: string[]; deckRules?: string[] }>(atlas: Record<string, T>): Record<string, T> {
   for (const id of Object.keys(atlas)) {
     const unsupported = cardAbilities(id)?.unsupported ?? [];
-    // Leader deck-construction rules (see deckRules.ts) so clients can validate without the engine.
-    const deckRules = abilitiesFor(id).flatMap((a) => (a.statics ?? []).flatMap((s) => (s.s === "deck_rule" && /^(max_cost|no_events_cost_ge|only_trait):/.test(s.rule) ? [s.rule] : [])));
+    // Deck-construction rules (leader rules, see deckRules.ts, plus card-level `any_number`) so clients can validate without the engine.
+    const deckRules = abilitiesFor(id).flatMap((a) => (a.statics ?? []).flatMap((s) => (s.s === "deck_rule" && /^(max_cost|no_events_cost_ge|only_trait):|^any_number$/.test(s.rule) ? [s.rule] : [])));
     atlas[id] = { ...atlas[id]!, abilitySupport: abilitySupportForCard(id), ...(unsupported.length ? { unsupportedText: [...unsupported] } : {}), ...(deckRules.length ? { deckRules } : {}) };
   }
   return atlas;
