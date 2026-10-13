@@ -279,7 +279,8 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     if (!names) return null;
     filter.names = names;
     text = text.slice(named[0].length).trim();
-    zone = opts.zone ?? "leader_or_character";
+    // "a [Kalgara] Character" is a Character on the field, never the Leader; bare "[Name]" may be either.
+    zone = opts.zone ?? (/\bcharacters?$/i.test(named[0]) ? "character" : "leader_or_character");
   } else {
     const nounMatch = /^(leader or character cards?|leader or characters?|leaders? or characters?|leader and character cards?|leader or stage cards?|leaders? or stages?|DON!! cards?|character or event cards?|event or stage cards?|character or stage cards?|characters? or stages?|character cards?|characters?|leaders?|event cards?|events?|stage cards?|stages?|cards?)(?=$| |,)/i.exec(text);
     if (!nounMatch) return null;
@@ -318,6 +319,19 @@ function leaderFilter(adj: string, ctx: Ctx): Filter | null {
     return null;
   }
   return Object.keys(filter).length ? filter : null;
+}
+
+/**
+ * "Cards" on the field in a rest context also means DON!! in the cost area ("rest 1 of your cards", "N or more rested
+ * cards"; official rulings OP14-020, OP06-038). Only the bare "cards" noun, optionally narrowed to rested/active; DON!!
+ * given to Leader/Characters is not in the cost area and never counts.
+ */
+export function withCostAreaDon(selector: Selector, rested?: boolean): Selector {
+  if (selector.zone !== "field" || selector.also?.length || selector.player === "any") return selector;
+  const keys = Object.keys(selector.filter ?? {});
+  if (keys.some((k) => k !== "rested")) return selector;
+  const state = rested ?? selector.filter?.rested;
+  return { ...selector, also: [{ player: selector.player, zone: "don", ...(state == null ? {} : { filter: { rested: state } }) }] };
 }
 
 export function relOf(text: string): Rel | null {

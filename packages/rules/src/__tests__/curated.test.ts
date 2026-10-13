@@ -126,6 +126,7 @@ describe("OP17-112 Charlotte Linlin", () => {
     h.play(0, "OP17-112");
     expect(h.choice?.request?.type).toBe("mode");
     h.pick("Add up to 1 card from the top of your deck to the top of your Life cards.");
+    h.accept(0); // "up to 1" is optional (#594)
     expect(h.state.players[0].life.length).toBe(6);
     expect(h.view(0).you.characters.find((c) => c.id === triggerChar!.id)!.power).toBe(8000);
     h.act(0, { type: "end_turn" });
@@ -262,6 +263,7 @@ describe("EB03-034 Charlotte Linlin", () => {
     h.accept(1);
     // DON!! −1: choose which DON!! to return.
     h.act(1, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
+    h.accept(1); // "up to 1" is optional (#594)
     expect(h.state.players[1].life.length).toBe(6);
     expect(h.state.players[1].costArea.length).toBe(2);
   });

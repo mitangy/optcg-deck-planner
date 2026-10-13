@@ -657,7 +657,8 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
       return candidates(state, ctx, { player: "you", zone: "hand", ...(cost.filter ? { filter: cost.filter } : {}) }).filter((l) => l.id !== ctx.sourceId).length >= cost.count;
     case "rest_self": return src?.card != null && onField(src) && !src.card.rested && !hasRestriction(state, src.seat, src.card, "cannot_be_rested");
     case "trash_self": case "self_to_hand": case "self_to_deck_bottom": return src != null && (src.zone === "character" || src.zone === "stage");
-    case "rest_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !l.card.rested).length >= cost.count;
+    // DON!! in the cost area ("rest 1 of your cards") has no card; it counts when it is active.
+    case "rest_cards": return candidates(state, ctx, cost.selector).filter((l) => (l.card ? !l.card.rested : (l.zone as string) === "don" && state.players[l.seat].costArea[l.index]?.rested === false)).length >= cost.count;
     case "trash_cards": case "return_cards_to_hand": case "cards_to_deck_bottom": return candidates(state, ctx, cost.selector).length >= cost.count;
     case "trash_to_deck_bottom": return candidates(state, ctx, { player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }).length >= cost.count;
     case "life_to_hand": case "trash_life": return p.life.length >= cost.count;

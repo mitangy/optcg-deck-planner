@@ -124,12 +124,14 @@ describe("EB05-010 Nico Robin Leader trigger (#458)", () => {
   it("adds a card to Life when a Wisdom Character without Blocker is K.O.'d (#458)", () => {
     const h = koOnTheirTurn(WISDOM);
     expect(h.state.players[0].characters.length).toBe(0);
+    h.accept(0); // "up to 1" is optional (#594)
     expect(h.state.players[0].life.length).toBe(3);
   });
 
   it("does not trigger for a Wisdom Character with Blocker (#458)", () => {
     const h = koOnTheirTurn(WISDOM_BLOCKER);
     expect(h.state.players[0].characters.length).toBe(0);
+    expect(h.choice).toBeUndefined();
     expect(h.state.players[0].life.length).toBe(2);
   });
 });
