@@ -468,7 +468,9 @@
   -webkit-user-select: none;
 }
 
-.prompt-hide-wrap .ability-prompt > h3::before {
+/* The shrinking copy (#587) has no wrapper, but keeps the grip glyph. */
+.prompt-hide-wrap .ability-prompt > h3::before,
+.hide-shrink-ghost .ability-prompt > h3::before {
   content: "⠿";
   margin-right: 0.4rem;
   color: var(--muted, currentColor);

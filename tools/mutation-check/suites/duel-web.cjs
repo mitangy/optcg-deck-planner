@@ -5,6 +5,12 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Hidden pop-ups shrink into their pill (#587)
+    { id: "hide-shrink-fits-by-width-only", file: `${src}/board/hideShrink.ts`, from: "Math.min(to.width / from.width, to.height / from.height)", to: "to.width / from.width", kills: ["fits a wide pop-up into a short pill by the tighter side and centres it on the pill (#587)"] },
+    { id: "hide-shrink-fits-by-height-only", file: `${src}/board/hideShrink.ts`, from: "Math.min(to.width / from.width, to.height / from.height)", to: "to.height / from.height", kills: ["fits by width when the pill is narrower than the pop-up is wide in proportion (#587)"] },
+    { id: "hide-shrink-not-centred-x", file: `${src}/board/hideShrink.ts`, from: "to.left + (to.width - from.width * scale) / 2 - from.left", to: "to.left - from.left", kills: ["fits a wide pop-up into a short pill by the tighter side and centres it on the pill (#587)"] },
+    { id: "hide-shrink-not-centred-y", file: `${src}/board/hideShrink.ts`, from: "to.top + (to.height - from.height * scale) / 2 - from.top", to: "to.top - from.top", kills: ["fits by width when the pill is narrower than the pop-up is wide in proportion (#587)"] },
+    { id: "hide-shrink-ignores-start-offset", file: `${src}/board/hideShrink.ts`, from: "to.left + (to.width - from.width * scale) / 2 - from.left", to: "to.left + (to.width - from.width * scale) / 2", kills: ["fits a wide pop-up into a short pill by the tighter side and centres it on the pill (#587)", "fits by width when the pill is narrower than the pop-up is wide in proportion (#587)", "lands the pop-up's top-left corner on the pill when the shapes match (#587)"] },
     // Pop-up size (#555)
     { id: "popup-size-no-max", file: `${src}/board/popupSize.ts`, from: "return Math.max(POPUP_SIZE_MIN, Math.min(POPUP_SIZE_MAX, stepped));", to: "return Math.max(POPUP_SIZE_MIN, stepped);", kills: ["steps by 10 and stops at 70 and 160 (#555)", "a saved size out of range, off a step or unreadable is pulled back (#555)"] },
     { id: "popup-size-no-min", file: `${src}/board/popupSize.ts`, from: "return Math.max(POPUP_SIZE_MIN, Math.min(POPUP_SIZE_MAX, stepped));", to: "return Math.min(POPUP_SIZE_MAX, stepped);", kills: ["steps by 10 and stops at 70 and 160 (#555)", "a saved size out of range, off a step or unreadable is pulled back (#555)"] },
