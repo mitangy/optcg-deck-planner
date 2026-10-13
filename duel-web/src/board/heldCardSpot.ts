@@ -29,3 +29,23 @@ export function heldCardSpot(
   const top = Math.max(anchor.top, header.bottom);
   return { bottom: top + anchor.height, gap: header.bottom - header.top + BUBBLE_GAP, lift: 0 };
 }
+
+/**
+ * Keeps the held stack on screen vertically. `bottom` is where the stack's
+ * bottom edge was measured (the hand can be tucked partly below the viewport at
+ * that moment), `lift` how far the card is held up from it (negative = up), and
+ * `stackHeight` the bubble plus gap plus card. The card's visible bottom
+ * (bottom + lift) stays `edge` above the viewport's bottom, then the stack's top
+ * stays `edge` below the viewport's top. If both cannot hold, the top wins so
+ * the question and its buttons stay reachable.
+ */
+export function clampHeldBottom(
+  bottom: number,
+  lift: number,
+  stackHeight: number,
+  viewportHeight: number,
+  edge = 8,
+): number {
+  const lowest = Math.min(bottom, viewportHeight - edge - lift);
+  return Math.max(lowest, edge + stackHeight);
+}
