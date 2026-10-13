@@ -11,6 +11,8 @@ const SIDE_L_720 = side("left", 1280, 720);
 const SIDE_R_720 = side("right", 1280, 720);
 const SIDE_L_900 = side("left", 1440, 900);
 const SIDE_R_900 = side("right", 1440, 900);
+const centred = [];
+for (const [w, h] of [[1280, 720], [1440, 900]]) for (const spot of ["left", "right"]) for (const big of [true, false]) centred.push(`demo-audit.spec.ts > the opponent hand on the ${spot} is centred beside the opponent mat at ${w}x${h} with ${big ? "Bigger playing area" : "the normal board"} (#582) [desktop-1280]`);
 const queueBoard = "queue-board.spec.ts > Find match opens the board while the queue searches [desktop-1280]";
 const rules = "rules-attack.spec.ts > an unblocked Leader attack moves one Life card to the defender's hand [desktop-1280]";
 
@@ -197,6 +199,7 @@ module.exports = {
     // beside the opponent mat for left / right (#462)
     { id: "e2e-opp-hand-side-class-dropped", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board/DuelBoard.tsx", from: "${oppHandOnMat === \"centre\" ? \"\" : \" opp-hand-mat-side\"}", to: "", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
     { id: "e2e-opp-hand-side-vertical", args: "demo-audit --project=desktop-1280 -g \"open space beside\"", file: "duel-web/src/board.css", from: "    flex-direction: row;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", to: "    flex-direction: column;\n    justify-content: center;\n    align-items: flex-start;\n  }\n\n  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {", kills: [SIDE_L_720, SIDE_R_720, SIDE_L_900, SIDE_R_900] },
+    { id: "e2e-opp-hand-side-centred", args: "demo-audit --project=desktop-1280 -g \"#582\"", file: "duel-web/src/board.css", from: "    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    gap: 0.35rem;\n    width: 100%;\n    padding: 0.3rem 0;", to: "    flex-direction: column;\n    align-items: center;\n    justify-content: flex-start;\n    gap: 0.35rem;\n    width: 100%;\n    padding: 0.3rem 0;", kills: centred },
     { id: "e2e-opp-hand-fallback-not-reserved", args: "demo-audit --project=desktop-1280 -g \"top centre opponent hand\"", file: "duel-web/src/board.css", from: "@container playmat (aspect-ratio < 1.02) {\n  .arena.arena-wide .playmat-inner:has(> .opp-hand-mat-side) {\n    --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);\n  }\n}\n", to: "", kills: [TOP_CENTRE] },
     // Block step: a Counter dragged onto the defender passes the block, then counters (#300)
     { id: "e2e-skip-block-counter-not-sent", args: "demo-audit --project=desktop-1280 -g \"skips the block\"", file: "duel-web/src/board/DuelBoard.tsx", from: "    if (queuedCounter.mode === \"send\") onSendIntent(intent);", to: "    if (false) onSendIntent(intent);", kills: ["demo-audit.spec.ts > dragging a Counter onto the defender in the block step skips the block and counters (#300) [desktop-1280]"] },

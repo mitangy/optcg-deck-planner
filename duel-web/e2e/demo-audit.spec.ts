@@ -937,6 +937,52 @@ for (const vp of [
   }
 }
 
+// The fan and its count sit in the middle of the gutter, vertically on the opponent
+// mat's height rather than stuck to the top (#582).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  for (const spot of ["left", "right"] as const) {
+    for (const big of [true, false]) {
+      test(`the opponent hand on the ${spot} is centred beside the opponent mat at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#582)`, async ({ page }, info) => {
+        test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+        await page.setViewportSize(vp);
+        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
+          oppHandSpot: spot,
+          bigBoard: big,
+          bigBoardChosen: true,
+        });
+        await page.goto("/demo?full");
+        await page.locator(".board-root").waitFor();
+        await expect(page.locator(`.opp-hand-mat-side.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
+        await page.waitForTimeout(400);
+        const m = await page.evaluate(() => {
+          const box = (el: Element) => el.getBoundingClientRect();
+          const wrap = box(document.querySelector(".opp-hand-mat-side")!);
+          const mat = box(document.querySelector(".side-field.side-opp")!);
+          const kids = [...document.querySelectorAll(".opp-hand-mat-side .opp-hand-corner > *")].map(box);
+          const backs = [...document.querySelectorAll(".opp-hand-mat-side .opp-corner-card")].map(box);
+          return {
+            wrapX: wrap.left + wrap.width / 2,
+            matY: mat.top + mat.height / 2,
+            top: Math.min(...kids.map((r) => r.top)),
+            bottom: Math.max(...kids.map((r) => r.bottom)),
+            backL: Math.min(...backs.map((r) => r.left)),
+            backR: Math.max(...backs.map((r) => r.right)),
+            kids: kids.length,
+            backs: backs.length,
+          };
+        });
+        expect(m.kids).toBeGreaterThan(0);
+        expect(m.backs).toBeGreaterThan(0);
+        expect(Math.abs((m.top + m.bottom) / 2 - m.matY)).toBeLessThan(6);
+        expect(Math.abs((m.backL + m.backR) / 2 - m.wrapX)).toBeLessThan(6);
+      });
+    }
+  }
+}
+
 test("the top centre opponent hand keeps a strip above the mat, and left / right fall back to it when the window leaves no room beside the mat (#462)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
   for (const [spot, vp] of [
