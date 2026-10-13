@@ -5,14 +5,14 @@
  * and search pop-ups, effect order, card actions, DON!! and hand confirms, reveals and the
  * pick bar. The − / + buttons in the hover card and choice pop-up headers step it.
  *
- * SHOTS=1 also saves screenshots to /mnt/project-files/popup-size-drag/.
+ * SHOTS=1 also saves screenshots to /mnt/project-files/popup-size-drag/ (POPUP_SHOT_DIR=<dir> picks another).
  */
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
 test.use({ legacyLayout: false });
 
-const SHOT_DIR = "/mnt/project-files/popup-size-drag";
+const SHOT_DIR = process.env.POPUP_SHOT_DIR ?? "/mnt/project-files/popup-size-drag";
 const POPUP = ".card-preview-popup";
 const ACTIONS = ".card-actions";
 const YOU = (id: string) => `.side-you [data-instance-id="${id}"]`;
@@ -82,18 +82,133 @@ test("+ and − on the hover card pop-up make it wider and narrower, and stop at
   const smaller = page.getByRole("button", { name: "Smaller card preview" });
   await bigger.click();
   expect((await rect(page.locator(POPUP))).width).toBeGreaterThan(before + 20);
-  expect((await stored(page)).popupSize).toBe(110);
+  expect((await stored(page)).previewPopupSize).toBe(110);
   await smaller.click();
   await smaller.click();
   expect((await rect(page.locator(POPUP))).width).toBeLessThan(before - 20);
   for (let i = 0; i < 9 && (await smaller.isEnabled()); i += 1) await smaller.click();
   await expect(smaller).toBeDisabled();
-  expect((await stored(page)).popupSize).toBe(70);
+  expect((await stored(page)).previewPopupSize).toBe(70);
   for (let i = 0; i < 12 && (await bigger.isEnabled()); i += 1) await bigger.click();
   await expect(bigger).toBeDisabled();
-  expect((await stored(page)).popupSize).toBe(160);
+  expect((await stored(page)).previewPopupSize).toBe(160);
   // Still fully on screen at 160%, and a dragged spot is pulled back inside after growing.
   expect(inside(await rect(page.locator(POPUP)), page.viewportSize()!, 8)).toBe(true);
+});
+
+test("the hover card's − / + step its own Card pop-up size, not the Pop-up size (#572)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page, "", { popupSize: 130 });
+  await page.locator(YOU("y-leader")).hover();
+  await expect(page.locator(POPUP)).toBeVisible();
+  const before = (await rect(page.locator(POPUP))).width;
+  await page.getByRole("button", { name: "Bigger card preview" }).click();
+  await page.getByRole("button", { name: "Bigger card preview" }).click();
+  const saved = await stored(page);
+  expect(saved.previewPopupSize).toBe(120);
+  expect(saved.popupSize).toBe(130);
+  expect((await rect(page.locator(POPUP))).width).toBeGreaterThan(before + 30);
+  await page.getByRole("button", { name: "Smaller card preview" }).click();
+  expect(await stored(page)).toMatchObject({ previewPopupSize: 110, popupSize: 130 });
+});
+
+test("the hover card keeps its normal width at a big Pop-up size (#572)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page, "", { popupSize: 160 });
+  await page.locator(YOU("y-leader")).hover();
+  await expect(page.locator(POPUP)).toBeVisible();
+  // 22vw of the 1280px window: the unscaled width.
+  expect((await rect(page.locator(POPUP))).width).toBeCloseTo(0.22 * page.viewportSize()!.width, 0);
+});
+
+test("a choice pop-up keeps its size at a big Card pop-up size (#572)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page, "?box&prompt=look", { previewPopupSize: 160 });
+  const prompt = page.locator(".ability-prompt").first();
+  await expect(prompt).toBeVisible();
+  await page.waitForTimeout(300);
+  // 460px: the choice pop-up's width in the wide arena at 100%.
+  expect((await rect(prompt)).width).toBeCloseTo(460, 0);
+});
+
+/** The hover card's art box at a size, with the box around it. */
+async function previewArt(first: Page, size: number, big: boolean, vp: { width: number; height: number }) {
+  // A fresh page per size: the seeded settings only load once per page.
+  const page = await first.context().newPage();
+  await page.setViewportSize(vp);
+  await openDemo(page, "", { previewPopupSize: size, previewBigCard: big });
+  await page.locator(YOU("y-leader")).hover({ force: true });
+  await expect(page.locator(POPUP)).toBeVisible();
+  await page.waitForTimeout(300);
+  const art = await rect(page.locator(`${POPUP} .card-preview-img, ${POPUP} .card-preview-placeholder`).first());
+  const box = await rect(page.locator(POPUP));
+  const clipped = await page.locator(POPUP).evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  await page.close();
+  return { art, box, clipped };
+}
+
+for (const vp of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }]) {
+  for (const big of [false, true]) {
+    test(`the hover card grows with its pop-up up to the window height, then the pop-up stops (${vp.width}x${vp.height}, big card ${big ? "on" : "off"}) (#572)`, async ({ page }) => {
+      desktopOnly();
+      const base = await previewArt(page, 100, big, vp);
+      let widest = base.art.width;
+      for (const size of [130, 160]) {
+        const at = await previewArt(page, size, big, vp);
+        const note = `${size}%: art ${Math.round(at.art.width)}x${Math.round(at.art.height)} in a ${Math.round(at.box.width)}x${Math.round(at.box.height)} box`;
+        // The art box is card-shaped (5:7), so the art itself fills it: no letterbox that only the box grows around.
+        expect(at.art.width / at.art.height, note).toBeCloseTo(5 / 7, 2);
+        // No empty band: the box is the art plus its padding.
+        expect(at.box.width - at.art.width, note).toBeLessThan(30);
+        expect(at.art.width, note).toBeGreaterThanOrEqual(widest - 1);
+        widest = at.art.width;
+        expect(at.clipped, note).toBe(false);
+        expect(inside(at.box, vp, 8), note).toBe(true);
+      }
+      // 130% is still well short of the window height, so it is bigger than 100%.
+      expect(widest, "160% art is bigger than at 100%").toBeGreaterThan(base.art.width + 20);
+    });
+  }
+}
+
+/** Open the in-match Gameplay settings sheet (desktop ⚙, phone ⋯ menu). */
+async function openSheet(page: Page) {
+  const gear = page.getByRole("button", { name: "Gameplay settings" });
+  if (await gear.count()) await gear.click();
+  else {
+    await page.getByRole("button", { name: "Match menu" }).click();
+    await page.getByRole("menuitem", { name: /Gameplay settings/ }).click();
+  }
+  const sheet = page.getByRole("dialog", { name: "Gameplay settings" });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+test("Gameplay settings have a separate Card pop-up size slider on desktop only, and it leaves the Pop-up size alone (#572)", async ({ page }) => {
+  await openDemo(page, "?full");
+  const sheet = await openSheet(page);
+  const card = sheet.locator("#preview-popup-size");
+  const other = sheet.locator("#popup-size");
+  await expect(other).toHaveCount(1);
+  // The Pop-up size row no longer claims the hover card.
+  await expect(other.locator("xpath=..")).not.toContainText("hover card, choices");
+  if (phone()) {
+    await expect(card).toHaveCount(0);
+    return;
+  }
+  await card.scrollIntoViewIfNeeded();
+  await card.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(sheet.getByText("Card pop-up size · 120%")).toBeVisible();
+  expect(await stored(page)).toMatchObject({ previewPopupSize: 120 });
+  expect((await stored(page)).popupSize ?? 100).toBe(100);
+  await expect(sheet.getByText("Pop-up size · 100%")).toBeVisible();
+  if (process.env.SHOTS) {
+    await sheet.locator("#preview-popup-size").evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${SHOT_DIR}/settings-rows-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png` });
+  }
 });
 
 test("a hover card pop-up dragged to the right edge stays on screen when it is made bigger (#555)", async ({ page }) => {
@@ -103,10 +218,13 @@ test("a hover card pop-up dragged to the right edge stays on screen when it is m
   const h = await rect(page.locator(".card-preview-popup-head"));
   await drag(page, { x: h.x + 30, y: h.y + h.height / 2 }, 900, 400);
   const vp = page.viewportSize()!;
-  for (let i = 0; i < 6; i += 1) await page.getByRole("button", { name: "Bigger card preview" }).click();
-  const box = await rect(page.locator(POPUP));
-  expect(box.x + box.width).toBeLessThanOrEqual(vp.width - 8 + 1);
-  expect(box.y + box.height).toBeLessThanOrEqual(vp.height - 8 + 1);
+  // After every step, not only the last: a step that does nothing (the size is already at the window-height cap) would hide a late re-fit.
+  for (let i = 0; i < 6; i += 1) {
+    await page.getByRole("button", { name: "Bigger card preview" }).click();
+    const box = await rect(page.locator(POPUP));
+    expect(box.x + box.width, `step ${i + 1}`).toBeLessThanOrEqual(vp.width - 8 + 1);
+    expect(box.y + box.height, `step ${i + 1}`).toBeLessThanOrEqual(vp.height - 8 + 1);
+  }
 });
 
 test("the choice pop-up has its own − / + that step the same setting and the pop-up grows (#555)", async ({ page }) => {
@@ -216,6 +334,25 @@ test("SHOTS=1 saves the pop-ups at 70, 100 and 160% (#555)", async ({ page }) =>
       await selectCard(page, "y-leader");
       await shot("actions");
       await page.evaluate(() => localStorage.removeItem("optcg-duel:settings"));
+    }
+  }
+});
+
+test("SHOTS=1 saves the hover card pop-up at 70, 100, 130 and 160% (#572)", async ({ page }) => {
+  test.skip(!process.env.SHOTS || phone(), "set SHOTS=1 to save screenshots (desktop)");
+  test.setTimeout(600_000);
+  for (const [w, h] of [[1280, 720], [1440, 900]] as const) {
+    for (const big of [false, true]) {
+      for (const size of [70, 100, 130, 160]) {
+        const fresh = await page.context().newPage();
+        await fresh.setViewportSize({ width: w, height: h });
+        await openDemo(fresh, "?faceup=2", { previewPopupSize: size, previewBigCard: big });
+        await fresh.locator(YOU("y-leader")).hover({ force: true });
+        await expect(fresh.locator(POPUP)).toBeVisible();
+        await fresh.waitForTimeout(400);
+        await fresh.screenshot({ path: `${SHOT_DIR}/hover-card-${w}x${h}-${big ? "big" : "small"}-${size}.png` });
+        await fresh.close();
+      }
     }
   }
 });

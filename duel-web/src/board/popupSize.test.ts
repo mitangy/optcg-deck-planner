@@ -32,4 +32,15 @@ describe("pop-up size on the page root (#555)", () => {
     applyPopupSize(70, r);
     expect(r.vars.get("--popup-scale")).toBe("0.7");
   });
+
+  it("the card pop-up size writes its own --preview-popup-scale and leaves --popup-scale alone (#572)", () => {
+    const r = root();
+    applyPopupSize(130, r);
+    applyPopupSize(160, r, "previewPopupSize");
+    expect(r.vars.get("--preview-popup-scale")).toBe("1.6");
+    expect(r.vars.get("--popup-scale")).toBe("1.3");
+    applyPopupSize(100, r, "previewPopupSize");
+    expect(r.vars.has("--preview-popup-scale")).toBe(false);
+    expect(r.vars.get("--popup-scale")).toBe("1.3");
+  });
 });
