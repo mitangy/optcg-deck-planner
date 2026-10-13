@@ -158,6 +158,6 @@ describe("provenance of TCGPlayer rows (#458)", () => {
     expect(cardSourceRecord("EB05-002")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
     expect(cardSourceRecord("EB05-002")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
     expect(cardSourceRecord("EB05-002")?.sourceRevision).toBeNull();
-    expect(cardSourceRecord("OP18-021")?.fields.traits).toBe("unknown");
+    expect(cardSourceRecord("P-038")?.fields.traits).toBe("unknown");
   });
 });
