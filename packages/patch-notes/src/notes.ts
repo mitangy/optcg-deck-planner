@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
+  { date: "2026-10-13", app: "duel", pr: 582, title: "More alt arts, including EB05 and El Thor", text: "Deck Configure now lists many more alternate arts, including the EB05 alt and SP arts and El Thor's Premium Card Collection prints (OP05-114 and OP15-075). Alts TCGPlayer has no picture for yet show preview art until the real image is out. Your saved art choices are unchanged." },
   { date: "2026-10-13", app: "duel", pr: 580, title: "Play more than 4 Prisoner of Impel Down", text: "Cards that say you may have any number of them in your deck, like Prisoner of Impel Down (OP16-042), Pacifista (OP01-075) and Biscuit Warrior (OP08-072), no longer get a \"max 4\" error when you import a deck, and the deck editor lets you add more than 4." },
   { date: "2026-10-13", app: "duel", pr: 578, title: "24 more OP18 cards are playable", text: "24 more OP18 cards (from Karoo, Saint Gunko and Spandam to Sea Cat and Momonga) are in the duel app with their effects, and Franky, Nico Robin and Saint Shamrock now have official text. Cards without official images yet show preview art." },
   // 2026-10-12
