@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
@@ -21,10 +22,9 @@ const cardName = (id: string) => lookupCard(id).name || id;
 
 /** Your Leader's art on a history row; a plain block when the art is missing or fails. */
 function LeaderArt({ defId }: { defId: string | null }) {
-  const src = defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null;
-  const [failed, setFailed] = useState<string | null>(null);
-  return src && src !== failed ? (
-    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={() => setFailed(src)} />
+  const { src, fail } = useArtFallback(defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null, defId);
+  return src ? (
+    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={fail} />
   ) : (
     <span className="history-leader-art history-leader-art-empty" aria-hidden />
   );

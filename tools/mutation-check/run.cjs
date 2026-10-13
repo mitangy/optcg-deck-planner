@@ -35,6 +35,7 @@ const SUITES = {
   analyst: require("./suites/analyst.cjs"),
   "game-server": require("./suites/game-server.cjs"),
   cosmetics: require("./suites/cosmetics.cjs"),
+  "preview-art": require("./suites/preview-art.cjs"),
   "duel-e2e": require("./suites/duel-e2e.cjs"),
   "frontend-e2e": require("./suites/frontend-e2e.cjs"),
 };
