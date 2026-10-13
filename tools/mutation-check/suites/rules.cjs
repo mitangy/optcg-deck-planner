@@ -17,6 +17,11 @@ const scn = (id, card, patch, kills) => ({ id: `scn-${id}`, json: ABILITIES, pat
 /** Same for a reviewed manual override in manualAbilities.ts. */
 const scnManual = (id, from, to, kills) => ({ id: `scn-${id}`, file: MANUAL, from, to, kills });
 
+/** #594: undo a "Then" fix by moving the Then steps back out of the If (the old ungated shape). */
+const ungate = (e) => ({ do: "seq", steps: [{ ...e, then: e.then.steps[0] }, ...e.then.steps.slice(1)] });
+/** Delete every `also` (the cost-area DON!! half of "your cards") from an ability tree. */
+const dropAlso = (v) => { if (Array.isArray(v)) v.forEach(dropAlso); else if (v && typeof v === "object") { delete v.also; Object.values(v).forEach(dropAlso); } };
+
 module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
@@ -333,6 +338,9 @@ module.exports = {
     scn("burgess-per-two-cards", "OP09-086", (a) => { a[1].statics[0].amount.per = 2; }, ["OP09-086 with a Blackbeard Pirates Leader"]),
     scn("burgess-any-leader", "OP09-086", (a) => { delete a[1].conditions; }, ["OP09-086 with another Leader"]),
     // Manual overrides edit manualAbilities.ts
+    scnManual("vegapunk-event-guard", 'filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,', 'filter: { types: ["stage"] } }, VEGAPUNK_TO_LIFE,', ["Vegapunk Leader (OP07-097) OP07-097 an Egghead Event goes straight to the top of Life"]),
+    scnManual("vegapunk-empty-select-guard", '{ c: "var_count", name: "_s", op: ">=", value: 1 },\n        when({ c: "var_any_match"', '{ c: "var_count", name: "_s", op: ">=", value: 0 },\n        when({ c: "var_any_match"', ["with no {Egghead} card in hand it asks nothing"]),
+    scnManual("vegapunk-character-to-life-only", 'filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,', 'filter: { types: ["event", "character"] } }, VEGAPUNK_TO_LIFE,', ["an Egghead Character can still be played"]),
     scnManual("chambres-leader-type", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Impel Down"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character", "EB01-020 does nothing without"]),
     scnManual("chambres-any-color", 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2), notColorsOfVar: "_ret" }))),', 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2) }))),', ["EB01-020 does not play a Character of the returned color"]),
     scnManual("chambres-no-return", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "rest", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character"]),
@@ -418,7 +426,7 @@ module.exports = {
     {"id": "replacement-always-applies", "file": "packages/rules/src/engine/runtime.ts", "from": "const replaced = frame.bindings._did !== false;", "to": "const replaced = true;", "kills": ["a declined replacement lets the Character be K.O.'d"]},
     {"id": "may-decline-counts-as-did", "file": "packages/rules/src/engine/runtime.ts", "from": "apply = () => { frame.bindings[b.__bind!] = answer.accept; if (!answer.accept", "to": "apply = () => { frame.bindings[b.__bind!] = true; if (!answer.accept", "kills": ["declining keeps the hand and draws nothing"]},
     {"id": "when-attacking-skipped", "file": "packages/rules/src/engine/procedure.ts", "from": "  queueWindow(state, \"when_attacking\", seat, attacker);\n", "to": "", "kills": ["resolves [When Attacking] before the defender can block"]},
-    {"id": "steps-before-triggers", "file": "packages/rules/src/engine/procedure.ts", "from": "    if (state.triggerQueue.length > 0) { if (startNextTrigger(sim)) continue; return; }", "to": "    if (state.triggerQueue.length > 0 && state.steps.length === 0) { if (startNextTrigger(sim)) continue; return; }", "kills": ["resolves [On Block] before the counter step"]},
+    {"id": "steps-before-triggers", "file": "packages/rules/src/engine/procedure.ts", "from": "    if (state.triggerQueue.length > 0 && !heldUntilDamageStepEnds(state)) { if (startNextTrigger(sim)) continue; return; }", "to": "    if (state.triggerQueue.length > 0 && !heldUntilDamageStepEnds(state) && state.steps.length === 0) { if (startNextTrigger(sim)) continue; return; }", "kills": ["resolves [On Block] before the counter step"]},
     {"id": "give-don-no-event", "file": "packages/rules/src/engine/intents.ts", "from": "      dispatchEvent(state, \"don_given\", { seat, card: target });\n", "to": "", "kills": ["giving DON!! in the Main Phase fires"]},
     {"id": "move-don-no-event", "file": "packages/rules/src/engine/runtime.ts", "from": "            dispatchEvent(state, \"don_given\", { seat: dest.seat, card: dest });\n", "to": "", "kills": ["moving a given DON!! with EB02-009 Thousand Sunny fires OP02-002 Garp"]},
     {"id": "pending-choice-not-blocking", "file": "packages/rules/src/engine/intents.ts", "from": "  if (!idle(state)) return err(\"PENDING\", \"Resolve the pending effect first\");\n", "to": "", "kills": ["blocks every other action until the choice is answered"]},
@@ -444,8 +452,8 @@ module.exports = {
     { id: "opp-mode-labels-controller-view", file: "packages/rules/src/engine/runtime.ts", from: "label: chooser === frame.seat ? label : forOpponent(label)", to: "label", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
     { id: "opp-mode-sentences-unflipped", file: "packages/rules/src/engine/perspective.ts", from: "    const flipped = flipSentence(end ? trimmed.slice(0, -1) : trimmed);", to: "    const flipped = end ? trimmed.slice(0, -1) : trimmed;", kills: ["OP17-049 Charlotte Linlin words the opponent's choose-one options from the opponent's side (#305)"] },
     // OP09-093 Teach: the Character's negation lasts as long as its "cannot attack"; the Leader's only this turn (#333)
-    { id: "teach-char-negate-this-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[1].steps[0].duration = "turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
-    { id: "teach-leader-negate-next-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.steps[0].then.duration = "until_end_of_opponent_next_turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-char-negate-this-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.then.steps[1].steps[0].duration = "turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
+    { id: "teach-leader-negate-next-turn", json: ABILITIES, patch: (a) => { a["OP09-093"].abilities[1].effect.then.steps[0].duration = "until_end_of_opponent_next_turn"; }, kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
     { id: "teach-char-negate-never-expires", file: "packages/rules/src/engine/runtime.ts", from: "{ type: \"negate\" }, expiryFor(state, frame.seat, effect.duration));", to: "{ type: \"negate\" }, expiryFor(state, frame.seat, \"permanent\"));", kills: ["Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)"] },
     // select prompts: a purpose that already ends in a period ("K.O.") does not get a second one (#281)
     {"id": "p2-select-prompt-double-period", "file": "packages/rules/src/engine/runtime.ts", "from": "to ${instr.purpose}${instr.purpose.endsWith(\".\") ? \"\" : \".\"}`;", "to": "to ${instr.purpose}.`;", "kills": ["a K.O. pick prompt ends in one period, not \"K.O..\" (#281)"]},
@@ -822,5 +830,25 @@ module.exports = {
       { file: GRAMMAR_FILE, from: "target: ctx.eventCard && /^that character/i.test(m[0]) ? { ref: \"event_card\" } : { ref: \"var\", name: \"_affected\" }", to: "target: { ref: \"var\", name: \"_affected\" }" },
       { json: ABILITIES, patch: (a) => { a["OP16-079"].abilities[0].effect.target = { ref: "var", name: "_affected" }; } },
     ], kills: ["OP16-079 the Character played from the trash gains Rush"] },
+    // #594 card text compiler fixes
+    scn("c594-mihawk-then-ungated", "OP14-020", (a) => { a[1].effect = ungate(a[1].effect); }, ["OP14-020 with no cost 5+ Character you can still play Characters after activating (#594)"]),
+    scn("c594-enel-then-ungated", "OP15-058", (a) => { a[1].effect = ungate(a[1].effect); }, ["on the first turn it adds no DON!! and gives none to a Character (#594)"]),
+    scn("c594-rockstar-then-ungated", "OP17-034", (a) => { a[0].effect = ungate(a[0].effect); }, ["OP17-034 does not raise the Leader's base power when the opponent's Leader is under 6000 (#594)"]),
+    scnManual("c594-trafalgar-then-ungated", `effect: when(cmp(donField("you"), "<=", donField("opponent")), seq(addDon(1, false),`, `effect: seq(when(cmp(donField("you"), "<=", donField("opponent")), addDon(1, false)), seq(`, ["OP12-073 gives no +1000 power when you have more DON!! than the opponent (#594)"]),
+    scn("c594-rest-cost-no-don", "OP17-038", (a) => { dropAlso(a[0]); }, ["OP17-038 can be paid with four active DON!! alone (#594)"]),
+    scn("c594-rest-effect-no-don", "OP15-032", (a) => { dropAlso(a[0]); }, ["OP15-032 can rest one of the opponent's active DON!! (#594)"]),
+    { id: "c594-rest-cost-uncounted-don", file: "packages/rules/src/engine/queries.ts", from: "(l.zone as string) === \"don\" && state.players[l.seat].costArea[l.index]?.rested === false", to: "false", kills: ["OP17-038 can be paid with four active DON!! alone (#594)"] },
+    scn("c594-rested-cards-no-don", "OP06-038", (a) => { dropAlso(a[0]); }, ["OP06-038 counts rested DON!! toward 8 or more rested cards (#594)"]),
+    scn("c594-only-characters-allows-none", "OP16-022", (a) => { a[0].effect.cond = a[0].effect.cond.conds[1]; }, ["OP16-022 with no Characters it does not set DON!! active (#594)"]),
+    scn("c594-named-character-matches-leader", "OP08-109", (a) => { a[0].effect.cond.conds[1].selector.zone = "leader_or_character"; }, ["OP08-109 a [Kalgara] Leader is not a [Kalgara] Character (#594)"]),
+    scn("c594-copy-power-without-selection", "OP16-104", (a) => { const s = a[0].effect.steps; s[1] = s[1].then; }, ["OP16-104 keeps its base power when no Character was selected (#594)"]),
+    scn("c594-ganzui-ko-only", "OP17-043", (a) => { a[0].replacement.event = "ko"; }, ["OP17-043 offers to trash 2 cards when the opponent's effect returns it to the hand (#594)"]),
+    scn("c594-deck-to-life-forced", "OP17-103", (a) => { const s = a[0].effect.then.steps; s[0] = s[0].then; }, ["OP17-103 lets you decline adding a card to Life (#594)"]),
+    scn("c594-trash-life-forced", "OP09-107", (a) => { a[0].effect.then = a[0].effect.then.then; }, ["OP09-107 lets you decline trashing the opponent's Life card (#594)"]),
+    scnManual("c594-xebec-counter-without-characters", "conditions: [exists(myChar()), none(myChar({ hasCounter: true }))]", "conditions: [none(myChar({ hasCounter: true }))]", ["OP17-118 Rocks.D.Xebec (#594) has no +2000 Counter in hand while you have no Characters (#594)"]),
+    // #594: a replacement that protects "your Characters" covers the whole simultaneous removal; only a hand activation is an Event activation; Damage Step end effects wait for both damage points.
+    { id: "batch-replacement-per-target", file: "packages/rules/src/engine/runtime.ts", from: "      if (replaced) coverBatch(state, frame, parent);\n", to: "", kills: ["OP17-023 one rest saves both Characters K.O.'d at the same time (#594)", "OP17-095 places 3 cards once when two Characters would be removed at the same time (#594)"] },
+    { id: "event-main-from-trash-counts-as-activation", file: "packages/rules/src/engine/runtime.ts", from: "if (loc.zone === \"hand\") dispatchEvent(state, \"event_activated\"", to: "if (loc.zone !== \"leader\") dispatchEvent(state, \"event_activated\"", kills: ["OP15-119 does not power up when the opponent uses an Event's [Main] from the trash with Reiju (#594)"] },
+    { id: "damage-effects-between-damage-points", file: "packages/rules/src/engine/procedure.ts", from: "  return front?.kind === \"life_damage\" && (state.battle?.damageRemaining ?? 0) > 0 && state.triggerQueue.every((t) => t.window !== \"trigger\");", to: "  return false;", kills: ["OP05-098 refills Life only after a Double Attack's 2 damage, ending at 1 Life (#594)"] },
   ],
 };

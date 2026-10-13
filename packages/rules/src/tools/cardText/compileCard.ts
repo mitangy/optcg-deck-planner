@@ -160,7 +160,8 @@ function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   // any removal by the opponent's effect, so it is not gated on the opponent as a whole.
   if (/or KO'd/i.test(m[4]!)) return buildReplacement({ event: "ko", alsoEvents: ["removed_by_opponent_effect"] }, target, m, ctx);
   if (/leave the field/i.test(m[4]!)) event = "ko";
-  else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = "ko";
+  // "would be removed from the field" (any cause, own effects and bounce included) is not only a K.O.
+  else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = m[5] ? "ko" : "removed";
   else if (m[4]!.toLowerCase().startsWith("removed")) event = "removed_by_opponent_effect";
   else if (how.includes("battle")) event = "ko_in_battle";
   else if (how.includes("effect")) event = "ko_by_effect";

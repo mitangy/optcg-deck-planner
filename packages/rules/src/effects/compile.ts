@@ -169,7 +169,7 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
     case "trash_self": out.push({ op: "act", effect: { do: "to_trash", target: self } }); return;
     case "self_to_hand": out.push({ op: "act", effect: { do: "to_hand", target: self } }); return;
     case "self_to_deck_bottom": out.push({ op: "act", effect: { do: "to_deck", target: self, position: "bottom" } }); return;
-    case "rest_cards": select({ ...cost.selector, filter: { ...(cost.selector.filter ?? {}), rested: false } }, cost.count, "rest (cost)"); out.push({ op: "act", effect: { do: "rest", target: costVar } }); return;
+    case "rest_cards": select(withRested(cost.selector, false), cost.count, "rest (cost)"); out.push({ op: "act", effect: { do: "rest", target: costVar } }); return;
     case "trash_cards": select(cost.selector, cost.count, "trash (cost)"); out.push({ op: "act", effect: { do: "to_trash", target: costVar } }); return;
     case "return_cards_to_hand": select(cost.selector, cost.count, "return to hand (cost)"); out.push({ op: "act", effect: { do: "to_hand", target: costVar } }); return;
     case "cards_to_deck_bottom": select(cost.selector, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;

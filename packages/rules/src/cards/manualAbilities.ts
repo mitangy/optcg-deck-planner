@@ -93,6 +93,8 @@ function card(id: string, patch: Draft[], drop?: string[]): [string, ManualEntry
 // Entries
 // ---------------------------------------------------------------------------
 
+const VEGAPUNK_TO_LIFE: Effect = { do: "to_life", target: v("_s"), position: "top", faceUp: true };
+
 const ENTRIES: [string, ManualEntry][] = [
   card("EB01-020", [{ trigger: "main", text: "[Main] If your Leader has the {Supernovas} type, return 1 of your Characters",
     effect: when(leaderTrait("Supernovas"), seq(
@@ -261,8 +263,11 @@ const ENTRIES: [string, ManualEntry][] = [
     ) }]),
   card("OP07-097", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] [RDON 1] Select up to 1 {Egghead}",
     costs: [{ k: "rest_don", count: 1 }],
+    // An Egghead Event can't be played by this effect (official Q&A), so it can only go to Life; nothing selected asks nothing (#592).
     effect: seq(select("_s", sel("you", "hand", { traits: ["Egghead"], cost: le(5) }), 0, 1),
-      oneOf(["Play it", play(v("_s"))], ["Add it to the top of your Life cards face-up", { do: "to_life", target: v("_s"), position: "top", faceUp: true }])) }]),
+      when({ c: "var_count", name: "_s", op: ">=", value: 1 },
+        when({ c: "var_any_match", name: "_s", filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,
+          oneOf(["Play it", play(v("_s"))], ["Add it to the top of your Life cards face-up", VEGAPUNK_TO_LIFE])))) }]),
   card("OP08-043", [{ trigger: "on_play", text: "[On Play] If your Leader's type includes \"Whitebeard Pirates\" and you have 2 or less Life cards",
     effect: when({ c: "and", conds: [leaderTraitIncludes(WB), cmp(lifeCount, "<=", 2)] },
       { do: "restrict", target: { ref: "all", selector: oppChar() }, restriction: "attack_requires_discard", value: 2, duration: "until_end_of_opponent_next_turn" }) }]),
@@ -344,13 +349,14 @@ const ENTRIES: [string, ManualEntry][] = [
     costs: [{ k: "rest_cards", selector: sel("you", "leader", undefined, [sel("you", "stage")]), count: 1 }],
     effect: when(leaderName("Usopp"), seq(look(5, { traits: ["Dressrosa"], notNames: ["Leo"] }, 2, true), discard(1))) }]),
   card("OP10-058", [{ trigger: "on_play", text: "[On Play] If there is a Character with a cost of 8 or more, draw 1 card. Then, reveal up to 2",
-    effect: seq(
-      when(exists(sel("any", "character", { cost: ge(8) })), draw(1)),
+    // "If ..., draw 1 card. Then, reveal ...": the Then part is only resolved when the If was met (Rule 4-10-2).
+    effect: when(exists(sel("any", "character", { cost: ge(8) })), seq(
+      draw(1),
       select("_a", sel("you", "hand", { ...CHAR, traits: ["Dressrosa"], cost: le(7), notNames: ["Rebecca"] }), 0, 1),
       select("_b", sel("you", "hand", { ...CHAR, traits: ["Dressrosa"], cost: le(4), notNames: ["Rebecca"], excludeVar: "_a" }), 0, 1),
       { do: "reveal", target: v("_a") }, { do: "reveal", target: v("_b") },
       play(v("_a")), play(v("_b"), true),
-    ) }]),
+    )) }]),
   card("OP10-098", [{ trigger: "trigger", text: "[Trigger] Negate the effect of up to 1 of each of your opponent's Leader and Character",
     effect: seq({ do: "negate", target: upTo(1, sel("opponent", "leader")), duration: "turn" }, { do: "negate", target: upTo(1, oppChar()), duration: "turn" }) }]),
   card("OP10-118", [{ trigger: "replacement", oncePerTurn: true, text: "Once per turn, this Character cannot be KO'd by your opponent's effects.",
@@ -374,7 +380,7 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq(select("_t", sel("any", "character", { cost: le(1) }), 0, 1),
       oneOf(["Return it to the owner's hand", { do: "to_hand", target: v("_t") }], ["Place it at the bottom of the owner's deck", { do: "to_deck", target: v("_t"), position: "bottom" }])) }]),
   card("OP11-066", [{ trigger: "activate_main", text: "[Activate: Main] You may rest this Character: Choose a cost", costs: [{ k: "rest_self" }],
-    effect: seq(guessCost(ko(upTo(1, oppChar({ baseCost: le(3) })))), addDon(1, true)) }]),
+    effect: guessCost(seq(ko(upTo(1, oppChar({ baseCost: le(3) }))), addDon(1, true))) }]),
   card("OP11-071", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may trash 1 card from your hand: Choose a cost",
     costs: [{ k: "trash_hand", count: 1 }], effect: guessCost(seq(draw(1), addDon(1, false))) }]),
   card("OP11-073", [{ trigger: "on_opp_attack", oncePerTurn: true, text: "[On Your Opponent's Attack] [Once Per Turn] DON!! -5: Choose a cost",
@@ -425,8 +431,8 @@ const ENTRIES: [string, ManualEntry][] = [
       replacement: { event: "removed_by_opponent_effect", target: "self", byOpponent: true, instead: { do: "pay", costs: [{ k: "return_don", count: 1 }], then: { do: "nothing" } }, optional: true } },
   ]),
   card("OP12-073", [{ trigger: "on_play", text: "[On Play] If the number of DON!! cards on your field is equal to or less",
-    effect: seq(when(cmp(donField("you"), "<=", donField("opponent")), addDon(1, false)),
-      power({ ref: "all", selector: myChar({ any: [{ names: ["Donquixote Rosinante"] }, { traits: ["Heart Pirates"] }] }) }, 1000, "until_end_of_opponent_next_turn")) }]),
+    effect: when(cmp(donField("you"), "<=", donField("opponent")), seq(addDon(1, false),
+      power({ ref: "all", selector: myChar({ any: [{ names: ["Donquixote Rosinante"] }, { traits: ["Heart Pirates"] }] }) }, 1000, "until_end_of_opponent_next_turn"))) }]),
   card("OP12-080", [{ trigger: "activate_main", text: "[Activate: Main] You may place this Stage at the bottom of the owner's deck: If your Leader is [Sanji]",
     costs: [{ k: "self_to_deck_bottom" }], effect: when(leaderName("Sanji"), look(3, { types: ["event"] }, 1, true)) }]),
   card("OP12-081", [
@@ -472,8 +478,8 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP13-064", [{ trigger: "static", text: "Your Leader and all of your Characters that do not have a type including \"Roger Pirates\"",
     statics: [{ s: "negate", target: { all: myLeaderOrChar({ notTraitIncludes: ["Roger Pirates"] }) } }] }]),
   card("OP13-066", [{ trigger: "on_play", text: "[On Play] If you have any DON!! cards given",
-    effect: seq(when(cmp({ count: { of: "don_attached_total", player: "you" } }, ">=", 1), rest(upTo(1, oppChar({ cost: le(5) })))),
-      { do: "delay", when: "end_of_turn", effect: addDon(1, false) }) }]),
+    effect: when(cmp({ count: { of: "don_attached_total", player: "you" } }, ">=", 1), seq(rest(upTo(1, oppChar({ cost: le(5) }))),
+      { do: "delay", when: "end_of_turn", effect: addDon(1, false) })) }]),
   card("OP13-079", [
     { trigger: "static", text: "Under the rules of this game, you cannot include Events with a cost of 2 or more",
       statics: [{ s: "deck_rule", rule: "no_events_cost_ge:2" }, { s: "deck_rule", rule: "start_stage:Mary Geoise" }] },
@@ -607,7 +613,7 @@ const ENTRIES: [string, ManualEntry][] = [
       replacement: { event: "removed_by_opponent_effect", target: myChar(), byOpponent: true, instead: { do: "pay", costs: [{ k: "trash_to_deck_bottom", count: 3 }], then: { do: "nothing" } }, optional: true } },
   ]),
   card("OP17-118", [{ trigger: "static", text: "If you only have Characters without a Counter",
-    conditions: [none(myChar({ hasCounter: true }))], statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] }]),
+    conditions: [exists(myChar()), none(myChar({ hasCounter: true }))], statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] }]),
   card("P-025", [{ trigger: "static", don: 1, text: "[DON!! x1] This Character cannot be KO'd in battle by Characters without",
     statics: [{ s: "restrict", target: "self", restriction: "cannot_be_ko_in_battle_by", filter: { ...CHAR, notAttributes: ["Special"] } }] }]),
   card("P-059", [{ trigger: "counter", text: "[Counter] If your Leader is [Uta], you may return any number of Characters",

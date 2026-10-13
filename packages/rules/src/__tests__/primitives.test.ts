@@ -143,7 +143,7 @@ describe("protection and replacement", () => {
 
 describe("event triggers", () => {
   it("OP06-076 K.O.s when your DON!! is returned during your turn (after the current effect)", () => {
-    const h = new Harness();
+    const h = new Harness({ leaders: ["OP05-098", "ST01-001"] });
     h.field(0, "OP06-076");
     const [small] = h.field(1, FILLER);
     h.hand(0, "OP15-076");
@@ -161,7 +161,7 @@ describe("event triggers", () => {
   });
 
   it("a K.O. pick prompt ends in one period, not \"K.O..\" (#281)", () => {
-    const h = new Harness();
+    const h = new Harness({ leaders: ["OP05-098", "ST01-001"] });
     h.field(0, "OP06-076");
     h.field(1, FILLER);
     h.hand(0, "OP15-076");
