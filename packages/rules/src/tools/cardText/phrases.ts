@@ -152,6 +152,11 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^with a type including (§Q\d+§(?: or §Q\d+§)*)/))) {
       const quotes = m[1]!.split(/ or /).map((part) => quote(part, ctx)); if (quotes.some((q) => q == null)) return false; filter.traitIncludes = quotes as string[]; continue;
     }
+    // "with both the {A} and {B} types": the card has both traits (traits is any-of, so the second goes in `all`).
+    if ((m = take(/^with both the (§T\d+§) and (§T\d+§) types?/))) {
+      const first = traitList(m[1]!, ctx); const second = traitList(m[2]!, ctx); if (!first || !second) return false;
+      filter.traits = first; filter.all = [...(filter.all ?? []), { traits: second }]; continue;
+    }
     if ((m = take(/^(?:with )?(?:a )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
     if ((m = take(/^other than (§N\d+§(?:(?:, | or |, or )§N\d+§)*)/))) { const names = nameList(m[1]!, ctx); if (!names) return false; filter.notNames = names; continue; }
     if ((m = take(/^other than this (?:character|leader|card|stage)/i))) { filter.excludeSelf = true; continue; }

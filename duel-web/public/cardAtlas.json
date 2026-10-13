@@ -42392,6 +42392,103 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-001": {
+    "id": "OP18-001",
+    "name": "Karoo",
+    "type": "leader",
+    "colors": [
+      "blue",
+      "red"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 4,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718692_400w.jpg",
+    "effectText": "All of your Characters with both the {Animal} and {Alabasta} types gain [Rush] and +1000 power. [Once Per Turn] When your {Alabasta} type Character is K.O.'d, draw 1 card.",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-003": {
+    "id": "OP18-003",
+    "name": "Sea Cat",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/719550_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "unverified"
+  },
+  "OP18-010": {
+    "id": "OP18-010",
+    "name": "Tony Tony.Chopper",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723255_400w.jpg",
+    "effectText": "[On K.O.] Add up to 1 Character card with 4000 power or less from your trash to your hand.",
+    "traits": [
+      "Animal",
+      "Alabasta",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-016": {
+    "id": "OP18-016",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "power": 7000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721384_400w.jpg",
+    "effectText": "[Banish] [On K.O.] Play up to 1 {Alabasta} type Character card with 6000 power or less from your hand.",
+    "traits": [
+      "Alabasta",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-017": {
+    "id": "OP18-017",
+    "name": "Roronoa Zoro",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722652_400w.jpg",
+    "effectText": "[Once Per Turn] If your {Alabasta} type Character would be removed from the field by your opponent's effect, you may give your Leader −2000 power during this turn instead. [When Attacking] Up to 1 of your {Alabasta} type Characters gains [Rush] during this turn.",
+    "traits": [
+      "Alabasta",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
   "OP18-021": {
     "id": "OP18-021",
     "name": "Franky",
@@ -42403,8 +42500,90 @@
     "cost": 0,
     "power": 5000,
     "life": 4,
-    "imageUrl": "/cards/OP18-021.png",
-    "effectText": "All Stage cards in your hand have a +3000 Counter. [Activate:Main] [Once Per Turn] DON!! -1: Play up to 1 Stage card with a cost of 5 or less from your hand.",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712888_400w.jpg",
+    "effectText": "All Stage cards in your hand have a +3000 Counter. [Activate:Main] [Once Per Turn] DON!! −1: Play up to 1 Stage card with a cost of 5 or less from your hand.",
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-022": {
+    "id": "OP18-022",
+    "name": "Monkey.D.Luffy",
+    "type": "leader",
+    "colors": [
+      "green"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 5,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718691_400w.jpg",
+    "effectText": "[DON!!×3] [When Attacking] [Once Per Turn] You may set this Leader as active. If you do, this Leader will not become active in your next Refresh Phase.",
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-024": {
+    "id": "OP18-024",
+    "name": "Kokoro",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722650_400w.jpg",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [End of Your Turn] You may trash this Character: Set your Leader as active.",
+    "traits": [
+      "Water Seven",
+      "Merfolk"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-025": {
+    "id": "OP18-025",
+    "name": "Gonbe",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721560_400w.jpg",
+    "effectText": "[End of Your Turn] If this Character is rested, set your Leader as active.",
+    "traits": [
+      "Animal",
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-028": {
+    "id": "OP18-028",
+    "name": "Chimney",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/719772_400w.jpg",
+    "effectText": "[Activate: Main] You may rest 1 of your [Gonbe] and this Character: Set your [Monkey.D.Luffy] Leader as active.",
+    "traits": [
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "OP18-031": {
@@ -42416,8 +42595,94 @@
     ],
     "cost": 4,
     "power": 5000,
-    "imageUrl": "/cards/OP18-031.png",
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712892_400w.jpg",
     "effectText": "[Opponent's Turn] If your Character would be removed from the field by your opponent's effect, you may rest this Character instead. [End of Your Turn] Set up to 1 of your {Water Seven} type cards and up to 1 of your DON!! cards as active.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712893_400w.jpg"
+      }
+    ],
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-032": {
+    "id": "OP18-032",
+    "name": "Buggy",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723256_400w.jpg",
+    "effectText": "[On Play] / [On K.O.] Up to 1 of your opponent's rested Characters with 8000 power or less will not become active in your opponent's next Refresh Phase.",
+    "traits": [
+      "Buggy Pirates",
+      "East Blue"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-041": {
+    "id": "OP18-041",
+    "name": "Ms. All Sunday",
+    "type": "leader",
+    "colors": [
+      "blue"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 5,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718688_400w.jpg",
+    "effectText": "When your Character with a type including \"Baroque Works\" and 3000 base power or more is K.O.'d, draw 1 card, and your opponent trashes 1 card from their hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-044": {
+    "id": "OP18-044",
+    "name": "Mr.Beans & Miss.Katherina",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721832_400w.jpg",
+    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Draw 1 card and trash 1 card from your hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-052": {
+    "id": "OP18-052",
+    "name": "Mr. 5 & Miss.Valentine",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "power": 4000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723257_400w.jpg",
+    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Play up to 1 Character card with a type including \"Baroque Works\" and a cost of 3 or less from your hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Special/Strike",
     "abilitySupport": "ok"
   },
   "OP18-055": {
@@ -42438,6 +42703,217 @@
     "attribute": "Slash/Strike",
     "abilitySupport": "ok"
   },
+  "OP18-056": {
+    "id": "OP18-056",
+    "name": "Mr.13 & Ms.Friday",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721348_400w.jpg",
+    "effectText": "[DON!!x1] This Character gains +1000 power. [On Play] You may place 1 of your Characters with a type including \"Baroque Works\" other than this Character at the bottom of your deck: Your opponent trashes 1 card from their hand.",
+    "traits": [
+      "Animal",
+      "Baroque Works"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-060": {
+    "id": "OP18-060",
+    "name": "Saint Gunko",
+    "type": "leader",
+    "colors": [
+      "purple",
+      "black"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 4,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718690_400w.jpg",
+    "effectText": "[Once Per Turn] When a Character is played from your trash, draw 2 cards and trash 1 card from your hand. [Activate: Main] [Once Per Turn] You may trash 1 card from your hand: If you have a Character with 8000 base power or more, add up to 1 DON!! card as active from your DON!! deck.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "OP18-066": {
+    "id": "OP18-066",
+    "name": "Zambai",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721379_400w.jpg",
+    "effectText": "[Activate:Main] You may K.O. 1 of your Stages with a cost of 5 or less: This Character gains [Rush] during this turn. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-069": {
+    "id": "OP18-069",
+    "name": "Sodomu & Gomora",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722777_400w.jpg",
+    "effectText": "If your {The Franky Family} type Character would be K.O.'d, you may DON!! −1 and rest this Character instead.",
+    "traits": [
+      "Animal",
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-076": {
+    "id": "OP18-076",
+    "name": "Shark Submerge 3",
+    "type": "stage",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721836_400w.jpg",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [On Your Opponent's Attack] You may rest this Stage: Your Leader with 5000 power or less and up to 2 of your Characters gain +1000 power during this turn.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "abilitySupport": "ok"
+  },
+  "OP18-079": {
+    "id": "OP18-079",
+    "name": "Spandam",
+    "type": "leader",
+    "colors": [
+      "black",
+      "yellow"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "life": 4,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718693_400w.jpg",
+    "effectText": "[Activate: Main] You may rest 2 of your DON!! cards and this Leader and trash 1 card with a type including \"CP\" from your hand: Add up to 1 card from the top of your deck to the top of your Life cards.",
+    "traits": [
+      "CP9"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-086": {
+    "id": "OP18-086",
+    "name": "Goldberg",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721380_400w.jpg",
+    "effectText": "This Character gains +12 cost. [On K.O.] K.O. up to 1 of your opponent's Characters with cost of 4 or less.",
+    "traits": [
+      "Giant",
+      "New Giant Pirates",
+      "Elbaph"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-089": {
+    "id": "OP18-089",
+    "name": "Dorry",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722262_400w.jpg",
+    "effectText": "This Character gains +12 cost. [On Play] You may trash 1 card from your hand: Your opponent trashes 1 card from their hand.",
+    "traits": [
+      "Giant",
+      "Elbaph",
+      "Giant Pirates"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-091": {
+    "id": "OP18-091",
+    "name": "Brogy",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723145_400w.jpg",
+    "effectText": "This Character gains +12 cost. [When Attacking] You may trash 1 card from your hand: Add up to 1 of your Character cards with a cost of 2 or less from your trash to your hand.",
+    "traits": [
+      "Giant",
+      "Elbaph",
+      "Giant Pirates"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-106": {
+    "id": "OP18-106",
+    "name": "Doberman",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 7000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722651_400w.jpg",
+    "effectText": "[Double Attack] (This card deals 2 damage.)",
+    "traits": [
+      "Navy",
+      "Vice Admiral"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "keywords"
+  },
+  "OP18-111": {
+    "id": "OP18-111",
+    "name": "Momonga",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 7000,
+    "counter": 2000,
+    "rush": true,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723152_400w.jpg",
+    "effectText": "[Rush] (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Navy",
+      "Vice Admiral"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "keywords"
+  },
   "OP18-119": {
     "id": "OP18-119",
     "name": "Saint Shamrock",
@@ -42447,8 +42923,20 @@
     ],
     "cost": 8,
     "power": 9000,
-    "imageUrl": "/cards/OP18-119.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712891_400w.jpg",
     "effectText": "[On K.O.] You may trash 1 card from your hand: Play this Character card from your trash. [Activate: Main] [Once Per Turn] If this Character was played on this turn, play up to 1 {Holy Knights of God} type Character card with a cost of 6 or less from your trash.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712890_400w.jpg"
+      }
+    ],
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-001": {

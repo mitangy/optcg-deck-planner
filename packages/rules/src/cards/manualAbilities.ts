@@ -577,8 +577,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP16-041", [{ trigger: "on_event", don: 1, oncePerTurn: true, text: "[DON!! x1] [Once Per Turn] This effect can be activated when your {Impel Down}",
     eventTrigger: { event: "character_left_field", player: "you", filter: { traits: ["Impel Down"] } },
     effect: may(play(upTo(1, sel("you", "hand", { names: ["Prisoner of Impel Down"] })))) }]),
-  card("OP16-079", [{ trigger: "on_event", text: "When a {Land of Wano} type Character card is played from your trash",
-    eventTrigger: { event: "character_played", player: "you", fromZone: "trash", filter: { ...CHAR, traits: ["Land of Wano"] } }, effect: keyword({ ref: "event_card" }, "rush") }]),
   card("OP16-084", [{ trigger: "activate_main", text: "[Activate: Main] You may trash this Character with a cost of 20 or more",
     conditions: [exists(myChar({ onlySelf: true, cost: ge(20) }))], costs: [{ k: "trash_self" }],
     effect: when(cmp(donField("you"), ">=", 9), play(upTo(1, sel("you", "trash", { names: ["Kouzuki Momonosuke"], cost: eq(9) })))) }]),
