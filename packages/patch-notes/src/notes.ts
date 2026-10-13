@@ -12,7 +12,6 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
   { date: "2026-10-13", app: "duel", pr: 578, title: "24 more OP18 cards are playable", text: "24 more OP18 cards (from Karoo, Saint Gunko and Spandam to Sea Cat and Momonga) are in the duel app with their effects, and Franky, Nico Robin and Saint Shamrock now have official text. Cards without official images yet show preview art." },
-  { date: "2026-10-13", app: "duel", pr: 578, title: "Yamato (OP16-079) gives Rush to the right Character", text: "When a {Land of Wano} Character is played from your trash, Yamato (OP16-079) now gives that Character [Rush] for the turn." },
   // 2026-10-12
   { date: "2026-10-12", app: "duel", pr: 576, title: "Buttons right beside the board", text: "On a computer, End turn, Keep / Mulligan and the other action buttons now sit right against the playmats, at the line where the two mats meet, instead of in the side column. The Mulligan text and the battle line show just under them. The space for the buttons is always kept, so the board never shifts when they change; with the tilted board the buttons stay in the strip between the mats." },
   { date: "2026-10-12", app: "duel", pr: 573, title: "Move a docked Log Pose like the other panels", text: "When Log Pose is docked into a side column, drag the grip on its top edge to put it anywhere in the side columns, above or below other panels or in the other column, the same as the rest. It remembers its spot, and still starts at the top of the column." },
