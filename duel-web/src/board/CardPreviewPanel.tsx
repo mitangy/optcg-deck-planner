@@ -1,6 +1,7 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import { isPlaceholderArt } from "../cards/cardImage";
+import { useArtFallback } from "../cards/useArtFallback";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard, type PreviewCard } from "./cardPreview";
 import { CardInspect } from "./CardInspect";
@@ -49,27 +50,27 @@ export function CardPreviewPanel() {
  */
 export function CardPreviewContent({ preview, popup = false }: { preview: PreviewCard; popup?: boolean }) {
   const big = useDuelSettings().previewBigCard;
-  const [failed, setFailed] = useState<string | null>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
   const metaRef = useRef<HTMLDivElement | null>(null);
   const scrollCue = useMoreBelow(metaRef, [preview.defId, preview.caption, preview.live]);
 
   const openInspect = (e: MouseEvent) => inspectOnContextMenu(e, () => setInspectOpen(true));
   const entry = lookupCard(preview.defId);
-  const src = resolveCardImageUrl(preview.defId, {
+  const tcgSrc = resolveCardImageUrl(preview.defId, {
     ownerSeat: preview.ownerSeat,
     size: "large",
   });
+  const { src, fail } = useArtFallback(tcgSrc, preview.defId);
   const art =
-    src && src !== failed ? (
+    src ? (
       <img
         className="card-preview-img"
         src={src}
         alt={entry.name}
         draggable={false}
-        onError={() => setFailed(src)}
+        onError={fail}
         onLoad={(e) => {
-          if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
+          if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) fail();
         }}
         onContextMenu={openInspect}
       />
