@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
+  { date: "2026-10-13", app: "duel", pr: 598, title: "One tap no longer gives DON!!", text: "With One-tap actions on, clicking a Character that can only take DON!!, like one you just played, now opens its pop-up instead of giving it a DON!!. Selecting DON!! first and then tapping the card still gives it at once." },
   { date: "2026-10-13", app: "duel", pr: 597, title: "Event Yes/No stays on screen", text: "The Yes / No for an Event you use from your hand no longer runs off the bottom of the screen when your hand is tucked down; the card and its question stay fully visible." },
   { date: "2026-10-13", app: "duel", pr: 586, title: "Hidden pop-ups shrink into their button", text: "When you hide a pop-up, it now shrinks into the \"Back to …\" button you click to bring it back, instead of just vanishing. With reduced motion on, it still hides at once." },
   { date: "2026-10-13", app: "duel", pr: 586, title: "Card pop-up stays on top", text: "On a computer the hover card pop-up now shows above search and choice pop-ups and everything else on the board, and it moves aside when it would cover the card you're pointing at." },

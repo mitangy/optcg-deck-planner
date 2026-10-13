@@ -1261,7 +1261,8 @@ export function DuelBoard({
         return;
       }
     }
-    // One-tap: a pop-up with a single button (one action, or a lone +1 DON!!) does it straight away.
+    // One-tap: a pop-up with a single action does it straight away. A tap never gives DON!!, so a card whose
+    // pop-up is only the +1 / +2 row (like one you just played) still opens it.
     if (prefs.oneTapActions && view && selectedBoardId !== id && !dragPayload && !replaceOpen && !donSelectActive) {
       const quickRow =
         dndEnabled && (view.you.leader.id === id || view.you.characters.some((c) => c.id === id))
@@ -1271,12 +1272,8 @@ export function DuelBoard({
         popoverIntentsFor({ handIndex: null, boardId: id }, quickRow.length > 0 ? id : undefined),
         quickRow,
       );
-      if (sole?.kind === "action") {
+      if (sole) {
         pressCardAction(sole.action);
-        return;
-      }
-      if (sole?.kind === "don") {
-        quickAttachTo(id, sole.count);
         return;
       }
     }
