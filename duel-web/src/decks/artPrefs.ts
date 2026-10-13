@@ -1,4 +1,5 @@
 import { lookupCard } from "../cards/atlas";
+import { previewArtPath } from "../cards/previewArt";
 import { cardImageUrl, type CardImageSize } from "../cards/cardImage";
 import {
   getSeatArtPref,
@@ -57,7 +58,7 @@ function rawCardImageUrl(
     const hit = entry.altArts.find((a) => a.id === altId);
     if (hit?.imageUrl) return hit.imageUrl;
   }
-  return entry.imageUrl;
+  return entry.imageUrl ?? previewArtPath(defId) ?? undefined;
 }
 
 /**

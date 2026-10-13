@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-12
+  { date: "2026-10-12", app: "duel", pr: 575, title: "New cards show preview art", text: "New cards (EB05, OP18 and future sets) now show preview art until the official card images are out." },
   { date: "2026-10-12", app: "duel", pr: 570, title: "Card pop-up has its own size", text: "The hover card pop-up now has its own Card pop-up size in Gameplay settings (computer only), separate from Pop-up size, and its − and + buttons change only that. The card now grows with the pop-up instead of stopping while the box kept growing; the pop-up stops growing once the card would no longer fit the window." },
   { date: "2026-10-12", app: "duel", pr: 570, title: "Move the Life trigger pop-up", text: "The Life check pop-up (Activate Trigger / Add to hand) can now be dragged by the thin bar above the card, like other pop-ups; double-click the bar to put it back. The next pop-up opens where you leave it." },
   { date: "2026-10-12", app: "duel", pr: 569, title: "Monkey.D.Luffy (OP16-015) no longer asks twice", text: "Monkey.D.Luffy (OP16-015) no longer asks again when your opponent attacks after its effect already made your Leader and Luffy 7000 base power this turn. It asks again if something changed either base power since." },
