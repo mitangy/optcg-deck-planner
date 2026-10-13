@@ -83,6 +83,19 @@ describe("editDeck add/remove", () => {
   });
 });
 
+describe("any-number cards (#579)", () => {
+  it("deck editor adds a 5th OP16-042 (any number) but not a 5th normal card (#579)", () => {
+    const anyNumber = Array(4).fill("OP16-042");
+    const more = addCard(anyNumber, "OP16-042");
+    expect(more.ok).toBe(true);
+    if (more.ok) expect(more.cards).toHaveLength(5);
+
+    const normal = Array(4).fill("EB01-022");
+    const capped = addCard(normal, "EB01-022");
+    expect(capped.ok).toBe(false);
+  });
+});
+
 describe("applying a Log Pose edit (#400)", () => {
   const make = (cards: string[]) => saveDeck({ id: "apply-deck", name: "Apply", leaderId: "ST01-001", cards });
   const copies = (id: string) => countCardInDeck(getSavedDeck("apply-deck")!, id);

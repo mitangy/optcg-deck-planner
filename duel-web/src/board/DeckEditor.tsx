@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./useMediaQuery";
-import { lookupCard } from "../cards/atlas";
+import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import {
   hasActiveCardSearch,
   listAtlasColors,
@@ -14,7 +14,6 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
   addCard,
   countCardInDeck,
-  MAX_COPIES_PER_CARD,
   MAX_MAIN_DECK_SIZE,
   removeAllCopies,
   removeCard,
@@ -122,7 +121,7 @@ function StackCard({
                 type="button"
                 className="btn btn-secondary deck-stack-qty"
                 aria-label={`Add one ${entry.name}`}
-                disabled={count >= MAX_COPIES_PER_CARD}
+                disabled={count >= maxCopiesFor(entry.id)}
                 onClick={() => bump(1)}
               >
                 +
@@ -471,7 +470,7 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
                     const inDeck = countCardInDeck(currentDeck, entry.id);
                     const imageUrl =
                       resolveCardImageUrl(entry.id, currentDeck) ?? entry.imageUrl;
-                    const atCap = inDeck >= MAX_COPIES_PER_CARD;
+                    const atCap = inDeck >= maxCopiesFor(entry.id);
                     const deckFull = currentDeck.cards.length >= MAX_MAIN_DECK_SIZE;
                     return (
                       <li key={entry.id} className="deck-search-row">

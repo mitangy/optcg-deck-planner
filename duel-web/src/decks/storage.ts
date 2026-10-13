@@ -2,6 +2,7 @@ import {
   isOptcgCardId,
   listAtlasIds,
   lookupCard,
+  maxCopiesFor,
   registerAtlasStub,
 } from "../cards/atlas";
 import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
@@ -81,7 +82,7 @@ export function validateImportedList(text: string): DeckValidation {
       continue;
     }
 
-    if (line.count > 4) {
+    if (line.count > maxCopiesFor(line.cardId)) {
       errors.push(`${line.cardId} has ${line.count} copies (max 4)`);
     }
     const entry = lookupCard(line.cardId);
