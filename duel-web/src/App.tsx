@@ -33,7 +33,7 @@ import { useMediaQuery } from "./board/useMediaQuery";
 const ReplayPage = lazy(() => import("./pages/ReplayPage"));
 
 export function App() {
-  const { reduceMotion, theme, colorMode, textSize, popupSize } = useDuelSettings();
+  const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();
   // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
@@ -45,6 +45,7 @@ export function App() {
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
   useLayoutEffect(() => applyTextSize(textSize), [textSize]);
   useLayoutEffect(() => applyPopupSize(popupSize), [popupSize]);
+  useLayoutEffect(() => applyPopupSize(previewPopupSize, document.documentElement, "previewPopupSize"), [previewPopupSize]);
   // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";
