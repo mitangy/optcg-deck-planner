@@ -59,9 +59,16 @@ for (const [name, size] of [["portrait", null], ["landscape", { width: 812, heig
       expect(await sent(page)).toEqual([]);
     });
 
-    test(`one-tap gives a lone +1 DON!! at once (#502) [${name}]`, async ({ page }) => {
+    test(`one-tap opens the pop-up instead of giving a lone +1 DON!! (#596) [${name}]`, async ({ page }) => {
       await openDemo(page, "?cantattack&dons&attackready", true);
       await press(page, page.locator(YOU("y-c1")));
+      const popup = page.locator(".card-actions");
+      await expect(popup).toBeVisible();
+      const give = popup.getByRole("button", { name: /^Give 1 DON!!/ });
+      await expect(give).toBeVisible();
+      await page.waitForTimeout(500);
+      expect(await sent(page)).toEqual([]);
+      await press(page, give);
       await expect.poll(async () => (await sent(page)).map((i) => (i as { type: string; targetId?: string }).type + ":" + (i as { targetId?: string }).targetId)).toEqual(["give_don:y-c1"]);
     });
 
