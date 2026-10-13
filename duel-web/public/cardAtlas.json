@@ -6714,7 +6714,10 @@
       "Navy"
     ],
     "attribute": "Special",
-    "abilitySupport": "ok"
+    "abilitySupport": "ok",
+    "deckRules": [
+      "any_number"
+    ]
   },
   "OP01-076": {
     "id": "OP01-076",
@@ -21841,7 +21844,10 @@
       "Big Mom Pirates"
     ],
     "attribute": "Slash",
-    "abilitySupport": "ok"
+    "abilitySupport": "ok",
+    "deckRules": [
+      "any_number"
+    ]
   },
   "OP08-073": {
     "id": "OP08-073",
@@ -38757,7 +38763,10 @@
       "Impel Down"
     ],
     "attribute": "Strike",
-    "abilitySupport": "ok"
+    "abilitySupport": "ok",
+    "deckRules": [
+      "any_number"
+    ]
   },
   "OP16-043": {
     "id": "OP16-043",
