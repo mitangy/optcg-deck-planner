@@ -67,9 +67,9 @@ export const EVENT_CARRIES_CARD: Record<GameEventKind, boolean> = {
 
 /**
  * Effects that run through `forEachTarget` (or `play`) in `execActInner` and so reset and fill `_affected`.
- * Notably not `to_life`, `activate`, `give_don`, `power`, ...: those never write it.
+ * Notably not `to_life`, `give_don`, `power`, ...: those never write it.
  */
-const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play"]);
+const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"]);
 
 /** Filter keys whose string value names a variable (`filterMatches` in engine/queries.ts reads `ctx.vars[...]`). */
 const FILTER_VAR_KEYS = ["excludeVar", "inVar", "notColorsOfVar", "sameNameAsVar"] as const;

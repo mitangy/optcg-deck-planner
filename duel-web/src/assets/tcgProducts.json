@@ -526,5 +526,125 @@
   "OP18-055": {
     "productId": 722714,
     "alts": []
+  },
+  "OP18-021": {
+    "productId": 712888,
+    "alts": []
+  },
+  "OP18-119": {
+    "productId": 712891,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 712890
+      }
+    ]
+  },
+  "OP18-031": {
+    "productId": 712892,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "productId": 712893
+      }
+    ]
+  },
+  "OP18-041": {
+    "productId": 718688,
+    "alts": []
+  },
+  "OP18-060": {
+    "productId": 718690,
+    "alts": []
+  },
+  "OP18-022": {
+    "productId": 718691,
+    "alts": []
+  },
+  "OP18-001": {
+    "productId": 718692,
+    "alts": []
+  },
+  "OP18-079": {
+    "productId": 718693,
+    "alts": []
+  },
+  "OP18-003": {
+    "productId": 719550,
+    "alts": []
+  },
+  "OP18-028": {
+    "productId": 719772,
+    "alts": []
+  },
+  "OP18-056": {
+    "productId": 721348,
+    "alts": []
+  },
+  "OP18-066": {
+    "productId": 721379,
+    "alts": []
+  },
+  "OP18-086": {
+    "productId": 721380,
+    "alts": []
+  },
+  "OP18-016": {
+    "productId": 721384,
+    "alts": []
+  },
+  "OP18-025": {
+    "productId": 721560,
+    "alts": []
+  },
+  "OP18-044": {
+    "productId": 721832,
+    "alts": []
+  },
+  "OP18-076": {
+    "productId": 721836,
+    "alts": []
+  },
+  "OP18-089": {
+    "productId": 722262,
+    "alts": []
+  },
+  "OP18-024": {
+    "productId": 722650,
+    "alts": []
+  },
+  "OP18-106": {
+    "productId": 722651,
+    "alts": []
+  },
+  "OP18-017": {
+    "productId": 722652,
+    "alts": []
+  },
+  "OP18-069": {
+    "productId": 722777,
+    "alts": []
+  },
+  "OP18-091": {
+    "productId": 723145,
+    "alts": []
+  },
+  "OP18-111": {
+    "productId": 723152,
+    "alts": []
+  },
+  "OP18-010": {
+    "productId": 723255,
+    "alts": []
+  },
+  "OP18-032": {
+    "productId": 723256,
+    "alts": []
+  },
+  "OP18-052": {
+    "productId": 723257,
+    "alts": []
   }
 }

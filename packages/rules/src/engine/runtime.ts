@@ -712,9 +712,15 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       });
     }
     case "activate": {
+      // Like `play`: "set X as active. If you do, ..." gates on the cards this step actually set active.
+      frame.bindings._affected = [];
       for (const loc of targetsOf(effect.target)) {
-        if ((loc.zone as string) === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = false; continue; }
-        if (loc.card && isOnField(loc)) loc.card.rested = false;
+        if ((loc.zone as string) === "don") {
+          const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id);
+          if (d) { d.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
+          continue;
+        }
+        if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
       }
       return "next";
     }

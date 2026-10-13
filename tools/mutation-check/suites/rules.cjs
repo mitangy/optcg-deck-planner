@@ -657,7 +657,7 @@ module.exports = {
     { id: "lint-event-card-reads-skipped", file: LINT, from: `if (o.ref === "event_card") out.add("_event");`, to: "", kills: ["`_event` is bound only for event triggers"] },
     { id: "lint-filter-var-reads-skipped", file: LINT, from: `for (const key of FILTER_VAR_KEYS) if (typeof o[key] === "string") out.add(o[key] as string);`, to: "", kills: ["filters that name a variable read it", "header conditions and statics have no variables"] },
     { id: "lint-mill-bind-not-written", file: LINT, from: `if ((effect.do === "mill" || effect.do === "reveal_top") && effect.bind)`, to: `if (effect.do === "reveal_top" && effect.bind)`, kills: ["flags a read of a variable no step writes", "a binding on only one branch still counts"] },
-    { id: "lint-to-life-writes-affected", file: LINT, from: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play"])`, to: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "to_life"])`, kills: ["`_affected` is written by removals and plays but not by to_life"] },
+    { id: "lint-to-life-writes-affected", file: LINT, from: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"])`, to: `new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate", "to_life"])`, kills: ["`_affected` is written by removals and plays but not by to_life"] },
     { id: "lint-choose-bind-ignored", file: LINT, from: `case "select": case "mode": return [{ name: instr.bind, def: OTHER }];`, to: `case "mode": return [{ name: instr.bind, def: OTHER }];`, kills: ["reads before the binding step do not count"] },
     { id: "lint-join-requires-all-paths", file: LINT, from: "if (have) mergeInto(have, defs); else before[to] = cloneDefs(defs);", to: "if (have) { for (const k of [...have.keys()]) if (!defs.has(k)) have.delete(k); } else before[to] = cloneDefs(defs);", kills: ["a binding on only one branch still counts as bound afterwards"] },
     { id: "lint-event-always-bound", file: LINT, from: `if (events.every((e) => EVENT_CARRIES_CARD[e])) bind("_event");`, to: `bind("_event");`, kills: ["`_event` is bound only for event triggers"] },
@@ -754,5 +754,33 @@ module.exports = {
     {"id":"luffy-op16-015-only-leader-checked","file":"packages/rules/src/cards/manualAbilities.ts","from":"      cmp({ count: { of: \"leader_base_power\", player: \"you\" } }, \"!=\", 7000),\n","to":"","kills":["OP16-015 is offered again when an effect changed the Leader's base power (#567)"]},
     scnManual("kuzan-any-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you" }, effect: draw(1) }]),`, ["OP12-040 does not draw when a card that is not {Navy}"]),
     scnManual("kuzan-wrong-source", `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Navy"] } }, effect: draw(1) }]),`, `eventTrigger: { event: "card_trashed_from_hand", player: "you", sourceFilter: { traits: ["Marines"] } }, effect: draw(1) }]),`, ["OP12-040 draws when Borsalino trashes a card"]),
+    // OP18 import (#577): grammar and primitives learned for the 24 new cards.
+    { id: "op18-karoo-either-type", edits: [
+      { file: "packages/rules/src/tools/cardText/phrases.ts", from: "filter.traits = first; filter.all = [...(filter.all ?? []), { traits: second }]; continue;", to: "filter.traits = [...first, ...second]; continue;" },
+      { json: ABILITIES, patch: (a) => { for (const st of a["OP18-001"].abilities[0].statics) { const f = st.target.all.filter; f.traits = ["Animal", "Alabasta"]; delete f.all; } } },
+    ], kills: ["OP18-001 powers and grants Rush only to Characters with both {Animal} and {Alabasta}"] },
+    { id: "op18-gunko-any-zone", edits: [
+      { file: "packages/rules/src/tools/cardText/compileCard.ts", from: "fromZone: m[2]!.toLowerCase() as \"hand\" | \"trash\", ", to: "" },
+      { json: ABILITIES, patch: (a) => { delete a["OP18-060"].abilities[0].eventTrigger.fromZone; } },
+    ], kills: ["OP18-060 does nothing when the Character is played from the hand"] },
+    { id: "op18-gunko-hand-only", edits: [
+      { file: "packages/rules/src/tools/cardText/compileCard.ts", from: "fromZone: m[2]!.toLowerCase() as \"hand\" | \"trash\", ", to: "fromZone: \"hand\" as \"hand\" | \"trash\", " },
+      { json: ABILITIES, patch: (a) => { a["OP18-060"].abilities[0].eventTrigger.fromZone = "hand"; } },
+    ], kills: ["OP18-060 draws 2 and trashes 1 when a Character is played from your trash"] },
+    { id: "op18-shark-leader-unfiltered", edits: [
+      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"you\", zone: \"leader\" } }" },
+      { json: ABILITIES, patch: (a) => { delete a["OP18-076"].abilities[1].effect.steps[0].target.selector.filter; } },
+    ], kills: ["OP18-076 leaves a Leader above 5000 power alone"] },
+    { id: "op18-shark-wrong-leader", edits: [
+      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"opponent\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }" },
+      { json: ABILITIES, patch: (a) => { a["OP18-076"].abilities[1].effect.steps[0].target.selector.player = "opponent"; } },
+    ], kills: ["OP18-076 gives a 5000 power Leader and the chosen Characters +1000"] },
+    { id: "op18-activate-not-affected", file: "packages/rules/src/engine/runtime.ts", from: "if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }", to: "if (loc.card && isOnField(loc)) { loc.card.rested = false; }", kills: ["OP18-022 Monkey.D.Luffy setting the Leader active (and attacking again) keeps it rested through the next Refresh Phase"] },
+    { id: "op18-lint-activate-not-affected", file: LINT, from: `"play", "activate"])`, to: `"play"])`, kills: [LINT_REGISTRY] },
+    scn("op18-luffy-restrict-ungated", "OP18-022", (a) => { const s = a[0].effect.steps; s[1] = s[1].then; }, ["declining leaves the Leader rested and refreshes it normally"]),
+    { id: "op18-event-card-rush-target", edits: [
+      { file: GRAMMAR_FILE, from: "target: ctx.eventCard && /^that character/i.test(m[0]) ? { ref: \"event_card\" } : { ref: \"var\", name: \"_affected\" }", to: "target: { ref: \"var\", name: \"_affected\" }" },
+      { json: ABILITIES, patch: (a) => { a["OP16-079"].abilities[0].effect.target = { ref: "var", name: "_affected" }; } },
+    ], kills: ["OP16-079 the Character played from the trash gains Rush"] },
   ],
 };
