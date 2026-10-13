@@ -33,8 +33,8 @@ export function serializePromptPos(o: Offset): string {
   return x === 0 && y === 0 ? "" : `${x},${y}`;
 }
 
-/** The prompt's header row is the grip; its buttons (Hide) still click. */
-const GRIP = ".ability-prompt > h3, .float-stage-free > .float-head";
+/** The prompt's header row is the grip; its buttons (Hide) still click. The Life check has no header: its tools row grips (#565). */
+const GRIP = ".ability-prompt > h3, .float-stage-free > .float-head, .life-trigger-card > .life-trigger-tools";
 /** The box a drag moves: a pop-up, or the effect-order stage (#449). */
 const BOX = ".ability-prompt, .float-stage-free";
 

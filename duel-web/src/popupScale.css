@@ -8,8 +8,8 @@
    transform-origin is always the left edge (x = 0): with a `translate(-50%, …)`
    centring that keeps the pop-up centred on its anchor; y = 0 for top / centre
    anchored pop-ups, 100% for ones that sit on the bottom edge.
-   The hover card pop-up (board.css) and the card actions pop-up (BoardOverlays.tsx)
-   size themselves from the same variable. Docked pop-ups keep their column width. */
+   The card actions pop-up (BoardOverlays.tsx) sizes itself from the same variable. Docked pop-ups keep their column width.
+   The hover card pop-up has its own setting and variable (--preview-popup-scale, board.css). */
 
 /* Anchored to a card: JS places the top-left corner and measures the scaled box. */
 :root .card-actions,
