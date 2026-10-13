@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
+  { date: "2026-10-13", app: "duel", pr: 591, title: "Promo and event alt arts", text: "Deck Configure now also lists promo, event and pack printings with their own art as alt arts, such as Dash Pack, Wanted Poster, the anniversary sets, Gift Collection 2023, the Seven Warlords binder, Treasure Cup, tournament and judge packs, Full Art and Serial Numbered prints. Each is named after the product it came from. Your saved art choices are unchanged." },
   { date: "2026-10-13", app: "duel", pr: 585, title: "Opponent hand centred on the left or right", text: "When the opponent's hand is set to the left or right of the board, it now sits in the middle of the space beside their playmat instead of at the top." },
   { date: "2026-10-13", app: "duel", pr: 584, title: "More alt arts, including EB05 and El Thor", text: "Deck Configure now lists many more alternate arts, including the EB05 alt and SP arts and El Thor's Premium Card Collection prints (OP05-114 and OP15-075). Alts TCGPlayer has no picture for yet show preview art until the real image is out. Your saved art choices are unchanged." },
   { date: "2026-10-13", app: "duel", pr: 561, title: "Uta and Crocodile can’t be K.O.’d by Leaders", text: "Uta (ST08-002) and Crocodile (OP09-025) now survive a battle with a Leader, as their \"cannot be K.O.'d in battle by Leaders\" text says. Before, a Leader could still K.O. them." },
