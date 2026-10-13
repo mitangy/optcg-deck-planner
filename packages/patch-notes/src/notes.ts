@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
+  { date: "2026-10-13", app: "duel", pr: 561, title: "Uta and Crocodile can’t be K.O.’d by Leaders", text: "Uta (ST08-002) and Crocodile (OP09-025) now survive a battle with a Leader, as their \"cannot be K.O.'d in battle by Leaders\" text says. Before, a Leader could still K.O. them." },
   { date: "2026-10-13", app: "duel", pr: 580, title: "Play more than 4 Prisoner of Impel Down", text: "Cards that say you may have any number of them in your deck, like Prisoner of Impel Down (OP16-042), Pacifista (OP01-075) and Biscuit Warrior (OP08-072), no longer get a \"max 4\" error when you import a deck, and the deck editor lets you add more than 4." },
   { date: "2026-10-13", app: "duel", pr: 578, title: "24 more OP18 cards are playable", text: "24 more OP18 cards (from Karoo, Saint Gunko and Spandam to Sea Cat and Momonga) are in the duel app with their effects, and Franky, Nico Robin and Saint Shamrock now have official text. Cards without official images yet show preview art." },
   // 2026-10-12
