@@ -190,9 +190,12 @@ describe("popoverPlacement (#255, #449)", () => {
 });
 
 describe("one-tap on a card with a single pop-up button (#502)", () => {
-  it("presses the lone action when there is no DON!! row, the lone +1 when there are no actions (#502)", () => {
+  it("presses the lone action when there is no DON!! row (#502)", () => {
     expect(soleCardButton(["play"], [])).toEqual({ kind: "action", action: "play" });
-    expect(soleCardButton([], [1])).toEqual({ kind: "don", count: 1 });
+  });
+
+  it("a lone +1 DON!! is not pressed by one tap (#596)", () => {
+    expect(soleCardButton([], [1])).toBeNull();
   });
 
   it("keeps the pop-up when it holds a real choice (#502)", () => {
