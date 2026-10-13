@@ -6,6 +6,7 @@ import { useClickCopy } from "./clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
+import { captureHideShrink } from "./hideShrink";
 import { PopupSizeButtons } from "./PopupSizeButtons";
 import { useFitPopupScale } from "./useFitPopupScale";
 import { usePromptDrag } from "./promptDrag";
@@ -177,7 +178,15 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
         </div>
         {note ? <div className="float-note">{note}</div> : null}
         <div className="float-actions">
-          <button type="button" className="btn btn-secondary float-peek" onClick={() => onPeek(true)}>
+          <button
+            type="button"
+            className="btn btn-secondary float-peek"
+            onClick={(e) => {
+              // The stage is the visible box; its layer spans the screen (#587).
+              captureHideShrink(e.currentTarget.closest(".float-stage"));
+              onPeek(true);
+            }}
+          >
             Hide
           </button>
           {actions}

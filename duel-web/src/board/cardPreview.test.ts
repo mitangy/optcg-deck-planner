@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearPreviewCard,
   endPreviewHover,
+  getHoverAnchor,
   getLastHoverAt,
   getPreviewCard,
   getPreviewHovering,
@@ -67,5 +68,29 @@ describe("the card preview pop-up is a hover pop-up (#529)", () => {
     for (const key of ["pinned", "hovering", "overPopup", "dragging"] as const) {
       expect(previewPopupLive({ ...off, [key]: true }), key).toBe(true);
     }
+  });
+});
+
+describe("the pop-up remembers which card was hovered so it can step aside (#583)", () => {
+  const el = (left: number, top: number, right: number, bottom: number) =>
+    ({ getBoundingClientRect: () => ({ left, top, right, bottom, width: right - left, height: bottom - top }) }) as unknown as Element;
+  afterEach(() => {
+    endPreviewHover();
+    clearPreviewCard();
+  });
+
+  it("a hover records the card's box, the next hover replaces it, and leaving keeps it while the pop-up lingers (#583)", () => {
+    hoverPreviewCard({ defId: "ST01-001" }, el(10, 20, 110, 160));
+    expect(getHoverAnchor()).toEqual({ left: 10, top: 20, right: 110, bottom: 160 });
+    endPreviewHover();
+    expect(getHoverAnchor()).toEqual({ left: 10, top: 20, right: 110, bottom: 160 });
+    hoverPreviewCard({ defId: "ST01-002" }, el(300, 40, 400, 180));
+    expect(getHoverAnchor()).toEqual({ left: 300, top: 40, right: 400, bottom: 180 });
+  });
+
+  it("closing the preview forgets the box (#583)", () => {
+    hoverPreviewCard({ defId: "ST01-001" }, el(10, 20, 110, 160));
+    clearPreviewCard();
+    expect(getHoverAnchor()).toBeNull();
   });
 });

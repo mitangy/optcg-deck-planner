@@ -273,3 +273,56 @@ test("SHOTS=1 saves one column on the right, one on the left and both (#529)", a
     }
   }
 });
+
+test("the hover pop-up is on top of the play area, not behind a search pop-up's cards (#583)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page, {}, "?prompt=look");
+  await page.locator(".float-card").first().waitFor();
+  await page.locator(".rail-hand-cards > .card-tile").first().hover();
+  const popup = page.locator(POPUP);
+  await expect(popup).toBeVisible();
+  const hits = await page.evaluate((sel) => {
+    const r = document.querySelector(sel)!.getBoundingClientRect();
+    const out: boolean[] = [];
+    // A grid inside the box, inset from its rounded corners.
+    for (let i = 1; i <= 6; i++) {
+      for (let j = 1; j <= 6; j++) {
+        const el = document.elementFromPoint(r.left + (r.width * i) / 7, r.top + (r.height * j) / 7);
+        out.push(!!el?.closest(sel));
+      }
+    }
+    return out;
+  }, POPUP);
+  expect(hits.every(Boolean)).toBe(true);
+});
+
+test("the hover pop-up steps off the card under its default spot so that card stays clickable (#583)", async ({ page }) => {
+  desktopOnly();
+  await openDemo(page, {}, "?prompt=look");
+  const card = page.locator(".float-card").last();
+  await card.waitFor();
+  const target = card.locator(".card-tile").first();
+  await target.hover();
+  const popup = page.locator(POPUP);
+  await expect(popup).toBeVisible();
+  const p = (await popup.boundingBox())!;
+  const c = (await target.boundingBox())!;
+  const apart = p.x + p.width <= c.x || c.x + c.width <= p.x || p.y + p.height <= c.y || c.y + c.height <= p.y;
+  expect(apart).toBe(true);
+  const hit = await page.evaluate(
+    ([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return { inPopup: !!el?.closest(".card-preview-popup"), inCard: !!el?.closest(".float-card") };
+    },
+    [c.x + c.width / 2, c.y + c.height / 2],
+  );
+  expect(hit).toEqual({ inPopup: false, inCard: true });
+
+  // Moving onto the pop-up keeps it where it stepped to, instead of jumping back over the card. Its right edge is next
+  // to the card, so that spot is also inside the default spot: a pop-up that jumped back would stay there, under the pointer.
+  await page.mouse.move(p.x + p.width - 10, p.y + 20, { steps: 6 });
+  await page.waitForTimeout(300);
+  const still = (await popup.boundingBox())!;
+  expect(still.x).toBeCloseTo(p.x, 0);
+  expect(still.y).toBeCloseTo(p.y, 0);
+});

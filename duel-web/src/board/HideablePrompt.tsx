@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { PendingChoiceView } from "../net/protocol";
+import { captureHideShrink, playHideShrink } from "./hideShrink";
 import { peekPillLeft } from "./peekPill";
 import { usePromptDodge } from "./usePromptDodge";
 import { updateSettings, useDuelSettings } from "../settings";
@@ -112,6 +113,15 @@ export function BackPill({ label, onShow }: { label: string; onShow: () => void 
     };
   }, [desktop, label]);
 
+  // Desktop waits for the measured spot; otherwise CSS places the pill and it is already home.
+  const placed = !desktop || spot != null || !document.querySelector(".hud-bar");
+  const played = useRef(false);
+  useLayoutEffect(() => {
+    if (!placed || played.current || !pillRef.current) return;
+    played.current = true;
+    playHideShrink(pillRef.current);
+  }, [placed]);
+
   const style: CSSProperties | undefined = spot ? { position: "absolute", left: spot.left, top: spot.top } : undefined;
   return (
     <div ref={layerRef} className="float-layer float-layer-peek">
@@ -158,7 +168,14 @@ export function PromptHideButton({ onHide }: { onHide?: () => void }) {
         <PopupSizeButtons className="prompt-size-btn" />
       </span>
       <PromptDockButtons />
-      <button type="button" className="prompt-hide" onClick={onHide} aria-label="Hide this prompt to see your hand and the board">
+      <button
+        type="button"
+        className="prompt-hide"
+        onClick={(e) => {
+          captureHideShrink(e.currentTarget.closest(".ability-prompt"));
+          onHide();
+        }}
+        aria-label="Hide this prompt to see your hand and the board">
         Hide
       </button>
     </>

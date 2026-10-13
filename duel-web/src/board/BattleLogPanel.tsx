@@ -50,7 +50,7 @@ function CardName({
       className="log-card"
       title={`${seg.name} — click to inspect`}
       onPointerEnter={(e) => {
-        if (e.pointerType === "mouse") hoverPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat });
+        if (e.pointerType === "mouse") hoverPreviewCard({ defId: seg.defId, ownerSeat: seg.ownerSeat }, e.currentTarget);
       }}
       onPointerLeave={(e) => {
         if (e.pointerType === "mouse") endPreviewHover();

@@ -104,7 +104,7 @@ export function ZonePile({
               data-def-id={defId}
               // Hovering a face-up Life card shows it in the preview, like a field card (#529).
               onPointerEnter={(e) => {
-                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat });
+                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat }, e.currentTarget);
               }}
               onPointerLeave={(e) => {
                 if (e.pointerType === "mouse") endPreviewHover();

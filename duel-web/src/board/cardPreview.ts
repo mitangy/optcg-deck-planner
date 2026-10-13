@@ -32,6 +32,9 @@ let lastHoverAt = -Infinity;
 let current: PreviewCard | null = null;
 /** True while the mouse is over a card that set the preview (what the pop-up shows itself for). */
 let hovering = false;
+/** Where the hovered card sat when the hover began (viewport px), so the pop-up can step aside from it (#583). */
+export type HoverAnchor = { left: number; top: number; right: number; bottom: number };
+let hoverAnchor: HoverAnchor | null = null;
 const listeners = new Set<() => void>();
 
 function liveKey(live: PreviewLive | undefined): string {
@@ -76,9 +79,17 @@ export function setPreviewCard(next: PreviewCard | null): void {
 /**
  * Mouse-over preview: like `setPreviewCard`, and also marks a card as hovered
  * until `endPreviewHover` (the pointer leaving it). Focus and click use
- * `setPreviewCard`, so only a real hover opens the pop-up.
+ * `setPreviewCard`, so only a real hover opens the pop-up. `anchor` is the
+ * hovered element: its box is kept (a new hover replaces it) so the pop-up never
+ * lands on the card under the pointer (#583).
  */
-export function hoverPreviewCard(next: PreviewCard | null): void {
+export function hoverPreviewCard(next: PreviewCard | null, anchor?: Element | null): void {
+  if (anchor) {
+    const r = anchor.getBoundingClientRect();
+    hoverAnchor = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  } else {
+    hoverAnchor = null;
+  }
   setPreviewCard(next);
   if (!hovering) {
     hovering = true;
@@ -104,6 +115,12 @@ export function setAutoPreviewCard(next: PreviewCard | null): void {
  */
 export function clearPreviewCard(): void {
   applyPreview(null);
+  hoverAnchor = null;
+}
+
+/** The box of the card the pointer last hovered; kept while the pop-up lingers after the pointer leaves. */
+export function getHoverAnchor(): HoverAnchor | null {
+  return hoverAnchor;
 }
 
 export function getLastHoverAt(): number {

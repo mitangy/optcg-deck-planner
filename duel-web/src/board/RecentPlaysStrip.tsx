@@ -34,7 +34,7 @@ export function RecentPlaysStrip({
                   aria-label={p.label}
                   title={p.label}
                   onPointerEnter={(e) => {
-                    if (e.pointerType === "mouse") hoverPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat });
+                    if (e.pointerType === "mouse") hoverPreviewCard({ defId: p.defId, ownerSeat: p.ownerSeat }, e.currentTarget);
                   }}
                   onPointerLeave={(e) => {
                     if (e.pointerType === "mouse") endPreviewHover();

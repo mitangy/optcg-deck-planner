@@ -286,7 +286,7 @@ export function CardTile({
   function handlePointerEnter(e: PointerEvent) {
     if (e.pointerType !== "mouse") return;
     hoveredRef.current = true;
-    hoverPreviewCard({ defId, ownerSeat, instanceId, live });
+    hoverPreviewCard({ defId, ownerSeat, instanceId, live }, e.currentTarget);
   }
 
   function handlePointerLeave(e: PointerEvent) {
