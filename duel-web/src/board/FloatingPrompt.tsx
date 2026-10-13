@@ -183,7 +183,7 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
             className="btn btn-secondary float-peek"
             onClick={(e) => {
               // The stage is the visible box; its layer spans the screen (#587).
-              captureHideShrink(e.currentTarget.closest(".float-stage"), e.currentTarget.closest(".float-layer"));
+              captureHideShrink(e.currentTarget.closest(".float-stage"));
               onPeek(true);
             }}
           >

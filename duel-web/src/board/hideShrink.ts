@@ -42,27 +42,42 @@ export function motionReduced(): boolean {
 }
 
 /**
- * Call from the Hide click, before the pop-up goes away. `box` is the visible pop-up (not
- * a full-screen wrapper around it); `context` is an ancestor whose class / variables its
- * CSS reads (the float layer), copied without its children so the clone still matches
- * those rules. The copy keeps its classes, so it is stripped of its dialog role and labels
- * to stay out of screen readers and role / label queries while it flies.
+ * The copy carries the pop-up's look as inline styles, with no classes, ids, roles or
+ * labels: a copy that kept its classes would match the page's own queries for the
+ * pop-up (".choice-confirm", ".ability-prompt") while it flies. Pseudo-elements (the
+ * grip glyph) are not copied; the copy only shows for a quarter second.
  */
-export function captureHideShrink(box: Element | null, context?: Element | null): void {
+function copyLook(from: Element, to: Element): void {
+  if (from instanceof HTMLElement && to instanceof HTMLElement) {
+    const cs = getComputedStyle(from);
+    for (let i = 0; i < cs.length; i++) {
+      const prop = cs.item(i);
+      // An entrance animation copied over would replay on the copy.
+      if (prop.startsWith("animation") || prop.startsWith("transition")) continue;
+      to.style.setProperty(prop, cs.getPropertyValue(prop));
+    }
+  }
+  for (const attr of ["class", "id", "role", "aria-label", "aria-labelledby", "aria-describedby", "data-testid"]) to.removeAttribute(attr);
+  const a = from.children;
+  const b = to.children;
+  for (let i = 0; i < a.length && i < b.length; i++) copyLook(a[i], b[i]);
+}
+
+/**
+ * Call from the Hide click, before the pop-up goes away. `box` is the visible pop-up (not
+ * a full-screen wrapper around it).
+ */
+export function captureHideShrink(box: Element | null): void {
   pending = null;
   if (!box || !(box instanceof HTMLElement) || motionReduced()) return;
   const rect = box.getBoundingClientRect();
   if (rect.width < 1 || rect.height < 1) return;
   const clone = box.cloneNode(true) as HTMLElement;
-  clone.removeAttribute("id");
-  for (const el of clone.querySelectorAll("[id]")) el.removeAttribute("id");
-  clone.removeAttribute("role");
-  for (const el of [clone, ...clone.querySelectorAll("[aria-label]")]) el.removeAttribute("aria-label");
+  copyLook(box, clone);
   clone.inert = true;
   clone.setAttribute("aria-hidden", "true");
   // Pinned to its own corner at its on-screen size: the live pop-up's placement (centring,
   // drag offset, dodge) is not the clone's to repeat, but its size scale is.
-  const cs = getComputedStyle(box);
   Object.assign(clone.style, {
     position: "absolute",
     left: "0",
@@ -73,24 +88,14 @@ export function captureHideShrink(box: Element | null, context?: Element | null)
     translate: "none",
     transform: "none",
     transformOrigin: "0 0",
-    scale: cs.scale,
     width: `${box.offsetWidth}px`,
     height: `${box.offsetHeight}px`,
     maxWidth: "none",
     maxHeight: "none",
     animation: "none",
+    transition: "none",
   });
-  let inner: HTMLElement = clone;
-  if (context) {
-    const shell = context.cloneNode(false) as HTMLElement;
-    shell.removeAttribute("id");
-    shell.removeAttribute("role");
-    shell.removeAttribute("aria-label");
-    shell.hidden = false;
-    shell.style.display = "contents";
-    shell.append(clone);
-    inner = shell;
-  }
+  const inner: HTMLElement = clone;
   const ghost = document.createElement("div");
   ghost.className = "hide-shrink-ghost";
   ghost.setAttribute("aria-hidden", "true");
