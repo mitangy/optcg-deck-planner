@@ -1,7 +1,14 @@
 {
   "framework": "vite",
   "installCommand": "npm install --prefix frontend",
-  "buildCommand": "npm run build --prefix frontend",
+  "buildCommand": "cd frontend && npx vite build",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/site-legal packages/analyst-client vercel.json scripts/vercel-ignore-build.sh",
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  },
   "outputDirectory": "frontend/dist",
   "routes": [
     {
