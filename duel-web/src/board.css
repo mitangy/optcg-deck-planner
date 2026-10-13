@@ -1369,8 +1369,7 @@
   min-height: min-content;
 }
 
-.arena.arena-wide .board-panel[data-panel="recent"],
-.arena.arena-wide .board-panel[data-panel="actions"] {
+.arena.arena-wide .board-panel[data-panel="recent"] {
   min-height: 4.5rem;
 }
 
@@ -5336,15 +5335,31 @@ body.is-panel-drag * {
   box-shadow: none;
 }
 
-/* —— Buttons beside the board (#556) ——
-   Computers: the dock rides in the side column's "actions" slot under Turn and
-   clocks, so no strip is needed between the mats. The strip is taken out of the
+/* —— Buttons beside the board (#556, #564) ——
+   Computers: the dock rides in a narrow gutter against the right edge of the
+   two mats, so no strip is needed between them. The strip is taken out of the
    flow and its share is given back to the mats (the mat math subtracts
    --midline-h and 3 gaps; the two gaps the strip would have cost are -2 gaps
    here and the mats touch via a -1 gap margin), so the board is the same size
-   whether the mulligan banner, a battle line or nothing is showing. */
+   whether the mulligan banner, a battle line or nothing is showing.
+   The gutter is the playmat's own right padding, reserved for the whole game:
+   every mat size rule reads the playmat's content box, so the mats lay out in
+   what is left and never move when the buttons change. The dock itself is
+   absolutely placed in it (left / seam are read from the laid-out mats by
+   sideDockPlacement.ts): the primary button is centred on the line where the
+   mats meet, extras stack above it, the caption sits below. */
+.arena {
+  --side-dock-w: 8rem;
+  --side-dock-gap: 0.4rem;
+}
+
 .arena.arena-side-actions .playmat {
   --midline-h: calc(-2 * var(--mat-gap));
+  position: relative;
+}
+
+.arena.arena-wide.arena-side-actions .playmat {
+  padding-right: calc(var(--side-dock-w) + var(--side-dock-gap) + 2px);
 }
 
 .arena.arena-side-actions .midline {
@@ -5355,41 +5370,42 @@ body.is-panel-drag * {
   margin-top: calc(-1 * var(--mat-gap));
 }
 
-.arena.arena-wide .board-panel[data-panel="actions"] {
-  flex: 0 0 auto;
-  min-height: min-content;
+/* A zero-height anchor on the seam; the primary hangs half its height below
+   it and the extras grow upward, so the primary never moves. */
+.side-dock {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--side-dock-left, 0px) + var(--side-dock-gap));
+  top: var(--side-dock-seam, 50%);
+  width: var(--side-dock-w);
+  height: 0;
+  pointer-events: none;
 }
 
-/* The row never changes height (mulligan, your turn, waiting, nothing); the
-   caption under it keeps two lines of room for the common cases. */
-.arena.arena-wide .board-panel[data-panel="actions"] > .actions-slot {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-  /* Lines up with the Turn panel above (same side padding). */
-  padding: 0 0.7rem 0.55rem;
-}
-
-.primary-dock.primary-dock-inline {
-  position: static;
+.side-dock .primary-dock.primary-dock-inline {
+  position: absolute;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: calc(-0.5 * var(--dock-h));
   transform: none;
   z-index: auto;
-  width: 100%;
-  flex: 0 0 var(--dock-h);
-  min-height: var(--dock-h);
+  width: auto;
+  height: auto;
+  flex-direction: column;
+  gap: 0.35rem;
   box-sizing: border-box;
-  pointer-events: auto;
 }
 
 .primary-dock-inline .primary-dock-main {
-  flex: 1 1 0;
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
   width: auto;
 }
 
 .primary-dock-inline .intent-btn.dock-extra {
-  flex: 1 1 0;
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
   min-width: 0;
   max-width: none;
   padding: 0.2rem 0.4rem;
@@ -5412,34 +5428,34 @@ body.is-panel-drag * {
   font-size: 0.78rem;
 }
 
-/* The primary's label ("Keep opening hand") is the longer one: it gets the bigger share. */
-.primary-dock-inline.has-extras .primary-dock-main {
-  flex-grow: 1.4;
-}
-
-/* Two half-width buttons (Mulligan and Keep, Resolve trigger and the primary) wrap
-   their labels onto two lines: no room for the key tags on top of that (the keys
-   still work). A lone primary keeps its Space tag. */
+/* With extras the labels wrap onto two lines: no room for the key tags on top of
+   that (the keys still work). A lone primary keeps its Space tag. */
 .primary-dock-inline.has-extras .intent-btn.dock-extra[data-key-tag]::after,
 .primary-dock-inline.has-extras.has-primary .primary-dock-main::after {
   content: none;
-}
-
-.primary-dock-inline.has-extras .intent-btn.dock-extra {
-  padding-right: 0.4rem;
 }
 
 .primary-dock-inline .waiting-opp {
   height: 100%;
   min-height: 0;
   padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
 }
 
-.dock-caption {
-  min-height: calc(2 * 1.25 * 0.72rem + 0.5rem + 2px);
+/* Under the primary, within the gutter's width. It stops at the bottom of the board
+   (scrolling inside if a long mulligan text needs more) and takes no part in layout. */
+.side-dock .dock-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--dock-h) / 2 + 0.4rem);
+  max-height: max(0px, calc(100cqh - var(--side-dock-seam, 0px) - var(--dock-h) / 2 - 1rem));
+  overflow-y: auto;
+  scrollbar-width: thin;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   line-height: 1.25;
+  pointer-events: auto;
 }
 
 .dock-caption .prompt {
@@ -5449,10 +5465,11 @@ body.is-panel-drag * {
   box-sizing: border-box;
   width: 100%;
   max-width: none;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.72rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.68rem;
   line-height: 1.25;
   text-align: center;
+  white-space: normal;
   background: rgb(var(--deep-rgb) / 0.94);
   border-color: var(--line-strong);
   box-shadow: none;
@@ -5461,8 +5478,8 @@ body.is-panel-drag * {
 .dock-caption .prompt-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
   overflow: hidden;
   overflow-wrap: anywhere;
 }
@@ -5475,7 +5492,7 @@ body.is-panel-drag * {
 
 .dock-caption .dock-caption-mulligan {
   margin: 0;
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem 0.4rem;
   border: 1px solid rgb(var(--chrome-rgb) / 0.45);
   border-radius: 8px;
   background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
@@ -5484,39 +5501,6 @@ body.is-panel-drag * {
 
 .dock-caption .dock-caption-mulligan strong {
   color: var(--chrome-bright);
-}
-
-/* A short window (1280x720 is one) cannot spare the caption's lines: the column
-   would push Chat below the fold. There a battle line floats just under the
-   buttons, over the top of the Hand panel (no room reserved, nothing moves); the
-   mulligan text stays in the flow, the Hand panel's cards are what that choice is
-   about. */
-@media (max-height: 800px) {
-  .arena.arena-side-actions .turn-panel {
-    gap: 0.35rem;
-    padding: 0.5rem 0.7rem 0.5rem;
-  }
-
-  /* Above the Hand panel's own layer (each panel isolates its z-index). */
-  .arena.arena-wide .board-panel[data-panel="actions"] {
-    z-index: 4;
-  }
-
-  .arena.arena-wide .board-panel[data-panel="actions"] > .actions-slot {
-    position: relative;
-    gap: 0.25rem;
-    padding-bottom: 0.4rem;
-  }
-
-  .dock-caption:not(:has(.dock-caption-mulligan)) {
-    position: absolute;
-    left: 0.7rem;
-    right: 0.7rem;
-    top: calc(100% - 0.3rem);
-    z-index: 3;
-    min-height: 0;
-    pointer-events: none;
-  }
 }
 
 /* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */

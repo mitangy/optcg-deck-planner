@@ -135,7 +135,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "actionsBeside",
     label: "Buttons beside the board",
-    hint: "Computers: Keep / Mulligan, End turn and the other action buttons sit in the side column under Turn and clocks, so the two playmats touch with no strip between them. Off: the buttons float in a strip between the mats. Phones keep their layout.",
+    hint: "Computers: Keep / Mulligan, End turn and the other action buttons sit right beside the mats, at the line where they meet, so the two playmats touch with no strip between them. Off: the buttons float in a strip between the mats. The tilted board and phones keep their layout.",
   },
   {
     key: "turnSplash",
