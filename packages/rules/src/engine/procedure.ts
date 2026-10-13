@@ -56,13 +56,22 @@ export function settle(sim: Sim): void {
     if (state.winner !== null) { clearForGameOver(state); return; }
     if (state.pendingChoices.length > 0) return;
     if (state.resolutionFrames.length > 0) { runFrames(sim); continue; }
-    if (state.triggerQueue.length > 0) { if (startNextTrigger(sim)) continue; return; }
+    if (state.triggerQueue.length > 0 && !heldUntilDamageStepEnds(state)) { if (startNextTrigger(sim)) continue; return; }
     if (state.steps.length > 0) { advanceStep(sim); continue; }
     // A battle card left the field while players held priority: the battle ends.
     if (state.battle && (state.phase === "block" || state.phase === "counter") && !battleCards(state)) { state.steps.push({ kind: "end_battle" }); continue; }
     return;
   }
   throw new Error("Game procedure did not settle");
+}
+
+/**
+ * Auto effects queued by damage wait until the Damage Step ends: a Double Attack deals both of its damage points
+ * before "when your Life becomes 0" and the like resolve (OP05-098 Enel Q&A). Life [Trigger] checks stay per point.
+ */
+function heldUntilDamageStepEnds(state: MatchState): boolean {
+  const front = state.steps[0];
+  return front?.kind === "life_damage" && (state.battle?.damageRemaining ?? 0) > 0 && state.triggerQueue.every((t) => t.window !== "trigger");
 }
 
 function startNextTrigger(sim: Sim): boolean {

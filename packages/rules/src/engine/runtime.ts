@@ -384,7 +384,10 @@ function completeFrame(sim: Sim, frame: ResolutionFrame): void {
     const parentId = frame.bindings._parent;
     const target = frame.bindings._target;
     const parent = state.resolutionFrames.find((f) => f.id === parentId);
-    if (parent && typeof target === "string") parent.bindings[`_repl:${target}`] = replaced;
+    if (parent && typeof target === "string") {
+      parent.bindings[`_repl:${target}`] = replaced;
+      if (replaced) coverBatch(state, frame, parent);
+    }
     else if (typeof target === "string") {
       const step = state.steps[0];
       if (step && step.kind === "battle_ko" && step.targetId === target) (step as { replaced?: boolean }).replaced = replaced;
@@ -626,6 +629,29 @@ function removedByEffect(state: MatchState, frame: ResolutionFrame, loc: Located
   if (loc.zone === "character") dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
 }
 
+/**
+ * An accepted replacement that protects a selector ("your Characters", not "this Character") covers every later
+ * target of the same simultaneous removal it matches: one acceptance and one payment save them all (OP17-023, OP17-095 Q&A).
+ */
+function coverBatch(state: MatchState, replFrame: ResolutionFrame, parent: ResolutionFrame): void {
+  const r = abilityById(replFrame.abilityId)?.ability.replacement;
+  const events = parent.bindings._actEvents as ReplacementEvent[] | undefined;
+  const ids = parent.bindings._actTargets;
+  if (!r || r.target === "self" || !events || !Array.isArray(ids)) return;
+  const byOpponent = parent.bindings._actByOpponent === true;
+  if (!(events.includes(r.event) || r.alsoEvents?.some((e) => events.includes(e)))) return;
+  if (r.byOpponent && !byOpponent) return;
+  if (r.event === "removed_by_opponent_effect" && !byOpponent) return;
+  const source = locate(state, replFrame.sourceInstanceId)?.card ?? { id: replFrame.sourceInstanceId, defId: replFrame.sourceDefId, rested: false, attachedDonIds: [] };
+  const from = typeof parent.bindings._actIndex === "number" ? parent.bindings._actIndex + 1 : ids.length;
+  for (const id of ids.slice(from) as string[]) {
+    const key = `_repl:${id}`;
+    const loc = locate(state, id);
+    if (parent.bindings[key] !== undefined || !loc || !isOnField(loc) || loc.zone === "leader") continue;
+    if (selectorMatches(state, ctxFor(replFrame.seat, source), r.target, loc)) parent.bindings[key] = true;
+  }
+}
+
 /** Apply a removal to each target in order; may pause for replacement prompts. */
 function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | "rest" | null, apply: (loc: Located) => void, done?: () => void): ExecResult {
   const { state } = sim;
@@ -651,6 +677,8 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
         const hit = events.length ? findReplacement(state, loc, events, byOpponent) : null;
         if (hit) {
           frame.bindings._actIndex = index;
+          frame.bindings._actEvents = events;
+          frame.bindings._actByOpponent = byOpponent;
           pushReplacementFrame(sim, hit, loc.id, frame.id);
           return "interrupt";
         }
@@ -659,7 +687,7 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
     apply(loc);
     record(loc);
   }
-  for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key.startsWith("_repl:")) delete frame.bindings[key];
+  for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key === "_actEvents" || key === "_actByOpponent" || key.startsWith("_repl:")) delete frame.bindings[key];
   done?.();
   return "next";
 }
@@ -825,7 +853,8 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const main = abilitiesFor(loc.defId).find((a) => a.trigger === "main");
       const entry = takeCard(state, loc);
       putCard(state, loc.seat, "resolving", entry);
-      dispatchEvent(state, "event_activated", { seat: loc.seat, card: entry });
+      // Activating the Event card from the hand is an Event activation (OP15-046 Sabo); using only its [Main] effect from the trash is not (EB03-031 Reiju).
+      if (loc.zone === "hand") dispatchEvent(state, "event_activated", { seat: loc.seat, card: entry });
       frame.operationIndex += 1;
       if (!main) { const again = locate(state, entry.id)!; putCard(state, loc.seat, "trash", takeCard(state, again)); return "jumped"; }
       startAbility(sim, loc.seat, entry, main, "main");
