@@ -1,4 +1,5 @@
 import manifest from "./previewArt.json";
+import altManifest from "./previewArtAlts.json";
 
 /**
  * Unofficial preview images in `public/cards/preview/`, for new cards that
@@ -21,4 +22,20 @@ export function previewArtPath(defId: string): string | null {
 /** True for a card's own preview path (`/cards/preview/...`). */
 export function isPreviewArtPath(src: string | undefined | null): boolean {
   return !!src && src.trim().startsWith("/cards/preview/");
+}
+
+/**
+ * Alternate-art printings TCGPlayer has no picture for yet have a preview too:
+ * `/cards/preview/p<productId>.webp`, listed in `previewArtAlts.json` (product
+ * ids; maintained by the same sync script).
+ */
+const ALT_PREVIEW_PRODUCT_IDS = new Set<number>(altManifest);
+
+const PRODUCT_ID_IN_CDN_URL = /product\/(\d+)_/;
+
+/** Preview path for the alt printing a TCGPlayer CDN url points at, else null. */
+export function altPreviewArtPath(cdnUrl: string): string | null {
+  const m = cdnUrl.match(PRODUCT_ID_IN_CDN_URL);
+  const pid = m ? Number(m[1]) : NaN;
+  return ALT_PREVIEW_PRODUCT_IDS.has(pid) ? `/cards/preview/p${pid}.webp` : null;
 }

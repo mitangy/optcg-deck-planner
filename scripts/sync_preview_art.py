@@ -36,6 +36,7 @@ CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 TCG_PRODUCTS = ROOT / "duel-web/src/assets/tcgProducts.json"
 CARD_DATA = ROOT / "packages/rules/src/cards/cardData.json"
 MANIFEST = ROOT / "duel-web/src/cards/previewArt.json"
+ALT_MANIFEST = ROOT / "duel-web/src/cards/previewArtAlts.json"
 PREVIEW_DIR = ROOT / "duel-web/public/cards/preview"
 PUBLIC_DIR = ROOT / "duel-web/public"
 
@@ -128,6 +129,98 @@ def parse_card_paths(html: str, prefix: str) -> list[str]:
     return parser.paths
 
 
+class _VariantParser(HTMLParser):
+    """`data-full` paths of the ALT / SP / MANGA variant buttons on a set page."""
+
+    def __init__(self, prefix: str):
+        super().__init__(convert_charrefs=True)
+        self.start = f"/Cards/{prefix}/"
+        self.paths: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        full = dict(attrs).get("data-full") or ""
+        if full.startswith(self.start) and full not in self.paths:
+            self.paths.append(full)
+
+
+def parse_variant_paths(html: str, prefix: str) -> list[str]:
+    parser = _VariantParser(prefix)
+    parser.feed(html)
+    return parser.paths
+
+
+ID_ANYWHERE_RE = re.compile(r"\b([A-Z0-9]+-\d+[A-Z]?)\b")
+
+
+def guide_variant(path: str) -> dict | None:
+    """Kind / card id / version of an opdeckguide variant file, or None.
+
+    "ALT V2 EB05-055 Nami.jpg" -> ALT, EB05-055, 2; "ALT Leader Nico Robin
+    EB05-010.jpg" -> ALT, EB05-010, 1; "SUPER ALT ..." -> SUPER; "SP OP01-016.jpg"
+    -> SP. The card id is the first id-shaped word (leader files put it last).
+    """
+    base = path.rsplit("/", 1)[-1]
+    stem = re.sub(r"(_small)?\.[a-z0-9]+$", "", base, flags=re.I)
+    m = ID_ANYWHERE_RE.search(stem)
+    if not m:
+        return None
+    words = stem[: m.start()].split()
+    if "SUPER" in words:
+        kind = "SUPER"
+    elif words and words[0] in ("ALT", "SP", "MANGA"):
+        kind = words[0]
+    else:
+        return None
+    version = next((int(w[1:]) for w in words if re.fullmatch(r"V\d+", w)), 1)
+    return {"path": path, "kind": kind, "card": m.group(1), "version": version}
+
+
+def tcg_alt_kind(name: str) -> str | None:
+    """Which opdeckguide kind a TCGPlayer alt product name pairs with."""
+    n = name.lower()
+    if "manga" in n:
+        return "MANGA"
+    if "(sp)" in n:
+        return "SP"
+    if "alternate art" in n or "alt art" in n:
+        return "ALT"
+    return None
+
+
+def match_alt_previews(alts: list[dict], variants: list[dict]) -> tuple[dict[int, str], list[int]]:
+    """productId -> variant path for image-less alt products, plus the unmatched.
+
+    `alts`: {pid, card, name}; `variants`: guide_variant() results. A product
+    pairs with the lowest-version file of its kind when it is the card's only
+    product of that kind. Failing that, a card with exactly one leftover alt and
+    exactly one leftover file kind pairs those two. Otherwise it is skipped.
+    """
+    matches: dict[int, str] = {}
+    for card in sorted({a["card"] for a in alts}):
+        mine = [a for a in alts if a["card"] == card]
+        files = [v for v in variants if v["card"] == card]
+        by_kind: dict[str, list[dict]] = {}
+        for v in files:
+            by_kind.setdefault(v["kind"], []).append(v)
+        left = []
+        for a in mine:
+            kind = tcg_alt_kind(a["name"])
+            same = [x for x in mine if tcg_alt_kind(x["name"]) == kind]
+            if kind and len(same) == 1 and kind in by_kind:
+                matches[a["pid"]] = min(by_kind.pop(kind), key=lambda v: v["version"])["path"]
+            else:
+                left.append(a)
+        if len(left) == 1 and len(by_kind) == 1:
+            (group,) = by_kind.values()
+            matches[left[0]["pid"]] = min(group, key=lambda v: v["version"])["path"]
+    return matches, sorted(a["pid"] for a in alts if a["pid"] not in matches)
+
+
+def alt_should_prune(pid: int, catalog_alt_pids: set[int], has_art: dict[int, bool | None]) -> bool:
+    """An alt preview goes when its product left the catalog or TCGPlayer posted art."""
+    return pid not in catalog_alt_pids or has_art.get(pid) is True
+
+
 # --- network ----------------------------------------------------------------
 
 
@@ -194,6 +287,38 @@ def product_art_map(pids: set[int]) -> dict[int, bool]:
     return found
 
 
+def alt_product_info(pids: set[int]) -> dict[int, tuple[bool, str]]:
+    """productId -> (has art, set code that dominates its group), newest groups first."""
+    found: dict[int, tuple[bool, str]] = {}
+    if not pids:
+        return found
+    try:
+        groups = fetch_json(f"{TCGCSV}/groups")["results"]
+    except Exception as e:  # noqa: BLE001
+        print(f"  tcgcsv groups unavailable: {e}", file=sys.stderr)
+        return found
+    groups.sort(key=lambda g: g.get("publishedOn", ""), reverse=True)
+    for group in groups[:MAX_GROUPS]:
+        if pids <= found.keys():
+            break
+        try:
+            products = fetch_json(f"{TCGCSV}/{group['groupId']}/products")["results"]
+        except Exception as e:  # noqa: BLE001
+            print(f"  tcgcsv group {group['groupId']} failed: {e}", file=sys.stderr)
+            continue
+        counts: dict[str, int] = {}
+        for p in products:
+            num = next((e["value"] for e in p.get("extendedData", []) if e.get("name") == "Number"), "")
+            if "-" in num:
+                pre = set_prefix(num.strip().upper())
+                counts[pre] = counts.get(pre, 0) + 1
+        prefix = max(counts, key=counts.get) if counts else ""
+        for p in products:
+            if p["productId"] in pids:
+                found[p["productId"]] = (int(p.get("imageCount") or 0) > 0, prefix)
+    return found
+
+
 # --- data -------------------------------------------------------------------
 
 
@@ -244,6 +369,96 @@ def download_preview(prefix: str, card_id: str, rel_path: str) -> tuple[bytes | 
     if size[0] >= size[1]:
         return None, f"not portrait ({size[0]}x{size[1]})"
     return data, ""
+
+
+def existing_alt_preview_pids() -> set[int]:
+    pids = set(load_json(ALT_MANIFEST)) if ALT_MANIFEST.exists() else set()
+    if PREVIEW_DIR.is_dir():
+        pids |= {int(p.stem[1:]) for p in PREVIEW_DIR.glob("p[0-9]*.webp")}
+    return pids
+
+
+def sync_alt_previews(catalog: dict, dry_run: bool) -> None:
+    """Preview scans for catalog alts TCGPlayer has no picture for yet (#581)."""
+    alts: dict[int, dict] = {}
+    for card_id, row in catalog.items():
+        for a in row.get("altArts") or []:
+            pid = a.get("productId") or product_id_from_url(a.get("imageUrl"))
+            if pid:
+                alts[pid] = {"pid": pid, "card": card_id, "name": ""}
+    have = existing_alt_preview_pids()
+    info = alt_product_info(set(alts))
+    has_art: dict[int, bool | None] = {pid: v[0] for pid, v in info.items()}
+    for pid in have - info.keys():
+        has_art[pid] = cdn_has_art(pid)
+    pruned = sorted(pid for pid in have if alt_should_prune(pid, set(alts), has_art))
+    keep = have - set(pruned)
+    # Names are only needed to pair kinds; read them from tcgcsv per needed group.
+    needs = sorted(pid for pid, (art, _) in info.items() if not art and pid not in keep)
+    names = alt_product_names(set(needs))
+    by_prefix: dict[str, list[dict]] = {}
+    for pid in needs:
+        by_prefix.setdefault(info[pid][1], []).append({**alts[pid], "name": names.get(pid, "")})
+
+    added: list[int] = []
+    unmatched: list[int] = []
+    new_files: dict[int, bytes] = {}
+    for prefix, group in sorted(by_prefix.items()):
+        try:
+            html = fetch(f"{GUIDE_BASE}/cards-list/{prefix}/")[0].decode("utf-8", "replace")
+        except Exception as e:  # noqa: BLE001
+            print(f"  {prefix}: list page unavailable: {e}", file=sys.stderr)
+            unmatched += [a["pid"] for a in group]
+            continue
+        variants = [v for v in map(guide_variant, parse_variant_paths(html, prefix)) if v]
+        matches, left = match_alt_previews(group, variants)
+        unmatched += left
+        for pid, path in sorted(matches.items()):
+            if dry_run:
+                added.append(pid)
+                continue
+            small = re.sub(r"\.[a-z0-9]+$", "_small.webp", path, flags=re.I)
+            data, why = download_preview(prefix, str(pid), small)
+            if data is None:
+                print(f"  alt {pid}: {why}", file=sys.stderr)
+                unmatched.append(pid)
+                continue
+            new_files[pid] = data
+            added.append(pid)
+
+    final = sorted(keep | set(added))
+    if not dry_run:
+        PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        for pid, data in new_files.items():
+            (PREVIEW_DIR / f"p{pid}.webp").write_bytes(data)
+        for pid in pruned:
+            (PREVIEW_DIR / f"p{pid}.webp").unlink(missing_ok=True)
+        ALT_MANIFEST.write_text(json.dumps(final, indent=2) + "\n", encoding="utf-8")
+    print("\nAlt preview art")
+    print(f"  kept:      {len(keep)}")
+    print(f"  added:     {len(added)} {sorted(added)}")
+    print(f"  pruned:    {len(pruned)} {pruned}")
+    print(f"  unmatched: {len(unmatched)} {sorted(unmatched)}  (no opdeckguide file paired)")
+    print(f"  manifest:  {len(final)} product ids")
+
+
+def alt_product_names(pids: set[int]) -> dict[int, str]:
+    """productId -> product name, from the newest tcgcsv groups."""
+    names: dict[int, str] = {}
+    if not pids:
+        return names
+    groups = fetch_json(f"{TCGCSV}/groups")["results"]
+    groups.sort(key=lambda g: g.get("publishedOn", ""), reverse=True)
+    for group in groups[:MAX_GROUPS]:
+        if pids <= names.keys():
+            break
+        try:
+            for p in fetch_json(f"{TCGCSV}/{group['groupId']}/products")["results"]:
+                if p["productId"] in pids:
+                    names[p["productId"]] = p["name"]
+        except Exception as e:  # noqa: BLE001
+            print(f"  tcgcsv group {group['groupId']} failed: {e}", file=sys.stderr)
+    return names
 
 
 # --- main -------------------------------------------------------------------
@@ -335,6 +550,7 @@ def main() -> int:
     if unknown:
         print(f"  unknown: {len(unknown)} {unknown}  (art status could not be checked)")
     print(f"  manifest: {len(final)} ids")
+    sync_alt_previews(catalog, args.dry_run)
     return 0
 
 

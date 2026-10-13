@@ -252,9 +252,9 @@ jobs:
       - name: Backend tests
         working-directory: backend
         run: python -m pytest -q
-      - name: Script tests (importer, cosmetics, preview art)
+      - name: Script tests (importer, cosmetics, preview art, alt arts)
         working-directory: scripts
-        run: python -m unittest test_bandai_metadata test_cosmetics_product_ids test_sync_preview_art
+        run: python -m unittest test_bandai_metadata test_cosmetics_product_ids test_sync_preview_art test_sync_alt_arts
 
   backend-postgres:
     # Same pytest suite against a real Postgres (prod is Neon): catches dialect
@@ -335,7 +335,7 @@ jobs:
             echo "frontend=$(need 'frontend')"
             echo "mobile=$(need 'mobile')"
             echo "backend=$(need 'backend')"
-            echo "any=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server|duel-web|frontend|mobile|backend|importer|cosmetics|preview-art')"
+            echo "any=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server|duel-web|frontend|mobile|backend|importer|cosmetics|preview-art|alt-arts')"
           } >> "$GITHUB_OUTPUT"
       - name: Install root workspace deps
         if: steps.changed.outputs.root == 'true'

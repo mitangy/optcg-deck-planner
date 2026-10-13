@@ -5646,7 +5646,7 @@ body.is-panel-drag * {
   order: -1;
 }
 
-/* Left / right with room: the hand is a small horizontal fan at the top of the gutter
+/* Left / right with room: the hand is a small horizontal fan centred in the gutter
    beside the opponent's mat, over the mat's height. The mat math below mirrors
    .side-field (--hint-h is 0 here, nothing is reserved at the top). The
    tilted board keeps the strip. */
@@ -5726,7 +5726,7 @@ body.is-panel-drag * {
     );
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 0.35rem;
     width: 100%;
     padding: 0.3rem 0;
@@ -5737,7 +5737,7 @@ body.is-panel-drag * {
     align-self: center;
   }
 
-  /* A small horizontal fan, like a regular hand, centred at the top of the gutter. */
+  /* A small horizontal fan, like a regular hand, centred in the gutter, vertically on the mat. */
   .arena.arena-wide .opp-hand-mat-side .opp-corner-cards {
     flex-direction: row;
     justify-content: center;
