@@ -333,6 +333,9 @@ module.exports = {
     scn("burgess-per-two-cards", "OP09-086", (a) => { a[1].statics[0].amount.per = 2; }, ["OP09-086 with a Blackbeard Pirates Leader"]),
     scn("burgess-any-leader", "OP09-086", (a) => { delete a[1].conditions; }, ["OP09-086 with another Leader"]),
     // Manual overrides edit manualAbilities.ts
+    scnManual("vegapunk-event-guard", 'filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,', 'filter: { types: ["stage"] } }, VEGAPUNK_TO_LIFE,', ["Vegapunk Leader (OP07-097) OP07-097 an Egghead Event goes straight to the top of Life"]),
+    scnManual("vegapunk-empty-select-guard", '{ c: "var_count", name: "_s", op: ">=", value: 1 },\n        when({ c: "var_any_match"', '{ c: "var_count", name: "_s", op: ">=", value: 0 },\n        when({ c: "var_any_match"', ["with no {Egghead} card in hand it asks nothing"]),
+    scnManual("vegapunk-character-to-life-only", 'filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,', 'filter: { types: ["event", "character"] } }, VEGAPUNK_TO_LIFE,', ["an Egghead Character can still be played"]),
     scnManual("chambres-leader-type", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Impel Down"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character", "EB01-020 does nothing without"]),
     scnManual("chambres-any-color", 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2), notColorsOfVar: "_ret" }))),', 'play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(2) }))),', ["EB01-020 does not play a Character of the returned color"]),
     scnManual("chambres-no-return", 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "to_hand", target: exactly(1, myChar(), { bind: "_ret" }) },', 'effect: when(leaderTrait("Supernovas"), seq(\n      { do: "rest", target: exactly(1, myChar(), { bind: "_ret" }) },', ["EB01-020 returns a red Character"]),
