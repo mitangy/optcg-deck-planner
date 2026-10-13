@@ -828,11 +828,13 @@
 
 /* —— Card preview pop-up (#529) ——
    The preview as a large floating box (CardPreviewPopup), fixed so it never shifts
-   the board: above the mats, panels and HUD (40), below prompts (45). The default spot is the
+   the board: above every play-area layer (prompts 45/46, field bar 45, undo request 50, attack aim 55, copilot
+   pill 56), below what the pointer carries (hand lift / drag ghost 60, moving hand fan 92, panel drag 90/91), menus
+   (match / undo menu 60/61) and dialogs (#583). CardPreviewPopup steps it off the hovered card. The default spot is the
    top right of the board, left of the right column; a dragged spot is inline left/top. */
 .arena .card-preview-popup {
   position: fixed;
-  z-index: 41;
+  z-index: 58;
   top: 72px;
   right: calc(var(--rail-w, 0px) + 16px);
   /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once

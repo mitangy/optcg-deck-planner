@@ -4,9 +4,10 @@ import { updateSettings, useDuelSettings } from "../settings";
 import { applyPopupSize } from "./popupSize";
 import { PopupSizeButtons } from "./PopupSizeButtons";
 import { CardPreviewContent } from "./CardPreviewPanel";
-import { POPUP_LEAVE_MS, clearPreviewCard, previewPopupLive, usePreviewCard, usePreviewHovering } from "./cardPreview";
+import { POPUP_LEAVE_MS, clearPreviewCard, getHoverAnchor, previewPopupLive, usePreviewCard, usePreviewHovering } from "./cardPreview";
 import {
   clampPreviewPopupPos,
+  dodgePreviewPopup,
   parsePreviewPopupPos,
   serializePreviewPopupPos,
   type PopupPos,
@@ -54,11 +55,38 @@ export function CardPreviewPopup() {
     applyPopupSize(settings.previewPopupSize, document.documentElement, "previewPopupSize");
     const fit = () => {
       const box = boxRef.current;
-      if (!box || !pos) return;
+      if (!box) return;
+      const view = { width: window.innerWidth, height: window.innerHeight };
+      // Stepped aside and now under the pointer: stay put (only kept on screen), so it does not jump back over the card.
+      if (overPopup && !drag && box.dataset.dodged) {
+        const r = box.getBoundingClientRect();
+        const at = clampPreviewPopupPos({ x: r.left, y: r.top }, r, view);
+        box.style.left = `${at.x}px`;
+        box.style.top = `${at.y}px`;
+        return;
+      }
+      // The default spot has no inline position of its own: drop what an earlier dodge set, so it is measured where CSS puts it.
+      if (!pos && box.dataset.dodged) {
+        box.style.removeProperty("left");
+        box.style.removeProperty("top");
+        box.style.removeProperty("right");
+      }
+      delete box.dataset.dodged;
       const r = box.getBoundingClientRect();
-      const at = clampPreviewPopupPos(pos, r, { width: window.innerWidth, height: window.innerHeight });
+      const base = pos ? clampPreviewPopupPos(pos, r, view) : { x: r.left, y: r.top };
+      if (pos) {
+        box.style.left = `${base.x}px`;
+        box.style.top = `${base.y}px`;
+      }
+      // A hover pop-up sits above the play area, so it steps off the card under the pointer or that card could not be clicked (#583).
+      // Not while the pointer is on it (a drag ends there): the card is not under it then.
+      const anchor = pinned || drag || overPopup ? null : getHoverAnchor();
+      const at = anchor ? dodgePreviewPopup(base, r, anchor, view) : base;
+      if (at === base) return;
       box.style.left = `${at.x}px`;
       box.style.top = `${at.y}px`;
+      box.style.right = "auto";
+      box.dataset.dodged = "1";
     };
     fit();
     window.addEventListener("resize", fit);
