@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-13
-  { date: "2026-10-13", app: "duel", title: "Vegapunk Leader fixes", text: "Picking an {Egghead} Event with Vegapunk's (OP07-097) effect now adds it to the top of your Life face-up instead of doing nothing, since Events can't be played this way. And when you pick nothing, it no longer asks you to choose Play or Life." },
+  { date: "2026-10-13", app: "duel", pr: 593, title: "Vegapunk Leader fixes", text: "Picking an {Egghead} Event with Vegapunk's (OP07-097) effect now adds it to the top of your Life face-up instead of doing nothing, since Events can't be played this way. And when you pick nothing, it no longer asks you to choose Play or Life." },
   { date: "2026-10-13", app: "duel", pr: 586, title: "Hidden pop-ups shrink into their button", text: "When you hide a pop-up, it now shrinks into the \"Back to …\" button you click to bring it back, instead of just vanishing. With reduced motion on, it still hides at once." },
   { date: "2026-10-13", app: "duel", pr: 586, title: "Card pop-up stays on top", text: "On a computer the hover card pop-up now shows above search and choice pop-ups and everything else on the board, and it moves aside when it would cover the card you're pointing at." },
   { date: "2026-10-13", app: "duel", pr: 591, title: "Promo and event alt arts", text: "Deck Configure now also lists promo, event and pack printings with their own art as alt arts, such as Dash Pack, Wanted Poster, the anniversary sets, Gift Collection 2023, the Seven Warlords binder, Treasure Cup, tournament and judge packs, Full Art and Serial Numbered prints. Each is named after the product it came from. Your saved art choices are unchanged." },
