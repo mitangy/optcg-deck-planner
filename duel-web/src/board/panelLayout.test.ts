@@ -8,6 +8,7 @@ import {
   nudgePanel,
   panelDropAt,
   parsePanelLayout,
+  placeLogPose,
   serializePanelLayout,
   type PanelId,
   type PanelRect,
@@ -18,20 +19,82 @@ describe("parsePanelLayout", () => {
   it("reads a saved layout with the hand in the left column (#261)", () => {
     expect(parsePanelLayout("preview,hand,recent,log|oppHand,turn,chat")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "chat"],
+      right: ["logpose", "oppHand", "turn", "chat"],
     });
   });
 
   it("drops unknown and repeated panels and puts missing ones back in their default column (#261)", () => {
     expect(parsePanelLayout("hand,bogus,hand,chat|log")).toEqual({
       left: ["hand", "chat", "preview", "recent"],
-      right: ["log", "oppHand", "turn"],
+      right: ["logpose", "log", "oppHand", "turn"],
     });
   });
 
   it("drops the retired Actions panel from an older saved layout (#368)", () => {
     expect(parsePanelLayout("preview,recent,log|oppHand,turn,actions,hand,chat")).toEqual(DEFAULT_PANEL_LAYOUT);
     expect(parsePanelLayout("actions,preview|log").left).not.toContain("actions");
+  });
+});
+
+describe("Log Pose panel slot (#568)", () => {
+  it("an older save that never mentions Log Pose puts it at the top of the right column, not the bottom (#568)", () => {
+    expect(parsePanelLayout("preview,recent,log|chat,turn,oppHand,hand").right).toEqual([
+      "logpose",
+      "chat",
+      "turn",
+      "oppHand",
+      "hand",
+    ]);
+  });
+
+  it("keeps the slot a save gives Log Pose, in either column (#568)", () => {
+    expect(parsePanelLayout("preview,logpose,recent,log|oppHand,turn,hand,chat")).toEqual({
+      left: ["preview", "logpose", "recent", "log"],
+      right: ["oppHand", "turn", "hand", "chat"],
+    });
+    expect(parsePanelLayout("preview,recent,log|oppHand,turn,logpose,hand,chat").right).toEqual([
+      "oppHand",
+      "turn",
+      "logpose",
+      "hand",
+      "chat",
+    ]);
+  });
+
+  it("a moved Log Pose saves and reads back in the same slot (#568)", () => {
+    const moved = movePanel(DEFAULT_PANEL_LAYOUT, "logpose", "right", "hand");
+    expect(moved.right).toEqual(["oppHand", "turn", "logpose", "hand", "chat"]);
+    expect(serializePanelLayout(moved)).not.toBe("");
+    expect(parsePanelLayout(serializePanelLayout(moved))).toEqual(moved);
+  });
+
+  it("placeLogPose keeps its saved slot in the column it is docked to (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, "right")).toEqual(saved);
+  });
+
+  it("placeLogPose brings it to the top of the docked column when it was saved in the other one (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, "left")).toEqual({
+      left: ["logpose", "preview", "recent", "log"],
+      right: ["oppHand", "turn", "hand", "chat"],
+    });
+  });
+
+  it("placeLogPose leaves the layout alone while it is not docked on the board (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, null)).toEqual(saved);
+  });
+
+  it("in one combined column, Log Pose keeps its slot among that column's own panels (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "logpose", "turn", "hand", "chat"] as PanelId[] };
+    const merged = mergeIntoColumn(placeLogPose(saved, "right"), "right");
+    expect(merged.right).toEqual(["oppHand", "logpose", "turn", "hand", "chat", "preview", "recent", "log"]);
+    expect(merged.left).toEqual([]);
+    // Docked left while saved right: it joins the combined left column at its top.
+    expect(mergeIntoColumn(placeLogPose(saved, "left"), "left").left).toEqual([
+      "logpose", "preview", "recent", "log", "oppHand", "turn", "hand", "chat",
+    ]);
   });
 });
 
@@ -49,11 +112,11 @@ describe("movePanel", () => {
   it("moves a panel into the other column before a given panel, or to its end (#261)", () => {
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "hand", "left", "recent")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "chat"],
+      right: ["logpose", "oppHand", "turn", "chat"],
     });
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "preview", "right", null)).toEqual({
       left: ["recent", "log"],
-      right: ["oppHand", "turn", "hand", "chat", "preview"],
+      right: ["logpose", "oppHand", "turn", "hand", "chat", "preview"],
     });
   });
 
@@ -101,6 +164,7 @@ describe("nudgePanel", () => {
   it("moves past a hidden panel in one step, which keeps its place (#261)", () => {
     // The Grid hand is off screen (fan hand): Down on turn swaps it with chat.
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "turn", "down", visible).right).toEqual([
+      "logpose",
       "oppHand",
       "hand",
       "chat",
@@ -116,7 +180,7 @@ describe("nudgePanel", () => {
   it("sends a panel to the end of the other column with Left / Right (#261)", () => {
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "left", visible)).toEqual({
       left: ["preview", "recent", "log", "chat"],
-      right: ["oppHand", "turn", "hand"],
+      right: ["logpose", "oppHand", "turn", "hand"],
     });
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "right", visible)).toBe(DEFAULT_PANEL_LAYOUT);
   });

@@ -118,7 +118,7 @@ import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./seatSkins";
 import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, mergeIntoColumn, parsePanelLayout, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
+import { PANEL_LABELS, collapsedColumns, columnOf, mergeIntoColumn, parsePanelLayout, placeLogPose, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
 import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
@@ -361,7 +361,7 @@ export function DuelBoard({
   const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
   /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
   const lp = wide && landscapePhone;
-  // Log Pose docked to a side: its panel renders into a host at the top of that side column, only while it is open.
+  // Log Pose docked to a side: its panel renders into a host that is a movable panel of that side column, only while it is open.
   // Narrow windows and landscape phones have no side columns, so there it floats.
   const logPoseDock = useLogPoseDock();
   const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
@@ -445,20 +445,28 @@ export function DuelBoard({
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
   // One combined column folds the other column's panels in for display only; the saved layout keeps its split.
-  const panelLayout = useMemo(() => {
-    const saved = parsePanelLayout(prefs.panelLayout);
-    return singleSide ? mergeIntoColumn(saved, singleSide) : saved;
-  }, [prefs.panelLayout, singleSide]);
+  // A docked Log Pose takes its slot in the column it is docked to (its saved place there, else the top).
+  const savedPanelLayout = useMemo(() => placeLogPose(parsePanelLayout(prefs.panelLayout), logPoseSide), [prefs.panelLayout, logPoseSide]);
+  const panelLayout = useMemo(
+    () => (singleSide ? mergeIntoColumn(savedPanelLayout, singleSide) : savedPanelLayout),
+    [savedPanelLayout, singleSide],
+  );
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
   const playmatRef = useRef<HTMLDivElement | null>(null);
   const panelDrag = usePanelDrag(
     arenaBodyRef,
     panelLayout,
     // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
-    (next) =>
+    (next) => {
       updateSettings({
-        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, parsePanelLayout(prefs.panelLayout), singleSide) : next),
-      }),
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide) : next),
+      });
+      // Log Pose dragged to the other column (both shown): the dock side follows, so the two agree.
+      if (!singleSide && logPoseSide) {
+        const col = columnOf(next, "logpose");
+        if (col !== logPoseSide) logPoseDock.setDock(col);
+      }
+    },
     {
       id: "oppHand",
       spot: prefs.oppHandSpot || null,
@@ -1854,6 +1862,10 @@ export function DuelBoard({
       </section>
     ) : null,
     chat: chatPanel,
+    // The host the docked Log Pose panel renders into; the panel wrapper gives it the grip and dividers.
+    logpose: logPoseSide ? (
+      <div ref={logPoseSide === "left" ? setLogPoseHostL : setLogPoseHostR} className="lp-dock-host" data-panel-host="logpose" />
+    ) : null,
   };
   /** Panels with something to show, top to bottom, in each column (the rest keep their places). */
   const shownPanels: Record<PanelColumn, PanelId[]> = {
@@ -2347,7 +2359,6 @@ export function DuelBoard({
         ) : wide ? (
           <aside className="arena-left board-col" data-panel-col="left" data-col-off={singleSide === "right" ? "" : undefined} aria-label="Side panels, left">
             {actionsSide === "left" ? columnActions : null}
-            {logPoseSide === "left" ? <div ref={setLogPoseHostL} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-left" {...panelResize.columnHandleProps("left")} />
@@ -2558,7 +2569,6 @@ export function DuelBoard({
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined}>
             {actionsSide === "right" ? columnActions : null}
-            {logPoseSide === "right" ? <div ref={setLogPoseHostR} className="board-panel lp-dock-host" data-panel-host="logpose" /> : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />

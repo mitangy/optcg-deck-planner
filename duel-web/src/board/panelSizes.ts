@@ -38,6 +38,8 @@ export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
   hand: PANEL_MIN_PX,
   // Its header and input row (about 5.4rem) plus a line or two of messages.
   chat: 120,
+  // The docked Log Pose panel: header, a few lines of chat and the composer (board.css gives it the same floor).
+  logpose: 340,
 };
 /** Panels that size to their content (never shrink below it). */
 export const CONTENT_SIZED_PANELS: readonly PanelId[] = ["turn", "oppHand"];
@@ -50,6 +52,8 @@ export const PANEL_MIN_WIDTH_PX: Record<PanelId, number> = {
   turn: 250,
   hand: 200,
   chat: 200,
+  // Its header (title, actions) stays on one row from 320px.
+  logpose: 320,
 };
 export const SHARE_MIN = 0.05;
 export const SHARE_MAX = 0.95;
