@@ -1,4 +1,7 @@
 import type { CSSProperties } from "react";
+import { CardArt } from "../cards/CardArt";
+import { artAfterError } from "../cards/cardImage";
+import { isPreviewArtPath } from "../cards/previewArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { LifeFan } from "../settings";
@@ -47,6 +50,21 @@ export function lifePileFaces(
 export function stackPileFaceCount(count: number): number {
   if (count <= 0) return 0;
   return Math.min(count, 3);
+}
+
+/**
+ * `--life-face-art` for a face-up Life card. A CSS background has no error
+ * event, so a card TCGplayer has no art for (EB05) gets its preview scan as a
+ * second layer that shows through when the first fails. Cards without preview
+ * art get a single layer (no extra request per Life card).
+ */
+export function lifeFaceArt(defId: string, ownerSeat?: Seat): string {
+  const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+  if (!primary) return "none";
+  const next = artAfterError(primary, defId);
+  const layers = [primary];
+  if (next && isPreviewArtPath(next)) layers.push(next);
+  return layers.map((u) => `url("${u}")`).join(", ");
 }
 
 type Props = {
@@ -110,7 +128,7 @@ export function ZonePile({
                 if (e.pointerType === "mouse") endPreviewHover();
               }}
               onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId)) : undefined}
-              style={{ "--life-face-art": `url("${resolveCardImageUrl(defId, { ownerSeat, size: "thumb" })}")` } as CSSProperties}
+              style={{ "--life-face-art": lifeFaceArt(defId, ownerSeat) } as CSSProperties}
             />
           ) : (
             <span key={i} className="zone-pile-face" />
@@ -127,7 +145,13 @@ export function ZonePile({
         {faces >= 3 ? <span className="zone-pile-face" /> : null}
         {faces >= 2 ? <span className="zone-pile-face mid" /> : null}
         {topArt ? (
-          <img className="zone-pile-face top don-pile-art" src={topArt} alt="" draggable={false} />
+          <CardArt
+            src={topArt}
+            defId={topDefId!}
+            className="zone-pile-face top don-pile-art"
+            draggable={false}
+            fallback={<span className="zone-pile-face top" />}
+          />
         ) : (
           <span className="zone-pile-face top" />
         )}
