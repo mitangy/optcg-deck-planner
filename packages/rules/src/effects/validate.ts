@@ -61,6 +61,7 @@ const countExpr: V = tagged("of", {
   var_sum: variant("of", "var_sum", { name: str, field: oneOf("cost", "power") }),
   leader_power: variant("of", "leader_power", { player: rel }),
   self_power: variant("of", "self_power"),
+  self_base_power: variant("of", "self_base_power"),
   battle_power: variant("of", "battle_power", { role: oneOf("attacker", "defender") }),
   sum: variant("of", "sum", { exprs: arr(lazy(() => countExpr), 1) }),
   distinct_names: variant("of", "distinct_names", { selector: lazy(() => selector) }),
