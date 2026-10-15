@@ -154,6 +154,8 @@ export function dispatchEvent(state: MatchState, event: GameEventKind | readonly
         };
         if (!kinds.some(matches)) continue;
         if (!abilityGateOpen(state, seat, { id: card.id, defId: card.defId, card }, ability, info.card?.id)) continue;
+        // A Once Per Turn ability queues once per batch, even when several events in it match (#600).
+        if (ability.oncePerTurn && state.triggerQueue.some((t) => t.sourceInstanceId === card.id && t.abilityId === ability.id && t.batch === state.triggerBatch)) continue;
         state.triggerQueue.push({ id: alloc(state, "trig"), seat, sourceInstanceId: card.id, sourceDefId: card.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch, ...(info.card ? { eventCardId: info.card.id } : {}) });
       }
     }
