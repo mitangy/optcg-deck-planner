@@ -198,6 +198,8 @@ export type DuelSettings = {
   showCardPreview: boolean;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
+  /** The opening-hand explainer during the mulligan step: who goes first, what Keep and Mulligan do (#599). */
+  gameHints: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
   reduceMotion: boolean;
   /** Speed of card motion (draw, play, KO, DON!! ...). */
@@ -275,6 +277,7 @@ const DEFAULTS: DuelSettings = {
   showChat: true,
   showCardPreview: true,
   turnSplash: true,
+  gameHints: false,
   reduceMotion: false,
   animationSpeed: "normal",
   cardSpotlight: true,

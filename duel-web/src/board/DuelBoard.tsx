@@ -1912,7 +1912,7 @@ export function DuelBoard({
           <strong>Mulligan locked in.</strong> Waiting for the other seat
           {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
         </>
-      ) : (
+      ) : !prefs.gameHints ? null : (
         <>
           <strong>
             {firstSeatLine({

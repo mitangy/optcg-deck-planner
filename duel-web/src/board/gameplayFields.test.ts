@@ -86,7 +86,7 @@ describe("Gameplay settings groups (#496)", () => {
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
     "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "popupSize", "previewPopupSize", "donUpright", "totalPower", "oppHandTopRight",
-    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "reduceMotion", "turnAlert", "turnSound",
+    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "gameHints", "reduceMotion", "turnAlert", "turnSound",
   ];
 
   it("every gameplay switch and select belongs to exactly one group and none is dropped (#496)", () => {
