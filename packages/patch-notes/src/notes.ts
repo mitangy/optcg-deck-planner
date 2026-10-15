@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-15
+  { date: "2026-10-15", app: "duel", pr: 612, title: "8 new cards and fixed promos", text: "Cerberus and Kiwi & Mozu (OP18), Charlotte Pudding!! and Nami (EB05), and promos P-152 to P-157 are now in the duel app with their effects. Lilith (P-118), Crocodile (OP09-046) and Kouzuki Oden (OP17-007) can now play their Characters, and older promo cards have their full types and counters." },
   { date: "2026-10-15", app: "duel", pr: 602, title: "Opening hand tips are off by default", text: "The explanation shown while you choose to keep or mulligan your opening hand is now hidden. Turn it back on in Settings > Gameplay > Opening hand tips." },
   { date: "2026-10-15", app: "duel", pr: 601, title: "Nico Robin Leader asks only once", text: "Nico Robin's Leader (EB05-010) no longer asks twice when two of your <Wisdom> Characters are K.O.'d at the same time. Other [Once Per Turn] \"When …\" effects, like Boa Hancock's blue/yellow Leader (OP14-041) and Laboon (EB01-047), also ask once for cards K.O.'d together." },
   // 2026-10-13
