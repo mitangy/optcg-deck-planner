@@ -5,6 +5,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Recent plays thumbnails fall back to preview art (#604)
+    { id: "recent-plays-thumb-no-art-fallback", file: `${src}/board/RecentPlaysStrip.tsx`, from: "<CardArt src={src} defId={p.defId} fallback={p.defId} draggable={false} />", to: '{src ? <img src={src} alt="" draggable={false} /> : p.defId}', kills: ["Recent plays thumbnail falls back to preview art when TCGPlayer art fails (#604)"] },
     // Hidden pop-ups shrink into their pill (#587)
     { id: "hide-shrink-fits-by-width-only", file: `${src}/board/hideShrink.ts`, from: "Math.min(to.width / from.width, to.height / from.height)", to: "to.width / from.width", kills: ["fits a wide pop-up into a short pill by the tighter side and centres it on the pill (#587)"] },
     { id: "hide-shrink-fits-by-height-only", file: `${src}/board/hideShrink.ts`, from: "Math.min(to.width / from.width, to.height / from.height)", to: "to.height / from.height", kills: ["fits by width when the pill is narrower than the pop-up is wide in proportion (#587)"] },

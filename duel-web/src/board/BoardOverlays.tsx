@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../cards/atlas";
+import { CardArt } from "../cards/CardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import { fallbackToDefaultDon, useDonArt } from "./donArt";
@@ -246,7 +247,11 @@ export function DragGhost({ payload }: { payload: GhostPayload | null }) {
       style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
       aria-hidden
     >
-      {src ? <img src={src} alt="" draggable={false} /> : <span>{label}</span>}
+      {payload.type === "give_don" ? (
+        src ? <img src={src} alt="" draggable={false} /> : <span>{label}</span>
+      ) : (
+        <CardArt src={src} defId={payload.defId} fallback={<span>{label}</span>} draggable={false} />
+      )}
       {payload.type === "give_don" && payload.count > 1 ? (
         <span className="drag-ghost-count">×{payload.count}</span>
       ) : null}
