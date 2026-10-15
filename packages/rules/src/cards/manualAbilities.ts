@@ -736,4 +736,39 @@ ENTRIES.push(["EB05-046", { abilities: [
       { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" }) },
 ] }]);
 
+// Full replacements (#607): these abilities have no Once Per Turn, so each is only offered while it would still change something.
+// OP04-059: not while this Character already has [Blocker].
+ENTRIES.push(["OP04-059", { abilities: [
+  { id: "op04-059#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: If your Leader has the {Water Seven} type, this Character gains [Blocker] during this turn.",
+    conditions: [{ c: "leader_trait", traits: ["Water Seven"] }, none(myChar({ onlySelf: true, keyword: "blocker" }))],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: keyword(self, "blocker") },
+] }]);
+
+// OP04-069: not while this Character's base power already equals the attacker's power. Its [Trigger] is as generated.
+ENTRIES.push(["OP04-069", { abilities: [
+  { id: "op04-069#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the power of your opponent's attacking Leader or Character during this turn.",
+    conditions: [cmp({ count: { of: "self_base_power" } }, "!=", { count: { of: "battle_power", role: "attacker" } })],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: { do: "base_power", target: self, value: { count: { of: "battle_power", role: "attacker" } }, duration: "turn" } },
+  { id: "op04-069#1", trigger: "trigger", text: "[Trigger] DON!! -1: Play this card.",
+    costs: [{ k: "return_don", count: 1 }], effect: play(self) },
+] }]);
+
+// OP14-045 / OP14-049: a mandatory "gains [Rush]" is not queued again (no extra Order effects entry) once the Character has [Rush].
+ENTRIES.push(["OP14-045", { abilities: [
+  { id: "op14-045#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-045#1", trigger: "on_ko", text: "[On KO] Draw 1 card.", effect: draw(1) },
+] }]);
+ENTRIES.push(["OP14-049", { abilities: [
+  { id: "op14-049#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-049#1", trigger: "on_play", text: "[On Play] You may rest 2 of your DON!! cards: Draw 2 cards and return up to 1 Character with a cost of 7 or less to the owner's hand.",
+    costs: [{ k: "rest_don", count: 2 }],
+    effect: seq(draw(2), { do: "to_hand", target: { ref: "choose", selector: { player: "any", zone: "character", filter: { types: ["character"], cost: le(7) } }, min: 0, max: 1, bind: "_last" } }) },
+] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

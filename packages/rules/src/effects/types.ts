@@ -35,6 +35,7 @@ export type CountExpr =
   | { of: "var_sum"; name: string; field: "cost" | "power" }
   | { of: "leader_power"; player: Rel }
   | { of: "self_power" }
+  | { of: "self_base_power" }
   | { of: "battle_power"; role: "attacker" | "defender" }
   | { of: "sum"; exprs: CountExpr[] }
   /** Number of distinct card names among cards matching the selector. */

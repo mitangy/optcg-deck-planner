@@ -484,3 +484,93 @@ describe("EB05-046 Yamato On Your Opponent's Attack (#607)", () => {
     expect(h.state.players[1].hand.length).toBe(3);
   });
 });
+
+describe("Repeat prompts that do nothing (#607)", () => {
+  /** Seat 1 defends; seat 0 has three attackers. */
+  function defend(h: Harness, ...attackers: string[]) {
+    const mine = h.field(0, ...attackers);
+    h.life(1, FILLER, FILLER, FILLER, FILLER);
+    return mine;
+  }
+
+  it("OP04-059 is not offered again once it has [Blocker] this turn (#607)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP03-058"] });
+    const [iceburg] = h.field(1, "OP04-059");
+    h.don(1, 2);
+    const [a, b] = defend(h, FILLER, FILLER);
+    expect(keywordsOf(h.state, 1, iceburg!).has("blocker")).toBe(false);
+    h.attack(a!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(keywordsOf(h.state, 1, iceburg!).has("blocker")).toBe(true);
+    h.passBattle();
+    const donActive = h.state.players[1].costArea.length;
+    h.attack(b!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(donActive);
+  });
+
+  it("OP04-059 is not offered without a {Water Seven} Leader (#607)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "ST01-001"] });
+    h.field(1, "OP04-059");
+    h.don(1, 1);
+    const [a] = defend(h, FILLER);
+    h.attack(a!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(1);
+  });
+
+  it("OP04-069 is not offered again once its base power equals the attacker's (#607)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [a, b] = defend(h, FILLER, FILLER);
+    expect(basePowerOf(h.state, 1, bon!)).toBe(4000);
+    h.attack(a!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(basePowerOf(h.state, 1, bon!)).toBe(3000);
+    h.passBattle();
+    const donActive = h.state.players[1].costArea.length;
+    h.attack(b!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(donActive);
+  });
+
+  it("OP04-069 is offered again when the next attacker has different power (#607)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [a, big] = defend(h, FILLER, "OP14-049");
+    h.attack(a!, "leader");
+    h.accept();
+    h.pick("o0");
+    h.passBattle();
+    h.attack(big!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.forced();
+    expect(basePowerOf(h.state, 1, bon!)).toBe(10000);
+  });
+
+  for (const id of ["OP14-045", "OP14-049"]) {
+    it(`${id} does not queue another [Rush] gain once it has [Rush], so trashing several cards asks no order (#607)`, () => {
+      const h = new Harness();
+      const [card] = h.field(0, id);
+      h.hand(0, "OP11-083", "OP11-083", FILLER, FILLER, FILLER, FILLER);
+      h.don(0, 2);
+      h.play(0, "OP11-083");
+      h.pick(FILLER, FILLER);
+      // Rush not gained yet: both trashed cards queue a gain, so the player orders them.
+      expect(h.choice?.kind).toBe("order_effects");
+      h.act(0, { type: "order_pending_effects", orderedIds: h.choice!.unorderedChoices!.map((c) => c.id) });
+      expect(keywordsOf(h.state, 0, card!).has("rush")).toBe(true);
+      h.play(0, "OP11-083");
+      h.pick(FILLER, FILLER);
+      expect(h.choice).toBeUndefined();
+      expect(h.state.players[0].trash.length).toBe(4);
+    });
+  }
+});
