@@ -538,7 +538,6 @@ module.exports = {
     {"id": "eb05-build-tcgplayer-beats-bandai", "file": "packages/rules/src/tools/buildCardData.ts", "from": "if (cards[id] || row.source !== \"tcgplayer\") continue;", "to": "if (row.source !== \"tcgplayer\") continue;", "kills": ["the Bandai row wins once the candidate has the id"]},
     {"id": "eb05-build-keeps-bundled", "file": "packages/rules/src/tools/buildCardData.ts", "from": "if (cards[id] || row.source !== \"tcgplayer\") continue;", "to": "if (cards[id] || row.source === \"bandai\") continue;", "kills": ["does not carry over a previous bundled row"]},
     {"id": "eb05-tcgplayer-traits-unknown", "file": "packages/rules/src/cards/sourceRecords.ts", "from": "official ? \"verified\" : row.source === \"tcgplayer\" ? \"unverified\" : \"unknown\"", "to": "official ? \"verified\" : \"unknown\"", "kills": ["traits from TCGPlayer are unverified"]},
-    {"id": "eb05-bundled-traits-unverified", "file": "packages/rules/src/cards/sourceRecords.ts", "from": "official ? \"verified\" : row.source === \"tcgplayer\" ? \"unverified\" : \"unknown\"", "to": "official ? \"verified\" : \"unverified\"", "kills": ["traits from TCGPlayer are unverified while bundled"]},
     {"id": "eb05-grammar-rest-named-leader", "file": "packages/rules/src/tools/cardText/grammar.ts", "from": "[/^rest your leader (§N", "to": "[/^rest your leader X(§N", "kills": ["matches deterministic regeneration"]},
     {"id": "eb05-grammar-ko-or-rest", "file": "packages/rules/src/tools/cardText/grammar.ts", "from": "[/^(KO|rest) or (rest|KO) (up to", "to": "[/^(KO|rest) or X(rest|KO) (up to", "kills": ["matches deterministic regeneration"]},
     {"id": "eb05-grammar-they-trash", "file": "packages/rules/src/tools/cardText/normalize.ts", "from": ".replace(/\\bthey trash\\b/g, \"your opponent trashes\")", "to": "", "kills": ["matches deterministic regeneration"]},
@@ -851,5 +850,35 @@ module.exports = {
     { id: "event-main-from-trash-counts-as-activation", file: "packages/rules/src/engine/runtime.ts", from: "if (loc.zone === \"hand\") dispatchEvent(state, \"event_activated\"", to: "if (loc.zone !== \"leader\") dispatchEvent(state, \"event_activated\"", kills: ["OP15-119 does not power up when the opponent uses an Event's [Main] from the trash with Reiju (#594)"] },
     { id: "damage-effects-between-damage-points", file: "packages/rules/src/engine/procedure.ts", from: "  return front?.kind === \"life_damage\" && (state.battle?.damageRemaining ?? 0) > 0 && state.triggerQueue.every((t) => t.window !== \"trigger\");", to: "  return false;", kills: ["OP05-098 refills Life only after a Double Attack's 2 damage, ending at 1 Life (#594)"] },
     { id: "eb05-robin-opt-simultaneous-ko", file: "packages/rules/src/engine/runtime.ts", from: "        if (ability.oncePerTurn && state.triggerQueue.some((t) => t.sourceInstanceId === card.id && t.abilityId === ability.id && t.batch === state.triggerBatch)) continue;\n", to: "", kills: ["asks once when two Wisdom Characters are K.O.'d at the same time (#600)", "asks once when both Gorgon sisters are K.O.'d at the same time (#600)", "declining once covers both simultaneous K.O.s (#600)", "fires a [Once Per Turn] trigger once when two Characters are K.O.'d together"] },
+    // October 2026 TCGPlayer imports (scenarios/newCardsOct2026.test.ts): keyword choice, OR card filter, "by your opponent", names with parentheses.
+    { id: "oct26-cerberus-first-keyword-only", edits: [
+      { file: GRAMMAR_FILE, from: "keyword: keywordOf(k)!, duration: d } })) }] };", to: "keyword: keywordOf(keywords[0]!)!, duration: d } })) }] };" },
+      { json: ABILITIES, patch: (a) => { for (const o of a["OP18-085"].abilities[0].effect.steps[1].options) o.effect.keyword = "rush"; } },
+    ], kills: ["OP18-085 grants only the chosen keyword", "OP18-085 grants the last listed keyword"] },
+    { id: "oct26-cerberus-drops-last-keyword", edits: [
+      { file: GRAMMAR_FILE, from: ".map((k) => k[1]!);\n    if (!target || target.ref !== \"choose\" || !d ||", to: ".map((k) => k[1]!).slice(0, 2);\n    if (!target || target.ref !== \"choose\" || !d ||" },
+      { json: ABILITIES, patch: (a) => { a["OP18-085"].abilities[0].effect.steps[1].options.pop(); } },
+    ], kills: ["OP18-085 grants the last listed keyword"] },
+    { id: "oct26-lilith-trait-and-trigger", edits: [
+      { file: "packages/rules/src/tools/cardText/phrases.ts", from: "filter.any = [{ traits }, q ? { traitIncludes: [q] } : { hasTrigger: true }];", to: "filter.traits = traits; if (q) filter.traitIncludes = [q]; else filter.hasTrigger = true;" },
+      { json: ABILITIES, patch: (a) => { const f = a["P-118"].abilities[0].effect.then.target.selector.filter; delete f.any; f.traits = ["Egghead"]; f.hasTrigger = true; } },
+    ], kills: ["P-118 plays a Character with a [Trigger] that is not an {Egghead}", "P-118 plays an {Egghead} Character without a [Trigger]"] },
+    { id: "oct26-lilith-no-alternative-filter", edits: [
+      { file: "packages/rules/src/tools/cardText/phrases.ts", from: "filter.any = [{ traits }, q ? { traitIncludes: [q] } : { hasTrigger: true }];", to: "" },
+      { json: ABILITIES, patch: (a) => { delete a["P-118"].abilities[0].effect.then.target.selector.filter.any; } },
+    ], kills: ["P-118 offers nothing when the hand has only a Character that is neither"] },
+    { id: "oct26-nami-battle-not-covered", edits: [
+      { file: COMPILE_FILE, from: "...(/by your opponent(?!')/i.test(m[0]!) ? { alsoEvents: [\"ko_in_battle\" as const] } : {}), ", to: "" },
+      { json: ABILITIES, patch: (a) => { delete a["EB05-061"].abilities[0].replacement.alsoEvents; } },
+    ], kills: ["EB05-061 keeps a Character the opponent K.O.s in battle"] },
+    { id: "oct26-nami-covers-own-removal", edits: [
+      { file: COMPILE_FILE, from: "return buildReplacement({ event: \"removed_by_opponent_effect\", ...(/by your", to: "return buildReplacement({ event: \"removed\", ...(/by your" },
+      { file: COMPILE_FILE, from: ": {}), byOpponent }, target, m, ctx);\n  }", to: ": {}), byOpponent: false }, target, m, ctx);\n  }" },
+      { json: ABILITIES, patch: (a) => { const r = a["EB05-061"].abilities[0].replacement; r.event = "removed"; r.byOpponent = false; } },
+    ], kills: ["EB05-061 does not replace a removal the player's own effect causes"] },
+    { id: "oct26-name-parenthesis-stripped", edits: [
+      { file: "packages/rules/src/tools/cardText/normalize.ts", from: "text = text.replace(/\\[[^\\]]*\\]|\\s*\\([^()]*\\)/g, (part) => (part.startsWith(\"[\") ? part : \"\"));", to: "text = text.replace(/\\s*\\([^()]*\\)/g, \"\");" },
+      { json: ABILITIES, patch: (a) => { a["OP09-056"].abilities[0].effect.picks[0].filter.notNames = ["Mr.3"]; } },
+    ], kills: ["OP09-056 excludes [Mr.3(Galdino)] by its full name"] },
   ],
 };

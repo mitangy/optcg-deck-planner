@@ -5320,6 +5320,22 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "EB05-059": {
+    "id": "EB05-059",
+    "name": "Charlotte Pudding!!",
+    "type": "event",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/EB05-059.png",
+    "effectText": "[Main] Draw 1 card, and all of your Characters with 4000 base power and the {Big Mom Pirates} type cannot be K.O.'d in battle until the end of your opponent's next End Phase.\n\n[Trigger] Draw 1 card and play up to 1 Character card with 4000 power and a [Trigger] from your hand.",
+    "traits": [
+      "Big Mom Pirates"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "EB05-060": {
     "id": "EB05-060",
     "name": "Take Care of Lilith!!!",
@@ -5334,6 +5350,24 @@
       "Scientist",
       "Egghead"
     ],
+    "abilitySupport": "ok"
+  },
+  "EB05-061": {
+    "id": "EB05-061",
+    "name": "Nami",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 2000,
+    "imageUrl": "/cards/EB05-061.png",
+    "effectText": "[Once Per Turn] If one of your Characters with 6000 base power or less would be removed from the field by your opponent, you may add 1 card from the top of your Life cards to your hand instead. [On Play] Play up to 1 red Character card with a cost of 2 or less from your hand.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP01-001": {
@@ -42742,6 +42776,25 @@
     "attribute": "Special",
     "abilitySupport": "ok"
   },
+  "OP18-063": {
+    "id": "OP18-063",
+    "name": "Kiwi & Mozu",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "power": 1000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-063.png",
+    "effectText": "[On Play] You may K.O. 1 of your Stages with a cost of 5 or less: Add up to 1 DON!! card as rested from your DON!! deck.",
+    "traits": [
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
   "OP18-066": {
     "id": "OP18-066",
     "name": "Zambai",
@@ -42811,6 +42864,24 @@
     "effectText": "[Activate: Main] You may rest 2 of your DON!! cards and this Leader and trash 1 card with a type including \"CP\" from your hand: Add up to 1 card from the top of your deck to the top of your Life cards.",
     "traits": [
       "CP9"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-085": {
+    "id": "OP18-085",
+    "name": "Cerberus",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-085.png",
+    "effectText": "[Activate: Main] You may return this Character to the owner's hand: Up to 1 of your [Saint Shamrock] Characters gains [Rush], [Banish], or [Unblockable] during this turn.",
+    "traits": [
+      "Holy Knights of God"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
@@ -43628,8 +43699,14 @@
     ],
     "cost": 4,
     "power": 5000,
+    "counter": 1000,
     "imageUrl": "/cards/P-038.png",
-    "effectText": "[On Play] You may rest your 1 Leader : K.O. up to 1 of your opponent's Characters with a cost of 1 or less.",
+    "effectText": "[On Play]You may rest your 1 Leader: K.O. up to 1 of your opponent's Characters with a cost of 1 or less.",
+    "traits": [
+      "Heart Pirates",
+      "Dressrosa"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-039": {
@@ -43660,6 +43737,11 @@
     "power": 10000,
     "imageUrl": "/cards/P-040.png",
     "effectText": "If your opponent has 10 DON!! cards on their field, this Character cannot be K.O.'d.",
+    "traits": [
+      "Animal Kingdom Pirates",
+      "The Four Emperors"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-041": {
@@ -44084,8 +44166,14 @@
     ],
     "cost": 6,
     "power": 8000,
+    "counter": 1000,
     "imageUrl": "/cards/P-064.png",
     "effectText": "—",
+    "traits": [
+      "Land of Wano",
+      "Kouzuki Clan"
+    ],
+    "attribute": "Special",
     "abilitySupport": "unverified"
   },
   "P-065": {
@@ -44116,8 +44204,14 @@
     ],
     "cost": 4,
     "power": 5000,
+    "counter": 1000,
     "imageUrl": "/cards/P-066.png",
     "effectText": "[Your Turn] If you have 5 or less cards in your hand, all of your [Kuja Pirates] type Characters gain +1000 power.",
+    "traits": [
+      "Kuja Pirates",
+      "The Seven Warlords of the Sea"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "P-067": {
@@ -44131,6 +44225,11 @@
     "power": 6000,
     "imageUrl": "/cards/P-067.png",
     "effectText": "If this Character is rested, your opponent cannot attack any card other than the Character [Eustass\"Captain\"Kid].",
+    "traits": [
+      "Kid Pirates",
+      "Supernovas"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "P-068": {
@@ -44360,8 +44459,15 @@
     ],
     "cost": 7,
     "power": 9000,
+    "counter": 1000,
     "imageUrl": "/cards/P-080.png",
     "effectText": "—",
+    "traits": [
+      "Straw Hat Crew",
+      "The Four Emperors",
+      "Egghead"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "unverified"
   },
   "P-081": {
@@ -44469,6 +44575,10 @@
     "life": 4,
     "imageUrl": "/cards/P-086.png",
     "effectText": "[Activate:Main] [Once Per Turn] DON!!-3, You may place 1 Character with 3000 power or more at the bottom of your deck: Play up to 1 \"Heart Pirates\" type Character card with a cost of 4 or less from your hand.",
+    "traits": [
+      "Heart Pirates"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-088": {
@@ -44813,9 +44923,15 @@
     ],
     "cost": 3,
     "power": 2000,
+    "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/P-108.png",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On K.O.] Set up to 2 of your DON!! cards as active.",
+    "traits": [
+      "Straw Hat Crew",
+      "Supernovas"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-110": {
@@ -44902,9 +45018,15 @@
     ],
     "cost": 4,
     "power": 5000,
+    "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/P-114.png",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [End of Your Turn] If you have any active DON!! cards, set this Character as active.",
+    "traits": [
+      "Straw Hat Crew",
+      "Supernovas"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-115": {
@@ -44936,9 +45058,15 @@
     ],
     "cost": 2,
     "power": 1000,
+    "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/P-116.png",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On K.O.] If you have 7 or more cards in your trash, draw 1 card and trash 1 card from your hand.",
+    "traits": [
+      "Straw Hat Crew",
+      "Former Baroque Works"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-117": {
@@ -44971,9 +45099,14 @@
     ],
     "cost": 6,
     "power": 6000,
+    "counter": 1000,
     "imageUrl": "/cards/P-118.png",
-    "effectText": "[On Play] If your Leader has the {Egghead} type, play up to 1 {Egghead} type Character card or Character card with a\n\n[Trigger], with a cost of 5 or less from your hand.",
-    "hasTrigger": true,
+    "effectText": "[On Play] If your Leader has the {Egghead} type, play up to 1 {Egghead} type Character card or Character card with a [Trigger], with a cost of 5 or less from your hand.",
+    "traits": [
+      "Scientist",
+      "Egghead"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "P-119": {
@@ -45022,8 +45155,13 @@
     ],
     "cost": 1,
     "power": 2000,
+    "counter": 2000,
     "imageUrl": "/cards/P-136.png",
     "effectText": "[Activate:Main] Give up to 1 rested DON!! card to 1 of your {Land of Wano} type Leader or Character cards.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Ranged",
     "abilitySupport": "ok"
   },
   "P-137": {
@@ -45035,8 +45173,13 @@
     ],
     "cost": 6,
     "power": 7000,
+    "counter": 1000,
     "imageUrl": "/cards/P-137.png",
     "effectText": "[Double Attack] (This card deals 2 damage.) [When Attacking] Give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-138": {
@@ -45048,8 +45191,14 @@
     ],
     "cost": 3,
     "power": 4000,
+    "counter": 1000,
     "imageUrl": "/cards/P-138.png",
     "effectText": "[Opponent's Turn] This Character gains +2000 power.",
+    "traits": [
+      "Animal",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-139": {
@@ -45061,8 +45210,13 @@
     ],
     "cost": 5,
     "power": 6000,
+    "counter": 1000,
     "imageUrl": "/cards/P-139.png",
     "effectText": "[On Play] Give up to 1 rested DON!! card to your Leader or 1 of your Characters. [DON!!×1] [When Attacking] Draw 1 card.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "P-140": {
@@ -45077,6 +45231,10 @@
     "blocker": true,
     "imageUrl": "/cards/P-140.png",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] Give up to 2 rested DON!! cards to your Leader or 1 of your Characters.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-141": {
@@ -45088,9 +45246,14 @@
     ],
     "cost": 7,
     "power": 6000,
+    "counter": 1000,
     "rush": true,
     "imageUrl": "/cards/P-141.png",
-    "effectText": "[Rush] (This card can attack on the turn in which it is played.) [On Play] Give up to 1 of your opponent's Leader or Characters -1000 power during this turn.",
+    "effectText": "[Rush] (This card can attack on the turn in which it is played.) [On Play] Give up to 1 of your opponent's Leader or Characters −1000 power during this turn.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-142": {
@@ -45103,6 +45266,9 @@
     "cost": 1,
     "imageUrl": "/cards/P-142.png",
     "effectText": "If your {Straw Hat Crew} type Character with 8000 base If your Straw Hat Crew power or less would be K.O.'d, you may trash this Stage instead.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
     "abilitySupport": "ok"
   },
   "P-143": {
@@ -45116,6 +45282,11 @@
     "power": 8000,
     "imageUrl": "/cards/P-143.png",
     "effectText": "[On Play] If there is a Character with a cost of 0, this Character gains [Rush] during this turn. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Baroque Works",
+      "The Seven Warlords of the Sea"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "P-144": {
@@ -45127,8 +45298,13 @@
     ],
     "cost": 5,
     "power": 6000,
+    "counter": 1000,
     "imageUrl": "/cards/P-144.png",
     "effectText": "[On Play] You may K.O. 1 of your Characters with a type including \"Baroque Works\": Draw 1 card.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-145": {
@@ -45140,8 +45316,13 @@
     ],
     "cost": 4,
     "power": 5000,
+    "counter": 1000,
     "imageUrl": "/cards/P-145.png",
     "effectText": "[On Play] Draw 1 card and trash 1 card from your hand. [On K.O.] If your opponent has 6 or more cards in their hand, your opponent trashes 2 cards from their hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "P-146": {
@@ -45153,8 +45334,13 @@
     ],
     "cost": 1,
     "power": 2000,
+    "counter": 1000,
     "imageUrl": "/cards/P-146.png",
     "effectText": "[On K.O.] Draw 1 card and rest up to 1 of your opponent's Characters with a cost of 0.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "P-147": {
@@ -45166,8 +45352,13 @@
     ],
     "cost": 3,
     "power": 3000,
+    "counter": 1000,
     "imageUrl": "/cards/P-147.png",
     "effectText": "If there is a Character with a cost of 0 or with a cost of 8 or more, this Character-gains +2000 power. [On K.O.] Add up to 1 Character card with a type including \"Baroque Works\" from your trash to your hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-148": {
@@ -45179,9 +45370,14 @@
     ],
     "cost": 5,
     "power": 6000,
+    "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/P-148.png",
     "effectText": "[Blocker] [Activate:Main] [Once Per Turn] If there is a Character with a cost of 0 or with a cost of 8 or more, give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "P-149": {
@@ -45193,8 +45389,65 @@
     ],
     "cost": 5,
     "power": 6000,
+    "counter": 1000,
     "imageUrl": "/cards/P-149.png",
     "effectText": "[Rush:Character] (This card can attack Characters on the turn in which it is played.) [On Play] If there is a Character with a cost of 0 or with a cost of 8 or more, draw 2 cards and trash 1 card from your hand.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "P-152": {
+    "id": "P-152",
+    "name": "Edward.Newgate",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 10,
+    "power": 12000,
+    "imageUrl": "/cards/P-152.png",
+    "effectText": "[On Play] Your Leader and all of your Characters gain +2000 power during this turn. Then, K.O. up to 1 of your opponent's Characters with 3000 power or less.",
+    "traits": [
+      "The Four Emperors",
+      "Whitebeard Pirates"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "P-153": {
+    "id": "P-153",
+    "name": "Portgas.D.Ace",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "power": 8000,
+    "imageUrl": "/cards/P-153.png",
+    "effectText": "[On Play] Give up to 2 of your opponent's Characters −3000 power during this turn.",
+    "traits": [
+      "Whitebeard Pirates"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "P-154": {
+    "id": "P-154",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "power": 8000,
+    "imageUrl": "/cards/P-154.png",
+    "effectText": "[On Play] You may rest 3 of your DON!! cards: If your Leader is [Portgas.D.Ace], play up to 1 [Portgas.D.Ace] with 8000 power or less from your hand.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "P-155": {
@@ -45215,6 +45468,26 @@
     ],
     "hasTrigger": true,
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "P-157": {
+    "id": "P-157",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 7,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/P-157.png",
+    "effectText": "[On Play] You may trash 1 card from your hand: Play up to 1 {Elbaph} type Character card with a cost of 4 or less from your trash.",
+    "traits": [
+      "Straw Hat Crew",
+      "The Four Emperors",
+      "Elbaph"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "PRB01-001": {
