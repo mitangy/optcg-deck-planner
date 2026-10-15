@@ -720,4 +720,55 @@ ENTRIES.push(["OP16-015", { abilities: [
     conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
 ] }]);
 
+// Full replacement (#607): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's base power is
+// not already 7000 and the trash can reach 10 once the cost card is trashed (9 now). Both abilities are otherwise as generated.
+ENTRIES.push(["EB05-046", { abilities: [
+  { id: "eb05-046#0", trigger: "static", text: "If your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.",
+    conditions: [exists(oppChar({ types: ["character"], basePower: ge(8000) }))],
+    statics: [{ s: "keyword", target: "self", keyword: "blocker" }, { s: "power", target: "self", amount: 3000 }] },
+  { id: "eb05-046#1", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 card from your hand: If you have 10 or more cards in your trash, your Leader's base power becomes 7000 during this turn.",
+    conditions: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 9),
+    ],
+    costs: [{ k: "trash_hand", count: 1 }],
+    effect: when(cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 10),
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" }) },
+] }]);
+
+// Full replacements (#607): these abilities have no Once Per Turn, so each is only offered while it would still change something.
+// OP04-059: not while this Character already has [Blocker].
+ENTRIES.push(["OP04-059", { abilities: [
+  { id: "op04-059#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: If your Leader has the {Water Seven} type, this Character gains [Blocker] during this turn.",
+    conditions: [{ c: "leader_trait", traits: ["Water Seven"] }, none(myChar({ onlySelf: true, keyword: "blocker" }))],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: keyword(self, "blocker") },
+] }]);
+
+// OP04-069: not while this Character's base power already equals the attacker's power. Its [Trigger] is as generated.
+ENTRIES.push(["OP04-069", { abilities: [
+  { id: "op04-069#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the power of your opponent's attacking Leader or Character during this turn.",
+    conditions: [cmp({ count: { of: "self_base_power" } }, "!=", { count: { of: "battle_power", role: "attacker" } })],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: { do: "base_power", target: self, value: { count: { of: "battle_power", role: "attacker" } }, duration: "turn" } },
+  { id: "op04-069#1", trigger: "trigger", text: "[Trigger] DON!! -1: Play this card.",
+    costs: [{ k: "return_don", count: 1 }], effect: play(self) },
+] }]);
+
+// OP14-045 / OP14-049: a mandatory "gains [Rush]" is not queued again (no extra Order effects entry) once the Character has [Rush].
+ENTRIES.push(["OP14-045", { abilities: [
+  { id: "op14-045#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-045#1", trigger: "on_ko", text: "[On KO] Draw 1 card.", effect: draw(1) },
+] }]);
+ENTRIES.push(["OP14-049", { abilities: [
+  { id: "op14-049#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-049#1", trigger: "on_play", text: "[On Play] You may rest 2 of your DON!! cards: Draw 2 cards and return up to 1 Character with a cost of 7 or less to the owner's hand.",
+    costs: [{ k: "rest_don", count: 2 }],
+    effect: seq(draw(2), { do: "to_hand", target: { ref: "choose", selector: { player: "any", zone: "character", filter: { types: ["character"], cost: le(7) } }, min: 0, max: 1, bind: "_last" } }) },
+] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

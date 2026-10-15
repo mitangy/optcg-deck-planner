@@ -529,6 +529,7 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "leader_power": { const s = relSeat(ctx, expr.player); return powerOf(state, s, state.players[s].leader); }
     case "don_attached_total": return state.players[relSeat(ctx, expr.player)].attachedDons.length;
     case "self_power": { const loc = locate(state, ctx.sourceId); return loc?.card ? powerOf(state, loc.seat, loc.card) : 0; }
+    case "self_base_power": { const loc = locate(state, ctx.sourceId); return loc?.card ? basePowerOf(state, loc.seat, loc.card) : 0; }
     case "battle_power": {
       const b = state.battle;
       if (!b) return 0;
