@@ -5,20 +5,28 @@ from __future__ import annotations
 
 import struct
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
+import sync_preview_art  # noqa: E402
 from sync_preview_art import (  # noqa: E402
     alt_should_prune,
+    capped_size,
     guide_variant,
     map_files_to_ids,
     match_alt_previews,
     parse_variant_paths,
     should_prune,
+    should_upgrade,
+    topdecks_type_ok,
+    topdecks_url,
+    topdecks_urls,
     webp_size,
 )
 
@@ -144,6 +152,59 @@ class AltPruneTests(unittest.TestCase):
 
     def test_an_alt_preview_goes_when_the_alt_left_the_catalog(self) -> None:
         self.assertTrue(alt_should_prune(5, {6}, {5: False}))
+
+
+class ExistingPreviewIdsTests(unittest.TestCase):
+    def test_alt_preview_files_are_not_base_card_ids_608(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for name in ("EB05-001.webp", "OP18-021A.webp", "p712884.webp", "p5.webp"):
+                (folder / name).write_bytes(b"x")
+            manifest = folder / "previewArt.json"
+            manifest.write_text('["EB05-002"]', encoding="utf-8")
+            with mock.patch.object(sync_preview_art, "PREVIEW_DIR", folder), \
+                    mock.patch.object(sync_preview_art, "MANIFEST", manifest):
+                got = sync_preview_art.existing_preview_ids()
+        self.assertEqual(got, {"EB05-001", "OP18-021A", "EB05-002"})
+
+
+class TopDecksTests(unittest.TestCase):
+    def test_url_uses_the_lowercase_set_folder_and_the_exact_id(self) -> None:
+        self.assertEqual(
+            topdecks_url("EB05-001"),
+            "https://onepiecetopdecks.com/wp-content/gallery/eb05/EB05-001.jpg",
+        )
+        self.assertTrue(topdecks_url("OP18-021A").endswith("/op18/OP18-021A.jpg"))
+
+    def test_regular_art_falls_back_to_p1_never_p2_608(self) -> None:
+        urls = topdecks_urls("OP18-119")
+        self.assertEqual(
+            urls,
+            [
+                "https://onepiecetopdecks.com/wp-content/gallery/op18/OP18-119.jpg",
+                "https://onepiecetopdecks.com/wp-content/gallery/op18/OP18-119_p1.jpg",
+            ],
+        )
+        self.assertEqual(urls[0], topdecks_url("OP18-119"))
+        self.assertFalse(any("_p2" in u for u in urls))
+
+    def test_only_jpeg_and_png_bodies_are_accepted(self) -> None:
+        self.assertTrue(topdecks_type_ok("image/jpeg"))
+        self.assertTrue(topdecks_type_ok("image/png; charset=binary"))
+        self.assertFalse(topdecks_type_ok("text/html; charset=UTF-8"))
+        self.assertFalse(topdecks_type_ok(""))
+
+    def test_only_previews_under_600px_tall_are_upgraded(self) -> None:
+        self.assertTrue(should_upgrade(480))
+        self.assertTrue(should_upgrade(599))
+        self.assertFalse(should_upgrade(600))
+        self.assertFalse(should_upgrade(886))
+        self.assertFalse(should_upgrade(None))
+
+    def test_tall_scans_are_scaled_down_to_900_and_small_ones_never_up(self) -> None:
+        self.assertEqual(capped_size(632, 886), (632, 886))
+        self.assertEqual(capped_size(900, 1200), (675, 900))
+        self.assertEqual(capped_size(344, 480), (344, 480))
 
 
 if __name__ == "__main__":
