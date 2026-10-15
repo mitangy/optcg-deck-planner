@@ -2,6 +2,7 @@
  * Official Q&A from Bandai's FAQ PDFs: one table per set ("Card No. | Card Name | Question | Answer")
  * and a general rules table ("Category | Question | Answer"), parsed from text positions.
  */
+import { queryTerms } from "./rules";
 import { joinRuns, type PdfItem, type PdfPage } from "./pdf";
 
 export type QaEntry = {
@@ -138,18 +139,12 @@ export function parseFaqIndex(html: string, baseUrl: string): FaqFile[] {
   return [...files.values()];
 }
 
-const words = (q: string) =>
-  q
-    .toLowerCase()
-    .split(/[^a-z0-9!+-]+/)
-    .filter((w) => w.length > 2);
-
 /**
  * Q&A entries ranked by their query words, rarest words first: each word weighs log(entries / entries containing it),
  * and counts double when it is in the label or question rather than only the answer.
  */
 export function searchQa(entries: readonly QaEntry[], query: string, limit = 5): QaEntry[] {
-  const terms = [...new Set(words(query))];
+  const terms = [...new Set(queryTerms(query))];
   if (!terms.length) return [];
   const docs = entries.map((e) => ({ head: `${e.label} ${e.question}`.toLowerCase(), answer: e.answer.toLowerCase() }));
   const weight = new Map(

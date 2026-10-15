@@ -3,16 +3,16 @@ leader: general
 name: General principles
 colors: []
 format: OP17
-updated: 2026-10-02
+updated: 2026-10-15
 status: draft
 source: agent draft from public tournament results (see Sources)
 confidence: medium
 ---
 
-## Format snapshot (OP17, early October 2026)
-- Results aggregated by opdecks.xyz for 23 Aug to 20 Sep 2026 (380 top-finishing lists, mostly shop and store events, JP and EN) put OP14-020 Dracule Mihawk far ahead on share (about 20%), followed by OP09-062 Nico Robin, OP17-039 Rocks.D.Xebec, OP17-079 Monkey.D.Luffy, OP13-004 Sabo, OP15-058 Enel, OP16-001 Portgas.D.Ace, OP14-041 Boa Hancock and OP17-058 Kaido.
-- OP14-020 Dracule Mihawk is banned from 2026-10-12 (announced 2026-09-24). Until then expect it everywhere; after that, the decks it held down (Rocks above all, since Rocks has the Slash attribute that turns on Mihawk's +1000) should rise, and decks that farmed Mihawk (Ace, Hancock, Sabo) lose a good matchup.
-- Limitless had OP17 regionals listed (Hampton, Ottawa, Utrecht, Athens, Prague, Brisbane, Mexico City, Santiago, plus Dallas and Utrecht Championship Finals) but no standings posted when this was written. Treat play-rate claims as store-level evidence, not big-event evidence.
+## Format snapshot (OP17 into OP18, mid October 2026)
+- OP14-020 Dracule Mihawk has been banned since 2026-10-12 (official ban list). Before the ban, store-level results aggregated by opdecks.xyz for 23 Aug to 20 Sep 2026 had it far ahead on share (about 20%), followed by OP09-062 Nico Robin, OP17-039 Rocks.D.Xebec, OP17-079 Monkey.D.Luffy, OP13-004 Sabo, OP15-058 Enel, OP16-001 Portgas.D.Ace, OP14-041 Boa Hancock and OP17-058 Kaido.
+- My read on the post-ban field: the decks Mihawk held down (Rocks above all, since Rocks has the Slash attribute that turned on Mihawk's +1000) should rise, and decks that farmed Mihawk (Ace, Hancock, Sabo) lose a good matchup. Check tournament_stats for current shares before repeating this; it is a prediction, not a result.
+- OP18 cards are in the card pool now. These notes were written before OP18 play data existed, so treat any claim about OP18 leaders as unverified.
 
 ## DON!! tempo
 - The player going first gets 1 DON!! and no draw on turn 1; the player going second gets 2 DON!! and draws. After that each side adds 2 per turn up to 10 (Enel decks cap at 6 because the leader's rule shrinks the DON!! deck).

@@ -6,7 +6,7 @@ import { banListProblems, parseBanList, type BanList } from "./official/banlist"
 import { parseErrata } from "./official/errata";
 import { OfficialLibrary, type FaqSet } from "./official/library";
 import type { PdfItem } from "./official/pdf";
-import { parseFaqIndex, parseQaTable, type QaEntry } from "./official/qa";
+import { parseFaqIndex, parseQaTable, searchQa, type QaEntry } from "./official/qa";
 import { parseRules, searchRules } from "./official/rules";
 import { newestFormat, parseNote, queryPlaybook, type Playbook } from "./playbook";
 
@@ -43,6 +43,64 @@ describe("comprehensive rules", () => {
   it("ranks the heading that names a keyword above earlier mentions (#246)", () => {
     const doc = parseRules(lines);
     expect(searchRules(doc, "guard", 3).map((s) => s.id)[0]).toBe("2-1");
+  });
+
+  const ids = (doc: ReturnType<typeof parseRules>, q: string) => searchRules(doc, q, 3).map((s) => s.id);
+
+  it("reads sections the PDF numbers with dots as hyphen ids, children included (#603)", () => {
+    const doc = parseRules([
+      "1. Turns",
+      "1-1. Start",
+      "1-1-1. Draw a card.",
+      "1.2. Activation and Resolution",
+      "1-2-1. Activate the effect.",
+      "1-2-2. Resolve it and then",
+      "1.2.3. If nothing remains, stop.",
+    ]);
+    expect(doc.sections.map((s) => s.id)).toEqual(["1", "1-1", "1-1-1", "1-2", "1-2-1", "1-2-2", "1-2-3"]);
+    expect(doc.sections.find((s) => s.id === "1-2-2")!.text).toBe("Resolve it and then");
+    expect(doc.sections.find((s) => s.id === "1-1-1")!.text).toBe("Draw a card.");
+  });
+
+  it("does not let question filler words pick the section (#603)", () => {
+    const doc = parseRules(["1. Filler", "1-1. What does the thing do when it is on my", "1-2. A Blocker rests to protect.", "1-3. Unrelated."]);
+    expect(ids(doc, "what does the blocker do when it is on my")[0]).toBe("1-2");
+  });
+
+  it("weighs a rare word above several common ones (#603)", () => {
+    const doc = parseRules([
+      "1. Cards",
+      "1-1. Each card belongs to a player.",
+      "1-2. A card is played by a player.",
+      "1-3. A card is trashed by a player.",
+      "1-4. A card and a player may meet.",
+      "1-5. The Wizard acts.",
+    ]);
+    // Two common words (card, player) match 1-1 to 1-4; the one rare word still wins.
+    expect(ids(doc, "card player wizard")[0]).toBe("1-5");
+  });
+
+  it("finds the rule for player slang the rules never use (#603)", () => {
+    const doc = parseRules([
+      "1. Cards",
+      "1-1. Sickness is not a word here, nor is summoning.",
+      "1-2. Played cards cannot attack on the turn in which they are played unless otherwise specified.",
+      "1-3. A Character with [Rush] can attack on the turn it is played.",
+      "1-4. A Character that loses a battle is K.O.'d and trashed.",
+      "1-5. Characters are trashed when their cost is paid.",
+    ]);
+    expect(ids(doc, "summoning sickness").slice(0, 2).sort()).toEqual(["1-2", "1-3"]);
+    expect(ids(doc, "does it get ko'd")[0]).toBe("1-4");
+    expect(ids(doc, "knocked out")[0]).toBe("1-4");
+  });
+
+  it("maps slang to official terms for the general Q&A search too (#603)", () => {
+    const entries = [
+      { cardId: null, label: "Battle", question: "Can a Character with [Rush] attack the turn it is played?", answer: "Yes." },
+      { cardId: null, label: "Battle", question: "Can a K.O.'d Character be returned?", answer: "No." },
+      { cardId: null, label: "Battle", question: "Can a Leader be returned?", answer: "No." },
+    ];
+    expect(searchQa(entries, "can my character get ko", 1)[0]!.question).toContain("K.O.");
   });
 });
 

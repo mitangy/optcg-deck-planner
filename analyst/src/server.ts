@@ -23,6 +23,7 @@ import {
 } from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
+import { GAME_PRIMER } from "./primer";
 import { searchCards } from "./search";
 import { exclusive, simulateDeck } from "./simulate";
 
@@ -40,7 +41,7 @@ Ground rules:
 - Rules questions: search rules_lookup first with the player's question in their own words, then with narrower searches if needed; when an official Q&A answer settles it, cite that Q&A entry. Cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case. When your answer rests on an official Q&A ruling or a comprehensive rule, name it in one short sentence (the card's Q&A or the rule number).
 - Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact. For a matchup or leader overview, or when asked whether a leader is good or how it plays, give one keep/mulligan rule and the key cards by number, plus a turn-by-turn line, and say when the stats are marked too_few_games.
 - Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids.
-- When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.`;
+- When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.` + GAME_PRIMER;
 
 const PERSONAL_INSTRUCTIONS = `
 

@@ -229,7 +229,7 @@ const BRIEF_MAX_TOKENS = 1500;
 
 /** The cache variant: a new set (or a prompt change, by bumping v1) writes briefs again. */
 export function briefVariant(catalog: Catalog): string {
-  return `v1:${newestFormat(catalog.cards.keys())}`;
+  return `v2:${newestFormat(catalog.cards.keys())}`;
 }
 
 const STATUS: Record<string, string> = {
