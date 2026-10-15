@@ -8,6 +8,7 @@ import { parseErrata, type Erratum } from "./errata";
 import { pageLines, pdfPages } from "./pdf";
 import { parseFaqIndex, parseQaTable, type QaEntry } from "./qa";
 import { parseRules, type RulesDoc } from "./rules";
+import { parseTournamentRules, type TournamentDoc } from "./tournament";
 
 export const OFFICIAL_SITE = "https://en.onepiece-cardgame.com";
 
@@ -102,6 +103,15 @@ export class OfficialLibrary {
     });
   }
 
+  /** Bandai Organized Play's Tournament Rules Manual: event rules (time, rounds, penalties), not game rules. */
+  tournamentRules(): Promise<TournamentDoc> {
+    return this.cached("tournament", async () => {
+      const doc = parseTournamentRules((await this.pdf(this.url("/pdf/tournament_rules_manual.pdf"))).flatMap(pageLines));
+      if (doc.sections.length < 20) throw new Error("The tournament rules manual PDF didn't parse into sections.");
+      return doc;
+    });
+  }
+
   banList(): Promise<BanList> {
     return this.cached("banlist", async () => {
       const url = this.url("/news/restriction.html");
@@ -117,7 +127,7 @@ export class OfficialLibrary {
 
   /** Start loading everything in the background, so the first question doesn't wait for every PDF. */
   warm(): void {
-    for (const load of [() => this.rules(), () => this.banList(), () => this.errata(), () => this.faq()]) {
+    for (const load of [() => this.rules(), () => this.banList(), () => this.errata(), () => this.faq(), () => this.tournamentRules()]) {
       load().catch((err) => console.error(JSON.stringify({ event: "official_load_failed", message: err instanceof Error ? err.message : String(err) })));
     }
   }

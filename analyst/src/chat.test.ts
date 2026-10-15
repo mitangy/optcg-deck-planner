@@ -746,7 +746,7 @@ describe("sources and citations (#390)", () => {
     const row = (lines: string[], id: string) => lines.find((l) => l.startsWith(`- ${id} `));
     const printed = (id: string) => {
       const c = catalog.cards.get(id)!;
-      const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", `power ${c.power}`, c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
+      const stats = [c.type, c.colors.join("/"), c.life !== undefined ? `life ${c.life}` : "", c.cost !== undefined ? `cost ${c.cost}` : "", `power ${c.power}`, c.counter ? `counter ${c.counter}` : "", c.traits.length ? `traits: ${c.traits.join("/")}` : ""].filter(Boolean);
       return { head: `- ${id} ${c.name} (${stats.join(", ")})`, text: c.text.slice(0, 40) };
     };
     const over = await reference(finished);
