@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-15
-  { date: "2026-10-15", app: "duel", title: "Sharper EB05 and OP18 preview art", text: "The preview pictures for EB05 and OP18 cards that don't have official images yet are now about twice as sharp, so their text is easier to read in the card pop-up." },
+  { date: "2026-10-15", app: "duel", pr: 610, title: "Sharper EB05 and OP18 preview art", text: "The preview pictures for EB05 and OP18 cards that don't have official images yet are now about twice as sharp, so their text is easier to read in the card pop-up." },
   { date: "2026-10-15", app: "duel", pr: 602, title: "Opening hand tips are off by default", text: "The explanation shown while you choose to keep or mulligan your opening hand is now hidden. Turn it back on in Settings > Gameplay > Opening hand tips." },
   { date: "2026-10-15", app: "duel", pr: 601, title: "Nico Robin Leader asks only once", text: "Nico Robin's Leader (EB05-010) no longer asks twice when two of your <Wisdom> Characters are K.O.'d at the same time. Other [Once Per Turn] \"When …\" effects, like Boa Hancock's blue/yellow Leader (OP14-041) and Laboon (EB01-047), also ask once for cards K.O.'d together." },
   // 2026-10-13
