@@ -26,6 +26,7 @@ from sync_preview_art import (  # noqa: E402
     should_upgrade,
     topdecks_type_ok,
     topdecks_url,
+    topdecks_urls,
     webp_size,
 )
 
@@ -174,6 +175,18 @@ class TopDecksTests(unittest.TestCase):
             "https://onepiecetopdecks.com/wp-content/gallery/eb05/EB05-001.jpg",
         )
         self.assertTrue(topdecks_url("OP18-021A").endswith("/op18/OP18-021A.jpg"))
+
+    def test_regular_art_falls_back_to_p1_never_p2_608(self) -> None:
+        urls = topdecks_urls("OP18-119")
+        self.assertEqual(
+            urls,
+            [
+                "https://onepiecetopdecks.com/wp-content/gallery/op18/OP18-119.jpg",
+                "https://onepiecetopdecks.com/wp-content/gallery/op18/OP18-119_p1.jpg",
+            ],
+        )
+        self.assertEqual(urls[0], topdecks_url("OP18-119"))
+        self.assertFalse(any("_p2" in u for u in urls))
 
     def test_only_jpeg_and_png_bodies_are_accepted(self) -> None:
         self.assertTrue(topdecks_type_ok("image/jpeg"))

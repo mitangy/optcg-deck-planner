@@ -112,6 +112,16 @@ def topdecks_url(card_id: str) -> str:
     return f"{TOPDECKS_GALLERY}/{set_prefix(card_id).lower()}/{card_id}.jpg"
 
 
+def topdecks_urls(card_id: str) -> list[str]:
+    """Candidate Top Decks URLs, best first (#608).
+
+    Some secret rares only exist as <ID>_p1.jpg there (that is the regular art).
+    _p2 and higher are alt arts, so they are never tried.
+    """
+    base = topdecks_url(card_id)
+    return [base, base[: -len(".jpg")] + "_p1.jpg"]
+
+
 def topdecks_type_ok(ctype: str) -> bool:
     """Missing cards answer 404 text/html; only real JPEG / PNG bodies count."""
     return ctype.split(";")[0].strip().lower() in ("image/jpeg", "image/png")
@@ -441,17 +451,26 @@ def jpeg_to_webp(Image, data: bytes) -> tuple[bytes | None, str]:
 
 def download_topdecks(Image, card_id: str) -> tuple[bytes | None, str]:
     """A card's Top Decks scan as WebP bytes, or (None, why)."""
-    try:
-        data, ctype = fetch(topdecks_url(card_id), timeout=30, referer=TOPDECKS_BASE + "/")
-    except urllib.error.HTTPError as e:
-        return None, f"HTTP {e.code}"
-    except Exception as e:  # noqa: BLE001
-        return None, f"download failed: {e}"
-    if not topdecks_type_ok(ctype):
-        return None, f"not a jpeg/png ({ctype or 'no content-type'})"
-    if len(data) < MIN_BYTES:
-        return None, "tiny image"
-    return jpeg_to_webp(Image, data)
+    why = "no url"
+    for url in topdecks_urls(card_id):
+        try:
+            data, ctype = fetch(url, timeout=30, referer=TOPDECKS_BASE + "/")
+        except urllib.error.HTTPError as e:
+            why = f"HTTP {e.code}"
+            continue
+        except Exception as e:  # noqa: BLE001
+            why = f"download failed: {e}"
+            continue
+        if not topdecks_type_ok(ctype):
+            why = f"not a jpeg/png ({ctype or 'no content-type'})"
+            continue
+        if len(data) < MIN_BYTES:
+            why = "tiny image"
+            continue
+        out, why = jpeg_to_webp(Image, data)
+        if out is not None:
+            return out, ""
+    return None, why
 
 
 def preview_height(card_id: str) -> int | None:
