@@ -2,7 +2,7 @@
   "framework": "vite",
   "installCommand": "npm install --prefix frontend",
   "buildCommand": "cd frontend && npx vite build",
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/site-legal packages/analyst-client vercel.json scripts/vercel-ignore-build.sh",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/site-legal packages/analyst-client duel-web/src/cards/previewArt.json duel-web/src/cards/previewArtAlts.json vercel.json scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "**": false,

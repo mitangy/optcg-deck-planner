@@ -417,7 +417,7 @@ export function CardScanner({
           {phase.kind === "miss" && <p className="scan-miss">{phase.message}</p>}
           {phase.kind === "hit" && (
             <div className="scan-hit">
-              <CardThumb src={phase.card.image_url} alt={phase.card.name} />
+              <CardThumb src={phase.card.image_url} cardId={phase.card.card_id} alt={phase.card.name} />
               <div className="scan-hit-body">
                 <p className="scan-hit-name">{phase.card.name}</p>
                 <p className="scan-hit-meta">

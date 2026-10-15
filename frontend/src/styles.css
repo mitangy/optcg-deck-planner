@@ -1684,6 +1684,8 @@ tr.done td {
 
 .thumb.placeholder {
   border: 1px dashed var(--line);
+  /* Same footprint as real art: a long card name must not squeeze it narrower. */
+  flex-shrink: 0;
 }
 
 .thumb-btn {

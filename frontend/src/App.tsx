@@ -63,8 +63,7 @@ import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
-import { cardImageUrl } from "./cardImage";
-import { CardThumb, MobileCardMedia } from "./CardThumb";
+import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
@@ -888,7 +887,7 @@ function ShoppingItemsView({
               )}
               <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
                 <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                  <CardThumb src={item.image_url || undefined} alt={item.name} />
+                  <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                 </div>
                 <div className="grid-card-body">
                   <div className="card-id">{item.card_id}</div>
@@ -976,7 +975,7 @@ function ShoppingItemsView({
                   </td>
                   <td className="card-cell">
                     <div className="card-cell-inner">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                       <div>
                         <div className="card-id">{item.card_id}</div>
                         <div>{item.name}</div>
@@ -1036,6 +1035,7 @@ function ShoppingItemsView({
                 <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
                   <MobileCardMedia
                     src={item.image_url || undefined}
+                    cardId={item.card_id}
                     alt={item.name}
                     cost={item.cost}
                     rarity={item.rarity}
@@ -1907,7 +1907,7 @@ function CollectionItemsView({
           <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
             <div className="grid-card collection-grid-card">
               <div className="grid-card-media">
-                <CardThumb src={item.image_url || undefined} alt={item.name} />
+                <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
               </div>
               <div className="grid-card-body">
                 <div className="card-id">{item.card_id}</div>
@@ -1955,7 +1955,7 @@ function CollectionItemsView({
               <tr key={item.card_id} data-card-id={item.card_id}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                     <div>
                       <div className="card-id">{item.card_id}</div>
                       <div>{item.name}</div>
@@ -1988,6 +1988,7 @@ function CollectionItemsView({
             <div className="mobile-card-top">
               <MobileCardMedia
                 src={item.image_url || undefined}
+                cardId={item.card_id}
                 alt={item.name}
                 cost={item.cost}
                 rarity={item.rarity}
@@ -2162,7 +2163,7 @@ function CatalogAddDrawer({
               return (
                 <li key={card.card_id} className="deck-editor-result" data-catalog-id={card.card_id}>
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -2661,18 +2662,18 @@ function DecksPage() {
             <section key={group.key} className="deck-leader-group">
               <header className="deck-leader-group-head">
                 {group.leaderCardId ? (
-                  group.leaderImageUrl ? (
-                    <img
-                      src={cardImageUrl(group.leaderImageUrl, "thumb") || group.leaderImageUrl}
-                      alt=""
-                      className="deck-leader-group-thumb"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
-                      <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
-                    </div>
-                  )
+                  <CardArtImg
+                    src={group.leaderImageUrl}
+                    cardId={group.leaderCardId}
+                    alt=""
+                    className="deck-leader-group-thumb"
+                    loading="lazy"
+                    fallback={
+                      <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
+                        <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
+                      </div>
+                    }
+                  />
                 ) : null}
                 <div className="deck-leader-group-title">
                   <h2>{heading}</h2>
@@ -2707,23 +2708,23 @@ function DecksPage() {
                       <div className="deck-card-main">
                         {leaderImage || d.leader_card_id ? (
                           <div className="deck-card-leader-art">
-                            {leaderImage ? (
-                              <img
-                                src={cardImageUrl(leaderImage, "thumb") || leaderImage}
-                                alt={leaderName || d.leader_card_id || "Leader"}
-                                className="deck-card-leader-thumb"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div
-                                className="thumb placeholder deck-card-leader-thumb"
-                                aria-label={d.leader_card_id || "Leader"}
-                              >
-                                <span className="deck-card-leader-fallback">
-                                  {d.leader_card_id || "?"}
-                                </span>
-                              </div>
-                            )}
+                            <CardArtImg
+                              src={leaderImage}
+                              cardId={d.leader_card_id}
+                              alt={leaderName || d.leader_card_id || "Leader"}
+                              className="deck-card-leader-thumb"
+                              loading="lazy"
+                              fallback={
+                                <div
+                                  className="thumb placeholder deck-card-leader-thumb"
+                                  aria-label={d.leader_card_id || "Leader"}
+                                >
+                                  <span className="deck-card-leader-fallback">
+                                    {d.leader_card_id || "?"}
+                                  </span>
+                                </div>
+                              }
+                            />
                           </div>
                         ) : null}
                         <div className="deck-card-body">
@@ -2947,7 +2948,7 @@ function CardTable({
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
-              <CardThumb src={c.image_url || undefined} alt={c.name} />
+              <CardThumb src={c.image_url || undefined} cardId={c.card_id} alt={c.name} />
             </div>
             <div className="grid-card-body">
               <div className="card-id">{c.card_id}</div>
@@ -3009,7 +3010,7 @@ function CardTable({
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={c.image_url || undefined} alt={c.name} />
+                    <CardThumb src={c.image_url || undefined} cardId={c.card_id} alt={c.name} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{c.name}</div>
@@ -3061,6 +3062,7 @@ function CardTable({
             <div className="mobile-card-top">
               <MobileCardMedia
                 src={c.image_url || undefined}
+                cardId={c.card_id}
                 alt={c.name}
                 cost={c.cost}
                 rarity={c.rarity}
@@ -3362,7 +3364,7 @@ function DeckEditorPanel({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -3518,7 +3520,7 @@ function AvailableDonSection({
               const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
               return (
                 <li key={card.card_id} className="don-tile">
-                  <CardThumb src={card.image_url || undefined} alt={card.name} />
+                  <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
                   <div className="don-tile-text">
                     <div className="card-id">{card.card_id}</div>
                     <div className="don-tile-name">{card.name}</div>
@@ -3848,10 +3850,11 @@ function DeckDetailPage() {
     <section className="deck-main">
       <div className="page-head">
         <div className="deck-detail-head">
-          {leaderArt && (
-            <img
+          {data.leader_card_id && (
+            <CardArtImg
               className="deck-detail-leader"
-              src={cardImageUrl(leaderArt, "thumb") || leaderArt}
+              src={leaderArt}
+              cardId={data.leader_card_id}
               alt={data.leader_name || data.leader_card_id || "Leader"}
             />
           )}
@@ -4443,7 +4446,7 @@ function PublicSharePage() {
                     className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
                   >
                     <div className="grid-card-media">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                     </div>
                     <div className="grid-card-body">
                       <div className="card-id">{item.card_id}</div>
@@ -4483,7 +4486,7 @@ function PublicSharePage() {
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
                             <div className="card-cell-inner">
-                              <CardThumb src={item.image_url || undefined} alt={item.name} />
+                              <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                               <div>
                                 <div className="card-id">{item.card_id}</div>
                                 <div>{item.name}</div>
@@ -4519,6 +4522,7 @@ function PublicSharePage() {
                       <div className="mobile-card-top">
                         <MobileCardMedia
                           src={item.image_url || undefined}
+                          cardId={item.card_id}
                           alt={item.name}
                           cost={item.cost}
                           rarity={item.rarity}
