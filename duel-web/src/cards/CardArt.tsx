@@ -10,11 +10,14 @@ export function CardArt({
   defId,
   className,
   fallback,
+  draggable,
 }: {
   src: string | null | undefined;
   defId: string;
   className?: string;
   fallback: ReactNode;
+  /** Passed to the `<img>`; leave unset for the browser default. */
+  draggable?: boolean;
 }) {
   const [failed, setFailed] = useState<{ for: string; next: string | null } | null>(null);
   const current = src ? (failed?.for === src ? failed.next : src) : null;
@@ -24,6 +27,7 @@ export function CardArt({
       src={current}
       alt=""
       className={className}
+      draggable={draggable}
       onLoad={(e) => {
         if (!src || current !== src) return;
         if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
