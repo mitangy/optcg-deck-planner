@@ -49,8 +49,8 @@ describe("simultaneous triggers", () => {
     const deckBefore = h.state.players[1].deck.length;
     h.attack(vista!, "leader");
     h.pick(a!.id, b!.id);
-    // The one Laboon is queued once per K.O. and asks for an order.
-    h.act(1, { type: "order_pending_effects", orderedIds: h.choice!.unorderedChoices!.map((c) => c.id) });
+    // The one Laboon is queued once for the batch, so there is nothing to order (#600).
+    expect(h.choice?.unorderedChoices).toBeUndefined();
     while (h.choice) h.pick(FILLER);
     expect(h.state.players[1].characters.map((c) => c.defId)).toEqual(["EB01-047"]);
     expect(h.state.players[1].deck.length).toBe(deckBefore - 1);
