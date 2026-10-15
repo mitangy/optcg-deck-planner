@@ -6,8 +6,9 @@ import { banListProblems, parseBanList, type BanList } from "./official/banlist"
 import { parseErrata } from "./official/errata";
 import { OfficialLibrary, type FaqSet } from "./official/library";
 import type { PdfItem } from "./official/pdf";
-import { parseFaqIndex, parseQaTable, type QaEntry } from "./official/qa";
+import { parseFaqIndex, parseQaTable, searchQa, type QaEntry } from "./official/qa";
 import { parseRules, searchRules } from "./official/rules";
+import { excerpt, looksLikeTournamentQuestion, parseTournamentRules, searchTournamentRules, type TournamentDoc } from "./official/tournament";
 import { newestFormat, parseNote, queryPlaybook, type Playbook } from "./playbook";
 
 const catalog = loadCatalog();
@@ -43,6 +44,64 @@ describe("comprehensive rules", () => {
   it("ranks the heading that names a keyword above earlier mentions (#246)", () => {
     const doc = parseRules(lines);
     expect(searchRules(doc, "guard", 3).map((s) => s.id)[0]).toBe("2-1");
+  });
+
+  const ids = (doc: ReturnType<typeof parseRules>, q: string) => searchRules(doc, q, 3).map((s) => s.id);
+
+  it("reads sections the PDF numbers with dots as hyphen ids, children included (#603)", () => {
+    const doc = parseRules([
+      "1. Turns",
+      "1-1. Start",
+      "1-1-1. Draw a card.",
+      "1.2. Activation and Resolution",
+      "1-2-1. Activate the effect.",
+      "1-2-2. Resolve it and then",
+      "1.2.3. If nothing remains, stop.",
+    ]);
+    expect(doc.sections.map((s) => s.id)).toEqual(["1", "1-1", "1-1-1", "1-2", "1-2-1", "1-2-2", "1-2-3"]);
+    expect(doc.sections.find((s) => s.id === "1-2-2")!.text).toBe("Resolve it and then");
+    expect(doc.sections.find((s) => s.id === "1-1-1")!.text).toBe("Draw a card.");
+  });
+
+  it("does not let question filler words pick the section (#603)", () => {
+    const doc = parseRules(["1. Filler", "1-1. What does the thing do when it is on my", "1-2. A Blocker rests to protect.", "1-3. Unrelated."]);
+    expect(ids(doc, "what does the blocker do when it is on my")[0]).toBe("1-2");
+  });
+
+  it("weighs a rare word above several common ones (#603)", () => {
+    const doc = parseRules([
+      "1. Cards",
+      "1-1. Each card belongs to a player.",
+      "1-2. A card is played by a player.",
+      "1-3. A card is trashed by a player.",
+      "1-4. A card and a player may meet.",
+      "1-5. The Wizard acts.",
+    ]);
+    // Two common words (card, player) match 1-1 to 1-4; the one rare word still wins.
+    expect(ids(doc, "card player wizard")[0]).toBe("1-5");
+  });
+
+  it("finds the rule for player slang the rules never use (#603)", () => {
+    const doc = parseRules([
+      "1. Cards",
+      "1-1. Sickness is not a word here, nor is summoning.",
+      "1-2. Played cards cannot attack on the turn in which they are played unless otherwise specified.",
+      "1-3. A Character with [Rush] can attack on the turn it is played.",
+      "1-4. A Character that loses a battle is K.O.'d and trashed.",
+      "1-5. Characters are trashed when their cost is paid.",
+    ]);
+    expect(ids(doc, "summoning sickness").slice(0, 2).sort()).toEqual(["1-2", "1-3"]);
+    expect(ids(doc, "does it get ko'd")[0]).toBe("1-4");
+    expect(ids(doc, "knocked out")[0]).toBe("1-4");
+  });
+
+  it("maps slang to official terms for the general Q&A search too (#603)", () => {
+    const entries = [
+      { cardId: null, label: "Battle", question: "Can a Character with [Rush] attack the turn it is played?", answer: "Yes." },
+      { cardId: null, label: "Battle", question: "Can a K.O.'d Character be returned?", answer: "No." },
+      { cardId: null, label: "Battle", question: "Can a Leader be returned?", answer: "No." },
+    ];
+    expect(searchQa(entries, "can my character get ko", 1)[0]!.question).toContain("K.O.");
   });
 });
 
@@ -286,6 +345,197 @@ describe("general rules Q&A lookup", () => {
     const many = Array.from({ length: 8 }, (_, n) => row(`Does the attack target ${n} change?`));
     expect((await lookup(many, "attack target")).generalQa).toHaveLength(6);
     expect((await lookup(many, "attack target", 2)).generalQa).toHaveLength(6);
+  });
+});
+
+describe("card rulings found by topic", () => {
+  const entry = (cardId: string | null, label: string, question: string, answer = "Yes."): QaEntry => ({ cardId, label, question, answer });
+  const entries: QaEntry[] = [
+    entry("ZZ01-001", "Alpha", "Can the attacked Character use its effect while it is active?"),
+    entry("ZZ01-002", "Beta", "Can the attacked Character be played while it is active?"),
+    entry("ZZ01-003", "Gamma", "Can an attacked Character use Blocker while it is rested?", "No, a rested Character cannot block."),
+    entry("ZZ01-004", "Delta", "Can the attacked Character use its effect while the battle is active?"),
+    entry("ZZ01-005", "Epsilon", "Can the attacked Character gain power while it is active?"),
+    entry(realIds.plain, "Printed Label", "Can the attacked Character draw while it is active?"),
+  ];
+  const lookup = (rows: QaEntry[], query: string, limit?: number, withCatalog = true) => {
+    class Lib extends FixedLibrary {
+      override rules(): ReturnType<OfficialLibrary["rules"]> {
+        return Promise.reject(new Error("no rules"));
+      }
+      override tournamentRules(): ReturnType<OfficialLibrary["tournamentRules"]> {
+        return Promise.reject(new Error("no manual"));
+      }
+    }
+    return rulesLookup(new Lib(fixedList, { entries: rows, general: [], files: 1, failed: [] }), { query, limit }, withCatalog ? catalog : undefined);
+  };
+
+  it("returns the card ruling that matches the topic, the one with the rare word first (#603)", async () => {
+    const out = await lookup(entries, "attacked character blocker rested");
+    expect(out.cardRulings[0]).toMatchObject({ cardId: "ZZ01-003", cardName: "Gamma", answer: "No, a rested Character cannot block." });
+  });
+
+  it("returns at most four card rulings (#603)", async () => {
+    expect((await lookup(entries, "attacked character active")).cardRulings).toHaveLength(4);
+  });
+
+  it("returns fewer card rulings when the limit is smaller than four (#603)", async () => {
+    expect((await lookup(entries, "attacked character active", 2)).cardRulings).toHaveLength(2);
+  });
+
+  it("leaves out a ruling that matches only one query word, even a rare one (#603)", async () => {
+    const rows = [
+      entry("ZZ02-001", "A", "Does Zeus follow Napoleon?"),
+      entry("ZZ02-002", "B", "Does Zeus act twice?"),
+      ...Array.from({ length: 6 }, (_, n) => entry(`ZZ02-01${n}`, "F", `Napoleon filler ${n}?`)),
+    ];
+    expect((await lookup(rows, "zeus napoleon")).cardRulings.map((r) => r.cardId)).toEqual(["ZZ02-001"]);
+  });
+
+  it("leaves out a ruling scoring under half of the best one's score (#603)", async () => {
+    const rows = [
+      entry("ZZ03-001", "A", "Does Zeus meet Hera?"),
+      entry("ZZ03-002", "C", "Filler?", "Napoleon visits Paris."),
+      ...Array.from({ length: 8 }, (_, n) => entry(`ZZ03-01${n}`, "F", `Napoleon and Paris filler ${n}?`)),
+    ];
+    const ids = (await lookup(rows, "zeus hera napoleon paris")).cardRulings.map((r) => r.cardId);
+    expect(ids).toEqual(["ZZ03-001"]);
+  });
+
+  it("returns no card rulings for a question about the event rules (#603)", async () => {
+    const rows = [entry("ZZ04-001", "A", "Can the match time run out during a battle?"), entry("ZZ04-002", "B", "Does time run out for a match?")];
+    expect((await lookup(rows, "what happens if time runs out in a match")).cardRulings).toEqual([]);
+    expect((await lookup(rows, "can a battle happen at the same time")).cardRulings.length).toBeGreaterThan(0);
+  });
+
+  it("names a ruling's card from the catalog and falls back to the FAQ label without one (#603)", async () => {
+    const withCatalog = await lookup(entries, "attacked character draw");
+    const row = withCatalog.cardRulings.find((r) => r.cardId === realIds.plain)!;
+    expect(row.cardName).toBe(catalog.cards.get(realIds.plain)!.name);
+    expect(row.cardName).not.toBe("Printed Label");
+    const without = await lookup(entries, "attacked character draw", undefined, false);
+    expect(without.cardRulings.find((r) => r.cardId === realIds.plain)!.cardName).toBe("Printed Label");
+  });
+});
+
+describe("tournament rules manual", () => {
+  // Made-up manual text in the PDF's shape: contents with dotted leaders, chapters, numbered list items and page numbers.
+  const lines = [
+    "Last Updated: January 2, 2030",
+    "Sample Event Rules",
+    "Table of Contents",
+    "1.0 Players ........................ 3",
+    "1.1 Entry ........................... 3",
+    "1.0 Players",
+    "Everyone who enters is a player.",
+    "1.1 Entry",
+    "Register before the round starts. Steps:",
+    "1. Make an account",
+    "2. Sign up using the account",
+    "2.5 inches of space must stay between mats.",
+    "3",
+    "1.2 Sleeves",
+    "Sleeves must be opaque and match.",
+    "2.0 Rounds",
+    "2.1 Time Limit",
+    "Each round lasts 45 minutes. When time is called, finish the turn,",
+    "then play three extra turns.",
+    "2.1.1 Extra Turns",
+    "Extra turns last five minutes.",
+    "2.1.2 Draws",
+    "Nobody wins a drawn match.",
+    "2.1 Time Limit Again",
+    "2.2 Penalties",
+    "A warning is the lightest penalty for slow play.",
+    "2.3 Deck Checks",
+    "A judge may check a player with 0 cards in your deck at any time.",
+  ];
+  const doc = parseTournamentRules(lines);
+
+  it("splits numbered headings, skipping contents lines and numbered list items (#603)", () => {
+    expect(doc.sections.map((s) => s.id)).toEqual(["1.0", "1.1", "1.2", "2.0", "2.1", "2.1.1", "2.1.2", "2.2", "2.3"]);
+    expect(doc.sections.find((s) => s.id === "1.1")).toEqual({
+      id: "1.1",
+      title: "Entry",
+      text: "Register before the round starts. Steps: 1. Make an account 2. Sign up using the account 2.5 inches of space must stay between mats.",
+    });
+    expect(doc.updated).toBe("January 2, 2030");
+    // The contents' "1.0 Players" must not open a section ahead of the real one, and a repeated number stays in its section.
+    expect(doc.sections.find((s) => s.id === "1.0")!.text).toBe("Everyone who enters is a player.");
+    expect(doc.sections.find((s) => s.id === "2.1.2")!.text).toContain("2.1 Time Limit Again");
+  });
+
+  it("ranks the section that holds the rare words first (#603)", () => {
+    expect(searchTournamentRules(doc, "what happens when time is called", 2).map((s) => s.id)[0]).toBe("2.1");
+    expect(searchTournamentRules(doc, "what penalty for slow play warning", 2).map((s) => s.id)[0]).toBe("2.2");
+  });
+
+  it("reads 'time runs out' as the round timer, not as deck-out (#603)", () => {
+    expect(searchTournamentRules(doc, "time runs out", 1).map((s) => s.id)).toEqual(["2.1"]);
+  });
+
+  it("shows the part of a long section that matches the question (#603)", () => {
+    const text = `${"Opening words about nothing. ".repeat(30)}Penalty for slow play is a warning. ${"Closing words about nothing. ".repeat(30)}`;
+    const shown = excerpt(text, "slow play warning", 300);
+    expect(shown.length).toBeLessThanOrEqual(305);
+    expect(shown).toContain("slow play");
+    expect(excerpt("short", "anything", 300)).toBe("short");
+  });
+
+  it("treats event questions as tournament questions and game questions as not (#603)", () => {
+    for (const q of [
+      "what happens if time runs out in a match",
+      "do I win if game 3 goes to time",
+      "how many extra turns do we play",
+      "can the judge give me a game loss",
+      "are sleeves with logos allowed",
+      "how does swiss pairing work",
+      "do I need to register a deck list",
+    ]) expect(looksLikeTournamentQuestion(q), q).toBe(true);
+    for (const q of [
+      "can I activate blocker when the attacked character is rested",
+      "each time a character is played, can I use its effect",
+      "how does an event card with trigger resolve",
+      "what happens when my deck is out of cards",
+    ]) expect(looksLikeTournamentQuestion(q), q).toBe(false);
+  });
+
+  class ManualLib extends FixedLibrary {
+    constructor(private readonly manual: Promise<TournamentDoc>) {
+      super(fixedList, { entries: [], general: [], files: 1, failed: [] });
+    }
+    override rules(): ReturnType<OfficialLibrary["rules"]> {
+      return Promise.reject(new Error("no rules"));
+    }
+    override tournamentRules() {
+      return this.manual;
+    }
+  }
+
+  it("adds manual sections, with a note that they are event rules, for a tournament question only (#603)", async () => {
+    const lib = new ManualLib(Promise.resolve(doc));
+    const event = await rulesLookup(lib, { query: "what happens when time is called in a round" });
+    expect(event.tournamentRules.map((s) => s.id)).toContain("2.1");
+    expect(event.notes.join(" ")).toMatch(/not rules of the game/);
+    const game = await rulesLookup(lib, { query: "can the attacked character block while rested" });
+    expect(game.tournamentRules).toEqual([]);
+    expect(game.notes.join(" ")).not.toMatch(/Tournament Rules Manual/);
+  });
+
+  it("caps each manual section's text at about 2000 characters (#603)", async () => {
+    const long: TournamentDoc = { title: "t", updated: null, sections: [{ id: "9.1", title: "Round Timer", text: "Time is called for the round. ".repeat(100) }] };
+    const out = await rulesLookup(new ManualLib(Promise.resolve(long)), { query: "when is time called in a round" });
+    expect(out.tournamentRules).toHaveLength(1);
+    expect(out.tournamentRules[0]!.text.length).toBeLessThanOrEqual(2010);
+    expect(out.tournamentRules[0]!.text.length).toBeGreaterThan(1900);
+  });
+
+  it("still answers when the manual can't be read, and says so (#603)", async () => {
+    const lib = new ManualLib(Promise.reject(new Error("offline")));
+    const out = await rulesLookup(lib, { query: "what happens when time is called in a round" });
+    expect(out.tournamentRules).toEqual([]);
+    expect(out.notes.join(" ")).toMatch(/Couldn't read the official tournament rules manual/);
+    expect(Array.isArray(out.generalQa)).toBe(true);
   });
 });
 

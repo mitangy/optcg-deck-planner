@@ -7,15 +7,35 @@ import type { Catalog } from "./catalog";
 import type { Deck } from "./decks";
 import { banListProblems, type BanList } from "./official/banlist";
 import { within, type OfficialLibrary } from "./official/library";
-import { searchQa } from "./official/qa";
+import { rankQa, searchQa, type QaEntry } from "./official/qa";
 import { searchRules, sectionPath, sectionWithChildren } from "./official/rules";
+import { excerpt, looksLikeTournamentQuestion, searchTournamentRules } from "./official/tournament";
 
 const WAIT_MS = 45_000;
 
 const unavailable = (what: string, lib: OfficialLibrary) =>
   `Couldn't read the official ${what} from ${lib.baseUrl} just now. Say so, and answer from the card text with that caveat.`;
 
-export async function rulesLookup(lib: OfficialLibrary, q: { section?: string; query?: string; limit?: number }) {
+const TOURNAMENT_TEXT_CAP = 2000;
+const MIN_RULING_TERMS = 2;
+const MIN_RULING_SHARE = 0.5;
+
+/** Card rulings worth showing for a topic: at least two distinct query words and at least half the best ruling's score. */
+function relevantCardRulings(entries: readonly QaEntry[], query: string, max: number, catalog?: Catalog) {
+  const ranked = rankQa(entries, query).filter((r) => r.matched >= MIN_RULING_TERMS);
+  const top = ranked[0]?.score ?? 0;
+  return ranked
+    .filter((r) => r.score >= top * MIN_RULING_SHARE)
+    .slice(0, max)
+    .map(({ entry: e }) => ({
+      cardId: e.cardId,
+      cardName: (e.cardId ? catalog?.cards.get(e.cardId)?.name : undefined) ?? e.label,
+      question: e.question,
+      answer: e.answer,
+    }));
+}
+
+export async function rulesLookup(lib: OfficialLibrary, q: { section?: string; query?: string; limit?: number }, catalog?: Catalog) {
   const [doc, faq] = await Promise.all([within(lib.rules(), WAIT_MS).catch(() => undefined), within(lib.faq(), WAIT_MS).catch(() => undefined)]);
   const notes: string[] = [];
   if (!doc) notes.push(unavailable("comprehensive rules", lib));
@@ -34,12 +54,31 @@ export async function rulesLookup(lib: OfficialLibrary, q: { section?: string; q
     });
   }
   const qa = q.query && faq ? searchQa(faq.general, q.query, Math.max(limit, 6)).map((e) => ({ category: e.label, question: e.question, answer: e.answer })) : [];
+  // Card-specific Q&A found by topic, for questions that don't name a card number.
+  const cardRulings = q.query && faq && !looksLikeTournamentQuestion(q.query) ? relevantCardRulings(faq.entries, q.query, Math.min(4, limit), catalog) : [];
+  // Event rules only for questions about running or playing in an event; they are not game rules.
+  let tournamentRules: { id: string; title: string; text: string }[] = [];
+  let tournamentUpdated: string | null = null;
+  if (q.query && looksLikeTournamentQuestion(q.query)) {
+    const manual = await within(lib.tournamentRules(), WAIT_MS).catch(() => undefined);
+    if (!manual) notes.push(unavailable("tournament rules manual", lib));
+    else {
+      tournamentUpdated = manual.updated;
+      tournamentRules = searchTournamentRules(manual, q.query, Math.min(3, limit)).map((s) => ({ id: s.id, title: s.title, text: excerpt(s.text, q.query!, TOURNAMENT_TEXT_CAP) }));
+      notes.push(
+        "Tournament Rules Manual sections are Bandai Organized Play event rules (time limits, rounds, penalties, deck lists), not rules of the game. Cite them as the Tournament Rules Manual with the section number, and keep them apart from comprehensive rules.",
+      );
+    }
+  }
   return {
     source: doc
       ? { title: doc.title, version: doc.version, updated: doc.updated, url: lib.url("/pdf/rule_comprehensive.pdf") }
       : { url: lib.url("/pdf/rule_comprehensive.pdf") },
     sections,
     generalQa: qa,
+    cardRulings,
+    tournamentRules,
+    ...(tournamentUpdated ? { tournamentRulesUpdated: tournamentUpdated } : {}),
     notes: [...notes, "Cite rules by section number (e.g. 7-1-2-1). Card text overrides the comprehensive rules (1-3-1)."],
   };
 }

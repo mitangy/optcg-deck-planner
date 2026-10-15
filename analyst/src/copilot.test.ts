@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import { chatBody, ChatHttpError, runChat, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
-import { COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext } from "./copilot";
+import { cardReferenceLine, COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext } from "./copilot";
 
 const catalog = loadCatalog();
 const TICKET = "mb1.ticket-body.ticket-sig";
@@ -147,7 +147,7 @@ describe("copilot ticket check", () => {
   it("sends the ticket and variant to the planner and returns the leaders and deck it names (#416)", async () => {
     const { calls, api } = planner({ "POST /analyst/briefs/lookup": LOOKUP });
     expect(await verifyGame(api, "chat.tok", catalog, game())).toEqual(claims);
-    expect(calls[0]!.body).toMatchObject({ ticket: TICKET, variant: expect.stringMatching(/^v1:/) });
+    expect(calls[0]!.body).toMatchObject({ ticket: TICKET, variant: expect.stringMatching(/^v2:/) });
   });
 
   it("copilot refuses a ranked or forged ticket before any model call (#416)", async () => {
@@ -191,7 +191,7 @@ describe("copilot game block", () => {
     // The card reference carries the printed effect for a card on the table.
     const luffy = catalog.cards.get("ST01-012")!;
     expect(luffy.text.length).toBeGreaterThan(5);
-    expect(text).toContain(`- ST01-012 ${luffy.name} (character, cost 5, power 6000)`);
+    expect(text).toContain(`- ST01-012 ${luffy.name} (character, ${luffy.colors.join("/")}, cost 5, power 6000, traits: ${luffy.traits.join("/")})`);
     expect(text).toContain(luffy.text.slice(0, 40));
   });
 });
@@ -385,5 +385,28 @@ describe("copilot chat turn", () => {
     expect(seen[0]!.tools.map((t: { name: string }) => t.name)).toContain("propose_turn_plan");
     expect(events.some((e) => e.event === "plan")).toBe(false);
     expect(seen[1]!.messages.at(-1).content[0]).toMatchObject({ is_error: true, content: NO_GAME_ERROR });
+  });
+});
+
+describe("card reference line", () => {
+  const base = { id: "ZZ01-001", name: "Test Card", type: "leader" as const, colors: ["red", "green"], traits: ["Straw Hat Crew", "Supernovas"], attributes: [], text: "Main text.", trigger: "", keywords: [], timings: [], effects: [], support: "unknown" as const };
+
+  it("gives a leader's life, colors and traits (#603)", () => {
+    const line = cardReferenceLine({ ...base, life: 5, power: 5000 });
+    expect(line).toContain("life 5");
+    expect(line).toContain("red/green");
+    expect(line).toContain("traits: Straw Hat Crew/Supernovas");
+  });
+
+  it("gives the [Trigger] text, capped, after the main text (#603)", () => {
+    const line = cardReferenceLine({ ...base, type: "event", trigger: `[Trigger] Draw 1 card.${" x".repeat(300)}` });
+    expect(line).toContain("Main text. [Trigger] Draw 1 card.");
+    expect(line.length).toBeLessThan(400);
+  });
+
+  it("leaves out trigger and life when the card has none (#603)", () => {
+    const line = cardReferenceLine({ ...base, type: "character", cost: 2 });
+    expect(line).not.toContain("Trigger");
+    expect(line).not.toContain("life");
   });
 });

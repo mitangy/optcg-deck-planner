@@ -121,6 +121,19 @@ function rulesAdapter(v: Rec): ToolContent[] {
       ]) as SearchResultBlock,
     );
   }
+  for (const r of v.cardRulings ?? []) {
+    out.push(
+      searchResult(`ruling:${r.cardId ?? "unknown"}#q${shortHash(String(r.question))}`, `${r.cardName ?? r.cardId ?? "Card"} (official Q&A)`, [
+        `Q: ${r.question}`,
+        ...splitFacts(String(r.answer)).map((a, i) => (i === 0 ? `A: ${a}` : a)),
+      ]) as SearchResultBlock,
+    );
+  }
+  for (const t of v.tournamentRules ?? []) {
+    out.push(
+      searchResult(`trules:${t.id}`, `Tournament Rules Manual ${t.id} ${t.title}`, splitFacts(String(t.text))) as SearchResultBlock,
+    );
+  }
   const note = [v.source?.title && `Source: ${v.source.title}${v.source.version ? ` ${v.source.version}` : ""}${v.source.updated ? `, updated ${v.source.updated}` : ""}.`, ...(v.notes ?? [])].filter(Boolean);
   if (note.length) out.push({ type: "text", text: note.join(" ") });
   return out.filter(Boolean);
