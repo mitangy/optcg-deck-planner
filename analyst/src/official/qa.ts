@@ -139,11 +139,14 @@ export function parseFaqIndex(html: string, baseUrl: string): FaqFile[] {
   return [...files.values()];
 }
 
+/** An entry with its score and how many distinct query words it holds. */
+export type RankedQa = { entry: QaEntry; score: number; matched: number };
+
 /**
  * Q&A entries ranked by their query words, rarest words first: each word weighs log(entries / entries containing it),
  * and counts double when it is in the label or question rather than only the answer.
  */
-export function searchQa(entries: readonly QaEntry[], query: string, limit = 5): QaEntry[] {
+export function rankQa(entries: readonly QaEntry[], query: string): RankedQa[] {
   const terms = [...new Set(queryTerms(query))];
   if (!terms.length) return [];
   const docs = entries.map((e) => ({ head: `${e.label} ${e.question}`.toLowerCase(), answer: e.answer.toLowerCase() }));
@@ -154,10 +157,16 @@ export function searchQa(entries: readonly QaEntry[], query: string, limit = 5):
     .map((e, i) => {
       const d = docs[i]!;
       const score = terms.reduce((sum, t) => sum + weight.get(t)! * (d.head.includes(t) ? 2 : d.answer.includes(t) ? 1 : 0), 0);
-      return { e, i, score };
+      const matched = terms.filter((t) => d.head.includes(t) || d.answer.includes(t)).length;
+      return { entry: e, i, score, matched };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map(({ entry, score, matched }) => ({ entry, score, matched }));
+}
+
+export function searchQa(entries: readonly QaEntry[], query: string, limit = 5): QaEntry[] {
+  return rankQa(entries, query)
     .slice(0, limit)
-    .map((r) => r.e);
+    .map((r) => r.entry);
 }

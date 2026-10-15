@@ -334,7 +334,8 @@ function registerOfficialTools(add: Add, catalog: Catalog, library: OfficialLibr
       title: "Rules lookup",
       description:
         "Search the official ONE PIECE CARD GAME Comprehensive Rules by words (query) or read a numbered section with everything under it (section, e.g. 7-1 or 10-1-4). " +
-        "A query also returns matching official general rules Q&A. Read live from the official site.",
+        "A query also returns matching official general rules Q&A and card-specific Q&A rulings found by topic (cardRulings). " +
+        "Questions about events (time limits, extra turns, rounds, penalties, deck lists) also return sections of Bandai's Tournament Rules Manual, which are event rules, not game rules. Read live from the official site.",
       inputSchema: {
         query: z.string().max(200).optional().describe("Words to find, e.g. 'blocker once per battle' or 'deck out'"),
         section: z.string().max(20).optional().describe("Section number, e.g. 6-5-3 or 10-1-4"),
@@ -344,7 +345,7 @@ function registerOfficialTools(add: Add, catalog: Catalog, library: OfficialLibr
     },
     async (args) => {
       if (!args.query && !args.section) return failure(new Error("Give a query or a section number."));
-      return json(await rulesLookup(library, args));
+      return json(await rulesLookup(library, args, catalog));
     },
   );
 

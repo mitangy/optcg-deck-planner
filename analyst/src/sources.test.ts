@@ -103,6 +103,24 @@ describe("tool answers as citable sources (#390)", () => {
     expect(blocks!.at(-1)).toMatchObject({ type: "search_result", source: "note:rules_lookup" });
   });
 
+  it("cites topic card rulings as ruling:<card>#q<hash> so they never reuse a card_rulings number, and manual sections as trules:<id> (#603)", () => {
+    const blocks = adapt("rules_lookup", {
+      sections: [],
+      generalQa: [],
+      cardRulings: [{ cardId: "OP14-020", cardName: "Nami", question: "Can I block twice?", answer: "No. Only once." }],
+      tournamentRules: [{ id: "5.2", title: "End of Round Procedures", text: "Time is called. Finish the turn." }],
+      notes: [],
+    });
+    const [ruling, manual] = results(blocks);
+    expect(ruling!.source).toMatch(/^ruling:OP14-020#q[0-9a-f]{8}$/);
+    expect(ruling!.title).toBe("Nami (official Q&A)");
+    expect(texts(ruling!)).toEqual(["Q: Can I block twice?", "A: No. Only once."]);
+    expect(manual!.source).toBe("trules:5.2");
+    expect(manual!.title).toBe("Tournament Rules Manual 5.2 End of Round Procedures");
+    const again = adapt("rules_lookup", { cardRulings: [{ cardId: "OP14-020", cardName: "Nami", question: "Can I block three times?", answer: "No." }] });
+    expect(allSources(again)[0]).not.toBe(ruling!.source);
+  });
+
   it("numbers a card's official rulings ruling:<card>#<n> and keeps errata and ban status as their own sources (#390)", () => {
     const blocks = adapt("card_rulings", {
       cards: [

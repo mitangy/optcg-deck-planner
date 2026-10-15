@@ -19,6 +19,10 @@ await check("rules", async () => {
   const doc = await lib.rules();
   return { version: doc.version, updated: doc.updated, sections: doc.sections.length };
 });
+await check("tournamentRules", async () => {
+  const doc = await lib.tournamentRules();
+  return { updated: doc.updated, sections: doc.sections.length };
+});
 await check("faq", async () => {
   const faq = await lib.faq();
   if (faq.failed.length) ok = false;
