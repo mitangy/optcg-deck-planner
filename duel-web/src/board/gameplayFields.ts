@@ -32,6 +32,7 @@ export type ToggleKey =
   | "bigBoard"
   | "actionsBeside"
   | "turnSplash"
+  | "gameHints"
   | "reduceMotion"
   | "turnAlert"
   | "turnSound";
@@ -124,7 +125,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     id: "turns",
     title: "Turns and prompts",
     chip: "Turns",
-    rows: ["endTurnConfirm", "responseStops", "oneTapActions", "cantAttackWarning", "turnSplash"],
+    rows: ["endTurnConfirm", "responseStops", "oneTapActions", "cantAttackWarning", "turnSplash", "gameHints"],
   },
   {
     id: "hand",
