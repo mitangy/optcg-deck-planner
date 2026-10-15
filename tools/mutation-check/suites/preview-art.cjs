@@ -21,5 +21,13 @@ module.exports = {
     { id: "alt-preview-kept-with-art", file: "scripts/sync_preview_art.py", from: `    return pid not in catalog_alt_pids or has_art.get(pid) is True`, to: `    return pid not in catalog_alt_pids`, kills: ["test_an_alt_preview_goes_once_tcgplayer_has_the_picture"] },
     { id: "alt-preview-pruned-unchecked", file: "scripts/sync_preview_art.py", from: `    return pid not in catalog_alt_pids or has_art.get(pid) is True`, to: `    return pid not in catalog_alt_pids or has_art.get(pid) is not False`, kills: ["test_an_alt_preview_goes_once_tcgplayer_has_the_picture"] },
     { id: "alt-preview-kept-after-leaving-catalog", file: "scripts/sync_preview_art.py", from: `    return pid not in catalog_alt_pids or has_art`, to: `    return has_art`, kills: ["test_an_alt_preview_goes_when_the_alt_left_the_catalog"] },
+    // alt files must not be read as base ids; Top Decks upgrade (#608)
+    { id: "preview-alt-files-read-as-base-ids", file: "scripts/sync_preview_art.py", from: `if not ALT_STEM_RE.match(p.stem)}`, to: `}`, kills: ["test_alt_preview_files_are_not_base_card_ids_608"] },
+    { id: "topdecks-url-uppercase-folder", file: "scripts/sync_preview_art.py", from: `{set_prefix(card_id).lower()}/{card_id}.jpg`, to: `{set_prefix(card_id)}/{card_id}.jpg`, kills: ["test_url_uses_the_lowercase_set_folder_and_the_exact_id"] },
+    { id: "topdecks-accepts-html", file: "scripts/sync_preview_art.py", from: `in ("image/jpeg", "image/png")`, to: `in ("image/jpeg", "image/png", "text/html")`, kills: ["test_only_jpeg_and_png_bodies_are_accepted"] },
+    { id: "topdecks-upgrade-threshold-off-by-one", file: "scripts/sync_preview_art.py", from: `current_height < UPGRADE_BELOW_HEIGHT`, to: `current_height <= UPGRADE_BELOW_HEIGHT`, kills: ["test_only_previews_under_600px_tall_are_upgraded"] },
+    { id: "topdecks-upgrade-unknown-height", file: "scripts/sync_preview_art.py", from: `return current_height is not None and current_height < UPGRADE_BELOW_HEIGHT`, to: `return current_height is None or current_height < UPGRADE_BELOW_HEIGHT`, kills: ["test_only_previews_under_600px_tall_are_upgraded"] },
+    { id: "topdecks-no-height-cap", file: "scripts/sync_preview_art.py", from: `    if height <= max_height:\n        return width, height\n`, to: `    return width, height\n`, kills: ["test_tall_scans_are_scaled_down_to_900_and_small_ones_never_up"] },
+    { id: "topdecks-upscales-small-scans", file: "scripts/sync_preview_art.py", from: `    if height <= max_height:\n        return width, height\n`, to: `    if height == max_height:\n        return width, height\n`, kills: ["test_tall_scans_are_scaled_down_to_900_and_small_ones_never_up"] },
   ],
 };
