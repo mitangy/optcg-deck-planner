@@ -720,4 +720,20 @@ ENTRIES.push(["OP16-015", { abilities: [
     conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
 ] }]);
 
+// Full replacement (#607): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's base power is
+// not already 7000 and the trash can reach 10 once the cost card is trashed (9 now). Both abilities are otherwise as generated.
+ENTRIES.push(["EB05-046", { abilities: [
+  { id: "eb05-046#0", trigger: "static", text: "If your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.",
+    conditions: [exists(oppChar({ types: ["character"], basePower: ge(8000) }))],
+    statics: [{ s: "keyword", target: "self", keyword: "blocker" }, { s: "power", target: "self", amount: 3000 }] },
+  { id: "eb05-046#1", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 card from your hand: If you have 10 or more cards in your trash, your Leader's base power becomes 7000 during this turn.",
+    conditions: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 9),
+    ],
+    costs: [{ k: "trash_hand", count: 1 }],
+    effect: when(cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 10),
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" }) },
+] }]);
+
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

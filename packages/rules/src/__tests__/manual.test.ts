@@ -449,3 +449,38 @@ describe("OP16-015 Luffy On Your Opponent's Attack (#567)", () => {
     expect(h.choice?.request?.type).toBe("confirm");
   });
 });
+
+describe("EB05-046 Yamato On Your Opponent's Attack (#607)", () => {
+  function setup(trashed: number) {
+    const h = new Harness();
+    h.field(1, "EB05-046");
+    h.hand(1, FILLER, FILLER, FILLER);
+    h.trash(1, ...Array.from({ length: trashed }, () => FILLER));
+    const [a, b] = h.field(0, FILLER, FILLER);
+    h.life(1, FILLER, FILLER, FILLER);
+    return { h, a: a!, b: b! };
+  }
+
+  it("EB05-046 Yamato is not offered again once the Leader's base power is 7000 (#607)", () => {
+    const { h, a, b } = setup(9);
+    const leader = h.state.players[1].leader;
+    expect(basePowerOf(h.state, 1, leader)).not.toBe(7000);
+    h.attack(a, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick(FILLER);
+    expect(basePowerOf(h.state, 1, leader)).toBe(7000);
+    h.passBattle();
+    const handSize = h.state.players[1].hand.length;
+    h.attack(b, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(handSize);
+  });
+
+  it("EB05-046 Yamato is not offered when the trash can't reach 10 (#607)", () => {
+    const { h, a } = setup(8);
+    h.attack(a, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(3);
+  });
+});
