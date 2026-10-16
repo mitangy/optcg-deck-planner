@@ -654,9 +654,14 @@ module.exports = {
     { id: "lint-op13-119-if-you-do-without-affected", json: ABILITIES, patch: (a) => { const g = a["OP13-119"].abilities[1].effect.steps[2]; g.cond = g.cond.conds[0]; }, kills: [LINT_REGISTRY] },
     // "If that card is X, you may play that card. If you do, Y": the payoff needs the play to have happened (ST13-007/010/014)
     { id: "if-you-do-nested-may-ignores-affected", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "else if (nested.every((m) => !m.costs?.length)) gate.cond", to: "else if (false as boolean) gate.cond" },
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "if (nested.every((m) => !m.costs?.length)) gate.cond", to: "if (false as boolean) gate.cond" },
       { json: ABILITIES, patch: (a) => { for (const [card, i] of [["ST13-007", 0], ["ST13-010", 0], ["ST13-014", 0]]) { const g = a[card].abilities[i].effect.steps[2]; g.cond = g.cond.conds[0]; } } },
     ], kills: ["ST13-007 accept but the play cannot happen", "ST13-010 accept but the play cannot happen", "ST13-014 accept but the play cannot happen", LINT_REGISTRY] },
+    // A nested may whose action never writes `_affected` is a cost, so the payoff trusts `_did` (ST22-015 Life add) (#519)
+    { id: "if-you-do-nested-may-stale-affected", edits: [
+      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "if (m.costs?.length || !m.prompt || writesAffected(m.then)) continue;", to: "if (true as boolean) continue;" },
+      { json: ABILITIES, patch: (a) => { const e = a["ST22-015"].abilities[0].effect; delete e.steps[0].then.steps[1].costs; const g = e.steps[1]; g.cond = { c: "and", conds: [g.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] }; } },
+    ], kills: ["ST22-015 gives the Leader +2000 when you add a Life card without playing Newgate"] },
     { id: "lint-event-table-says-no-card", file: LINT, from: "  attack_declared: true,", to: "  attack_declared: false,", kills: [LINT_REGISTRY, "EVENT_CARRIES_CARD matches what dispatchEvent passes"] },
     { id: "lint-event-site-drops-card", file: "packages/rules/src/engine/procedure.ts", from: `dispatchEvent(state, "attack_declared", { seat, card: attacker });`, to: `dispatchEvent(state, "attack_declared", { seat });`, kills: ["EVENT_CARRIES_CARD matches what dispatchEvent passes"] },
     { id: "lint-every-var-bound", file: LINT, from: "if (!defs.has(name)) findings.push", to: "if (false as boolean) findings.push", kills: ["flags a read of a variable no step writes", "reads before the binding step do not count", "a delayed effect sees what was bound before the delay"] },
