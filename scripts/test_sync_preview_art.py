@@ -21,6 +21,8 @@ from sync_preview_art import (  # noqa: E402
     guide_variant,
     map_files_to_ids,
     match_alt_previews,
+    pair_topdecks_alts,
+    parse_topdecks_gallery_alts,
     parse_variant_paths,
     should_prune,
     should_upgrade,
@@ -205,6 +207,77 @@ class TopDecksTests(unittest.TestCase):
         self.assertEqual(capped_size(632, 886), (632, 886))
         self.assertEqual(capped_size(900, 1200), (675, 900))
         self.assertEqual(capped_size(344, 480), (344, 480))
+
+
+_GAL = "https://onepiecetopdecks.com/wp-content/gallery/eb05/"
+
+
+class TopDecksAltTests(unittest.TestCase):
+    def test_gallery_links_keep_only_this_sets_alt_art_files_once_615(self) -> None:
+        html = (
+            f'<a href="{_GAL}EB05-006_p2.jpg"><img data-src="{_GAL}EB05-006_p2.jpg" src="{_GAL}EB05-006_p2.jpg">'
+            f'<img src="{_GAL}OP17-109_p3.jpg"><img src="{_GAL}EB05-001.jpg"><img src="{_GAL}EB05-001_p1.jpg">'
+            '<img src="https://onepiecetopdecks.com/wp-content/gallery/op18/OP18-001_p2.jpg">'
+        )
+        self.assertEqual(
+            parse_topdecks_gallery_alts(html, "EB05"),
+            [_GAL + "EB05-006_p2.jpg", _GAL + "OP17-109_p3.jpg"],
+        )
+
+    def test_one_alt_and_one_gallery_file_of_the_card_pair_615(self) -> None:
+        alts = [{"pid": 7, "card": "OP17-109", "name": ""}]
+        self.assertEqual(pair_topdecks_alts(alts, [_GAL + "OP17-109_p3.jpg"]), {7: _GAL + "OP17-109_p3.jpg"})
+
+    def test_two_gallery_files_for_one_alt_do_not_pair_615(self) -> None:
+        alts = [{"pid": 7, "card": "EB05-006", "name": ""}]
+        self.assertEqual(pair_topdecks_alts(alts, [_GAL + "EB05-006_p2.jpg", _GAL + "EB05-006_p3.jpg"]), {})
+
+    def test_two_alts_for_one_gallery_file_do_not_pair_615(self) -> None:
+        alts = [{"pid": 7, "card": "EB05-006", "name": ""}, {"pid": 8, "card": "EB05-006", "name": ""}]
+        self.assertEqual(pair_topdecks_alts(alts, [_GAL + "EB05-006_p2.jpg"]), {})
+
+    def test_another_cards_gallery_file_does_not_pair_615(self) -> None:
+        alts = [{"pid": 7, "card": "EB05-006", "name": ""}]
+        self.assertEqual(pair_topdecks_alts(alts, [_GAL + "EB05-016_p2.jpg"]), {})
+
+
+class AltUpgradeSyncTests(unittest.TestCase):
+    """sync_alt_previews end to end with the network stubbed out (#615)."""
+
+    def _run(self, files: dict[int, bytes], scan: bytes) -> dict[int, bytes]:
+        catalog = {f"EB05-0{pid}": {"altArts": [{"productId": pid}]} for pid in files}
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for pid, data in files.items():
+                (out / f"p{pid}.webp").write_bytes(data)
+            urls = [f"{_GAL}EB05-0{pid}_p2.jpg" for pid in files]
+            patches = [
+                mock.patch.object(sync_preview_art, "PREVIEW_DIR", out),
+                mock.patch.object(sync_preview_art, "ALT_MANIFEST", out / "alts.json"),
+                mock.patch.object(sync_preview_art, "alt_product_info", lambda pids: {p: (False, "EB05") for p in pids}),
+                mock.patch.object(sync_preview_art, "alt_product_names", lambda pids: {}),
+                mock.patch.object(sync_preview_art, "_pillow_image", lambda: object()),
+                mock.patch.object(sync_preview_art, "topdecks_set_alt_urls", lambda prefix: urls),
+                mock.patch.object(sync_preview_art, "download_topdecks_url", lambda image, url: (scan, "")),
+            ]
+            for patch in patches:
+                patch.start()
+            try:
+                with mock.patch("sys.stdout"):
+                    sync_preview_art.sync_alt_previews(catalog, dry_run=False)
+            finally:
+                mock.patch.stopall()
+            return {pid: (out / f"p{pid}.webp").read_bytes() for pid in files}
+
+    def test_a_kept_alt_under_600px_is_replaced_but_a_600px_one_is_not_615(self) -> None:
+        small, placed, scan = _vp8(344, 480), _vp8(458, 640), _vp8(568, 790)
+        got = self._run({11: small, 12: placed}, scan)
+        self.assertEqual(got[11], scan)
+        self.assertEqual(got[12], placed)
+
+    def test_a_kept_alt_is_not_replaced_by_a_shorter_picture_615(self) -> None:
+        small, scan = _vp8(344, 480), _vp8(300, 400)
+        self.assertEqual(self._run({11: small}, scan)[11], small)
 
 
 if __name__ == "__main__":
