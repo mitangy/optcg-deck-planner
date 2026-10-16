@@ -555,6 +555,25 @@ describe("Repeat prompts that do nothing (#607)", () => {
     expect(basePowerOf(h.state, 1, bon!)).toBe(10000);
   });
 
+  it("OP04-069 is offered when the attacker's When Attacking raised its power above Bon Kurei's base (#609)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [fullbody] = h.field(0, "OP02-111");
+    h.field(0, "OP02-100");
+    h.life(1, FILLER, FILLER, FILLER, FILLER);
+    h.attach(0, fullbody!, 1);
+    // Declared at 4000, equal to Bon Kurei's base power; [When Attacking] then makes it 7000.
+    expect(basePowerOf(h.state, 1, bon!)).toBe(4000);
+    h.attack(fullbody!, "leader");
+    expect(h.choice?.kind).not.toBe("order_effects");
+    h.forced();
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(basePowerOf(h.state, 1, bon!)).toBe(7000);
+  });
+
   for (const id of ["OP14-045", "OP14-049"]) {
     it(`${id} does not queue another [Rush] gain once it has [Rush], so trashing several cards asks no order (#607)`, () => {
       const h = new Harness();

@@ -80,6 +80,12 @@ function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): 
   card.usedAbilities = rest;
 }
 
+/** Conditions checked only when a queued trigger is about to resolve (`Ability.resolveConditions`). */
+export function resolveGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string }, ability: Ability, eventCardId?: InstanceId): boolean {
+  const ctx: EvalCtx = { seat, sourceId: source.id, sourceDefId: source.defId, vars: {}, ...(eventCardId ? { eventCardId } : {}) };
+  return (ability.resolveConditions ?? []).every((c) => evalCond(state, ctx, c));
+}
+
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
