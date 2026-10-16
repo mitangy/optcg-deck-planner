@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { lookupCard } from "../cards/atlas";
+import { CardArt } from "../cards/CardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { BattleLogEntry } from "./battleLog";
 import { endPreviewHover, hoverPreviewCard, setPreviewCard } from "./cardPreview";
@@ -44,7 +45,7 @@ export function RecentPlaysStrip({
                   onContextMenu={(e) => inspectOnContextMenu(e, () => setInspect(p))}
                 >
                   <span className="recent-play-thumb" aria-hidden>
-                    {src ? <img src={src} alt="" draggable={false} /> : p.defId}
+                    <CardArt src={src} defId={p.defId} fallback={p.defId} draggable={false} />
                   </span>
                   <span className="recent-play-text">
                     <span className="recent-play-name">{lookupCard(p.defId).name}</span>

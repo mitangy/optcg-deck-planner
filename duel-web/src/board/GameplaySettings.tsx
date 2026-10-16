@@ -143,6 +143,11 @@ const TOGGLES: Toggle[] = [
     hint: "Shows “Your turn” / “Opponent's turn” over the board.",
   },
   {
+    key: "gameHints",
+    label: "Opening hand tips",
+    hint: "During the mulligan step, explains who goes first and what Keep and Mulligan do. Off hides the explanation; the Keep and Mulligan buttons stay.",
+  },
+  {
     key: "reduceMotion",
     label: "Reduce animations",
     hint: "Calmer attack arcs, banners and hand motion.",

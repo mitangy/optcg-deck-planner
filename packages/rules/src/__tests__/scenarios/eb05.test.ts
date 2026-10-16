@@ -128,6 +128,38 @@ describe("EB05-010 Nico Robin Leader trigger (#458)", () => {
     expect(h.state.players[0].life.length).toBe(3);
   });
 
+  // Aramaki (OP17-059) [On Play] K.O.s up to 2 of the opponent's cost 2 or less Characters at once.
+  function koTwoAtOnce() {
+    const h = new Harness({ leaders: ["EB05-010", "ST01-001"] });
+    h.field(0, WISDOM, WISDOM);
+    h.life(0, KAROO, KAROO);
+    h.act(0, { type: "end_turn" });
+    h.hand(1, "OP17-059");
+    h.don(1, 7);
+    h.play(1, "OP17-059");
+    h.accept(1);
+    h.pick("DON");
+    h.pick(WISDOM, WISDOM);
+    return h;
+  }
+
+  it("asks once when two Wisdom Characters are K.O.'d at the same time (#600)", () => {
+    const h = koTwoAtOnce();
+    expect(h.state.players[0].characters.length).toBe(0);
+    expect(h.choice?.kind).toBe("effect");
+    h.accept(0);
+    expect(h.state.players[0].life.length).toBe(3);
+    expect(h.choice).toBeUndefined();
+  });
+
+  it("declining once covers both simultaneous K.O.s (#600)", () => {
+    const h = koTwoAtOnce();
+    expect(h.choice?.kind).toBe("effect");
+    h.decline(0);
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].life.length).toBe(2);
+  });
+
   it("does not trigger for a Wisdom Character with Blocker (#458)", () => {
     const h = koOnTheirTurn(WISDOM_BLOCKER);
     expect(h.state.players[0].characters.length).toBe(0);
