@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-16
-  { date: "2026-10-16", app: "duel", pr: 615, title: "Sharper alt art previews", text: "The preview pictures for alternate and SP arts that TCGPlayer has no images for yet, like the EB05 ones, are now much sharper and easier to read in the card pop-up. They swap to the real picture as soon as TCGPlayer posts it." },
+  { date: "2026-10-16", app: "duel", pr: 616, title: "Sharper alt art previews", text: "The preview pictures for alternate and SP arts that TCGPlayer has no images for yet, like the EB05 ones, are now much sharper and easier to read in the card pop-up. They swap to the real picture as soon as TCGPlayer posts it." },
   // 2026-10-15
   { date: "2026-10-15", app: "planner", pr: 614, title: "Preview art for EB05 and OP18", text: "EB05 and OP18 cards that TCGPlayer has no pictures for yet now show preview art in the planner, in lists, grids and the expanded card, instead of a blank card. The real picture takes over as soon as TCGPlayer posts it." },
   { date: "2026-10-15", app: "duel", pr: 610, title: "Sharper EB05 and OP18 preview art", text: "The preview pictures for EB05 and OP18 cards that don't have official images yet are now about twice as sharp, so their text is easier to read in the card pop-up." },
