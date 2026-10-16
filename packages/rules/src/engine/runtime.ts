@@ -646,6 +646,9 @@ function coverBatch(state: MatchState, replFrame: ResolutionFrame, parent: Resol
   if (r.event === "removed_by_opponent_effect" && !byOpponent) return;
   const source = locate(state, replFrame.sourceInstanceId)?.card ?? { id: replFrame.sourceInstanceId, defId: replFrame.sourceDefId, rested: false, attachedDonIds: [] };
   const from = typeof parent.bindings._actIndex === "number" ? parent.bindings._actIndex + 1 : ids.length;
+  // Only a plain payment is shared by the batch; a replacement that acts on the protected card (Bege's "add it to Life",
+  // Sabo's "-1000 to it") saves just the one it was used for (#593).
+  if (r.instead.do !== "pay") return;
   for (const id of ids.slice(from) as string[]) {
     const key = `_repl:${id}`;
     const loc = locate(state, id);

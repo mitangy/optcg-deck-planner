@@ -29,3 +29,18 @@ const rows: CardScenario[] = [
 ];
 
 runScenarios("simultaneous removal replacement (#594)", rows);
+
+const BEGE = "OP11-101"; // [Once Per Turn] a Supernovas Character would be removed by an opponent's effect: add it to the top of your Life face-down instead.
+const DEMON_FACE = "OP01-056"; // [Main] K.O. up to 2 of your opponent's rested Characters with a cost of 5 or less.
+const SUPERNOVA_A = "OP02-043";
+const SUPERNOVA_B = "OP14-008";
+
+runScenarios("Bege's replacement acts on one Character (#593)", [
+  {
+    card: BEGE, name: "replacement saves only the Character it was used for (#593)",
+    me: { field: [BEGE, { card: SUPERNOVA_A, rested: true }, { card: SUPERNOVA_B, rested: true }], life: ["ST01-003"] },
+    opp: { hand: [DEMON_FACE], don: { active: 6 } },
+    steps: [{ endTurn: true }, { play: DEMON_FACE }, { pick: [SUPERNOVA_A, SUPERNOVA_B] }, { accept: true }],
+    expect: { me: { field: [BEGE], life: 2 }, pending: "none" },
+  },
+]);
