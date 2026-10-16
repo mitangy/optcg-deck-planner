@@ -459,7 +459,7 @@ export function DuelBoard({
     // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
     (next) => {
       updateSettings({
-        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide) : next),
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide, logPoseSide === singleSide ? "logpose" : undefined) : next),
       });
       // Log Pose dragged to the other column (both shown): the dock side follows, so the two agree.
       if (!singleSide && logPoseSide) {

@@ -5,6 +5,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // One column keeps a docked Log Pose where it was moved (#573)
+    { id: "one-column-split-ignores-docked-logpose", file: `${src}/board/panelLayout.ts`, from: "const cut = Math.max(keep, at + 1);", to: "const cut = keep;", kills: ["one column: a docked Log Pose moved down the column stays there (#573)"] },
     // Recent plays thumbnails fall back to preview art (#604)
     { id: "recent-plays-thumb-no-art-fallback", file: `${src}/board/RecentPlaysStrip.tsx`, from: "<CardArt src={src} defId={p.defId} fallback={p.defId} draggable={false} />", to: '{src ? <img src={src} alt="" draggable={false} /> : p.defId}', kills: ["Recent plays thumbnail falls back to preview art when TCGPlayer art fails (#604)"] },
     { id: "trash-pile-top-no-art-fallback", file: `${src}/board/ZonePile.tsx`, from: `<CardArt
