@@ -1,10 +1,57 @@
-import { useEffect, useState } from "react";
-import { cardImageUrl } from "./cardImage";
+import { useEffect, useState, type ImgHTMLAttributes, type ReactNode } from "react";
+import { cardArtChain, type CardImageSize } from "./cardImage";
 
-export function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
+/**
+ * Walks `cardArtChain` as images fail: `src` is the URL to show now, `fail`
+ * moves to the next one, and `src` is null once every step failed.
+ */
+export function useCardArt(
+  src: string | undefined | null,
+  cardId: string | undefined | null,
+  size: CardImageSize,
+) {
+  const chain = cardArtChain(src, cardId, size);
+  const key = chain.join("|");
+  const [state, setState] = useState({ key, failed: 0 });
+  const idx = state.key === key ? state.failed : 0;
+  return {
+    src: chain[idx] ?? null,
+    fail: () => setState({ key, failed: idx + 1 }),
+  };
+}
+
+/** Bare card art `<img>` with the preview fallback; `fallback` shows once every step failed. */
+export function CardArtImg({
+  src,
+  cardId,
+  alt = "",
+  size = "thumb",
+  fallback = null,
+  ...imgProps
+}: {
+  src?: string | null;
+  cardId?: string | null;
+  alt?: string;
+  size?: CardImageSize;
+  fallback?: ReactNode;
+} & Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt" | "onError">) {
+  const art = useCardArt(src, cardId, size);
+  if (!art.src) return <>{fallback}</>;
+  return <img {...imgProps} src={art.src} alt={alt} onError={art.fail} />;
+}
+
+export function CardThumb({
+  src,
+  cardId,
+  alt = "",
+}: {
+  src?: string;
+  cardId?: string | null;
+  alt?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const thumbSrc = cardImageUrl(src, "thumb");
-  const largeSrc = cardImageUrl(src, "large");
+  const thumb = useCardArt(src, cardId, "thumb");
+  const large = useCardArt(src, cardId, "large");
 
   useEffect(() => {
     if (!open) return;
@@ -16,12 +63,12 @@ export function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
   }, [open]);
 
   function prefetchLarge() {
-    if (!largeSrc) return;
+    if (!large.src) return;
     const img = new Image();
-    img.src = largeSrc;
+    img.src = large.src;
   }
 
-  if (!src) return <div className="thumb placeholder" />;
+  if (!thumb.src) return <div className="thumb placeholder" />;
 
   return (
     <>
@@ -34,14 +81,12 @@ export function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
         title="Expand card"
       >
         <img
-          src={thumbSrc}
+          src={thumb.src}
           alt={alt}
           className="thumb"
           loading="lazy"
           decoding="async"
-          onError={(e) => {
-            if (src && e.currentTarget.src !== src) e.currentTarget.src = src;
-          }}
+          onError={thumb.fail}
         />
       </button>
       {open && (
@@ -52,15 +97,15 @@ export function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
           aria-label="Expanded card art"
           onClick={() => setOpen(false)}
         >
-          <img
-            src={largeSrc}
-            alt={alt}
-            className="lightbox-img"
-            onClick={(e) => e.stopPropagation()}
-            onError={(e) => {
-              if (src && e.currentTarget.src !== src) e.currentTarget.src = src;
-            }}
-          />
+          {large.src && (
+            <img
+              src={large.src}
+              alt={alt}
+              className="lightbox-img"
+              onClick={(e) => e.stopPropagation()}
+              onError={large.fail}
+            />
+          )}
           <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
             Close
           </button>
@@ -72,18 +117,20 @@ export function CardThumb({ src, alt = "" }: { src?: string; alt?: string }) {
 
 export function MobileCardMedia({
   src,
+  cardId,
   alt,
   cost,
   rarity,
 }: {
   src?: string;
+  cardId?: string | null;
   alt: string;
   cost: number | string | null;
   rarity?: string;
 }) {
   return (
     <div className="mobile-card-media">
-      <CardThumb src={src} alt={alt} />
+      <CardThumb src={src} cardId={cardId} alt={alt} />
       <div className="mobile-card-media-meta">
         <span className="mobile-card-cost">Cost {cost ?? "—"}</span>
         {rarity ? <span className="mobile-card-rarity">{rarity}</span> : null}

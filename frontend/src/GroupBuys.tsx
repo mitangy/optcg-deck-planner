@@ -1547,7 +1547,7 @@ export function GroupBuyDetailPage() {
                   >
                     <MemberColorRail line={line} members={members} />
                     <div className="grid-card-media">
-                      <CardThumb src={line.image_url || undefined} alt={line.name} />
+                      <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
                     </div>
                     <div className="grid-card-body">
                       <div className="card-id">{line.card_id}</div>
@@ -1629,6 +1629,7 @@ export function GroupBuyDetailPage() {
                     <div className="mobile-card-top">
                       <MobileCardMedia
                         src={line.image_url || undefined}
+                        cardId={line.card_id}
                         alt={line.name}
                         cost={line.cost ?? null}
                         rarity={line.rarity}
@@ -1736,7 +1737,7 @@ export function GroupBuyDetailPage() {
                         <td className="card-cell">
                           <div className="card-cell-inner">
                             <MemberColorRail line={line} members={members} />
-                            <CardThumb src={line.image_url || undefined} alt={line.name} />
+                            <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
                             <div>
                               <div className="card-id">{line.card_id}</div>
                               <div>{line.name}</div>
@@ -2050,7 +2051,7 @@ export function PublicGroupBuyPage() {
               {lines.map((line) => (
                 <article key={line.card_id} className="grid-card need">
                   <div className="grid-card-media">
-                    <CardThumb src={line.image_url || undefined} alt={line.name} />
+                    <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
                   </div>
                   <div className="grid-card-body">
                     <div className="card-id">{line.card_id}</div>
@@ -2072,6 +2073,7 @@ export function PublicGroupBuyPage() {
                 <article key={line.card_id} className="mobile-card need">
                   <MobileCardMedia
                     src={line.image_url || undefined}
+                    cardId={line.card_id}
                     alt={line.name}
                     cost={line.cost ?? null}
                     rarity={line.rarity}
@@ -2105,7 +2107,7 @@ export function PublicGroupBuyPage() {
                     <tr key={line.card_id} className="need">
                       <td className="card-cell">
                         <div className="card-cell-inner">
-                          <CardThumb src={line.image_url || undefined} alt={line.name} />
+                          <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
                           <div>
                             <div className="card-id">{line.card_id}</div>
                             <div>{line.name}</div>
