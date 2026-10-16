@@ -10,8 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
-  { date: "2026-10-16", app: "duel", pr: 540, title: "Undo only applies what you saw", text: "If your opponent asks to undo the last action and then switches to undoing the whole turn just as you click Allow, your click now only counts for what you were shown. The undo window updates to the new request so you can choose again." },
   // 2026-10-16
+  { date: "2026-10-16", app: "duel", title: "Undo only applies what you saw", text: "If your opponent asks to undo the last action and then switches to undoing the whole turn just as you click Allow, your click now only counts for what you were shown. The undo window updates to the new request so you can choose again." },
   { date: "2026-10-16", app: "duel", title: "Log Pose stays where you drop it in one column", text: "With the side panels set to one column, a docked Log Pose you drag low in the column now stays there instead of jumping back to the top." },
   { date: "2026-10-16", app: "duel", title: "I Am Whitebeard!! gives the +2000", text: "I Am Whitebeard!! (ST22-015) now gives your Leader +2000 power when you add a Life card to your hand, even if you did not play an Edward.Newgate first. Before, the power was skipped in that case." },
   { date: "2026-10-16", app: "duel", title: "Bege and Bon Kurei fixes", text: "Capone \"Gang\" Bege (OP11-101) and Sabo (OP05-001) now save only the one Character they were used for when several are K.O.'d at once, instead of saving them all. Mr.2.Bon.Kurei (OP04-069) is now offered when your opponent's attacker gains power from its own [When Attacking], such as Fullbody with Jango." },
