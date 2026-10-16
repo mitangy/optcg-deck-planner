@@ -2299,7 +2299,7 @@ export function DuelBoard({
             </p>
           ) : null}
           <div className="undo-request-actions">
-            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept")}>
+            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept", { id: undoState.pending?.id })}>
               Allow
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => undo?.onAction("decline")}>
