@@ -1094,7 +1094,7 @@ describe("DuelRoom", () => {
       action: { seat: number; label: string } | null;
       options: { action: Opt; turn: Opt } | null;
       blockedReason: string | null;
-      pending: { from: number; scope: string; steps: number; force: boolean; revealReason: string | null } | null;
+      pending: { id: number; from: number; scope: string; steps: number; force: boolean; revealReason: string | null } | null;
     };
     type Applied = { toStep: number; toTurn: number; scope: string; steps: number; action: { label: string } };
     const bags: [SeatBag, SeatBag] = [
@@ -1132,7 +1132,8 @@ describe("DuelRoom", () => {
     };
     const request = (seat: 0 | 1, extra: Record<string, unknown> = {}) =>
       clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", ...extra });
-    const accept = (seat: 0 | 1) => clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+    const accept = (seat: 0 | 1, id?: number) =>
+      clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept", ...(id === undefined ? {} : { id }) });
     const last = (seat: 0 | 1) => undo[seat]!.at(-1)!;
     const close = async () => {
       await c0.leave(true);
@@ -1171,6 +1172,40 @@ describe("DuelRoom", () => {
     assert.equal(JSON.stringify(internals(t.room).match), turnTwoStart);
     assert.equal(t.steps(), stepsAtStart);
     await waitUntil(() => t.last(t.other).options?.action.steps === 1 && t.last(t.other).action?.label === "end turn", 5000);
+    await t.close();
+  });
+
+  it("an undo accept applies only the request the opponent saw (#540)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    const stepsBefore = t.steps();
+    await waitUntil(() => t.last(t.other).options?.turn.steps === 2, 5000);
+
+    t.request(t.other, { scope: "action" });
+    await waitUntil(() => t.last(t.active).pending?.scope === "action", 5000);
+    const seen = t.last(t.active).pending!;
+    // The requester widens to the whole turn just before the answer arrives.
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.last(t.active).pending?.scope === "turn", 5000);
+    assert.notEqual(t.last(t.active).pending!.id, seen.id);
+
+    // The stale answer is refused and the dialog is refreshed to the current request.
+    const states = t.undo[t.active]!.length;
+    t.accept(t.active, seen.id);
+    await waitUntil(() => t.bags[t.active].errors.some((e) => e.code === "illegal_intent"), 5000);
+    await waitUntil(() => t.undo[t.active]!.length > states, 5000);
+    assert.equal(t.applied.length, 0);
+    assert.equal(t.steps(), stepsBefore);
+    assert.equal(t.last(t.active).pending!.scope, "turn");
+
+    // Answering the current request applies exactly it.
+    t.accept(t.active, t.last(t.active).pending!.id);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps }, { scope: "turn", steps: 2 });
     await t.close();
   });
 

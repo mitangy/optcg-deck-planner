@@ -665,6 +665,8 @@ export type UndoOption = {
 
 /** An open request awaiting the other seat's answer. */
 export type UndoPending = {
+  /** Server-assigned per request; an accept echoes it so a changed request is not applied unseen (#540). Absent from older servers. */
+  id?: number;
   from: Seat;
   toTurn: number;
   action: UndoActionInfo | null;
@@ -710,7 +712,7 @@ export type HandOrderMessage = {
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
 /** Extra fields of a "request": default is the last action, not forced. */
-export type UndoRequestOptions = { scope?: UndoScope; force?: boolean };
+export type UndoRequestOptions = { scope?: UndoScope; force?: boolean; id?: number };
 
 function parseUndoOption(raw: unknown): UndoOption | null {
   if (!raw || typeof raw !== "object") return null;
@@ -734,6 +736,7 @@ export function parseUndoState(raw: unknown): UndoState {
   const pending: UndoPending | null =
     p && typeof p === "object" && (p.from === 0 || p.from === 1) && typeof p.toTurn === "number"
       ? {
+          ...(typeof p.id === "number" ? { id: p.id } : {}),
           from: p.from as Seat,
           toTurn: p.toTurn,
           action: parseUndoActionInfo(p.action),

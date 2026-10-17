@@ -195,13 +195,17 @@ export function mergeIntoColumn(layout: PanelLayout, side: PanelColumn): PanelLa
  * A reorder made in the one combined column, split back into the saved two:
  * the new order's first panels go to `side` (as many as it held before), the
  * rest to the other column, so switching back to Both still gives two
- * populated columns and an untouched order restores the saved layout.
+ * populated columns and an untouched order restores the saved layout. A docked
+ * panel (`docked`: Log Pose, which must stay in `side`) pulls the cut down to
+ * just after it, so moving it low in the column keeps it where it was put.
  */
-export function splitMergedLayout(next: PanelLayout, saved: PanelLayout, side: PanelColumn): PanelLayout {
+export function splitMergedLayout(next: PanelLayout, saved: PanelLayout, side: PanelColumn, docked?: PanelId): PanelLayout {
   const other: PanelColumn = side === "left" ? "right" : "left";
   const order = [...next[side], ...next[other]];
+  const at = docked ? order.indexOf(docked) : -1;
   const keep = saved[side].length;
-  return { [side]: order.slice(0, keep), [other]: order.slice(keep) } as PanelLayout;
+  const cut = Math.max(keep, at + 1);
+  return { [side]: order.slice(0, cut), [other]: order.slice(cut) } as PanelLayout;
 }
 
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {

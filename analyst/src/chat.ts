@@ -8,7 +8,7 @@ import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
-import { cardReferenceLine, COPILOT_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
+import { cardReferenceLine, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
 import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
@@ -608,7 +608,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   // The copilot text is a second block after the cached prefix, so turns without a game keep the same cached prefix.
   const system = [
     { type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
-    ...(game ? [{ type: "text", text: COPILOT_INSTRUCTIONS }] : []),
+    ...(game ? [{ type: "text", text: game.plans === false ? COPILOT_INSTRUCTIONS + NO_PLANS_INSTRUCTIONS : COPILOT_INSTRUCTIONS }] : []),
   ];
   const state = newRounds(userMessage);
   const turn = state.turn;
