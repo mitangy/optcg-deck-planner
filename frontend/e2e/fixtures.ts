@@ -59,8 +59,8 @@ type Planner = {
   audit(opts?: Parameters<typeof auditPage>[1]): Promise<AuditIssue[]>;
   /** Owned counts as the fake backend holds them. */
   owned: Map<string, number>;
-  /** Wanted alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
-  altWants: Map<string, number>;
+  /** Owned alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
+  altOwned: Map<string, number>;
   /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
   extras: Map<string, number>;
   /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
@@ -91,11 +91,13 @@ export const test = base.extend<{ planner: Planner }>({
     let signedIn = true;
     const createdDecks: Planner["createdDecks"] = [];
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
-    const altWants = new Map<string, number>();
+    const altOwned = new Map<string, number>();
     const extras = new Map<string, number>();
     let hasDecks = true;
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
+      const alt_arts = (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
+      const altsOwned = alt_arts.reduce((n, a) => n + a.owned, 0);
       return {
         card_id: c.card_id,
         name: c.name,
@@ -105,14 +107,15 @@ export const test = base.extend<{ planner: Planner }>({
         cost: c.cost,
         needed: c.needed,
         owned: o,
-        still_need: Math.max(0, c.needed - o),
+        alts_owned: altsOwned,
+        still_need: Math.max(0, c.needed - o - altsOwned),
         market_price: c.market_price,
         low_price: c.low_price,
         image_url: img(c.product_id),
         tcgplayer_url: c.product_id ? `https://www.tcgplayer.com/product/${c.product_id}` : "",
         product_id: c.product_id,
         section: c.section,
-        alt_arts: (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0 })),
+        alt_arts,
       };
     };
     const mainCards = CARDS.reduce((s, c) => s + c.needed, 0);
@@ -127,17 +130,8 @@ export const test = base.extend<{ planner: Planner }>({
       main_cards: mainCards,
       don_cards: 0,
     });
-    // Mirrors backend allocate_still_need_buys: wanted alt copies first (capped by still_need), the rest at the standard price.
-    const remainingCost = (v: ReturnType<typeof cardView>) => {
-      let left = v.still_need;
-      let total = 0;
-      for (const a of v.alt_arts) {
-        const take = Math.min(a.wanted, left);
-        total += take * a.market_price;
-        left -= take;
-      }
-      return Math.round((total + left * v.market_price) * 100) / 100;
-    };
+    // Mirrors the backend: still-needed copies are priced at the standard printing.
+    const remainingCost = (v: ReturnType<typeof cardView>) => Math.round(v.still_need * v.market_price * 100) / 100;
     const shopping = (withExtras = true) => {
       // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
       const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
@@ -145,7 +139,7 @@ export const test = base.extend<{ planner: Planner }>({
         const v = cardView(c);
         const extra = withExtras ? (extras.get(c.card_id) ?? 0) : 0;
         const need = Math.max(v.needed, extra);
-        const item = { ...v, need, still_need: Math.max(0, need - v.owned) };
+        const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
         return {
           ...item,
           remaining_cost: remainingCost(item),
@@ -161,7 +155,7 @@ export const test = base.extend<{ planner: Planner }>({
         ? CARDS.filter((c) => !deckCards.includes(c) && (extras.get(c.card_id) ?? 0) > 0).map((c) => {
             const v = cardView(c);
             const need = extras.get(c.card_id)!;
-            const item = { ...v, need, still_need: Math.max(0, need - v.owned) };
+            const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
             return {
               ...item,
               remaining_cost: remainingCost(item),
@@ -359,18 +353,19 @@ export const test = base.extend<{ planner: Planner }>({
           })),
         );
       }
+      // Alt-art copies owned: PUT /owned/:card/printings/:product (must match before /owned/:card).
+      if ((m = path.match(/^\/owned\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!).toUpperCase();
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        if (qty > 0) altOwned.set(`${cardId}:${m[2]}`, qty);
+        else altOwned.delete(`${cardId}:${m[2]}`);
+        return json({ card_id: cardId, product_id: Number(m[2]), qty });
+      }
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
         owned.set(cardId, qty);
         return json({ card_id: cardId, qty });
-      }
-      // Alt-art wants: the deck page saves one printing's count and gets the deck back.
-      if ((m = path.match(/^\/decks\/(\d+)\/cards\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
-        const cardId = decodeURIComponent(m[2]!).toUpperCase();
-        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
-        altWants.set(`${cardId}:${m[3]}`, qty);
-        return json(deckDetail());
       }
       // One ordered group buy for 4 × Kid & Killer. Mark purchased adds the receipt copies to Owned; Undo takes them back.
       if (path === "/group-buys") return json([groupBuy()]);
@@ -410,7 +405,7 @@ export const test = base.extend<{ planner: Planner }>({
 
     await use({
       owned,
-      altWants,
+      altOwned,
       extras,
       noDecks() {
         hasDecks = false;

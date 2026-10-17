@@ -104,13 +104,11 @@ module.exports = {
     { id: "mass-zero-need-included", file: mass, from: "  const included = cards.filter((c) => c.still_need > 0);", to: "  const included = cards;", kills: ["prefers product ids and skips zero qty"] },
     { id: "mass-product-ids-ignored", file: mass, from: "      if (buy.product_id != null && buy.product_id > 0) {", to: "      if (false) {", kills: ["prefers product ids and skips zero qty"] },
     { id: "mass-missing-not-counted", file: mass, from: "    if (cardHasFallback) missingProductId += 1;", to: "", kills: ["prefers product ids and skips zero qty"] },
-    { id: "mass-alts-ignored", file: mass, from: "  for (const alt of card.alt_arts ?? []) {", to: "  for (const alt of [] as MassEntryAlt[]) {", kills: ["allocates still_need to alt wants before the primary product"] },
     { id: "mass-url-too-long", file: mass, from: "    if (candidate.length <= MASS_ENTRY_URL_MAX_LEN) {", to: "    if (true) {", kills: ["omits url when the list is too long"] },
-    { id: "mass-alt-uncapped", file: mass, from: "    const take = Math.min(Math.max(0, want), remaining);", to: "    const take = Math.max(0, want);", kills: ["caps alt allocation by still_need"] },
     // Collection page (owned cards + value), #268
     { id: "collection-unpriced-not-counted", file: "frontend/src/ownedCollection.ts", from: "    if (item.value == null) unpriced += 1;", to: "    if (item.value == null) unpriced += 0;", kills: ["totals leave unpriced cards out of the value"] },
     { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value, buying };", to: "    return { ...item, owned: qty, buying };", kills: ["stepping Owned reprices the card"] },
-    { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter((i) => i.owned > 0));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
+    { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter(holdsCopies));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
     { id: "value-sort-uses-price", file: "frontend/src/cardListControls.tsx", from: "  if (key === \"value\") return compareDesc(a.value, b.value);", to: "  if (key === \"value\") return compareDesc(a.market_price, b.market_price);", kills: ["Value sort puts the most valuable holding first"] },
     // Log Pose chat (#377)
     { id: "logpose-on-share-pages", file: "frontend/src/logPose.ts", from: "const NO_LOG_POSE = [\"/share\", \"/login\"];", to: "const NO_LOG_POSE = [\"/login\"];", kills: ["keeps the compass off public share pages"] },
@@ -129,11 +127,24 @@ module.exports = {
     { id: "planner-context-ref-dropped", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { ref: `planner:${deck.id}` } : {}),\n", to: "", kills: ["sends a deck's main-deck cards with their copies, without the leader or DON!! (#377)"] },
     // Why? on a build hint (#399)
     { id: "logpose-deck-no-id", file: "frontend/src/logPose.ts", from: "    ...(deck.id ? { plannerDeckId: deck.id } : {}),\n", to: "", kills: ["tells Log Pose which planner deck is open"] },
-    // Deck "$ left" and optimistic owned patch price wanted alt arts (#433)
-    { id: "deck-cost-ignores-alt-wants", file: "frontend/src/deckCost.ts", from: "    const want = alt.wanted ?? 0;", to: "    const want = 0;", kills: ["prices wanted alt copies at the alt price and the rest at standard (#433)", "sums alt-aware costs and leaves out unpriced and finished cards (#433)"] },
-    { id: "deck-cost-alt-uncapped", file: "frontend/src/deckCost.ts", from: "    const take = Math.min(Math.max(0, want), remaining);", to: "    const take = Math.max(0, want);", kills: ["caps alt copies at still_need so extra wants are not bought (#433)"] },
-    { id: "deck-cost-alt-missing-price-zero", file: "frontend/src/deckCost.ts", from: "    if (alt.market_price == null) missingPrice = true;", to: "    if (alt.market_price == null) total += 0;", kills: ["returns null when a wanted alt has no price (#433)"] },
-    { id: "deck-cost-sum-counts-unpriced-as-standard", file: "frontend/src/deckCost.ts", from: "(remainingCostForCard(c) ?? 0)", to: "(remainingCostForCard(c) ?? c.still_need * 1)", kills: ["sums alt-aware costs and leaves out unpriced and finished cards (#433)"] },
+    // Deck "$ left" prices still-needed copies at the standard price (#625)
+    { id: "deck-cost-standard-price-ignored", file: "frontend/src/deckCost.ts", from: "Math.round(still * card.market_price * 100)", to: "Math.round(1 * card.market_price * 100)", kills: ["prices every still-needed copy at the standard price (#625)"] },
+    { id: "deck-cost-finished-unpriced-null", file: "frontend/src/deckCost.ts", from: "  if (still <= 0) return 0;\n", to: "", kills: ["is 0 for a finished card even when it has no price (#625)"] },
+    { id: "deck-cost-unpriced-counts-zero", file: "frontend/src/deckCost.ts", from: "  if (card.market_price == null) return null;", to: "  if (card.market_price == null) return 0;", kills: ["returns null when a needed copy has no price (#625)"] },
+    { id: "deck-cost-sum-counts-unpriced-as-standard", file: "frontend/src/deckCost.ts", from: "(remainingCostForCard(c) ?? 0)", to: "(remainingCostForCard(c) ?? c.still_need * 1)", kills: ["sums priced cards and leaves out unpriced and finished ones (#625)"] },
+    // Alt arts on by default (#625)
+    { id: "alt-arts-default-off", file: "frontend/src/cardListControls.tsx", from: "  return raw !== \"0\";", to: "  return raw === \"1\";", kills: ["shows alt arts when nothing is stored and hides them only after an explicit off (#625)"] },
+    { id: "alt-arts-off-ignored", file: "frontend/src/cardListControls.tsx", from: "  return raw !== \"0\";", to: "  return true;", kills: ["shows alt arts when nothing is stored and hides them only after an explicit off (#625)"] },
+    // Collection counts alt copies (#625)
+    { id: "collection-copies-skip-alts", file: "frontend/src/ownedCollection.ts", from: "    copies += item.owned + (item.alts_owned ?? 0);", to: "    copies += item.owned;", kills: ["copies and value include alt-art copies, and stepping base keeps their share (#625)"] },
+    { id: "collection-step-reprices-alts-at-base", file: "frontend/src/ownedCollection.ts", from: "      value = Math.round((item.value + (qty - item.owned) * item.market_price) * 100) / 100;", to: "      value = Math.round(qty * item.market_price * 100) / 100;", kills: ["copies and value include alt-art copies, and stepping base keeps their share (#625)"] },
+    { id: "collection-alt-only-card-leaves-totals", file: "frontend/src/ownedCollection.ts", from: "  return item.owned + (item.alts_owned ?? 0) > 0;", to: "  return item.owned > 0;", kills: ["a card owned only as alts stays in the totals when base goes to 0 (#625)"] },
+    // Owned alt becomes the main art (#625)
+    { id: "featured-alt-picks-first-owned", file: "frontend/src/altArt.ts", from: "n > (best.owned ?? 0)", to: "n >= (best.owned ?? 0)", kills: ["breaks ties toward the first alt in the list (#625)"] },
+    { id: "featured-alt-picks-least-owned", file: "frontend/src/altArt.ts", from: "n > (best.owned ?? 0)", to: "n < (best.owned ?? 0)", kills: ["picks the alt with the most owned copies (#625)"] },
+    { id: "featured-alt-needs-owned", file: "frontend/src/altArt.ts", from: "if (n > 0 && (best", to: "if ((best", kills: ["is null when no alt is owned (#625)"] },
+    { id: "main-image-ignores-owned-alt", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return card.image_url || undefined;", kills: ["shows the owned alt art, else the base art (#625)"] },
+    { id: "main-image-owned-alt-without-image", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return featuredAlt(card) ? featuredAlt(card)?.image_url : card.image_url || undefined;", kills: ["falls back to base when the owned alt has no image (#625)"] },
     // Meta deck browser (#443)
     { id: "meta-ordinal-teens", file: "frontend/src/meta.ts", from: "  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;\n", to: "", kills: ["ordinals use th for 11-13"] },
     { id: "meta-name-always-ordinal", file: "frontend/src/meta.ts", from: "const place = deck.placing ? `${ordinal(deck.placing)} ` : \"\";", to: "const place = `${ordinal(deck.placing ?? 0)} `;", kills: ["deck name is leader, placing ordinal, event"] },

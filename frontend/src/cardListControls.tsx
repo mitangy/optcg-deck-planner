@@ -3,7 +3,14 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 export const CARD_SORTS_KEY = "optcg_card_sorts";
 export const FILTERS_OPEN_KEY = "optcg_filters_open";
-export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts";
+// v2: the old key holds "0" for nearly everyone (it was written on every visit),
+// so reading it would keep alt arts hidden. A missing v2 value means ON.
+export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts_v2";
+
+/** Alt arts are shown unless the visitor turned them off. */
+export function showAltArtsFromStored(raw: string | null): boolean {
+  return raw !== "0";
+}
 
 export const COLOR_ORDER = ["Red", "Green", "Blue", "Purple", "Black", "Yellow"];
 const SET_PREFIX_ORDER = ["OP", "ST", "EB", "PRB", "P"];
@@ -505,9 +512,9 @@ export function CardSearchInput({
 export function useShowAltArts() {
   const [showAltArts, setShowAltArts] = useState(() => {
     try {
-      return localStorage.getItem(SHOW_ALT_ARTS_KEY) === "1";
+      return showAltArtsFromStored(localStorage.getItem(SHOW_ALT_ARTS_KEY));
     } catch {
-      return false;
+      return true;
     }
   });
   useEffect(() => {

@@ -3375,6 +3375,23 @@ tr.done td {
   max-width: 100%;
 }
 
+/* Desktop table rows: alt arts sit under the card instead of in their own column, so
+   the table stays as narrow as without them (it must fit beside the deck stats dock). */
+.card-cell-alts {
+  min-width: 0;
+  margin-top: 0.5rem;
+}
+
+.card-cell-alts .alt-arts {
+  max-width: 100%;
+}
+
+.deck-main .card-cell .card-cell-alts .alt-art .thumb,
+.card-cell-alts .alt-art .thumb {
+  width: 52px;
+  height: 72px;
+}
+
 .data-table td:has(.group-buy-printing) {
   min-width: 12.5rem;
   max-width: 16rem;
@@ -5739,9 +5756,40 @@ tr.row-flash > td {
   min-width: 0;
 }
 
-.used-in-cell > span:first-child {
+.used-in-note {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* One chip per deck the card is in (within the selected deck filter). */
+.used-in-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.used-in-chip {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card-sunk);
+  color: var(--ink);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-card-used-in {
+  min-width: 0;
 }
 
 button.remove-extra {
@@ -6186,4 +6234,14 @@ html[data-lp-dock] .topbar {
   .topbar .build-tag {
     display: none;
   }
+}
+
+/* Base art tile beside the alt arts once an owned alt is the main image. */
+.alt-art-base {
+  border-style: dashed;
+}
+
+.alt-base-label {
+  font-weight: 700;
+  color: var(--muted);
 }

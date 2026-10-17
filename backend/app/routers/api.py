@@ -43,6 +43,8 @@ from app.schemas import (
     GroupBuyReceiptMatchRequest,
     GroupBuySummary,
     OwnedCollectionResponse,
+    OwnedPrintingResult,
+    OwnedPrintingUpdate,
     OwnedUpdate,
     ShoppingExtraUpdate,
     PrintingView,
@@ -331,6 +333,25 @@ def put_owned(
 ):
     qty = services.set_owned(db, user, card_id, body.qty)
     return {"card_id": card_id.upper(), "qty": qty}
+
+
+@router.put(
+    "/owned/{card_id}/printings/{product_id}",
+    response_model=OwnedPrintingResult,
+)
+def put_owned_printing(
+    card_id: str,
+    product_id: int,
+    body: OwnedPrintingUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set how many copies of an alt printing the user owns."""
+    try:
+        qty = services.set_alt_owned(db, user, card_id, product_id, body.qty)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
 @router.get("/share/shopping", response_model=ShareInfo | None)
