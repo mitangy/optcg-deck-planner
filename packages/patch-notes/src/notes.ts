@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-17
-  { date: "2026-10-17", app: "duel", pr: 619, title: "Duel decks follow your account", text: "Your duel decks are now saved to your account and follow you to every device. Decks already in this browser are moved over the first time you sign in." },
+  { date: "2026-10-17", app: "duel", pr: 624, title: "Duel decks follow your account", text: "Your duel decks are now saved to your account and follow you to every device. Decks already in this browser are moved over the first time you sign in." },
   // 2026-10-16
   { date: "2026-10-16", app: "duel", pr: 616, title: "Sharper alt art previews", text: "The preview pictures for alternate and SP arts that TCGPlayer has no images for yet, like the EB05 ones, are now much sharper and easier to read in the card pop-up. They swap to the real picture as soon as TCGPlayer posts it." },
   // 2026-10-15
