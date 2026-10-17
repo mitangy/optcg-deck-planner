@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-17
+  { date: "2026-10-17", app: "duel", pr: 623, title: "Cards no longer get stuck to your mouse", text: "If you pressed a card in your hand and let go after the mouse slid off it, the card could lift on its own the next time you moved over it and then get played by accident. Letting go anywhere now ends the press, so a card is only played when you actually drag or click to play it." },
   // 2026-10-16
   { date: "2026-10-16", app: "duel", pr: 616, title: "Sharper alt art previews", text: "The preview pictures for alternate and SP arts that TCGPlayer has no images for yet, like the EB05 ones, are now much sharper and easier to read in the card pop-up. They swap to the real picture as soon as TCGPlayer posts it." },
   // 2026-10-15
