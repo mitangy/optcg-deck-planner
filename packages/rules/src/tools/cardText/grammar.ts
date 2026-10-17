@@ -602,6 +602,13 @@ const EFFECT_RULES: EffectRule[] = [
   [new RegExp(`^(.+?)'s? base power becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); return target && d ? { do: "base_power", target, value: num(m[2]!), duration: d } : null; }],
   [new RegExp(`^set the base power of (.+?) to (\\d+) ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]); return target && d ? { do: "base_power", target, value: num(m[2]!), duration: d } : null; }],
   [new RegExp(`^(.+?) gains? \\[(Rush|Blocker|Double Attack|Banish|Unblockable|Rush: Character)\\] ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const k = keywordOf(m[2]!); const d = parseDuration(m[3]); return target && k && d ? { do: "keyword", target, keyword: k, duration: d } : null; }],
+  // "Up to 1 of your X gains [A], [B], or [C] during this turn": the player selects the card, then picks exactly one keyword to grant.
+  [new RegExp(`^(up to \\d+ .+?) gains? ((?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )+(?:or )?\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]|\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\] or \\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]) ${DUR}$`, "i"), (m, ctx) => {
+    const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[3]);
+    const keywords = [...m[2]!.matchAll(/\[([^\]]+)\]/g)].map((k) => k[1]!);
+    if (!target || target.ref !== "choose" || !d || keywords.some((k) => !keywordOf(k))) return null;
+    return { do: "seq", steps: [{ do: "select", bind: "_last", selector: target.selector, min: target.min, max: target.max }, { do: "choose_one", options: keywords.map((k) => ({ label: `Gain [${k}]`, effect: { do: "keyword" as const, target: { ref: "var" as const, name: "_last" }, keyword: keywordOf(k)!, duration: d } })) }] };
+  }],
   [new RegExp(`^(.+?) gains? \\[(Rush|Blocker|Double Attack|Banish|Unblockable)\\] and ([+-]\\d+) power ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx, "_last"); const k = keywordOf(m[2]!); const d = parseDuration(m[4]); if (!target || !k || !d) return null; return { do: "seq", steps: [{ do: "keyword", target, keyword: k, duration: d }, { do: "power", target: target.ref === "choose" ? { ref: "var", name: "_last" } : target, amount: signed(m[3]!), duration: d }] }; }],
   [/^add up to (\d+) DON!! cards? from your DON!! deck and set (?:it|them) as active$/i, (m) => ({ do: "add_don", player: "you", count: num(m[1]!), rested: false })],
   [/^add up to (\d+) DON!! cards? from your DON!! deck and rest (?:it|them)$/i, (m) => ({ do: "add_don", player: "you", count: num(m[1]!), rested: true })],
@@ -621,9 +628,10 @@ const EFFECT_RULES: EffectRule[] = [
   [/^add (\d+) cards? from the top of your opponent's life cards to the owner's hand$/i, (m) => ({ do: "life_to_hand", player: "opponent", count: num(m[1]!), position: "top" })],
   [/^trash (\d+) cards? from the top of (your|your opponent's) life cards$/i, (m) => ({ do: "trash_life", player: rel(m[2]!), count: num(m[1]!) })],
   [/^trash up to (\d+) cards? from the top of (your|your opponent's) life cards$/i, (m) => ({ do: "may", then: { do: "trash_life", player: rel(m[2]!), count: num(m[1]!) }, prompt: `trash the top card of ${rel(m[2]!) === "you" ? "your" : "your opponent's"} Life` })],
-  [/^add up to (\d+) (.+?) from your hand to the top of your life cards( face-up)?$/i, (m, ctx) => {
-    if (/^cards?$/i.test(m[2]!)) return { do: "hand_to_life", count: num(m[1]!), position: "top", faceUp: Boolean(m[3]), min: 0 };
-    const p = parseCardPhrase(`all ${m[2]!}`, ctx); return p ? { do: "hand_to_life", count: num(m[1]!), position: "top", faceUp: Boolean(m[3]), min: 0, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null;
+  [/^add up to (\d+) (.+?) from your hand to the (top|top or bottom) of your life cards( face-up)?$/i, (m, ctx) => {
+    const position = m[3]!.toLowerCase() === "top" ? "top" : "top_or_bottom";
+    if (/^cards?$/i.test(m[2]!)) return { do: "hand_to_life", count: num(m[1]!), position, faceUp: Boolean(m[4]), min: 0 };
+    const p = parseCardPhrase(`all ${m[2]!}`, ctx); return p ? { do: "hand_to_life", count: num(m[1]!), position, faceUp: Boolean(m[4]), min: 0, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null;
   }],
   [/^turn (?:up to )?(\d+) cards? from the top of your life cards face-(up|down)$/i, (m) => ({ do: "life_face", player: "you", count: num(m[1]!), faceUp: m[2] === "up" })],
   [/^turn all of your life cards face-(up|down)$/i, (m) => ({ do: "life_face", player: "you", count: 99, faceUp: m[1] === "up" })],

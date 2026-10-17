@@ -132,7 +132,7 @@ function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; con
   return null;
 }
 
-const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent's effect)?, (you may )?(.+?) instead$/i;
+const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent(?:'s effect)?)?, (you may )?(.+?) instead$/i;
 
 /** "If you would take damage, you may trash this Character instead." */
 const DAMAGE_REPLACEMENT_RE = /^if you would take damage, (you may )?(.+?) instead$/i;
@@ -162,7 +162,10 @@ function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   if (/leave the field/i.test(m[4]!)) event = "ko";
   // "would be removed from the field" (any cause, own effects and bounce included) is not only a K.O.
   else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = m[5] ? "ko" : "removed";
-  else if (m[4]!.toLowerCase().startsWith("removed")) event = "removed_by_opponent_effect";
+  // "removed from the field by your opponent" (no "effect") also covers the opponent K.O.ing it in battle.
+  else if (m[4]!.toLowerCase().startsWith("removed")) {
+    return buildReplacement({ event: "removed_by_opponent_effect", ...(/by your opponent(?!')/i.test(m[0]!) ? { alsoEvents: ["ko_in_battle" as const] } : {}), byOpponent }, target, m, ctx);
+  }
   else if (how.includes("battle")) event = "ko_in_battle";
   else if (how.includes("effect")) event = "ko_by_effect";
   else event = "ko";
