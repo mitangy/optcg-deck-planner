@@ -73,3 +73,47 @@ export async function downloadAccountCosmetic(id: number): Promise<Blob> {
   if (!res.ok) throw new ApiError(res.status, `Could not load image (${res.status})`);
   return res.blob();
 }
+
+/** A saved duel deck as the account stores it (the browser's `SavedDeck` minus its id and time). */
+export type AccountDeckBody = {
+  name: string;
+  leaderId: string;
+  cards: string[];
+  artPrefs?: Record<string, string>;
+  plannerDeckId?: number;
+  editedLocally?: boolean;
+};
+
+export type AccountDeck = {
+  id: string;
+  updatedAt: number;
+  deleted: boolean;
+  deck?: AccountDeckBody | null;
+};
+
+export function fetchAccountDecks(): Promise<{ decks: AccountDeck[] }> {
+  return call("/duel/decks");
+}
+
+export function putAccountDecks(
+  decks: { id: string; deck: AccountDeckBody; updatedAt: number }[],
+): Promise<{ decks: AccountDeck[] }> {
+  return call("/duel/decks", { method: "PUT", ...json({ decks }) }, "Could not save decks");
+}
+
+/** Resolves to the account's copy: yours if it won, the stored one if that was newer. */
+export function putAccountDeck(id: string, deck: AccountDeckBody, updatedAt: number): Promise<AccountDeck> {
+  return call(
+    `/duel/decks/${encodeURIComponent(id)}`,
+    { method: "PUT", ...json({ deck, updatedAt }) },
+    "Could not save deck",
+  );
+}
+
+export function deleteAccountDeck(id: string, updatedAt: number): Promise<AccountDeck> {
+  return call(
+    `/duel/decks/${encodeURIComponent(id)}?updatedAt=${updatedAt}`,
+    { method: "DELETE" },
+    "Could not delete deck",
+  );
+}

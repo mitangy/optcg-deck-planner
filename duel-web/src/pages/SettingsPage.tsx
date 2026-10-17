@@ -8,7 +8,7 @@ import {
   saveCosmetic,
   useAccountCosmetics,
 } from "../account/cosmeticsSync";
-import { startAccountSync, stopAccountSync } from "../account/accountSync";
+import { flushAccountSync, startAccountSync, stopAccountSync } from "../account/accountSync";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { DonArtPicker } from "./DonArtPicker";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
@@ -139,8 +139,8 @@ export function SettingsPage() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
-                    void logoutSession().then(() => {
-                      stopAccountSync();
+                    void flushAccountSync().then(logoutSession).then(() => {
+                      stopAccountSync({ clearDecks: true });
                       setAuthUser(null);
                       setRating(null);
                     });

@@ -59,17 +59,28 @@ for (const size of SIZES) {
 
       await nav.getByRole("button", { name: "Sound" }).click();
       const heading = sheet.getByRole("heading", { name: "Sound and alerts" });
-      // Smooth scrolling settles on its own; wait for the heading to stop moving.
+      // Smooth scrolling settles on its own. Wait for where it should end up, not just for a pause:
+      // on a busy runner two samples can match mid-scroll.
+      const boxes = async () => ({
+        sheetBox: (await sheet.boundingBox())!,
+        navBox: (await nav.boundingBox())!,
+        headBox: (await heading.boundingBox())!,
+      });
       await expect
-        .poll(async () => {
-          const a = (await heading.boundingBox())!.y;
-          await page.waitForTimeout(120);
-          return Math.abs(a - (await heading.boundingBox())!.y) < 0.5;
-        })
+        .poll(
+          async () => {
+            const { sheetBox: s, navBox: n, headBox: h } = await boxes();
+            return (
+              n.y >= s.y - 1 &&
+              n.y <= s.y + 6 &&
+              h.y >= n.y + n.height - 1 &&
+              h.y + h.height <= s.y + s.height + 1
+            );
+          },
+          { timeout: 10_000 },
+        )
         .toBe(true);
-      const sheetBox = (await sheet.boundingBox())!;
-      const navBox = (await nav.boundingBox())!;
-      const headBox = (await heading.boundingBox())!;
+      const { sheetBox, navBox, headBox } = await boxes();
       // The chip row is still at the top of the sheet, and the heading is in view just under it (not hidden behind it).
       expect(navBox.y).toBeGreaterThanOrEqual(sheetBox.y - 1);
       expect(navBox.y).toBeLessThanOrEqual(sheetBox.y + 6);

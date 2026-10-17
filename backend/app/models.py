@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -916,6 +917,27 @@ class DuelUserSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class DuelSavedDeck(Base):
+    """A signed-in player's saved duel deck (the browser keeps its own cache).
+
+    ``deck_id`` is the client's id; ``updated_at_ms`` is the client's
+    ``updatedAt`` and decides last-writer-wins. A deleted deck stays as a
+    tombstone (``deleted``, ``data`` empty) so other devices learn of it.
+    """
+
+    __tablename__ = "duel_saved_decks"
+    __table_args__ = (UniqueConstraint("user_id", "deck_id", name="uq_duel_saved_deck"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    deck_id: Mapped[str] = mapped_column(String(64))
+    data: Mapped[str] = mapped_column(Text, default="")
+    updated_at_ms: Mapped[int] = mapped_column(BigInteger, default=0)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class DuelCosmetic(Base):
