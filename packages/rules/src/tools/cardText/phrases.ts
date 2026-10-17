@@ -247,6 +247,12 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     if ((m = new RegExp(`^(${COLORS.join("|")})(?:(?:, | or | and )(${COLORS.join("|")}))* `, "i").exec(text))) {
       filter.colors = m[0].trim().split(/, | or | and /).map((c) => c.toLowerCase()); text = text.slice(m[0].length); continue;
     }
+    // "{A} type Character card or Character card with a type including "B" / with a [Trigger]": either alternative
+    // qualifies. Must come before the plain "{A} type" rule below, which would take only the first half.
+    if ((m = /^(§T\d+§(?:(?:, | or )§T\d+§)*) type (?:cards?|characters?|character cards?) or (?:cards?|characters?|character cards?) (?:with a type including (§Q\d+§)|with (?:a )?\[Trigger\]),? ?/i.exec(text))) {
+      const traits = traitList(m[1]!, ctx); const q = m[2] ? quote(m[2], ctx) : null; if (!traits || (m[2] && !q)) return null;
+      filter.any = [{ traits }, q ? { traitIncludes: [q] } : { hasTrigger: true }]; text = (/character/i.test(m[0]) ? "character cards " : "cards ") + text.slice(m[0].length); continue;
+    }
     if ((m = /^(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) { const traits = traitList(m[1]!, ctx); if (!traits) return null; filter.traits = traits; text = text.slice(m[0].length); continue; }
     if ((m = /^\[(Blocker|Rush|Double Attack|Banish|Trigger)\] /.exec(text))) {
       if (m[1] === "Trigger") filter.hasTrigger = true; else filter.keyword = m[1]!.toLowerCase().replace(" ", "_") as Filter["keyword"];
@@ -259,10 +265,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       const names = nameList(m[1]!, ctx); if (!names) return null;
       const other: Filter = { types: [m[3]!.toLowerCase() as "event"], ...(m[2] ? { colors: [m[2].toLowerCase()] } : {}) };
       filter.any = [{ names }, other]; text = "cards " + text.slice(m[0].length); continue;
-    }
-    if ((m = /^(§T\d+§(?:(?:, | or )§T\d+§)*) type (?:cards?|characters?|character cards?) or (?:cards?|characters?|character cards?) with a type including (§Q\d+§) ?/.exec(text))) {
-      const traits = traitList(m[1]!, ctx); const q = quote(m[2]!, ctx); if (!traits || !q) return null;
-      filter.any = [{ traits }, { traitIncludes: [q] }]; text = (/character/i.test(m[0]) ? "character cards " : "cards ") + text.slice(m[0].length); continue;
     }
     if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) {
       const names = nameList(m[1]!, ctx); const traits = traitList(m[2]!, ctx); if (!names || !traits) return null;

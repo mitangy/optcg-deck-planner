@@ -202,7 +202,7 @@ const effect: V = tagged("do", {
   grant: variant("do", "grant", { ability: str, duration }),
   discard: variant("do", "discard", { player: rel, count: value }, { chooser: rel, filter, min: int(0), random: bool }),
   hand_to_deck: variant("do", "hand_to_deck", { player: rel, count: int(1), position: oneOf("top", "bottom", "top_or_bottom") }, { chooser: rel, filter, min: int(0) }),
-  hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom"), faceUp: bool }, { filter, min: int(0), reveal: bool }),
+  hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom", "top_or_bottom"), faceUp: bool }, { filter, min: int(0), reveal: bool }),
   deck_to_life: variant("do", "deck_to_life", { player: rel, count: int(1) }, { faceUp: bool }),
   life_to_hand: variant("do", "life_to_hand", { player: rel, count: int(1), position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
   trash_life: variant("do", "trash_life", { player: rel, count: value }, { position: oneOf("top", "top_or_bottom") }),

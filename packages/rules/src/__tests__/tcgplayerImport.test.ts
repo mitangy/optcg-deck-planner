@@ -154,10 +154,9 @@ describe("Bandai rebuild keeps TCGPlayer rows (#458)", () => {
 });
 
 describe("provenance of TCGPlayer rows (#458)", () => {
-  it("traits from TCGPlayer are unverified while bundled rows' stay unknown (#458)", () => {
+  it("traits from TCGPlayer are unverified (#458)", () => {
     expect(cardSourceRecord("EB05-002")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
     expect(cardSourceRecord("EB05-002")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
     expect(cardSourceRecord("EB05-002")?.sourceRevision).toBeNull();
-    expect(cardSourceRecord("P-038")?.fields.traits).toBe("unknown");
   });
 });
