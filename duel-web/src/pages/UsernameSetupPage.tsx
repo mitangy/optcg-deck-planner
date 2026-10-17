@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { stopAccountSync } from "../account/accountSync";
+import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
 import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
@@ -66,7 +66,7 @@ export function UsernameSetupPage() {
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={() => {
-                void logoutSession().then(() => {
+                void flushAccountSync().then(logoutSession).then(() => {
                   stopAccountSync({ clearDecks: true });
                   setRating(null);
                   navigate("/", { replace: true });

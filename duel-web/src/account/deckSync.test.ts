@@ -9,7 +9,7 @@ const api = vi.hoisted(() => ({
 vi.mock("../net/prefsApi", () => api);
 
 import { deleteDeck, getSelectedDeckId, listSavedDecks, saveDeck, setSelectedDeckId } from "../decks/storage";
-import { clearAccountDecks, stopDeckSync, syncDecks } from "./deckSync";
+import { clearAccountDecks, flushDeckSync, stopDeckSync, syncDecks } from "./deckSync";
 
 const wire = (id: string, updatedAt: number, name = id) => ({
   id,
@@ -46,6 +46,14 @@ describe("deck sync (#619)", () => {
     await syncDecks(7);
     expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id)).toEqual(["mine"]);
     expect(listSavedDecks().map((d) => d.id).sort()).toEqual(["mine", "theirs"]);
+  });
+
+  it("sign-out flush sends an edit still waiting on the push delay (#619)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "late", name: "Late", leaderId: "ST01-001", cards: [] });
+    await flushDeckSync();
+    expect(api.putAccountDeck.mock.calls.map((c) => c[0])).toEqual(["late"]);
   });
 
   it("pushes a later save after a short pause, and a delete as a delete", async () => {

@@ -28,6 +28,8 @@ const BULK_CHUNK = 50;
 type Pending = Record<string, number>;
 
 let stop: (() => void) | null = null;
+/** Sends every waiting edit now (set while a sync runs). */
+let flushNow: (() => Promise<void>) | null = null;
 /** Bumped by every start / stop: a load that settles under an older value was cancelled. */
 let syncGen = 0;
 
@@ -153,6 +155,13 @@ export async function syncDecks(userId: number): Promise<void> {
     unsubscribe();
     for (const t of timers.values()) clearTimeout(t);
     timers.clear();
+    flushNow = null;
+  };
+  flushNow = async () => {
+    if (!loaded) return;
+    for (const t of timers.values()) clearTimeout(t);
+    timers.clear();
+    await Promise.all(Object.keys(readPending()).map((id) => pushOne(id).catch(() => undefined)));
   };
 
   const { decks } = await fetchAccountDecks();
@@ -202,6 +211,13 @@ export async function syncDecks(userId: number): Promise<void> {
   for (const id of Object.keys(readPending())) {
     if (!timers.has(id)) schedule(id);
   }
+}
+
+/** Sign-out: send edits still waiting on the push delay before the session ends (gives up after `timeoutMs`). */
+export async function flushDeckSync(timeoutMs = 3000): Promise<void> {
+  const run = flushNow;
+  if (!run) return;
+  await Promise.race([run(), new Promise<void>((r) => setTimeout(r, timeoutMs))]);
 }
 
 export function stopDeckSync(): void {

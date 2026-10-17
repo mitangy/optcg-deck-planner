@@ -1,7 +1,7 @@
 /** Starts / stops syncing settings, cosmetics and saved decks with the signed-in account. */
 import { fetchAuthMe, type AuthUser } from "../net/api";
 import { stopCosmeticsSync, syncCosmetics } from "./cosmeticsSync";
-import { clearAccountDecks, stopDeckSync, syncDecks } from "./deckSync";
+import { clearAccountDecks, flushDeckSync, stopDeckSync, syncDecks } from "./deckSync";
 import { stopSettingsSync, syncSettings } from "./settingsSync";
 
 let syncedUserId: number | null = null;
@@ -25,4 +25,9 @@ export function stopAccountSync(opts: { clearDecks?: boolean } = {}): void {
   stopCosmeticsSync();
   if (opts.clearDecks) clearAccountDecks();
   else stopDeckSync();
+}
+
+/** Before signing out: send account edits that are still waiting to go up. */
+export function flushAccountSync(): Promise<void> {
+  return flushDeckSync();
 }
