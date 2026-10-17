@@ -80,6 +80,12 @@ function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): 
   card.usedAbilities = rest;
 }
 
+/** Conditions checked only when a queued trigger is about to resolve (`Ability.resolveConditions`). */
+export function resolveGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string }, ability: Ability, eventCardId?: InstanceId): boolean {
+  const ctx: EvalCtx = { seat, sourceId: source.id, sourceDefId: source.defId, vars: {}, ...(eventCardId ? { eventCardId } : {}) };
+  return (ability.resolveConditions ?? []).every((c) => evalCond(state, ctx, c));
+}
+
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
@@ -646,6 +652,9 @@ function coverBatch(state: MatchState, replFrame: ResolutionFrame, parent: Resol
   if (r.event === "removed_by_opponent_effect" && !byOpponent) return;
   const source = locate(state, replFrame.sourceInstanceId)?.card ?? { id: replFrame.sourceInstanceId, defId: replFrame.sourceDefId, rested: false, attachedDonIds: [] };
   const from = typeof parent.bindings._actIndex === "number" ? parent.bindings._actIndex + 1 : ids.length;
+  // Only a plain payment is shared by the batch; a replacement that acts on the protected card (Bege's "add it to Life",
+  // Sabo's "-1000 to it") saves just the one it was used for (#593).
+  if (r.instead.do !== "pay") return;
   for (const id of ids.slice(from) as string[]) {
     const key = `_repl:${id}`;
     const loc = locate(state, id);

@@ -59,6 +59,8 @@ const gameSnapshot = z.object({
   turn: z.number().int().min(0).max(1000),
   phase: z.string().max(40),
   yourTurn: z.boolean(),
+  first: z.boolean().optional(),
+  mulliganDone: z.boolean().optional(),
   you: z.object({
     ...board,
     hand: z.array(z.object({ id: instId, defId, cost: count.optional(), counter: count.optional() })).max(20),
@@ -78,6 +80,8 @@ const gameSnapshot = z.object({
 export const gameContext = z.object({
   ticket: z.string().min(10).max(4000),
   snapshot: gameSnapshot,
+  /** False when the player has not turned on the copilot setting: Log Pose coaches in words and plans are refused. */
+  plans: z.boolean().optional(),
   log: z.array(z.string().max(200)).max(40).optional(),
 });
 
@@ -176,6 +180,10 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
   ];
   const lines: string[] = [
     `turn ${s.turn}, phase ${s.phase}, ${s.yourTurn ? "your turn" : "opponent's turn"}`,
+    ...(s.first === undefined ? [] : [s.first ? "You go first." : "You go second."]),
+    ...(s.phase === "mulligan"
+      ? [`Mulligan step: Your hand is your opening 5 cards. You may keep it or mulligan once (return all 5, shuffle, draw 5).${s.mulliganDone ? " You already chose." : ""}`]
+      : []),
     ...side("Your", s.you),
     `Your rested DON!!: ${s.you.donRested}`,
     `Your hand: ${s.you.hand.length ? s.you.hand.map((h) => `${nameOfDef(catalog, h.defId)} [${h.id}] (cost ${h.cost ?? catalog.cards.get(h.defId)?.cost ?? "?"}${h.counter ? `, counter ${h.counter}` : ""})`).join("; ") : "empty"}`,
@@ -224,12 +232,17 @@ function describeLegal(a: LegalAction, named: (id: string) => string): string {
   }
 }
 
+/** Added after COPILOT_INSTRUCTIONS when the copilot setting is off: the game is attached but plans are not. */
+export const NO_PLANS_INSTRUCTIONS = `
+Turn play-out is off for this game, so propose_turn_plan is refused: give the line in words. If they want turns played out, they can turn on the Log Pose copilot setting in duel settings.`;
+
 export const COPILOT_INSTRUCTIONS = `
 
 The player turned on Log Pose for their live casual game. Their message starts with a <game> block: the board as they see it, their hand, the legal actions, the recent log, their deck list and the cards on the table. You coach; you do not play.
 You only know what is in the <game> block. Never guess the opponent's hand or deck order; reason about what their leader usually plays and call it your read. Card text for cards on the table is in the block's card reference; look up anything else with get_cards.
 Be brief: the player reads this on a phone between moves. Keep in-game answers to about 60 words in at most three short lines, with no headings: the play first in one line (for example "Attack their Leader with Luffy, +2 DON!!"), then one or two sentences of why. Add an alternative, a risk or a number only when it would change their decision. Don't recap the board, their hand or the legal actions, and don't quote card text back; they can see it. Go deeper only when they ask for more.
 When they ask you to plan or play their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one sentence what the plan does and that they tap Play this turn to run it; don't list the steps again, the plan card shows them. Keep each step's why to a few words, and leave it out when the step is obvious. If the tool refuses, fix the plan and call it again. Never say you made a move: only the player runs the plan.
+In the mulligan step, judge keep or mulligan from Your hand, your deck list and whether they go first; never ask them for their hand, it is in the block.
 Choices that come up mid-turn (searches, targets, triggers) are the player's; mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.`;
 
 const planStep = z.object({
@@ -395,6 +408,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args) => {
       if (!game) return refusal(NO_GAME_ERROR);
+      if (game.plans === false) return refusal("Turn play-out is off for this game; describe the line in words instead.");
       const r = checkTurnPlan(catalog, game, args as { summary: string; steps: PlanStepInput[] });
       return r.ok ? { content: [{ type: "text" as const, text: JSON.stringify(r.plan) }] } : refusal(r.error);
     },

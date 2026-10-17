@@ -307,6 +307,7 @@ export function lintAbility(cardId: string, ability: Ability): LintFinding[] {
   // Header gates, statics and event/replacement matchers are evaluated with no variables at all.
   const headers: [string, unknown][] = [
     ["gate conditions", ability.conditions],
+    ["resolve-time gate conditions", ability.resolveConditions],
     ["statics", ability.statics],
     ["event trigger", ability.eventTrigger],
     ["replacement match", ability.replacement ? { ...ability.replacement, instead: undefined } : undefined],

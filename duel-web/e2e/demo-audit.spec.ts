@@ -1222,6 +1222,50 @@ for (const variant of dragAnywhere) {
       await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
     });
 
+    // A press that leaves the card in one jump and lets go elsewhere never reaches the card's own
+    // pointer up, so the press stayed armed: the next plain hover over the card (no button held)
+    // lifted it as a drag stuck to the pointer, and the next click anywhere played it.
+    test(`a press released off the card does not lift it on the next hover or play it on the next click (#621)${variant.name}`, async ({ page }) => {
+      test.skip(test.info().project.name === "phone-375", "mouse only: a touch press is captured by its card");
+      // With One-tap actions a click that selects a playable card plays it at once.
+      await page.addInitScript(() =>
+        localStorage.setItem("optcg-duel:settings", JSON.stringify({ oneTapActions: true })),
+      );
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const card = cards.first();
+      await page.mouse.move(4, 4);
+      await page.waitForFunction(() =>
+        document
+          .getAnimations()
+          .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+      );
+      let b = (await card.boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + 12);
+      await page.waitForTimeout(450);
+      b = (await card.boundingBox())!;
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const spot = await emptySpot(page);
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      // One jump off the card, then let go there.
+      await page.mouse.move(spot.x, spot.y, { steps: 1 });
+      await page.mouse.up();
+      // Back over the card with no button held, moving across it.
+      await page.mouse.move(start.x, start.y + 14, { steps: 1 });
+      await page.mouse.move(start.x, start.y - 14, { steps: 3 });
+      await page.waitForTimeout(200);
+      await expect(page.locator(".card-tile.card-dragging")).toHaveCount(0);
+      await page.mouse.click(spot.x, spot.y);
+      await page.waitForTimeout(400);
+      expect(await sent()).toEqual([]);
+      await expect(card).not.toHaveClass(/selected/);
+    });
+
     test(`with Sort on, a card dropped back on the hand is not played or moved (#552)${variant.name}`, async ({ page }) => {
       await page.addInitScript(() =>
         localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })),

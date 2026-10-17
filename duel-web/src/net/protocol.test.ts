@@ -287,6 +287,12 @@ describe("undo messages name the action they take back (#497)", () => {
     expect(state.pending).toMatchObject({ from: 0, toTurn: 3, action: { seat: 1, label: "attack with Zoro" } });
   });
 
+  it("keeps the open request's id so Allow can echo it (#540)", () => {
+    const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { id: 4, from: 1, toTurn: 2 } });
+    expect(state.pending?.id).toBe(4);
+    expect(parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } }).pending?.id).toBeUndefined();
+  });
+
   it("still reads a server that sends no action: the request survives with a null action (#497)", () => {
     const state = parseUndoState({ ...v, enabled: true, targetTurn: 2, pending: { from: 1, toTurn: 2 } });
     expect(state.action).toBeNull();

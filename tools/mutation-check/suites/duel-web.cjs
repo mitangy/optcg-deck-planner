@@ -5,6 +5,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // One column keeps a docked Log Pose where it was moved (#573)
+    { id: "one-column-split-ignores-docked-logpose", file: `${src}/board/panelLayout.ts`, from: "const cut = Math.max(keep, at + 1);", to: "const cut = keep;", kills: ["one column: a docked Log Pose moved down the column stays there (#573)"] },
     // Recent plays thumbnails fall back to preview art (#604)
     { id: "recent-plays-thumb-no-art-fallback", file: `${src}/board/RecentPlaysStrip.tsx`, from: "<CardArt src={src} defId={p.defId} fallback={p.defId} draggable={false} />", to: '{src ? <img src={src} alt="" draggable={false} /> : p.defId}', kills: ["Recent plays thumbnail falls back to preview art when TCGPlayer art fails (#604)"] },
     { id: "trash-pile-top-no-art-fallback", file: `${src}/board/ZonePile.tsx`, from: `<CardArt
@@ -603,6 +605,8 @@ module.exports = {
     { id: "rewind-ignores-step", file: `${src}/board/battleLog.ts`, from: "e.step !== undefined && toStep !== undefined ? e.step <= toStep : e.turn <= toTurn", to: "e.turn <= toTurn", kills: ["drops only the lines of the undone action when they share a turn (#497)"] },
     { id: "rewind-no-step-keeps-all", file: `${src}/board/battleLog.ts`, from: "e.step !== undefined && toStep !== undefined ? e.step <= toStep : e.turn <= toTurn", to: "e.step !== undefined && toStep !== undefined ? e.step <= toStep : true", kills: ["falls back to dropping later turns for lines without a step (#497)"] },
     { id: "rewind-marker-generic", file: `${src}/board/battleLog.ts`, from: "    : actionLabel\n      ? `${who} undid: ${actionLabel}.`\n      : `${who} undid the last action.`;", to: "    : `${who} undid the last action.`;", kills: ["marks the rewind with the action that was taken back (#497)"] },
+    { id: "undo-parse-pending-drops-id", file: `${src}/net/protocol.ts`, from: '          ...(typeof p.id === "number" ? { id: p.id } : {}),\n', to: "", kills: ["keeps the open request's id so Allow can echo it (#540)"] },
+    { id: "undo-accept-drops-id", file: `${src}/net/duelClient.ts`, from: '      ...(action === "accept" && opts?.id !== undefined ? { id: opts.id } : {}),\n', to: "", kills: ["an undo accept names the request it was shown, and a request carries no id (#540)"] },
     { id: "undo-parse-drops-action", file: `${src}/net/protocol.ts`, from: "    action: parseUndoActionInfo(o.action),\n    options:", to: "    action: null,\n    options:", kills: ["reads the last action and the one in an open request (#497)"] },
     { id: "undo-parse-pending-drops-action", file: `${src}/net/protocol.ts`, from: "          toTurn: p.toTurn,\n          action: parseUndoActionInfo(p.action),", to: "          toTurn: p.toTurn,\n          action: null,", kills: ["reads the last action and the one in an open request (#497)"] },
     { id: "undo-parse-requires-action", file: `${src}/net/protocol.ts`, from: "typeof p.toTurn === \"number\"\n      ? {", to: "typeof p.toTurn === \"number\" && p.action != null\n      ? {", kills: ["still reads a server that sends no action: the request survives with a null action (#497)"] },
@@ -1355,6 +1359,16 @@ module.exports = {
     { id: "hint-ask-always-shown", file: "packages/deck-analytics/src/ui/DeckHints.tsx", from: "{onAsk ? (", to: "{true ? (", kills: ["shows Why? in a hint's popover only when Log Pose can answer"] },
     { id: "logpose-duel-deck-no-planner-id", file: "duel-web/src/logPose.ts", from: "    ...(deck.plannerDeckId ? { plannerDeckId: deck.plannerDeckId } : {}),\n", to: "", kills: ["tells Log Pose the planner deck a duel deck is linked to"] },
     // Log Pose copilot (#416)
+    // Log Pose sees the game from the matchup brief too (#620)
+    { id: "copilot-attached-ignores-brief-setting", file: "duel-web/src/board/copilot.ts", from: "setting: o.setting || o.briefSetting", to: "setting: o.setting", kills: ["attaches with the matchup brief on and the copilot off, so the brief's panel can see the hand (#620)"] },
+    { id: "copilot-attached-ignores-copilot-setting", file: "duel-web/src/board/copilot.ts", from: "setting: o.setting || o.briefSetting", to: "setting: o.briefSetting", kills: ["attaches with the copilot on and the brief off (#620)"] },
+    { id: "copilot-attached-always", file: "duel-web/src/board/copilot.ts", from: "setting: o.setting || o.briefSetting", to: "setting: true", kills: ["attaches to nothing when both settings are off (#620)"] },
+    { id: "copilot-attached-ranked-ok", file: "duel-web/src/board/copilot.ts", from: "return copilotAvailable({ ...o, setting: o.setting || o.briefSetting });", to: "return copilotAvailable({ ...o, ranked: false, setting: o.setting || o.briefSetting });", kills: ["stays out of ranked games, spectators, and rooms without a ticket, Log Pose or a ticket seat (#620)"] },
+    { id: "copilot-snap-first-dropped", file: "duel-web/src/board/copilot.ts", from: "...(view.firstSeat === undefined ? {} : { first: view.firstSeat === view.seat }),", to: "", kills: ["says who goes first, and during the mulligan whether you chose (#620)"] },
+    { id: "copilot-snap-first-inverted", file: "duel-web/src/board/copilot.ts", from: "{ first: view.firstSeat === view.seat }", to: "{ first: view.firstSeat !== view.seat }", kills: ["says who goes first, and during the mulligan whether you chose (#620)"] },
+    { id: "copilot-snap-first-assumed", file: "duel-web/src/board/copilot.ts", from: "...(view.firstSeat === undefined ? {} : { first: view.firstSeat === view.seat }),", to: "first: (view.firstSeat ?? 0) === view.seat,", kills: ["says who goes first, and during the mulligan whether you chose (#620)"] },
+    { id: "copilot-snap-mulligan-done-dropped", file: "duel-web/src/board/copilot.ts", from: "...(view.phase === \"mulligan\" && typeof you.mulliganDone === \"boolean\" ? { mulliganDone: you.mulliganDone } : {}),", to: "", kills: ["says who goes first, and during the mulligan whether you chose (#620)"] },
+    { id: "copilot-snap-mulligan-done-always", file: "duel-web/src/board/copilot.ts", from: "view.phase === \"mulligan\" && typeof you.mulliganDone", to: "typeof you.mulliganDone", kills: ["says who goes first, and during the mulligan whether you chose (#620)"] },
     { id: "copilot-ranked-ignored", file: "duel-web/src/board/copilot.ts", from: "  return briefShown(o);", to: "  return briefShown({ ...o, ranked: false });", kills: ["never shows in ranked games, or when the server didn't say (#416)"] },
     { id: "copilot-spectator-ok", file: "duel-web/src/board/copilot.ts", from: "  return briefShown(o);", to: "  return briefShown({ ...o, role: \"player\" });", kills: ["never shows to a spectator (#416)"] },
     { id: "copilot-setting-ignored", file: "duel-web/src/board/copilot.ts", from: "  return briefShown(o);", to: "  return briefShown({ ...o, setting: true });", kills: ["needs the setting, Log Pose for the account and a ticket (#416)"] },

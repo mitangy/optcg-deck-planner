@@ -103,9 +103,14 @@ export function usePointerDrag<T>({
     started: boolean;
   } | null>(null);
 
+  // Id of the armed press, so a window listener can clean up a press whose
+  // up / cancel never reached the card (pointer left it before capture).
+  const [pressId, setPressId] = useState<number | null>(null);
+
   const reset = useCallback(() => {
     startRef.current = null;
     setDragging(false);
+    setPressId(null);
   }, []);
 
   // Turning off mid-drag drops the handlers, so the up / cancel that would end
@@ -118,6 +123,23 @@ export function usePointerDrag<T>({
     onDragCancelRef.current?.();
   }, [enabled, reset]);
 
+  useEffect(() => {
+    if (pressId === null) return;
+    const onWindowEnd = (e: PointerEvent) => {
+      const s = startRef.current;
+      // The card's own up / cancel already ran if startRef is gone.
+      if (!s || s.pointerId !== e.pointerId) return;
+      reset();
+      if (s.started) onDragCancelRef.current?.();
+    };
+    window.addEventListener("pointerup", onWindowEnd);
+    window.addEventListener("pointercancel", onWindowEnd);
+    return () => {
+      window.removeEventListener("pointerup", onWindowEnd);
+      window.removeEventListener("pointercancel", onWindowEnd);
+    };
+  }, [pressId, reset]);
+
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
       if (!enabled) return;
@@ -125,6 +147,11 @@ export function usePointerDrag<T>({
       // A touch drag ends without a click, so the swallow flag it set would
       // eat the next real tap. A new press starts a new gesture.
       suppressClickRef.current = false;
+      // A stuck drag must never survive a new press.
+      if (startRef.current?.started) {
+        reset();
+        onDragCancel?.();
+      }
       startRef.current = {
         pointerId: e.pointerId,
         pointerType: e.pointerType,
@@ -135,15 +162,23 @@ export function usePointerDrag<T>({
         armed: true,
         started: false,
       };
+      setPressId(e.pointerId);
       // Do not capture yet — capturing on down blocks parent overflow-x scroll.
     },
-    [enabled],
+    [enabled, onDragCancel, reset],
   );
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent) => {
       const s = startRef.current;
       if (!s?.armed || s.pointerId !== e.pointerId) return;
+      // Mouse button no longer held: the press is stale (its up went elsewhere).
+      if (s.pointerType === "mouse" && (e.buttons & 1) === 0) {
+        const started = s.started;
+        reset();
+        if (started) onDragCancel?.();
+        return;
+      }
       if (!s.started) {
         const decision = decideDragStart({
           dx: e.clientX - s.x,
@@ -168,7 +203,7 @@ export function usePointerDrag<T>({
         onDragStart?.(payload);
       }
     },
-    [onDragStart, payload, thresholdPx],
+    [onDragStart, onDragCancel, payload, reset, thresholdPx],
   );
 
   const finish = useCallback(
