@@ -42946,6 +42946,24 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-101": {
+    "id": "OP18-101",
+    "name": "Kumadori",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "imageUrl": "/cards/OP18-101.png",
+    "effectText": "[On K.O.] Add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", K.O. or rest up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-106": {
     "id": "OP18-106",
     "name": "Doberman",

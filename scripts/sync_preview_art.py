@@ -5,21 +5,39 @@ Usage: python3 scripts/sync_preview_art.py [--dry-run]
 
 Cards that are not on Bandai's list yet (cardData source "tcgplayer" /
 "bundled") often have no TCGPlayer image for a while. For those, this script
-downloads a preview image from opdeckguide.com into
-`duel-web/public/cards/preview/<ID>.webp` and lists the id in
-`duel-web/src/cards/previewArt.json`. duel-web only falls back to a preview
-when the real art fails to load, so real art wins as soon as it is posted.
+downloads a preview image into `duel-web/public/cards/preview/<ID>.webp` and
+lists the id in `duel-web/src/cards/previewArt.json`. duel-web only falls back
+to a preview when the real art fails to load, so real art wins as soon as it
+is posted.
+
+Base cards prefer onepiecetopdecks.com (Top Decks), which hosts the same scans
+at about 2x resolution as JPEG; they are converted to WebP with Pillow (native
+size, height capped at 900). When Top Decks has no image, or Pillow is not
+installed, the card falls back to opdeckguide.com (small WebP, as before). Kept
+previews shorter than 600px are upgraded from Top Decks when it has a taller
+one.
+
+Alt previews (`p<productId>.webp`, #615) use the same order. Top Decks set
+pages list alt arts as `<ID>_p2.jpg`, `_p3.jpg`, ...; a card with exactly one
+image-less alt product in the set and exactly one such file in the set's
+gallery pairs them (anything ambiguous is left to opdeckguide). The fallback is
+opdeckguide's full-size `data-full` JPEG converted to WebP, or its small WebP
+when Pillow is missing. Kept alt previews shorter than 600px are re-fetched the
+same way and replaced only by a taller image; taller (or hand-placed) files are
+never touched.
 
 On every run it also prunes: a preview whose card now has TCGPlayer art (or is
 gone from the atlas) is deleted and dropped from the manifest.
 
 "Has TCGPlayer art" is read from tcgcsv.com (`imageCount` per product), with an
 HTTP probe of the CDN image for products tcgcsv does not list. Python standard
-library only. Downloaded files are only checked for type and size, never run.
+library only, plus Pillow when available (optional; without it Top Decks is
+skipped). Downloaded files are only checked for type and size, never run.
 """
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import re
 import struct
@@ -42,13 +60,19 @@ PUBLIC_DIR = ROOT / "duel-web/public"
 
 UA = "Mozilla/5.0"
 GUIDE_BASE = "https://opdeckguide.com"
+TOPDECKS_BASE = "https://onepiecetopdecks.com"
+TOPDECKS_GALLERY = TOPDECKS_BASE + "/wp-content/gallery"
 TCGCSV = "https://tcgcsv.com/tcgplayer/68"
 CDN = "https://tcgplayer-cdn.tcgplayer.com/product"
 MAX_GROUPS = 15
 MIN_BYTES = 2000
+UPGRADE_BELOW_HEIGHT = 600  # kept previews shorter than this try Top Decks
+MAX_PREVIEW_HEIGHT = 900  # converted Top Decks scans are capped to this height
+WEBP_QUALITY = 85
 
 CDN_URL_RE = re.compile(r"^https?://tcgplayer-cdn\.tcgplayer\.com/product/(\d+)", re.I)
 ID_RE = re.compile(r"^[A-Z0-9]+-\d+[A-Z]?$")
+ALT_STEM_RE = re.compile(r"^p\d+$")  # p<productId>.webp is an alt preview, not a card id
 
 
 # --- pure helpers (unit-testable) ------------------------------------------
@@ -90,6 +114,38 @@ def should_prune(card_id: str, atlas_ids: set[str], has_art: dict[str, bool | No
     if card_id not in atlas_ids:
         return True
     return has_art.get(card_id) is True
+
+
+def topdecks_url(card_id: str) -> str:
+    """Top Decks gallery URL of a card: .../gallery/eb05/EB05-001.jpg."""
+    return f"{TOPDECKS_GALLERY}/{set_prefix(card_id).lower()}/{card_id}.jpg"
+
+
+def topdecks_urls(card_id: str) -> list[str]:
+    """Candidate Top Decks URLs, best first (#608).
+
+    Some secret rares only exist as <ID>_p1.jpg there (that is the regular art).
+    _p2 and higher are alt arts, so they are never tried.
+    """
+    base = topdecks_url(card_id)
+    return [base, base[: -len(".jpg")] + "_p1.jpg"]
+
+
+def topdecks_type_ok(ctype: str) -> bool:
+    """Missing cards answer 404 text/html; only real JPEG / PNG bodies count."""
+    return ctype.split(";")[0].strip().lower() in ("image/jpeg", "image/png")
+
+
+def should_upgrade(current_height: int | None) -> bool:
+    """A kept preview is worth a Top Decks lookup when it is low resolution."""
+    return current_height is not None and current_height < UPGRADE_BELOW_HEIGHT
+
+
+def capped_size(width: int, height: int, max_height: int = MAX_PREVIEW_HEIGHT) -> tuple[int, int]:
+    """Native size, scaled down (never up) so the height is at most `max_height`."""
+    if height <= max_height:
+        return width, height
+    return max(1, round(width * max_height / height)), max_height
 
 
 def webp_size(data: bytes) -> tuple[int, int] | None:
@@ -216,6 +272,54 @@ def match_alt_previews(alts: list[dict], variants: list[dict]) -> tuple[dict[int
     return matches, sorted(a["pid"] for a in alts if a["pid"] not in matches)
 
 
+TOPDECKS_GALLERY_RE = re.compile(
+    r"https?://onepiecetopdecks\.com/wp-content/gallery/([a-z0-9]+)/([A-Z0-9]+-\d+[A-Z]?)_p(\d+)\.jpg"
+)
+
+
+def parse_topdecks_gallery_alts(html: str, prefix: str) -> list[str]:
+    """Alt-art image URLs (`<ID>_p<N>.jpg`, N >= 2) in a set page's gallery (#615).
+
+    Only the set's own gallery folder counts; the page may list reprinted ids of
+    other sets (EB05's gallery has OP17-109_p3.jpg). The same URL shows up in
+    href, data-src and src, so each is returned once, in page order.
+    """
+    folder = prefix.lower()
+    urls: list[str] = []
+    for m in TOPDECKS_GALLERY_RE.finditer(html):
+        if m.group(1) == folder and int(m.group(3)) >= 2 and m.group(0) not in urls:
+            urls.append(m.group(0))
+    return urls
+
+
+def topdecks_card_list_url(html: str, prefix: str) -> str | None:
+    """First `/cards/<prefix>-cards-...` link of a Top Decks search page."""
+    m = re.search(rf"{re.escape(TOPDECKS_BASE)}/cards/{re.escape(prefix.lower())}-cards-[^\"'\s<>]*", html)
+    return m.group(0) if m else None
+
+
+def pair_topdecks_alts(alts: list[dict], urls: list[str]) -> dict[int, str]:
+    """productId -> Top Decks alt URL for the unambiguous cases only (#615).
+
+    `alts`: the image-less alt products of one set ({pid, card, ...}). A card
+    pairs only when it has exactly one such product and the gallery has exactly
+    one `_pN` URL for that card id; with two of either, which is which is a guess
+    and opdeckguide's kind-aware matching decides instead.
+    """
+    by_card: dict[str, list[str]] = {}
+    for url in urls:
+        m = TOPDECKS_GALLERY_RE.search(url)
+        if m:
+            by_card.setdefault(m.group(2), []).append(url)
+    pairs: dict[int, str] = {}
+    for card in sorted({a["card"] for a in alts}):
+        mine = [a for a in alts if a["card"] == card]
+        files = by_card.get(card, [])
+        if len(mine) == 1 and len(files) == 1:
+            pairs[mine[0]["pid"]] = files[0]
+    return pairs
+
+
 def alt_should_prune(pid: int, catalog_alt_pids: set[int], has_art: dict[int, bool | None]) -> bool:
     """An alt preview goes when its product left the catalog or TCGPlayer posted art."""
     return pid not in catalog_alt_pids or has_art.get(pid) is True
@@ -224,8 +328,11 @@ def alt_should_prune(pid: int, catalog_alt_pids: set[int], has_art: dict[int, bo
 # --- network ----------------------------------------------------------------
 
 
-def fetch(url: str, timeout: int = 60) -> tuple[bytes, str]:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
+def fetch(url: str, timeout: int = 60, referer: str | None = None) -> tuple[bytes, str]:
+    headers = {"User-Agent": UA}
+    if referer:
+        headers["Referer"] = referer
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read(), resp.headers.get("Content-Type", "")
 
@@ -351,7 +458,7 @@ def local_file_exists(url: str) -> bool:
 def existing_preview_ids() -> set[str]:
     ids = set(load_json(MANIFEST)) if MANIFEST.exists() else set()
     if PREVIEW_DIR.is_dir():
-        ids |= {p.stem for p in PREVIEW_DIR.glob("*.webp")}
+        ids |= {p.stem for p in PREVIEW_DIR.glob("*.webp") if not ALT_STEM_RE.match(p.stem)}
     return ids
 
 
@@ -371,6 +478,91 @@ def download_preview(prefix: str, card_id: str, rel_path: str) -> tuple[bytes | 
     return data, ""
 
 
+def _pillow_image():
+    """Pillow's Image module, or None (the daily routine environment may lack it)."""
+    try:
+        from PIL import Image  # noqa: PLC0415 - optional dependency
+    except ImportError:
+        return None
+    return Image
+
+
+def jpeg_to_webp(Image, data: bytes) -> tuple[bytes | None, str]:
+    """Decode a Top Decks scan and re-encode as WebP at native size (height capped)."""
+    try:
+        img = Image.open(io.BytesIO(data))
+        img.load()
+        img = img.convert("RGB")
+        w, h = img.size
+        if w >= h:
+            return None, f"not portrait ({w}x{h})"
+        size = capped_size(w, h)
+        if size != (w, h):
+            img = img.resize(size, Image.LANCZOS)
+        out = io.BytesIO()
+        img.save(out, "WEBP", quality=WEBP_QUALITY, method=6)
+    except Exception as e:  # noqa: BLE001 - a bad body must not abort the run
+        return None, f"undecodable image: {e}"
+    return out.getvalue(), ""
+
+
+def download_scan(Image, url: str, referer: str | None = None) -> tuple[bytes | None, str]:
+    """One JPEG / PNG scan URL as WebP bytes, or (None, why)."""
+    try:
+        data, ctype = fetch(url, timeout=30, referer=referer)
+    except urllib.error.HTTPError as e:
+        return None, f"HTTP {e.code}"
+    except Exception as e:  # noqa: BLE001
+        return None, f"download failed: {e}"
+    if not topdecks_type_ok(ctype):
+        return None, f"not a jpeg/png ({ctype or 'no content-type'})"
+    if len(data) < MIN_BYTES:
+        return None, "tiny image"
+    return jpeg_to_webp(Image, data)
+
+
+def download_topdecks_url(Image, url: str) -> tuple[bytes | None, str]:
+    return download_scan(Image, url, referer=TOPDECKS_BASE + "/")
+
+
+def download_topdecks(Image, card_id: str) -> tuple[bytes | None, str]:
+    """A card's Top Decks scan as WebP bytes, or (None, why)."""
+    why = "no url"
+    for url in topdecks_urls(card_id):
+        out, why = download_topdecks_url(Image, url)
+        if out is not None:
+            return out, ""
+    return None, why
+
+
+def download_guide_full(Image, rel_path: str) -> tuple[bytes | None, str]:
+    """opdeckguide's full-size `data-full` JPEG as WebP bytes (#615)."""
+    return download_scan(Image, GUIDE_BASE + urllib.parse.quote(rel_path))
+
+
+def topdecks_set_alt_urls(prefix: str) -> list[str]:
+    """Alt-art gallery URLs of a set's Top Decks card-list page ([] when not found)."""
+    try:
+        search = fetch(f"{TOPDECKS_BASE}/?s={urllib.parse.quote(prefix)}", timeout=30)[0]
+        page = topdecks_card_list_url(search.decode("utf-8", "replace"), prefix)
+        if page is None:
+            print(f"  {prefix}: no top decks card list found", file=sys.stderr)
+            return []
+        html = fetch(page, timeout=60, referer=TOPDECKS_BASE + "/")[0].decode("utf-8", "replace")
+    except Exception as e:  # noqa: BLE001
+        print(f"  {prefix}: top decks list unavailable: {e}", file=sys.stderr)
+        return []
+    return parse_topdecks_gallery_alts(html, prefix)
+
+
+def preview_height(card_id: str) -> int | None:
+    path = PREVIEW_DIR / f"{card_id}.webp"
+    if not path.is_file():
+        return None
+    size = webp_size(path.read_bytes())
+    return size[1] if size else None
+
+
 def existing_alt_preview_pids() -> set[int]:
     pids = set(load_json(ALT_MANIFEST)) if ALT_MANIFEST.exists() else set()
     if PREVIEW_DIR.is_dir():
@@ -378,8 +570,14 @@ def existing_alt_preview_pids() -> set[int]:
     return pids
 
 
+def alt_preview_height(pid: int) -> int | None:
+    path = PREVIEW_DIR / f"p{pid}.webp"
+    size = webp_size(path.read_bytes()) if path.is_file() else None
+    return size[1] if size else None
+
+
 def sync_alt_previews(catalog: dict, dry_run: bool) -> None:
-    """Preview scans for catalog alts TCGPlayer has no picture for yet (#581)."""
+    """Preview scans for catalog alts TCGPlayer has no picture for yet (#581, #615)."""
     alts: dict[int, dict] = {}
     for card_id, row in catalog.items():
         for a in row.get("altArts") or []:
@@ -393,38 +591,93 @@ def sync_alt_previews(catalog: dict, dry_run: bool) -> None:
         has_art[pid] = cdn_has_art(pid)
     pruned = sorted(pid for pid in have if alt_should_prune(pid, set(alts), has_art))
     keep = have - set(pruned)
-    # Names are only needed to pair kinds; read them from tcgcsv per needed group.
     needs = sorted(pid for pid, (art, _) in info.items() if not art and pid not in keep)
-    names = alt_product_names(set(needs))
+    # Kept low-resolution previews are re-fetched; 600px and taller are left alone.
+    upgrade = sorted(pid for pid in keep if should_upgrade(alt_preview_height(pid)))
+    targets = set(needs) | set(upgrade)
+    # Pairing counts every image-less alt of a set (kept ones too), so a card's
+    # second alt is never mistaken for the only one. Names only pair opdeckguide kinds.
+    names = alt_product_names(set(needs) | set(upgrade) | (keep & alts.keys()))
     by_prefix: dict[str, list[dict]] = {}
-    for pid in needs:
-        by_prefix.setdefault(info[pid][1], []).append({**alts[pid], "name": names.get(pid, "")})
+    for pid in sorted(set(needs) | (keep & alts.keys())):
+        prefix = info[pid][1] if pid in info else set_prefix(alts[pid]["card"])
+        by_prefix.setdefault(prefix, []).append({**alts[pid], "name": names.get(pid, "")})
+
+    Image = _pillow_image()
+    if Image is None:
+        print("  Pillow not installed: alts use opdeckguide small WebP only", file=sys.stderr)
 
     added: list[int] = []
+    upgraded: list[int] = []
     unmatched: list[int] = []
     new_files: dict[int, bytes] = {}
+    sources: dict[int, str] = {}
+
+    def accept(pid: int, data: bytes, source: str) -> None:
+        if pid in upgrade:  # replace a kept preview only with a taller picture
+            old_h, new_h = alt_preview_height(pid) or 0, (webp_size(data) or (0, 0))[1]
+            if new_h <= old_h:
+                print(f"  alt {pid}: upgrade skipped, not taller ({new_h} <= {old_h})", file=sys.stderr)
+                return
+            upgraded.append(pid)
+        else:
+            added.append(pid)
+        new_files[pid] = data
+        sources[pid] = source
+
     for prefix, group in sorted(by_prefix.items()):
+        todo = {a["pid"] for a in group} & targets
+        if not todo:
+            continue
+        # 1. Top Decks: unambiguous card <-> _pN pairs.
+        if Image is not None:
+            pairs = pair_topdecks_alts(group, topdecks_set_alt_urls(prefix))
+            for pid, url in sorted(pairs.items()):
+                if pid not in todo:
+                    continue
+                if dry_run:
+                    (upgraded if pid in upgrade else added).append(pid)
+                    sources[pid] = "top decks"
+                    todo.discard(pid)
+                    continue
+                data, why = download_topdecks_url(Image, url)
+                if data is None:
+                    print(f"  alt {pid}: top decks: {why}", file=sys.stderr)
+                    continue
+                accept(pid, data, "top decks")
+                todo.discard(pid)
+        if not todo:
+            continue
+        # 2. opdeckguide: kind-aware pairing, full-size JPEG when Pillow is there.
         try:
             html = fetch(f"{GUIDE_BASE}/cards-list/{prefix}/")[0].decode("utf-8", "replace")
         except Exception as e:  # noqa: BLE001
             print(f"  {prefix}: list page unavailable: {e}", file=sys.stderr)
-            unmatched += [a["pid"] for a in group]
+            unmatched += [p for p in todo if p in needs]
             continue
         variants = [v for v in map(guide_variant, parse_variant_paths(html, prefix)) if v]
-        matches, left = match_alt_previews(group, variants)
-        unmatched += left
-        for pid, path in sorted(matches.items()):
-            if dry_run:
-                added.append(pid)
+        matches, _left = match_alt_previews(group, variants)
+        for pid in sorted(todo):
+            path = matches.get(pid)
+            if path is None:
+                if pid in needs:
+                    unmatched.append(pid)
                 continue
-            small = re.sub(r"\.[a-z0-9]+$", "_small.webp", path, flags=re.I)
-            data, why = download_preview(prefix, str(pid), small)
+            if dry_run:
+                (upgraded if pid in upgrade else added).append(pid)
+                sources[pid] = "opdeckguide"
+                continue
+            if Image is not None:
+                data, why = download_guide_full(Image, path)
+            else:
+                small = re.sub(r"\.[a-z0-9]+$", "_small.webp", path, flags=re.I)
+                data, why = download_preview(prefix, str(pid), small)
             if data is None:
                 print(f"  alt {pid}: {why}", file=sys.stderr)
-                unmatched.append(pid)
+                if pid in needs:
+                    unmatched.append(pid)
                 continue
-            new_files[pid] = data
-            added.append(pid)
+            accept(pid, data, "opdeckguide")
 
     final = sorted(keep | set(added))
     if not dry_run:
@@ -434,11 +687,14 @@ def sync_alt_previews(catalog: dict, dry_run: bool) -> None:
         for pid in pruned:
             (PREVIEW_DIR / f"p{pid}.webp").unlink(missing_ok=True)
         ALT_MANIFEST.write_text(json.dumps(final, indent=2) + "\n", encoding="utf-8")
+    note = "  (candidates, not downloaded)" if dry_run else ""
     print("\nAlt preview art")
     print(f"  kept:      {len(keep)}")
     print(f"  added:     {len(added)} {sorted(added)}")
+    print(f"  upgraded:  {len(upgraded)} {sorted(upgraded)}{note}")
+    print(f"  sources:   {dict(sorted(sources.items()))}")
     print(f"  pruned:    {len(pruned)} {pruned}")
-    print(f"  unmatched: {len(unmatched)} {sorted(unmatched)}  (no opdeckguide file paired)")
+    print(f"  unmatched: {len(unmatched)} {sorted(unmatched)}  (no Top Decks or opdeckguide file paired)")
     print(f"  manifest:  {len(final)} product ids")
 
 
@@ -507,8 +763,43 @@ def main() -> int:
     added: list[str] = []
     still_missing: list[str] = list(needs)
     new_files: dict[str, bytes] = {}
-    for prefix in sorted({set_prefix(i) for i in needs}):
-        wanted = {i for i in needs if set_prefix(i) == prefix}
+    Image = _pillow_image()
+    if Image is None:
+        print("  Pillow not installed: skipping Top Decks, using opdeckguide only", file=sys.stderr)
+
+    # Top Decks first (not probed in a dry run); the rest falls back to opdeckguide.
+    if Image is not None and not args.dry_run:
+        for cid in list(needs):
+            data, why = download_topdecks(Image, cid)
+            if data is None:
+                print(f"  {cid}: top decks: {why}", file=sys.stderr)
+                continue
+            new_files[cid] = data
+            added.append(cid)
+            still_missing.remove(cid)
+
+    # Kept low-resolution previews: replace with a taller Top Decks scan.
+    upgraded: list[str] = []
+    upgrade_candidates = sorted(i for i in keep if should_upgrade(preview_height(i)))
+    for cid in upgrade_candidates:
+        if args.dry_run:
+            upgraded.append(cid)
+            continue
+        if Image is None:
+            break
+        data, why = download_topdecks(Image, cid)
+        if data is None:
+            print(f"  {cid}: upgrade skipped, top decks: {why}", file=sys.stderr)
+            continue
+        old_h, new_h = preview_height(cid) or 0, (webp_size(data) or (0, 0))[1]
+        if new_h <= old_h:
+            print(f"  {cid}: upgrade skipped, not taller ({new_h} <= {old_h})", file=sys.stderr)
+            continue
+        new_files[cid] = data
+        upgraded.append(cid)
+
+    for prefix in sorted({set_prefix(i) for i in still_missing}):
+        wanted = {i for i in still_missing if set_prefix(i) == prefix}
         try:
             html = fetch(f"{GUIDE_BASE}/cards-list/{prefix}/")[0].decode("utf-8", "replace")
         except Exception as e:  # noqa: BLE001 - keep going with the other sets
@@ -544,6 +835,8 @@ def main() -> int:
     print(f"\nPreview art sync{tag}")
     print(f"  kept:    {len(keep)}")
     print(f"  added:   {len(added)} {added}")
+    note = "  (candidates, not downloaded)" if args.dry_run else ""
+    print(f"  upgraded: {len(upgraded)} {upgraded}{note}")
     print(f"  pruned:  {len(pruned)} {pruned}")
     print(f"  missing: {len(still_missing)} {still_missing}  (no preview found)")
     unknown = sorted(i for i, v in has_art.items() if v is None)

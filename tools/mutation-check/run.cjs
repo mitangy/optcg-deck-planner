@@ -22,6 +22,13 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const REPO = path.resolve(__dirname, "../..");
+
+// Python must compile the mutated source every run. Two same-size edits saved in
+// the same second look unchanged to the .pyc mtime+size check, so a stale
+// bytecode cache would run the previous mutation instead (#615).
+function pythonEnv() {
+  return { ...process.env, PYTHONDONTWRITEBYTECODE: "1", PYTHONPYCACHEPREFIX: path.join(os.tmpdir(), "mutation-check-nopyc") };
+}
 const SUITES = {
   rules: require("./suites/rules.cjs"),
   "duel-web": require("./suites/duel-web.cjs"),
@@ -151,18 +158,20 @@ const runners = {
     return { failed, total };
   },
   pytest(cwd, suite, mutation) {
+    const env = pythonEnv();
     const python = process.env.BACKEND_PYTHON ?? process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");
     let out = "";
-    try { out = execSync(`${python} -m pytest -q -rf ${mutation?.args ?? suite.args ?? ""} 2>&1`, { cwd, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
+    try { out = execSync(`${python} -m pytest -q -rf ${mutation?.args ?? suite.args ?? ""} 2>&1`, { cwd, env, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
     const summary = /(\d+) passed/.exec(out);
     if (!summary && !/\d+ failed/.test(out)) return { error: `pytest did not run:\n${out.slice(-800)}`, failed: [] };
     const failed = [...out.matchAll(/^FAILED (\S+)/gm)].map((m) => m[1]);
     return { failed, total: Number(summary?.[1] ?? 0) + failed.length };
   },
   unittest(cwd, suite) {
+    const env = pythonEnv();
     const python = process.env.PYTHON ?? (process.platform === "win32" ? "py -3" : "python3");
     let out = "";
-    try { out = execSync(`${python} -m unittest -v ${suite.module} 2>&1`, { cwd, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
+    try { out = execSync(`${python} -m unittest -v ${suite.module} 2>&1`, { cwd, env, encoding: "utf8", timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
     const ran = /Ran (\d+) tests?/.exec(out);
     if (!ran) return { error: `unittest did not run:\n${out.slice(-800)}`, failed: [] };
     return { failed: [...out.matchAll(/^(?:FAIL|ERROR): (\w+)/gm)].map((m) => m[1]), total: Number(ran[1]) };

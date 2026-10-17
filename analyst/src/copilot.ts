@@ -130,11 +130,23 @@ function summarize(catalog: Catalog, ids: string[]): string {
 
 const MAX_TEXT = 400;
 
-/** One card of a card reference: id, name, type, cost, power, counter and the (truncated) rules text. */
+const MAX_TRIGGER = 200;
+const cap = (t: string, max: number) => (t.length > max ? `${t.slice(0, max - 1)}…` : t);
+
+/** One card of a card reference: id, name, type, colors, life, cost, power, counter, traits, the (truncated) rules text and the card's own "[Trigger] ..." text. */
 export function cardReferenceLine(c: CardRow): string {
-  const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", c.power !== undefined ? `power ${c.power}` : "", c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
-  const text = c.text.length > MAX_TEXT ? `${c.text.slice(0, MAX_TEXT - 1)}…` : c.text;
-  return `- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}`;
+  const stats = [
+    c.type,
+    c.colors.length ? c.colors.join("/") : "",
+    c.life !== undefined ? `life ${c.life}` : "",
+    c.cost !== undefined ? `cost ${c.cost}` : "",
+    c.power !== undefined ? `power ${c.power}` : "",
+    c.counter ? `counter ${c.counter}` : "",
+    c.traits.length ? `traits: ${c.traits.join("/")}` : "",
+  ].filter(Boolean);
+  const text = cap(c.text, MAX_TEXT);
+  const trigger = c.trigger.trim() ? ` ${cap(c.trigger.trim(), MAX_TRIGGER)}` : "";
+  return `- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}${trigger}`;
 }
 
 /** The <game> block that starts the user message: the board as the player sees it, readable by the model. */

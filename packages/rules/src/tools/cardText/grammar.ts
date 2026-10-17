@@ -628,9 +628,10 @@ const EFFECT_RULES: EffectRule[] = [
   [/^add (\d+) cards? from the top of your opponent's life cards to the owner's hand$/i, (m) => ({ do: "life_to_hand", player: "opponent", count: num(m[1]!), position: "top" })],
   [/^trash (\d+) cards? from the top of (your|your opponent's) life cards$/i, (m) => ({ do: "trash_life", player: rel(m[2]!), count: num(m[1]!) })],
   [/^trash up to (\d+) cards? from the top of (your|your opponent's) life cards$/i, (m) => ({ do: "may", then: { do: "trash_life", player: rel(m[2]!), count: num(m[1]!) }, prompt: `trash the top card of ${rel(m[2]!) === "you" ? "your" : "your opponent's"} Life` })],
-  [/^add up to (\d+) (.+?) from your hand to the top of your life cards( face-up)?$/i, (m, ctx) => {
-    if (/^cards?$/i.test(m[2]!)) return { do: "hand_to_life", count: num(m[1]!), position: "top", faceUp: Boolean(m[3]), min: 0 };
-    const p = parseCardPhrase(`all ${m[2]!}`, ctx); return p ? { do: "hand_to_life", count: num(m[1]!), position: "top", faceUp: Boolean(m[3]), min: 0, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null;
+  [/^add up to (\d+) (.+?) from your hand to the (top|top or bottom) of your life cards( face-up)?$/i, (m, ctx) => {
+    const position = m[3]!.toLowerCase() === "top" ? "top" : "top_or_bottom";
+    if (/^cards?$/i.test(m[2]!)) return { do: "hand_to_life", count: num(m[1]!), position, faceUp: Boolean(m[4]), min: 0 };
+    const p = parseCardPhrase(`all ${m[2]!}`, ctx); return p ? { do: "hand_to_life", count: num(m[1]!), position, faceUp: Boolean(m[4]), min: 0, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null;
   }],
   [/^turn (?:up to )?(\d+) cards? from the top of your life cards face-(up|down)$/i, (m) => ({ do: "life_face", player: "you", count: num(m[1]!), faceUp: m[2] === "up" })],
   [/^turn all of your life cards face-(up|down)$/i, (m) => ({ do: "life_face", player: "you", count: 99, faceUp: m[1] === "up" })],

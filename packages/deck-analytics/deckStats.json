@@ -2355,6 +2355,7 @@
 "OP18-086":{"n":"Goldberg","t":"character","col":["black"],"cost":3,"pow":4000,"ctr":1000,"tr":["Giant","New Giant Pirates","Elbaph"],"at":["Strike"],"tm":["On K.O."],"rl":["removal"]},
 "OP18-089":{"n":"Dorry","t":"character","col":["black"],"cost":4,"pow":5000,"ctr":2000,"tr":["Giant","Elbaph","Giant Pirates"],"at":["Slash"],"tm":["On Play"]},
 "OP18-091":{"n":"Brogy","t":"character","col":["black"],"cost":4,"pow":5000,"ctr":2000,"tr":["Giant","Elbaph","Giant Pirates"],"at":["Slash"],"tm":["When Attacking"]},
+"OP18-101":{"n":"Kumadori","t":"character","col":["yellow"],"cost":4,"pow":6000,"tr":["CP9"],"at":["Strike"],"trg":1,"tm":["On K.O."],"rl":["lifeGain"]},
 "OP18-106":{"n":"Doberman","t":"character","col":["yellow"],"cost":7,"pow":7000,"ctr":2000,"tr":["Navy","Vice Admiral"],"at":["Slash"],"kw":["Double Attack"]},
 "OP18-111":{"n":"Momonga","t":"character","col":["yellow"],"cost":7,"pow":7000,"ctr":2000,"tr":["Navy","Vice Admiral"],"at":["Slash"],"kw":["Rush"]},
 "OP18-119":{"n":"Saint Shamrock","t":"character","col":["black"],"cost":8,"pow":9000,"tr":["Celestial Dragons","Holy Knights of God"],"at":["Slash"],"tm":["Activate: Main","On K.O."]},

@@ -16,7 +16,31 @@ const EGGHEAD_LEADER = "OP07-097"; // Vegapunk, {Egghead}
 const DOLL = "EB04-046"; // {Egghead} 2-cost, no [Trigger]
 const KAWAMATSU = "OP01-037"; // 2-cost, [Trigger] Play this card.
 
+const FUNKFREED = "EB01-044"; // {CP9} 1-cost
 const rows: CardScenario[] = [
+  // OP18-101 Kumadori: [On K.O.] Add up to 1 card with a type including "CP" from your hand to the top or bottom of your Life cards face-up. (#612)
+  {
+    card: "OP18-101", name: "On K.O. adds a CP card from hand to the top of Life face-up when Top is chosen (#612)",
+    me: { field: [{ card: "OP18-101", rested: true }], hand: [FUNKFREED, ROBIN], life: [KAROO, "ST01-009"] },
+    opp: { field: [SHAMROCK] },
+    steps: [{ endTurn: true }, { attack: theirs(SHAMROCK), at: mine("OP18-101") }, { passBattle: true }, { pick: [FUNKFREED] }, { pick: ["Top"] }],
+    expect: { me: { hand: [ROBIN], life: [FUNKFREED, KAROO, "ST01-009"], faceUp: [true, false, false], field: [] }, pending: "none" },
+  },
+  {
+    card: "OP18-101", name: "On K.O. adds a CP card from hand to the bottom of Life face-up when Bottom is chosen (#612)",
+    me: { field: [{ card: "OP18-101", rested: true }], hand: [FUNKFREED, ROBIN], life: [KAROO, "ST01-009"] },
+    opp: { field: [SHAMROCK] },
+    steps: [{ endTurn: true }, { attack: theirs(SHAMROCK), at: mine("OP18-101") }, { passBattle: true }, { pick: [FUNKFREED] }, { pick: ["Bottom"] }],
+    expect: { me: { hand: [ROBIN], life: [KAROO, "ST01-009", FUNKFREED], faceUp: [false, false, true], field: [] }, pending: "none" },
+  },
+  {
+    card: "OP18-101", name: "On K.O. offers nothing when the hand holds no CP card (#612)",
+    me: { field: [{ card: "OP18-101", rested: true }], hand: [ROBIN], life: [KAROO] },
+    opp: { field: [SHAMROCK] },
+    steps: [{ endTurn: true }, { attack: theirs(SHAMROCK), at: mine("OP18-101") }, { passBattle: true }],
+    expect: { me: { hand: [ROBIN], life: [KAROO], field: [] }, pending: "none" },
+  },
+
   // OP18-085 Cerberus: You may return this Character to the owner's hand: Up to 1 of your [Saint Shamrock] Characters gains [Rush], [Banish], or [Unblockable] during this turn.
   {
     card: "OP18-085", name: "grants only the chosen keyword to the chosen [Saint Shamrock] after returning itself",

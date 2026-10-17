@@ -35,6 +35,7 @@ export type CountExpr =
   | { of: "var_sum"; name: string; field: "cost" | "power" }
   | { of: "leader_power"; player: Rel }
   | { of: "self_power" }
+  | { of: "self_base_power" }
   | { of: "battle_power"; role: "attacker" | "defender" }
   | { of: "sum"; exprs: CountExpr[] }
   /** Number of distinct card names among cards matching the selector. */
@@ -361,7 +362,7 @@ export type Effect =
   | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number; random?: boolean }
   | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom" | "top_or_bottom"; chooser?: Rel; filter?: Filter; min?: number }
   /** `reveal`: "Reveal up to 1 ... from your hand and add it to your Life cards" shows the card to the opponent first. */
-  | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number; reveal?: boolean }
+  | { do: "hand_to_life"; count: number; position: "top" | "bottom" | "top_or_bottom"; faceUp: boolean; filter?: Filter; min?: number; reveal?: boolean }
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }

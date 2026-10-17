@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type MetaDeck, type MetaLeader, type User } from "./api";
-import { cardImageUrl } from "./cardImage";
-import { CardThumb } from "./CardThumb";
+import { CardArtImg, CardThumb } from "./CardThumb";
 import { rememberLoginNext } from "./GroupBuys";
 import { Skeleton } from "./Skeleton";
 import {
@@ -23,11 +22,20 @@ function parseDays(raw: string | null): number {
   return (META_DAY_OPTIONS as readonly number[]).includes(n) ? n : META_DEFAULT_DAYS;
 }
 
-function LeaderArt({ src, name }: { src?: string; name: string }) {
-  return src ? (
-    <img className="meta-leader-art" src={cardImageUrl(src, "thumb")} alt="" loading="lazy" decoding="async" width={72} height={100} title={name} />
-  ) : (
-    <div className="meta-leader-art placeholder" />
+function LeaderArt({ src, cardId, name }: { src?: string; cardId?: string; name: string }) {
+  return (
+    <CardArtImg
+      className="meta-leader-art"
+      src={src}
+      cardId={cardId}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      width={72}
+      height={100}
+      title={name}
+      fallback={<div className="meta-leader-art placeholder" />}
+    />
   );
 }
 
@@ -163,7 +171,7 @@ function MetaDeckRow({
                 {g.cards.map((c) => (
                   <li key={c.card_id} className="meta-card">
                     <div className="meta-card-art">
-                      <CardThumb src={c.image_url} alt={c.name || c.card_id} />
+                      <CardThumb src={c.image_url} cardId={c.card_id} alt={c.name || c.card_id} />
                       <span className="meta-card-count">{c.count}×</span>
                     </div>
                     <span className="meta-card-name" title={c.name}>
@@ -264,7 +272,7 @@ export function MetaPage({ user }: { user: User | null }) {
               {leaders.data.leaders.map((l) => (
                 <li key={l.leader_id}>
                   <Link className="meta-leader-card" to={`/meta${search({ leader: l.leader_id })}`}>
-                    <LeaderArt src={l.image_url} name={l.name} />
+                    <LeaderArt src={l.image_url} cardId={l.leader_id} name={l.name} />
                     <div className="meta-leader-body">
                       <h2>{l.name || l.leader_id}</h2>
                       <p className="muted">
@@ -284,7 +292,7 @@ export function MetaPage({ user }: { user: User | null }) {
       {leaderId && (
         <>
           <div className="meta-leader-head">
-            <LeaderArt src={leaderArt} name={leaderName} />
+            <LeaderArt src={leaderArt} cardId={leaderId} name={leaderName} />
             <div className="meta-leader-body">
               <p className="muted">{leaderId}</p>
               {selected ? <LeaderStats leader={selected} /> : <div className="meta-stats-spacer" />}
