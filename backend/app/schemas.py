@@ -826,6 +826,39 @@ class DuelSettingsOut(BaseModel):
     updated_at: str | None = None
 
 
+class DuelDeckBody(BaseModel):
+    name: str = Field(max_length=100)
+    leaderId: str = Field(max_length=32)
+    cards: list[Annotated[str, StringConstraints(max_length=32)]] = Field(max_length=60)
+    artPrefs: dict[str, str] | None = None
+    plannerDeckId: int | None = None
+    editedLocally: bool | None = None
+
+
+class DuelDeckPut(BaseModel):
+    deck: DuelDeckBody
+    updatedAt: int = Field(ge=0)
+
+
+class DuelDeckBulkItem(DuelDeckPut):
+    id: str
+
+
+class DuelDeckBulkPut(BaseModel):
+    decks: list[DuelDeckBulkItem] = Field(max_length=200)
+
+
+class DuelDeckOut(BaseModel):
+    id: str
+    updatedAt: int
+    deleted: bool
+    deck: DuelDeckBody | None = None
+
+
+class DuelDecksOut(BaseModel):
+    decks: list[DuelDeckOut]
+
+
 class DuelCosmeticOut(BaseModel):
     id: int
     kind: str

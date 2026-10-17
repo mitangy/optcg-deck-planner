@@ -9,6 +9,7 @@ import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { useArtFallback } from "../cards/useArtFallback";
 import { refreshLinkedDeck } from "../decks/planner";
+import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import {
   deckToWire,
   ensureDefaultDeck,
@@ -536,6 +537,12 @@ export function LobbyPage() {
       return other.id;
     });
   }
+
+  const syncedDecks = useSavedDecksVersion();
+  useEffect(() => {
+    if (syncedDecks > 0) refreshDecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncedDecks]);
 
   useEffect(() => {
     refreshDecks();

@@ -4,6 +4,7 @@ import { BackLink } from "./BackLink";
 import { CardArt } from "../cards/CardArt";
 import { cardImageUrl } from "../cards/cardImage";
 import { listSavedDecks, setSelectedDeckId } from "../decks/storage";
+import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import {
   META_DEFAULT_DAYS,
   META_WINDOWS,
@@ -102,12 +103,13 @@ function MetaDeckItem({
 }) {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
+  const syncedDecks = useSavedDecksVersion();
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const saved = useMemo(() => {
     void tick;
     return findSavedCopy(listSavedDecks(), leader.leaderId, deck);
-  }, [tick, leader.leaderId, deck]);
+  }, [tick, syncedDecks, leader.leaderId, deck]);
 
   function open(id: string, warnings: string[] = []) {
     setSelectedDeckId(id);

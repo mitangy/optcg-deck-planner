@@ -24,11 +24,13 @@ import {
   validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
+import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { NavMenu } from "../nav/NavMenu";
 
 export function DeckConfigurePage() {
   const { deckId } = useParams<{ deckId: string }>();
   const [tick, setTick] = useState(0);
+  const syncedDecks = useSavedDecksVersion();
   const [importText, setImportText] = useState("");
   const [importErr, setImportErr] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export function DeckConfigurePage() {
   const saved = useMemo(() => {
     void tick;
     return deckId ? getSavedDeck(deckId) : undefined;
-  }, [deckId, tick]);
+  }, [deckId, tick, syncedDecks]);
   const draft: DeckDraft | null = saved ? (edits && edits.deckId === saved.id ? edits : saved) : null;
   /** The saved deck with the draft's name, leader and cards: what the editor, stats and Log Pose see. */
   const deck: SavedDeck | undefined =

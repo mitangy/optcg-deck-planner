@@ -28,6 +28,7 @@ import { useSwipeMove } from "../decks/useSwipeMove";
 import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
+import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { NavMenu } from "../nav/NavMenu";
 
 type PlannerState =
@@ -255,6 +256,7 @@ function DeckRow({
 export function DeckListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
+  const syncedDecks = useSavedDecksVersion();
   const [planner, setPlanner] = useState<PlannerState>({ status: "loading" });
   const [plannerTry, setPlannerTry] = useState(0);
   const [importing, setImporting] = useState(false);
@@ -396,7 +398,7 @@ export function DeckListPage() {
     ensureDefaultDeck();
     ensureTestDecks();
     return listSavedDecks();
-  }, [tick]);
+  }, [tick, syncedDecks]);
 
   const plannerLeft = useMemo(
     () => (planner.status === "ready" ? plannerDecksNotLocal(planner.decks, decks) : []),

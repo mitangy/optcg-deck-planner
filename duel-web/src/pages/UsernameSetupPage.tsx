@@ -67,7 +67,7 @@ export function UsernameSetupPage() {
               className="btn btn-ghost btn-sm"
               onClick={() => {
                 void logoutSession().then(() => {
-                  stopAccountSync();
+                  stopAccountSync({ clearDecks: true });
                   setRating(null);
                   navigate("/", { replace: true });
                 });

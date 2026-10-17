@@ -140,7 +140,7 @@ export function SettingsPage() {
                   className="btn btn-secondary"
                   onClick={() => {
                     void logoutSession().then(() => {
-                      stopAccountSync();
+                      stopAccountSync({ clearDecks: true });
                       setAuthUser(null);
                       setRating(null);
                     });
