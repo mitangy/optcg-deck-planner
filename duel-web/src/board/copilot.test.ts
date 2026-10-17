@@ -6,6 +6,7 @@ import {
   compactLegal,
   copilotAvailable,
   copilotShown,
+  gameAttached,
   nextIntent,
   planCardMode,
   playBlockReason,
@@ -114,7 +115,45 @@ describe("when the copilot is offered (#416)", () => {
   });
 });
 
+describe("when the live game is attached to Log Pose (#620)", () => {
+  const attached = { ...base, setting: false, briefSetting: true };
+
+  it("attaches with the matchup brief on and the copilot off, so the brief's panel can see the hand (#620)", () => {
+    expect(gameAttached(attached)).toBe(true);
+    expect(copilotAvailable({ ...attached })).toBe(false);
+  });
+
+  it("attaches with the copilot on and the brief off (#620)", () => {
+    expect(gameAttached({ ...base, setting: true, briefSetting: false })).toBe(true);
+  });
+
+  it("attaches to nothing when both settings are off (#620)", () => {
+    expect(gameAttached({ ...attached, briefSetting: false })).toBe(false);
+  });
+
+  it("stays out of ranked games, spectators, and rooms without a ticket, Log Pose or a ticket seat (#620)", () => {
+    expect(gameAttached({ ...attached, ranked: true })).toBe(false);
+    expect(gameAttached({ ...attached, ranked: null })).toBe(false);
+    expect(gameAttached({ ...attached, role: "spectator" })).toBe(false);
+    expect(gameAttached({ ...attached, brief: null })).toBe(false);
+    expect(gameAttached({ ...attached, logPoseEnabled: false })).toBe(false);
+    expect(gameAttached({ ...attached, ticketSeat: undefined })).toBe(false);
+  });
+});
+
 describe("the snapshot sent to the analyst (#416)", () => {
+  it("says who goes first, and during the mulligan whether you chose (#620)", () => {
+    const you = mkView().you;
+    const mull = (over: Record<string, unknown>, mulliganDone?: boolean) => buildSnapshot(mkView({ phase: "mulligan", ...over, you: { ...you, mulliganDone } }), null, null);
+    expect(mull({ firstSeat: 0 }, false)).toMatchObject({ first: true, mulliganDone: false });
+    expect(mull({ firstSeat: 1 }, true)).toMatchObject({ first: false, mulliganDone: true });
+    const old = mull({}, false);
+    expect(old).not.toHaveProperty("first");
+    // Past the mulligan the flag is noise.
+    expect(buildSnapshot(mkView({ firstSeat: 0, you: { ...you, mulliganDone: true } }), null, null)).not.toHaveProperty("mulliganDone");
+  });
+
+
   it("never carries the opponent's hand, even from a malformed view, or either seat's revealed hands (#416)", () => {
     const view = mkView({
       revealedHands: [[{ id: "r0", defId: "ST77-777" }], [{ id: "r1", defId: "ST88-888" }]],

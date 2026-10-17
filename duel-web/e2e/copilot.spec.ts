@@ -414,6 +414,28 @@ test("the Log Pose button is not on the board while the copilot setting is off (
   await expect(page.locator(".lp-rail-btn")).toHaveCount(0);
 });
 
+test("the matchup brief's Log Pose panel sees your opening hand with the copilot setting off (#620)", async ({ page, duel }, info) => {
+  // The phone's brief opens only on a tap; the wiring under test is the same.
+  test.skip(info.project.name === "phone-375", "the desktop brief opens the panel by itself");
+  const lp = await stubLogPose(page);
+  lp.release();
+  await duel.startPractice({ seed: 7 });
+  // Mulligan step: the brief opened the panel over the board; no keep yet.
+  await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "mulligan");
+  await expect(logPoseButton(page)).toHaveCount(0);
+  await expect(panel(page)).toBeVisible();
+  await panel(page).locator(".lp-input").fill("Should I mulligan?");
+  await panel(page).locator(".lp-input").press("Enter");
+  await expect.poll(() => lp.chats.length).toBe(1);
+  const game = lp.chats[0]!.context?.game as { plans?: boolean; snapshot: Snap & { phase: string; first?: boolean } } | undefined;
+  expect(game, "the chat request carries the game context").toBeTruthy();
+  expect(game!.snapshot.phase).toBe("mulligan");
+  expect(game!.snapshot.you.hand).toHaveLength(5);
+  expect(typeof game!.snapshot.first).toBe("boolean");
+  expect(game!.plans).toBe(false);
+  expect(JSON.stringify(lp.chats[0])).not.toContain("revealedHands");
+});
+
 test("practice: Log Pose plans a turn, plays it only after approval, and moves nothing on the board (#416)", async ({ page, duel }, info) => {
   const phone = info.project.name === "phone-375";
   await checkCopilot(page, duel, phone ? "portrait" : "desktop", phone ? "phone_375x812_portrait" : "desktop_1280x720");

@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-17
+  { date: "2026-10-17", app: "duel", pr: 622, title: "Log Pose sees your hand", text: "Log Pose in a casual or practice game now sees your hand and the board whenever its panel is open, including the matchup brief before your mulligan, so you can ask whether to keep your opening hand. Playing out turns still needs the Log Pose copilot setting." },
   // 2026-10-16
   { date: "2026-10-16", app: "duel", pr: 618, title: "Undo only applies what you saw", text: "If your opponent asks to undo the last action and then switches to undoing the whole turn just as you click Allow, your click now only counts for what you were shown. The undo window updates to the new request so you can choose again." },
   { date: "2026-10-16", app: "duel", pr: 618, title: "Log Pose stays where you drop it in one column", text: "With the side panels set to one column, a docked Log Pose you drag low in the column now stays there instead of jumping back to the top." },
