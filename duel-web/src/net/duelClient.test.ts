@@ -142,6 +142,16 @@ describe("DuelClient undo plumbing (#497)", () => {
     messageHandler(room, "events")({ protocolVersion: PROTOCOL_VERSION, events: [] });
     expect(onEvents).toHaveBeenLastCalledWith([], undefined);
   });
+
+  it("an undo accept names the request it was shown, and a request carries no id (#540)", () => {
+    const client = new DuelClient();
+    const room = fakeRoom({ answersPing: true });
+    attach(client, room);
+    client.sendUndo("accept", { id: 7 });
+    expect(room.send).toHaveBeenLastCalledWith("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept", id: 7 });
+    client.sendUndo("request", { scope: "turn", id: 7 });
+    expect(room.send).toHaveBeenLastCalledWith("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", scope: "turn" });
+  });
 });
 
 describe("DuelClient ranked queue", () => {

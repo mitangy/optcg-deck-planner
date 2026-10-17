@@ -274,3 +274,18 @@ describe("reordering in the one combined column (#529)", () => {
     expect(splitMergedLayout(moved, saved, "right")).toEqual({ right: ["log", "turn", "chat"], left: ["hand", "preview"] });
   });
 });
+
+describe("one column with a docked Log Pose (#573)", () => {
+  const saved = placeLogPose(parsePanelLayout(""), "left");
+
+  it("one column: a docked Log Pose moved down the column stays there (#573)", () => {
+    const merged = mergeIntoColumn(saved, "left");
+    const order = merged.left.filter((p) => p !== "logpose");
+    for (const to of [3, order.length]) {
+      const reordered = { left: [...order.slice(0, to), "logpose", ...order.slice(to)] as PanelId[], right: [] as PanelId[] };
+      const store = splitMergedLayout(reordered, saved, "left", "logpose");
+      const shown = mergeIntoColumn(placeLogPose(store, "left"), "left").left;
+      expect(shown).toEqual(reordered.left);
+    }
+  });
+});
