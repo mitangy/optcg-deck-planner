@@ -196,7 +196,37 @@ describe("copilot game block", () => {
   });
 });
 
+describe("copilot game block in the mulligan (#620)", () => {
+  it("tells the model the hand is its opening 5, who goes first, and that the player already chose (#620)", () => {
+    const text = gameContextBlock(catalog, game({ phase: "mulligan", first: true, mulliganDone: true }), claims);
+    expect(text).toContain("You go first.");
+    expect(text).toContain("Mulligan step: Your hand is your opening 5 cards. You may keep it or mulligan once");
+    expect(text).toContain("You already chose.");
+    const second = gameContextBlock(catalog, game({ phase: "mulligan", first: false }), claims);
+    expect(second).toContain("You go second.");
+    expect(second).not.toContain("You already chose.");
+  });
+
+  it("adds no mulligan line outside the mulligan (#620)", () => {
+    const text = gameContextBlock(catalog, game({ first: true }), claims);
+    expect(text).not.toContain("Mulligan step");
+  });
+
+  it("tells the model never to ask for the hand (#620)", () => {
+    expect(COPILOT_INSTRUCTIONS).toContain("never ask them for their hand");
+  });
+});
+
 describe("copilot turn plan", () => {
+  it("refuses a plan when the game was attached without plans, and says to answer in words (#620)", async () => {
+    const g = gameContext.parse({ ticket: TICKET, snapshot: snapshot(), plans: false });
+    const r = await turnPlanTool(catalog, g).run({ summary: "Play Nami", steps: [{ action: "play", card: "h1" }, { action: "end_turn" }] });
+    expect(r).toMatchObject({ isError: true });
+    expect(JSON.stringify(r)).toContain("describe the line in words");
+    const ok = await turnPlanTool(catalog, game()).run({ summary: "Play Nami", steps: [{ action: "play", card: "h1" }, { action: "end_turn" }] });
+    expect(ok).not.toHaveProperty("isError");
+  });
+
   const PLAY_NAMI = { action: "play", card: "h1" };
 
   it("writes labels from card names and stamps the snapshot's turn (#416)", async () => {
@@ -356,6 +386,15 @@ describe("copilot chat turn", () => {
     expect(seen[0]!.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(seen[0]!.system[1]).toEqual({ type: "text", text: COPILOT_INSTRUCTIONS });
     expect(seen[0]!.tools.map((t: { name: string }) => t.name)).toContain("propose_turn_plan");
+  });
+
+  it("adds the no-plans sentence to the copilot text when the game came without plans (#620)", async () => {
+    const { api } = planner(answers);
+    const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Keep." }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+    const body = chatBody.parse({ message: "Mulligan?", context: { game: { ticket: TICKET, snapshot: snapshot({ phase: "mulligan" }), plans: false } } });
+    await runChat(deps(api, callModel), "chat.tok", body, () => undefined, new AbortController().signal);
+    expect(seen[0]!.system[1].text.startsWith(COPILOT_INSTRUCTIONS)).toBe(true);
+    expect(seen[0]!.system[1].text).toContain("Turn play-out is off for this game");
   });
 
   it("sends a refused plan back to the model and emits no plan event (#416)", async () => {

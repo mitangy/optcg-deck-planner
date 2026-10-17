@@ -558,7 +558,13 @@ export type UndoAction = "request" | "accept" | "decline" | "cancel";
 export type UndoScope = "action" | "turn";
 
 /** A parsed undo message: `scope` / `force` only matter on a "request". */
-export type UndoRequestBody = { action: UndoAction; scope: UndoScope; force: boolean };
+export type UndoRequestBody = {
+  action: UndoAction;
+  scope: UndoScope;
+  force: boolean;
+  /** An "accept" names the request it saw (`pending.id`); absent from older clients (#540). */
+  id?: number;
+};
 
 /** One undoable action: who took it and a short description ("play Nami"). */
 export type UndoActionInfo = { seat: Seat; label: string };
@@ -592,6 +598,8 @@ export type UndoStateMessage = {
   blockedReason: string | null;
   /** Open request awaiting the other seat's answer. */
   pending: {
+    /** Server-assigned, new for every request, so an accept can name the one it saw (#540). */
+    id: number;
     from: Seat;
     toTurn: number;
     action: UndoActionInfo | null;
@@ -691,5 +699,13 @@ export function parseUndoMessage(raw: unknown): UndoRequestBody {
   if (o.force !== undefined && typeof o.force !== "boolean") {
     throw Object.assign(new Error("undo force must be a boolean"), { code: "bad_protocol" as const });
   }
-  return { action: o.action, scope: o.scope ?? "action", force: o.force === true };
+  if (o.id !== undefined && (typeof o.id !== "number" || !Number.isSafeInteger(o.id))) {
+    throw Object.assign(new Error("undo id must be an integer"), { code: "bad_protocol" as const });
+  }
+  return {
+    action: o.action,
+    scope: o.scope ?? "action",
+    force: o.force === true,
+    ...(o.id === undefined ? {} : { id: o.id }),
+  };
 }

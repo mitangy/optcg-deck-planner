@@ -51,3 +51,35 @@ describe.each(CASES)("$card $name: play the revealed Life card, then the Leader 
     expect(powerOf(h.state, 0, h.state.players[0].leader)).toBe(5000);
   });
 });
+
+/**
+ * ST22-015: the nested "you may add 1 card from your Life to your hand" never writes `_affected`, so the payoff must
+ * trust the accepted prompt, not the stale `_affected` left by the earlier (empty) Newgate play.
+ */
+describe("ST22-015 I Am Whitebeard!!", () => {
+  function run(opts: { decline: boolean }) {
+    const h = new Harness({ leaders: ["OP02-001", "ST01-001"] });
+    h.hand(0, "ST22-015");
+    h.life(0, FILLER, FILLER);
+    h.don(0, 10);
+    h.play(0, "ST22-015");
+    h.forced();
+    if (opts.decline) h.decline(); else h.accept();
+    if (h.choice?.request?.type === "mode") h.pick("Top");
+    h.forced();
+    if (h.choice?.request?.type === "select") h.pick(h.state.players[0].leader.id);
+    return h;
+  }
+
+  it("ST22-015 gives the Leader +2000 when you add a Life card without playing Newgate (#519)", () => {
+    const h = run({ decline: false });
+    expect(h.state.players[0].life).toHaveLength(1);
+    expect(powerOf(h.state, 0, h.state.players[0].leader)).toBe(6000 + 2000);
+  });
+
+  it("ST22-015 gives nothing when you decline the Life card (#519)", () => {
+    const h = run({ decline: true });
+    expect(h.state.players[0].life).toHaveLength(2);
+    expect(powerOf(h.state, 0, h.state.players[0].leader)).toBe(6000);
+  });
+});

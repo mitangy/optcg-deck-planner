@@ -459,7 +459,7 @@ export function DuelBoard({
     // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
     (next) => {
       updateSettings({
-        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide) : next),
+        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide, logPoseSide === singleSide ? "logpose" : undefined) : next),
       });
       // Log Pose dragged to the other column (both shown): the dock side follows, so the two agree.
       if (!singleSide && logPoseSide) {
@@ -2299,7 +2299,7 @@ export function DuelBoard({
             </p>
           ) : null}
           <div className="undo-request-actions">
-            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept")}>
+            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept", { id: undoState.pending?.id })}>
               Allow
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => undo?.onAction("decline")}>

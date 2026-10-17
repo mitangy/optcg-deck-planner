@@ -517,6 +517,8 @@ export interface Ability {
   don?: number;
   /** Gate conditions checked when the ability would activate/apply. */
   conditions?: Cond[];
+  /** Gate conditions checked when a queued trigger is about to resolve instead of when it was queued (a "would do nothing" gate that an earlier effect in the same window can change). */
+  resolveConditions?: Cond[];
   /** Costs paid when activated or accepted (a cost makes a trigger optional). */
   costs?: Cost[];
   effect?: Effect;

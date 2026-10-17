@@ -25,6 +25,16 @@ export function copilotAvailable(o: {
 }
 
 /**
+ * Whether the live game is registered with Log Pose, so a chat can see the hand and board. Wider than
+ * `copilotAvailable`: the matchup brief opens the Log Pose panel over the board during the mulligan, and the
+ * player chats there with the copilot setting off. The same room, player, ticket and account checks apply; only
+ * plans, the button and the executor need the copilot setting itself.
+ */
+export function gameAttached(o: Parameters<typeof copilotAvailable>[0] & { briefSetting: boolean }): boolean {
+  return copilotAvailable({ ...o, setting: o.setting || o.briefSetting });
+}
+
+/**
  * Whether the board draws the copilot's button: the game offers it and the view is from the seat the ticket was
  * minted for. In hotseat the ticket is seat 0's, so the button is there for seat 0's turns only.
  */
@@ -145,6 +155,8 @@ export function buildSnapshot(view: PlayerView, battleLine: string | null | unde
     turn: view.turnNumber,
     phase: view.phase,
     yourTurn: view.activeSeat === view.seat,
+    ...(view.firstSeat === undefined ? {} : { first: view.firstSeat === view.seat }),
+    ...(view.phase === "mulligan" && typeof you.mulliganDone === "boolean" ? { mulliganDone: you.mulliganDone } : {}),
     you: {
       leader: leaderCard(you.leader),
       characters: cards(you.characters),

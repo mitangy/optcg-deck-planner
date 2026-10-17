@@ -10,7 +10,7 @@ import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js
 import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
 import { addModifier } from "./modifiers.js";
 import {
-  abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
+  abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, resolveGateOpen, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
 import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./state.js";
 
@@ -98,6 +98,8 @@ function startNextTrigger(sim: Sim): boolean {
   const loc = locate(state, next.sourceInstanceId);
   // Once-per-turn may have been consumed by an earlier copy of the same trigger.
   if (entry.ability.oncePerTurn && loc?.card?.usedAbilities?.[entry.ability.id] === state.turnNumber) return true;
+  // Gates that must hold when the trigger resolves, not when it was queued (an earlier [When Attacking] may change them, #609).
+  if (!resolveGateOpen(state, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.eventCardId)) return true;
   startAbility(sim, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.window, next.eventCardId ? { _event: next.eventCardId } : {});
   return true;
 }

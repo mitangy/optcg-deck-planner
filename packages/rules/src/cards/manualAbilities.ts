@@ -731,7 +731,8 @@ ENTRIES.push(["OP04-059", { abilities: [
 // OP04-069: not while this Character's base power already equals the attacker's power. Its [Trigger] is as generated.
 ENTRIES.push(["OP04-069", { abilities: [
   { id: "op04-069#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the power of your opponent's attacking Leader or Character during this turn.",
-    conditions: [cmp({ count: { of: "self_base_power" } }, "!=", { count: { of: "battle_power", role: "attacker" } })],
+    // Checked as the trigger resolves: the attacker's own [When Attacking] may still change its power (#609).
+    resolveConditions: [cmp({ count: { of: "self_base_power" } }, "!=", { count: { of: "battle_power", role: "attacker" } })],
     costs: [{ k: "return_don", count: 1 }],
     effect: { do: "base_power", target: self, value: { count: { of: "battle_power", role: "attacker" } }, duration: "turn" } },
   { id: "op04-069#1", trigger: "trigger", text: "[Trigger] DON!! -1: Play this card.",

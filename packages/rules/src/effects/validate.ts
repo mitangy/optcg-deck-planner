@@ -254,7 +254,7 @@ const replacementEvent = oneOf("ko", "ko_by_effect", "removed_by_opponent_effect
 const replacement = obj({ event: replacementEvent, target: (v, p, e) => { if (v === "self") return; selector(v, p, e); }, instead: effect, optional: bool }, { byOpponent: bool, alsoEvents: arr(replacementEvent, 1), sourceFilter: filter });
 
 const ability: V = (v, p, e) => {
-  obj({ id: str, trigger, text: anyStr }, { oncePerTurn: bool, don: int(1), conditions: arr(cond), costs: arr(cost), effect, statics: arr(gatedStatic, 1), eventTrigger, replacement })(v, p, e);
+  obj({ id: str, trigger, text: anyStr }, { oncePerTurn: bool, don: int(1), conditions: arr(cond), resolveConditions: arr(cond), costs: arr(cost), effect, statics: arr(gatedStatic, 1), eventTrigger, replacement })(v, p, e);
   const a = v as Record<string, unknown> | null;
   if (!a || typeof a !== "object") return;
   if (a.trigger === "static" && !a.statics) e.push(`${p}: static ability requires statics`);

@@ -310,7 +310,7 @@ export function HotseatPage() {
           // Both seats are this player: the other seat's client accepts at once.
           if (state.pending && state.pending.from !== bag.seat) {
             try {
-              bag.client.sendUndo("accept");
+              bag.client.sendUndo("accept", { id: state.pending.id });
             } catch {
               /* socket gone; the request lapses */
             }

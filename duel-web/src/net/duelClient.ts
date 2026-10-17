@@ -404,7 +404,10 @@ export class DuelClient {
     this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
-  /** `opts` (a "request" only): take back the whole turn, and/or force past a reveal (#536). */
+  /**
+   * `opts` (a "request" only): take back the whole turn, and/or force past a reveal (#536).
+   * An "accept" passes `id` (the pending request it was shown) so a changed request is refused (#540).
+   */
   sendUndo(action: UndoAction, opts?: UndoRequestOptions) {
     if (!this.room) throw new Error("Not connected");
     this.room.send("undo", {
@@ -412,6 +415,7 @@ export class DuelClient {
       action,
       ...(action === "request" && opts?.scope ? { scope: opts.scope } : {}),
       ...(action === "request" && opts?.force ? { force: true } : {}),
+      ...(action === "accept" && opts?.id !== undefined ? { id: opts.id } : {}),
     });
   }
 

@@ -216,6 +216,7 @@ export class DuelRoom extends Room implements PresenceSource {
   /** Oldest snapshots fell off the stack (UNDO_HISTORY_LIMIT), so the earliest kept turn may be cut short. */
   private undoTruncated = false;
   private undoRequest: UndoStateMessage["pending"] = null;
+  private undoRequestSeq = 0;
   private lastUndoStateKey = "";
   /** Turn of the last progress snapshot, so the log is saved once per turn. */
   private progressTurn: number | null = null;
@@ -1476,8 +1477,9 @@ export class DuelRoom extends Room implements PresenceSource {
     let action: UndoAction;
     let scope: UndoScope;
     let force: boolean;
+    let id: number | undefined;
     try {
-      ({ action, scope, force } = parseUndoMessage(message));
+      ({ action, scope, force, id } = parseUndoMessage(message));
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1512,6 +1514,7 @@ export class DuelRoom extends Room implements PresenceSource {
           return;
         }
         this.undoRequest = {
+          id: (this.undoRequestSeq += 1),
           from: seat,
           toTurn: this.undoStack[idx]!.turnNumber,
           action: { seat: top.seat, label: top.label },
@@ -1549,6 +1552,12 @@ export class DuelRoom extends Room implements PresenceSource {
         }
         if (req.from === seat) {
           this.sendError(client, "unauthorized", "The other player must accept the undo");
+          return;
+        }
+        // An accept names the request it saw; the requester may have changed it since (#540).
+        if (id !== undefined && id !== req.id) {
+          this.sendError(client, "illegal_intent", "The undo request changed; review it again");
+          this.sendUndoState(client);
           return;
         }
         this.applyUndo(req.from, req.scope);

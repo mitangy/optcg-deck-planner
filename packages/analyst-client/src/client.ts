@@ -45,6 +45,10 @@ export type GameSnapshot = {
   turn: number;
   phase: string;
   yourTurn: boolean;
+  /** You take turn 1. Only when the view says who goes first. */
+  first?: boolean;
+  /** During the mulligan step: you already kept or mulliganed. */
+  mulliganDone?: boolean;
   you: {
     leader: SnapCard;
     characters: SnapCard[];
@@ -77,7 +81,10 @@ export type GameSnapshot = {
 };
 
 /** The live game sent with a message: the brief ticket proves an unranked room, the analyst checks it again. */
-export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: string[] };
+export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: string[];
+  /** False when only the board is attached (the copilot setting is off): Log Pose answers in words, no turn plans. */
+  plans?: boolean;
+};
 
 /** What the page the user is on adds to a message. */
 export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext; game?: GameChatContext };

@@ -814,6 +814,21 @@ function bindTrashedCard(effect: Effect): void {
   else if (effect.do === "seq" && effect.steps.length) bindTrashedCard(effect.steps[effect.steps.length - 1]!);
 }
 
+/**
+ * Effects that run through `forEachTarget` (or `play`) in `execActInner` and so reset and fill `_affected`
+ * (keep in step with WRITES_AFFECTED in programLint.ts, which grammar.ts cannot import without a cycle).
+ * Notably not `to_life`, `life_to_hand`, `give_don`, `power`, ...: those never write it.
+ */
+const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"]);
+
+/** Whether any effect inside the tree writes `_affected`. */
+function writesAffected(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(writesAffected);
+  if (!node || typeof node !== "object") return false;
+  const o = node as Record<string, unknown>;
+  return (typeof o.do === "string" && WRITES_AFFECTED.has(o.do)) || Object.values(o).some(writesAffected);
+}
+
 /** Every `may` inside an effect tree. */
 function mayEffectsIn(effect: Effect | undefined): Extract<Effect, { do: "may" }>[] {
   if (!effect) return [];
@@ -841,7 +856,17 @@ function linkIfYouDo(steps: Effect[], gate: Extract<Effect, { do: "if" }>, sente
     if (!nested.length) gate.cond = { ...gate.cond, name: "_affected" };
     // "If that card is X, you may play that card. If you do, Y": the "you may" sits inside the conditional, and a
     // play that cannot happen is not "doing" it.
-    else if (nested.every((m) => !m.costs?.length)) gate.cond = { c: "and", conds: [gate.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] };
+    // A nested may whose action never writes `_affected` ("Then, you may add 1 card from your Life to your hand. If
+    // you do, ..." in ST22-015) would find `_affected` stale from an earlier step, so it becomes a cost instead:
+    // offered only when payable, and `_did` alone proves it was done.
+    else {
+      for (const m of nested) {
+        if (m.costs?.length || !m.prompt || writesAffected(m.then)) continue;
+        const costs = parseCosts(m.prompt, ctx);
+        if (costs?.length) Object.assign(m, { costs, then: { do: "nothing" }, bind: m.bind ?? "_did" });
+      }
+      if (nested.every((m) => !m.costs?.length)) gate.cond = { c: "and", conds: [gate.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] };
+    }
     return;
   }
   if (!prev.prompt || prev.costs || prev.chooser) return;
