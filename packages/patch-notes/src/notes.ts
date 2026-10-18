@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-18
+  { date: "2026-10-18", app: "duel", pr: 628, title: "Eyelashes is playable", text: "Eyelashes (OP18-015) is now in the duel app: when your opponent attacks you may trash it, and if your Leader has the {Alabasta} type, up to 1 of their Leader or Characters gets −3000 power this turn. Kumadori (OP18-101) now shows preview art until its official image is out." },
   // 2026-10-17
   { date: "2026-10-17", app: "duel", pr: 624, title: "Duel decks follow your account", text: "Your duel decks are now saved to your account and follow you to every device. Decks already in this browser are moved over the first time you sign in." },
   { date: "2026-10-17", app: "duel", pr: 623, title: "Cards no longer get stuck to your mouse", text: "If you pressed a card in your hand and let go after the mouse slid off it, the card could lift on its own the next time you moved over it and then get played by accident. Letting go anywhere now ends the press, so a card is only played when you actually drag or click to play it." },
