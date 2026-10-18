@@ -3414,6 +3414,19 @@ tr.done td {
   max-width: 100%;
 }
 
+/* Alt tiles fit inside narrow grid cards (2 columns at 375px). */
+.grid-card-alts .alt-art {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.grid-card-alts .alt-art .thumb {
+  width: 48px;
+  height: 67px;
+  flex-shrink: 0;
+}
+
 .grid-card-owned .group-buy-printing {
   width: 100%;
   max-width: 100%;
