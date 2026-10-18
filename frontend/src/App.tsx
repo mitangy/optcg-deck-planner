@@ -10,6 +10,7 @@ import {
   DeckSummary,
   money,
   needBreakdownLabel,
+  PrintingView,
   OwnedCard,
   OwnedCollectionResponse,
   ShoppingItem,
@@ -55,7 +56,7 @@ import {
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
 import { nextExtraTarget } from "./shoppingExtras";
-import { collectionTotals, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
+import { collectionTotals, holdsCopies, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
@@ -66,6 +67,7 @@ import { MetaPage } from "./MetaPage";
 import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
+import { baseTileFor, mainImageUrl } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   consumeLoginNext,
@@ -283,27 +285,50 @@ function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function applyAltWantOptimistic(
+/** Alt owned changes still-needed copies everywhere, including group-buy needs. */
+function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
+  invalidateOwnedViews(qc);
+  void qc.invalidateQueries({ queryKey: ["decks"] });
+  void qc.invalidateQueries({ queryKey: ["group-buy"] });
+  void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+function sumAltOwned(alts: { owned?: number }[]): number {
+  return alts.reduce((n, a) => n + (a.owned ?? 0), 0);
+}
+
+/** Alt copies count as owned: still_need = Need − base owned − alt owned (− earlier leaders' claim). */
+function stillNeedFor(need: number, owned: number, altsOwned: number, earlierLeadersNeed = 0): number {
+  return Math.max(0, need - Math.max(0, owned + altsOwned - earlierLeadersNeed));
+}
+
+function applyAltOwnedOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
   productId: number,
   qty: number,
 ) {
   const id = cardId.toUpperCase();
+  const patchAlts = (alts: PrintingView[] | undefined) =>
+    (alts ?? []).map((a) => (a.product_id === productId ? { ...a, owned: qty } : a));
   qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
     if (!old) return old;
     let cardsStill = 0;
     let remaining = 0;
     const items = old.items.map((item) => {
-      if (item.card_id.toUpperCase() !== id) {
-        cardsStill += item.still_need;
-        if (item.remaining_cost != null) remaining += item.remaining_cost;
-        return item;
+      let patched = item;
+      if (item.card_id.toUpperCase() === id) {
+        const alt_arts = patchAlts(item.alt_arts);
+        const alts_owned = sumAltOwned(alt_arts);
+        const still_need = stillNeedFor(item.need, item.owned, alts_owned);
+        patched = {
+          ...item,
+          alt_arts,
+          alts_owned,
+          still_need,
+          remaining_cost: remainingCostForCard({ still_need, market_price: item.market_price }),
+        };
       }
-      const alt_arts = (item.alt_arts ?? []).map((a) =>
-        a.product_id === productId ? { ...a, wanted: qty } : a,
-      );
-      const patched = { ...item, alt_arts, remaining_cost: remainingCostForCard({ ...item, alt_arts }) };
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
@@ -321,11 +346,13 @@ function applyAltWantOptimistic(
       ...old,
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
+        const alt_arts = patchAlts(card.alt_arts);
+        const alts_owned = sumAltOwned(alt_arts);
         return {
           ...card,
-          alt_arts: (card.alt_arts ?? []).map((a) =>
-            a.product_id === productId ? { ...a, wanted: qty } : a,
-          ),
+          alt_arts,
+          alts_owned,
+          still_need: stillNeedFor(card.needed, card.owned, alts_owned, card.earlier_leaders_need ?? 0),
         };
       }),
     };
@@ -337,13 +364,12 @@ function patchOwnedQty(
   qty: number,
   need: number,
   market: number | null | undefined,
-  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[],
+  altsOwned = 0,
 ) {
-  const still = Math.max(0, need - qty);
+  const still = stillNeedFor(need, qty, altsOwned);
   const remaining = remainingCostForCard({
     still_need: still,
     market_price: market != null && !Number.isNaN(market) ? market : null,
-    alt_arts,
   });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
@@ -429,7 +455,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alt_arts);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alts_owned ?? 0);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -451,8 +477,11 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
         // Earlier leaders take their copies first in "Separate per leader" mode.
-        const available = Math.max(0, qty - (card.earlier_leaders_need ?? 0));
-        return { ...card, owned: qty, still_need: Math.max(0, card.needed - available) };
+        return {
+          ...card,
+          owned: qty,
+          still_need: stillNeedFor(card.needed, qty, card.alts_owned ?? 0, card.earlier_leaders_need ?? 0),
+        };
       }),
     };
   });
@@ -804,6 +833,35 @@ function loadShowShoppingDons(): boolean {
   }
 }
 
+/** Deck names as small chips (one per deck), then an optional note and action. */
+function UsedInCell({
+  decks,
+  note = "",
+  action = null,
+  className = "",
+}: {
+  decks: string[];
+  note?: string;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`used-in-cell${className ? ` ${className}` : ""}`}>
+      {decks.length > 0 && (
+        <ul className="used-in-chips" aria-label="Used in decks">
+          {decks.map((name) => (
+            <li key={name} className="used-in-chip" title={name}>
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+      {note && <span className="used-in-note">{note}</span>}
+      {action}
+    </div>
+  );
+}
+
 function ShoppingItemsView({
   items,
   layout,
@@ -814,7 +872,7 @@ function ShoppingItemsView({
   onToggleSelectVisible,
   showAltArts,
   altRow,
-  usedInLabel,
+  usedInNote,
   onOwnedSaved,
   onRemoveExtra,
   removingExtraId,
@@ -828,7 +886,7 @@ function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
-  usedInLabel: (item: ShoppingItem) => string;
+  usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
@@ -887,7 +945,7 @@ function ShoppingItemsView({
               )}
               <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
                 <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                  <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
+                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
                 </div>
                 <div className="grid-card-body">
                   <div className="card-id">{item.card_id}</div>
@@ -896,6 +954,11 @@ function ShoppingItemsView({
                     {item.still_need}/{item.need} still needed
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                   </div>
+                  {item.used_in.length > 0 && (
+                    <div className="grid-card-used-in" onClick={stopCardSelectBubble}>
+                      <UsedInCell decks={item.used_in} />
+                    </div>
+                  )}
                   <div className="grid-card-price" onClick={stopCardSelectBubble}>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
                   </div>
@@ -953,7 +1016,6 @@ function ShoppingItemsView({
               <th>Market</th>
               <th>Remaining</th>
               <th>Cost</th>
-              {showAltArts && <th>Alt arts</th>}
               <th>Used in</th>
             </tr>
           </thead>
@@ -975,7 +1037,7 @@ function ShoppingItemsView({
                   </td>
                   <td className="card-cell">
                     <div className="card-cell-inner">
-                      <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
+                      <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
                       <div>
                         <div className="card-id">{item.card_id}</div>
                         <div>{item.name}</div>
@@ -986,6 +1048,11 @@ function ShoppingItemsView({
                         )}
                       </div>
                     </div>
+                    {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                      <div className="card-cell-alts" onClick={stopCardSelectBubble}>
+                        {altRow(item)}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
@@ -998,12 +1065,8 @@ function ShoppingItemsView({
                   </td>
                   <td>{money(item.remaining_cost)}</td>
                   <td>{item.cost ?? "—"}</td>
-                  {showAltArts && <td onClick={stopCardSelectBubble}>{altRow(item)}</td>}
                   <td className="used-in">
-                    <div className="used-in-cell">
-                      <span>{usedInLabel(item)}</span>
-                      {removeExtraButton(item)}
-                    </div>
+                    <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
                   </td>
                 </tr>
               );
@@ -1034,7 +1097,7 @@ function ShoppingItemsView({
               <div className="mobile-card-top">
                 <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
                   <MobileCardMedia
-                    src={item.image_url || undefined}
+                    src={mainImageUrl(item)}
                     cardId={item.card_id}
                     alt={item.name}
                     cost={item.cost}
@@ -1086,11 +1149,13 @@ function ShoppingItemsView({
                 </div>
               )}
               {(item.used_in.length > 0 || (item.extra_qty ?? 0) > 0) && (
-                <div className="used-in-cell mobile-used-in">
-                  <span>{usedInLabel(item)}</span>
-                  <span onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
-                    {removeExtraButton(item)}
-                  </span>
+                <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                  <UsedInCell
+                    className="mobile-used-in"
+                    decks={item.used_in}
+                    note={usedInNote(item)}
+                    action={removeExtraButton(item)}
+                  />
                 </div>
               )}
             </article>
@@ -1202,8 +1267,8 @@ function ShoppingPage() {
     },
     onDragStateChange: setPageDragging,
   });
-  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
-  const [altWantErr, setAltWantErr] = useState<string | null>(null);
+  const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
+  const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
   const sortingByDeck = effectiveSorts.includes("deck");
 
   useEffect(() => {
@@ -1214,36 +1279,30 @@ function ShoppingPage() {
     }
   }, [showDons]);
 
-  const changeShoppingAltWant = async (cardId: string, productId: number, qty: number) => {
-    setAltWantErr(null);
-    setAltWantBusyKey(`${cardId}:${productId}`);
-    applyAltWantOptimistic(qc, cardId, productId, qty);
+  const changeShoppingAltOwned = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltOwnedOptimistic(qc, cardId, productId, qty);
     try {
-      const res = await api.setCardPrinting(
-        cardId,
-        productId,
-        qty,
-        activeDeckIds.length ? activeDeckIds : undefined,
-      );
-      applyAltWantOptimistic(qc, cardId, productId, res.qty);
-      invalidateAltWantViews(qc);
+      const res = await api.setAltOwned(cardId, productId, qty);
+      applyAltOwnedOptimistic(qc, cardId, productId, res.qty);
     } catch (e) {
-      setAltWantErr((e as Error).message);
-      invalidateAltWantViews(qc);
+      setAltOwnedErr((e as Error).message);
     } finally {
-      setAltWantBusyKey(null);
+      invalidateAltOwnedViews(qc);
+      setAltOwnedBusyKey(null);
     }
   };
 
   const shoppingAltRow = (item: ShoppingItem) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
-      cardNeeded={item.need}
       editable
-      onWantChange={(productId, qty) => void changeShoppingAltWant(item.card_id, productId, qty)}
+      base={baseTileFor(item)}
+      onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
       busyProductId={
-        altWantBusyKey?.startsWith(`${item.card_id}:`)
-          ? Number(altWantBusyKey.slice(item.card_id.length + 1))
+        altOwnedBusyKey?.startsWith(`${item.card_id}:`)
+          ? Number(altOwnedBusyKey.slice(item.card_id.length + 1))
           : null
       }
     />
@@ -1471,29 +1530,26 @@ function ShoppingPage() {
     onError: (e: Error) => setExportMsg(e.message),
   });
 
-  function usedInLabel(item: ShoppingItem): string {
-    const label = deckUsedInLabel(item);
-    const extra = item.extra_qty ?? 0;
-    if (extra <= 0) return label;
-    if (item.used_in.length === 0) return "Added directly";
-    return `${label} · Added directly${extra > (item.deck_need ?? 0) ? ` (want ${extra})` : ""}`;
-  }
-
-  function deckUsedInLabel(item: ShoppingItem): string {
-    const decks = item.used_in.join(", ");
+  /** Everything on the "Used in" line besides the deck names (those render as chips). */
+  function usedInNote(item: ShoppingItem): string {
+    const parts: string[] = [];
     const breakdown = needBreakdownLabel(item);
     if ((item.leader_count ?? 1) > 1) {
       const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
       // The breakdown already says the card is shared; the sort note only
       // matters when grouping by deck.
-      if (!breakdown) return `${decks} · shared (sorted under ${primary})`;
-      return sortingByDeck ? `${decks} · ${breakdown} · sorted under ${primary}` : `${decks} · ${breakdown}`;
+      if (!breakdown) parts.push(`shared (sorted under ${primary})`);
+      else parts.push(sortingByDeck ? `${breakdown} · sorted under ${primary}` : breakdown);
+    } else if (breakdown) {
+      parts.push(breakdown);
+    } else if (sortingByDeck && item.primary_leader_name) {
+      parts.push(item.primary_leader_name);
     }
-    if (breakdown) return `${decks} · ${breakdown}`;
-    if (sortingByDeck && item.primary_leader_name) {
-      return `${decks} · ${item.primary_leader_name}`;
+    const extra = item.extra_qty ?? 0;
+    if (extra > 0) {
+      parts.push(`Added directly${extra > (item.deck_need ?? 0) && item.used_in.length > 0 ? ` (want ${extra})` : ""}`);
     }
-    return decks;
+    return parts.join(" · ");
   }
 
   function toggleDeck(id: number) {
@@ -1667,7 +1723,7 @@ function ShoppingPage() {
           {exportMsg}
         </p>
       ) : null}
-      {altWantErr && <p className="error">{altWantErr}</p>}
+      {altOwnedErr && <p className="error">{altOwnedErr}</p>}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -1790,7 +1846,7 @@ function ShoppingPage() {
         onToggleSelectVisible={toggleSelectVisible}
         showAltArts={showAltArts}
         altRow={shoppingAltRow}
-        usedInLabel={usedInLabel}
+        usedInNote={usedInNote}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}
         removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
@@ -1814,7 +1870,7 @@ function ShoppingPage() {
               onToggleSelectVisible={toggleSelectVisible}
               showAltArts={showAltArts}
               altRow={shoppingAltRow}
-              usedInLabel={usedInLabel}
+              usedInNote={usedInNote}
               onOwnedSaved={() => invalidateOwnedViews(qc)}
               onRemoveExtra={(id) => removeExtra.mutate(id)}
               removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
@@ -1885,6 +1941,16 @@ function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefin
   );
 }
 
+/** "+2 alt" beside the Owned stepper: copies owned as alt arts (edited on the deck page / Master Shopping). */
+function AltsOwnedNote({ count }: { count?: number }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className="alts-owned-note" title="Alt-art copies you own, on top of Owned">
+      +{count} alt
+    </span>
+  );
+}
+
 function CollectionItemsView({
   items,
   layout,
@@ -1922,6 +1988,7 @@ function CollectionItemsView({
                 <div className="grid-card-owned">
                   <span>Owned</span>
                   <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                 </div>
                 {item.tcgplayer_url && (
                   <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
@@ -1969,6 +2036,7 @@ function CollectionItemsView({
                 </td>
                 <td>
                   <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                 </td>
                 <td>
                   <MarketPrice price={item.market_price} productId={item.product_id} />
@@ -2012,6 +2080,7 @@ function CollectionItemsView({
                   <div className="mobile-card-owned">
                     <span>Owned</span>
                     <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                   </div>
                 </div>
               </div>
@@ -2371,7 +2440,7 @@ function CollectionPage() {
     return [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
   }, [allItems, showDons, sparesOnly, colors, search, effectiveSorts]);
 
-  const shown = useMemo(() => collectionTotals(items.filter((i) => i.owned > 0)), [items]);
+  const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
   const filterSummary = useMemo(() => {
@@ -2907,8 +2976,8 @@ function CardTable({
   editing = false,
   onNeededChange,
   neededBusyId = null,
-  onAltWantChange,
-  altWantBusyKey = null,
+  onAltOwnedChange,
+  altOwnedBusyKey = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -2917,23 +2986,23 @@ function CardTable({
   editing?: boolean;
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
-  onAltWantChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a printing want save is in flight. */
-  altWantBusyKey?: string | null;
+  onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while an alt owned save is in flight. */
+  altOwnedBusyKey?: string | null;
 }) {
   const altRow = (c: CardView) => (
     <AltArtsRow
       alts={c.alt_arts ?? []}
-      cardNeeded={c.needed}
-      editable={Boolean(onAltWantChange)}
-      onWantChange={
-        onAltWantChange
-          ? (productId, qty) => onAltWantChange(c.card_id, productId, qty)
+      editable={Boolean(onAltOwnedChange)}
+      base={baseTileFor(c)}
+      onOwnedChange={
+        onAltOwnedChange
+          ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
           : undefined
       }
       busyProductId={
-        altWantBusyKey?.startsWith(`${c.card_id}:`)
-          ? Number(altWantBusyKey.slice(c.card_id.length + 1))
+        altOwnedBusyKey?.startsWith(`${c.card_id}:`)
+          ? Number(altOwnedBusyKey.slice(c.card_id.length + 1))
           : null
       }
     />
@@ -2948,7 +3017,7 @@ function CardTable({
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
-              <CardThumb src={c.image_url || undefined} cardId={c.card_id} alt={c.name} />
+              <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
             </div>
             <div className="grid-card-body">
               <div className="card-id">{c.card_id}</div>
@@ -3002,7 +3071,6 @@ function CardTable({
               <th>Market</th>
               <th>Type</th>
               <th>Cost</th>
-              {showAltArts && <th>Alt arts</th>}
             </tr>
           </thead>
           <tbody>
@@ -3010,7 +3078,7 @@ function CardTable({
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={c.image_url || undefined} cardId={c.card_id} alt={c.name} />
+                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{c.name}</div>
@@ -3021,6 +3089,9 @@ function CardTable({
                       )}
                     </div>
                   </div>
+                  {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
+                    <div className="card-cell-alts">{altRow(c)}</div>
+                  )}
                 </td>
                 <td>
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
@@ -3045,8 +3116,7 @@ function CardTable({
                 </td>
                 <td>{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                {showAltArts && <td>{altRow(c)}</td>}
-              </tr>
+                              </tr>
             ))}
           </tbody>
         </table>
@@ -3061,7 +3131,7 @@ function CardTable({
           >
             <div className="mobile-card-top">
               <MobileCardMedia
-                src={c.image_url || undefined}
+                src={mainImageUrl(c)}
                 cardId={c.card_id}
                 alt={c.name}
                 cost={c.cost}
@@ -3606,8 +3676,8 @@ function DeckDetailPage() {
   }, [rowFlash, sideEdit]);
   const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
   const [neededErr, setNeededErr] = useState<string | null>(null);
-  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
-  const [altWantErr, setAltWantErr] = useState<string | null>(null);
+  const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
+  const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameText, setRenameText] = useState("");
@@ -3704,18 +3774,18 @@ function DeckDetailPage() {
     }
   };
 
-  const changeAltWant = async (cardId: string, productId: number, qty: number) => {
-    setAltWantErr(null);
-    setAltWantBusyKey(`${cardId}:${productId}`);
-    applyAltWantOptimistic(qc, cardId, productId, qty);
+  const changeAltOwned = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltOwnedOptimistic(qc, cardId, productId, qty);
     try {
-      const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
-      applyDeckUpdate(detail);
+      const res = await api.setAltOwned(cardId, productId, qty);
+      applyAltOwnedOptimistic(qc, cardId, productId, res.qty);
     } catch (e) {
-      setAltWantErr((e as Error).message);
-      invalidateAltWantViews(qc);
+      setAltOwnedErr((e as Error).message);
     } finally {
-      setAltWantBusyKey(null);
+      invalidateAltOwnedViews(qc);
+      setAltOwnedBusyKey(null);
     }
   };
 
@@ -4097,7 +4167,7 @@ function DeckDetailPage() {
       )}
 
       {neededErr && <p className="error">{neededErr}</p>}
-      {altWantErr && <p className="error">{altWantErr}</p>}
+      {altOwnedErr && <p className="error">{altOwnedErr}</p>}
 
       {data.prior_decks.length > 0 && (
         <p className="banner">
@@ -4114,8 +4184,8 @@ function DeckDetailPage() {
         editing={editing}
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
-        onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-        altWantBusyKey={altWantBusyKey}
+        onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+        altOwnedBusyKey={altOwnedBusyKey}
       />
       {additional.length > 0 && (
         <>
@@ -4130,8 +4200,8 @@ function DeckDetailPage() {
             editing={editing}
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
-            onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-            altWantBusyKey={altWantBusyKey}
+            onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+            altOwnedBusyKey={altOwnedBusyKey}
           />
         </>
       )}
@@ -4156,8 +4226,8 @@ function DeckDetailPage() {
           editing={editing}
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
-          onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-          altWantBusyKey={altWantBusyKey}
+          onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+          altOwnedBusyKey={altOwnedBusyKey}
         />
       )}
     </section>

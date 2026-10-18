@@ -67,6 +67,35 @@ describe("owned collection", () => {
     expect(next.total_value).toBe(7.5);
   });
 
+  it("copies and value include alt-art copies, and stepping base keeps their share (#625)", () => {
+    const withAlt = { ...card("A", 2, 1), alts_owned: 1, value: 2 * 1 + 20 }; // 2 base at $1 + 1 alt at $20
+    expect(collectionTotals([withAlt]).copies).toBe(3);
+    const old: OwnedCollectionResponse = {
+      items: [withAlt],
+      unique_cards: 1,
+      total_copies: 3,
+      total_value: 22,
+      unpriced_cards: 0,
+    };
+    const next = patchOwnedCollection(old, "A", 4);
+    expect(next.items[0].value).toBe(24);
+    expect(next.total_value).toBe(24);
+    expect(next.total_copies).toBe(5);
+  });
+
+  it("a card owned only as alts stays in the totals when base goes to 0 (#625)", () => {
+    const old: OwnedCollectionResponse = {
+      items: [{ ...card("A", 2, 1), alts_owned: 1, value: 22 }],
+      unique_cards: 1,
+      total_copies: 3,
+      total_value: 22,
+      unpriced_cards: 0,
+    };
+    const next = patchOwnedCollection(old, "A", 0);
+    expect(next.unique_cards).toBe(1);
+    expect(next.total_value).toBe(20);
+  });
+
   it("Value sort puts the most valuable holding first, not the priciest card (#268)", () => {
     const playset = card("OP01-001", 10, 1); // $10 held
     const single = card("OP01-002", 1, 5); // $5 held, higher price

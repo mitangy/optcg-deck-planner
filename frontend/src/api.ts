@@ -92,6 +92,8 @@ export type PrintingView = {
   is_special: boolean;
   /** Per-deck (or shopping max-across-decks) alt want for play. */
   wanted?: number;
+  /** Copies of this alt the user owns. */
+  owned?: number;
 };
 
 export type CatalogCardResult = {
@@ -118,6 +120,8 @@ export type CardView = {
   needed: number;
   /** Total owned, shared by every deck (what the Owned stepper edits). */
   owned: number;
+  /** Copies owned across alt printings; they count toward Owned for still_need. */
+  alts_owned?: number;
   still_need: number;
   /** Separate per leader: copies leaders earlier in deck order use first (0 when shared). */
   earlier_leaders_need?: number;
@@ -153,6 +157,7 @@ export type ShoppingItem = {
   cost: number | string | null;
   need: number;
   owned: number;
+  alts_owned?: number;
   still_need: number;
   market_price: number | null;
   low_price: number | null;
@@ -216,9 +221,11 @@ export type OwnedCard = {
   card_type: string;
   cost: number | string | null;
   owned: number;
+  /** Copies owned across alt printings (on top of `owned`). */
+  alts_owned?: number;
   market_price: number | null;
   low_price: number | null;
-  /** owned × market_price of the standard printing; null when unpriced. */
+  /** Base copies at the standard price plus alt copies at their own prices; null when any is unpriced. */
   value: number | null;
   image_url: string;
   tcgplayer_url: string;
@@ -512,6 +519,14 @@ export const api = {
       {
         method: "PUT",
         body: JSON.stringify({ qty, deck_ids: deckIds }),
+      },
+    ),
+  setAltOwned: (cardId: string, productId: number, qty: number) =>
+    request<{ card_id: string; product_id: number; qty: number }>(
+      `/owned/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty }),
       },
     ),
   searchCatalog: (opts?: {

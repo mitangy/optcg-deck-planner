@@ -6,18 +6,11 @@ export const TCGPLAYER_PRODUCT_LINE = "One Piece Card Game";
 /** Stay under common proxy/browser URL limits (414 on long Mass Entry links). */
 export const MASS_ENTRY_URL_MAX_LEN = 1800;
 
-export type MassEntryAlt = {
-  product_id: number;
-  wanted?: number;
-};
-
 export type MassEntryCard = {
   card_id: string;
   name: string;
   still_need: number;
   product_id?: number | null;
-  /** When present, still_need is allocated to alt wants first, then the primary product. */
-  alt_arts?: MassEntryAlt[];
 };
 
 export type MassEntryExport = {
@@ -44,31 +37,6 @@ function nameFallbackEntry(card: MassEntryCard, qty: number): string {
   return `${qty} ${name} ${card.card_id}`.trim();
 }
 
-/** Allocate still_need: alt wants first (list order), remainder to primary product. */
-export function allocateMassEntryBuys(
-  card: MassEntryCard,
-): { product_id: number | null; qty: number }[] {
-  let remaining = card.still_need;
-  if (remaining <= 0) return [];
-  const buys: { product_id: number | null; qty: number }[] = [];
-  for (const alt of card.alt_arts ?? []) {
-    if (remaining <= 0) break;
-    const want = alt.wanted ?? 0;
-    const take = Math.min(Math.max(0, want), remaining);
-    if (take > 0 && alt.product_id > 0) {
-      buys.push({ product_id: alt.product_id, qty: take });
-      remaining -= take;
-    }
-  }
-  if (remaining > 0) {
-    buys.push({
-      product_id: card.product_id != null && card.product_id > 0 ? card.product_id : null,
-      qty: remaining,
-    });
-  }
-  return buys;
-}
-
 export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
   const included = cards.filter((c) => c.still_need > 0);
   const productParts: string[] = [];
@@ -79,7 +47,13 @@ export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
 
   for (const card of included) {
     copyCount += card.still_need;
-    const buys = allocateMassEntryBuys(card);
+    // Alt copies the user owns already lower still_need; buy the rest as standard.
+    const buys = [
+      {
+        product_id: card.product_id != null && card.product_id > 0 ? card.product_id : null,
+        qty: card.still_need,
+      },
+    ];
     let cardHasProduct = false;
     let cardHasFallback = false;
     for (const buy of buys) {

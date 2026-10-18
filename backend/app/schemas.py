@@ -99,6 +99,20 @@ class PrintingView(BaseModel):
     is_special: bool = True
     # Per-deck (or shopping max-across-decks) alt want for play; 0 when unset.
     wanted: int = 0
+    # Copies of this alt the user owns (per user, not per deck).
+    owned: int = 0
+
+
+class OwnedPrintingUpdate(BaseModel):
+    """Set how many copies of an alt printing the user owns."""
+
+    qty: int = Field(ge=0, le=99)
+
+
+class OwnedPrintingResult(BaseModel):
+    card_id: str
+    product_id: int
+    qty: int
 
 
 class DeckCardPrintingUpdate(BaseModel):
@@ -147,6 +161,8 @@ class CardView(BaseModel):
     needed: int
     # Total owned (shared across every deck — what the Owned stepper edits).
     owned: int
+    # Copies owned across this card's alt printings; they count toward still_need.
+    alts_owned: int = 0
     still_need: int
     # "Separate per leader": copies that leaders earlier in deck order need
     # first. still_need = needed − (owned − earlier_leaders_need), floored at 0.
@@ -189,6 +205,8 @@ class ShoppingItem(BaseModel):
     cost: int | str | None = None
     need: int
     owned: int
+    # Copies owned across this card's alt printings; they count toward still_need.
+    alts_owned: int = 0
     still_need: int
     market_price: float | None = None
     low_price: float | None = None
@@ -230,9 +248,12 @@ class OwnedCardItem(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     owned: int
+    # Copies owned across alt printings (on top of ``owned``).
+    alts_owned: int = 0
     market_price: float | None = None
     low_price: float | None = None
-    # owned × market_price of the standard printing; None when the card has no price.
+    # owned × standard market + each alt's qty × its own market price; None when
+    # any owned copy has no price.
     value: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
