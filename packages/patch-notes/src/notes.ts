@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-18
+  { date: "2026-10-18", app: "duel", pr: 628, title: "Eyelashes is playable", text: "Eyelashes (OP18-015) is now in the duel app: when your opponent attacks you may trash it, and if your Leader has the {Alabasta} type, up to 1 of their Leader or Characters gets −3000 power this turn. Kumadori (OP18-101) now shows preview art until its official image is out." },
   // 2026-10-17
   { date: "2026-10-17", app: "planner", pr: 626, title: "Count the alt arts you own", text: "Alt arts now have an Owned stepper instead of Want. Alts you own count toward what a card still needs, so your deck and Master Shopping totals drop and your Collection value uses each alt's own price. Master Shopping now prices what's left at the standard printing." },
   { date: "2026-10-17", app: "planner", pr: 626, title: "Owned alt arts take the lead", text: "When you own an alt art, it becomes the big picture for that card, and the regular art shows as a small Base tile beside it. Alt arts are now shown by default, and you can still hide them in Filters." },

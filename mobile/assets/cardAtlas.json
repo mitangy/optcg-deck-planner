@@ -42485,6 +42485,25 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-015": {
+    "id": "OP18-015",
+    "name": "Eyelashes",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-015.png",
+    "effectText": "[On your Opponent's Attack] You may trash this Character: If your Leader has the {Alabasta} type, give up to 1 of your opponent's Leader or Characters −3000 power during this turn.",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-016": {
     "id": "OP18-016",
     "name": "Monkey.D.Luffy",
