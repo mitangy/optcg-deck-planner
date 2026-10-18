@@ -124,4 +124,17 @@ describe("deck sync (#619)", () => {
     await syncDecks(8);
     expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id).sort()).toEqual(["test-op16-black", "test-op17-red"]);
   });
+
+  it("a deck deleted before sync starts stays deleted (#624)", async () => {
+    saveDeck({ id: "x", name: "X", leaderId: "ST01-001", cards: [] });
+    api.fetchAccountDecks.mockResolvedValue({ decks: [wire("x", Date.now() - 5000)] });
+    await syncDecks(7);
+    stopDeckSync();
+    // /auth/me is slow or failed: no sync is running when the player deletes the deck.
+    deleteDeck("x");
+    await syncDecks(7);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(api.deleteAccountDeck.mock.calls.map((c) => c[0])).toEqual(["x"]);
+    expect(listSavedDecks().find((d) => d.id === "x")).toBeUndefined();
+  });
 });

@@ -1647,6 +1647,7 @@ module.exports = {
     { id: "deck-sync-signout-keeps-owner", file: "duel-web/src/account/deckSync.ts", from: "    localStorage.removeItem(OWNER_KEY);\n    localStorage.removeItem(PENDING_KEY);\n", to: "", kills: ["sign-out removes the account's decks"] },
     { id: "deck-sync-signout-no-starters", file: "duel-web/src/account/deckSync.ts", from: "    ensureDefaultDeck();\n  } catch", to: "  } catch", kills: ["sign-out removes the account's decks"] },
     { id: "deck-sync-flush-skips-pending", file: "duel-web/src/account/deckSync.ts", from: "    await Promise.all(Object.keys(readPending()).map((id) => pushOne(id).catch(() => undefined)));\n", to: "", kills: ["sign-out flush sends an edit still waiting on the push delay"] },
+    { id: "deck-sync-delete-forgotten-without-sync", file: "duel-web/src/account/deckSync.ts", from: "  if (c.kind === \"delete\" && getDeckCacheOwner() !== null) markPending(c.id, c.at);\n", to: "", kills: ["a deck deleted before sync starts stays deleted (#624)"] },
     { id: "deck-sync-owner-not-recorded", file: "duel-web/src/account/deckSync.ts", from: "  setDeckCacheOwner(userId);\n", to: "", kills: ["does not upload one account's leftover decks"] },
   ],
 };

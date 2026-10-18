@@ -128,6 +128,12 @@ async function pushOne(id: string): Promise<void> {
   }
 }
 
+// A delete made while no sync runs (sign-in still loading, /auth/me failed) is still remembered
+// when this browser holds an account's decks, so the next sync sends it instead of restoring the deck.
+onLocalDecksChange((c: LocalDeckChange) => {
+  if (c.kind === "delete" && getDeckCacheOwner() !== null) markPending(c.id, c.at);
+});
+
 export async function syncDecks(userId: number): Promise<void> {
   stopDeckSync();
   const gen = syncGen;
