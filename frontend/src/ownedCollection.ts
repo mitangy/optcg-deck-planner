@@ -9,13 +9,18 @@ export type CollectionTotals = {
   unpriced: number;
 };
 
+/** Whether the user holds any copy of the card, base or alt art. */
+export function holdsCopies(item: OwnedCard): boolean {
+  return item.owned + (item.alts_owned ?? 0) > 0;
+}
+
 /** Totals for the cards currently shown (after search and filters). */
 export function collectionTotals(items: OwnedCard[]): CollectionTotals {
   let copies = 0;
   let value = 0;
   let unpriced = 0;
   for (const item of items) {
-    copies += item.owned;
+    copies += item.owned + (item.alts_owned ?? 0);
     if (item.value == null) unpriced += 1;
     else value += item.value;
   }
@@ -35,13 +40,23 @@ export function patchOwnedCollection(
   const id = cardId.toUpperCase();
   const items = old.items.map((item) => {
     if (item.card_id.toUpperCase() !== id) return item;
-    const value = item.market_price == null ? null : Math.round(qty * item.market_price * 100) / 100;
+    // Alt copies are valued server-side at their own prices, so move only the
+    // base copies' share of the value.
+    const alts = item.alts_owned ?? 0;
+    let value: number | null;
+    if (alts === 0) {
+      value = item.market_price == null ? null : Math.round(qty * item.market_price * 100) / 100;
+    } else if (item.market_price == null || item.value == null) {
+      value = item.value;
+    } else {
+      value = Math.round((item.value + (qty - item.owned) * item.market_price) * 100) / 100;
+    }
     // Still-to-buy copies shrink or grow with Owned while the card is on the list;
     // a card already covered (0) is left alone until the next refetch.
     const buying = item.buying ? Math.max(0, item.owned + item.buying - qty) : item.buying;
     return { ...item, owned: qty, value, buying };
   });
-  const totals = collectionTotals(items.filter((i) => i.owned > 0));
+  const totals = collectionTotals(items.filter(holdsCopies));
   return {
     ...old,
     items,

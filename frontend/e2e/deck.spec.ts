@@ -125,14 +125,14 @@ test("owned stepper saves each click and updates still needed", async ({ page, p
   const owned = row.getByRole("textbox");
   await expect(owned).toHaveValue("2");
 
-  await row.getByRole("button", { name: "Increase owned" }).click();
+  await row.getByRole("button", { name: "Increase owned", exact: true }).click();
   await expect(owned).toHaveValue("3");
   await expect(row).toContainText("1/4");
   expect(planner.owned.get("EB01-002")).toBe(3);
   expect(planner.requests).toContain("PUT /owned/EB01-002");
 
-  await row.getByRole("button", { name: "Decrease owned" }).click();
-  await row.getByRole("button", { name: "Decrease owned" }).click();
+  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
+  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
   await expect(owned).toHaveValue("1");
   await expect(row).toContainText("3/4");
   expect(planner.owned.get("EB01-002")).toBe(1);
@@ -150,7 +150,7 @@ test("owned stepper saves each click and updates still needed", async ({ page, p
 test("cannot take owned below zero", async ({ page, planner }) => {
   const kid = page.locator('[data-card-id="EB01-003"]:visible');
   await expect(kid.getByRole("textbox")).toHaveValue("0");
-  await expect(kid.getByRole("button", { name: "Decrease owned" })).toBeDisabled();
+  await expect(kid.getByRole("button", { name: "Decrease owned", exact: true })).toBeDisabled();
   expect(planner.requests.filter((r) => r.startsWith("PUT /owned"))).toEqual([]);
 });
 
@@ -229,24 +229,28 @@ test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Ask Log Pose/ })).toHaveCount(0);
 });
 
-test("deck $ left prices wanted alt arts by their count (#433)", async ({ page }) => {
+test("an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625)", async ({ page, planner }) => {
   // Still needed: Izo 2 x $1.25, Kid & Killer 4 x $6.80, EB01-009 2 x $3.50, EB01-011 1 x $0.10 = $36.80.
   const left = page.locator(".deck-progress-meta");
   await expect(left).toHaveText("$36.80 left");
 
-  const filters = page.getByRole("button", { name: /^Filters/ });
-  await filters.click();
-  await page.getByLabel("Show alt arts").check();
-  await filters.click();
-
-  const inc = page.locator(IZO).getByRole("button", { name: /Increase want for/ });
+  // Alt arts are shown by default.
+  const inc = page.locator(IZO).getByRole("button", { name: /Increase owned for/ });
   const qty = page.locator(IZO).locator(".alt-want-qty");
-  // One alt copy at $14.99, the other still-needed copy at $1.25: 36.80 - 2.50 + 16.24.
+  await expect(page.locator(IZO).locator(".alt-want-caption")).toHaveText("Owned");
+  await expect(page.locator(IZO).locator(".alt-art-base")).toHaveCount(0);
+
+  // One owned alt copy covers one Izo: 36.80 - 1.25.
   await inc.click();
   await expect(qty).toHaveText("1");
-  await expect(left).toHaveText("$50.54 left");
-  // Both still-needed copies as the alt: 36.80 - 2.50 + 29.98.
+  await expect(left).toHaveText("$35.55 left");
+  expect(planner.altOwned.get("EB01-002:201")).toBe(1);
+  await expect(page.locator(IZO)).toContainText("1/4");
+  // The alt is now the main image and the base art sits in a Base tile.
+  await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
+  await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
+  // Both still-needed copies covered: 36.80 - 2.50, and Izo leaves the "still need" list.
   await inc.click();
-  await expect(qty).toHaveText("2");
-  await expect(left).toHaveText("$64.28 left");
+  await expect(left).toHaveText("$34.30 left");
+  await expect(page.locator(IZO)).toHaveCount(0);
 });

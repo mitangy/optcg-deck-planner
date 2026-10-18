@@ -129,6 +129,21 @@ class Owned(Base):
     user: Mapped[User] = relationship(back_populates="owned")
 
 
+class OwnedPrinting(Base):
+    """Copies of one alt-art printing a user owns (per user, like ``Owned``)."""
+
+    __tablename__ = "owned_printings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", "product_id", name="uq_user_owned_printing"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class ShoppingExtra(Base):
     """Card added straight to Master Shopping without a deck.
 
