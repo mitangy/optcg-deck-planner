@@ -23,6 +23,8 @@ const OWNER_KEY = "optcg.duel.savedDecks.owner.v1";
 const PENDING_KEY = "optcg.duel.savedDecks.pending.v1";
 const PUSH_DELAY_MS = 600;
 const BULK_CHUNK = 50;
+/** The account refuses longer names (the planner allows this many). */
+const MAX_NAME = 200;
 
 /** Deck id -> 0 (saved here, not yet sent) or the time it was deleted here and not yet sent. */
 type Pending = Record<string, number>;
@@ -80,7 +82,7 @@ function clearPending(id: string, value: number) {
 }
 
 function toBody(d: SavedDeck): AccountDeckBody {
-  const body: AccountDeckBody = { name: d.name, leaderId: d.leaderId, cards: d.cards };
+  const body: AccountDeckBody = { name: d.name.slice(0, MAX_NAME), leaderId: d.leaderId, cards: d.cards };
   if (d.artPrefs) body.artPrefs = d.artPrefs;
   if (d.plannerDeckId !== undefined) body.plannerDeckId = d.plannerDeckId;
   if (d.editedLocally !== undefined) body.editedLocally = d.editedLocally;
@@ -232,16 +234,22 @@ export function stopDeckSync(): void {
   stop = null;
 }
 
-/** Sign-out: the decks in this browser belonged to the account, so remove them and give guests the starters. */
+/**
+ * Sign-out: the decks in this browser belonged to the account, so remove them and give guests the starters.
+ * A deck the account never received (refused, offline, over the cap) is kept as a guest deck rather than lost.
+ */
 export function clearAccountDecks(): void {
   stopDeckSync();
+  const unsent = new Set(Object.keys(readPending()).filter((id) => readPending()[id] === 0));
   try {
     localStorage.removeItem(OWNER_KEY);
     localStorage.removeItem(PENDING_KEY);
   } catch {
     /* storage unavailable */
   }
+  const keep = listSavedDecks().filter((d) => unsent.has(d.id));
   clearLocalDecks();
+  if (keep.length > 0) applyRemoteDecks({ upsert: keep, remove: [] });
   try {
     ensureDefaultDeck();
   } catch {

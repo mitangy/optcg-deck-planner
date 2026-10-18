@@ -827,7 +827,7 @@ class DuelSettingsOut(BaseModel):
 
 
 class DuelDeckBody(BaseModel):
-    name: str = Field(max_length=100)
+    name: str = Field(max_length=200)
     leaderId: str = Field(max_length=32)
     cards: list[Annotated[str, StringConstraints(max_length=32)]] = Field(max_length=60)
     artPrefs: dict[str, str] | None = None

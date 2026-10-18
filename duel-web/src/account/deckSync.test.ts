@@ -137,4 +137,35 @@ describe("deck sync (#619)", () => {
     expect(api.deleteAccountDeck.mock.calls.map((c) => c[0])).toEqual(["x"]);
     expect(listSavedDecks().find((d) => d.id === "x")).toBeUndefined();
   });
+
+  it("sign-out keeps a deck the account never received, as a guest deck (#624)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [wire("theirs", 5)] });
+    await syncDecks(7);
+    saveDeck({ id: "rejected", name: "R", leaderId: "ST01-001", cards: [] });
+    api.putAccountDeck.mockRejectedValue(new Error("422"));
+    await flushDeckSync();
+    clearAccountDecks();
+    const ids = listSavedDecks().map((d) => d.id);
+    expect(ids).toContain("rejected");
+    expect(ids).not.toContain("theirs");
+  });
+
+  it("a deck kept at sign-out is offered to the next account as a guest deck (#624)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "rejected", name: "R", leaderId: "ST01-001", cards: [] });
+    clearAccountDecks();
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(8);
+    // The kept deck is a guest deck now: it is offered to the next account like any guest deck.
+    expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id)).toContain("rejected");
+  });
+
+  it("a very long deck name is clamped to the 200 the account accepts (#624)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "long", name: "n".repeat(250), leaderId: "ST01-001", cards: [] });
+    await vi.advanceTimersByTimeAsync(700);
+    expect(api.putAccountDeck.mock.calls[0][1].name).toHaveLength(200);
+  });
 });
