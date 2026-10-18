@@ -131,6 +131,25 @@ describe("protocol parsers", () => {
     });
   });
 
+  it("parses a bot room and never ranks it, whatever else the options ask for (#631)", () => {
+    const c = parseCreateOptions({
+      ranked: true,
+      timer: { turnSeconds: 30 },
+      bot: { level: "easy", deck: { leaderId: "st01-001", deck: ["st01-002"] } },
+    });
+    assert.equal(c.ranked, false);
+    assert.deepEqual(c.timer, { turnSeconds: 30, matchSeconds: null, seatSeconds: null });
+    assert.deepEqual(c.bot, { level: "easy", deck: { leaderId: "ST01-001", deck: ["ST01-002"] } });
+    assert.equal(parseCreateOptions({}).bot, undefined);
+  });
+
+  it("rejects a bot with an unknown level or no deck (#631)", () => {
+    const deck = { leaderId: "ST01-001", deck: [] };
+    assert.throws(() => parseCreateOptions({ bot: { level: "godlike", deck } }), /bot\.level/);
+    assert.throws(() => parseCreateOptions({ bot: { deck } }), /bot\.level/);
+    assert.throws(() => parseCreateOptions({ bot: { level: "normal" } }), /player deck/);
+  });
+
   it("rejects invalid ranked seat reservations", () => {
     assert.throws(
       () => parseCreateOptions({ seatUserIds: [1, 1] }),

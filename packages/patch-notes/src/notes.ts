@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-18
+  { date: "2026-10-18", app: "duel", pr: 631, title: "Play vs Bot", text: "You can now play a game against the computer. Choose Play vs Bot on the home screen, pick your deck, the bot's level (Easy or Normal) and the deck it plays, which is a copy of yours unless you choose another. It is a casual game: no ranking, no timer, and undo and rematch still work. It is not saved to your match history yet." },
   { date: "2026-10-18", app: "duel", pr: 628, title: "Eyelashes is playable", text: "Eyelashes (OP18-015) is now in the duel app: when your opponent attacks you may trash it, and if your Leader has the {Alabasta} type, up to 1 of their Leader or Characters gets −3000 power this turn. Kumadori (OP18-101) now shows preview art until its official image is out." },
   // 2026-10-17
   { date: "2026-10-17", app: "planner", pr: 626, title: "Count the alt arts you own", text: "Alt arts now have an Owned stepper instead of Want. Alts you own count toward what a card still needs, so your deck and Master Shopping totals drop and your Collection value uses each alt's own price. Master Shopping now prices what's left at the standard printing." },

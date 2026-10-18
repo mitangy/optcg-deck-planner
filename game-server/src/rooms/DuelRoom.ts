@@ -2,6 +2,7 @@ import { Room, Client } from "colyseus";
 import {
   applyIntent,
   buildTestDeck,
+  chooseBotIntent,
   createMatch,
   createSeededRng,
   DEFAULT_LEADER_ID,
@@ -17,6 +18,7 @@ import {
   seatLog,
   serializeMatch,
   skipMulligans,
+  type BotLevel,
   type GameEvent,
   type Intent,
   type MatchReplay,
@@ -58,6 +60,7 @@ import {
   type SeatSkin,
   type SkinMessage,
   type ErrorCode,
+  type BotRoomOptions,
   type PlayerDeckWire,
   type SeatPlayerInfo,
   type RematchAction,
@@ -111,6 +114,22 @@ const CHAT_HISTORY_LIMIT = 50;
 const MAX_MESSAGES_PER_SECOND = 40;
 /** Per-action snapshots kept for undo (unranked rooms only). */
 const UNDO_HISTORY_LIMIT = 40;
+
+/** The seat a "Play vs Bot" room gives the server-side player (#631). */
+const BOT_SEAT: Seat = 1;
+/** Account id of the bot seat: never positive, so a bot game is never written to match history. */
+const BOT_USER_ID = 0;
+/**
+ * How long the bot waits before each move so the human can follow it. Mutable so tests can shorten it:
+ * `mainMs` for main-phase actions, `choiceMs` for choices, blocks, counters and mulligans.
+ */
+export const botPacing = { mainMs: 700, choiceMs: 400 };
+/** Safety net: after this many bot intents in one turn the bot only ends the turn / passes. */
+export const BOT_MAX_INTENTS_PER_TURN = 150;
+
+export function botDisplayName(level: BotLevel): string {
+  return `Bot (${level === "easy" ? "Easy" : "Normal"})`;
+}
 
 /** The state just before one applied intent; undoing restores it. */
 type UndoSnapshot = {
@@ -209,6 +228,11 @@ export class DuelRoom extends Room implements PresenceSource {
   private rematchDeclinedBy: Seat | null = null;
   /** Deck each seat picked with its rematch request (null: keep the current deck). */
   private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
+  /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
+  private bot: { level: BotLevel; rng: Rng } | null = null;
+  private botTimer: { clear(): void } | null = null;
+  private botTurn = -1;
+  private botIntentsThisTurn = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
   /** States before each applied action, oldest first (unranked rooms only). */
@@ -285,6 +309,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.state.activeSeat = 0;
     this.state.winner = -1;
     this.state.protocolVersion = PROTOCOL_VERSION;
+    if (parsed.bot) this.seatBot(parsed.bot);
 
     this.onMessage("intent", (client, message) => {
       this.handleIntent(client, message);
@@ -337,10 +362,31 @@ export class DuelRoom extends Room implements PresenceSource {
       turnSeconds: this.turnSeconds,
       matchSeconds: this.matchSeconds,
       seatSeconds: this.seatSeconds,
+      ...(this.bot ? { bot: this.bot.level } : {}),
     });
   }
 
+  /** Seat the server-side player: it fills seat 1, so the match starts as soon as the human sits down. */
+  private seatBot(opts: BotRoomOptions) {
+    assertKnownDeck(opts.deck);
+    this.bot = { level: opts.level, rng: createSeededRng((this.seed ^ 0x5bd1e995) >>> 0) };
+    this.seatDecks[BOT_SEAT] = opts.deck;
+    this.seats[BOT_SEAT] = {
+      seat: BOT_SEAT,
+      sessionId: "bot",
+      displayId: "bot",
+      displayName: botDisplayName(opts.level),
+      userId: BOT_USER_ID,
+    };
+    this.state.seatsFilled = 1;
+  }
+
+  private botInfo(): { bot: { level: BotLevel } } | Record<string, never> {
+    return this.bot ? { bot: { level: this.bot.level } } : {};
+  }
+
   async onDispose() {
+    this.clearBotTimer();
     releaseCreatorRoom(this.creatorUid);
     this.creatorUid = null;
     presence.unregister(this);
@@ -878,8 +924,8 @@ export class DuelRoom extends Room implements PresenceSource {
           client.leave();
         }
       }
-      this.seats = [null, null];
-      this.state.seatsFilled = 0;
+      this.seats = [null, this.bot ? this.seats[BOT_SEAT] : null];
+      this.state.seatsFilled = this.bot ? 1 : 0;
       presence.markDirty();
       return;
     }
@@ -932,6 +978,7 @@ export class DuelRoom extends Room implements PresenceSource {
         ranked: this.ranked,
         firstSeatPickedBy: this.firstSeatPickedBy,
         brief: this.briefFor(slot.seat),
+        ...this.botInfo(),
       };
       client.send("welcome", welcome);
       client.send("view", {
@@ -956,6 +1003,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.ensureTimerLoop();
     this.broadcastTimer();
     this.maybeSendMatchOver();
+    this.scheduleBotStep();
   }
 
   private handleHandOrder(client: Client, message: unknown) {
@@ -1150,6 +1198,11 @@ export class DuelRoom extends Room implements PresenceSource {
     const seat = this.seatForClient(client);
     if (seat === null || !this.match || this.matchOverSent) return;
     if (this.match.winner !== null || this.match.phase === "game_over") return;
+    this.concedeSeat(seat);
+  }
+
+  private concedeSeat(seat: Seat) {
+    if (!this.match) return;
     const winner = (seat === 0 ? 1 : 0) as Seat;
     this.endReason = "concede";
     this.match = {
@@ -1200,6 +1253,23 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
 
+    const applied = this.applySeatIntent(seat, intent);
+    if (!applied.ok) {
+      this.sendError(client, "illegal_intent", applied.message);
+      client.send("view", {
+        protocolVersion: PROTOCOL_VERSION,
+        view: this.playerView(this.match, seat),
+      });
+    }
+  }
+
+  /**
+   * Apply an already-parsed intent for `seat` and do everything that follows a state change: replay
+   * record, undo snapshot, views, timers, match over and the bot's next move. Shared by human
+   * intents and the bot seat, so both take exactly the same path.
+   */
+  private applySeatIntent(seat: Seat, intent: Intent): { ok: true } | { ok: false; message: string } {
+    if (!this.match || !this.rng) return { ok: false, message: "Match not started" };
     const before = this.match;
     const undoSnap = this.captureUndoSnapshot(seat, intent);
     const result = applyIntent(before, intent, { seat, rng: this.rng });
@@ -1210,16 +1280,7 @@ export class DuelRoom extends Room implements PresenceSource {
         code: result.error?.code,
         message: result.error?.message,
       });
-      this.sendError(
-        client,
-        "illegal_intent",
-        result.error?.message ?? "Illegal intent",
-      );
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view: this.playerView(before, seat),
-      });
-      return;
+      return { ok: false, message: result.error?.message ?? "Illegal intent" };
     }
 
     this.match = result.state;
@@ -1229,10 +1290,15 @@ export class DuelRoom extends Room implements PresenceSource {
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
     this.maybeSendMatchOver();
+    this.scheduleBotStep();
+    return { ok: true };
   }
 
   /** Clear everything tied to one game so a rematch starts clean. */
   private resetPerGameState() {
+    this.clearBotTimer();
+    this.botTurn = -1;
+    this.botIntentsThisTurn = 0;
     this.gameNumber += 1;
     this.matchOverSent = false;
     this.resultPending = null;
@@ -1313,7 +1379,10 @@ export class DuelRoom extends Room implements PresenceSource {
         this.rematchRequested[seat] = true;
         this.rematchDecks[seat] = deck ?? null;
         this.rematchDeclinedBy = null;
+        // The bot always agrees (and keeps its deck), and picks the turn order if it lost.
+        if (this.bot) this.rematchRequested[BOT_SEAT] = true;
         this.broadcastRematchState();
+        this.botPickRematchOrder();
         return;
       case "decline":
         this.rematchRequested = [false, false];
@@ -1327,22 +1396,36 @@ export class DuelRoom extends Room implements PresenceSource {
           this.sendError(client, "unauthorized", "The player who lost chooses the turn order");
           return;
         }
-        const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
-        this.seed = gameSeed();
-        this.log("info", "rematch_start", {
-          matchId: this.matchId,
-          game: this.gameNumber + 1,
-          firstSeat,
-          newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
-        });
-        for (const s of [0, 1] as const) {
-          const picked = this.rematchDecks[s];
-          if (picked) this.seatDecks[s] = picked;
-        }
-        this.startMatch(firstSeat, seat);
+        this.startRematch(seat, action);
         return;
       }
     }
+  }
+
+  /** `chooser` (the loser of the last game) picked the turn order; start the next game. */
+  private startRematch(chooser: Seat, action: "first" | "second") {
+    const firstSeat: Seat = action === "first" ? chooser : ((1 - chooser) as Seat);
+    this.seed = gameSeed();
+    this.log("info", "rematch_start", {
+      matchId: this.matchId,
+      game: this.gameNumber + 1,
+      firstSeat,
+      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
+    });
+    for (const s of [0, 1] as const) {
+      const picked = this.rematchDecks[s];
+      if (picked) this.seatDecks[s] = picked;
+    }
+    this.startMatch(firstSeat, chooser);
+  }
+
+  /** The bot lost the last game and both agreed to a rematch: it goes first. */
+  private botPickRematchOrder() {
+    if (!this.bot || this.rematchState().chooser !== BOT_SEAT) return;
+    this.clock.setTimeout(() => {
+      if (this.rematchState().chooser !== BOT_SEAT) return;
+      this.startRematch(BOT_SEAT, "first");
+    }, botPacing.choiceMs);
   }
 
   /**
@@ -1531,6 +1614,7 @@ export class DuelRoom extends Room implements PresenceSource {
           force: this.undoRequest.force,
         });
         this.broadcastUndoState();
+        this.botAnswerUndo();
         return;
       }
       case "cancel":
@@ -1612,6 +1696,19 @@ export class DuelRoom extends Room implements PresenceSource {
     this.ensureTimerLoop();
     this.broadcastTimer();
     this.broadcastUndoState();
+    this.scheduleBotStep();
+  }
+
+  /** The bot always accepts the human's undo request, after a short pause. */
+  private botAnswerUndo() {
+    const req = this.undoRequest;
+    if (!this.bot || !req || req.from === BOT_SEAT) return;
+    this.clock.setTimeout(() => {
+      const cur = this.undoRequest;
+      if (!cur || cur.id !== req.id || !this.match || this.match.winner !== null || this.matchOverSent) return;
+      this.log("info", "bot_undo_accepted", { matchId: this.matchId, id: cur.id });
+      this.applyUndo(cur.from, cur.scope);
+    }, botPacing.choiceMs);
   }
 
   private broadcastViews(events: GameEvent[]) {
@@ -1741,7 +1838,9 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!m.players[second].mulliganDone) return second;
       return null;
     }
-    return this.actingSeatForTimer();
+    const acting = this.actingSeatForTimer();
+    // The bot has no time bank: its pacing is its only delay.
+    return acting === this.botSeat() ? null : acting;
   }
 
   private stopSeatClock() {
@@ -1853,8 +1952,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private expireTurnClock() {
     if (!this.match || !this.rng || this.match.winner !== null) return;
     const seat = this.actingSeatForTimer();
-    if (seat === null) {
-      // Nobody to auto-act; refresh so we do not tight-loop.
+    if (seat === null || seat === this.botSeat()) {
+      // Nobody to auto-act (the bot plays itself); refresh so we do not tight-loop.
       this.refreshTurnClock();
       this.broadcastTimer();
       return;
@@ -1885,6 +1984,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
     this.maybeSendMatchOver();
+    this.scheduleBotStep();
   }
 
   /** Seat that must act now (pending choice owner, or battle defender, or active). */
@@ -1941,12 +2041,78 @@ export class DuelRoom extends Room implements PresenceSource {
     return null;
   }
 
+  private botSeat(): Seat | null {
+    return this.bot ? BOT_SEAT : null;
+  }
+
+  private clearBotTimer() {
+    this.botTimer?.clear();
+    this.botTimer = null;
+  }
+
+  /**
+   * After a state change: if the bot can act, queue one move after a pacing delay. At most one
+   * move is ever queued; the move itself re-reads the state, so a stale queue is harmless.
+   */
+  private scheduleBotStep() {
+    if (!this.bot || this.botTimer) return;
+    const m = this.match;
+    if (!m || !this.matchStarted || this.matchOverSent || m.winner !== null || m.phase === "game_over") return;
+    if (listLegalIntents(m, BOT_SEAT).length === 0) return;
+    const quick = m.pendingChoices.length > 0 || m.phase !== "main";
+    this.botTimer = this.clock.setTimeout(() => {
+      this.botTimer = null;
+      this.runBotStep();
+    }, quick ? botPacing.choiceMs : botPacing.mainMs);
+  }
+
+  private runBotStep() {
+    const bot = this.bot;
+    const m = this.match;
+    if (!bot || !m || !this.matchStarted || this.matchOverSent || m.winner !== null || m.phase === "game_over") return;
+    const legal = listLegalIntents(m, BOT_SEAT);
+    if (legal.length === 0) return;
+    if (m.turnNumber !== this.botTurn) {
+      this.botTurn = m.turnNumber;
+      this.botIntentsThisTurn = 0;
+    }
+    this.botIntentsThisTurn += 1;
+    const overCap = this.botIntentsThisTurn > BOT_MAX_INTENTS_PER_TURN;
+    if (overCap && this.botIntentsThisTurn === BOT_MAX_INTENTS_PER_TURN + 1) {
+      this.log("warn", "bot_turn_cap", { matchId: this.matchId, turn: m.turnNumber });
+    }
+
+    let intent: Intent | null = null;
+    if (!overCap) {
+      try {
+        intent = chooseBotIntent(getPlayerView(m, BOT_SEAT), { level: bot.level, rng: bot.rng });
+      } catch (e) {
+        this.log("warn", "bot_error", { matchId: this.matchId, message: e instanceof Error ? e.message : String(e) });
+      }
+      if (!intent) this.log("warn", "bot_no_intent", { matchId: this.matchId, phase: m.phase });
+    }
+    if (intent) {
+      const applied = this.applySeatIntent(BOT_SEAT, intent);
+      if (applied.ok) return;
+      this.log("warn", "bot_illegal_intent", { matchId: this.matchId, intent, message: applied.message });
+    }
+    // Never leave the human waiting on a stuck bot: pass, else any listed legal move
+    // (a rejected prompt answer has no pass), else give the game up.
+    const passes: Intent[] = legal.filter((i) => i.type === "end_turn" || i.type === "pass_block" || i.type === "pass_counter");
+    for (const fallback of [...passes, ...legal.filter((i) => !passes.includes(i))]) {
+      if (this.applySeatIntent(BOT_SEAT, fallback).ok) return;
+    }
+    this.log("warn", "bot_conceded", { matchId: this.matchId, phase: m.phase });
+    this.concedeSeat(BOT_SEAT);
+  }
+
   private maybeSendMatchOver() {
     if (!this.match || this.match.winner === null || this.matchOverSent || this.resultPending) return;
     const result = {
       winner: this.match.winner,
       reason: this.endReason ?? this.match.winReason ?? "unknown",
     };
+    this.clearBotTimer();
     const autoDispose = this.autoDispose;
     this.autoDispose = false;
     this.resultPending = this.writebackResult(result.winner, result.reason).then(() => {
@@ -1954,6 +2120,10 @@ export class DuelRoom extends Room implements PresenceSource {
       this.refreshMetadata();
       presence.markDirty();
       this.log("info", "match_end", { matchId: this.matchId, ...result });
+      if (this.bot) {
+        const turns = this.match?.turnNumber;
+        this.log("info", "bot_game_over", { matchId: this.matchId, level: this.bot.level, winner: result.winner, turns });
+      }
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
       this.broadcastRematchState();
       this.autoDispose = autoDispose;
@@ -2089,7 +2259,7 @@ export class DuelRoom extends Room implements PresenceSource {
         : "playing";
     const entries: PresenceEntry[] = [];
     for (const slot of this.seats) {
-      if (!slot) continue;
+      if (!slot || slot.userId === BOT_USER_ID) continue;
       entries.push({ user_id: slot.userId, room_id: this.roomId, role: "player", phase, ranked: this.ranked });
     }
     for (const spec of this.spectators) {
@@ -2142,6 +2312,7 @@ export class DuelRoom extends Room implements PresenceSource {
       ranked: this.ranked,
       firstSeatPickedBy: this.firstSeatPickedBy,
       brief: this.briefFor(seat),
+      ...this.botInfo(),
     };
     client.send("welcome", welcome);
     client.send("view", {
@@ -2201,6 +2372,7 @@ export class DuelRoom extends Room implements PresenceSource {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,
       seat: cameraSeat,
+      ...this.botInfo(),
       role: "spectator",
       view,
       players: this.playersInfo(),

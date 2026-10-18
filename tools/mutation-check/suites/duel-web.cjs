@@ -5,6 +5,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Play vs Bot (#631)
+    { id: "bot-room-can-be-ranked", file: `${src}/home/botGame.ts`, from: "return { ranked: false, bot:", to: "return { ranked: true, bot:", kills: ["creates an unranked, timerless room that gives the bot its level and deck (#631)"] },
+    { id: "bot-room-wrong-deck", file: `${src}/home/botGame.ts`, from: "bot: { level, deck: deckToWire(botDeck) }", to: "bot: { level, deck: { leaderId: botDeck.leaderId, deck: [] } }", kills: ["creates an unranked, timerless room that gives the bot its level and deck (#631)"] },
+    { id: "bot-picked-deck-ignored", file: `${src}/home/botGame.ts`, from: "return decks.find((d) => d.id === pickedId) ?? yours;", to: "return yours;", kills: ["gives the bot a copy of your deck by default, or the saved deck picked, or yours if that deck is gone (#631)"] },
+    { id: "bot-mirror-is-first-saved-deck", file: `${src}/home/botGame.ts`, from: "return decks.find((d) => d.id === pickedId) ?? yours;", to: "return decks.find((d) => d.id === pickedId) ?? decks[0]!;", kills: ["gives the bot a copy of your deck by default, or the saved deck picked, or yours if that deck is gone (#631)"] },
     // One column keeps a docked Log Pose where it was moved (#573)
     { id: "one-column-split-ignores-docked-logpose", file: `${src}/board/panelLayout.ts`, from: "const cut = Math.max(keep, at + 1);", to: "const cut = keep;", kills: ["one column: a docked Log Pose moved down the column stays there (#573)"] },
     // Recent plays thumbnails fall back to preview art (#604)
@@ -96,11 +101,11 @@ module.exports = {
     {"id": "draw-unnamed", "file": "duel-web/src/board/battleLog.ts", "from": "typeof defId === \"string\" && !isHiddenDef(defId)) {", "to": "false) {", "kills": ["names and spotlights only your own Draw Phase card, flying to your hand (#445)"]},
     // Lobby: last Play mode, Your voyage, Top bounties, guest intro (#431)
     { id: "home-join-not-stored-as-create", file: `${src}/home/lastMode.ts`, from: '  if (raw === "join") return "create";\n', to: "", kills: ["stores joining a room as the private room mode, so Play reopens Create (#431)"] },
-    { id: "home-last-mode-accepts-unknown", file: `${src}/home/lastMode.ts`, from: '  return raw === "hotseat" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;', to: "  return (raw || null) as LastMode | null;", kills: ["reads an unknown or missing value as no last mode (#431)"] },
+    { id: "home-last-mode-accepts-unknown", file: `${src}/home/lastMode.ts`, from: '  return raw === "hotseat" || raw === "bot" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;', to: "  return (raw || null) as LastMode | null;", kills: ["reads an unknown or missing value as no last mode (#431)"] },
     { id: "home-last-mode-read-throws", file: `${src}/home/lastMode.ts`, from: "  try {\n    return toLastMode(storage?.getItem(LAST_MODE_KEY));\n  } catch {\n    return null;\n  }", to: "  return toLastMode(storage?.getItem(LAST_MODE_KEY));", kills: ["does not throw when storage is blocked (#431)"] },
     { id: "home-ranked-opens-sheet", file: `${src}/home/primaryAction.ts`, from: '  if (mode === "queue") return { act: "start", mode, subline: SUBLINE[mode] };\n', to: "", kills: ["starts the Ranked queue in one tap for a player whose last mode was Ranked (#431)"] },
     { id: "home-no-mode-opens-ranked", file: `${src}/home/primaryAction.ts`, from: '  if (mode === null) return { act: "choose", mode: null, subline: "Choose a mode" };', to: '  if (mode === null) return { act: "start", mode: "queue", subline: SUBLINE.queue };', kills: ["opens the mode chooser when there is no last mode (#431)"] },
-    { id: "home-tiles-repeat-last-mode", file: `${src}/home/primaryAction.ts`, from: "TILE_ORDER.filter((m) => m !== lastMode)", to: "[...TILE_ORDER]", kills: ["lists the other modes as tiles, all four when none was used (#431)"] },
+    { id: "home-tiles-repeat-last-mode", file: `${src}/home/primaryAction.ts`, from: "TILE_ORDER.filter((m) => m !== lastMode)", to: "[...TILE_ORDER]", kills: ["lists the other modes as tiles, all five when none was used (#431, #631)"] },
     { id: "live-line-threshold-inclusive", file: `${src}/home/live.ts`, from: "counts.online < LIVE_MIN_ONLINE", to: "counts.online <= LIVE_MIN_ONLINE", kills: ["shows at exactly the threshold and hides just below it (#431)"] },
     { id: "live-line-no-threshold", file: `${src}/home/live.ts`, from: "  if (counts.online < LIVE_MIN_ONLINE) return null;\n", to: "", kills: ["shows at exactly the threshold and hides just below it (#431)"] },
     { id: "live-line-always-plural", file: `${src}/home/live.ts`, from: 'counts.matches === 1 ? "1 match" : `${counts.matches} matches`', to: '`${counts.matches} matches`', kills: ["says 1 match, not 1 matches, and keeps 0 matches plural (#431)"] },

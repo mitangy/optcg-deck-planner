@@ -54,13 +54,21 @@ import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
 import { leaderGlow } from "../home/leaderGlow";
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
+import {
+  BOT_DECK_MIRROR,
+  BOT_LEVELS,
+  DEFAULT_BOT_LEVEL,
+  botCreateOptions,
+  resolveBotDeck,
+  type BotLevel,
+} from "../home/botGame";
 import { modeTiles, primaryAction } from "../home/primaryAction";
 
 const SPECTATE_GONE = /not found|locked/i;
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
 /** Which play mode the user is configuring inside the Play sheet. */
-type PlayMode = "hotseat" | "create" | "join" | "queue" | "spectate";
+type PlayMode = "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
 
 /** Private-room timer presets (ranked always forces a 15 minute chess clock per player). */
 type TimerPreset = "off" | "turn_30" | "seat_15m" | "turn_30_seat_15m";
@@ -96,6 +104,13 @@ const MODE_CARDS: Array<{
     blurb: "Play both sides on this device.",
     short: "Both sides",
     glyph: "☸︎",
+  },
+  {
+    mode: "bot",
+    title: "Play vs Bot",
+    blurb: "Play the computer. Casual, never ranked.",
+    short: "Vs computer",
+    glyph: "⚙︎",
   },
   {
     mode: "queue",
@@ -138,14 +153,17 @@ function DeckPicker({
   decks,
   value,
   onChange,
+  mirror,
 }: {
   id: string;
   label: string;
   decks: SavedDeck[];
   value: string;
   onChange: (id: string) => void;
+  /** Adds a first option with an empty value that plays this deck (e.g. "Same as your deck"). */
+  mirror?: { label: string; deck: SavedDeck | null };
 }) {
-  const deck = decks.find((d) => d.id === value) ?? null;
+  const deck = decks.find((d) => d.id === value) ?? (value === "" ? (mirror?.deck ?? null) : null);
   return (
     <div className="field">
       <label htmlFor={id}>
@@ -158,6 +176,7 @@ function DeckPicker({
           <span className="deck-picker-art" aria-hidden />
         )}
         <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+          {mirror ? <option value="">{mirror.label}</option> : null}
           {decks.map((d) => (
             <option key={d.id} value={d.id}>
               {deckLabel(d)}
@@ -333,6 +352,9 @@ export function LobbyPage() {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [opponentDeckId, setOpponentDeckId] = useState("");
+  /** Play vs Bot: how strong the bot is, and which saved deck it plays ("" = a copy of yours). */
+  const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
+  const [botDeckId, setBotDeckId] = useState(BOT_DECK_MIRROR);
   const [roomId, setRoomId] = useState("");
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
   const [showIosHint, setShowIosHint] = useState(() => shouldShowIosInstallHint(readInstallEnv()));
@@ -530,6 +552,7 @@ export function LobbyPage() {
     const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
     setSelectedId(sel.id);
     setSelectedDeckId(sel.id);
+    setBotDeckId((prev) => (prev !== BOT_DECK_MIRROR && !all.some((d) => d.id === prev) ? BOT_DECK_MIRROR : prev));
     setOpponentDeckId((prev) => {
       if (prev && all.some((d) => d.id === prev)) return prev;
       // Prefer a different constructed deck for the enemy when available.
@@ -744,6 +767,8 @@ export function LobbyPage() {
       const picked = selectedDeck!;
       const room = roomId.trim();
       const create = mode === "create";
+      const vsBot = mode === "bot";
+      const botDeck = vsBot ? resolveBotDeck(decks, picked, botDeckId) : null;
       startMatch(
         {
           status:
@@ -751,9 +776,11 @@ export function LobbyPage() {
               ? "Searching for an opponent…"
               : mode === "spectate"
                 ? "Connecting to the match…"
-                : create
-                  ? "Opening your room…"
-                  : "Joining room…",
+                : vsBot
+                  ? "Starting your game…"
+                  : create
+                    ? "Opening your room…"
+                    : "Joining room…",
           leaderId: mode === "spectate" ? null : picked.leaderId,
           invite: create,
           friends: friendsEnabled,
@@ -772,11 +799,13 @@ export function LobbyPage() {
           await connect({
             ...opts,
             roomId: mode === "join" ? room : undefined,
-            preferredSeat: create ? 0 : undefined,
+            preferredSeat: create || vsBot ? 0 : undefined,
             deck: wire,
-            createOptions: create
-              ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
-              : undefined,
+            createOptions: botDeck
+              ? botCreateOptions(botLevel, botDeck)
+              : create
+                ? { ranked: false, players: [wire, wire], timer: timerFromPreset(timerPreset) }
+                : undefined,
           }, gen);
         },
       );
@@ -803,8 +832,10 @@ export function LobbyPage() {
   const modeTitle =
     mode === "hotseat"
       ? "Practice"
-      : mode === "create" || mode === "join"
-        ? "Private room"
+      : mode === "bot"
+        ? "Play vs Bot"
+        : mode === "create" || mode === "join"
+          ? "Private room"
         : mode === "queue"
           ? "Ranked"
           : mode === "spectate"
@@ -814,7 +845,9 @@ export function LobbyPage() {
   const confirmLabel =
     mode === "hotseat"
       ? "Start practice"
-      : mode === "create"
+      : mode === "bot"
+        ? "Start game"
+        : mode === "create"
         ? "Create room"
         : mode === "join"
           ? "Join room"
@@ -1006,7 +1039,7 @@ export function LobbyPage() {
                 {primaryAction(lastMode).subline}
               </span>
             </button>
-            <div className={`mode-tiles${lastMode ? "" : " mode-tiles-4"}`}>
+            <div className={`mode-tiles mode-tiles-${modeTiles(lastMode).length}`}>
               {modeTiles(lastMode).map((m) => {
                 const card = MODE_CARDS.find((c) => c.mode === m)!;
                 return (
@@ -1167,6 +1200,42 @@ export function LobbyPage() {
                     value={opponentDeckId}
                     onChange={setOpponentDeckId}
                   />
+                ) : null}
+
+                {mode === "bot" ? (
+                  <>
+                    <div className="field">
+                      <span className="field-label" id="bot-level-label">
+                        Bot level
+                      </span>
+                      <div className="segmented" role="radiogroup" aria-labelledby="bot-level-label">
+                        {BOT_LEVELS.map((l) => (
+                          <button
+                            key={l.level}
+                            type="button"
+                            role="radio"
+                            aria-checked={botLevel === l.level}
+                            className={botLevel === l.level ? "active" : ""}
+                            onClick={() => setBotLevel(l.level)}
+                          >
+                            {l.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="field-hint">{BOT_LEVELS.find((l) => l.level === botLevel)?.hint}</p>
+                    </div>
+                    <DeckPicker
+                      id="bot-deck"
+                      label="Bot's deck"
+                      decks={decks}
+                      value={botDeckId}
+                      onChange={setBotDeckId}
+                      mirror={{ label: "Same as your deck", deck: selectedDeck }}
+                    />
+                    <p className="field-hint">
+                      A casual game against the computer: not ranked, no timer, and not saved to your match history.
+                    </p>
+                  </>
                 ) : null}
 
                 {mode === "create" ? (

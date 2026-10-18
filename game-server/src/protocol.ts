@@ -2,7 +2,7 @@
  * Duel wire protocol — protocolVersion 5 (generic effect choice requests).
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
-import type { GameEvent, Intent, Seat } from "@optcg/rules";
+import { BOT_LEVELS, type BotLevel, type GameEvent, type Intent, type Seat } from "@optcg/rules";
 import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
@@ -65,7 +65,14 @@ export type DuelCreateOptions = {
   };
   /** Server-only capability; never sent to browser clients. */
   rankedAttestation?: string;
+  /**
+   * "Play vs Bot" (#631): seat 1 is played by the server with this deck. The room is never ranked and
+   * the game is not saved to match history.
+   */
+  bot?: BotRoomOptions;
 };
+
+export type BotRoomOptions = { level: BotLevel; deck: PlayerDeckWire };
 
 export type ErrorCode =
   | "illegal_intent"
@@ -114,6 +121,8 @@ export type WelcomeMessage = {
   firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
   brief?: BriefTicketWire;
+  /** Present in a "Play vs Bot" room: seat 1 is the server's bot (#631). */
+  bot?: { level: BotLevel };
 };
 
 export type EventsMessage = {
@@ -293,6 +302,7 @@ export function parseCreateOptions(raw: unknown): {
   ranked: boolean;
   seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
+  bot?: BotRoomOptions;
   timer: { turnSeconds: number | null; matchSeconds: number | null; seatSeconds: number | null };
 } {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -311,7 +321,18 @@ export function parseCreateOptions(raw: unknown): {
   const autoSkipMulligan = o.autoSkipMulligan !== false;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.
-  const ranked = o.ranked === true;
+  let bot: BotRoomOptions | undefined;
+  if (o.bot !== undefined) {
+    const b = o.bot && typeof o.bot === "object" ? (o.bot as Record<string, unknown>) : null;
+    if (!b || typeof b.level !== "string" || !BOT_LEVELS.includes(b.level as BotLevel)) {
+      throw Object.assign(new Error(`bot.level must be one of ${BOT_LEVELS.join(", ")}`), {
+        code: "bad_protocol" as const,
+      });
+    }
+    bot = { level: b.level as BotLevel, deck: asPlayerDeck(b.deck) };
+  }
+  // A bot room is never ranked, whatever else the options say.
+  const ranked = o.ranked === true && !bot;
   let seatUserIds: [number, number] | undefined;
   if (o.seatUserIds !== undefined) {
     if (!Array.isArray(o.seatUserIds) || o.seatUserIds.length !== 2) {
@@ -372,8 +393,9 @@ export function parseCreateOptions(raw: unknown): {
     firstSeat,
     autoSkipMulligan,
     ranked,
-    seatUserIds,
+    seatUserIds: bot ? undefined : seatUserIds,
     players,
+    bot,
     timer: { turnSeconds, matchSeconds, seatSeconds },
   };
 }
