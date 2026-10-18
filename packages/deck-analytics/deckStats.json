@@ -2331,6 +2331,7 @@
 "OP18-001":{"n":"Karoo","t":"leader","col":["blue","red"],"pow":5000,"life":4,"tr":["Animal","Alabasta"],"at":["Strike"],"rl":["draw"],"lt":["Animal","Alabasta"]},
 "OP18-003":{"n":"Sea Cat","t":"character","col":["red"],"cost":5,"pow":6000,"ctr":2000,"tr":["Animal","Alabasta"],"at":["Wisdom"]},
 "OP18-010":{"n":"Tony Tony.Chopper","t":"character","col":["red"],"cost":4,"pow":5000,"ctr":2000,"tr":["Animal","Alabasta","Straw Hat Crew"],"at":["Strike"],"tm":["On K.O."]},
+"OP18-015":{"n":"Eyelashes","t":"character","col":["red"],"cost":1,"pow":0,"ctr":2000,"tr":["Animal","Alabasta"],"at":["Strike"]},
 "OP18-016":{"n":"Monkey.D.Luffy","t":"character","col":["red"],"cost":6,"pow":7000,"ctr":1000,"tr":["Alabasta","Straw Hat Crew"],"at":["Strike"],"kw":["Banish"],"tm":["On K.O."]},
 "OP18-017":{"n":"Roronoa Zoro","t":"character","col":["red"],"cost":4,"pow":4000,"ctr":1000,"tr":["Alabasta","Straw Hat Crew"],"at":["Slash"],"tm":["When Attacking"]},
 "OP18-021":{"n":"Franky","t":"leader","col":["green","purple"],"pow":5000,"life":4,"tr":["Straw Hat Crew","Water Seven","The Franky Family"],"at":["Strike"],"tm":["Activate: Main"],"gc":[{"v":3000,"t":["stage"]}]},

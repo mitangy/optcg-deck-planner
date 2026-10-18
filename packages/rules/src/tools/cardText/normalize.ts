@@ -80,6 +80,11 @@ export function normalizeText(input: string): string {
   // A "(...)" inside a [Card Name] is part of the name ("[Mr.3(Galdino)]"), not reminder text.
   for (let pass = 0; pass < 3; pass += 1) text = text.replace(/\[[^\]]*\]|\s*\([^()]*\)/g, (part) => (part.startsWith("[") ? part : ""));
   text = text.replace(/[➀-➉①-⑩]/g, (ch) => ` [RDON ${CIRCLED[ch]}] `);
+  // Printers vary the casing of timing keywords ("[On your Opponent's Attack]"); fold to canonical.
+  text = text.replace(/\[([^\]]+)\]/g, (m, inner: string) => {
+    const canon = TIMING_TAGS.find((tag) => tag.toLowerCase() === inner.trim().toLowerCase());
+    return canon ? `[${canon}]` : m;
+  });
   text = text.replace(/\[On K\.O\.\]/g, "[On KO]");
   text = text.replace(/K\.O\.'d/g, "KO'd").replace(/K\.O\./g, "KO");
   text = text.replace(/\[Activate:\s*Main\]/g, "[Activate: Main]");
