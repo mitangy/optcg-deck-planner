@@ -59,12 +59,12 @@ function render() {
 }
 
 describe("AltArtsRow preview fallback", () => {
-  it("an alt with no alt preview falls back to the card preview (#640)", () => {
+  it("an alt with no alt preview falls back to the card preview (#643)", () => {
     const tile = render().querySelector(".alt-art:not(.alt-art-base)")!;
     expect(exhaust(tile)).toBe(PREVIEW);
   });
 
-  it("the Base tile ends on the card preview (#640)", () => {
+  it("the Base tile ends on the card preview (#643)", () => {
     const tile = render().querySelector(".alt-art-base")!;
     expect(exhaust(tile)).toBe(PREVIEW);
   });
