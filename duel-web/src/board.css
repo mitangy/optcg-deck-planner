@@ -2537,10 +2537,11 @@ body.is-panel-resize-row .col-cut {
   justify-content: flex-start;
   gap: 0.35rem;
   margin-top: 0.5rem;
-  opacity: 0.9;
 }
 
-.hand-fan-corner .hand-fan-head :is(.hand-fan-toggle, .hand-rail-btn) {
+/* The label reads like a panel title; Sort and the menu keep their pill so
+   they stay legible on the light felt too. */
+.hand-fan-corner .hand-fan-head .hand-fan-toggle {
   background: transparent;
   border-color: transparent;
   min-height: 1.5rem;
