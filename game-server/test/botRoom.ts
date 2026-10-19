@@ -203,8 +203,10 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       human.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
       await waitUntil(() => bag.rematch.some((r) => r.requested[0] && r.requested[1]));
       // The conceding human lost, so they pick the turn order.
+      // Count welcomes now: the sync in attach() can already have produced a second one.
+      const welcomesBefore = bag.welcomes.length;
       human.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
-      await waitUntil(() => bag.welcomes.length > 1);
+      await waitUntil(() => bag.welcomes.length > welcomesBefore);
       assert.equal(last(bag).winner, null);
       assert.deepEqual(bag.errors, []);
     });
