@@ -20,6 +20,7 @@ export { actingSeat } from "./acting.js";
 export { determinize } from "./determinize.js";
 export { evaluate, EVAL_WEIGHTS } from "./evaluate.js";
 export { HARD_DEFAULTS } from "./search.js";
+export { rankOptions, winProbability, type AnalysisOptions, type PositionOption } from "./analysis.js";
 
 /**
  * The intent the bot sends for `seat` in `state`, or null when it is not that seat's move.
