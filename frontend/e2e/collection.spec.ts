@@ -144,6 +144,14 @@ test("clicking a table header sorts the Collection rows, again reverses, a third
   await expect(header).toHaveAttribute("aria-sort", "descending");
   expect(await order()).toEqual(["EB01-001", "EB01-002", "EB01-006"]);
   expect(await header.boundingBox()).toEqual(before);
+  // The arrow hangs outside the label, so it never widens the column (#636).
+  const box = await market.evaluate((btn) => {
+    const label = btn.querySelector(".th-sort-label")!.getBoundingClientRect();
+    const arrow = btn.querySelector(".th-sort-arrow")!.getBoundingClientRect();
+    return { button: btn.getBoundingClientRect().width, label: label.width, labelRight: label.right, arrowLeft: arrow.left };
+  });
+  expect(box.button).toBeCloseTo(box.label, 0);
+  expect(box.arrowLeft).toBeGreaterThanOrEqual(box.labelRight);
 
   await market.click();
   await expect(header).toHaveAttribute("aria-sort", "ascending");

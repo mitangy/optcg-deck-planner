@@ -1665,13 +1665,12 @@ th {
   z-index: 1;
 }
 
-/* Sortable column headers: the arrow lives in a fixed-width slot so sorting never resizes the header. */
+/* Sortable column headers. The button hugs its label and the arrow hangs in the
+   cell's right padding, so headers keep their pre-sort width and never shift. */
 .th-sort-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-  width: 100%;
-  min-width: 0;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1696,11 +1695,20 @@ th {
 }
 
 .th-sort-arrow {
-  flex: none;
-  width: 0.9em;
-  text-align: center;
-  font-size: 0.85em;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  /* 2px gap + 6px icon fits the tightest cell padding (0.5rem in deck edit mode). */
+  margin-left: 2px;
+  line-height: 0;
   opacity: 0.35;
+  pointer-events: none;
+}
+
+.th-sort-arrow svg {
+  fill: currentColor;
 }
 
 .th-sort-arrow.active {

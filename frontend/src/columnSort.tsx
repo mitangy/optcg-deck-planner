@@ -128,7 +128,11 @@ export function SortableTh({
       <button type="button" className="th-sort-btn" aria-label={`Sort by ${label}`} onClick={() => onSort(colKey, firstDir)}>
         <span className="th-sort-label">{label}</span>
         <span className={`th-sort-arrow${active ? " active" : ""}`} aria-hidden="true">
-          {active === "asc" ? "▲" : active === "desc" ? "▼" : "↕"}
+          {/* Fixed 6x9 icon: up and down carets, the inactive one faded. */}
+          <svg width="6" height="9" viewBox="0 0 7 10" focusable="false">
+            <path d="M3.5 0 7 4H0z" opacity={active === "desc" ? 0.25 : 1} />
+            <path d="M3.5 10 0 6h7z" opacity={active === "asc" ? 0.25 : 1} />
+          </svg>
         </span>
       </button>
     </th>
