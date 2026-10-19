@@ -317,6 +317,8 @@ export interface DelayedEffect {
   when?: "end_of_turn" | "end_of_battle" | "opponent_main";
   /** Bindings captured when the delayed effect was created (e.g. the played card). */
   vars?: Record<string, BindingValue>;
+  /** The effect acts on "this Character/Stage": it lapses if that card leaves the field (a card that changes zones is a new card). */
+  selfBound?: boolean;
   id: string;
   seat: Seat;
   sourceInstanceId: InstanceId;
