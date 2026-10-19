@@ -2,7 +2,7 @@ import { Room, Client } from "colyseus";
 import {
   applyIntent,
   buildTestDeck,
-  chooseBotIntent,
+  chooseBotIntentFromState,
   createMatch,
   createSeededRng,
   DEFAULT_LEADER_ID,
@@ -124,11 +124,17 @@ const BOT_USER_ID = 0;
  * `mainMs` for main-phase actions, `choiceMs` for choices, blocks, counters and mulligans.
  */
 export const botPacing = { mainMs: 700, choiceMs: 400 };
+/**
+ * Hard bot (#631): wall-clock budget for one decision's lookahead, in milliseconds. The search runs on the room's event loop,
+ * so it stays well under a quarter of a second; it is anytime, so a smaller budget only makes the bot play more like Normal.
+ * Mutable so tests can shorten it.
+ */
+export const botSearch = { budgetMs: 200 };
 /** Safety net: after this many bot intents in one turn the bot only ends the turn / passes. */
 export const BOT_MAX_INTENTS_PER_TURN = 150;
 
 export function botDisplayName(level: BotLevel): string {
-  return `Bot (${level === "easy" ? "Easy" : "Normal"})`;
+  return `Bot (${level === "easy" ? "Easy" : level === "hard" ? "Hard" : "Normal"})`;
 }
 
 /** The state just before one applied intent; undoing restores it. */
@@ -231,6 +237,8 @@ export class DuelRoom extends Room implements PresenceSource {
   /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
   private bot: { level: BotLevel; rng: Rng } | null = null;
   private botTimer: { clear(): void } | null = null;
+  /** Hard bot only: decisions taken, how many were searched, and the time they took (logged when the game ends). */
+  private botStats = { decisions: 0, searches: 0, ms: 0 };
   private botTurn = -1;
   private botIntentsThisTurn = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -2085,7 +2093,12 @@ export class DuelRoom extends Room implements PresenceSource {
     let intent: Intent | null = null;
     if (!overCap) {
       try {
-        intent = chooseBotIntent(getPlayerView(m, BOT_SEAT), { level: bot.level, rng: bot.rng });
+        const startedAt = performance.now();
+        let searched = false;
+        intent = chooseBotIntentFromState(m, BOT_SEAT, { level: bot.level, rng: bot.rng, budgetMs: botSearch.budgetMs, onTrace: () => { searched = true; } });
+        this.botStats.decisions += 1;
+        this.botStats.ms += performance.now() - startedAt;
+        if (searched) this.botStats.searches += 1;
       } catch (e) {
         this.log("warn", "bot_error", { matchId: this.matchId, message: e instanceof Error ? e.message : String(e) });
       }
@@ -2122,7 +2135,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.log("info", "match_end", { matchId: this.matchId, ...result });
       if (this.bot) {
         const turns = this.match?.turnNumber;
-        this.log("info", "bot_game_over", { matchId: this.matchId, level: this.bot.level, winner: result.winner, turns });
+        this.log("info", "bot_game_over", { matchId: this.matchId, level: this.bot.level, winner: result.winner, turns, ...this.botStats });
       }
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
       this.broadcastRematchState();

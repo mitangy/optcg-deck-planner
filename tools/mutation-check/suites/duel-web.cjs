@@ -6,6 +6,8 @@ module.exports = {
   runner: "vitest",
   mutations: [
     // Play vs Bot (#631)
+    { id: "bot-hard-level-missing", file: `${src}/home/botGame.ts`, from: '  { level: "hard", label: "Hard",', to: '  { level: "easy", label: "Hard",', kills: ["offers Easy, Normal and Hard, starts on Normal, and sends the Hard level to the room (#631)"] },
+    { id: "bot-default-level-hard", file: `${src}/home/botGame.ts`, from: 'export const DEFAULT_BOT_LEVEL: BotLevel = "normal";', to: 'export const DEFAULT_BOT_LEVEL: BotLevel = "hard";', kills: ["offers Easy, Normal and Hard, starts on Normal, and sends the Hard level to the room (#631)"] },
     { id: "bot-room-can-be-ranked", file: `${src}/home/botGame.ts`, from: "return { ranked: false, bot:", to: "return { ranked: true, bot:", kills: ["creates an unranked, timerless room that gives the bot its level and deck (#631)"] },
     { id: "bot-room-wrong-deck", file: `${src}/home/botGame.ts`, from: "bot: { level, deck: deckToWire(botDeck) }", to: "bot: { level, deck: { leaderId: botDeck.leaderId, deck: [] } }", kills: ["creates an unranked, timerless room that gives the bot its level and deck (#631)"] },
     { id: "bot-picked-deck-ignored", file: `${src}/home/botGame.ts`, from: "return decks.find((d) => d.id === pickedId) ?? yours;", to: "return yours;", kills: ["gives the bot a copy of your deck by default, or the saved deck picked, or yours if that deck is gone (#631)"] },

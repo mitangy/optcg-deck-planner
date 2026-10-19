@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOT_DECK_MIRROR, botCreateOptions, resolveBotDeck } from "./botGame";
+import { BOT_DECK_MIRROR, BOT_LEVELS, DEFAULT_BOT_LEVEL, botCreateOptions, resolveBotDeck } from "./botGame";
 import type { SavedDeck } from "../decks/storage";
 
 const deck = (id: string, leaderId: string, cards: string[]): SavedDeck => ({ id, name: id, leaderId, cards, updatedAt: 1 });
@@ -13,6 +13,13 @@ describe("Play vs Bot setup", () => {
       bot: { level: "easy", deck: { leaderId: "OP01-001", deck: ["OP01-006"] } },
       timer: {},
     });
+  });
+
+  it("offers Easy, Normal and Hard, starts on Normal, and sends the Hard level to the room (#631)", () => {
+    expect(BOT_LEVELS.map((l) => l.level)).toEqual(["easy", "normal", "hard"]);
+    expect(DEFAULT_BOT_LEVEL).toBe("normal");
+    expect(botCreateOptions("hard", a).bot?.level).toBe("hard");
+    expect(BOT_LEVELS.find((l) => l.level === "hard")?.hint).toMatch(/thinks ahead/i);
   });
 
   it("gives the bot a copy of your deck by default, or the saved deck picked, or yours if that deck is gone (#631)", () => {

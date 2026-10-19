@@ -143,6 +143,12 @@ describe("protocol parsers", () => {
     assert.equal(parseCreateOptions({}).bot, undefined);
   });
 
+  it("accepts the hard bot level and nothing past it (#631)", () => {
+    const deck = { leaderId: "ST01-001", deck: ["ST01-002"] };
+    for (const level of ["easy", "normal", "hard"]) assert.equal(parseCreateOptions({ bot: { level, deck } }).bot?.level, level);
+    assert.throws(() => parseCreateOptions({ bot: { level: "harder", deck } }), /bot\.level must be one of easy, normal, hard/);
+  });
+
   it("rejects a bot with an unknown level or no deck (#631)", () => {
     const deck = { leaderId: "ST01-001", deck: [] };
     assert.throws(() => parseCreateOptions({ bot: { level: "godlike", deck } }), /bot\.level/);

@@ -1208,7 +1208,7 @@ export function LobbyPage() {
                       <span className="field-label" id="bot-level-label">
                         Bot level
                       </span>
-                      <div className="segmented" role="radiogroup" aria-labelledby="bot-level-label">
+                      <div className="segmented segmented-3" role="radiogroup" aria-labelledby="bot-level-label">
                         {BOT_LEVELS.map((l) => (
                           <button
                             key={l.level}

@@ -49,3 +49,20 @@ test("Play vs Bot: the bot answers the opening hand and takes its turn (#631)", 
   await expect(root).toHaveAttribute("data-phase", "main");
   expect(duel.errors).toEqual([]);
 });
+
+test("Play vs Bot: Hard sits beside Easy and Normal on one row and names the bot Hard (#631)", async ({ page, duel }, info) => {
+  await openBotSetup(page, 7);
+  const radios = page.getByRole("radiogroup", { name: "Bot level" }).getByRole("radio");
+  await expect(radios).toHaveText(["Easy", "Normal", "Hard"]);
+  const boxes = await radios.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
+  // One row at every width: nothing wraps under the others, and nothing runs past the panel.
+  expect(new Set(boxes.map((b) => Math.round(b.top))).size).toBe(1);
+  expect(Math.max(...boxes.map((b) => b.right))).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.getByRole("radio", { name: "Hard" }).click();
+  await expect(page.getByRole("radio", { name: "Hard" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText(/thinks ahead/i)).toBeVisible();
+  await page.getByRole("button", { name: "Start game" }).click();
+  await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
+  if (info.project.name === "desktop-1280") await expect(page.locator(".board-root")).toContainText("Bot (Hard)");
+  expect(duel.errors).toEqual([]);
+});

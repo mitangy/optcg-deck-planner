@@ -2,11 +2,12 @@
 import { deckToWire, type SavedDeck } from "../decks/storage";
 import type { DuelCreateOptions } from "../net/protocol";
 
-export type BotLevel = "easy" | "normal";
+export type BotLevel = "easy" | "normal" | "hard";
 
 export const BOT_LEVELS: ReadonlyArray<{ level: BotLevel; label: string; hint: string }> = [
   { level: "easy", label: "Easy", hint: "A relaxed opponent that is easy to beat." },
   { level: "normal", label: "Normal", hint: "A tougher opponent that plays to win." },
+  { level: "hard", label: "Hard", hint: "Thinks ahead: tries its Leader and Character effects and saves Counter Events for the hits that matter. It may pause to think." },
 ];
 
 export const DEFAULT_BOT_LEVEL: BotLevel = "normal";

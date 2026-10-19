@@ -987,5 +987,7 @@ module.exports = {
     { id: "e2e-hover-popup-jumps-back", args: "card-preview-popup.spec --project=desktop-1280 -g \"#583\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "if (overPopup && !drag && box.dataset.dodged) {", to: "if (false) {", kills: ["card-preview-popup.spec.ts > the hover pop-up steps off the card under its default spot so that card stays clickable (#583) [desktop-1280]"] },
     // Play vs Bot (#631)
     { id: "e2e-bot-game-no-bot", args: "bot-game --project=desktop-1280", file: "duel-web/src/pages/LobbyPage.tsx", from: "createOptions: botDeck\n              ? botCreateOptions(botLevel, botDeck)", to: "createOptions: botDeck\n              ? undefined", kills: ["bot-game.spec.ts > Play vs Bot: the bot answers the opening hand and takes its turn (#631) [desktop-1280]"] },
+    // #631: the Bot level row holds three options on one line.
+    { id: "e2e-bot-levels-wrap", args: "bot-game", file: "duel-web/src/pages/LobbyPage.tsx", from: '<div className="segmented segmented-3" role="radiogroup" aria-labelledby="bot-level-label">', to: '<div className="segmented" role="radiogroup" aria-labelledby="bot-level-label">', kills: ["bot-game.spec.ts > Play vs Bot: Hard sits beside Easy and Normal on one row and names the bot Hard (#631) [desktop-1280]", "bot-game.spec.ts > Play vs Bot: Hard sits beside Easy and Normal on one row and names the bot Hard (#631) [phone-375]"] },
   ],
 };

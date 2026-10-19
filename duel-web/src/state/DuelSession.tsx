@@ -76,7 +76,7 @@ type ConnectOpts = {
       matchSeconds?: number;
       seatSeconds?: number;
     };
-    bot?: { level: "easy" | "normal"; deck: { leaderId: string; deck: string[] } };
+    bot?: { level: "easy" | "normal" | "hard"; deck: { leaderId: string; deck: string[] } };
   };
 };
 

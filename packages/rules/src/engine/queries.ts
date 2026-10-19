@@ -52,15 +52,56 @@ export interface StaticEntry {
 let staticGuard = 0;
 
 let negateGuard = 0;
+
+/**
+ * Read-only scope (a view, a legal-intent listing): the state is not mutated while `fn` runs, so the per-card static
+ * layer can be computed once instead of once per card query. Nested calls reuse the outer scope.
+ */
+interface QueryCache { state: MatchState; statics: StaticEntry[] | null; negated: Map<InstanceId, boolean>; anyNegator: boolean | null }
+let queryCache: QueryCache | null = null;
+export function withQueryCache<T>(state: MatchState, fn: () => T): T {
+  if (queryCache) return fn();
+  queryCache = { state, statics: null, negated: new Map(), anyNegator: null };
+  try { return fn(); } finally { queryCache = null; }
+}
+const cacheFor = (state: MatchState): QueryCache | null => (queryCache && queryCache.state === state ? queryCache : null);
+
+/** Per card definition: does it carry a static "negate" / a static "cost"? Cached because both are asked for every card on every view. */
+const staticKinds = new Map<string, { negate: boolean; cost: boolean }>();
+function staticKindsOf(defId: string): { negate: boolean; cost: boolean } {
+  let hit = staticKinds.get(defId);
+  if (!hit) {
+    const all = abilitiesFor(defId).filter((a) => a.trigger === "static").flatMap((a) => a.statics ?? []);
+    hit = { negate: all.some((s) => s.s === "negate"), cost: all.some((s) => s.s === "cost") };
+    staticKinds.set(defId, hit);
+  }
+  return hit;
+}
 export function isNegated(state: MatchState, card: CardInstance): boolean {
   if (state.modifiers.some((m) => m.target.kind === "card" && m.target.id === card.id && m.effect.type === "negate")) return true;
   // Static "… have their effects negated" (the negating card's own negation is not re-checked).
   if (negateGuard > 0) return false;
+  const cache = cacheFor(state);
+  const anyNegator = (): boolean => ([0, 1] as Seat[]).some((seat) => fieldCards(state.players[seat]).some((src) => staticKindsOf(src.defId).negate));
+  if (cache) cache.anyNegator ??= anyNegator();
+  if (!(cache ? cache.anyNegator : anyNegator())) return false;
+  if (cache && staticGuard === 0 && costGuard === 0) {
+    const hit = cache.negated.get(card.id);
+    if (hit !== undefined) return hit;
+    const value = isNegatedBySource(state, card);
+    cache.negated.set(card.id, value);
+    return value;
+  }
+  return isNegatedBySource(state, card);
+}
+
+function isNegatedBySource(state: MatchState, card: CardInstance): boolean {
   negateGuard += 1;
   try {
     const loc = locate(state, card.id);
     if (!loc) return false;
     for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
+      if (!staticKindsOf(src.defId).negate) continue;
       for (const ability of abilitiesFor(src.defId)) {
         if (ability.trigger !== "static") continue;
         for (const s of ability.statics ?? []) {
@@ -76,13 +117,28 @@ export function isNegated(state: MatchState, card: CardInstance): boolean {
   }
 }
 
+const handOnlyCache = new WeakMap<Ability, boolean>();
 function handOnly(ability: Ability): boolean {
+  let hit = handOnlyCache.get(ability);
+  if (hit === undefined) { hit = computeHandOnly(ability); handOnlyCache.set(ability, hit); }
+  return hit;
+}
+function computeHandOnly(ability: Ability): boolean {
   return (ability.statics ?? []).every((s) => (s.s === "play_cost" && s.target === "self") || (s.s === "counter" && s.filter.onlySelf === true));
 }
 
 /** Static abilities currently in effect. Re-entrant queries during condition checks see none. */
 export function activeStatics(state: MatchState): StaticEntry[] {
   if (staticGuard > 0) return [];
+  const cache = cacheFor(state);
+  if (cache && costGuard === 0) {
+    cache.statics ??= computeActiveStatics(state);
+    return cache.statics;
+  }
+  return computeActiveStatics(state);
+}
+
+function computeActiveStatics(state: MatchState): StaticEntry[] {
   staticGuard += 1;
   try {
     const out: StaticEntry[] = [];
@@ -179,6 +235,7 @@ function costStaticsFor(state: MatchState, card: CardInstance): { entry: StaticE
   try {
     const out: { entry: StaticEntry; s: Static }[] = [];
     for (const seat of [0, 1] as Seat[]) for (const src of fieldCards(state.players[seat])) {
+      if (!staticKindsOf(src.defId).cost) continue;
       for (const ability of abilitiesFor(src.defId)) {
         if (ability.trigger !== "static" || !(ability.statics ?? []).some((s) => s.s === "cost")) continue;
         if (ability.don && src.attachedDonIds.length < ability.don) continue;

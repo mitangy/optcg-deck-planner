@@ -108,6 +108,22 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       assert.deepEqual(bag.errors, []);
     });
 
+    it("a Hard bot is named Hard, searches its turn and still hands the game back (#631)", async () => {
+      const room = await create({ bot: { level: "hard", deck: botDeck() } });
+      const human = await getServer().connectTo(room, join("human", 0));
+      const bag = attach(human);
+      await waitUntil(() => bag.welcomes.length > 0);
+      assert.deepEqual(bag.welcomes[0]!.bot, { level: "hard" });
+      assert.deepEqual(bag.welcomes[0]!.players, [{ name: "human" }, { name: "Bot (Hard)" }]);
+      await waitUntil(() => last(bag).phase === "main" && last(bag).activeSeat === 0);
+      humanSend(human, { type: "end_turn" });
+      await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0 && last(bag).legalIntents.length > 0);
+      assert.ok(internals(room).replay!.intents.filter((i) => i.seat === 1).length > 1, "the bot played its turn");
+      const stats = (room as unknown as { botStats: { decisions: number; searches: number } }).botStats;
+      assert.ok(stats.searches > 0, "at least one of its decisions was a real search");
+      assert.deepEqual(bag.errors, []);
+    });
+
     it("the bot plays the first turn by itself when it wins the coin flip (#631)", async () => {
       const room = await create({ firstSeat: 1, autoSkipMulligan: true });
       const human = await getServer().connectTo(room, join("human", 0));

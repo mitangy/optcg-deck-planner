@@ -2,7 +2,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import { listLegalIntents } from "./intents.js";
-import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, powerOf } from "./queries.js";
+import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, powerOf, withQueryCache } from "./queries.js";
 import { activeDon, otherSeat } from "./state.js";
 
 const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush", rush_character: "Rush: Character", double_attack: "Double Attack", banish: "Banish", unblockable: "Unblockable" };
@@ -84,6 +84,10 @@ function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]]
 }
 
 export function getPlayerView(state: MatchState, seat: Seat) {
+  return withQueryCache(state, () => buildPlayerView(state, seat));
+}
+
+function buildPlayerView(state: MatchState, seat: Seat) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
   const opp = state.players[oppSeat];
