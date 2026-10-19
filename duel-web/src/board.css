@@ -2386,6 +2386,208 @@ body.is-panel-drag * {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
 }
 
+/* —— Hand in the corner of a shortened column (#633) ——
+   Dragging the bottom edge of a side column up (.col-cut) frees a corner below
+   it. The fan in its default spot then sits in that corner, from the board's
+   edge to the screen edge (--corner-l / --corner-r / --corner-w, measured by
+   CornerFit): fully shown, never rising over the board, so it never tucks.
+   No box behind it: the cards rest on the felt in the same gentle arc, and the
+   head row is a quiet label like the column's panel titles. Card height is the
+   corner's height less the head row, or what the width allows for this many
+   cards, so a big hand overlaps more instead of shrinking. */
+
+.arena.arena-wide .board-col[data-col-cut] {
+  align-self: start;
+  height: calc(100% - 100dvh * var(--cut));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 10px 24px rgb(var(--deep-rgb) / 0.35);
+}
+
+.arena.arena-wide .arena-left[data-col-cut] {
+  --cut: var(--cut-left);
+  border-bottom-right-radius: 14px;
+}
+
+.arena.arena-wide .arena-rail[data-col-cut] {
+  --cut: var(--cut-right);
+  border-bottom-left-radius: 14px;
+}
+
+/* A shortened column's panels give way to its height: they may shrink (the Turn
+   panel still keeps what its content needs), the floors that guard a full-height
+   column relax, and anything that still does not fit scrolls with the column. */
+.arena.arena-wide .board-col[data-col-cut] > .board-panel {
+  flex-shrink: 1;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="oppHand"] {
+  min-height: 4.25rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="recent"] {
+  min-height: 4rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="preview"] {
+  min-height: 7rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel:is([data-panel="log"], [data-panel="chat"], [data-panel="hand"]) {
+  min-height: 4rem;
+}
+
+/* The bar on a column's bottom edge. Fixed to the window (the column may scroll),
+   centred on the edge once there is a cut, resting on the window's bottom edge
+   before. Under the fan (16) so a card reaching up still gets the pointer. */
+.col-cut {
+  position: fixed;
+  z-index: 15;
+  bottom: calc(100dvh * var(--cut, 0) - 12px);
+  width: 64px;
+  height: 24px;
+  display: flex;
+  cursor: row-resize;
+  touch-action: none;
+  border-radius: 8px;
+  /* The bar itself is the element's own background (so it is a painted, reachable control). */
+  background: linear-gradient(var(--muted), var(--muted)) center / 32px 3px no-repeat;
+  opacity: 0.55;
+  transition:
+    opacity 160ms ease,
+    background-size 160ms ease;
+}
+
+/* No cut yet: the bar rests just above the window's bottom edge. */
+.col-cut:not(.has-cut) {
+  bottom: 0;
+  background-position: center calc(100% - 4px);
+}
+
+.col-cut-left {
+  --cut: var(--cut-left);
+  left: calc(var(--left-w) / 2 - 32px);
+}
+
+.col-cut-right {
+  --cut: var(--cut-right);
+  right: calc(var(--rail-w) / 2 - 32px);
+}
+
+.col-cut:hover,
+.col-cut:focus-visible,
+body.is-panel-resize-row .col-cut {
+  opacity: 1;
+  background-image: linear-gradient(var(--chrome-bright), var(--chrome-bright));
+  background-size: 44px 3px;
+}
+
+.col-cut:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.hand-fan.hand-fan-corner {
+  /* Never rises, tucks or drops, whatever the hover, focus, pin or drag state. */
+  transform: none !important;
+}
+
+.hand-fan.hand-fan-corner {
+  --corner-h: calc(100dvh * var(--corner-cut, 0.28));
+  --fan-ch: min(
+    calc((var(--corner-h) - 2.4rem - var(--safe-b)) / 1.2),
+    calc(var(--corner-w, 100vw) / (0.3 * var(--n) + 1.4) * 1.4),
+    30dvh
+  );
+  --fan-cw: calc(var(--fan-ch) / 1.4);
+  left: var(--corner-l, 0px);
+  right: var(--corner-r, 0px);
+  height: var(--corner-h);
+  box-sizing: border-box;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  /* The bottom padding clears the outer cards, which sit lower on the arc and tilt their corners down. */
+  padding: 0 calc(var(--fan-cw) * 0.35) calc(var(--fan-ch) * 0.2 + var(--safe-b));
+}
+
+.hand-fan-corner .hand-fan-cards {
+  width: min(100%, calc(var(--fan-cw) * (0.62 * var(--n) + 0.38)));
+  height: var(--fan-ch);
+  transition: opacity 160ms ease;
+}
+
+.arena .hand-fan-corner .hand-fan-cards > * {
+  border-radius: 6px;
+  box-shadow: -3px 2px 10px rgb(var(--deep-rgb) / 0.55);
+}
+
+.arena .hand-fan-corner .hand-fan-cards > .card-tile:is(:hover, :focus-visible) {
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 16px)) rotate(var(--rot, 0deg)) scale(1.06);
+}
+
+.arena .hand-fan-corner .hand-fan-cards > .card-tile.selected {
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 20px)) rotate(var(--rot, 0deg)) scale(1.06);
+}
+
+/* The head row: a quiet label like the column's panel titles. */
+.hand-fan-corner .hand-fan-head {
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  opacity: 0.9;
+}
+
+.hand-fan-corner .hand-fan-head :is(.hand-fan-toggle, .hand-rail-btn) {
+  background: transparent;
+  border-color: transparent;
+  min-height: 1.5rem;
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle {
+  padding-left: 0;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+.hand-fan-corner .hand-fan-head .hand-rail-btn {
+  border-color: var(--line);
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle ~ .hand-rail-btn {
+  margin-left: auto;
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle ~ .hand-rail-btn ~ .hand-rail-btn {
+  margin-left: 0;
+}
+
+/* The hand never rises or tucks here, so the caret has nothing to show. */
+.hand-fan-corner .hand-dock-caret {
+  display: none;
+}
+
+/* Hidden: only the head row stays, at the bottom edge. */
+.hand-fan-corner.is-hidden {
+  height: auto;
+}
+
+.hand-fan-corner.is-hidden .hand-fan-cards {
+  height: 0;
+  visibility: hidden;
+}
+
+/* A card dragged out of the hand: the corner stays put (it covers no board) and fades a little. */
+.hand-fan-corner.is-dragging .hand-fan-cards {
+  opacity: 0.5;
+}
+
+.hand-fan-corner.is-dragging > * {
+  pointer-events: none;
+}
+
 /* Portrait phones: the hand strip overlaps its cards in a shallow fan so the
    whole hand fits without scrolling; tap lifts the card you picked. */
 .arena .hand-row.hand-row-fan {
