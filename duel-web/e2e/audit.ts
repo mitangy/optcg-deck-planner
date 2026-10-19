@@ -72,6 +72,8 @@ const DEFAULT_OVERLAYS = [
   ".field-bar",
   // A selected card's actions float over the card and the board edge beside it.
   ".card-actions",
+  // The bar on a shortened column's bottom edge (#633) rests over the last few pixels of the column.
+  ".col-cut",
 ];
 
 export async function auditPage(

@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import type { PanelColumn, PanelId } from "./panelLayout";
 import {
   COLUMN_MAX_PX,
+  CUT_MAX,
+  cutFromPointer,
+  nudgeCut,
+  setCut,
   COLUMN_MAX_VW,
   COLUMN_MIN_PX,
   PANEL_STEP_SHARE,
@@ -19,6 +23,7 @@ import {
 
 type Active =
   | { kind: "column"; column: PanelColumn; startX: number; startW: number; min: number }
+  | { kind: "cut"; column: PanelColumn }
   | {
       kind: "split";
       a: PanelId;
@@ -118,6 +123,8 @@ export function usePanelResize(
         const dx = e.clientX - act.startX;
         const px = clampColumnWidth(act.startW + (act.column === "left" ? dx : -dx), window.innerWidth, act.min);
         apply(setWidth(base, act.column, px));
+      } else if (act.kind === "cut") {
+        apply(setCut(base, act.column, cutFromPointer(e.clientY, window.innerHeight)));
       } else {
         const [a, b] = splitHeights(act.hA, act.hB, e.clientY - act.startY, act.minA, act.minB);
         apply(setShares(base, { [act.a]: a / act.colH, [act.b]: b / act.colH }));
@@ -234,6 +241,42 @@ export function usePanelResize(
     };
   };
 
+  /**
+   * The bar on a column's bottom edge (#633): drag it up to shorten the column and free a corner
+   * below it for the fanned hand; back down (or double-click, Home / Delete) to remove the cut.
+   */
+  const cutHandleProps = (column: PanelColumn) => {
+    const cut = shown.cuts[column];
+    return {
+      role: "separator" as const,
+      "aria-orientation": "horizontal" as const,
+      "aria-label": `Resize ${column} column bottom (frees a corner for your hand)`,
+      "aria-valuemin": 0,
+      "aria-valuemax": Math.round(CUT_MAX * 100),
+      "aria-valuenow": Math.round((cut ?? 0) * 100),
+      "aria-valuetext": cut == null ? "Full height" : `Corner ${Math.round(cut * 100)}% of the window tall`,
+      title: "Drag up to make room for your hand",
+      tabIndex: 0,
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        begin({ kind: "cut", column });
+      },
+      onDoubleClick: () => commit(setCut(latest.current.sizes, column, null)),
+      onKeyDown: (e: React.KeyboardEvent) => {
+        const cur = latest.current.sizes.cuts[column] ?? null;
+        let next: number | null;
+        if (e.key === "ArrowUp") next = nudgeCut(cur, true);
+        else if (e.key === "ArrowDown") next = nudgeCut(cur, false);
+        else if (e.key === "Home" || e.key === "Delete") next = null;
+        else return;
+        e.preventDefault();
+        e.stopPropagation();
+        commit(setCut(latest.current.sizes, column, next));
+      },
+    };
+  };
+
   /** The divider above panel `b`, between it and the panel `a` above it. */
   const dividerProps = (a: PanelId, b: PanelId, label: string) => {
     const key = `split:${a}:${b}`;
@@ -275,13 +318,22 @@ export function usePanelResize(
   };
 
   /** Inline overrides for the board root: the column widths, clamped by CSS for a smaller window. */
-  const arenaStyle = (columns: Record<PanelColumn, readonly PanelId[]>): CSSProperties | undefined =>
-    shown.widths.left == null && shown.widths.right == null
+  const arenaStyle = (
+    columns: Record<PanelColumn, readonly PanelId[]>,
+    /** Columns whose cut applies (on screen, desktop): `--cut-left` / `--cut-right`, the share of the window freed below. */
+    cutColumns: Record<PanelColumn, boolean> = { left: false, right: false },
+  ): CSSProperties | undefined => {
+    const cutL = cutColumns.left ? shown.cuts.left : undefined;
+    const cutR = cutColumns.right ? shown.cuts.right : undefined;
+    return shown.widths.left == null && shown.widths.right == null && cutL == null && cutR == null
       ? undefined
       : ({
           ...(shown.widths.left != null ? { "--left-w": clampCss(shown.widths.left, columnMinPx(columns.left)) } : null),
           ...(shown.widths.right != null ? { "--rail-w": clampCss(shown.widths.right, columnMinPx(columns.right)) } : null),
+          ...(cutL != null ? { "--cut-left": cutL } : null),
+          ...(cutR != null ? { "--cut-right": cutR } : null),
         } as CSSProperties);
+  };
 
   /**
    * A panel's inline height. `last` is the panel at the bottom of its column:
@@ -299,6 +351,7 @@ export function usePanelResize(
     arenaStyle,
     panelStyle,
     columnHandleProps,
+    cutHandleProps,
     dividerProps,
   };
 }

@@ -123,6 +123,8 @@ import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
 import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos } from "./handFanPos";
+import { fanCornerFor } from "./fanCorner";
+import { CornerFit } from "./CornerFit";
 import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
 import { useFanFit } from "./useFanFit";
 import { useFanMove } from "./useFanMove";
@@ -1892,10 +1894,26 @@ export function DuelBoard({
   const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
   const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
   const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
+  /** Columns on screen on a desktop board: only these can be shortened from their bottom edge (#633). */
+  const cutColumns: Record<PanelColumn, boolean> = {
+    left: wide && !lp && !noLeftCol && singleSide !== "right",
+    right: wide && !lp && !noRightCol && singleSide !== "left",
+  };
+  const shownCuts = {
+    left: cutColumns.left ? panelResize.shown.cuts.left : undefined,
+    right: cutColumns.right ? panelResize.shown.cuts.right : undefined,
+  };
+  /** A shortened column and the fan in its default spot: the hand sits in the corner below the column, never over the board. */
+  const fanCorner = fanCornerFor({
+    fan: fanHand,
+    spectatorFan: specFans != null,
+    moved: shownFanPos != null,
+    cuts: shownCuts,
+  });
   const arenaStyle: CSSProperties | undefined =
     wide && !lp
       ? ({
-          ...panelResize.arenaStyle(shownPanels),
+          ...panelResize.arenaStyle(shownPanels, cutColumns),
           // The one column holds the Turn panel too, so on the left it opens as wide as the right one does.
           ...(singleSide === "left" && panelResize.shown.widths.left == null
             ? { "--left-w": bigBoard ? "clamp(250px, 17vw, 330px)" : "clamp(260px, 22vw, 400px)" }
@@ -2061,7 +2079,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter ? " arena-fan-center" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
         specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
@@ -2354,7 +2372,7 @@ export function DuelBoard({
             menu={matchMenuEl("left")}
           />
         ) : wide ? (
-          <aside className="arena-left board-col" data-panel-col="left" data-col-off={singleSide === "right" ? "" : undefined} aria-label="Side panels, left">
+          <aside className="arena-left board-col" data-panel-col="left" data-col-off={singleSide === "right" ? "" : undefined} data-col-cut={shownCuts.left != null ? "" : undefined} aria-label="Side panels, left">
             {actionsSide === "left" ? columnActions : null}
             {renderColumnPanels("left")}
             {prefs.layoutGrips ? (
@@ -2564,7 +2582,7 @@ export function DuelBoard({
         </div>
 
         {wide && !lp ? (
-          <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined}>
+          <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined} data-col-cut={shownCuts.right != null ? "" : undefined}>
             {actionsSide === "right" ? columnActions : null}
             {renderColumnPanels("right")}
             {prefs.layoutGrips ? (
@@ -2719,19 +2737,33 @@ export function DuelBoard({
         />
       ) : null}
 
+      {(["left", "right"] as const).map((col) =>
+        prefs.layoutGrips && cutColumns[col] ? (
+          <div
+            key={col}
+            className={`col-cut col-cut-${col}${shownCuts[col] != null ? " has-cut" : ""}`}
+            {...panelResize.cutHandleProps(col)}
+          />
+        ) : null,
+      )}
+
       {fanHand ? (
+        <>
         <div
           ref={fanRef}
           className={`hand-fan${specFans ? " hand-fan-spec" : ""} ${
-            shownFanPos == null
-              ? "hand-fan-center"
-              : fanFloating
+            fanCorner
+              ? "hand-fan-corner"
+              : shownFanPos == null
+                ? "hand-fan-center"
+                : fanFloating
                 ? "hand-fan-free hand-fan-float"
                 : "hand-fan-free hand-fan-docked"
           }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}`}
           style={
             {
               "--n": Math.max(handCount, 1),
+              ...(fanCorner ? { "--corner-cut": fanCorner.cut } : null),
               ...(shownFanPos ? { "--fan-x": shownFanPos.x, "--fan-y": shownFanPos.y } : null),
             } as CSSProperties
           }
@@ -2793,6 +2825,9 @@ export function DuelBoard({
             {renderHandCards(true)}
           </div>
         </div>
+        {/* After the fan, so its ref is set when the corner measures. */}
+        {fanCorner ? <CornerFit fanRef={fanRef} column={fanCorner.column} /> : null}
+        </>
       ) : wide && !railHand ? (
         <div
           className={`hand-dock${drawerClass}${handTucked ? " is-dragging" : ""}`}

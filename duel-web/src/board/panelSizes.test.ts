@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  CUT_MAX,
+  CUT_MIN,
   clampColumnWidth,
   columnMinPx,
+  cutFromPointer,
+  nudgeCut,
+  setCut,
   panelMinHeight,
   nudgeColumnWidth,
   panelSizesForMode,
@@ -15,7 +20,7 @@ describe("panel sizes (#347)", () => {
   it("reads saved widths and shares and writes them back the same (#347)", () => {
     const saved = "L=260;R=340;preview=0.45,log=0.3";
     const sizes = parsePanelSizes(saved);
-    expect(sizes).toEqual({ widths: { left: 260, right: 340 }, heights: { preview: 0.45, log: 0.3 } });
+    expect(sizes).toEqual({ widths: { left: 260, right: 340 }, heights: { preview: 0.45, log: 0.3 }, cuts: {} });
     expect(serializePanelSizes(sizes)).toBe(saved);
   });
 
@@ -31,7 +36,7 @@ describe("panel sizes (#347)", () => {
 
   it("keeps the good values next to a bad one (#347)", () => {
     const sizes = parsePanelSizes("R=300;nope;turn=0.2,;;log=0.6");
-    expect(sizes).toEqual({ widths: { right: 300 }, heights: { turn: 0.2, log: 0.6 } });
+    expect(sizes).toEqual({ widths: { right: 300 }, heights: { turn: 0.2, log: 0.6 }, cuts: {} });
   });
 
   it("clamps a column to 180px and to a third of the window, 560px at most (#347)", () => {
@@ -98,8 +103,8 @@ describe("Bigger playing area keeps its own column widths (#529)", () => {
   const big = "L=200;R=260";
 
   it("normal layout uses its own widths, the big one its own with the shared heights (#529)", () => {
-    expect(panelSizesForMode(false, normal, big)).toEqual({ widths: { left: 300, right: 400 }, heights: { preview: 0.4 } });
-    expect(panelSizesForMode(true, normal, big)).toEqual({ widths: { left: 200, right: 260 }, heights: { preview: 0.4 } });
+    expect(panelSizesForMode(false, normal, big)).toEqual({ widths: { left: 300, right: 400 }, heights: { preview: 0.4 }, cuts: {} });
+    expect(panelSizesForMode(true, normal, big)).toEqual({ widths: { left: 200, right: 260 }, heights: { preview: 0.4 }, cuts: {} });
   });
 
   it("big mode with nothing saved starts at the default narrow columns, not the normal widths (#529)", () => {
@@ -107,12 +112,64 @@ describe("Bigger playing area keeps its own column widths (#529)", () => {
   });
 
   it("a drag in big mode saves widths apart and leaves the normal widths alone (#529)", () => {
-    const next = { widths: { left: 220, right: 280 }, heights: { preview: 0.5 } };
+    const next = { widths: { left: 220, right: 280 }, heights: { preview: 0.5 }, cuts: {} };
     expect(panelSizesPatch(true, next, normal)).toEqual({ panelSizes: "L=300;R=400;preview=0.5", panelSizesBig: "L=220;R=280" });
   });
 
   it("a drag in the normal layout leaves the big widths alone (#529)", () => {
-    const next = { widths: { left: 310 }, heights: {} };
+    const next = { widths: { left: 310 }, heights: {}, cuts: {} };
     expect(panelSizesPatch(false, next, normal)).toEqual({ panelSizes: "L=310" });
+  });
+});
+
+describe("a column shortened from its bottom edge frees a corner (#633)", () => {
+  it("reads and writes the corner shares as LC / RC next to the widths (#633)", () => {
+    const saved = "L=260;LC=0.3;RC=0.28;preview=0.45";
+    const sizes = parsePanelSizes(saved);
+    expect(sizes.cuts).toEqual({ left: 0.3, right: 0.28 });
+    expect(serializePanelSizes(sizes)).toBe(saved);
+    expect(serializePanelSizes(parsePanelSizes("RC=0.28"))).toBe("RC=0.28");
+  });
+
+  it("clamps a saved corner to 18%..60% of the window and drops junk (#633)", () => {
+    expect(parsePanelSizes("LC=0.9;RC=0.05").cuts).toEqual({ left: CUT_MAX, right: CUT_MIN });
+    expect(parsePanelSizes("LC=0;RC=2;LC=abc;XC=0.3;RC=-0.3").cuts).toEqual({});
+    expect(parsePanelSizes("LC=nope;R=300;RC=0.4").cuts).toEqual({ right: 0.4 });
+  });
+
+  it("a column's cut is set and removed on its own side (#633)", () => {
+    const withBoth = setCut(setCut(parsePanelSizes(""), "left", 0.3), "right", 0.25);
+    expect(withBoth.cuts).toEqual({ left: 0.3, right: 0.25 });
+    expect(setCut(withBoth, "left", null).cuts).toEqual({ right: 0.25 });
+    expect(setCut(withBoth, "right", 0.99).cuts.right).toBe(CUT_MAX);
+  });
+
+  it("a drag sets the cut from the room below the pointer and dragging back to the bottom removes it (#633)", () => {
+    expect(cutFromPointer(500, 1000)).toBe(0.5);
+    expect(cutFromPointer(870, 1000)).toBe(CUT_MIN);
+    expect(cutFromPointer(100, 1000)).toBe(CUT_MAX);
+    expect(cutFromPointer(890, 1000)).toBe(null);
+    expect(cutFromPointer(1000, 1000)).toBe(null);
+  });
+
+  it("arrow keys step the cut by 3%, the first Up creates the smallest cut and Down under it removes it (#633)", () => {
+    expect(nudgeCut(null, true)).toBe(CUT_MIN);
+    expect(nudgeCut(0.28, true)).toBe(0.31);
+    expect(nudgeCut(0.28, false)).toBe(0.25);
+    expect(nudgeCut(CUT_MIN, false)).toBe(null);
+    expect(nudgeCut(null, false)).toBe(null);
+    expect(nudgeCut(CUT_MAX, true)).toBe(CUT_MAX);
+  });
+
+  it("cuts apply in both modes: Bigger playing area shares them with the normal layout (#633)", () => {
+    const normal = "L=300;RC=0.28;preview=0.4";
+    expect(panelSizesForMode(true, normal, "L=200").cuts).toEqual({ right: 0.28 });
+    expect(panelSizesForMode(false, normal, "L=200").cuts).toEqual({ right: 0.28 });
+  });
+
+  it("a drag in Bigger playing area saves the cut with the shared sizes and never in the big widths (#633)", () => {
+    const next = { widths: { left: 220 }, heights: {}, cuts: { right: 0.3 } };
+    expect(panelSizesPatch(true, next, "L=300")).toEqual({ panelSizes: "L=300;RC=0.3", panelSizesBig: "L=220" });
+    expect(panelSizesPatch(false, next, "L=300")).toEqual({ panelSizes: "L=220;RC=0.3" });
   });
 });
