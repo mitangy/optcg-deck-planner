@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-19
-  { date: "2026-10-19", app: "planner", title: "Public shopping links respect Added directly", text: "If you hide the cards you added directly on Master Shopping, a public link you create or update now leaves them out too. Links you already made keep showing them until you press Update link." },
+  { date: "2026-10-19", app: "planner", pr: 638, title: "Public shopping links respect Added directly", text: "If you hide the cards you added directly on Master Shopping, a public link you create or update now leaves them out too. Links you already made keep showing them until you press Update link." },
   // 2026-10-18
   { date: "2026-10-18", app: "duel", pr: 633, title: "Make room for your hand under a side column", text: "Drag the bottom edge of a side column up to make room for your hand: the fanned hand sits in that corner, fully shown, and never covers the board. Drag the bar back down or double-click it to undo; Reset layout does too. Desktop windows only." },
   { date: "2026-10-18", app: "duel", pr: 630, title: "Deleted decks stay deleted and sign-out keeps unsaved decks", text: "A duel deck you delete while signed in no longer comes back the next time you open the app, even if the account was slow to load. Decks that could not be saved to your account, like ones with very long names, are now kept in this browser when you sign out instead of being removed." },
