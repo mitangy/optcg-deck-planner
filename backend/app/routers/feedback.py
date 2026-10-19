@@ -20,10 +20,10 @@ from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
-_feedback_rate = RateLimiter(max_calls=10, period_s=600)
+_feedback_rate = RateLimiter(max_calls=10, period_s=600, name="feedback_feedback_rate")
 # Feedback is stored forever and the per-IP key can be spoofed (X-Forwarded-For),
 # so cap the total too.
-_feedback_global_rate = RateLimiter(max_calls=60, period_s=3600)
+_feedback_global_rate = RateLimiter(max_calls=60, period_s=3600, name="feedback_feedback_global_rate")
 
 
 def _out(row: Feedback, user: User | None) -> FeedbackOut:
