@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextExtraTarget } from "./shoppingExtras";
+import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 
 describe("nextExtraTarget (#525)", () => {
   it("+ on a card that is covered targets one copy beyond what is owned", () => {
@@ -30,5 +30,30 @@ describe("nextExtraTarget (#525)", () => {
 
   it("− never goes below zero", () => {
     expect(nextExtraTarget({ owned: 0, deckNeed: 0, extraQty: 0, stillNeed: 0 }, -1)).toBe(0);
+  });
+});
+
+describe("alt art copies count as owned when adding to Master Shopping (#626)", () => {
+  // 0 base + 2 alt copies, no deck: the backend's still_need is max(0, need - owned - alts_owned).
+  const altOnly = { owned: 0, alts_owned: 2 };
+
+  it("Add on a card owned only as alt arts targets one beyond the alts, leaving 1 to buy", () => {
+    const owned = totalOwnedCopies(altOnly);
+    const target = nextExtraTarget({ owned, deckNeed: 0, extraQty: 0, stillNeed: 0 }, 1);
+    expect(target).toBe(3);
+    expect(Math.max(0, target - owned)).toBe(1);
+  });
+
+  it("\u2212 from 2 to buy with alt copies owned leaves 1 to buy, not 0", () => {
+    const owned = totalOwnedCopies(altOnly);
+    // Target 4 = 2 alts + 2 to buy.
+    const target = nextExtraTarget({ owned, deckNeed: 0, extraQty: 4, stillNeed: 2 }, -1);
+    expect(target).toBe(3);
+    expect(target - owned).toBe(1);
+  });
+
+  it("totalOwnedCopies adds alt copies to base copies and tolerates a missing alts_owned", () => {
+    expect(totalOwnedCopies({ owned: 1, alts_owned: 2 })).toBe(3);
+    expect(totalOwnedCopies({ owned: 1 })).toBe(1);
   });
 });

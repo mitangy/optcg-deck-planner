@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-19
+  { date: "2026-10-19", app: "planner", title: "Alt arts count as owned when adding to Master Shopping", text: "Adding a card you own only as alt art copies to Master Shopping now works: Add puts it on the list, and the plus and minus buttons count your alt art copies as owned. The Owned count in the search results includes them too." },
   { date: "2026-10-19", app: "planner", pr: 638, title: "Public shopping links respect Added directly", text: "If you hide the cards you added directly on Master Shopping, a public link you create or update now leaves them out too. Links you already made keep showing them until you press Update link." },
   { date: "2026-10-19", app: "planner", pr: 640, title: "Sort any table by clicking a column", text: "Click a column heading on Master Shopping, Collection, a deck, a shared list or a group buy to sort by it. Click again to reverse, and a third time to go back to your Sort menu order. Phone card lists and the grid still follow the Sort menu." },
   { date: "2026-10-19", app: "planner", pr: 643, title: "Alt art tiles show EB05 and OP18 previews", text: "The alt art and Base tiles under EB05 and OP18 cards now show preview art instead of an empty box until TCGPlayer posts the official pictures. Eyelashes (OP18-015) has preview art too." },
