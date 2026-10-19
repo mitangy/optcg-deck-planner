@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-19
+  { date: "2026-10-19", app: "planner", pr: 640, title: "Sort any table by clicking a column", text: "Click a column heading on Master Shopping, Collection, a deck, a shared list or a group buy to sort by it. Click again to reverse, and a third time to go back to your Sort menu order. Phone card lists and the grid still follow the Sort menu." },
   { date: "2026-10-19", app: "planner", pr: 643, title: "Alt art tiles show EB05 and OP18 previews", text: "The alt art and Base tiles under EB05 and OP18 cards now show preview art instead of an empty box until TCGPlayer posts the official pictures. Eyelashes (OP18-015) has preview art too." },
   // 2026-10-18
   { date: "2026-10-18", app: "duel", pr: 633, title: "Make room for your hand under a side column", text: "Drag the bottom edge of a side column up to make room for your hand: the fanned hand sits in that corner, fully shown, and never covers the board. Drag the bar back down or double-click it to undo; Reset layout does too. Desktop windows only." },

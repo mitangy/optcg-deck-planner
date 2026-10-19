@@ -1665,6 +1665,57 @@ th {
   z-index: 1;
 }
 
+/* Sortable column headers. The button hugs its label and the arrow hangs in the
+   cell's right padding, so headers keep their pre-sort width and never shift. */
+.th-sort-btn {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  white-space: inherit;
+  cursor: pointer;
+}
+
+.th-sort-btn:hover {
+  color: var(--ink);
+}
+
+.th-sort-btn:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: var(--focus-ring);
+}
+
+.th-sort-arrow {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  /* 2px gap + 6px icon fits the tightest cell padding (0.5rem in deck edit mode). */
+  margin-left: 2px;
+  line-height: 0;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.th-sort-arrow svg {
+  fill: currentColor;
+}
+
+.th-sort-arrow.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
 tr.need td {
   background: var(--need);
 }
