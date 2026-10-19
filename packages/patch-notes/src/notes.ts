@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-18
+  { date: "2026-10-18", app: "duel", pr: 633, title: "Make room for your hand under a side column", text: "Drag the bottom edge of a side column up to make room for your hand: the fanned hand sits in that corner, fully shown, and never covers the board. Drag the bar back down or double-click it to undo; Reset layout does too. Desktop windows only." },
   { date: "2026-10-18", app: "duel", pr: 630, title: "Deleted decks stay deleted and sign-out keeps unsaved decks", text: "A duel deck you delete while signed in no longer comes back the next time you open the app, even if the account was slow to load. Decks that could not be saved to your account, like ones with very long names, are now kept in this browser when you sign out instead of being removed." },
   { date: "2026-10-18", app: "duel", pr: 628, title: "Eyelashes is playable", text: "Eyelashes (OP18-015) is now in the duel app: when your opponent attacks you may trash it, and if your Leader has the {Alabasta} type, up to 1 of their Leader or Characters gets −3000 power this turn. Kumadori (OP18-101) now shows preview art until its official image is out." },
   // 2026-10-17

@@ -605,7 +605,9 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 :root[data-motion="reduce"] .hand-dock .hand-dock-cards > *,
 :root[data-motion="reduce"] .hand-fan,
 :root[data-motion="reduce"] .hand-fan-cards,
-:root[data-motion="reduce"] .hand-fan-cards > * {
+:root[data-motion="reduce"] .hand-fan-cards > *,
+:root[data-motion="reduce"] .hand-fan-corner .hand-fan-cards,
+:root[data-motion="reduce"] .col-cut {
   transition: none;
 }
 :root[data-motion="reduce"] .sheet,

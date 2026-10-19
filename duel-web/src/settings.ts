@@ -121,7 +121,7 @@ export type DuelSettings = {
   sideColumns: SideColumns;
   /**
    * Desktop: column widths and panel heights dragged out by the panel edges,
-   * e.g. "L=260;R=340;preview=0.45"; "" keeps every default.
+   * and the corner a column frees below it, e.g. "L=260;R=340;RC=0.28;preview=0.45"; "" keeps every default.
    * See board/panelSizes.ts.
    */
   panelSizes: string;
