@@ -49,6 +49,8 @@ export type DuelCreateOptions = {
     /** Per-player time bank (chess clock). */
     seatSeconds?: number;
   };
+  /** Play vs Bot (#631): the server plays seat 1 with this deck. The room is unranked and not saved to history. */
+  bot?: { level: "easy" | "normal" | "hard"; deck: PlayerDeckWire };
 };
 
 /** Prefer sending objects from view.legalIntents unchanged. */

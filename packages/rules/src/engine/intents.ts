@@ -6,7 +6,7 @@ import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "../s
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PendingChoice, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
 import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, resolveLifeTrigger, settle } from "./procedure.js";
-import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue } from "./queries.js";
+import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue, withQueryCache } from "./queries.js";
 import { abilityGateOpen, defaultAnswer, dispatchEvent, finishPlay, newBatch, resolveEffectChoice, startAbility, type Sim } from "./runtime.js";
 import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./state.js";
 
@@ -422,6 +422,10 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
 }
 
 export function listLegalIntents(state: MatchState, seat: Seat): Intent[] {
+  return withQueryCache(state, () => legalIntentsOf(state, seat));
+}
+
+function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
   const out: Intent[] = [];
   if (state.phase === "game_over" || state.winner !== null) return out;
   const p = state.players[seat];

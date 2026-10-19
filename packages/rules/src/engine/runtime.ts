@@ -492,7 +492,7 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     ? `${promptPrefix(frame)} — No card to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."} Confirm to continue.`
     : `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
   pushChoice(sim, frame, {
-    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}) }, bindings,
+    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}), ...(instr.totalCostAtMost != null ? { totalCostAtMost: evalValue(state, ctx, instr.totalCostAtMost) } : {}), ...(instr.totalPowerAtMost != null ? { totalPowerAtMost: evalValue(state, ctx, instr.totalPowerAtMost) } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),
   });
   frame.bindings._selectMeta = JSON.stringify({ totalCostAtMost: instr.totalCostAtMost ?? null, totalPowerAtMost: instr.totalPowerAtMost ?? null, distinctNames: instr.distinctNames ?? false });

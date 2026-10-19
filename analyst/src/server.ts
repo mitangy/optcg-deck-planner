@@ -17,13 +17,15 @@ import {
   myLessons,
   replayGame,
   reviewMatch,
-  searchGames,
+  searchAnyGames,
+  simStats,
   tournamentStats,
   type PlannerApi,
 } from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { GAME_PRIMER } from "./primer";
+import { analyzePosition, fetchReplayFor, MAX_BUDGET_MS } from "./position";
 import { searchCards } from "./search";
 import { exclusive, simulateDeck } from "./simulate";
 
@@ -34,20 +36,22 @@ Ground rules:
 - Card facts come from tools. Look cards up with search_cards or get_cards before quoting text, cost, power, counter, traits or keywords. Never invent card numbers.
 - Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself. Before quoting stats or odds for a list you propose, run analyze_deck and draw_odds on that exact final list (changes applied), not on the list you were given.
 - Goldfish checks: before you claim how fast a deck can win, how often it curves out, or that a combo or cheese line comes together by some turn, test it with simulate and quote its numbers with the number of games and the interval. It plays scripted solitaire games against a dummy that never blocks, counters or attacks, so it measures speed, not a win rate: say so, say when it stopped early, and say when it reports cards the engine doesn't fully support. For how often you draw a card, use draw_odds (exact) instead.
-- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats (games played on optcgduel.app) and tournament_stats (results of real tournaments, from Limitless TCG): quote them with the number of games and the interval, say when a sample is marked too_few_games, and say which of the two they come from. Give the number of games and the interval on every rate you quote, each matchup and each first/second split included. Never sum up the two sources as one number, even roughly ("about 50%"). Never estimate a win rate yourself.
+- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats (games between people on optcgduel.app), tournament_stats (results of real tournaments, from Limitless TCG) and sim_stats (simulated games between bots): quote them with the number of games and the interval, say when a sample is marked too_few_games, and say which of the three they come from. Give the number of games and the interval on every rate you quote, each matchup and each first/second split included. Never sum up the sources as one number, even roughly ("about 50%"). Never estimate a win rate yourself.
 - Tournament results: tournament_stats reports events from Limitless TCG (play.limitlesstcg.com): a leader's meta share, its record against other leaders, its best finishes with their decklists and how often each card is played. Credit Limitless TCG when you quote it. Always keep tournament numbers apart from optcgduel.app numbers: never add them together, average them or call one the other, and give each its own games and interval. Tournament decks are tuned and the players are experienced, so say when the two disagree instead of blending them.
+- Bot simulations: sim_stats, search_matches with source "bots" (ids b_...) and analyze_position come from the duel engine's bots playing each other (Hard vs Hard self-play on optcgduel.app's engine). They are a separate source from matchup_stats (people) and tournament_stats (Limitless): never add or average them with those, never call a bot number a player or tournament number, and always say "in bot simulations". Bots play differently from people (they don't bluff, and they sometimes miss lines a good player finds), so when real games or tournament results disagree with bot games, the real games win and you say they disagree. Bot line stats ("when the bot accepted this effect it won X% of games, Y% when it didn't") show how a line fares for a bot and are correlations, not proof the line is good. Bot games are not player games: label them as bot games when you cite them, and don't use them as evidence of what players do.
+- "What should I have done?": back it up with analyze_position on that turn of the real game (a match_id from the player's own games, or a game_id from search_matches), report the top options with their estimated win chances and what was actually played, and say they are estimates from bot simulations, not results. A gap of a few points between options is noise. Without a position check, say the advice is your read.
 - Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
 - Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
 - Rules questions: search rules_lookup first with the player's question in their own words, then with narrower searches if needed; when an official Q&A answer settles it, cite that Q&A entry. Cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case. When your answer rests on an official Q&A ruling or a comprehensive rule, name it in one short sentence (the card's Q&A or the rule number).
 - Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact. For a matchup or leader overview, or when asked whether a leader is good or how it plays, give one keep/mulligan rule and the key cards by number, plus a turn-by-turn line, and say when the stats are marked too_few_games.
-- Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids.
+- Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids. search_matches searches player games by default; pass source "bots" for bot self-play games (b_ ids) or "both", and keep the two apart in what you say.
 - When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.` + GAME_PRIMER;
 
 const PERSONAL_INSTRUCTIONS = `
 
 This is the player's personal link, so you can also see their own games and decks:
 - list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game).
+- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game). Finished reviews also give an estimated win chance at each turn start (bot-simulation estimates) and mark the biggest swings: spend the review on those turns, and check a swing turn with analyze_position before saying what the player should have done.
 - Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
@@ -320,6 +324,7 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
   if (knowledge.stats) {
     registerStats(add, knowledge.stats);
     registerCorpus(add, knowledge.stats);
+    registerPosition(add, knowledge.stats, personal);
   }
   if (personal) registerPersonalTools(add, personal);
   return tools;
@@ -446,6 +451,31 @@ function registerStats(add: Add, api: PlannerApi) {
       }
     },
   );
+  add(
+    "sim_stats",
+    {
+      title: "Bot simulation stats",
+      description:
+        "Win rates from simulated games between bots (Hard vs Hard self-play on optcgduel.app's engine), NOT from people: a separate source from matchup_stats and tournament_stats, never to be added to or averaged with them, and always called \"in bot simulations\". " +
+        "No leader: every leader's simulated games and win rate. leader: its record against each opponent leader, and its lines (a Leader activation, an optional effect accepted or declined, a Counter Event played, a Character put into play by an effect) with its win rate in games where the line happened against games where it did not. leader + opponent: that matchup. " +
+        "Every record has games, wins, a 95% interval and going first and second splits; under 5 games it is marked too_few_games. Lines are correlations in bot play, not proof a line is good. Bots play the same deck lists every game, so these rates say little about how people fare.",
+      inputSchema: {
+        leader: z.string().max(20).optional().describe("Leader card number"),
+        opponent: z.string().max(20).optional().describe("Opponent's leader card number (needs leader)"),
+        levels: z.string().regex(/^[a-z]{3,12}\/[a-z]{3,12}$/).optional().describe("Bot levels, seat 0 / seat 1 (default hard/hard)"),
+        days: z.number().int().min(1).max(3650).optional().describe("How far back to look (default 90)"),
+        rulesVersion: z.string().max(32).optional().describe("Only games played on this engine version"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => {
+      try {
+        return json(await simStats(api, args));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
 }
 
 function registerCorpus(add: Add, api: PlannerApi) {
@@ -457,7 +487,8 @@ function registerCorpus(add: Add, api: PlannerApi) {
       description:
         "Search every game recorded on optcgduel.app (all players who share their games, not just this one), newest first. Games are anonymized: an opaque game_id, sides A and B, " +
         "rating bands, never names. With leader, side A is that leader and result, wentFirst and card apply to it; with only opponent, side B is that leader. " +
-        "Without either, card matches either deck. Use it to find example games (wins and losses of a matchup, games where a card was played) to read with replay_match.",
+        "Without either, card matches either deck. Use it to find example games (wins and losses of a matchup, games where a card was played) to read with replay_match. " +
+        "source: players (default) are games between people; bots are simulated Hard vs Hard self-play games on the duel engine, labelled bot game, with ids starting b_; both lists them together (limit and offset apply to each). Bot games are not player games: never count them as such.",
       inputSchema: {
         leader: z.string().max(20).optional().describe("Leader card number for side A"),
         opponent: z.string().max(20).optional().describe("Opponent's leader card number (side B)"),
@@ -470,12 +501,14 @@ function registerCorpus(add: Add, api: PlannerApi) {
         maxTurns: z.number().int().min(0).max(100).optional(),
         limit: z.number().int().min(1).max(50).optional().describe("Default 20"),
         offset: z.number().int().min(0).max(10000).optional(),
+        source: z.enum(["players", "bots", "both"]).optional().describe("players (default), bots (self-play games between bots, ids b_...) or both"),
+        levels: z.string().regex(/^[a-z]{3,12}\/[a-z]{3,12}$/).optional().describe("Bot games only: the bot levels, e.g. hard/hard"),
       },
       annotations: readOnly,
     },
     async (args) => {
       try {
-        return json(await searchGames(api, args));
+        return json(await searchAnyGames(api, args));
       } catch (err) {
         return failure(err);
       }
@@ -487,10 +520,10 @@ function registerCorpus(add: Add, api: PlannerApi) {
     {
       title: "Replay match",
       description:
-        "Replay one game from search_matches (its game_id) turn by turn with every card named, both opening hands and the final board. " +
+        "Replay one game from search_matches (its game_id; b_ ids are bot self-play games) turn by turn with every card named, both opening hands and the final board. " +
         "Sides are Player A and Player B as in the search. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
       inputSchema: {
-        gameId: z.string().max(40),
+        gameId: z.string().max(40).describe("A game_id from search_matches (g_... player game, b_... bot game)"),
         fromTurn: z.number().int().min(1).max(200).optional(),
         toTurn: z.number().int().min(1).max(200).optional(),
         maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
@@ -610,6 +643,47 @@ function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
     async ({ status, leader }) => {
       try {
         return json({ lessons: await myLessons(api, token, status, leader) });
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+}
+
+function registerPosition(add: Add, api: PlannerApi, personal?: PersonalContext) {
+  add(
+    "analyze_position",
+    {
+      title: "Analyze position",
+      description:
+        "Rank the options a seat had at one decision of a FINISHED real game, with estimated win chances, and show what was actually played. " +
+        "Give matchId (one of the player's own games, from list_my_matches) or gameId (a game from search_matches; side A or B) and a turn; step picks which of the seat's decisions in that turn (0 = the first; the answer says how many there were). " +
+        "It rebuilds the position from the replay and asks the duel engine's bot analysis, which searches determinized copies of the position and so uses only what the seat could see. " +
+        `The numbers are estimates from bot simulations, not results or player statistics, and gaps of a few points between options are noise. Can take a few seconds (budgetMs, up to ${MAX_BUDGET_MS}).`,
+      inputSchema: {
+        matchId: z.string().max(80).optional().describe("One of the player's own match ids (personal link only); analyzes the player's seat"),
+        gameId: z.string().max(40).optional().describe("A game_id from search_matches (g_... or b_...)"),
+        side: z.enum(["A", "B"]).optional().describe("With gameId: which side to analyze (default A)"),
+        turn: z.number().int().min(0).max(200).describe("The game turn number, as in the turn headers of replay_match and review_match"),
+        step: z.number().int().min(0).max(100).optional().describe("Which of the seat's decisions in that turn (default 0)"),
+        top: z.number().int().min(1).max(10).optional().describe("How many options to list (default 5)"),
+        budgetMs: z.number().int().min(50).max(MAX_BUDGET_MS).optional().describe("Search time (default 1500)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ matchId, gameId, side, turn, step, top, budgetMs }) => {
+      try {
+        if (!matchId === !gameId) throw new Error("Give either matchId or gameId.");
+        if (matchId && !personal) throw new Error("matchId needs the player's personal link; use gameId for archive games.");
+        const found = await fetchReplayFor(api, matchId ? { matchId, token: personal!.token } : { gameId: gameId! });
+        const seat = found.seat ?? (side === "B" ? 1 : 0);
+        const out = await exclusive(async () => analyzePosition(found.replay, { seat, turn, step, top, budgetMs }));
+        const you = found.seat !== null;
+        return json({
+          sourceId: `position:${found.id}#t${turn}${out.step > 0 ? `s${out.step}` : ""}`,
+          game: { id: found.id, kind: found.kind, seat: you ? "you" : `Player ${seat === 0 ? "A" : "B"}`, leader: found.replay.players[seat].leaderId, opponentLeader: found.replay.players[seat === 0 ? 1 : 0].leaderId },
+          ...out,
+        });
       } catch (err) {
         return failure(err);
       }

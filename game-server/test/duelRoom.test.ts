@@ -15,6 +15,7 @@ import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
 import { deviceHandoffTests } from "./deviceHandoff.js";
+import { botRoomTests } from "./botRoom.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -2204,4 +2205,5 @@ describe("DuelRoom", () => {
   });
 
   deviceHandoffTests(() => colyseus);
+  botRoomTests(() => colyseus);
 });

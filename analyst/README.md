@@ -21,8 +21,10 @@ Design doc: https://claude.ai/artifact/DHEmpEwqp9UD1btA2BN5Rv
 | `matchup_stats` | Win rates from recorded duels: a leader's overall record, going first and second, each matchup (mirrors apart), and per-card rates with and without the card. Totals only, with a Wilson interval; buckets under 5 games are held back. Needs `ANALYST_SERVICE_SECRET`. |
 | `tournament_stats` | Results of real tournaments from [Limitless TCG](https://play.limitlesstcg.com) (recent public events with decklists and at least 8 players): a leader's meta share, its record against each opponent leader (mirrors apart, ties noted), its best placings with event, record and decklist, and how often each card is played. Kept apart from `matchup_stats`, which is optcgduel.app games. Same Wilson intervals and 5-game minimum. Needs `ANALYST_SERVICE_SECRET`. |
 
-| `search_matches` | Searches every recorded duel from players who share their games (not just yours): by leader, opponent, a card in the deck, result, who went first, turns. Games come back anonymized: an opaque game id, sides A and B, rating bands, never names or match ids. Needs `ANALYST_SERVICE_SECRET`. |
-| `replay_match` | Re-runs one of those games with every card named (both hands, Life and deck), sides labeled Player A and Player B. |
+| `search_matches` | Searches every recorded duel from players who share their games (not just yours): by leader, opponent, a card in the deck, result, who went first, turns. `source: "bots"` (or `"both"`) searches bot self-play games instead (ids `b_...`, labelled bot games). Games come back anonymized: an opaque game id, sides A and B, rating bands, never names or match ids. Needs `ANALYST_SERVICE_SECRET`. |
+| `replay_match` | Re-runs one of those games with every card named (both hands, Life and deck), sides labeled Player A and Player B. Also takes bot game ids (`b_...`). |
+| `sim_stats` | Win rates from simulated Hard vs Hard bot games on the duel engine (never mixed with `matchup_stats` or `tournament_stats`): a leader's record against each opponent and its lines (Leader activations, optional effects accepted or declined, Counter Events, cheat-outs) with the win rate in games where the line happened and where it did not. Needs `ANALYST_SERVICE_SECRET`. |
+| `analyze_position` | Ranks the options a seat had at one decision (turn and step) of a finished game, with estimated win chances from the bot analysis and what was actually played. Takes `matchId` (personal link) or `gameId` (archive `g_` or bot `b_` games). |
 
 A personal link (below) adds five more:
 
@@ -45,6 +47,14 @@ Every finished duel is stored per seat (leader, deck, result, who went first, tu
 After reviewing your games, Claude can call `draft_lesson`. Drafts appear under **Lessons from your games** in duel-web Settings, where you approve, reject or delete them. Only approved lessons come back from `my_lessons`, and only to you. The shared `playbook/` stays in the repo and changes by pull request.
 
 The server's instructions tell Claude to take card facts and numbers from these tools, cite rules by section number, prefer official rulings over its own reading of card text, and treat matchup opinions (and draft playbook notes) as judgement.
+
+### Bot self-play corpus
+
+The backend keeps bot-vs-bot games in `bot_matches`, apart from real duels (they never reach `duel_matches`, ratings or `matchup_stats`). A nightly workflow (`.github/workflows/bot-selfplay.yml`) fetches the current meta decks from the public `/meta` endpoints (`npm run meta-decks`), plays Hard vs Hard games with `npm run selfplay -w @optcg/rules`, and uploads each chunk with `npm run upload-bot-games -w @optcg/analyst -- file.jsonl` (`POST /analyst/bot-games`, service secret; idempotent per batch id and game index; the tallies of advanced lines are re-counted from the replays). Set the repository variable `ANALYST_API_URL` (backend base URL) and secret `ANALYST_SERVICE_SECRET`; without them the workflow does nothing. To seed from files: `ANALYST_API_URL=... ANALYST_SERVICE_SECRET=... npm run upload-bot-games -w @optcg/analyst -- selfplay-hard-hard-seed2000-n40.jsonl`.
+
+`npm run bot-lessons -w @optcg/analyst -- --leader OP01-001 [--post]` compares a leader's line stats in bot games with the same lines in real archive games and drafts lessons (status draft, for you to approve in Settings, Log Pose) only where both move the same way; `--post` needs `ANALYST_TOKEN`, your personal connector token.
+
+Reviews (`review_match`) add the estimated win chance at each turn start and mark the three biggest swings; `analyze_position` backs up "what should I have done" on those turns. All of these are bot-simulation estimates and are labelled that way.
 
 ### Official rules material
 

@@ -255,7 +255,7 @@ describe("matchup brief", () => {
 
   it("the cache variant follows the newest set (#401)", () => {
     const set = (prefix: string) => ({ cards: new Map(Array.from({ length: 60 }, (_, i) => [`${prefix}-${String(i + 1).padStart(3, "0")}`, {}])) }) as unknown as Catalog;
-    expect(briefVariant(set("OP14"))).toBe("v2:OP14");
-    expect(briefVariant(set("OP15"))).toBe("v2:OP15");
+    expect(briefVariant(set("OP14"))).toBe("v3:OP14");
+    expect(briefVariant(set("OP15"))).toBe("v3:OP15");
   });
 });
