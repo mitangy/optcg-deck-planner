@@ -249,6 +249,7 @@ export type ShareInfo = {
   kind: string;
   deck_id: number | null;
   deck_ids: number[] | null;
+  include_extras?: boolean;
   path: string;
 };
 
@@ -566,7 +567,12 @@ export const api = {
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
-  createShare: (body: { kind?: string; deck_id?: number; deck_ids?: number[] }) =>
+  createShare: (body: {
+    kind?: string;
+    deck_id?: number;
+    deck_ids?: number[];
+    include_extras?: boolean;
+  }) =>
     request<ShareInfo>("/share", {
       method: "POST",
       body: JSON.stringify(body),

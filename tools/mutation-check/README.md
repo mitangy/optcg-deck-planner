@@ -65,6 +65,7 @@ cannot merge without a mutation that kills it, without a multi-hour full run:
 ```bash
 node tools/mutation-check/changed.cjs origin/main --list   # print "suite: id, id" per suite; run nothing
 node tools/mutation-check/changed.cjs origin/main          # run the changed ids, exit 1 if any fails
+node tools/mutation-check/changed.cjs origin/main --matrix # print JSON parts for parallel runners; run nothing
 ```
 
 It loads each `suites/*.cjs` at the merge base with `<ref>` (via `git show`) and
@@ -78,12 +79,23 @@ nothing. Playwright suites (`duel-e2e`, `frontend-e2e`) are skipped with a
 "run locally" line; run those yourself with `run.cjs <suite> --only ...`.
 A summary goes to `$GITHUB_STEP_SUMMARY` when it is set.
 
-The `mutation-proofs` job in `.github/workflows/ci.yml` runs this on pull
-requests only, with `fetch-depth: 0` and the PR base SHA. It reads `--list`
-first and installs only what the changed suites need (root `npm ci`, the
-`duel-web`, `frontend` and `mobile` installs, or Python plus
-`backend/requirements.txt` with `BACKEND_PYTHON` set). With no changed entries
-it finishes in seconds and says so in the job summary.
+`--matrix` prints one line of JSON on stdout: an array of parts like
+`{"suite": "rules", "part": "1/3", "only": "^(a|b)$", "count": 12}`. It is `[]`
+when nothing changed. Playwright suites are left out and reported on stderr.
+Each suite starts with one part. More parts are added to the suite with the
+slowest estimated part while that part takes over 150 seconds, up to 8 parts in
+total. The estimate uses seconds per mutation seen in CI, plus one baseline run
+per part. Ids are spread round-robin across a suite's parts, and the script
+throws if any changed id is missing or repeated.
+
+In `.github/workflows/ci.yml`, PR CI runs this as three jobs. `mutation-plan`
+checks out with `fetch-depth: 0`, finds the PR base SHA and runs `--matrix`.
+`mutation-proofs-part` runs one matrix entry per part in parallel, installs only
+what its suite needs (root `npm ci`, the `duel-web`, `frontend` and `mobile`
+installs, or Python plus `backend/requirements.txt` with `BACKEND_PYTHON` set),
+and runs `run.cjs <suite> --only <only>`. It is skipped when nothing changed.
+`mutation-proofs` waits for both and keeps the original check name. It fails
+unless the plan succeeded and the parts succeeded or were skipped.
 
 ## Breadth tool (weekly, report-only)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -81,6 +82,24 @@ def _ensure_user_session_version() -> None:
         )
 
 
+def _ensure_share_link_include_extras() -> None:
+    """Add include_extras on existing DBs; old links keep showing added cards (#527)."""
+    inspector = inspect(engine)
+    if "share_links" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("share_links")}
+    if "include_extras" in existing:
+        return
+    default = "TRUE" if engine.dialect.name == "postgresql" else "1"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE share_links ADD COLUMN include_extras BOOLEAN "
+                f"NOT NULL DEFAULT {default}"
+            )
+        )
+
+
 def _ensure_deck_is_main() -> None:
     """Add is_main on existing DBs (create_all does not alter tables)."""
     inspector = inspect(engine)
@@ -155,6 +174,33 @@ def _ensure_duel_match_replay_columns() -> None:
             conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
 
 
+# pg_advisory_lock key for startup work (schema creation, migrations, backfills).
+STARTUP_LOCK_KEY = 0x6F707463675F7374  # "optcg_st"
+
+
+@contextmanager
+def startup_lock(bind: Engine | None = None) -> Iterator[None]:
+    """Run startup work in one worker at a time.
+
+    With several uvicorn workers (or instances) on Postgres, every worker runs
+    the lifespan at once; concurrent CREATE TABLE / ALTER TABLE race and fail.
+    The others wait here and then find nothing left to do. SQLite (local, one
+    process) needs no lock.
+    """
+    bind = bind or engine
+    if bind.dialect.name != "postgresql":
+        yield
+        return
+    with bind.connect() as conn:
+        conn.execute(text("SELECT pg_advisory_lock(:key)"), {"key": STARTUP_LOCK_KEY})
+        conn.commit()
+        try:
+            yield
+        finally:
+            conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": STARTUP_LOCK_KEY})
+            conn.commit()
+
+
 def _ensure_analyst_review_citations() -> None:
     """Add analyst_match_reviews.citations (the sources a post-game analysis cites) on existing DBs."""
     inspector = inspect(engine)
@@ -224,6 +270,7 @@ def init_db() -> None:
     _ensure_deck_is_main()
     _ensure_user_sum_across_leaders()
     _ensure_user_username()
+    _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
     _ensure_duel_progress_closed()
     _ensure_analyst_review_citations()

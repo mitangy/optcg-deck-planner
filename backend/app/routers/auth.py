@@ -41,7 +41,7 @@ from app.usernames import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-_username_rate = RateLimiter(max_calls=20, period_s=60)
+_username_rate = RateLimiter(max_calls=20, period_s=60, name="auth_username_rate")
 
 
 class ClaimBody(BaseModel):

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROTOCOL_VERSION, SKIN_MAX_CARD_BACK_CHARS, parseSkin } from "./protocol";
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
@@ -34,5 +34,27 @@ describe("parseSkin", () => {
     }
     // An old client sends no donArt.
     expect(parseSkin(msg({ playmat: null, cardBack: null })).skin.donArt).toBeNull();
+  });
+});
+
+describe("parseSkin with account upload paths", () => {
+  const PATH = "/duel/cosmetics/12/public/AbCdEf_GhIjKl-MnOp";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("resolves a received cosmetics path against the API base and keeps data URLs as they are (#389)", () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.test/");
+    const out = parseSkin(msg({ playmat: PATH, cardBack: JPEG }));
+    expect(out.skin).toEqual({ playmat: `https://api.example.test${PATH}`, cardBack: JPEG, donArt: null });
+  });
+
+  it("drops a cosmetics path that is not a signed public upload path (#389)", () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.test");
+    const out = parseSkin(
+      msg({ playmat: "/duel/cosmetics/12/image", cardBack: "/duel/cosmetics/12/public/short" }),
+    );
+    expect(out.skin).toEqual({ playmat: null, cardBack: null, donArt: null });
   });
 });

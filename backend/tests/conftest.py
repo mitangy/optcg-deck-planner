@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sys
 
+import fakeredis
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
+from app import redis_client
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
 from app.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
@@ -38,6 +40,25 @@ def _fresh_rate_limits():
     RateLimiter.reset_all()
     yield
     RateLimiter.reset_all()
+
+
+@pytest.fixture(autouse=True)
+def _no_redis(monkeypatch: pytest.MonkeyPatch):
+    # Tests run without Redis (today's behaviour) unless they ask for fake_redis.
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.setattr(redis_client, "_override", None)
+    redis_client.reset_failure()
+    yield
+    redis_client.reset_failure()
+
+
+@pytest.fixture()
+def fake_redis(monkeypatch: pytest.MonkeyPatch):
+    """An in-memory Redis that every get_redis() caller sees, as if REDIS_URL were set."""
+    server = fakeredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr(redis_client, "_override", server)
+    yield server
+    server.flushall()
 
 
 @pytest.fixture()

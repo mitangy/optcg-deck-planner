@@ -8,6 +8,18 @@ import {
 } from "../src/protocol.js";
 
 describe("protocol parsers", () => {
+  it("accepts a cosmetic link as a playmat, so seats relay a short path instead of the image (#389)", () => {
+    const path = "/duel/cosmetics/123/public/AbCdEfGhIjKlMnOpQrStUv";
+    const s = parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat: path, cardBack: null } });
+    assert.equal(s.playmat, path);
+  });
+
+  it("rejects links that aren't our signed cosmetic paths (#389)", () => {
+    for (const playmat of ["https://evil.example/x.png", "/duel/cosmetics/123/public/short", "/duel/cosmetics/abc/public/AbCdEfGhIjKlMnOpQrStUv"]) {
+      assert.throws(() => parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { playmat } }), /playmat/);
+    }
+  });
+
   it("relays only a positive 31-bit integer as the DON!! art id, never a string or URL (#440)", () => {
     const donArt = (v: unknown) =>
       parseSkinMessage({ protocolVersion: PROTOCOL_VERSION, skin: { donArt: v } }).donArt;
