@@ -139,7 +139,7 @@ def test_bulk_upload_applies_last_writer_wins_per_deck_619(client):
         ("x" * 65, _deck()),
         ("d1", _deck(cards=["OP17-002"] * 61)),
         ("d1", _deck(cards=["x" * 33])),
-        ("d1", _deck("n" * 101)),
+        ("d1", _deck("n" * 201)),
     ],
 )
 def test_malformed_decks_are_refused_619(client, deck_id, deck):
@@ -179,3 +179,10 @@ def test_tombstones_count_toward_a_row_cap_619(client, monkeypatch: pytest.Monke
     assert _put(c, "c", 1).status_code == 413
     # Existing rows can still change.
     assert c.delete("/duel/decks/b", params={"updatedAt": 2}).status_code == 200
+
+
+def test_a_planner_length_deck_name_is_accepted_624(client):
+    c, S = client
+    name = "n" * 200
+    assert _put(_as(c, _user(S, "luffy")), "d1", 1, _deck(name)).status_code == 200
+    assert c.get("/duel/decks").json()["decks"][0]["deck"]["name"] == name
