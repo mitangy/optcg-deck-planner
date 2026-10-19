@@ -14,6 +14,8 @@
     "fuzz:smoke": "tsx src/sim/fuzzSmoke.ts",
     "fuzz": "tsx src/sim/fuzz.ts",
     "selfplay": "tsx src/sim/selfPlay.ts",
+    "fit-value": "tsx src/sim/fitValue.ts",
+    "export-deck-prior": "tsx src/scripts/exportDeckPrior.ts",
     "goldfish": "tsx src/sim/goldfish.ts",
     "export-atlas": "tsx src/scripts/exportAtlas.ts",
     "export-planner-stats": "tsx src/scripts/exportPlannerStats.ts",

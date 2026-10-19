@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REGISTRY_HASH } from "../cards/abilities.js";
-import { actingSeat, chooseBotIntentFromState, type BotLevel } from "../bot/index.js";
+import { actingSeat, chooseBotIntentFromState, type BotLevel, type BotOptions } from "../bot/index.js";
 import { getCardDef } from "../cards/definitions.js";
 import { applyIntent, createMatch, listLegalIntents } from "../engine.js";
 import type { MatchReplay } from "../matchReplay.js";
@@ -72,6 +72,8 @@ export function tallyIntent(tally: LineTally, before: MatchState, seat: Seat, in
   }
 }
 
+export type Chooser = (state: MatchState, seat: Seat, opts: BotOptions) => Intent | null;
+
 export interface BotGameConfig {
   seed: number;
   players: [PlayerDeckConfig, PlayerDeckConfig];
@@ -82,6 +84,14 @@ export interface BotGameConfig {
   horizonTurns?: 1 | 2;
   /** Hard bots: stop each search after this many candidate evaluations (with `budgetMs: Infinity`, independent of the clock). */
   maxEvals?: number;
+  /** Per-seat bot options on top of the ones above (#635): evalMode, prior, opponentModel, mulligan ... */
+  seatOpts?: [Partial<BotOptions> | undefined, Partial<BotOptions> | undefined];
+  /** Same for both seats (the seat's own `seatOpts` win). */
+  allOpts?: Partial<BotOptions>;
+  /** Replace the bot of a seat by any function of the state (an older version of the bot, for comparison). */
+  chooser?: [Chooser | undefined, Chooser | undefined];
+  /** Called when a bot's own answer was rejected by the engine (the engine default is played instead). */
+  onRejected?: (info: { state: MatchState; seat: Seat; intent: Intent; message: string }) => void;
   /** Defaults to a seat derived from the seed. */
   firstSeat?: Seat;
   /** Safety cap on accepted intents (default 3000). */
@@ -132,7 +142,9 @@ export function playBotGame(config: BotGameConfig): BotGameResult {
       if (replay.intents.length >= maxIntents) { stoppedEarly = "max_intents"; break; }
       const seat = actingSeat(state);
       const startedAt = performance.now();
-      const intent = chooseBotIntentFromState(state, seat, {
+      const choose = config.chooser?.[seat] ?? chooseBotIntentFromState;
+      const intent = choose(state, seat, {
+        ...config.allOpts, ...config.seatOpts?.[seat],
         level: levels[seat], rng: botRng[seat]!,
         ...(config.budgetMs !== undefined ? { budgetMs: config.budgetMs } : {}),
         ...(config.samples !== undefined ? { samples: config.samples } : {}),
@@ -147,6 +159,7 @@ export function playBotGame(config: BotGameConfig): BotGameResult {
       if (!result.ok) {
         // A bot-built answer to a choice can break a rule only the engine knows; the engine's default always works.
         fallbacks += 1;
+        config.onRejected?.({ state, seat, intent, message: result.error?.message ?? "" });
         applied = listLegalIntents(state, seat)[0]!;
         result = applyIntent(state, applied, { seat, rng: engineRng });
         if (!result.ok) { stoppedEarly = `engine_rejected: ${result.error?.message ?? "unknown"}`; break; }

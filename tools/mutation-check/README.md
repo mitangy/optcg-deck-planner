@@ -134,6 +134,7 @@ When you add or change a test, add one mutation per behavior it claims, in
 - A mutation can set `requiresEnv: "NAME"` when it only has an effect with
   that environment variable set (for example Postgres-only behavior under
   `TEST_DATABASE_URL`); without it the runner reports it as skipped.
+- vitest and mocha mutations can set `args` (a test file or a mocha `-g` filter, for example `"src/__tests__/hardBotV2.test.ts"`) to run only the tests the mutation claims to kill instead of the whole suite; the baseline still runs everything.
 - pytest mutations can set `args` (e.g. `"tests/test_config.py"`) when the
   opposite condition breaks app startup and would crash collection for the
   whole suite before the named test can report its own failure.

@@ -147,7 +147,7 @@ describe("copilot ticket check", () => {
   it("sends the ticket and variant to the planner and returns the leaders and deck it names (#416)", async () => {
     const { calls, api } = planner({ "POST /analyst/briefs/lookup": LOOKUP });
     expect(await verifyGame(api, "chat.tok", catalog, game())).toEqual(claims);
-    expect(calls[0]!.body).toMatchObject({ ticket: TICKET, variant: expect.stringMatching(/^v2:/) });
+    expect(calls[0]!.body).toMatchObject({ ticket: TICKET, variant: expect.stringMatching(/^v3:/) });
   });
 
   it("copilot refuses a ranked or forged ticket before any model call (#416)", async () => {

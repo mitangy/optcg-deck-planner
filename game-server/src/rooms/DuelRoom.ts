@@ -2,8 +2,10 @@ import { Room, Client } from "colyseus";
 import {
   applyIntent,
   buildTestDeck,
+  botTurnMemory,
   chooseBotIntentFromState,
   createMatch,
+  noteBotPick,
   createSeededRng,
   DEFAULT_LEADER_ID,
   deserializeMatch,
@@ -82,6 +84,7 @@ import {
 } from "../writeback.js";
 import { undoLabel } from "../undoLabel.js";
 import { applyHandOrder, idsInHand } from "../handOrder.js";
+import { sharedBotPool } from "../botPool.js";
 import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
@@ -125,11 +128,14 @@ const BOT_USER_ID = 0;
  */
 export const botPacing = { mainMs: 700, choiceMs: 400 };
 /**
- * Hard bot (#631): wall-clock budget for one decision's lookahead, in milliseconds. The search runs on the room's event loop,
- * so it stays well under a quarter of a second; it is anytime, so a smaller budget only makes the bot play more like Normal.
- * Mutable so tests can shorten it.
+ * Hard bot: how a decision's lookahead is run (#631, #635).
+ *  - `useWorker`: the search runs in a worker thread (botPool.ts), so a long lookahead never blocks the room's event loop.
+ *    When the worker fails or times out, the bot plays a Normal move in the room's thread. With `false`, or when the pool
+ *    is switched off (BOT_WORKERS=0), the search runs in the room's thread under `inThreadBudgetMs` (the pre-#635 behavior).
+ *  - `budgetMs`, `samples`: wall-clock budget and determinized copies of one decision in the worker (the search is cheaper than the budget on most decisions). The search is anytime, so a smaller budget only makes the bot play more like Normal.
+ *  - `timeoutMs`: how long a room waits for the worker (queue time included) before it plays Normal instead.
  */
-export const botSearch = { budgetMs: 200 };
+export const botSearch = { useWorker: true, budgetMs: 1500, samples: 6, timeoutMs: 4000, inThreadBudgetMs: 200 };
 /** Safety net: after this many bot intents in one turn the bot only ends the turn / passes. */
 export const BOT_MAX_INTENTS_PER_TURN = 150;
 
@@ -237,6 +243,9 @@ export class DuelRoom extends Room implements PresenceSource {
   /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
   private bot: { level: BotLevel; rng: Rng } | null = null;
   private botTimer: { clear(): void } | null = null;
+  /** Hard bot (#635): a search is running in the worker pool; the next bot step waits for it. */
+  private botJob: { id: number; match: MatchState } | null = null;
+  private disposed = false;
   /** Hard bot only: decisions taken, how many were searched, and the time they took (logged when the game ends). */
   private botStats = { decisions: 0, searches: 0, ms: 0 };
   private botTurn = -1;
@@ -378,6 +387,7 @@ export class DuelRoom extends Room implements PresenceSource {
   private seatBot(opts: BotRoomOptions) {
     assertKnownDeck(opts.deck);
     this.bot = { level: opts.level, rng: createSeededRng((this.seed ^ 0x5bd1e995) >>> 0) };
+    if (opts.level === "hard" && botSearch.useWorker && sharedBotPool().enabled()) sharedBotPool().warm();
     this.seatDecks[BOT_SEAT] = opts.deck;
     this.seats[BOT_SEAT] = {
       seat: BOT_SEAT,
@@ -394,6 +404,7 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   async onDispose() {
+    this.disposed = true;
     this.clearBotTimer();
     releaseCreatorRoom(this.creatorUid);
     this.creatorUid = null;
@@ -2056,6 +2067,10 @@ export class DuelRoom extends Room implements PresenceSource {
   private clearBotTimer() {
     this.botTimer?.clear();
     this.botTimer = null;
+    // A search still running for a position that is gone is of no use: free its worker.
+    const job = this.botJob;
+    this.botJob = null;
+    if (job) sharedBotPool().cancel(job.id);
   }
 
   /**
@@ -2063,7 +2078,7 @@ export class DuelRoom extends Room implements PresenceSource {
    * move is ever queued; the move itself re-reads the state, so a stale queue is harmless.
    */
   private scheduleBotStep() {
-    if (!this.bot || this.botTimer) return;
+    if (!this.bot || this.botTimer || this.botJob || this.disposed) return;
     const m = this.match;
     if (!m || !this.matchStarted || this.matchOverSent || m.winner !== null || m.phase === "game_over") return;
     if (listLegalIntents(m, BOT_SEAT).length === 0) return;
@@ -2090,12 +2105,17 @@ export class DuelRoom extends Room implements PresenceSource {
       this.log("warn", "bot_turn_cap", { matchId: this.matchId, turn: m.turnNumber });
     }
 
+    if (!overCap && bot.level === "hard" && botSearch.useWorker && sharedBotPool().enabled()) {
+      this.runHardInWorker(m, legal);
+      return;
+    }
+
     let intent: Intent | null = null;
     if (!overCap) {
       try {
         const startedAt = performance.now();
         let searched = false;
-        intent = chooseBotIntentFromState(m, BOT_SEAT, { level: bot.level, rng: bot.rng, budgetMs: botSearch.budgetMs, onTrace: () => { searched = true; } });
+        intent = chooseBotIntentFromState(m, BOT_SEAT, { level: bot.level, rng: bot.rng, budgetMs: botSearch.inThreadBudgetMs, onTrace: () => { searched = true; } });
         this.botStats.decisions += 1;
         this.botStats.ms += performance.now() - startedAt;
         if (searched) this.botStats.searches += 1;
@@ -2104,6 +2124,53 @@ export class DuelRoom extends Room implements PresenceSource {
       }
       if (!intent) this.log("warn", "bot_no_intent", { matchId: this.matchId, phase: m.phase });
     }
+    this.playBotIntent(m, legal, intent);
+  }
+
+  /**
+   * Hard bot (#635): search `m` in the worker pool and play the answer. The answer is dropped when the room moved on in the
+   * meantime (a move, undo, rematch, concede or dispose replaces `this.match`), and a failed or late worker falls back to
+   * a Normal move computed here, so the human never waits on a stuck bot.
+   */
+  private runHardInWorker(m: MatchState, legal: Intent[]) {
+    const bot = this.bot!;
+    const pool = sharedBotPool();
+    const startedAt = performance.now();
+    const seed = bot.rng.nextInt(0x3fffffff);
+    const memory = botTurnMemory(m, BOT_SEAT, bot.rng);
+    const job: { id: number; match: MatchState } = { id: -1, match: m };
+    this.botJob = job;
+    pool.run({ state: m, seat: BOT_SEAT, seed, memory, budgetMs: botSearch.budgetMs, samples: botSearch.samples }, botSearch.timeoutMs, (id) => { job.id = id; }).then(
+      (r) => ({ intent: r.intent, searched: r.searched, error: null as string | null }),
+      (e: unknown) => ({ intent: null as Intent | null, searched: false, error: e instanceof Error ? e.message : String(e) }),
+    ).then((r) => {
+      if (this.botJob !== job) return; // cancelled: the room cleared the bot (dispose, game over, rematch)
+      this.botJob = null;
+      if (this.disposed || this.match !== m) {
+        this.scheduleBotStep();
+        return;
+      }
+      let intent = r.intent;
+      if (r.error !== null) {
+        this.log("warn", "bot_worker_failed", { matchId: this.matchId, message: r.error });
+        try {
+          intent = chooseBotIntentFromState(m, BOT_SEAT, { level: "normal", rng: bot.rng });
+        } catch (e) {
+          this.log("warn", "bot_error", { matchId: this.matchId, message: e instanceof Error ? e.message : String(e) });
+        }
+      } else {
+        if (intent) noteBotPick(m, BOT_SEAT, bot.rng, intent);
+        this.botStats.decisions += 1;
+        this.botStats.ms += performance.now() - startedAt;
+        if (r.searched) this.botStats.searches += 1;
+      }
+      if (!intent) this.log("warn", "bot_no_intent", { matchId: this.matchId, phase: m.phase });
+      this.playBotIntent(m, legal, intent);
+    });
+  }
+
+  /** Play the bot's intent; if the room rejects it, pass, else any listed legal move, else give the game up. */
+  private playBotIntent(m: MatchState, legal: Intent[], intent: Intent | null) {
     if (intent) {
       const applied = this.applySeatIntent(BOT_SEAT, intent);
       if (applied.ok) return;

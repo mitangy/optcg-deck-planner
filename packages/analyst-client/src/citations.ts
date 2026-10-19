@@ -1,7 +1,8 @@
 /**
  * Sources and citations in Log Pose answers. The analyst names each source `kind:id[#part]`
  * (card:OP01-006, rule:6-5-3, ruling:OP14-020#2, stats:<leader>~<opp>, playbook:<leader>[~<opp>],
- * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, sim:<hash>[#curve|#cards|#line], and from Limitless TCG tournaments
+ * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, sim:<hash>[#curve|#cards|#line], bot self-play
+ * botsim:<leader>[~<opp>][#<line>], botgame:<id>#t3, position:<game id>#t3 (estimates from bot simulations), and from Limitless TCG tournaments
  * tourney:<leader>[~<opp>|#<card>] and event:<limitless event id>) and sends each citation
  * with the text offset (UTF-16) it follows. Everything here is pure, so it is tested without React.
  */
@@ -36,7 +37,7 @@ export function safeLink(href: string | null | undefined): string | null {
   return /^(\/(?!\/)|https?:\/\/)/i.test(href) ? href : null;
 }
 
-export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "sim" | "other";
+export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "sim" | "botsim" | "botgame" | "position" | "other";
 
 export type ParsedSource = {
   kind: SourceKind;
@@ -51,7 +52,7 @@ export type ParsedSource = {
   raw: string;
 };
 
-const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson", "sim"];
+const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson", "sim", "botsim", "botgame", "position"];
 
 export function parseSource(source: string): ParsedSource {
   const colon = source.indexOf(":");
@@ -63,12 +64,12 @@ export function parseSource(source: string): ParsedSource {
   const part = hash < 0 ? undefined : rest.slice(hash + 1);
   const out: ParsedSource = { kind: head as SourceKind, id, raw: source };
   if (part !== undefined) out.part = part;
-  if ((head === "stats" || head === "tourney" || head === "playbook") && id.includes("~")) {
+  if ((head === "stats" || head === "tourney" || head === "playbook" || head === "botsim") && id.includes("~")) {
     const [leader, opponent] = id.split("~");
     out.id = leader!;
     out.opponent = opponent;
   }
-  if ((head === "match" || head === "game") && part !== undefined) {
+  if ((head === "match" || head === "game" || head === "botgame" || head === "position") && part !== undefined) {
     const m = /^t(\d+)$/.exec(part);
     if (m) out.turn = Number(m[1]);
   }
@@ -102,6 +103,12 @@ export function kindLabel(p: ParsedSource): string {
       return "Odds";
     case "sim":
       return "Goldfish sim";
+    case "botsim":
+      return "Bot simulation";
+    case "botgame":
+      return p.turn ? `Bot game turn ${p.turn}` : "Bot game";
+    case "position":
+      return "Position estimate";
     case "lesson":
       return "Your lesson";
     default:
@@ -117,8 +124,8 @@ export function eventLink(p: ParsedSource): string | null {
   return p.kind === "event" && /^[A-Za-z0-9_-]{1,64}$/.test(p.id) ? `${LIMITLESS_TOURNAMENT}${p.id}` : null;
 }
 
-/** Whether a source's quote is a win-record sentence: optcgduel.app win rates (stats) and tournament records (tourney). */
-export const hasRecord = (p: ParsedSource): boolean => p.kind === "stats" || p.kind === "tourney";
+/** Whether a source's quote is a win-record sentence: optcgduel.app win rates (stats), tournament records (tourney) and bot-simulation records (botsim). */
+export const hasRecord = (p: ParsedSource): boolean => p.kind === "stats" || p.kind === "tourney" || p.kind === "botsim";
 
 /** "Reviewed" or "Draft" and the set a playbook note was written for, read from its title ("Sabo playbook (Draft, OP17, stale)"). */
 export function playbookStatus(title: string): { status: "Reviewed" | "Draft"; set: string; stale: boolean } | null {

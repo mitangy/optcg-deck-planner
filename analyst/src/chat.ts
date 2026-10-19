@@ -199,6 +199,7 @@ export const CHAT_INSTRUCTIONS = `
 You're answering in the Log Pose panel inside the player's app, often on a phone. Answer the question they asked and stop. Lead with the answer in the first sentence, then give only the reasons that would change what they do; by default stay under about 120 words. Go longer only when they ask for a full breakdown, a deck review, a matchup or leader overview, or a game plan. Don't restate the question, the deck or the board, don't add sections they didn't ask for, and don't end with a recap or a list of offers. Markdown allowed, no tables wider than three columns. Look things up with tools rather than asking the player for card text.
 A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
 Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself. Bring in only the facts the answer needs: no stats, odds or rulings they didn't ask about.
+Numbers from sim_stats, bot games and analyze_position are bot simulations: say "in bot simulations" each time, keep them in their own sentence apart from matchup_stats and tournament_stats numbers (never add or average them), and when real games or tournaments disagree with them, say so and trust the real ones. For "what should I have done" on a finished game, call analyze_position on that turn and report the top options, what was actually played and the estimated win chances as estimates.
 When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.`;
 
 const REVIEW_INSTRUCTIONS = `
@@ -210,6 +211,7 @@ You're writing the post-game analysis shown when the player opens one of their g
 4. One or two concrete things to do differently next time.
 Each turn lists the player's hand after the draw and, because the game is over, the opponent's hand (revealed only after the game), with counter values. Use them to judge which counters were held, missed lines and what the opponent could have done.
 Each turn also lists both boards (power, rested, attached DON!!, Life, deck, DON!!, trash). The overview has the deck lists, and a Card reference gives every card's cost, power, counter and text. Judge the player's decisions by what they could know at the time: they didn't see the opponent's hand during the game. Use only cards named in the log.
+Each turn also gives your estimated chance to win from there (bot-simulation estimates, not results), and the biggest swings are marked as turning points: build the key turns around them, say "estimated" when you quote a number, and don't treat a few points of movement as meaningful. Call analyze_position on a swing turn when you want to say what the better line was.
 Each turn of the game is a source the app turns into numbered citations. Ground what happened in the turns (state it in sentences you can cite, one turn's events at a time) and mark your own advice and reads as your judgement. Don't write source ids or citation numbers yourself.`;
 
 export const BRIEF_INSTRUCTIONS = `
@@ -229,7 +231,7 @@ const BRIEF_MAX_TOKENS = 1500;
 
 /** The cache variant: a new set (or a prompt change, by bumping v1) writes briefs again. */
 export function briefVariant(catalog: Catalog): string {
-  return `v2:${newestFormat(catalog.cards.keys())}`;
+  return `v3:${newestFormat(catalog.cards.keys())}`;
 }
 
 const STATUS: Record<string, string> = {
@@ -246,6 +248,8 @@ const STATUS: Record<string, string> = {
   matchup_stats: "Pulling win rates",
   tournament_stats: "Pulling tournament results",
   search_matches: "Searching recorded games",
+  sim_stats: "Pulling bot-simulation results",
+  analyze_position: "Analyzing the position",
   replay_match: "Replaying a game",
   list_my_decks: "Reading your decks",
   list_my_matches: "Reading your match history",

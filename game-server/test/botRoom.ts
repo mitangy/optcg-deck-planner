@@ -5,7 +5,8 @@ import { createHmac } from "node:crypto";
 import { buildTestDeck, DEFAULT_LEADER_ID, type MatchReplay, type MatchState } from "@optcg/rules";
 import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
-import { botPacing, type DuelRoom } from "../src/rooms/DuelRoom.js";
+import { BotPool, setSharedBotPool, type BotJobInput, type BotJobOutput } from "../src/botPool.js";
+import { botPacing, botSearch, type DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
 
 type View = {
@@ -245,6 +246,149 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       const bag = attach(human);
       await waitUntil(() => bag.over !== undefined);
       assert.equal(bag.over!.result.winner, 0);
+    });
+
+    describe("hard bot in a worker thread (#635)", () => {
+      /** A pool whose `run` is the test's own function; records every job it was asked to run. */
+      function stubPool(run: (job: BotJobInput, timeoutMs: number) => Promise<BotJobOutput>): { pool: BotPool; jobs: BotJobInput[]; cancelled: number[] } {
+        const jobs: BotJobInput[] = [];
+        const cancelled: number[] = [];
+        const pool = new BotPool({ size: 0 });
+        pool.cancel = (id) => void cancelled.push(id);
+        pool.run = (job, timeoutMs, onId) => { jobs.push(job); onId?.(jobs.length); return run(job, timeoutMs); };
+        pool.warm = () => undefined;
+        pool.enabled = () => true;
+        return { pool, jobs, cancelled };
+      }
+      const saved = { ...botSearch };
+      afterEach(() => { Object.assign(botSearch, saved); setSharedBotPool(null); });
+
+      const createHard = (opts: object = {}) => create({ bot: { level: "hard", deck: botDeck() }, autoSkipMulligan: true, ...opts });
+
+      it("the Hard bot's search is handed to the worker pool with the budget, and the pool's answer is the move played (#635)", async () => {
+        botSearch.budgetMs = 777;
+        const { pool, jobs } = stubPool(async (job) => ({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 }));
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0);
+        assert.ok(jobs.length > 0, "the room asked the pool");
+        assert.ok(jobs.every((j) => j.seat === 1 && j.budgetMs === 777));
+        const botMoves = internals(room).replay!.intents.filter((i) => i.seat === 1).map((i) => i.intent.type);
+        assert.ok(botMoves.length > 0 && botMoves.every((t) => t === "end_turn" || t === "mulligan"), `only the pool's moves were played: ${botMoves}`);
+        assert.deepEqual(bag.errors, []);
+      });
+
+      it("when the worker fails, the bot plays a Normal move in the room instead of passing (#635)", async () => {
+        const { pool, jobs } = stubPool(async () => { throw new Error("worker exploded"); });
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0);
+        assert.ok(jobs.length > 0);
+        const played = internals(room).replay!.intents.filter((i) => i.seat === 1 && i.intent.type === "play_card");
+        assert.ok(played.length > 0, "Normal's fallback plays cards, a bare pass would not");
+        assert.deepEqual(bag.errors, []);
+      });
+
+      it("when the human concedes mid-search the room cancels the search, and the late answer changes nothing (#635)", async () => {
+        let release: (r: BotJobOutput) => void = () => undefined;
+        const { pool, jobs, cancelled } = stubPool(() => new Promise<BotJobOutput>((resolve) => { release = resolve; }));
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => jobs.length > 0);
+        human.send("concede", { protocolVersion: PROTOCOL_VERSION });
+        await waitUntil(() => bag.over !== undefined);
+        assert.deepEqual(cancelled, [1], "the running search was cancelled");
+        const before = internals(room).replay!.intents.length;
+        release({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 });
+        await new Promise((r) => setTimeout(r, 100));
+        assert.equal(internals(room).replay!.intents.length, before);
+        assert.deepEqual(bag.errors, []);
+      });
+
+      it("an answer that arrives after the room was disposed is not played (#635)", async () => {
+        let release: (r: BotJobOutput) => void = () => undefined;
+        const { pool, jobs } = stubPool(() => new Promise<BotJobOutput>((resolve) => { release = resolve; }));
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => jobs.length > 0);
+        const replay = internals(room).replay!;
+        const before = replay.intents.length;
+        await room.onDispose();
+        release({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 });
+        await new Promise((r) => setTimeout(r, 100));
+        assert.equal(replay.intents.length, before);
+      });
+
+      it("each search carries the bot's record of its turn so far, and the room notes the move it plays (#635)", async () => {
+        const { pool, jobs } = stubPool(async (job) => {
+          // A main-phase move that is not the end of the turn, once; then the turn ends.
+          const { listLegalIntents } = await import("@optcg/rules");
+          const legal = listLegalIntents(job.state, job.seat);
+          const play = jobs.length <= 3 ? legal.find((i) => i.type === "play_card") : undefined;
+          return { id: 1, intent: play ?? legal.find((i) => i.type === "end_turn") ?? legal[0]!, searched: true, ms: 1 };
+        });
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0);
+        assert.ok(jobs.some((j) => j.memory.count >= 1), `a later search of the same turn knows an earlier move was sent: ${JSON.stringify(jobs.map((j) => j.memory.count))}`);
+      });
+
+      it("an answer for a position the room has already left is dropped and the bot decides again (#635)", async () => {
+        const releases: ((r: BotJobOutput) => void)[] = [];
+        const { pool, jobs } = stubPool(() => new Promise<BotJobOutput>((resolve) => { releases.push(resolve); }));
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => jobs.length === 1);
+        // The room's state moves on while the first search runs (an undo, here replaced by a state swap).
+        const inner = internals(room) as unknown as { match: MatchState };
+        inner.match = { ...inner.match };
+        const before = internals(room).replay!.intents.length;
+        releases[0]!({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 });
+        await waitUntil(() => jobs.length === 2);
+        assert.equal(internals(room).replay!.intents.length, before, "the stale answer was not played");
+        releases[1]!({ id: 2, intent: { type: "end_turn" }, searched: true, ms: 1 });
+        await waitUntil(() => internals(room).replay!.intents.length > before);
+      });
+
+      it("a real worker thread returns a legal move for the bot's position within its budget (#635)", async () => {
+        const pool = new BotPool({ size: 1 });
+        try {
+          const { createMatch, skipMulligans, createSeededRng, listLegalIntents } = await import("@optcg/rules");
+          let s = createMatch({ seed: 5, firstSeat: 1, players: [{ leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
+          s = skipMulligans(s, createSeededRng(5));
+          const started = Date.now();
+          const r = await pool.run({ state: s, seat: 1, seed: 9, memory: { count: 0, activated: [] }, budgetMs: 300 }, 8000);
+          assert.ok(r.intent, "an intent came back");
+          assert.ok(listLegalIntents(s, 1).some((i) => i.type === r.intent!.type), "it is a kind of move the seat could make");
+          assert.ok(Date.now() - started < 8000);
+        } finally {
+          await pool.close();
+        }
+      });
     });
   });
 }

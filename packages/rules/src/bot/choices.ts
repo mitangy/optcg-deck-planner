@@ -48,6 +48,17 @@ function canAssign(picked: string[], groups: Look["groups"]): boolean {
   return go(0);
 }
 
+/** What an option adds to a "total cost / total power at most X" limit; null when its card is hidden from the seat. */
+function limitStat(view: BotView, o: ChoiceOption, kind: "cost" | "power"): number | null {
+  const onBoard = o.instanceId ? findBoardCard(view, o.instanceId) : null;
+  if (onBoard && kind === "power") return onBoard.card.power;
+  if (!o.defId || o.defId === "HIDDEN") return null;
+  try {
+    const def = getCardDef(o.defId);
+    return kind === "cost" ? def.cost : (def.power ?? 0);
+  } catch { return null; }
+}
+
 function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceRequest, { type: "select" }>): Intent | null {
   const eligible = r.options.filter((o) => o.eligible);
   if (eligible.length < r.min) return null;
@@ -59,13 +70,19 @@ function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceReq
   const want = kind === "cost" ? r.min : r.max;
   const picked: ChoiceOption[] = [];
   const names = new Set<string>();
+  // "Total cost / power of the picks at most X" (#635): the request carries the limit; a pick that would pass it is skipped.
+  const limits = ([["cost", r.totalCostAtMost], ["power", r.totalPowerAtMost]] as const).filter((l): l is readonly ["cost" | "power", number] => l[1] != null);
+  const used = { cost: 0, power: 0 };
   for (const { o } of scored) {
     if (picked.length >= want) break;
+    const stats = limits.map(([k]) => limitStat(view, o, k));
+    if (limits.length && (stats.some((v) => v === null) || limits.some(([k, max], i) => used[k] + stats[i]! > max))) continue;
     if (r.distinctNames) {
       const n = optionName(o);
       if (names.has(n)) continue;
       names.add(n);
     }
+    limits.forEach(([k], i) => { used[k] += stats[i]!; });
     picked.push(o);
   }
   if (picked.length < r.min) return null;

@@ -1,6 +1,7 @@
 import type { getPlayerView } from "../engine.js";
 import type { Rng } from "../rng.js";
 import type { Intent } from "../types.js";
+import type { PriorChoice } from "./determinize.js";
 
 export type BotView = ReturnType<typeof getPlayerView>;
 export type BotLevel = "easy" | "normal" | "hard";
@@ -17,6 +18,14 @@ export interface BotOptions {
   maxEvals?: number;
   /** Hard only: 1 looks to the end of the current turn (default), 2 also plays the opponent's next turn. */
   horizonTurns?: 1 | 2;
+  /** Hard only (#635): what a rollout's end position is scored with. "learned" = log odds from the fitted value model, "hand" = the hand-tuned `evaluate` (#631). */
+  evalMode?: "learned" | "hand";
+  /** Hard only (#635): what the bot assumes about the opponent's hidden cards. A DeckPrior (default: the bundled meta lists), or "true" for the legacy exact hidden multiset. */
+  prior?: PriorChoice;
+  /** Hard only (#635): how the opponent plays in rollouts. "normal" = the normal policy, "greedy" = normal's candidates scored one move ahead with the learned model. */
+  opponentModel?: "normal" | "greedy";
+  /** Hard only (#635): "sim" compares keep and mulligan on sampled redraws; "rule" is normal's rule (two cheap Characters). */
+  mulligan?: "sim" | "rule";
   /** Hard only: called once for every decision that was really searched (two or more candidates). */
   onTrace?: (trace: HardTrace) => void;
 }
