@@ -97,6 +97,50 @@ describe("keywords and statics", () => {
     expect(h.legal(0).some((i) => i.type === "declare_attack" && i.attackerId === sanji.id)).toBe(true);
   });
 
+  it("a Rush Character shows its Rush pill only the turn it is played (#445)", () => {
+    const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });
+    h.hand(0, "OP09-118");
+    h.don(0, 10);
+    h.play(0, "OP09-118");
+    const roger = () => h.view(0).you.characters[0]!;
+    expect(roger().statusLabels).toContain("Rush");
+    h.act(0, { type: "end_turn" });
+    h.act(1, { type: "end_turn" });
+    expect(roger().keywords).toContain("rush");
+    expect(roger().rush).toBe(true);
+    expect(roger().statusLabels).not.toContain("Rush");
+  });
+
+  it("Summoning sick stays off on the opponent's turn after an effect gives Rush (#547)", () => {
+    const h = new Harness();
+    h.hand(0, "OP09-119");
+    h.don(0, 10);
+    h.play(0, "OP09-119");
+    h.accept();
+    h.pick("o0");
+    const mine = () => h.view(0).you.characters[0]!;
+    expect(mine().statusLabels).not.toContain("Summoning sick");
+    expect(mine().statusLabels).toContain("Rush");
+    h.act(0, { type: "end_turn" });
+    for (const card of [h.view(0).you.characters[0]!, h.view(1).opponent.characters[0]!]) {
+      expect(card.statusLabels).not.toContain("Summoning sick");
+      expect(card.summoningSick).toBe(false);
+    }
+  });
+
+  it("A Character played this turn isn't shown summoning sick on the opponent's turn (#547)", () => {
+    const h = new Harness();
+    h.hand(0, FILLER);
+    h.don(0, 10);
+    h.play(0, FILLER);
+    expect(h.view(0).you.characters[0]!.statusLabels).toContain("Summoning sick");
+    h.act(0, { type: "end_turn" });
+    for (const card of [h.view(0).you.characters[0]!, h.view(1).opponent.characters[0]!]) {
+      expect(card.statusLabels).not.toContain("Summoning sick");
+      expect(card.summoningSick).toBe(false);
+    }
+  });
+
   it("OP01-001 Zoro Leader aura applies with DON!! during your turn only", () => {
     const h = new Harness({ leaders: ["OP01-001", "ST01-001"] });
     h.field(0, FILLER);

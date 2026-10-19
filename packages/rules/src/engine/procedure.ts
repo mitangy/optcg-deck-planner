@@ -10,7 +10,7 @@ import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js
 import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
 import { addModifier } from "./modifiers.js";
 import {
-  abilityGateOpen, dispatchEvent, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, runFrames, startAbility, takeLifeToHand, type Sim,
+  abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, resolveGateOpen, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
 import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./state.js";
 
@@ -56,13 +56,22 @@ export function settle(sim: Sim): void {
     if (state.winner !== null) { clearForGameOver(state); return; }
     if (state.pendingChoices.length > 0) return;
     if (state.resolutionFrames.length > 0) { runFrames(sim); continue; }
-    if (state.triggerQueue.length > 0) { if (startNextTrigger(sim)) continue; return; }
+    if (state.triggerQueue.length > 0 && !heldUntilDamageStepEnds(state)) { if (startNextTrigger(sim)) continue; return; }
     if (state.steps.length > 0) { advanceStep(sim); continue; }
     // A battle card left the field while players held priority: the battle ends.
     if (state.battle && (state.phase === "block" || state.phase === "counter") && !battleCards(state)) { state.steps.push({ kind: "end_battle" }); continue; }
     return;
   }
   throw new Error("Game procedure did not settle");
+}
+
+/**
+ * Auto effects queued by damage wait until the Damage Step ends: a Double Attack deals both of its damage points
+ * before "when your Life becomes 0" and the like resolve (OP05-098 Enel Q&A). Life [Trigger] checks stay per point.
+ */
+function heldUntilDamageStepEnds(state: MatchState): boolean {
+  const front = state.steps[0];
+  return front?.kind === "life_damage" && (state.battle?.damageRemaining ?? 0) > 0 && state.triggerQueue.every((t) => t.window !== "trigger");
 }
 
 function startNextTrigger(sim: Sim): boolean {
@@ -89,6 +98,8 @@ function startNextTrigger(sim: Sim): boolean {
   const loc = locate(state, next.sourceInstanceId);
   // Once-per-turn may have been consumed by an earlier copy of the same trigger.
   if (entry.ability.oncePerTurn && loc?.card?.usedAbilities?.[entry.ability.id] === state.turnNumber) return true;
+  // Gates that must hold when the trigger resolves, not when it was queued (an earlier [When Attacking] may change them, #609).
+  if (!resolveGateOpen(state, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.eventCardId)) return true;
   startAbility(sim, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.window, next.eventCardId ? { _event: next.eventCardId } : {});
   return true;
 }
@@ -119,6 +130,8 @@ export function beginTurn(sim: Sim): void {
   const seat = state.activeSeat;
   const p = state.players[seat];
   p.turnsStarted += 1;
+  // Hand reveals last for the turn they were made in (#491).
+  for (const player of state.players) delete player.revealedHandIds;
   // Refresh phase.
   const noRefresh = new Set(state.modifiers.filter((m) => m.target.kind === "card" && m.effect.type === "restrict" && m.effect.restriction === "no_refresh" && m.expires.kind === "next_refresh" && m.expires.seat === seat).map((m) => (m.target as { id: string }).id));
   state.modifiers = state.modifiers.filter((m) => !(m.expires.kind === "next_refresh" && m.expires.seat === seat));
@@ -139,7 +152,7 @@ export function beginTurn(sim: Sim): void {
     const defId = p.deck.shift()!;
     const id = p.zoneInstanceIds.deck.shift()!;
     p.hand.push({ id, defId, rested: false, attachedDonIds: [] });
-    sim.events.push({ type: "drew", seat, count: 1 });
+    sim.events.push({ type: "drew", seat, count: 1, defIds: [defId], turnDraw: true });
     }
   }
   sim.events.push({ type: "phase_changed", phase: "draw", activeSeat: seat });
@@ -274,7 +287,13 @@ function advanceStep(sim: Sim): void {
         return;
       }
       // Defeat is decided once, from Life when battle damage is dealt: 0 Life loses.
-      if (state.players[defSeat].life.length === 0) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
+      if (state.players[defSeat].life.length === 0) {
+        // "If you would take damage" can still prevent the loss (Gloriosa EB05-052).
+        if (!findDamageReplacement(state, defSeat)) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
+        b.damageRemaining = 1;
+        state.steps.unshift({ kind: "life_damage", lethal: true }, { kind: "end_battle" });
+        return;
+      }
       b.damageRemaining = hasKeyword(state, b.attackerSeat, attacker, "double_attack") ? 2 : 1;
       state.steps.unshift({ kind: "life_damage" }, { kind: "end_battle" });
       return;
@@ -284,14 +303,26 @@ function advanceStep(sim: Sim): void {
       if (!b || !b.damageRemaining) { state.steps.shift(); return; }
       const defSeat = otherSeat(b.attackerSeat);
       const d = state.players[defSeat];
+      if (step.replaced === undefined) {
+        const hit = findDamageReplacement(state, defSeat);
+        if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, d.leader.id); return; }
+      }
+      // Double Attack's 2 damage is one hit: the replacement is offered once and covers all of it.
+      const prevented = step.replaced === true;
+      if (prevented) { b.damageRemaining = 0; delete step.lethal; return; }
+      if (step.lethal) { gameOver(sim, b.attackerSeat, "leader_battle_at_zero_life"); return; }
       // Life ran out mid Double Attack: the remaining damage is lost, the game goes on.
       if (d.life.length === 0) { b.damageRemaining = 0; state.steps.shift(); return; }
       b.damageRemaining -= 1;
       const attacker = locate(state, b.attackerId)?.card;
       const lifeId = d.zoneInstanceIds.life[0]!;
       const lifeDef = d.life[0]!;
-      dispatchEvent(state, "leader_damaged", { seat: defSeat });
-      if (attacker) dispatchEvent(state, "attack_damage", { seat: b.attackerSeat, card: attacker });
+      // "When ... deals/takes damage" sees a Double Attack's 2 damage once: it is one hit.
+      if (!step.dealt) {
+        step.dealt = true;
+        dispatchEvent(state, "leader_damaged", { seat: defSeat });
+        if (attacker) dispatchEvent(state, "attack_damage", { seat: b.attackerSeat, card: attacker });
+      }
       if (attacker && hasKeyword(state, b.attackerSeat, attacker, "banish")) {
         const entry = takeCard(state, { seat: defSeat, zone: "life", index: 0, id: lifeId, defId: lifeDef });
         putCard(state, defSeat, "trash", entry);
@@ -356,6 +387,13 @@ function advanceStep(sim: Sim): void {
     case "effect_damage": {
       if (step.remaining <= 0) { state.steps.shift(); return; }
       const d = state.players[step.seat];
+      if (step.replaced === undefined) {
+        const hit = findDamageReplacement(state, step.seat);
+        if (hit) { step.replaced = false; pushReplacementFrame(sim, hit, d.leader.id); return; }
+      }
+      const prevented = step.replaced === true;
+      delete step.replaced;
+      if (prevented) { step.remaining -= 1; return; }
       if (d.life.length === 0) { gameOver(sim, otherSeat(step.seat), "leader_battle_at_zero_life"); return; }
       step.remaining -= 1;
       const lifeId = d.zoneInstanceIds.life[0]!;

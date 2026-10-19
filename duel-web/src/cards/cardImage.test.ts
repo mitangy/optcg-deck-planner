@@ -37,6 +37,43 @@ describe("artAfterError", () => {
   });
 });
 
+describe("EB05 preview art", () => {
+  it("EB05 cards fall back to preview art when TCGPlayer art fails (#575)", () => {
+    const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
+    const preview = artAfterError(cdn, "EB05-001");
+    expect(preview).toBe("/cards/preview/EB05-001.webp");
+    expect(artAfterError(preview!, "EB05-001")).toBeNull();
+    expect(artAfterError(cdn, "OP01-016")).toBe("/cards/OP01-016.png");
+  });
+
+  it("OP18 card whose local /cards art fails falls back to its preview, once (#575)", () => {
+    const preview = artAfterError("/cards/OP18-021.png", "OP18-021");
+    expect(preview).toBe("/cards/preview/OP18-021.webp");
+    expect(artAfterError(preview!, "OP18-021")).toBeNull();
+    // Cards with no preview end at the text fallback, and other URLs never retry.
+    expect(artAfterError("/cards/OP01-016.png", "OP01-016")).toBeNull();
+    expect(artAfterError("https://example.com/a.jpg", "OP18-021")).toBeNull();
+  });
+});
+
+describe("alt art preview fallback (#581)", () => {
+  it("a failed alt printing shows its own preview, not the card's (#581)", () => {
+    // 722644 is EB05-010's alt; EB05-010 has no card-level preview, EB05-001 does.
+    const alt = "https://tcgplayer-cdn.tcgplayer.com/product/722644_400w.jpg";
+    const preview = artAfterError(alt, "EB05-010");
+    expect(preview).toBe("/cards/preview/p722644.webp");
+    expect(artAfterError(preview!, "EB05-010")).toBeNull();
+    // Large (_in_1000x1000) urls resolve the same product.
+    expect(artAfterError("https://tcgplayer-cdn.tcgplayer.com/product/722644_in_1000x1000.jpg", "EB05-010")).toBe(
+      "/cards/preview/p722644.webp",
+    );
+    // A product without an alt preview keeps the card-level chain.
+    const other = "https://tcgplayer-cdn.tcgplayer.com/product/999999_400w.jpg";
+    expect(artAfterError(other, "EB05-001")).toBe("/cards/preview/EB05-001.webp");
+    expect(artAfterError(other, "OP01-016")).toBe("/cards/OP01-016.png");
+  });
+});
+
 describe("TCGplayer placeholder art (#276)", () => {
   const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg";
 

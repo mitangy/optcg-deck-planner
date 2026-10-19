@@ -36,6 +36,18 @@ class DeckCreate(BaseModel):
     decklist: str = Field(min_length=1, max_length=100_000)
 
 
+class DeckRename(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Deck name cannot be blank")
+        return value
+
+
 class DeckCardUpsert(BaseModel):
     """Set absolute copy count for a card in a deck. needed=0 removes the line."""
 
@@ -87,6 +99,20 @@ class PrintingView(BaseModel):
     is_special: bool = True
     # Per-deck (or shopping max-across-decks) alt want for play; 0 when unset.
     wanted: int = 0
+    # Copies of this alt the user owns (per user, not per deck).
+    owned: int = 0
+
+
+class OwnedPrintingUpdate(BaseModel):
+    """Set how many copies of an alt printing the user owns."""
+
+    qty: int = Field(ge=0, le=99)
+
+
+class OwnedPrintingResult(BaseModel):
+    card_id: str
+    product_id: int
+    qty: int
 
 
 class DeckCardPrintingUpdate(BaseModel):
@@ -135,6 +161,8 @@ class CardView(BaseModel):
     needed: int
     # Total owned (shared across every deck — what the Owned stepper edits).
     owned: int
+    # Copies owned across this card's alt printings; they count toward still_need.
+    alts_owned: int = 0
     still_need: int
     # "Separate per leader": copies that leaders earlier in deck order need
     # first. still_need = needed − (owned − earlier_leaders_need), floored at 0.
@@ -177,6 +205,8 @@ class ShoppingItem(BaseModel):
     cost: int | str | None = None
     need: int
     owned: int
+    # Copies owned across this card's alt printings; they count toward still_need.
+    alts_owned: int = 0
     still_need: int
     market_price: float | None = None
     low_price: float | None = None
@@ -197,6 +227,10 @@ class ShoppingItem(BaseModel):
     need_by_leader: list[LeaderNeed] = Field(default_factory=list)
     # Whether ``need`` sums need_by_leader (True) or takes its max (False).
     need_summed: bool = False
+    # Target copies added directly to Master Shopping (no deck); 0 when none.
+    extra_qty: int = 0
+    # Need from selected decks alone (``need`` also folds in ``extra_qty`` by max).
+    deck_need: int = 0
 
 
 class ShoppingResponse(BaseModel):
@@ -214,14 +248,19 @@ class OwnedCardItem(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     owned: int
+    # Copies owned across alt printings (on top of ``owned``).
+    alts_owned: int = 0
     market_price: float | None = None
     low_price: float | None = None
-    # owned × market_price of the standard printing; None when the card has no price.
+    # owned × standard market + each alt's qty × its own market price; None when
+    # any owned copy has no price.
     value: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
     product_id: int | None = None
     used_in: list[str] = []
+    # Copies still to buy for this card on the full shopping list (all decks + added directly).
+    buying: int = 0
 
 
 class OwnedCollectionResponse(BaseModel):
@@ -234,6 +273,12 @@ class OwnedCollectionResponse(BaseModel):
 
 
 class OwnedUpdate(BaseModel):
+    qty: int = Field(ge=0, le=10_000)
+
+
+class ShoppingExtraUpdate(BaseModel):
+    """Target copies to own for a card added straight to Master Shopping."""
+
     qty: int = Field(ge=0, le=10_000)
 
 
@@ -520,9 +565,9 @@ class DuelMatchProgressIngest(BaseModel):
     turns: int | None = Field(default=None, ge=0, le=10_000)
     replay: dict | None = None
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
-    # Sent by the room's dispose path when it closes without a result: this snapshot
-    # is the game's last, so it is written to Postgres even when Redis holds live ones.
-    final: bool = False
+    # True on the snapshot sent as the room closes (nobody is playing any more). It is the
+    # game's last, so it is written to Postgres even when Redis holds the live ones (#389).
+    closed: bool = False
 
 
 class DuelMatchHistoryEntry(BaseModel):
@@ -542,6 +587,18 @@ class DuelMatchHistoryEntry(BaseModel):
     has_log: bool = False
     # False for a game that never sent a result (its log runs to the last saved turn).
     finished: bool = True
+    # The recording can be opened in the replay viewer: a kept replay of a finished game, or of a cut-off game whose room closed.
+    replay_ready: bool = False
+
+
+class DuelMatchReplayOut(BaseModel):
+    match_id: str
+    your_seat: int
+    players: list[str]
+    finished: bool
+    turns: int | None
+    # Seed, decks and accepted intents (@optcg/rules MatchReplay). Only the game's own players get it.
+    replay: dict
 
 
 class DuelMatchHistoryOut(BaseModel):
@@ -642,6 +699,18 @@ class DuelRatingOut(BaseModel):
     username: str | None = None
     rating: int
     games_played: int
+    # Finished games (ranked and unranked) from the user's own seat.
+    wins: int = 0
+    losses: int = 0
+    # 1 + players with games and a strictly higher rating; null before the first ranked game.
+    rank: int | None = None
+
+
+class DuelLiveOut(BaseModel):
+    """Counts only: players online and matches in progress."""
+
+    online: int
+    matches: int
 
 
 class DuelLeaderboardEntryOut(BaseModel):
@@ -793,6 +862,39 @@ class DuelSettingsOut(BaseModel):
     updated_at: str | None = None
 
 
+class DuelDeckBody(BaseModel):
+    name: str = Field(max_length=200)
+    leaderId: str = Field(max_length=32)
+    cards: list[Annotated[str, StringConstraints(max_length=32)]] = Field(max_length=60)
+    artPrefs: dict[str, str] | None = None
+    plannerDeckId: int | None = None
+    editedLocally: bool | None = None
+
+
+class DuelDeckPut(BaseModel):
+    deck: DuelDeckBody
+    updatedAt: int = Field(ge=0)
+
+
+class DuelDeckBulkItem(DuelDeckPut):
+    id: str
+
+
+class DuelDeckBulkPut(BaseModel):
+    decks: list[DuelDeckBulkItem] = Field(max_length=200)
+
+
+class DuelDeckOut(BaseModel):
+    id: str
+    updatedAt: int
+    deleted: bool
+    deck: DuelDeckBody | None = None
+
+
+class DuelDecksOut(BaseModel):
+    decks: list[DuelDeckOut]
+
+
 class DuelCosmeticOut(BaseModel):
     id: int
     kind: str
@@ -829,6 +931,10 @@ class AnalystChatSession(BaseModel):
     # Only when enabled: whether this player can answer requests, and how many are waiting.
     owner: bool | None = None
     pending_requests: int | None = None
+    # Only when not enabled but able to ask: the free spots (how many in all and how many are left) and the monthly credit a spot brings.
+    free_spots: int | None = None
+    spots_left: int | None = None
+    free_credit_usd: float | None = None
 
 
 class AnalystAccessRequestIn(BaseModel):
@@ -836,7 +942,8 @@ class AnalystAccessRequestIn(BaseModel):
 
 
 class AnalystAccessRequested(BaseModel):
-    access: Literal["pending"]
+    # "approved" when a free spot was left, "pending" when the player is on the waitlist.
+    access: Literal["pending", "approved"]
 
 
 class AnalystAccessDecisionIn(BaseModel):
@@ -850,10 +957,31 @@ class AnalystAccessRow(BaseModel):
     status: Literal["pending", "approved", "denied"]
     created_at: str | None = None
     decided_at: str | None = None
+    auto_approved: bool = False
+    # This month's credit and how much of it the player has used (credit_usd is null for owners).
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    # When a player out of credit asked for more.
+    topup_requested_at: str | None = None
 
 
 class AnalystAccessList(BaseModel):
     requests: list[AnalystAccessRow]
+    free_spots: int
+    spots_used: int
+
+
+class AnalystFreeSpotsIn(BaseModel):
+    free_spots: int = Field(ge=0, le=10_000)
+
+
+class AnalystFreeSpots(BaseModel):
+    free_spots: int
+    spots_used: int
+
+
+class AnalystTopupDecisionIn(BaseModel):
+    action: Literal["add", "dismiss"]
 
 
 class AnalystChatBudget(BaseModel):
@@ -862,6 +990,26 @@ class AnalystChatBudget(BaseModel):
     spent_month_usd: float
     monthly_cap_usd: float
     allowed: bool
+    model: str
+    # This month's credit (null for owners, who have none to run out of), how much of it the player has used, and when it refills.
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    credit_resets_at: str = ""
+    # Why the player can't ask right now: monthly (everyone's cap), credit (their own), daily (their day's cap); precedence in that order.
+    refusal: Literal["credit", "daily", "monthly"] | None = None
+    # The player's own average chat cost, to say how many questions are left.
+    avg_chat_cost_usd: float | None = None
+    topup_requested: bool = False
+
+
+class AnalystModelSetting(BaseModel):
+    model: str
+    options: list[str]
+    can_edit: bool
+
+
+class AnalystModelIn(BaseModel):
+    model: str
 
 
 class AnalystUsageIn(BaseModel):
@@ -872,6 +1020,38 @@ class AnalystUsageIn(BaseModel):
     cache_read_tokens: int = Field(default=0, ge=0)
     cache_write_tokens: int = Field(default=0, ge=0)
     cost_usd: float = Field(ge=0)
+    thread_id: int | None = Field(default=None, ge=1)
+    outcome: Literal["ok", "error", "aborted", "refused"] = "ok"
+    refusal: Literal["credit", "daily", "monthly", "busy"] | None = None
+    tool_calls: int = Field(default=0, ge=0, le=1000)
+    duration_ms: int = Field(default=0, ge=0, le=3_600_000)
+
+
+class AnalystUsagePlayer(BaseModel):
+    user_id: int
+    name: str
+    spent_usd: float
+    credit_usd: float | None = None
+    credit_spent_usd: float = 0.0
+    threads: int
+    questions: int
+    refused: int
+    last_used: str | None = None
+
+
+class AnalystUsageGroup(BaseModel):
+    kind: str
+    model: str
+    requests: int
+    cost_usd: float
+
+
+class AnalystUsageSummary(BaseModel):
+    today_usd: float
+    month_usd: float
+    total_usd: float
+    players: list[AnalystUsagePlayer]
+    groups: list[AnalystUsageGroup]
 
 
 class AnalystThreadIn(BaseModel):

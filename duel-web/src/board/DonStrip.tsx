@@ -1,5 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { DON_CARD_ART } from "./donArt";
+import { DON_CARD_ART, fallbackToDefaultDon } from "./donArt";
 import { useClickCopy } from "./clickCopy";
 import { groupIntoPiles, type DonPiles } from "./donPiles";
 import { createLongPressController } from "./inspectGestures";
@@ -16,6 +16,8 @@ type Props = {
   /** Denominator for the "active/total" label when it differs from the chip count (attached DON!! included). */
   labelTotal?: number;
   side: "you" | "opp";
+  /** Chip face (a URL); the bundled DON!! art when absent (#440). */
+  donArt?: string;
   /** DON!! ids that have a legal give_don intent. */
   draggableDonIds?: ReadonlySet<string>;
   /** DON!! ids currently carried by an in-progress drag (for opacity). */
@@ -37,6 +39,7 @@ type Props = {
 
 function DonChip({
   token,
+  art,
   canDrag,
   isDragging,
   isSelected,
@@ -47,6 +50,7 @@ function DonChip({
   onPileMove,
 }: {
   token: DonToken;
+  art: string;
   canDrag: boolean;
   isDragging: boolean;
   isSelected: boolean;
@@ -159,12 +163,19 @@ function DonChip({
       {...dragRest}
       {...pointerHandlers}
     >
-      <img src={DON_CARD_ART} alt="" className={className} draggable={false} />
+      <img
+        src={art}
+        alt=""
+        className={className}
+        draggable={false}
+        onError={fallbackToDefaultDon}
+      />
     </button>
   );
 }
 
 export function DonStrip({
+  donArt = DON_CARD_ART,
   tokens,
   activeCount,
   totalCount,
@@ -214,6 +225,7 @@ export function DonStrip({
     const canDrag = Boolean(draggableDonIds?.has(t.id));
     return (
       <DonChip
+        art={donArt}
         key={t.id}
         token={t}
         canDrag={canDrag}

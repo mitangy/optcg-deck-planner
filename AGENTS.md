@@ -2,6 +2,12 @@
 
 See `CLAUDE.md` for product context and required UI-polish rules. See `README.md` for the canonical local-dev and deploy commands.
 
+## Never create accounts in production for testing
+
+- Automated browsers (`navigator.webdriver`, e.g. Playwright/Puppeteer) always use the guest id `automation-test-guest` (`AUTOMATION_GUEST_ID` in `duel-web/src/auth/guestId.ts`), so production accounts are reused instead of one being created per run (#447).
+- For direct API probes against prod, call `/duel/guest-token` with `guest_id` `automation-test-guest` (practice seats: `automation-test-guest-a` / `automation-test-guest-b`). Never invent new guest ids or user_keys.
+- Prefer a local backend or the e2e fake API over prod.
+
 ## Cursor Cloud specific instructions
 
 Two services plus a zero-setup local DB:

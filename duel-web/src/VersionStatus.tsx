@@ -54,7 +54,7 @@ export function UpdateNotice() {
     <section className="notice notice-gold" aria-label="Update available">
       <div className="notice-body">
         <strong>New version available</strong>
-        <span>Reload to get the latest duel app.</span>
+        <span>Reload to get the latest duel app and see what’s new.</span>
       </div>
       <div className="notice-actions">
         <button type="button" className="btn btn-primary btn-sm" onClick={reload}>

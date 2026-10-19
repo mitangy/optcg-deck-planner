@@ -41,3 +41,28 @@ describe("Life check prompt (#352)", () => {
     expect(confirmIntent({ kind: "effect" }, true)).toEqual({ type: "resolve_pending_choice", accept: true });
   });
 });
+
+describe("Life check pop-up is just the card (#495)", () => {
+  it("shows the Life card at full size with no header or prompt text (#495)", () => {
+    const html = render(lifeCheck(false));
+    expect(html).toContain("life-trigger-card");
+    expect(html).toContain("card-tile");
+    expect(html).not.toContain("compact");
+    expect(html).not.toContain("<h3");
+    expect(html).not.toContain("<p>");
+  });
+
+  it("keeps the prompt text and header on other confirms (#495)", () => {
+    const html = render({ ...lifeCheck(false), kind: "effect", prompt: "Pay the cost to activate?" });
+    expect(html).not.toContain("life-trigger-card");
+    expect(html).toContain("<h3");
+    expect(html).toContain("Pay the cost to activate?");
+  });
+
+  it("falls back to the boxed prompt when the Life card is hidden from this seat (#495)", () => {
+    const html = render({ ...lifeCheck(false), cardDefId: "HIDDEN" });
+    expect(html).not.toContain("life-trigger-card");
+    expect(html).toContain("<h3");
+    expect(html).toContain("<p>");
+  });
+});

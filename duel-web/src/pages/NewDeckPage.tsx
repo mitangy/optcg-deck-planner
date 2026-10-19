@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { createDeckFromInput, setSelectedDeckId } from "../decks/storage";
+import { NavMenu } from "../nav/NavMenu";
 
 export function NewDeckPage() {
   const navigate = useNavigate();
@@ -33,7 +34,10 @@ export function NewDeckPage() {
     <div className="app-shell">
       <div className="deck-config">
         <header className="deck-config-header">
-          <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
+          <div className="deck-config-nav">
+            <NavMenu />
+            <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
+          </div>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">New deck</h1>
             <p className="meta">

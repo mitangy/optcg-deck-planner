@@ -3,7 +3,7 @@
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
 import type { GameEvent, Intent, Seat } from "@optcg/rules";
-import { gameSeed } from "./matchmakeGuard.js";
+import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
 
@@ -25,7 +25,20 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat (overrides create-time placeholder for that seat). */
   deck?: PlayerDeckWire;
+  /**
+   * Move a live match to this device: rebind the seat the signed-in account
+   * holds to this connection (#451). Needs role "player" and a preferredSeat.
+   */
+  takeover?: boolean;
+  /**
+   * Practice only: a game token of the account that controls this (guest) seat,
+   * so that account can later take the seat over. Ignored when invalid.
+   */
+  ownerToken?: string;
 };
+
+/** Close code sent to a socket whose seat moved to another device (#451). */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type PlayerDeckWire = {
   leaderId: string;
@@ -37,6 +50,8 @@ export type DuelCreateOptions = {
   seed?: number;
   /** Default true for Step 2 scripts. */
   autoSkipMulligan?: boolean;
+  /** Who goes first in the first game. Honored only on local/dev servers; deployed servers flip a coin (#549). */
+  firstSeat?: 0 | 1;
   players?: [PlayerDeckWire, PlayerDeckWire];
   /**
    * Optional clocks. Ranked queue always forces a 15 minute chess clock per player (seatSeconds), no match clock and no turn clock.
@@ -92,6 +107,11 @@ export type WelcomeMessage = {
   players?: [SeatPlayerInfo, SeatPlayerInfo];
   /** Whether the room is ranked. Absent from older servers. */
   ranked?: boolean;
+  /**
+   * How this game's turn order was decided: null = coin flip (the first game), otherwise the seat that
+   * chose (a rematch's loser). Absent from older servers.
+   */
+  firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
   brief?: BriefTicketWire;
 };
@@ -99,6 +119,8 @@ export type WelcomeMessage = {
 export type EventsMessage = {
   protocolVersion: ProtocolVersion;
   events: GameEvent[];
+  /** Replay intents applied once these events happened (undo rewinds to a step). */
+  step?: number;
 };
 
 export type ViewMessage = {
@@ -136,6 +158,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -155,6 +179,13 @@ const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2
  * server relaying up to 450 KB of base64 to every seat and spectator.
  */
 const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d{1,12}\/public\/[A-Za-z0-9_-]{16,128}$/;
+
+/** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
+function asDonArtId(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
+    ? raw
+    : null;
+}
 
 function asSkinImage(raw: unknown, maxChars: number, field: string): string | null {
   if (raw === null || raw === undefined) return null;
@@ -184,6 +215,7 @@ export function parseSkinMessage(raw: unknown): SeatSkin {
   return {
     playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS, "playmat"),
     cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS, "cardBack"),
+    donArt: asDonArtId(skin.donArt),
   };
 }
 
@@ -233,8 +265,23 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
   if (o.deck !== undefined) {
     deck = asPlayerDeck(o.deck);
   }
+  if (o.takeover !== undefined && typeof o.takeover !== "boolean") {
+    throw Object.assign(new Error("takeover must be a boolean"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const takeover = o.takeover === true ? true : undefined;
+  if (takeover && (role === "spectator" || preferredSeat === undefined)) {
+    throw Object.assign(new Error("takeover needs a player role and preferredSeat"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  const ownerToken =
+    typeof o.ownerToken === "string" && o.ownerToken.trim() ? o.ownerToken.trim() : undefined;
   return {
     protocolVersion: PROTOCOL_VERSION,
+    takeover,
+    ownerToken,
     devUserId,
     gameToken,
     secret: typeof o.secret === "string" ? o.secret : undefined,
@@ -247,6 +294,8 @@ export function parseJoinOptions(raw: unknown): DuelJoinOptions {
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
+  /** Seat that goes first in the room's first game. */
+  firstSeat: Seat;
   autoSkipMulligan: boolean;
   ranked: boolean;
   seatUserIds?: [number, number];
@@ -262,6 +311,10 @@ export function parseCreateOptions(raw: unknown): {
   const seed = gameSeed(
     typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
   );
+  if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
+    throw Object.assign(new Error("firstSeat must be 0 or 1"), { code: "bad_protocol" as const });
+  }
+  const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);
   const autoSkipMulligan = o.autoSkipMulligan !== false;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.
@@ -323,6 +376,7 @@ export function parseCreateOptions(raw: unknown): {
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
+    firstSeat,
     autoSkipMulligan,
     ranked,
     seatUserIds,
@@ -501,33 +555,92 @@ export function parseHandOrderMessage(raw: unknown): string[] {
 }
 
 /**
- * Turn undo (unranked rooms only). A seat requests a rewind to the start of a
- * turn; the other seat accepts or declines. Practice clients auto-accept.
+ * Undo (unranked rooms only). A seat requests taking back the last action (#497)
+ * or the whole turn (#536); the other seat accepts or declines. Practice
+ * clients auto-accept.
  */
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
+
+/** What a request takes back: the last action, or every action of that turn. */
+export type UndoScope = "action" | "turn";
+
+/** A parsed undo message: `scope` / `force` only matter on a "request". */
+export type UndoRequestBody = {
+  action: UndoAction;
+  scope: UndoScope;
+  force: boolean;
+  /** An "accept" names the request it saw (`pending.id`); absent from older clients (#540). */
+  id?: number;
+};
+
+/** One undoable action: who took it and a short description ("play Nami"). */
+export type UndoActionInfo = { seat: Seat; label: string };
+
+/** Whether one scope can be undone right now, and why not. */
+export type UndoOption = {
+  /** Can be requested without force. */
+  available: boolean;
+  /** Actions it would take back (0 when none). */
+  steps: number;
+  /** Why it cannot be requested plainly; absent when `available`. */
+  blockedReason?: string;
+  /** Blocked only by a reveal, so a forced request is accepted. */
+  forceable: boolean;
+  /** What was revealed, when a reveal sits in the range (forced undo lets them redo it). */
+  revealReason?: string;
+};
 
 /** Undo availability + any open request, pushed on join / sync / change. */
 export type UndoStateMessage = {
   protocolVersion: ProtocolVersion;
   /** False in ranked rooms (undo is never offered there). */
   enabled: boolean;
-  /** Turn an undo would rewind to right now, or null when nothing to undo. */
+  /** Turn of the state an undo would restore right now, or null when nothing to undo. */
   targetTurn: number | null;
+  /** The action an undo would take back (the last one, by either seat), or null. */
+  action: UndoActionInfo | null;
+  /** Per-scope availability (#536); absent from older servers. */
+  options: { action: UndoOption; turn: UndoOption } | null;
+  /** Why no scope can be requested plainly ("Nothing to undo yet", "Undo stops here: ..."); null when one can. */
+  blockedReason: string | null;
   /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number } | null;
+  pending: {
+    /** Server-assigned, new for every request, so an accept can name the one it saw (#540). */
+    id: number;
+    from: Seat;
+    toTurn: number;
+    action: UndoActionInfo | null;
+    scope: UndoScope;
+    /** Actions the request takes back. */
+    steps: number;
+    /** Requested past a reveal. */
+    force: boolean;
+    /** What was revealed, set when `force`. */
+    revealReason: string | null;
+  } | null;
 };
 
 /** Broadcast after an accepted undo rewinds the match. */
 export type UndoAppliedMessage = {
   protocolVersion: ProtocolVersion;
   toTurn: number;
+  /** Replay intent count after the rewind; battle-log lines past it are dropped. */
+  toStep: number;
   /** Seat that asked for the undo. */
   by: Seat;
+  /** The action that was taken back (the last one when the whole turn went). */
+  action: UndoActionInfo;
+  /** What was taken back; "action" from older servers. */
+  scope: UndoScope;
+  /** How many actions went. */
+  steps: number;
 };
 
 /**
  * Rematch (unranked rooms): both seats "request", then the loser picks
- * "first" or "second"; "decline" withdraws / refuses.
+ * "first" or "second"; "decline" withdraws / refuses. A "request" may carry
+ * a `deck` to play the next game with instead of the seat's current deck;
+ * a deck on any other action is a protocol error.
  */
 export type RematchAction = "request" | "decline" | "first" | "second";
 
@@ -536,12 +649,14 @@ export type RematchStateMessage = {
   /** Match is over, the room is unranked and both players are still here. */
   available: boolean;
   requested: [boolean, boolean];
+  /** True when that seat's current request carries a different deck. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Set once both agreed: the loser, who picks first / second. */
   chooser: Seat | null;
 };
 
-export function parseRematchMessage(raw: unknown): RematchAction {
+export function parseRematchMessage(raw: unknown): { action: RematchAction; deck?: PlayerDeckWire } {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("rematch message body required"), { code: "bad_protocol" as const });
   }
@@ -554,10 +669,16 @@ export function parseRematchMessage(raw: unknown): RematchAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.deck === undefined || o.deck === null) return { action: o.action };
+  if (o.action !== "request") {
+    throw Object.assign(new Error("rematch deck is only allowed with action request"), {
+      code: "bad_protocol" as const,
+    });
+  }
+  return { action: o.action, deck: asPlayerDeck(o.deck) };
 }
 
-export function parseUndoMessage(raw: unknown): UndoAction {
+export function parseUndoMessage(raw: unknown): UndoRequestBody {
   if (!raw || typeof raw !== "object") {
     throw Object.assign(new Error("undo message body required"), {
       code: "bad_protocol" as const,
@@ -579,5 +700,19 @@ export function parseUndoMessage(raw: unknown): UndoAction {
       code: "bad_protocol" as const,
     });
   }
-  return o.action;
+  if (o.scope !== undefined && o.scope !== "action" && o.scope !== "turn") {
+    throw Object.assign(new Error("undo scope must be action|turn"), { code: "bad_protocol" as const });
+  }
+  if (o.force !== undefined && typeof o.force !== "boolean") {
+    throw Object.assign(new Error("undo force must be a boolean"), { code: "bad_protocol" as const });
+  }
+  if (o.id !== undefined && (typeof o.id !== "number" || !Number.isSafeInteger(o.id))) {
+    throw Object.assign(new Error("undo id must be an integer"), { code: "bad_protocol" as const });
+  }
+  return {
+    action: o.action,
+    scope: o.scope ?? "action",
+    force: o.force === true,
+    ...(o.id === undefined ? {} : { id: o.id }),
+  };
 }

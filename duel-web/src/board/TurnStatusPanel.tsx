@@ -4,6 +4,7 @@ import { cardBackCssValue } from "../cardBack";
 import { fanPose } from "./handFan";
 import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
+import { HIDDEN_HAND_DEF } from "./handReveal";
 import { respondSubline } from "./promptLine";
 import { donTotal } from "./donTotals";
 
@@ -258,17 +259,26 @@ export function OppHandHint({
       {cards ? (
         <div
           className="opp-hand-backs opp-hand-faces"
-          style={{ "--n": Math.max(cards.length, 1) } as CSSProperties}
+          style={
+            {
+              "--n": Math.max(cards.length, 1),
+              ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+            } as CSSProperties
+          }
         >
-          {cards.map((c) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              ownerSeat={ownerSeat}
-              inspectOnClick
-              classNameExtra="opp-hand-face"
-            />
-          ))}
+          {cards.map((c) =>
+            c.defId === HIDDEN_HAND_DEF ? (
+              <span key={c.id} className="card-back opp-hand-face" />
+            ) : (
+              <CardTile
+                key={c.id}
+                defId={c.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-hand-face"
+              />
+            ),
+          )}
         </div>
       ) : (
         <div
@@ -300,12 +310,17 @@ export function OppHandCorner({
   count,
   cardBackUrl,
   variant,
+  cards,
+  ownerSeat,
 }: {
   count: number;
   cardBackUrl: string | null;
   variant: "row" | "mat";
+  /** After the match ends: the hand, face up (#482). Same boxes as the backs, so nothing shifts. */
+  cards?: readonly HandCard[];
+  ownerSeat?: Seat;
 }) {
-  const shown = Math.min(count, variant === "row" ? 8 : 10);
+  const shown = cards ? Math.min(cards.length, variant === "row" ? 8 : 10) : Math.min(count, variant === "row" ? 8 : 10);
   return (
     <div
       className={`opp-hand-corner opp-hand-corner-${variant}`}
@@ -321,6 +336,19 @@ export function OppHandCorner({
       <div className="opp-corner-cards">
         {Array.from({ length: shown }).map((_, i) => {
           const pose = fanPose(i, shown);
+          const card = cards?.[i];
+          if (card && card.defId !== HIDDEN_HAND_DEF) {
+            return (
+              <CardTile
+                key={card.id}
+                defId={card.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-corner-card opp-corner-face"
+                style={{ "--rot": `${pose.rot}deg` } as CSSProperties}
+              />
+            );
+          }
           return (
             <span
               key={i}
@@ -361,7 +389,23 @@ export function OppHandFan({
             : undefined
         }
       >
-        <span className="card-back" aria-hidden />
+        {cards ? (
+          cards.slice(0, 10).map((c) =>
+            c.defId === HIDDEN_HAND_DEF ? (
+              <span key={c.id} className="card-back" aria-hidden />
+            ) : (
+              <CardTile
+                key={c.id}
+                defId={c.defId}
+                ownerSeat={ownerSeat}
+                inspectOnClick
+                classNameExtra="opp-compact-face"
+              />
+            ),
+          )
+        ) : (
+          <span className="card-back" aria-hidden />
+        )}
         <span className="opp-hand-fan-count">
           <OppHandCount count={count} /> in hand
         </span>
@@ -383,16 +427,20 @@ export function OppHandFan({
     >
       <div className="opp-hand-fan-cards">
         {cards
-          ? cards.map((c, i) => (
-              <CardTile
-                key={c.id}
-                defId={c.defId}
-                ownerSeat={ownerSeat}
-                inspectOnClick
-                classNameExtra="opp-fan-card opp-fan-face"
-                style={{ "--i": i - mid } as CSSProperties}
-              />
-            ))
+          ? cards.map((c, i) =>
+              c.defId === HIDDEN_HAND_DEF ? (
+                <span key={c.id} className="card-back opp-fan-card" style={{ "--i": i - mid } as CSSProperties} />
+              ) : (
+                <CardTile
+                  key={c.id}
+                  defId={c.defId}
+                  ownerSeat={ownerSeat}
+                  inspectOnClick
+                  classNameExtra="opp-fan-card opp-fan-face"
+                  style={{ "--i": i - mid } as CSSProperties}
+                />
+              ),
+            )
           : Array.from({ length: shown }).map((_, i) => (
               <span
                 key={i}

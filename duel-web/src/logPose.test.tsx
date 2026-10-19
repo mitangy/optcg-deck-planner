@@ -176,6 +176,14 @@ describe("sources in a Log Pose answer (#390)", () => {
   });
 });
 
+describe("Log Pose on a replay (#476)", () => {
+  it("a replay's board has no compass or panel (#476)", () => {
+    expect(showsLogPose("/replay/m1")).toBe(false);
+    expect(logPoseChromeFor("/replay/m1", false)).toEqual({ hidden: true, launcher: false });
+    expect(showsLogPose("/history/m1")).toBe(true);
+  });
+});
+
 describe("Log Pose on boards with a matchup brief (#401)", () => {
   it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
     for (const path of ["/duel", "/hotseat", "/demo"]) {
@@ -208,20 +216,36 @@ describe("Log Pose on boards with the copilot (#416)", () => {
 });
 
 describe("asking for Log Pose: the request view (#393)", () => {
-  const view = (access: "none" | "pending" | "denied") => renderToStaticMarkup(<RequestAccessView apiBase="/api" access={access} onSent={() => {}} />);
+  const view = (access: "none" | "pending" | "denied", spots: { freeSpots?: number; spotsLeft?: number; freeCreditUsd?: number } = {}) =>
+    renderToStaticMarkup(<RequestAccessView apiBase="/api" access={access} onSent={() => {}} {...spots} />);
 
   it("offers the form with a 500 character note to someone who hasn't asked (#393)", () => {
     const html = view("none");
-    expect(html).toContain("Request access to Log Pose");
+    expect(html).toContain("Claim your free Log Pose credit");
     expect(html).toContain('maxLength="500"');
-    expect(html).toContain("Request access</button>");
+    expect(html).toContain("Claim free credit</button>");
   });
 
   it("shows no form once a request is waiting (#393)", () => {
     const html = view("pending");
-    expect(html).toContain("Request sent.");
+    expect(html).toContain("You’re on the waitlist.");
     expect(html).not.toContain("<textarea");
     expect(html).not.toContain("<button");
+  });
+
+  it("says how many free spots are left while there are some (#446)", () => {
+    const html = view("none", { freeSpots: 50, spotsLeft: 12, freeCreditUsd: 5 });
+    expect(html).toContain("12 of 50 free spots left");
+    expect(html).toContain("Claim $5.00 of free credit every month");
+    expect(html).toContain("Claim free credit</button>");
+  });
+
+  it("offers the waitlist, naming the live number of spots, once they are all taken (#446)", () => {
+    const html = view("none", { freeSpots: 20, spotsLeft: 0 });
+    expect(html).toContain("All 20 free spots are taken. Join the waitlist and we&#x27;ll let you know.");
+    expect(html).toContain("Join the waitlist</button>");
+    expect(html).not.toContain("Claim free credit");
+    expect(html).not.toContain("free spots left");
   });
 
   it("says the request wasn't approved and offers the form again (#393)", () => {

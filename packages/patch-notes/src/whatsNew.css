@@ -1,0 +1,224 @@
+/* Theme-agnostic: text colours derive from the surrounding colour. Each app
+   maps the --wn-* tokens on .wn-card to its own palette (see its styles). */
+
+.wn-list {
+  max-width: 68ch;
+  min-width: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.wn-day {
+  margin: 0 0 1.5rem;
+}
+
+.wn-date {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor 70%, transparent);
+}
+
+.wn-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wn-note {
+  min-width: 0;
+}
+
+.wn-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.wn-tag {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.wn-text {
+  margin: 0.15rem 0 0;
+  color: color-mix(in srgb, currentColor 82%, transparent);
+}
+
+.wn-empty {
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+/* —— Once-per-update card ——
+   Fixed to the bottom-right corner, above the Log Pose compass: it overlays the page
+   instead of pushing anything, and dismissing it moves nothing. */
+
+.wn-card {
+  position: fixed;
+  /* Above the Log Pose compass (70), below its panel (90) and dialogs (2000). */
+  z-index: 80;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  /* Clear of the Log Pose compass (52px, bottom-right). */
+  bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
+  box-sizing: border-box;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(60dvh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.85rem 1rem 0.9rem;
+  border: 1px solid var(--wn-line, rgb(128 128 128 / 0.4));
+  border-radius: 14px;
+  background: var(--wn-bg, Canvas);
+  color: var(--wn-ink, CanvasText);
+  box-shadow: 0 14px 40px rgb(0 0 0 / 0.35);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.wn-card-heading {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: var(--wn-accent, inherit);
+}
+
+.wn-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wn-card-list li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wn-card-list span {
+  color: color-mix(in srgb, currentColor 78%, transparent);
+  /* Two lines of each note; the page has the full text. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.wn-card-more {
+  margin: 0.5rem 0 0;
+  color: color-mix(in srgb, currentColor 70%, transparent);
+  font-size: 0.8rem;
+}
+
+.wn-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.wn-card-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.wn-card-dismiss {
+  box-sizing: border-box;
+  min-width: 6rem;
+  min-height: 44px;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--wn-accent, currentColor);
+  border-radius: 10px;
+  background: var(--wn-accent, transparent);
+  color: var(--wn-on-accent, inherit);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wn-card-link:focus-visible,
+.wn-card-dismiss:focus-visible {
+  outline: 2px solid var(--wn-accent, currentColor);
+  outline-offset: 2px;
+}
+
+/* Phones in portrait: full width above the compass, newest title only, so the lobby's Play button stays visible. */
+@media (max-width: 520px) {
+  .wn-card {
+    left: max(1rem, env(safe-area-inset-left, 0px));
+    width: auto;
+  }
+  .wn-card-list li:nth-child(n + 2),
+  .wn-card-more {
+    display: none;
+  }
+}
+
+/* Short screens (phone landscape): a one-line bar, so it hides as little as possible. */
+@media (max-height: 460px) {
+  .wn-card {
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    right: max(4.5rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: 44rem;
+    max-height: none;
+    padding: 0.35rem 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .wn-card-heading {
+    margin: 0;
+    white-space: nowrap;
+    font-size: 0.95rem;
+  }
+  .wn-card-list {
+    flex: 1;
+    min-width: 0;
+  }
+  .wn-card-list li:nth-child(n + 2),
+  .wn-card-list span,
+  .wn-card-more {
+    display: none;
+  }
+  .wn-card-list strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wn-card-actions {
+    margin: 0;
+    gap: 0.9rem;
+  }
+  .wn-card-link,
+  .wn-card-dismiss {
+    min-height: 40px;
+  }
+}

@@ -28,8 +28,17 @@ type FixtureCard = {
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
 const CARDS = fixture<FixtureCard[]>("cards.json");
+/** DON!! catalog rows for the "Available DON!! cards" drawer. Kept out of CARDS so deck and shopping fixtures (and snapshots) stay unchanged. */
+const DON_CARDS = [
+  { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
+  { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
+  { card_id: "DON-003", name: "DON!! Card (Nami Gold)", product_id: 303, group_name: "Premium Booster" },
+].map((c) => ({ ...c, rarity: "DON", color: "", card_type: "DON!!", cost: null, market_price: 1.5, low_price: 1.1 }));
 const SALES = fixture<unknown[]>("sales.json");
 const SHARE = fixture<unknown>("share.json");
+type MetaDeckFixture = { placing: number | null; [key: string]: unknown };
+const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
+const META_DECKS = fixture<{ leader_id: string; decks: MetaDeckFixture[] }>("meta-decks.json");
 
 export const SHARE_TOKEN = "tok-oden-1";
 export const DECK_ID = 1;
@@ -50,12 +59,22 @@ type Planner = {
   audit(opts?: Parameters<typeof auditPage>[1]): Promise<AuditIssue[]>;
   /** Owned counts as the fake backend holds them. */
   owned: Map<string, number>;
+  /** Owned alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
+  altOwned: Map<string, number>;
+  /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
+  extras: Map<string, number>;
+  /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
+  noDecks(): void;
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
   errors: string[];
   /** Turn Log Pose on for this session (call before `open`): the fake chat session answers enabled. */
   enableLogPose(): void;
+  /** Sign out for this session (call before `open`): /auth/me answers null. */
+  signOut(): void;
+  /** Decks the page created through POST /decks (name and decklist as sent). */
+  createdDecks: { name: string; decklist: string }[];
   /** JSON bodies the page POSTed to the fake analyst's /chat. */
   chats: { message: string; thread_id?: number; context?: { page?: string; deck?: { leaderId: string | null; plannerDeckId?: number }; hint?: { id: string } } }[];
 };
@@ -69,9 +88,16 @@ export const test = base.extend<{ planner: Planner }>({
       if (m.type() === "error" && !/Failed to load resource|net::ERR_/.test(m.text())) errors.push(`console: ${m.text()}`);
     });
 
+    let signedIn = true;
+    const createdDecks: Planner["createdDecks"] = [];
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
+    const altOwned = new Map<string, number>();
+    const extras = new Map<string, number>();
+    let hasDecks = true;
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
+      const alt_arts = (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
+      const altsOwned = alt_arts.reduce((n, a) => n + a.owned, 0);
       return {
         card_id: c.card_id,
         name: c.name,
@@ -81,14 +107,15 @@ export const test = base.extend<{ planner: Planner }>({
         cost: c.cost,
         needed: c.needed,
         owned: o,
-        still_need: Math.max(0, c.needed - o),
+        alts_owned: altsOwned,
+        still_need: Math.max(0, c.needed - o - altsOwned),
         market_price: c.market_price,
         low_price: c.low_price,
         image_url: img(c.product_id),
         tcgplayer_url: c.product_id ? `https://www.tcgplayer.com/product/${c.product_id}` : "",
         product_id: c.product_id,
         section: c.section,
-        alt_arts: (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", wanted: 0, ...a })),
+        alt_arts,
       };
     };
     const mainCards = CARDS.reduce((s, c) => s + c.needed, 0);
@@ -103,19 +130,46 @@ export const test = base.extend<{ planner: Planner }>({
       main_cards: mainCards,
       don_cards: 0,
     });
-    const shopping = () => {
-      const items = CARDS.filter((c) => c.card_type !== "Leader").map((c) => {
+    // Mirrors the backend: still-needed copies are priced at the standard printing.
+    const remainingCost = (v: ReturnType<typeof cardView>) => Math.round(v.still_need * v.market_price * 100) / 100;
+    const shopping = (withExtras = true) => {
+      // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
+      const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
+      const fromDecks = deckCards.map((c) => {
         const v = cardView(c);
+        const extra = withExtras ? (extras.get(c.card_id) ?? 0) : 0;
+        const need = Math.max(v.needed, extra);
+        const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
         return {
-          ...v,
-          need: v.needed,
-          remaining_cost: v.still_need * v.market_price,
+          ...item,
+          remaining_cost: remainingCost(item),
           used_in: ["Oden Red/Green"],
           primary_leader_card_id: "EB01-001",
           primary_leader_name: "Kouzuki Oden",
           leader_count: 1,
+          extra_qty: extra,
+          deck_need: v.needed,
         };
       });
+      const onlyExtras = withExtras
+        ? CARDS.filter((c) => !deckCards.includes(c) && (extras.get(c.card_id) ?? 0) > 0).map((c) => {
+            const v = cardView(c);
+            const need = extras.get(c.card_id)!;
+            const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
+            return {
+              ...item,
+              remaining_cost: remainingCost(item),
+              used_in: [] as string[],
+              primary_leader_card_id: null,
+              primary_leader_name: null,
+              leader_count: 1,
+              deck_sort_key: "9999-9999-9999",
+              extra_qty: need,
+              deck_need: 0,
+            };
+          })
+        : [];
+      const items = [...fromDecks, ...onlyExtras];
       return {
         items,
         cards_still_needed: items.reduce((s, i) => s + i.still_need, 0),
@@ -211,9 +265,23 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/analyst/chat/session" && logPoseOn) {
         return json({ enabled: true, token: "t", expires_at: "2030-01-01T00:00:00Z", chat_url: "http://127.0.0.1:5180/fake-analyst" });
       }
+      if (path === "/auth/me" && !signedIn) return json(null);
+      if (path === "/meta/leaders") return json({ ...META_LEADERS, days: Number(new URL(req.url()).searchParams.get("days") ?? 30) });
+      if (path === "/meta/decks") {
+        const q = new URL(req.url()).searchParams;
+        const top = Number(q.get("top") ?? 0);
+        const same = q.get("leader") === META_DECKS.leader_id;
+        return json({ ...META_DECKS, decks: same ? META_DECKS.decks.filter((d) => !top || (d.placing !== null && d.placing <= top)) : [] });
+      }
+      if (path === "/decks" && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as { name: string; decklist: string };
+        createdDecks.push(body);
+        return json({ id: DECK_ID, name: body.name, leader_card_id: "OP17-039", card_count: 0, total_cards: 0, sort_order: 1 });
+      }
       if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false });
       if (path === "/decks") {
         const d = deckDetail();
+        if (!hasDecks) return json([]);
         return json([
           {
             id: DECK_ID,
@@ -232,12 +300,20 @@ export const test = base.extend<{ planner: Planner }>({
         ]);
       }
       if (path === `/decks/${DECK_ID}`) return json(deckDetail());
-      if (path === "/shopping") return json(shopping());
+      if (path === "/shopping") return json(shopping(new URL(req.url()).searchParams.get("extras") !== "false"));
+      if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!);
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        if (qty > 0) extras.set(cardId, qty);
+        else extras.delete(cardId);
+        return json({ card_id: cardId, qty });
+      }
       if (path === "/share/shopping") return json(null);
       if (path === "/owned" && method === "GET") {
         const items = CARDS.filter((c) => (owned.get(c.card_id) ?? 0) > 0).map((c) => {
           const v = cardView(c);
-          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"] };
+          const buying = shopping().items.find((i) => i.card_id === c.card_id)?.still_need ?? 0;
+          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"], buying };
         });
         return json({
           items,
@@ -249,7 +325,17 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/catalog/cards") {
         // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
-        const q = (new URL(req.url()).searchParams.get("q") ?? "").toLowerCase();
+        const params = new URL(req.url()).searchParams;
+        const q = (params.get("q") ?? "").toLowerCase();
+        if ((params.get("card_type") ?? "").toLowerCase().includes("don")) {
+          return json(
+            DON_CARDS.filter((c) => `${c.card_id} ${c.name} ${c.group_name}`.toLowerCase().includes(q)).map((c) => ({
+              ...c,
+              image_url: img(c.product_id),
+              tcgplayer_url: "",
+            })),
+          );
+        }
         if (!q) return json([]);
         return json(
           CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
@@ -266,6 +352,14 @@ export const test = base.extend<{ planner: Planner }>({
             group_name: "Extra Booster: Memorial Collection",
           })),
         );
+      }
+      // Alt-art copies owned: PUT /owned/:card/printings/:product (must match before /owned/:card).
+      if ((m = path.match(/^\/owned\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!).toUpperCase();
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        if (qty > 0) altOwned.set(`${cardId}:${m[2]}`, qty);
+        else altOwned.delete(`${cardId}:${m[2]}`);
+        return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
@@ -311,9 +405,18 @@ export const test = base.extend<{ planner: Planner }>({
 
     await use({
       owned,
+      altOwned,
+      extras,
+      noDecks() {
+        hasDecks = false;
+      },
       requests,
       errors,
       chats,
+      createdDecks,
+      signOut() {
+        signedIn = false;
+      },
       enableLogPose() {
         logPoseOn = true;
       },

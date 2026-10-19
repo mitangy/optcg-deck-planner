@@ -85,7 +85,7 @@ def test_lowering_need_auto_clamps_alt_wants(db):
     assert all(a.wanted == 0 for a in detail.cards[0].alt_arts)
 
 
-def test_shopping_merges_max_alt_wants_and_prices_alts(db):
+def test_shopping_merges_max_alt_wants_but_prices_standard_only_625(db):
     user = make_user(db, email="c@t.com", name="C", sub="c")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.2)
     add_catalog(db, "OP01-016", name="Nami", product_id=100, market=18.0, special=True)
@@ -100,14 +100,14 @@ def test_shopping_merges_max_alt_wants_and_prices_alts(db):
     assert item.still_need == 4
     aa = next(a for a in item.alt_arts if a.product_id == 100)
     assert aa.wanted == 2  # max across decks
-    # 2×AA + 2×standard
-    assert item.remaining_cost == round(2 * 18.0 + 2 * 1.2, 2)
+    # Wants no longer steer planner cost: everything still needed is standard.
+    assert item.remaining_cost == round(4 * 1.2, 2)
 
     set_owned(db, user, "OP01-016", 3)
     shop = shopping_list(db, user)
     item = next(i for i in shop.items if i.card_id == "OP01-016")
     assert item.still_need == 1
-    assert item.remaining_cost == 18.0  # remaining 1 allocated to AA want
+    assert item.remaining_cost == 1.2
 
 
 def test_set_user_card_printing_syncs_across_decks(db):
@@ -193,7 +193,7 @@ def test_set_user_card_printing_splits_across_leaders_when_summing(db):
     item, wanted = _shop_alt_want(db, user, "OP01-016", 100)
     assert wanted == 5
     assert _alt_rows(db, "OP01-016") == {luffy_a.id: 4, luffy_b.id: 2, sabo.id: 1}
-    assert item.remaining_cost == round(5 * 10.0 + 2 * 1.0, 2)
+    assert item.remaining_cost == 7.0  # wants no longer change planner cost (#625)
 
     # Asking for more than fits caps at the combined Need.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 99)

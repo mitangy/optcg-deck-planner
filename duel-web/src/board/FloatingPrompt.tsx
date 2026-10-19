@@ -6,6 +6,11 @@ import { useClickCopy } from "./clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
+import { captureHideShrink } from "./hideShrink";
+import { PopupSizeButtons } from "./PopupSizeButtons";
+import { useFitPopupScale } from "./useFitPopupScale";
+import { usePromptDrag } from "./promptDrag";
+import { useDuelSettings } from "../settings";
 
 /**
  * Floating-card prompts (always on in matches; `/demo?box` shows the pop-up fallback): instead of a pop-up panel,
@@ -15,6 +20,9 @@ import { BackPill, promptSourceName } from "./HideablePrompt";
  */
 
 /** Pending choices this prototype can float; everything else keeps the pop-up. */
+
+/** The effect-order pop-up drags like the others but does not dock (#449). */
+const FLOATING_NO_DOCK = { side: "" as const, dockable: false, setSide: () => undefined };
 export function canFloat(choice: PendingChoiceView): boolean {
   if (choice.kind === "order_effects") return (choice.unorderedChoices?.length ?? 0) > 1;
   const request = choice.request;
@@ -119,7 +127,7 @@ function useFloatReorder(order: readonly string[], onReorder: (next: string[]) =
     "data-float-id": id,
     onPointerDown: (e: ReactPointerEvent) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
-      if ((e.target as HTMLElement).closest(".float-nudge, .card-inspect-chip")) return;
+      if ((e.target as HTMLElement).closest(".float-nudge")) return;
       press.current = { id, x: e.clientX, y: e.clientY };
     },
     onClickCapture: (e: ReactMouseEvent) => {
@@ -144,16 +152,23 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   actions: ReactNode;
 }) {
   const name = choice.kind === "order_effects" ? "Order effects" : sourceName(choice);
-  if (peek) {
-    return <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />;
-  }
-  return (
-    <div className="float-layer" role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
-      <div className="float-scrim" aria-hidden />
-      <div className="float-stage">
+  // No floating prompt dims the board (#449, #542): the cards hover over it and the board behind
+  // the empty parts stays visible and clickable. Effect ordering is also a free-standing pop-up
+  // like the other choice prompts: its header drags it (promptPos).
+  const free = choice.kind === "order_effects";
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  useFitPopupScale(stageRef);
+  const layer = peek ? (
+    <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
+  ) : (
+    <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
+      <div ref={stageRef} className={`float-stage${free ? " float-stage-free" : ""}`}>
         <div className="float-head">
           <strong>{name}</strong>
           <span className="float-prompt">{choice.prompt}</span>
+          <PopupSizeButtons className="float-size-btn" />
         </div>
         {children}
         <div className="float-axis" aria-hidden>
@@ -163,13 +178,28 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
         </div>
         {note ? <div className="float-note">{note}</div> : null}
         <div className="float-actions">
-          <button type="button" className="btn btn-secondary float-peek" onClick={() => onPeek(true)}>
+          <button
+            type="button"
+            className="btn btn-secondary float-peek"
+            onClick={(e) => {
+              // The stage is the visible box; its layer spans the screen (#587).
+              captureHideShrink(e.currentTarget.closest(".float-stage"));
+              onPeek(true);
+            }}
+          >
             Hide
           </button>
           {actions}
         </div>
       </div>
     </div>
+  );
+  return free ? (
+    <div ref={wrapRef} className="prompt-hide-wrap">
+      {layer}
+    </div>
+  ) : (
+    layer
   );
 }
 

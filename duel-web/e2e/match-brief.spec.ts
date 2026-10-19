@@ -11,7 +11,7 @@
  * Brief button, the panel is dragged by its header and resized from its corner on a wide screen and stays on
  * screen and remembered, and an untouched self-opened panel folds away when the first turn starts.
  */
-import { test, expect, mintGameToken, FAKE_API, type Page } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
 const PAGE_ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
@@ -69,6 +69,16 @@ async function expectNoSidewaysScroll(page: Page) {
 
 type Kind = "desktop" | "portrait" | "landscape";
 
+/**
+ * The panel has finished opening. It opens with a transform animation (it grows out of the compass, or slides in from
+ * its edge), and a box measured before that ends is one frame of the animation, not where the panel sits: CI caught
+ * the phone sheet's bottom edge at 813.4 in an 812px viewport while it was still sliding in. A settled panel is whole
+ * pixels, so everything below is measured only once the panel has no animation left.
+ */
+async function popSettled(panel: ReturnType<Page["locator"]>) {
+  await expect.poll(() => panel.evaluate((el) => el.getAnimations().length), { message: "the panel's open animation has finished" }).toBe(0);
+}
+
 /** The point at the middle of `box` belongs to `el` (nothing, such as a panel, sits on top of it). */
 async function reachable(page: Page, el: ReturnType<Page["locator"]>) {
   const box = (await el.boundingBox())!;
@@ -119,8 +129,7 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
     expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
     expect(b.y + b.height).toBeLessThanOrEqual(vp.height + 1);
   };
-  // Measure the sheet where it settles, not partway through its slide-in.
-  await panel.evaluate((el) => Promise.all(el.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished)));
+  await popSettled(panel);
   inside((await panel.boundingBox())!);
   const briefBox = (await brief.boundingBox())!;
   const panelBox = (await panel.boundingBox())!;
@@ -175,8 +184,7 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
 
   // Opening hands kept: the panel is put away first on a phone, which it would cover.
   if (await panel.isVisible()) await closePanel();
-  await keep.click();
-  await keep.click();
+  await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
   await expect(trigger).toBeVisible();
   await page.screenshot({ path: test.info().outputPath(`${shot}-turn1.png`) });
@@ -204,8 +212,9 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   const near = (a: number, b: number, why: string, tol = 2) => expect(Math.abs(a - b), `${why}: ${a} vs ${b}`).toBeLessThanOrEqual(tol);
 
   // Shrink it from the top-left corner; the bottom-right corner stays where it was.
+  await popSettled(panel);
   const start = (await panel.boundingBox())!;
-  const handle = panel.locator(".lp-resize-corner");
+  const handle = panel.locator(".lp-resize-top-left");
   const dw = 60;
   const dh = 120;
   await drag(handle, dw, dh);
@@ -232,12 +241,12 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   await page.screenshot({ path: test.info().outputPath(`${shot}-moved.png`) });
 
   // The header's buttons still work, and pushing the panel past the edge stops at the edge.
-  await drag(panel.locator("#lp-title"), -5000, -5000);
+  await drag(panel.locator("#lp-title"), 0, -5000);
   onScreen((await panel.boundingBox())!);
-  await drag(panel.locator("#lp-title"), mx * -1 + 5000, 5000);
+  // (Pulling it to the left or right edge docks it in the board's column instead, #432.)
+  await drag(panel.locator("#lp-title"), 0, 5000);
   const corner = (await panel.boundingBox())!;
   onScreen(corner);
-  near(corner.x + corner.width, vp.width, "stops at the right edge");
   near(corner.y + corner.height, vp.height, "stops at the bottom edge");
   await drag(panel.locator("#lp-title"), mx, my);
   const placed = (await panel.boundingBox())!;
@@ -249,6 +258,7 @@ async function moveAndResize(page: Page, panel: ReturnType<Page["locator"]>, sta
   await expect(panel).toBeVisible();
   // The panel slides in for a moment: wait for it to settle before measuring.
   await expect.poll(async () => Math.abs((await panel.boundingBox())!.x - placed.x)).toBeLessThanOrEqual(1);
+  await popSettled(panel);
   const kept = (await panel.boundingBox())!;
   for (const k of ["x", "y", "width", "height"] as const) near(kept[k], placed[k], `kept ${k}`, 1);
   await stable("after reopening the panel");
@@ -289,9 +299,7 @@ test("the panel that opened itself for the mulligan folds away when the first tu
   await duel.startPractice({ seed: 11 });
   const panel = page.getByRole("dialog", { name: /Log Pose/ });
   await expect(panel).toBeVisible();
-  const keep = page.getByRole("button", { name: "Keep opening hand" });
-  await keep.click();
-  await keep.click();
+  await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
   await expect(panel).toHaveCount(0);
 });
@@ -304,10 +312,10 @@ test("a panel the player opened or used stays open when the first turn starts (#
   await expect(panel).toBeVisible();
   // Touching the panel (here, folding the brief) makes it the player's.
   await panel.getByRole("button", { name: /^Matchup brief/ }).click();
-  const keep = page.getByRole("button", { name: "Keep opening hand" });
-  await keep.click();
-  await keep.click();
+  await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
+  // A panel that folds away shrinks into the compass for ~200ms before it goes (#432): look after that.
+  await page.waitForTimeout(600);
   await expect(panel).toBeVisible();
 });
 
@@ -330,7 +338,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   await spec.route(`${FAKE_API}/health`, (route) => route.fulfill({ json: { ok: true } }));
   await spec.goto("/");
   await spec.getByRole("button", { name: "Play", exact: true }).click();
-  await spec.getByRole("button", { name: /^Spectate/ }).click();
+  await spec.getByRole("dialog").getByRole("button", { name: /^Spectate/ }).click();
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
   await expect(spec.locator(".board-root")).toBeVisible({ timeout: 30_000 });

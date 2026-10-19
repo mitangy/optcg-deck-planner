@@ -29,7 +29,7 @@ export const CARD_SOURCE_RECORDS: Readonly<Record<CardDefId, CardSourceRecord>> 
       cardDefId,
       sourceUrl: row.sourceUrl || null,
       sourceRevision: official ? CARD_DATA_CANDIDATE : null,
-      fields: Object.freeze({ identity: v, rulesText: v, stats: v, counter: v, traits: official ? "verified" : "unknown", errata: "unknown" }),
+      fields: Object.freeze({ identity: v, rulesText: v, stats: v, counter: v, traits: official ? "verified" : row.source === "tcgplayer" ? "unverified" : "unknown", errata: "unknown" }),
     })];
   })),
 );

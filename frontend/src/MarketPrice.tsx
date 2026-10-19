@@ -134,19 +134,87 @@ export function MarketPrice({
   );
 }
 
+/** Base art shown as the small "Base" tile once an alt art is the main image. */
+export type BaseArt = {
+  name: string;
+  image_url?: string;
+  market_price: number | null | undefined;
+  product_id?: number | null;
+};
+
+function AltStepper({
+  caption,
+  verb,
+  name,
+  value,
+  busy,
+  disableInc = false,
+  incTitle,
+  onChange,
+}: {
+  caption: string;
+  verb: string;
+  name: string;
+  value: number;
+  busy: boolean;
+  disableInc?: boolean;
+  incTitle?: string;
+  onChange: (qty: number) => void;
+}) {
+  return (
+    <span className="alt-want-controls">
+      <span className="alt-want-caption">{caption}</span>
+      <span className="owned-wrap alt-want-wrap">
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Decrease ${verb} for ${name}`}
+          disabled={busy || value <= 0}
+          onClick={() => onChange(Math.max(0, value - 1))}
+        >
+          −
+        </button>
+        <span className="alt-want-qty" aria-label={`${name} ${verb === "owned" ? "owned" : "wanted"}`}>
+          {value}
+        </span>
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Increase ${verb} for ${name}`}
+          disabled={busy || disableInc}
+          title={incTitle}
+          onClick={() => onChange(value + 1)}
+        >
+          +
+        </button>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Alt-art tiles for a card. Planner pages edit how many copies of each alt the
+ * user owns (`onOwnedChange`). Group buys keep their per-order wants
+ * (`onWantChange`, capped by `cardNeeded`). `base` prepends a "Base" tile when
+ * an owned alt has taken over as the main image.
+ */
 export function AltArtsRow({
   alts,
   cardNeeded,
   editable = false,
+  onOwnedChange,
   onWantChange,
   busyProductId = null,
+  base = null,
 }: {
   alts: PrintingView[] | null | undefined;
-  /** Deck Need for this card; used to disable + when alt wants are at the cap. */
+  /** Group buys only: the want cap. */
   cardNeeded?: number;
   editable?: boolean;
+  onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
   busyProductId?: number | null;
+  base?: BaseArt | null;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
@@ -155,45 +223,53 @@ export function AltArtsRow({
 
   return (
     <div className="alt-arts">
+      {base && (
+        <div className="alt-art alt-art-base">
+          <CardThumb src={base.image_url || undefined} alt={`${base.name} base art`} />
+          <div className="alt-meta">
+            <MarketPrice price={base.market_price} productId={base.product_id} />
+            <span className="alt-base-label">Base</span>
+          </div>
+        </div>
+      )}
       {list.map((alt) => {
         const wanted = alt.wanted ?? 0;
+        const owned = alt.owned ?? 0;
         const busy = busyProductId === alt.product_id;
         return (
           <div key={alt.product_id} className="alt-art">
             <CardThumb src={alt.image_url || undefined} alt={alt.name} />
             <div className="alt-meta">
               <MarketPrice price={alt.market_price} productId={alt.product_id} />
-              {editable && onWantChange ? (
-                <span className="alt-want-controls">
-                  <span className="alt-want-caption">Want</span>
-                  <span className="owned-wrap alt-want-wrap">
-                    <button
-                      type="button"
-                      className="owned-btn"
-                      aria-label={`Decrease want for ${alt.name}`}
-                      disabled={busy || wanted <= 0}
-                      onClick={() => onWantChange(alt.product_id, Math.max(0, wanted - 1))}
-                    >
-                      −
-                    </button>
-                    <span className="alt-want-qty" aria-label={`${alt.name} wanted`}>
-                      {wanted}
-                    </span>
-                    <button
-                      type="button"
-                      className="owned-btn"
-                      aria-label={`Increase want for ${alt.name}`}
-                      disabled={busy || atCap}
-                      title={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
-                      onClick={() => onWantChange(alt.product_id, wanted + 1)}
-                    >
-                      +
-                    </button>
+              {editable && onOwnedChange ? (
+                <AltStepper
+                  caption="Owned"
+                  verb="owned"
+                  name={alt.name}
+                  value={owned}
+                  busy={busy}
+                  onChange={(qty) => onOwnedChange(alt.product_id, qty)}
+                />
+              ) : editable && onWantChange ? (
+                <AltStepper
+                  caption="Want"
+                  verb="want"
+                  name={alt.name}
+                  value={wanted}
+                  busy={busy}
+                  disableInc={atCap}
+                  incTitle={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
+                  onChange={(qty) => onWantChange(alt.product_id, qty)}
+                />
+              ) : onWantChange ? (
+                wanted > 0 ? (
+                  <span className="alt-want-label" title="Wanted for play in deck">
+                    Want ×{wanted}
                   </span>
-                </span>
-              ) : wanted > 0 ? (
-                <span className="alt-want-label" title="Wanted for play in deck">
-                  Want ×{wanted}
+                ) : null
+              ) : owned > 0 ? (
+                <span className="alt-want-label" title="Copies of this alt you own">
+                  Own ×{owned}
                 </span>
               ) : null}
               {alt.tcgplayer_url ? (

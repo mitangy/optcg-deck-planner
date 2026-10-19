@@ -32,6 +32,19 @@ export async function preferFan(page: Page): Promise<void> {
 }
 
 /** 50-card mono-red list of plain Characters: games are decided by attacks, not effects. */
+/**
+ * Practice: both players keep their opening hands. The device passes to the second player after the first keeps, so
+ * the second tap waits for that; tapped straight away it can land on the first player's button again (#445).
+ */
+export async function keepBothHands(page: Page): Promise<void> {
+  const root = page.locator(".board-root");
+  const keep = page.getByRole("button", { name: "Keep opening hand" });
+  const first = (await root.getAttribute("data-seat")) ?? "";
+  await keep.click();
+  await expect(root).not.toHaveAttribute("data-seat", first);
+  await keep.click();
+}
+
 export const RED_VANILLA: DeckList = {
   leaderId: "ST01-001",
   cards: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "OP12-002"].flatMap((id) => [id, id, id, id]),
@@ -47,16 +60,88 @@ export function mintGameToken(uid: number, name: string): string {
   return `${body}.${b64url(createHmac("sha256", GAME_TOKEN_SECRET).update(body).digest())}`;
 }
 
+export type FakeAccount = { uid: number; name: string; username?: string };
+
+/**
+ * Make `page` a signed-in browser: the fake `/auth/me` answers as `account` and
+ * `/duel/token` mints that account's game token, so a second browser context
+ * given the same account is the same player on another device (#451). Other
+ * paths fall through to whatever route was registered before this one (the
+ * `duel` fixture's guest-token mint), then to a 404 so the lobby panels stay empty.
+ */
+export async function signInAs(page: Page, account: FakeAccount): Promise<void> {
+  const user = { id: account.uid, email: `${account.name}@e2e.test`, name: account.name, username: account.username ?? account.name };
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/auth/me") return route.fulfill({ json: user });
+    if (path === "/duel/token") {
+      return route.fulfill({
+        json: { token: mintGameToken(account.uid, account.name), expires_at: 0, user_id: account.uid, email: user.email, rating: 1000, games_played: 0 },
+      });
+    }
+    if (path === "/duel/rating/me") {
+      return route.fulfill({ json: { user_id: account.uid, ...user, rating: 1000, games_played: 0, wins: 0, losses: 0, rank: null } });
+    }
+    if (path === "/duel/leaderboard") return route.fulfill({ json: { entries: [] } });
+    if (path === "/duel/matches/me") return route.fulfill({ json: { matches: [] } });
+    if (path === "/friends") return route.fulfill({ json: { friends: [], incoming: [], outgoing: [], invites: [] } });
+    return route.fallback();
+  });
+}
+
+/** Seed the saved decks a lobby needs before it can start anything. */
+export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promise<void> {
+  await page.addInitScript((d) => {
+    if (sessionStorage.getItem("e2e-seeded")) return;
+    sessionStorage.setItem("e2e-seeded", "1");
+    localStorage.clear();
+    localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id: "e2e-you", name: "E2E You", ...d, updatedAt: 1 }]));
+    localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
+  }, you);
+}
+
 type Duel = {
   /** Lobby → Practice → Start practice, with fixed decks and a fixed shuffle seed. */
-  startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList }): Promise<void>;
+  /** `storage` is written to localStorage after the profile is cleared, before the app loads. */
+  startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList; storage?: Record<string, string> }): Promise<void>;
   /** Audit the current screen; issues matching `known` keys are dropped. */
   audit(opts?: { ignore?: string[] }): Promise<AuditIssue[]>;
   /** Page errors and console errors collected so far (network noise excluded). */
   errors: string[];
 };
 
-export const test = base.extend<{ duel: Duel }>({
+export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
+  /**
+   * Specs written before #529 expect the two-column board with the card preview docked in a column; this
+   * fills those two settings in (never over a value the spec stored itself). Specs written before #556 also
+   * expect the normal-size board with the buttons floating between the mats (Bigger playing area and Buttons
+   * beside the board are on by default now), so those two are turned off here too. A spec about the new
+   * defaults turns it off with `test.use({ legacyLayout: false })`.
+   */
+  legacyLayout: [true, { option: true }],
+  page: async ({ page, legacyLayout }, use) => {
+    if (legacyLayout) {
+      const goto = page.goto.bind(page);
+      let seeded = false;
+      page.goto = (async (...args: Parameters<typeof goto>) => {
+        if (!seeded) {
+          seeded = true;
+          await page.addInitScript(() => {
+            try {
+              const key = "optcg-duel:settings";
+              const cur = JSON.parse(localStorage.getItem(key) || "{}");
+              localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, bigBoard: false, bigBoardChosen: true, actionsBeside: false, ...cur }));
+            } catch {
+              /* storage blocked: the board keeps its defaults */
+            }
+          });
+        }
+        return goto(...args);
+      }) as typeof page.goto;
+    }
+    await use(page);
+  },
   duel: async ({ page }, use) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -83,7 +168,7 @@ export const test = base.extend<{ duel: Duel }>({
 
     const duel: Duel = {
       errors,
-      async startPractice({ seed, you = RED_VANILLA, opponent = RED_VANILLA }) {
+      async startPractice({ seed, you = RED_VANILLA, opponent = RED_VANILLA, storage = {} }) {
         // The browser never sends a seed; add one to the room-create request so
         // shuffles (and therefore the whole game) repeat run to run.
         await page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
@@ -94,16 +179,17 @@ export const test = base.extend<{ duel: Duel }>({
           { id: "e2e-you", name: "E2E You", ...you, updatedAt: 1 },
           { id: "e2e-opp", name: "E2E Opponent", ...opponent, updatedAt: 0 },
         ];
-        await page.addInitScript((d) => {
+        await page.addInitScript(([d, extra]) => {
           if (sessionStorage.getItem("e2e-seeded")) return;
           sessionStorage.setItem("e2e-seeded", "1");
           localStorage.clear();
           localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
           localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-        }, decks);
+          for (const [k, v] of Object.entries(extra as Record<string, string>)) localStorage.setItem(k, v);
+        }, [decks, storage] as const);
         await page.goto("/");
         await page.getByRole("button", { name: "Play", exact: true }).click();
-        await page.getByRole("button", { name: /^Practice/ }).click();
+        await page.getByRole("dialog").getByRole("button", { name: /^Practice/ }).click();
         await page.getByLabel("Opponent deck").selectOption("e2e-opp");
         await page.getByRole("button", { name: "Start practice" }).click();
         await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });

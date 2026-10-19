@@ -20,6 +20,8 @@ def chat(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "Someone@else.example, DEV@localhost")
     monkeypatch.setenv("ANALYST_CHAT_DAILY_USD", "1.0")
     monkeypatch.setenv("ANALYST_CHAT_MONTHLY_USD", "5.0")
+    # No free spots here: requests wait for an owner, as the access tests expect (#446 tests turn spots on).
+    monkeypatch.setenv("ANALYST_FREE_SPOTS", "0")
     get_settings.cache_clear()
     yield analyst
     get_settings.cache_clear()
@@ -245,14 +247,15 @@ def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
     """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    _zoro_vs_lucci(c, "g", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
+    # A match id no opaque id can contain by chance (they are letters and digits only).
+    _zoro_vs_lucci(c, "secret-match-", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
     r = c.get("/analyst/corpus/games", params={"leader": LUCCI}, headers=SERVICE)
     assert r.status_code == 200, r.text
     out = r.json()
     assert out["total"] == 1
     game = out["games"][0]
     assert game["A"]["leader"] == LUCCI and game["A"]["won"] is True and game["B"]["leader"] == ZORO
-    assert game["game_id"].startswith("g_") and "g0" not in str(game) and "alice" not in str(game)
+    assert game["game_id"].startswith("g_") and "secret-match" not in str(game) and "alice" not in str(game)
     assert game["A"]["rating_band"].endswith("99")
 
     replay = c.get(f"/analyst/corpus/games/{game['game_id']}/replay", headers=SERVICE).json()
@@ -358,3 +361,44 @@ def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
     assert view[3]["proposals"][0] == _edit("t1")
     # The model's own history is unchanged.
     assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
+
+
+def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
+    """Everyone with the chat sees the model; PUT is for ANALYST_MODEL_ADMIN_EMAILS only, and only for offered models (#428)."""
+    c, _ = chat
+    _session(c)  # DEV@localhost is a chat owner but not the model admin
+    got = c.get("/analyst/settings/model").json()
+    assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"], "can_edit": False}
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 403
+    assert c.get("/analyst/settings/model").json()["model"] == "claude-sonnet-5-5"
+
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", " dev@LOCALHOST ")
+    get_settings.cache_clear()
+    assert c.get("/analyst/settings/model").json()["can_edit"] is True
+    assert c.put("/analyst/settings/model", json={"model": "gpt-5"}).status_code == 422
+    r = c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"})
+    assert r.status_code == 200 and r.json()["model"] == "claude-opus-5-5" and r.json()["can_edit"] is True
+
+
+def test_the_model_admin_can_pick_either_haiku_430(chat, monkeypatch):
+    """Haiku 5.5 and 4.5 are offered too; the saved choice is what the setting and the budget report (#430)."""
+    c, _ = chat
+    _, body = _session(c)
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    for model in ("claude-haiku-5-5", "claude-haiku-4-5"):
+        r = c.put("/analyst/settings/model", json={"model": model})
+        assert r.status_code == 200 and r.json()["model"] == model
+        assert c.get("/analyst/settings/model").json()["model"] == model
+        assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == model
+
+
+def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):
+    """The analyst learns the model on the budget call it already makes, the same for every player (#428)."""
+    c, _ = chat
+    _, body = _session(c)
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-sonnet-5-5"
+    monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
+    get_settings.cache_clear()
+    assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 200
+    assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-opus-5-5"

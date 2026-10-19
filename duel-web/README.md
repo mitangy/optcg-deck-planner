@@ -96,6 +96,12 @@ Official card names and Bandai cardlist art URLs are for **private prototype tes
 
 The curated atlas prefers **TCGPlayer CDN** URLs (`tcgplayer-cdn.tcgplayer.com/product/{id}_400w.jpg`), same as the deck planner. Regenerate with `cd packages/rules && npm run export-atlas` (also writes `duel-web/src/assets/tcgProducts.json` for runtime stubs). Local `/cards/` mirrors remain a fallback when no product id is mapped. Bandai cardlist hotlinks are blocked in browsers (CORP) and must not ship in atlas `imageUrl`.
 
+### Preview art for new cards
+
+After importing new cards and running `export-atlas`, run `python3 scripts/sync_preview_art.py` (`--dry-run` to see the plan). Cards TCGPlayer has no image for yet get an unofficial preview in `public/cards/preview/<ID>.webp`, listed in `src/cards/previewArt.json`. The scan comes from onepiecetopdecks.com when it has one (higher resolution, converted to WebP with Pillow, height capped at 900) and from opdeckguide.com otherwise, or when Pillow is not installed; kept previews under 600px tall are upgraded from Top Decks on later runs. The app shows it only after the TCGPlayer image fails (or when a card has no image URL at all). The script also deletes previews whose card now has TCGPlayer art, so re-run it after each art sync and commit the result.
+
+Alternate-art printings TCGPlayer lists after the catalog was built are added by `python3 scripts/sync_alt_arts.py` (`--dry-run` first; needs Pillow; any product with a picture whose art differs by the dHash rule counts as an alt, including promo, event and pack printings (Dash Pack, Wanted Poster, anniversary sets, Judge/Regional packs...), labelled from the last parenthesised part of its name or `Promo`; a picture-less product still needs a name marker such as Alternate Art or SP; append-only so saved art choices keep their `p1`/`p2` ids). Alts that still have no TCGPlayer image get a preview from `sync_preview_art.py` as `public/cards/preview/p<productId>.webp`, listed in `src/cards/previewArtAlts.json`; when that alt's image fails the app shows it before the card's own preview. Run the alt sync, then the preview sync, and commit both.
+
 ## Tests
 
 ```bash

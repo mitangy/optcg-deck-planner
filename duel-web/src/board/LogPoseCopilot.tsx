@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useLogPose, useLogPoseGame, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
+import { ticketGameKey, useLogPose, useLogPoseGame, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
 import { lookupCard } from "../cards/atlas";
 import { setBoardCopilot } from "../logPose";
 import type { BriefTicketWire, Intent, PlayerView, Seat } from "../net/protocol";
@@ -11,6 +11,7 @@ import {
   buildSnapshot,
   copilotAvailable,
   copilotShown,
+  gameAttached,
   planCardMode,
   playBlockReason,
   recentLog,
@@ -168,10 +169,10 @@ export function TurnPlanCard({
 }
 
 /** Subscribes one card to the shared run, so it follows the plan without the panel re-registering anything. */
-function PlanCardConnector({ plan, store, actions, ctx }: { plan: TurnPlan; store: Store; actions: Actions; ctx: { busy: boolean; ask: (text: string) => void } }) {
+function PlanCardConnector({ plan, store, actions, gameKey, ctx }: { plan: TurnPlan; store: Store; actions: Actions; gameKey: string | null; ctx: { busy: boolean; ask: (text: string) => void } }) {
   const snap = useSyncExternalStore(store.subscribe, store.get, store.get);
   const own = snap.run?.plan.id === plan.id ? snap.run : (snap.finished[plan.id] ?? null);
-  const mode = planCardMode(plan, own, snap.run, snap.view);
+  const mode = planCardMode(plan, own, snap.run, snap.view, gameKey);
   return (
     <TurnPlanCard
       plan={plan}
@@ -254,17 +255,22 @@ export function useLogPoseCopilot(o: {
   };
   // Offered: the plan, its card and the panel stay. Shown: the button too, on the ticket's own seat's view only.
   const offered = copilotAvailable(gate);
+  // Attached: the live game is Log Pose's context, also when only the matchup brief opened its panel (no copilot setting).
+  const attached = gameAttached({ ...gate, briefSetting: settings.matchBrief });
   const shown = copilotShown({ ...gate, viewSeat: view?.seat });
 
   const store = useMemo(createStore, []);
   const ticketRef = useRef<string | null>(null);
   ticketRef.current = brief?.ticket ?? null;
+  const gameKeyNow = () => (ticketRef.current ? ticketGameKey(ticketRef.current) : null);
   const viewRef = useRef(view);
   viewRef.current = view;
   const logRef = useRef(o.battleLog);
   logRef.current = o.battleLog;
   const sendRef = useRef(o.onSendIntent);
   sendRef.current = o.onSendIntent;
+  const planningRef = useRef(offered);
+  planningRef.current = offered;
   const ticketSeatRef = useRef(o.ticketSeat);
   ticketSeatRef.current = o.ticketSeat;
 
@@ -278,7 +284,7 @@ export function useLogPoseCopilot(o: {
       play: (plan) => {
         const { view: v, run } = store.get();
         const cur = viewRef.current ?? v;
-        if (!cur || playBlockReason(plan, cur, run) !== null) return;
+        if (!cur || playBlockReason(plan, cur, run, gameKeyNow()) !== null) return;
         apply(startRun(plan), cur);
       },
       stop: () => {
@@ -305,13 +311,13 @@ export function useLogPoseCopilot(o: {
         if (!v || !ticket || v.seat !== ticketSeatRef.current) return null;
         const battle = v.battle ? describeBattle(v, (defId) => lookupCard(defId).name, true) : null;
         const log = recentLog(logRef.current);
-        return { ticket, snapshot: buildSnapshot(v, battle, v.pendingChoices?.[0]), ...(log.length ? { log } : {}) };
+        return { ticket, snapshot: buildSnapshot(v, battle, v.pendingChoices?.[0]), plans: planningRef.current, ...(log.length ? { log } : {}) };
       },
-      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} ctx={ctx} />,
+      renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} gameKey={gameKeyNow()} ctx={ctx} />,
     }),
     [store, actions],
   );
-  useLogPoseGame(offered ? game : null);
+  useLogPoseGame(attached ? game : null);
 
   // Log Pose may open over the board while the copilot is on.
   useEffect(() => {

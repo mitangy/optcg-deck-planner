@@ -93,6 +93,8 @@ function card(id: string, patch: Draft[], drop?: string[]): [string, ManualEntry
 // Entries
 // ---------------------------------------------------------------------------
 
+const VEGAPUNK_TO_LIFE: Effect = { do: "to_life", target: v("_s"), position: "top", faceUp: true };
+
 const ENTRIES: [string, ManualEntry][] = [
   card("EB01-020", [{ trigger: "main", text: "[Main] If your Leader has the {Supernovas} type, return 1 of your Characters",
     effect: when(leaderTrait("Supernovas"), seq(
@@ -132,13 +134,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("EB04-044", [{ trigger: "replacement", oncePerTurn: true, text: "[Once Per Turn] If your Leader's type includes \"Navy\" and this Character would be removed",
     conditions: [leaderTraitIncludes("Navy")],
     replacement: { event: "removed", target: "self", instead: { do: "pay", costs: [{ k: "trash_hand", count: 1 }], then: { do: "nothing" } }, optional: true } }]),
-  card("EB05-005", [{ trigger: "on_play", text: "[On Play] Up to 3 of your Characters with both",
-    effect: power(upTo(3, myChar({ traits: ["Revolutionary Army"], hasTrigger: true })), 2000) }], ["[Trigger] gain +2000 power"]),
-  card("EB05-010", [{ trigger: "on_event", oncePerTurn: true, text: "[Once Per Turn] When one of your Characters with the <Wisdom> attribute",
-    eventTrigger: { event: "character_ko", player: "you", filter: { attributes: ["Wisdom"], textExcludes: ["[Blocker]"] } },
-    effect: { do: "deck_to_life", player: "you", count: 1 } }]),
-  card("EB05-057", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] Give up to 1 rested DON!! card to 1 of your Leader",
-    effect: { do: "give_don", target: exactly(1, myLeaderOrChar({ attributes: ["Special", "Wisdom"] })), count: 1, donState: "rested" } }]),
   card("OP01-002", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] [RDON 2] If you have 5 Characters",
     costs: [{ k: "rest_don", count: 2 }],
     effect: when(exists(myChar(), 5), seq(
@@ -188,9 +183,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP05-001", [{ trigger: "replacement", don: 1, oncePerTurn: true, text: "[DON!! x1] [Opponent's Turn] [Once Per Turn] If your Character with 5000 power",
     conditions: [{ c: "opponent_turn" }],
     replacement: { event: "ko", target: myChar({ power: ge(5000) }), instead: power(v("_target"), -1000), optional: true } }]),
-  card("OP05-002", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may trash 1 {Revolutionary Army}",
-    costs: [{ k: "trash_hand", count: 1, filter: { traits: ["Revolutionary Army"] } }],
-    effect: power(upTo(3, myChar({ any: [{ traits: ["Revolutionary Army"] }, { hasTrigger: true }] })), 3000) }]),
   card("OP05-040", [{ trigger: "static", text: "If your Leader is [Donquixote Doflamingo], all Characters with a cost of 5 or less",
     conditions: [leaderName("Donquixote Doflamingo")],
     statics: [{ s: "restrict", target: { all: sel("any", "character", { cost: le(5) }) }, restriction: "no_refresh" }] }]),
@@ -268,8 +260,11 @@ const ENTRIES: [string, ManualEntry][] = [
     ) }]),
   card("OP07-097", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] [RDON 1] Select up to 1 {Egghead}",
     costs: [{ k: "rest_don", count: 1 }],
+    // An Egghead Event can't be played by this effect (official Q&A), so it can only go to Life; nothing selected asks nothing (#592).
     effect: seq(select("_s", sel("you", "hand", { traits: ["Egghead"], cost: le(5) }), 0, 1),
-      oneOf(["Play it", play(v("_s"))], ["Add it to the top of your Life cards face-up", { do: "to_life", target: v("_s"), position: "top", faceUp: true }])) }]),
+      when({ c: "var_count", name: "_s", op: ">=", value: 1 },
+        when({ c: "var_any_match", name: "_s", filter: { types: ["event"] } }, VEGAPUNK_TO_LIFE,
+          oneOf(["Play it", play(v("_s"))], ["Add it to the top of your Life cards face-up", VEGAPUNK_TO_LIFE])))) }]),
   card("OP08-043", [{ trigger: "on_play", text: "[On Play] If your Leader's type includes \"Whitebeard Pirates\" and you have 2 or less Life cards",
     effect: when({ c: "and", conds: [leaderTraitIncludes(WB), cmp(lifeCount, "<=", 2)] },
       { do: "restrict", target: { ref: "all", selector: oppChar() }, restriction: "attack_requires_discard", value: 2, duration: "until_end_of_opponent_next_turn" }) }]),
@@ -298,12 +293,6 @@ const ENTRIES: [string, ManualEntry][] = [
     statics: [{ s: "player_restrict", player: "you", restriction: "characters_played_rested" }] }]),
   card("OP09-036", [{ trigger: "on_play", text: "[On Play] If you have 2 or more rested Characters",
     effect: when(exists(myChar({ rested: true }), 2), rest(upTo(1, oppCharOrDon({ cost: le(6) })))) }]),
-  card("OP09-044", [{ trigger: "when_attacking", text: "[When Attacking] Look at 5 cards from the top of your deck; reveal up to 1 {Land of Wano}",
-    effect: seq(look(5, { any: [{ traits: ["Land of Wano"] }, { traitIncludes: [WB] }] }, 1, true), discard(1)) }]),
-  card("OP09-046", [{ trigger: "on_play", text: "[On Play] Play up to 1 {Cross Guild} type Character card",
-    effect: play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(5), any: [{ traits: ["Cross Guild"] }, { traitIncludes: ["Baroque Works"] }] }))) }]),
-  card("OP09-056", [{ trigger: "on_play", text: "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 {Cross Guild}",
-    effect: look(4, { notNames: ["Mr.3(Galdino)"], any: [{ traits: ["Cross Guild"] }, { traitIncludes: ["Baroque Works"] }] }, 1, true) }]),
   card("OP09-059", [{ trigger: "counter", text: "[Counter] Up to 1 of your Leader or Character cards gains +3000 power during this battle. Then, trash up to 2",
     effect: seq(power(upTo(1, myLeaderOrChar()), 3000, "battle"), discard(2, { min: 0 }), { do: "mill", player: "you", count: { count: { of: "var", name: "_discard" } } }) }]),
   card("OP09-061", [{ trigger: "on_event", oncePerTurn: true, text: "[Your Turn] [Once Per Turn] When 2 or more DON!! cards",
@@ -351,19 +340,20 @@ const ENTRIES: [string, ManualEntry][] = [
     costs: [{ k: "rest_cards", selector: sel("you", "leader", undefined, [sel("you", "stage")]), count: 1 }],
     effect: when(leaderName("Usopp"), seq(look(5, { traits: ["Dressrosa"], notNames: ["Leo"] }, 2, true), discard(1))) }]),
   card("OP10-058", [{ trigger: "on_play", text: "[On Play] If there is a Character with a cost of 8 or more, draw 1 card. Then, reveal up to 2",
-    effect: seq(
-      when(exists(sel("any", "character", { cost: ge(8) })), draw(1)),
+    // "If ..., draw 1 card. Then, reveal ...": the Then part is only resolved when the If was met (Rule 4-10-2).
+    effect: when(exists(sel("any", "character", { cost: ge(8) })), seq(
+      draw(1),
       select("_a", sel("you", "hand", { ...CHAR, traits: ["Dressrosa"], cost: le(7), notNames: ["Rebecca"] }), 0, 1),
       select("_b", sel("you", "hand", { ...CHAR, traits: ["Dressrosa"], cost: le(4), notNames: ["Rebecca"], excludeVar: "_a" }), 0, 1),
       { do: "reveal", target: v("_a") }, { do: "reveal", target: v("_b") },
       play(v("_a")), play(v("_b"), true),
-    ) }]),
+    )) }]),
   card("OP10-098", [{ trigger: "trigger", text: "[Trigger] Negate the effect of up to 1 of each of your opponent's Leader and Character",
     effect: seq({ do: "negate", target: upTo(1, sel("opponent", "leader")), duration: "turn" }, { do: "negate", target: upTo(1, oppChar()), duration: "turn" }) }]),
   card("OP10-118", [{ trigger: "replacement", oncePerTurn: true, text: "Once per turn, this Character cannot be KO'd by your opponent's effects.",
     replacement: { event: "ko_by_effect", target: "self", byOpponent: true, instead: { do: "nothing" }, optional: false } }]),
   card("OP10-119", [{ trigger: "on_play", text: "[On Play] Reveal up to 1 {Supernovas} type Character card from your hand",
-    effect: seq({ do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, filter: { ...CHAR, traits: ["Supernovas"] } },
+    effect: seq({ do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, reveal: true, filter: { ...CHAR, traits: ["Supernovas"] } },
       when(leaderTrait("Supernovas"), { do: "give_don", target: myLeader, count: 1, donState: "rested" })) }]),
   card("OP11-005", [{ trigger: "static", don: 1, text: "[DON!! x1] This Character cannot be KO'd by effects of Characters without",
     statics: [{ s: "restrict", target: "self", restriction: "cannot_be_ko_by_effect_from", filter: { ...CHAR, notAttributes: ["Special"] } }] }]),
@@ -381,7 +371,7 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq(select("_t", sel("any", "character", { cost: le(1) }), 0, 1),
       oneOf(["Return it to the owner's hand", { do: "to_hand", target: v("_t") }], ["Place it at the bottom of the owner's deck", { do: "to_deck", target: v("_t"), position: "bottom" }])) }]),
   card("OP11-066", [{ trigger: "activate_main", text: "[Activate: Main] You may rest this Character: Choose a cost", costs: [{ k: "rest_self" }],
-    effect: seq(guessCost(ko(upTo(1, oppChar({ baseCost: le(3) })))), addDon(1, true)) }]),
+    effect: guessCost(seq(ko(upTo(1, oppChar({ baseCost: le(3) }))), addDon(1, true))) }]),
   card("OP11-071", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may trash 1 card from your hand: Choose a cost",
     costs: [{ k: "trash_hand", count: 1 }], effect: guessCost(seq(draw(1), addDon(1, false))) }]),
   card("OP11-073", [{ trigger: "on_opp_attack", oncePerTurn: true, text: "[On Your Opponent's Attack] [Once Per Turn] DON!! -5: Choose a cost",
@@ -432,8 +422,8 @@ const ENTRIES: [string, ManualEntry][] = [
       replacement: { event: "removed_by_opponent_effect", target: "self", byOpponent: true, instead: { do: "pay", costs: [{ k: "return_don", count: 1 }], then: { do: "nothing" } }, optional: true } },
   ]),
   card("OP12-073", [{ trigger: "on_play", text: "[On Play] If the number of DON!! cards on your field is equal to or less",
-    effect: seq(when(cmp(donField("you"), "<=", donField("opponent")), addDon(1, false)),
-      power({ ref: "all", selector: myChar({ any: [{ names: ["Donquixote Rosinante"] }, { traits: ["Heart Pirates"] }] }) }, 1000, "until_end_of_opponent_next_turn")) }]),
+    effect: when(cmp(donField("you"), "<=", donField("opponent")), seq(addDon(1, false),
+      power({ ref: "all", selector: myChar({ any: [{ names: ["Donquixote Rosinante"] }, { traits: ["Heart Pirates"] }] }) }, 1000, "until_end_of_opponent_next_turn"))) }]),
   card("OP12-080", [{ trigger: "activate_main", text: "[Activate: Main] You may place this Stage at the bottom of the owner's deck: If your Leader is [Sanji]",
     costs: [{ k: "self_to_deck_bottom" }], effect: when(leaderName("Sanji"), look(3, { types: ["event"] }, 1, true)) }]),
   card("OP12-081", [
@@ -479,8 +469,8 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP13-064", [{ trigger: "static", text: "Your Leader and all of your Characters that do not have a type including \"Roger Pirates\"",
     statics: [{ s: "negate", target: { all: myLeaderOrChar({ notTraitIncludes: ["Roger Pirates"] }) } }] }]),
   card("OP13-066", [{ trigger: "on_play", text: "[On Play] If you have any DON!! cards given",
-    effect: seq(when(cmp({ count: { of: "don_attached_total", player: "you" } }, ">=", 1), rest(upTo(1, oppChar({ cost: le(5) })))),
-      { do: "delay", when: "end_of_turn", effect: addDon(1, false) }) }]),
+    effect: when(cmp({ count: { of: "don_attached_total", player: "you" } }, ">=", 1), seq(rest(upTo(1, oppChar({ cost: le(5) }))),
+      { do: "delay", when: "end_of_turn", effect: addDon(1, false) })) }]),
   card("OP13-079", [
     { trigger: "static", text: "Under the rules of this game, you cannot include Events with a cost of 2 or more",
       statics: [{ s: "deck_rule", rule: "no_events_cost_ge:2" }, { s: "deck_rule", rule: "start_stage:Mary Geoise" }] },
@@ -512,8 +502,6 @@ const ENTRIES: [string, ManualEntry][] = [
   ]),
   card("OP14-060", [{ trigger: "on_opp_attack", oncePerTurn: true, text: "[On Your Opponent's Attack] [Once Per Turn] DON!! -1: Select your Leader",
     costs: [{ k: "return_don", count: 1 }], effect: { do: "redirect_attack", target: exactly(1, sel("you", "leader", undefined, [myChar({ traits: ["Donquixote Pirates"] })])) } }]),
-  card("OP14-062", [{ trigger: "on_ko", text: "[On KO] DON!! -1: KO or rest up to 1", costs: [{ k: "return_don", count: 1 }],
-    effect: seq(select("_t", oppChar({ basePower: le(6000) }), 0, 1), oneOf(["K.O. it", ko(v("_t"))], ["Rest it", rest(v("_t"))])) }]),
   card("OP14-067", [{ trigger: "on_ko", text: "[On KO] Add up to 1 DON!! card from your DON!! deck and rest it, look at 5",
     effect: seq(addDon(1, true), look(5, { traits: ["Donquixote Pirates"] }, 1, true)) }]),
   card("OP14-070", [{ trigger: "on_event", text: "When this Character becomes rested by your opponent's Character's effect",
@@ -567,9 +555,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP15-093", [{ trigger: "activate_main", text: "[Activate: Main] You may trash this Character: If you have 15 or more cards",
     costs: [{ k: "trash_self" }],
     effect: when(cmp(trashCount, ">=", 15), seq(select("_l", myChar({ names: ["Monkey.D.Luffy"] }), 0, 1), keyword(v("_l"), "rush_character"), { do: "attribute", target: v("_l"), attribute: "Slash", duration: "turn" })) }]),
-  card("OP15-098", [{ trigger: "replacement", text: "If your {Sky Island} type Character with 6000 base power",
-    replacement: { event: "removed_by_opponent_effect", alsoEvents: ["ko_in_battle"], target: myChar({ traits: ["Sky Island"], basePower: ge(6000) }), byOpponent: true,
-      instead: { do: "pay", costs: [{ k: "life_to_hand", count: 1, position: "top" }], then: { do: "nothing" } }, optional: true } }]),
   card("OP15-118", [{ trigger: "on_play", text: "[On Play] DON!! -1: Look at 5 cards", costs: [{ k: "return_don", count: 1 }], effect: seq(look(5, null, 1, false), discard(1)) }]),
   card("OP15-119", [
     { trigger: "static", text: "If you have 6 or more DON!! cards on your field, this Character gains [Rush].", conditions: [cmp(donField("you"), ">=", 6)], statics: [{ s: "keyword", target: "self", keyword: "rush" }] },
@@ -579,8 +564,6 @@ const ENTRIES: [string, ManualEntry][] = [
   ]),
   card("OP16-001", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] Up to 1 of your [Monkey.D.Luffy] Characters",
     effect: keyword(upTo(1, myChar({ power: ge(8000), any: [{ names: ["Monkey.D.Luffy"] }, { traitIncludes: [WB] }] })), "rush") }]),
-  card("OP16-015", [{ trigger: "static", text: "If your Leader's card name includes \"Ace\"",
-    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] }]),
   card("OP16-038", [{ trigger: "main", text: "[Main] You may rest 6 of your DON!! cards: If you have 5 {Impel Down}",
     costs: [{ k: "rest_don", count: 6 }],
     effect: when(cmp({ count: { of: "distinct_names", selector: myChar({ traits: ["Impel Down"] }) } }, ">=", 5),
@@ -588,8 +571,6 @@ const ENTRIES: [string, ManualEntry][] = [
   card("OP16-041", [{ trigger: "on_event", don: 1, oncePerTurn: true, text: "[DON!! x1] [Once Per Turn] This effect can be activated when your {Impel Down}",
     eventTrigger: { event: "character_left_field", player: "you", filter: { traits: ["Impel Down"] } },
     effect: may(play(upTo(1, sel("you", "hand", { names: ["Prisoner of Impel Down"] })))) }]),
-  card("OP16-079", [{ trigger: "on_event", text: "When a {Land of Wano} type Character card is played from your trash",
-    eventTrigger: { event: "character_played", player: "you", fromZone: "trash", filter: { ...CHAR, traits: ["Land of Wano"] } }, effect: keyword({ ref: "event_card" }, "rush") }]),
   card("OP16-084", [{ trigger: "activate_main", text: "[Activate: Main] You may trash this Character with a cost of 20 or more",
     conditions: [exists(myChar({ onlySelf: true, cost: ge(20) }))], costs: [{ k: "trash_self" }],
     effect: when(cmp(donField("you"), ">=", 9), play(upTo(1, sel("you", "trash", { names: ["Kouzuki Momonosuke"], cost: eq(9) })))) }]),
@@ -600,9 +581,6 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: when(cmp(lifeCount, "<=", 1), seq(...["Absalom", "Dr. Hogback", "Perona"].map((name) => play(upTo(1, sel("you", "trash", { ...CHAR, names: [name], cost: le(4) })))))) }]),
   card("OP17-004", [{ trigger: "on_play", text: "[On Play] Up to 1 of your {Land of Wano} type Characters or up to 1",
     effect: keyword(upTo(1, myChar({ any: [{ traits: ["Land of Wano"] }, { traitIncludes: [WB] }] })), "rush") }]),
-  card("OP17-007", [{ trigger: "on_play", text: "[On Play] If your Leader is [Edward.Newgate] or has the {Land of Wano} type",
-    effect: when({ c: "or", conds: [leaderName("Edward.Newgate"), leaderTrait("Land of Wano")] },
-      play(upTo(1, sel("you", "hand", { ...CHAR, power: le(6000), any: [{ traits: ["Land of Wano"] }, { traitIncludes: [WB] }] })))) }]),
   card("OP17-020", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may trash 1 card from your hand or rest 1",
     costs: [{ k: "either", labels: ["Trash 1 card from your hand", "Rest 1 of your DON!! cards"], options: [[{ k: "trash_hand", count: 1 }], [{ k: "rest_don", count: 1 }]] }],
     effect: restrict(upTo(1, oppChar({ rested: true })), "no_refresh", "permanent") }]),
@@ -620,7 +598,7 @@ const ENTRIES: [string, ManualEntry][] = [
       replacement: { event: "removed_by_opponent_effect", target: myChar(), byOpponent: true, instead: { do: "pay", costs: [{ k: "trash_to_deck_bottom", count: 3 }], then: { do: "nothing" } }, optional: true } },
   ]),
   card("OP17-118", [{ trigger: "static", text: "If you only have Characters without a Counter",
-    conditions: [none(myChar({ hasCounter: true }))], statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] }]),
+    conditions: [exists(myChar()), none(myChar({ hasCounter: true }))], statics: [{ s: "counter", filter: { onlySelf: true }, mode: "add", value: 2000 }] }]),
   card("P-025", [{ trigger: "static", don: 1, text: "[DON!! x1] This Character cannot be KO'd in battle by Characters without",
     statics: [{ s: "restrict", target: "self", restriction: "cannot_be_ko_in_battle_by", filter: { ...CHAR, notAttributes: ["Special"] } }] }]),
   card("P-059", [{ trigger: "counter", text: "[Counter] If your Leader is [Uta], you may return any number of Characters",
@@ -632,8 +610,6 @@ const ENTRIES: [string, ManualEntry][] = [
     eventTrigger: { event: "don_returned", player: "you", minCount: 2 }, effect: seq(addDon(1, true), { do: "activate", target: upTo(1, sel("you", "stage", { colors: ["purple"] })) }) }]),
   card("P-117", [{ trigger: "static", text: "Under the rules of this game, you can only include {East Blue} type cards",
     statics: [{ s: "deck_rule", rule: "only_trait:East Blue" }, { s: "deck_rule", rule: "deck_out_win" }] }]),
-  card("P-118", [{ trigger: "on_play", text: "[On Play] If your Leader has the {Egghead} type, play up to 1",
-    effect: when(leaderTrait("Egghead"), play(upTo(1, sel("you", "hand", { ...CHAR, cost: le(5), any: [{ traits: ["Egghead"] }, { hasTrigger: true }] })))) }], ["[Trigger], with a cost of 5 or less"]),
   card("P-142", [{ trigger: "replacement", text: "If your {Straw Hat Crew} type Character with 8000 base",
     replacement: { event: "ko", target: myChar({ traits: ["Straw Hat Crew"], basePower: le(8000) }), instead: { do: "pay", costs: [{ k: "trash_self" }], then: { do: "nothing" } }, optional: true } }]),
   card("PRB02-005", [{ trigger: "on_play", text: "[Your Turn] [On Play] If your Leader is multicolored",
@@ -668,9 +644,9 @@ const ENTRIES: [string, ManualEntry][] = [
     effect: seq({ do: "deck_to_life", player: "you", count: 1 }, { do: "look_life", player: "you", count: 99, rest: "any_order", prompt: "order your Life cards; the first card goes to the top of your deck" }, { do: "life_to_deck", player: "you", count: 1 }) }]),
   card("ST13-005", [{ trigger: "on_play", text: "[On Play] You may trash 1 card from the top or bottom of your Life cards",
     costs: [{ k: "trash_life", count: 1, position: "top_or_bottom" }],
-    effect: { do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, filter: { ...CHAR, cost: eq(5) } } }]),
+    effect: { do: "hand_to_life", count: 1, min: 0, position: "top", faceUp: false, reveal: true, filter: { ...CHAR, cost: eq(5) } } }]),
   card("ST13-009", [{ trigger: "on_play", text: "[On Play] You may turn 1 of your face-up Life cards face-down",
-    costs: [{ k: "life_face_down", count: 1 }], effect: when(cmp({ count: { of: "hand", player: "opponent" } }, ">=", 7), { do: "trash_life", player: "opponent", count: 1 }) }]),
+    costs: [{ k: "life_face_down", count: 1, position: "any" }], effect: when(cmp({ count: { of: "hand", player: "opponent" } }, ">=", 7), { do: "trash_life", player: "opponent", count: 1 }) }]),
   card("ST13-016", [{ trigger: "on_play", text: "[On Play] Look at all your Life cards; place 1 at the top of your deck",
     effect: seq({ do: "look_life", player: "you", count: 99, rest: "any_order", prompt: "order your Life cards; the first card goes to the top of your deck" }, { do: "life_to_deck", player: "you", count: 1 }) }]),
   card("ST13-017", [{ trigger: "counter", text: "[Counter] Up to 1 of your Leader or Character cards gains +4000 power during this battle. Then, look at all",
@@ -689,9 +665,94 @@ const ENTRIES: [string, ManualEntry][] = [
   card("ST33-004", [{ trigger: "static", text: "During the turn in which a card in your hand is trashed by an effect",
     conditions: [{ c: "this_turn", what: "hand_trashed", player: "you" }], statics: [{ s: "play_cost", target: "self", amount: -3 }] }]),
   card("ST36-005", [{ trigger: "on_opp_attack", oncePerTurn: true, text: "[On Your Opponent's Attack] [Once Per Turn] You may turn 1 card from the top or bottom",
-    costs: [{ k: "life_face_down", count: 1 }], effect: { do: "redirect_attack", target: exactly(1, myChar({ names: ["Eustass\"Captain\"Kid"], basePower: ge(5000) })) } },
+    costs: [{ k: "life_face_down", count: 1, position: "top_or_bottom" }], effect: { do: "redirect_attack", target: exactly(1, myChar({ names: ["Eustass\"Captain\"Kid"], basePower: ge(5000) })) } },
     { trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may turn 1 card from the top or bottom of your Life cards face-up",
-      costs: [{ k: "life_face_up", count: 1 }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
+      costs: [{ k: "life_face_up", count: 1, position: "top_or_bottom" }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
 ];
+
+// Full replacement (the generated record dropped "and reveals their hand"): the opponent's remaining hand stays face up this turn (#491).
+ENTRIES.push(["OP07-090", { abilities: [{ id: "op07-090#0", trigger: "on_play", text: "[On Play] Your opponent trashes 1 card from their hand and reveals their hand. Then, your opponent draws 1 card.",
+  effect: seq({ do: "discard", player: "opponent", count: 1, chooser: "opponent" }, { do: "reveal", target: { ref: "all", selector: sel("opponent", "hand") } }, { do: "draw", player: "opponent", count: 1 }) }] }]);
+
+// Full replacement (#524). EB01-029 Q&A: a revealed card with a cost of 3 or less "is returned face-down to the top of your
+// deck"; only the cost 4 or more branch returns a Character and then places the revealed card at the bottom.
+ENTRIES.push(["EB01-029", { abilities: [
+  { id: "eb01-029#0", trigger: "counter", text: "[Counter] Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your Characters to the owner's hand. Then, place the revealed card at the bottom of your deck.",
+    effect: seq(
+      { do: "reveal_top", player: "you", bind: "_rev" },
+      when({ c: "var_all_match", name: "_rev", filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }, { do: "to_deck", target: v("_rev"), position: "bottom" })),
+    ) },
+  { id: "eb01-029#1", trigger: "trigger", text: "[Trigger] Return up to 1 Character with a cost of 8 or less to the owner's hand.",
+    effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
+] }]);
+
+// Full replacement (#567): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's or this
+// Character's base power is not already 7000 (a second activation would change nothing).
+ENTRIES.push(["OP16-015", { abilities: [
+  { id: "op16-015#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 Character card with 8000 power from your hand: Your Leader and this Character's base power becomes 7000 during this turn.",
+    conditions: [{ c: "or", conds: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      exists(myChar({ onlySelf: true, basePower: { op: "!=", value: 7000 } })),
+    ] }],
+    costs: [{ k: "trash_hand", count: 1, filter: { types: ["character"], power: eq(8000) } }],
+    effect: seq(
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" },
+      { do: "base_power", target: self, value: 7000, duration: "turn" },
+    ) },
+  { id: "op16-015#1", trigger: "static", text: "If your Leader's card name includes \"Ace\" and you have 6 or more DON!! cards on your field, give this card in your hand -2 cost.",
+    conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
+] }]);
+
+// Full replacement (#607): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's base power is
+// not already 7000 and the trash can reach 10 once the cost card is trashed (9 now). Both abilities are otherwise as generated.
+ENTRIES.push(["EB05-046", { abilities: [
+  { id: "eb05-046#0", trigger: "static", text: "If your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.",
+    conditions: [exists(oppChar({ types: ["character"], basePower: ge(8000) }))],
+    statics: [{ s: "keyword", target: "self", keyword: "blocker" }, { s: "power", target: "self", amount: 3000 }] },
+  { id: "eb05-046#1", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 card from your hand: If you have 10 or more cards in your trash, your Leader's base power becomes 7000 during this turn.",
+    conditions: [
+      cmp({ count: { of: "leader_base_power", player: "you" } }, "!=", 7000),
+      cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 9),
+    ],
+    costs: [{ k: "trash_hand", count: 1 }],
+    effect: when(cmp({ count: { of: "cards", selector: { player: "you", zone: "trash" } } }, ">=", 10),
+      { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" }) },
+] }]);
+
+// Full replacements (#607): these abilities have no Once Per Turn, so each is only offered while it would still change something.
+// OP04-059: not while this Character already has [Blocker].
+ENTRIES.push(["OP04-059", { abilities: [
+  { id: "op04-059#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: If your Leader has the {Water Seven} type, this Character gains [Blocker] during this turn.",
+    conditions: [{ c: "leader_trait", traits: ["Water Seven"] }, none(myChar({ onlySelf: true, keyword: "blocker" }))],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: keyword(self, "blocker") },
+] }]);
+
+// OP04-069: not while this Character's base power already equals the attacker's power. Its [Trigger] is as generated.
+ENTRIES.push(["OP04-069", { abilities: [
+  { id: "op04-069#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the power of your opponent's attacking Leader or Character during this turn.",
+    // Checked as the trigger resolves: the attacker's own [When Attacking] may still change its power (#609).
+    resolveConditions: [cmp({ count: { of: "self_base_power" } }, "!=", { count: { of: "battle_power", role: "attacker" } })],
+    costs: [{ k: "return_don", count: 1 }],
+    effect: { do: "base_power", target: self, value: { count: { of: "battle_power", role: "attacker" } }, duration: "turn" } },
+  { id: "op04-069#1", trigger: "trigger", text: "[Trigger] DON!! -1: Play this card.",
+    costs: [{ k: "return_don", count: 1 }], effect: play(self) },
+] }]);
+
+// OP14-045 / OP14-049: a mandatory "gains [Rush]" is not queued again (no extra Order effects entry) once the Character has [Rush].
+ENTRIES.push(["OP14-045", { abilities: [
+  { id: "op14-045#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-045#1", trigger: "on_ko", text: "[On KO] Draw 1 card.", effect: draw(1) },
+] }]);
+ENTRIES.push(["OP14-049", { abilities: [
+  { id: "op14-049#0", trigger: "on_event", eventTrigger: { event: "card_trashed_from_hand", player: "you", byEffect: true },
+    text: "When a card is trashed from your hand by an effect, this Character gains [Rush] during this turn.",
+    conditions: [none(myChar({ onlySelf: true, keyword: "rush" }))], effect: keyword(self, "rush") },
+  { id: "op14-049#1", trigger: "on_play", text: "[On Play] You may rest 2 of your DON!! cards: Draw 2 cards and return up to 1 Character with a cost of 7 or less to the owner's hand.",
+    costs: [{ k: "rest_don", count: 2 }],
+    effect: seq(draw(2), { do: "to_hand", target: { ref: "choose", selector: { player: "any", zone: "character", filter: { types: ["character"], cost: le(7) } }, min: 0, max: 1, bind: "_last" } }) },
+] }]);
 
 export const MANUAL_ABILITIES: Record<string, ManualEntry> = Object.fromEntries(ENTRIES);

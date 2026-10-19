@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { isPlaceholderArt, isTcgplayerCdnUrl, localCardArtPath } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -17,7 +17,7 @@ import {
 } from "../decks/seatArtPrefs";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "./CardInspect";
-import { refreshPreviewLive, setPreviewCard, type PreviewLive } from "./cardPreview";
+import { endPreviewHover, hoverPreviewCard, refreshPreviewLive, type PreviewLive } from "./cardPreview";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "./powerDisplay";
 import {
@@ -89,6 +89,8 @@ type Props = {
   motionId?: string;
   /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
+  /** Own hand card an effect revealed to the opponent this turn: shows a small "Revealed" marker (#491). */
+  revealed?: boolean;
   /** Inline custom properties (hand fan pose). */
   style?: CSSProperties;
 };
@@ -123,6 +125,7 @@ export function CardTile({
   viewingSeat,
   playCost,
   showCounter = false,
+  revealed = false,
   style,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
@@ -141,7 +144,7 @@ export function CardTile({
     return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
   }, [defId, artTick, ownerSeat]);
   const imageUrl =
-    localFallbackFor === primaryUrl ? localCardArtPath(defId) : primaryUrl;
+    localFallbackFor === primaryUrl ? (primaryUrl ? artAfterError(primaryUrl, defId) : null) : primaryUrl;
   const imgFailed = failedSrc != null && failedSrc === imageUrl;
 
   const chip = COLOR_CHIP[entry.colors[0] ?? ""] ?? "#455a64";
@@ -168,6 +171,14 @@ export function CardTile({
     if (instanceId && live) refreshPreviewLive(instanceId, live);
   }, [instanceId, live]);
 
+  /** The mouse is over this tile: a tile played or K.O.'d from under it gets no pointerleave, so unmounting ends the hover (#529). */
+  const hoveredRef = useRef(false);
+  useEffect(
+    () => () => {
+      if (hoveredRef.current) endPreviewHover();
+    },
+    [],
+  );
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
 
@@ -228,13 +239,6 @@ export function CardTile({
     .filter(Boolean)
     .join(" ");
 
-  function openInspectFromChip(e?: MouseEvent) {
-    e?.preventDefault();
-    e?.stopPropagation();
-    clickDeferRef.current?.cancel();
-    setInspectOpen(true);
-  }
-
   function handleClick(e: MouseEvent) {
     // Long-press already opened inspect — suppress the synthetic click.
     if (longPressRef.current?.consumeActivated()) {
@@ -280,7 +284,15 @@ export function CardTile({
   }
 
   function handlePointerEnter(e: PointerEvent) {
-    if (e.pointerType === "mouse") setPreviewCard({ defId, ownerSeat, instanceId, live });
+    if (e.pointerType !== "mouse") return;
+    hoveredRef.current = true;
+    hoverPreviewCard({ defId, ownerSeat, instanceId, live }, e.currentTarget);
+  }
+
+  function handlePointerLeave(e: PointerEvent) {
+    if (e.pointerType !== "mouse") return;
+    hoveredRef.current = false;
+    endPreviewHover();
   }
 
   function handlePointerCancel(e: PointerEvent) {
@@ -289,7 +301,7 @@ export function CardTile({
   }
 
   function handleImgError() {
-    if (localFallbackFor !== primaryUrl && isTcgplayerCdnUrl(primaryUrl)) {
+    if (localFallbackFor !== primaryUrl && (isTcgplayerCdnUrl(primaryUrl) || isLocalCardsUrl(primaryUrl))) {
       setLocalFallbackFor(primaryUrl);
       return;
     }
@@ -299,7 +311,6 @@ export function CardTile({
   const canInspect =
     inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
   const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
-  const showInspectChip = canInspect && !inspectOnClick;
 
   const body = (
     <>
@@ -336,6 +347,11 @@ export function CardTile({
       )}
       {/* Badges live in an overlay that counter-rotates on rested (sideways)
           tiles so power / DON!! / statuses stay upright and readable. */}
+      {revealed ? (
+        <span className="hand-revealed-badge" title="Revealed to opponent" aria-label="Revealed to opponent">
+          Revealed
+        </span>
+      ) : null}
       <div className="card-overlays">
         {pb || counter || attachedDonCount ? (
           <div className="card-stat-stack">
@@ -427,20 +443,6 @@ export function CardTile({
               : `Cost ${entry.cost}`}
         </div>
       </div>
-      {showInspectChip ? (
-        // Mouse / touch shortcut; keyboard players press I on the focused card
-        // instead, so the chip stays out of the Tab order (~30 stops a board).
-        <span
-          role="button"
-          tabIndex={-1}
-          className="card-inspect-chip"
-          title="Inspect card (or double-click / right-click / long-press)"
-          aria-label={`Inspect ${entry.name}`}
-          onClick={openInspectFromChip}
-        >
-          i
-        </span>
-      ) : null}
     </>
   );
 
@@ -455,12 +457,22 @@ export function CardTile({
     onPointerUp: handlePointerUp,
     onPointerCancel: handlePointerCancel,
     onPointerEnter: handlePointerEnter,
+    onPointerLeave: handlePointerLeave,
     onDoubleClick: handleDoubleClick,
     onContextMenu: (e: MouseEvent) => {
       clickDeferRef.current?.cancel();
       inspectOnContextMenu(e, () => setInspectOpen(true));
     },
   };
+
+  // A card the viewer may not see (a replay's hidden hand): a plain card back, nothing to inspect or hover.
+  if (defId === "HIDDEN") {
+    return (
+      <div className={`${className} card-tile-hidden`} style={style} role="img" aria-label="Hidden card" {...dropProps}>
+        <span className="card-tile-back" aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <>

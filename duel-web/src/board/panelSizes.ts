@@ -4,8 +4,9 @@
  * result is saved as a short string in the duel settings (`panelSizes`,
  * "" = every default) so it follows the account.
  *
- * Format: `L=260;R=340;preview=0.45,log=0.3` - column widths in px, then each
- * panel's share (0..1) of its column's height.
+ * Format: `L=260;R=340;RC=0.28;preview=0.45,log=0.3` - column widths in px,
+ * the corner each column frees below it (`LC` / `RC`, share of the window
+ * height), then each panel's share (0..1) of its column's height.
  */
 import { DEFAULT_PANEL_LAYOUT, type PanelColumn, type PanelId } from "./panelLayout";
 
@@ -14,9 +15,22 @@ export type PanelSizes = {
   widths: Partial<Record<PanelColumn, number>>;
   /** Share (0..1) of the column height; a missing one keeps the panel's CSS height. */
   heights: Partial<Record<PanelId, number>>;
+  /**
+   * Share (0..1) of the window height a column leaves free below it (#633): the
+   * column is shortened from its bottom edge and the fanned hand sits in the
+   * corner. A missing one is a full-height column.
+   */
+  cuts: Partial<Record<PanelColumn, number>>;
 };
 
-export const EMPTY_PANEL_SIZES: PanelSizes = { widths: {}, heights: {} };
+export const EMPTY_PANEL_SIZES: PanelSizes = { widths: {}, heights: {}, cuts: {} };
+
+/** The least and the most of the window a corner may free; a drag below CUT_REMOVE_BELOW removes the cut. */
+export const CUT_MIN = 0.18;
+export const CUT_MAX = 0.6;
+export const CUT_REMOVE_BELOW = 0.12;
+/** Arrow-key step for the column's bottom handle (share of the window height). */
+export const CUT_STEP = 0.03;
 
 /** Narrowest a column drags to, and the widest (also capped to a third of the window). */
 export const COLUMN_MIN_PX = 180;
@@ -36,7 +50,10 @@ export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
   oppHand: PANEL_MIN_PX,
   turn: PANEL_MIN_PX,
   hand: PANEL_MIN_PX,
-  chat: PANEL_MIN_PX,
+  // Its header and input row (about 5.4rem) plus a line or two of messages.
+  chat: 120,
+  // The docked Log Pose panel: header, a few lines of chat and the composer (board.css gives it the same floor).
+  logpose: 340,
 };
 /** Panels that size to their content (never shrink below it). */
 export const CONTENT_SIZED_PANELS: readonly PanelId[] = ["turn", "oppHand"];
@@ -49,6 +66,8 @@ export const PANEL_MIN_WIDTH_PX: Record<PanelId, number> = {
   turn: 250,
   hand: 200,
   chat: 200,
+  // Its header (title, actions) stays on one row from 320px.
+  logpose: 320,
 };
 export const SHARE_MIN = 0.05;
 export const SHARE_MAX = 0.95;
@@ -63,9 +82,13 @@ export function columnMaxPx(vw: number): number {
   return Math.max(COLUMN_MIN_PX, Math.min(COLUMN_MAX_PX, (vw * COLUMN_MAX_VW) / 100));
 }
 
-/** The narrowest a column drags to: the widest minimum among the panels now in it. */
+/**
+ * The narrowest a column drags to: the widest minimum among the panels now in it.
+ * The column also holds slots that are not movable panels (the action buttons, the
+ * defend tray); they have no entry and count for nothing (#556).
+ */
 export function columnMinPx(ids: readonly PanelId[]): number {
-  return Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, ...ids.map((id) => PANEL_MIN_WIDTH_PX[id])));
+  return Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, ...ids.map((id) => PANEL_MIN_WIDTH_PX[id] ?? 0)));
 }
 
 export function clampColumnWidth(px: number, vw: number, min: number = COLUMN_MIN_PX): number {
@@ -85,6 +108,27 @@ export function panelMinHeight(id: PanelId, cssMin: number, natural: number): nu
   );
 }
 
+export function clampCut(share: number): number {
+  return Math.round(Math.min(CUT_MAX, Math.max(CUT_MIN, share)) * 1000) / 1000;
+}
+
+/**
+ * The cut for a bottom edge dragged to `clientY` in a window `vh` tall: the room
+ * below the pointer, clamped, or null (no cut) once it is dragged back near the bottom.
+ */
+export function cutFromPointer(clientY: number, vh: number): number | null {
+  if (!(vh > 0)) return null;
+  const share = (vh - clientY) / vh;
+  return share < CUT_REMOVE_BELOW ? null : clampCut(share);
+}
+
+/** Keyboard step: Up frees more room (the first press creates the smallest cut), Down frees less and removes the cut under the minimum. */
+export function nudgeCut(cut: number | null, up: boolean): number | null {
+  if (up) return clampCut((cut ?? CUT_MIN - CUT_STEP) + CUT_STEP);
+  if (cut == null) return null;
+  return cut - CUT_STEP < CUT_MIN - 1e-9 ? null : clampCut(cut - CUT_STEP);
+}
+
 export function clampShare(share: number): number {
   return Math.round(Math.min(SHARE_MAX, Math.max(SHARE_MIN, share)) * 1000) / 1000;
 }
@@ -94,10 +138,16 @@ export function clampShare(share: number): number {
  * dropped, so a hand-edited or newer save never breaks the board.
  */
 export function parsePanelSizes(saved: string): PanelSizes {
-  const out: PanelSizes = { widths: {}, heights: {} };
+  const out: PanelSizes = { widths: {}, heights: {}, cuts: {} };
   if (!saved) return out;
   for (const token of saved.split(";")) {
     const t = token.trim();
+    const cut = /^([LR])C=(\d*\.?\d+)$/.exec(t);
+    if (cut) {
+      const share = Number(cut[2]);
+      if (share > 0 && share <= 1) out.cuts[cut[1] === "L" ? "left" : "right"] = clampCut(share);
+      continue;
+    }
     const col = /^([LR])=(\d+(?:\.\d+)?)$/.exec(t);
     if (col) {
       const px = Number(col[2]);
@@ -120,6 +170,8 @@ export function serializePanelSizes(sizes: PanelSizes): string {
   const parts: string[] = [];
   if (sizes.widths.left != null) parts.push(`L=${Math.round(sizes.widths.left)}`);
   if (sizes.widths.right != null) parts.push(`R=${Math.round(sizes.widths.right)}`);
+  if (sizes.cuts.left != null) parts.push(`LC=${clampCut(sizes.cuts.left)}`);
+  if (sizes.cuts.right != null) parts.push(`RC=${clampCut(sizes.cuts.right)}`);
   const heights = PANEL_IDS.filter((id) => sizes.heights[id] != null).map(
     (id) => `${id}=${clampShare(sizes.heights[id]!)}`,
   );
@@ -161,6 +213,13 @@ export function setWidth(sizes: PanelSizes, column: PanelColumn, px: number | nu
   return { ...sizes, widths };
 }
 
+export function setCut(sizes: PanelSizes, column: PanelColumn, cut: number | null): PanelSizes {
+  const cuts = { ...sizes.cuts };
+  if (cut == null) delete cuts[column];
+  else cuts[column] = clampCut(cut);
+  return { ...sizes, cuts };
+}
+
 export function setShares(
   sizes: PanelSizes,
   shares: Partial<Record<PanelId, number | null>>,
@@ -171,4 +230,27 @@ export function setShares(
     else heights[id] = clampShare(share);
   }
   return { ...sizes, heights };
+}
+
+/**
+ * The sizes the board uses. Bigger playing area keeps its own column widths
+ * (`panelSizesBig`, its widths only) so turning it on still gives narrow
+ * columns; panel heights and the corner cuts are shared with the normal layout.
+ */
+export function panelSizesForMode(big: boolean, normalSaved: string, bigSaved: string): PanelSizes {
+  const normal = parsePanelSizes(normalSaved);
+  return big ? { widths: parsePanelSizes(bigSaved).widths, heights: normal.heights, cuts: normal.cuts } : normal;
+}
+
+/** The settings to save after a drag in the current mode; the other mode's widths stay as they were. */
+export function panelSizesPatch(
+  big: boolean,
+  next: PanelSizes,
+  normalSaved: string,
+): { panelSizes: string; panelSizesBig?: string } {
+  if (!big) return { panelSizes: serializePanelSizes(next) };
+  return {
+    panelSizes: serializePanelSizes({ widths: parsePanelSizes(normalSaved).widths, heights: next.heights, cuts: next.cuts }),
+    panelSizesBig: serializePanelSizes({ widths: next.widths, heights: {}, cuts: {} }),
+  };
 }

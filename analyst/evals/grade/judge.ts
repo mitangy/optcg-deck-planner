@@ -20,7 +20,7 @@ const JUDGE_PRICE = { input: 2, output: 10, cacheRead: 0.2 };
 /** What one judge call cost, priced by the model that answered: Opus at the chat model's price, anything else at Sonnet's. */
 export const judgeCostUsd = (u: Usage, model: string = JUDGE_MODEL) =>
   model.startsWith("claude-opus")
-    ? costUsd(u)
+    ? costUsd(u, model)
     : (u.input_tokens * JUDGE_PRICE.input + u.output_tokens * JUDGE_PRICE.output + (u.cache_read_input_tokens ?? 0) * JUDGE_PRICE.cacheRead) / 1e6;
 
 export type JudgeMeta = { usage: Usage; model: string; fallback: boolean };

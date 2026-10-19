@@ -13,9 +13,12 @@ import "./themes.css";
 import "./ui.css";
 import "./board.css";
 import "./interactions.css";
+import "./popupScale.css";
 import "./auth/username.css";
 import "./light.css";
+import "./metaDecks.css";
 import "@optcg/site-legal/siteLegal.css";
+import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 

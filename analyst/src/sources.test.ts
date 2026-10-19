@@ -66,6 +66,23 @@ describe("tool answers as citable sources (#390)", () => {
     }
   });
 
+  it("quotes the opponent's opening hand in a review overview only when the game revealed it (#472)", () => {
+    const overview = (g: object) => texts(gameResults("match", "m1", g)[0]!);
+    expect(overview({ ...GAME, opponentOpeningHand: ["Lucci", "Kaku"] })).toContain("Opponent's opening hand (revealed after the game): Lucci, Kaku.");
+    expect(overview(GAME).join(" ")).not.toContain("Opponent's opening hand");
+  });
+
+  it("quotes the deck lists in the overview of a review and of a corpus game (#472)", () => {
+    const overview = (prefix: "match" | "game", g: object) => texts(gameResults(prefix, "x1", g)[0]!).join("\n");
+    const mine = overview("match", { ...GAME, yourDeck: [{ id: "OP01-001", name: "Roronoa Zoro", copies: 1 }, { id: "OP01-016", name: "Nami", copies: 4 }] });
+    expect(mine).toContain("Your deck list: 1x Roronoa Zoro (OP01-001), 4x Nami (OP01-016).");
+    expect(mine).not.toContain("Opponent's deck list");
+    expect(overview("match", { ...GAME, opponentDeck: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] })).toContain("Opponent's deck list (revealed after the game): 3x Rob Lucci (OP02-001).");
+    const corpus = overview("game", { leaders: { A: "Zoro", B: "Lucci" }, wentFirst: "A", decks: { A: [{ id: "OP01-016", name: "Nami", copies: 2 }], B: [{ id: "OP02-001", name: "Rob Lucci", copies: 3 }] }, log: [] });
+    expect(corpus).toContain("Player A deck list: 2x Nami (OP01-016).");
+    expect(corpus).toContain("Player B deck list: 3x Rob Lucci (OP02-001).");
+  });
+
   it("drops blank facts and gives no source at all when nothing is left to quote (#390)", () => {
     expect(searchResult("card:X", "X", ["a", "  ", "", null, undefined, false, " b "])!.content.map((c) => c.text)).toEqual(["a", "b"]);
     expect(searchResult("card:X", "X", ["  ", null])).toBeNull();
@@ -84,6 +101,24 @@ describe("tool answers as citable sources (#390)", () => {
     expect(qa!.source).toMatch(/^ruling:general#[0-9a-f]{8}$/);
     expect(texts(qa!)).toEqual(["Q: Can I block twice?", "A: No. Only once per battle. Choose one."]);
     expect(blocks!.at(-1)).toMatchObject({ type: "search_result", source: "note:rules_lookup" });
+  });
+
+  it("cites topic card rulings as ruling:<card>#q<hash> so they never reuse a card_rulings number, and manual sections as trules:<id> (#603)", () => {
+    const blocks = adapt("rules_lookup", {
+      sections: [],
+      generalQa: [],
+      cardRulings: [{ cardId: "OP14-020", cardName: "Nami", question: "Can I block twice?", answer: "No. Only once." }],
+      tournamentRules: [{ id: "5.2", title: "End of Round Procedures", text: "Time is called. Finish the turn." }],
+      notes: [],
+    });
+    const [ruling, manual] = results(blocks);
+    expect(ruling!.source).toMatch(/^ruling:OP14-020#q[0-9a-f]{8}$/);
+    expect(ruling!.title).toBe("Nami (official Q&A)");
+    expect(texts(ruling!)).toEqual(["Q: Can I block twice?", "A: No. Only once."]);
+    expect(manual!.source).toBe("trules:5.2");
+    expect(manual!.title).toBe("Tournament Rules Manual 5.2 End of Round Procedures");
+    const again = adapt("rules_lookup", { cardRulings: [{ cardId: "OP14-020", cardName: "Nami", question: "Can I block three times?", answer: "No." }] });
+    expect(allSources(again)[0]).not.toBe(ruling!.source);
   });
 
   it("numbers a card's official rulings ruling:<card>#<n> and keeps errata and ban status as their own sources (#390)", () => {

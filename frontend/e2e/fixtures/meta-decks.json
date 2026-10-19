@@ -1,0 +1,641 @@
+{
+ "leader_id": "OP17-039",
+ "name": "Rocks.D.Xebec",
+ "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712086_200w.jpg",
+ "decks": [
+  {
+   "id": 510,
+   "event_id": "6ab4e5b8f127b1b52c28101c",
+   "event": "[OP17] ChinoizeCup #115 Monday",
+   "event_url": "https://play.limitlesstcg.com/tournament/6ab4e5b8f127b1b52c28101c",
+   "date": "2026-09-28",
+   "players": 128,
+   "placing": 1,
+   "record": {
+    "wins": 7,
+    "losses": 0,
+    "ties": 0
+   },
+   "cards": [
+    {
+     "card_id": "OP17-055",
+     "count": 4,
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712623_200w.jpg"
+    },
+    {
+     "card_id": "OP17-056",
+     "count": 4,
+     "name": "Rocks Pirates",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712624_200w.jpg"
+    },
+    {
+     "card_id": "OP08-051",
+     "count": 4,
+     "name": "Buckin",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/558079_200w.jpg"
+    },
+    {
+     "card_id": "OP17-050",
+     "count": 4,
+     "name": "Streusen",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712619_200w.jpg"
+    },
+    {
+     "card_id": "OP17-045",
+     "count": 4,
+     "name": "Kyo",
+     "cost": "2",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712616_200w.jpg"
+    },
+    {
+     "card_id": "OP17-052",
+     "count": 4,
+     "name": "Don Marlon",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712621_200w.jpg"
+    },
+    {
+     "card_id": "OP17-054",
+     "count": 4,
+     "name": "Miss Buckingham Stussy",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712089_200w.jpg"
+    },
+    {
+     "card_id": "OP17-044",
+     "count": 2,
+     "name": "Captain John",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712615_200w.jpg"
+    },
+    {
+     "card_id": "OP17-046",
+     "count": 4,
+     "name": "Gloriosa",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710541_200w.jpg"
+    },
+    {
+     "card_id": "OP17-049",
+     "count": 4,
+     "name": "Charlotte Linlin",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712088_200w.jpg"
+    },
+    {
+     "card_id": "OP17-040",
+     "count": 4,
+     "name": "Edward.Newgate",
+     "cost": "6",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712031_200w.jpg"
+    },
+    {
+     "card_id": "OP17-048",
+     "count": 4,
+     "name": "Shiki",
+     "cost": "7",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710542_200w.jpg"
+    },
+    {
+     "card_id": "OP17-118",
+     "count": 4,
+     "name": "Rocks.D.Xebec",
+     "cost": "10",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/709836_200w.jpg"
+    }
+   ],
+   "card_count": 50,
+   "text": "1xOP17-039\n4xOP17-055\n4xOP17-056\n4xOP08-051\n4xOP17-050\n4xOP17-045\n4xOP17-052\n4xOP17-054\n2xOP17-044\n4xOP17-046\n4xOP17-049\n4xOP17-040\n4xOP17-048\n4xOP17-118"
+  },
+  {
+   "id": 3136,
+   "event_id": "6abcfe1c783097f8dcb74092",
+   "event": "[OP17.5] ChinoizeCup #119 Tuesday",
+   "event_url": "https://play.limitlesstcg.com/tournament/6abcfe1c783097f8dcb74092",
+   "date": "2026-10-06",
+   "players": 64,
+   "placing": 1,
+   "record": {
+    "wins": 6,
+    "losses": 0,
+    "ties": 0
+   },
+   "cards": [
+    {
+     "card_id": "OP17-055",
+     "count": 4,
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712623_200w.jpg"
+    },
+    {
+     "card_id": "OP17-056",
+     "count": 4,
+     "name": "Rocks Pirates",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712624_200w.jpg"
+    },
+    {
+     "card_id": "OP07-056",
+     "count": 1,
+     "name": "Slave Arrow",
+     "cost": "1",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/545846_200w.jpg"
+    },
+    {
+     "card_id": "OP08-051",
+     "count": 4,
+     "name": "Buckin",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/558079_200w.jpg"
+    },
+    {
+     "card_id": "OP17-050",
+     "count": 2,
+     "name": "Streusen",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712619_200w.jpg"
+    },
+    {
+     "card_id": "OP17-045",
+     "count": 4,
+     "name": "Kyo",
+     "cost": "2",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712616_200w.jpg"
+    },
+    {
+     "card_id": "OP17-052",
+     "count": 2,
+     "name": "Don Marlon",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712621_200w.jpg"
+    },
+    {
+     "card_id": "OP17-054",
+     "count": 4,
+     "name": "Miss Buckingham Stussy",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712089_200w.jpg"
+    },
+    {
+     "card_id": "OP17-044",
+     "count": 2,
+     "name": "Captain John",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712615_200w.jpg"
+    },
+    {
+     "card_id": "OP17-046",
+     "count": 4,
+     "name": "Gloriosa",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710541_200w.jpg"
+    },
+    {
+     "card_id": "OP17-043",
+     "count": 3,
+     "name": "Ganzui",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712614_200w.jpg"
+    },
+    {
+     "card_id": "OP17-049",
+     "count": 4,
+     "name": "Charlotte Linlin",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712088_200w.jpg"
+    },
+    {
+     "card_id": "OP17-040",
+     "count": 4,
+     "name": "Edward.Newgate",
+     "cost": "6",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712031_200w.jpg"
+    },
+    {
+     "card_id": "OP17-048",
+     "count": 4,
+     "name": "Shiki",
+     "cost": "7",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710542_200w.jpg"
+    },
+    {
+     "card_id": "OP17-118",
+     "count": 4,
+     "name": "Rocks.D.Xebec",
+     "cost": "10",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/709836_200w.jpg"
+    }
+   ],
+   "card_count": 50,
+   "text": "1xOP17-039\n4xOP17-055\n4xOP17-056\n1xOP07-056\n4xOP08-051\n2xOP17-050\n4xOP17-045\n2xOP17-052\n4xOP17-054\n2xOP17-044\n4xOP17-046\n3xOP17-043\n4xOP17-049\n4xOP17-040\n4xOP17-048\n4xOP17-118"
+  },
+  {
+   "id": 956,
+   "event_id": "6aa8869138886b36383c0483",
+   "event": "Liga Phoenix 2026 -  ONE PIECE - MANA 36\u00b0",
+   "event_url": "https://play.limitlesstcg.com/tournament/6aa8869138886b36383c0483",
+   "date": "2026-09-15",
+   "players": 13,
+   "placing": 1,
+   "record": {
+    "wins": 4,
+    "losses": 0,
+    "ties": 0
+   },
+   "cards": [
+    {
+     "card_id": "OP17-055",
+     "count": 4,
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712623_200w.jpg"
+    },
+    {
+     "card_id": "OP17-056",
+     "count": 4,
+     "name": "Rocks Pirates",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712624_200w.jpg"
+    },
+    {
+     "card_id": "OP17-050",
+     "count": 4,
+     "name": "Streusen",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712619_200w.jpg"
+    },
+    {
+     "card_id": "EB02-030",
+     "count": 2,
+     "name": "And That's When Somebody Makes Fun of Their Friend's Dream!!!!",
+     "cost": "2",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/629126_200w.jpg"
+    },
+    {
+     "card_id": "OP17-045",
+     "count": 4,
+     "name": "Kyo",
+     "cost": "2",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712616_200w.jpg"
+    },
+    {
+     "card_id": "OP17-054",
+     "count": 4,
+     "name": "Miss Buckingham Stussy",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712089_200w.jpg"
+    },
+    {
+     "card_id": "OP17-042",
+     "count": 4,
+     "name": "Kaido",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712613_200w.jpg"
+    },
+    {
+     "card_id": "OP17-044",
+     "count": 4,
+     "name": "Captain John",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712615_200w.jpg"
+    },
+    {
+     "card_id": "OP17-046",
+     "count": 4,
+     "name": "Gloriosa",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710541_200w.jpg"
+    },
+    {
+     "card_id": "OP17-049",
+     "count": 4,
+     "name": "Charlotte Linlin",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712088_200w.jpg"
+    },
+    {
+     "card_id": "OP17-040",
+     "count": 4,
+     "name": "Edward.Newgate",
+     "cost": "6",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712031_200w.jpg"
+    },
+    {
+     "card_id": "OP17-048",
+     "count": 4,
+     "name": "Shiki",
+     "cost": "7",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710542_200w.jpg"
+    },
+    {
+     "card_id": "OP17-118",
+     "count": 4,
+     "name": "Rocks.D.Xebec",
+     "cost": "10",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/709836_200w.jpg"
+    }
+   ],
+   "card_count": 50,
+   "text": "1xOP17-039\n4xOP17-055\n4xOP17-056\n4xOP17-050\n2xEB02-030\n4xOP17-045\n4xOP17-054\n4xOP17-042\n4xOP17-044\n4xOP17-046\n4xOP17-049\n4xOP17-040\n4xOP17-048\n4xOP17-118"
+  },
+  {
+   "id": 395,
+   "event_id": "6ab4e651e905c1db687493fe",
+   "event": "[OP17] ChinoizeCup #116 Tuesday",
+   "event_url": "https://play.limitlesstcg.com/tournament/6ab4e651e905c1db687493fe",
+   "date": "2026-09-29",
+   "players": 119,
+   "placing": 2,
+   "record": {
+    "wins": 6,
+    "losses": 1,
+    "ties": 0
+   },
+   "cards": [
+    {
+     "card_id": "OP17-055",
+     "count": 4,
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712623_200w.jpg"
+    },
+    {
+     "card_id": "OP17-056",
+     "count": 4,
+     "name": "Rocks Pirates",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712624_200w.jpg"
+    },
+    {
+     "card_id": "OP08-051",
+     "count": 4,
+     "name": "Buckin",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/558079_200w.jpg"
+    },
+    {
+     "card_id": "EB02-030",
+     "count": 2,
+     "name": "And That's When Somebody Makes Fun of Their Friend's Dream!!!!",
+     "cost": "2",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/629126_200w.jpg"
+    },
+    {
+     "card_id": "OP17-045",
+     "count": 4,
+     "name": "Kyo",
+     "cost": "2",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712616_200w.jpg"
+    },
+    {
+     "card_id": "OP17-054",
+     "count": 4,
+     "name": "Miss Buckingham Stussy",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712089_200w.jpg"
+    },
+    {
+     "card_id": "OP17-041",
+     "count": 4,
+     "name": "Wang Zhi",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712612_200w.jpg"
+    },
+    {
+     "card_id": "OP17-044",
+     "count": 4,
+     "name": "Captain John",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712615_200w.jpg"
+    },
+    {
+     "card_id": "OP17-046",
+     "count": 4,
+     "name": "Gloriosa",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710541_200w.jpg"
+    },
+    {
+     "card_id": "OP17-049",
+     "count": 4,
+     "name": "Charlotte Linlin",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712088_200w.jpg"
+    },
+    {
+     "card_id": "OP17-040",
+     "count": 4,
+     "name": "Edward.Newgate",
+     "cost": "6",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712031_200w.jpg"
+    },
+    {
+     "card_id": "OP17-048",
+     "count": 4,
+     "name": "Shiki",
+     "cost": "7",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710542_200w.jpg"
+    },
+    {
+     "card_id": "OP17-118",
+     "count": 4,
+     "name": "Rocks.D.Xebec",
+     "cost": "10",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/709836_200w.jpg"
+    }
+   ],
+   "card_count": 50,
+   "text": "1xOP17-039\n4xOP17-055\n4xOP17-056\n4xOP08-051\n2xEB02-030\n4xOP17-045\n4xOP17-054\n4xOP17-041\n4xOP17-044\n4xOP17-046\n4xOP17-049\n4xOP17-040\n4xOP17-048\n4xOP17-118"
+  },
+  {
+   "id": 3137,
+   "event_id": "6abcfe1c783097f8dcb74092",
+   "event": "[OP17.5] ChinoizeCup #119 Tuesday",
+   "event_url": "https://play.limitlesstcg.com/tournament/6abcfe1c783097f8dcb74092",
+   "date": "2026-10-06",
+   "players": 64,
+   "placing": 2,
+   "record": {
+    "wins": 5,
+    "losses": 1,
+    "ties": 0
+   },
+   "cards": [
+    {
+     "card_id": "OP17-055",
+     "count": 4,
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712623_200w.jpg"
+    },
+    {
+     "card_id": "OP17-056",
+     "count": 4,
+     "name": "Rocks Pirates",
+     "cost": "0",
+     "card_type": "Event",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712624_200w.jpg"
+    },
+    {
+     "card_id": "OP08-051",
+     "count": 4,
+     "name": "Buckin",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/558079_200w.jpg"
+    },
+    {
+     "card_id": "OP17-050",
+     "count": 2,
+     "name": "Streusen",
+     "cost": "1",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712619_200w.jpg"
+    },
+    {
+     "card_id": "OP17-045",
+     "count": 4,
+     "name": "Kyo",
+     "cost": "2",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712616_200w.jpg"
+    },
+    {
+     "card_id": "OP17-052",
+     "count": 4,
+     "name": "Don Marlon",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712621_200w.jpg"
+    },
+    {
+     "card_id": "OP17-054",
+     "count": 4,
+     "name": "Miss Buckingham Stussy",
+     "cost": "3",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712089_200w.jpg"
+    },
+    {
+     "card_id": "OP17-042",
+     "count": 2,
+     "name": "Kaido",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712613_200w.jpg"
+    },
+    {
+     "card_id": "OP17-044",
+     "count": 2,
+     "name": "Captain John",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712615_200w.jpg"
+    },
+    {
+     "card_id": "OP17-046",
+     "count": 4,
+     "name": "Gloriosa",
+     "cost": "4",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710541_200w.jpg"
+    },
+    {
+     "card_id": "OP17-049",
+     "count": 4,
+     "name": "Charlotte Linlin",
+     "cost": "5",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712088_200w.jpg"
+    },
+    {
+     "card_id": "OP17-040",
+     "count": 4,
+     "name": "Edward.Newgate",
+     "cost": "6",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/712031_200w.jpg"
+    },
+    {
+     "card_id": "OP17-048",
+     "count": 4,
+     "name": "Shiki",
+     "cost": "7",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/710542_200w.jpg"
+    },
+    {
+     "card_id": "OP17-118",
+     "count": 4,
+     "name": "Rocks.D.Xebec",
+     "cost": "10",
+     "card_type": "Character",
+     "image_url": "https://tcgplayer-cdn.tcgplayer.com/product/709836_200w.jpg"
+    }
+   ],
+   "card_count": 50,
+   "text": "1xOP17-039\n4xOP17-055\n4xOP17-056\n4xOP08-051\n2xOP17-050\n4xOP17-045\n4xOP17-052\n4xOP17-054\n2xOP17-042\n2xOP17-044\n4xOP17-046\n4xOP17-049\n4xOP17-040\n4xOP17-048\n4xOP17-118"
+  }
+ ]
+}

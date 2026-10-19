@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PANEL_LAYOUT,
+  collapsedColumns,
+  mergeIntoColumn,
+  splitMergedLayout,
   movePanel,
   nudgePanel,
   panelDropAt,
   parsePanelLayout,
+  placeLogPose,
   serializePanelLayout,
   type PanelId,
   type PanelRect,
@@ -15,20 +19,82 @@ describe("parsePanelLayout", () => {
   it("reads a saved layout with the hand in the left column (#261)", () => {
     expect(parsePanelLayout("preview,hand,recent,log|oppHand,turn,chat")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "chat"],
+      right: ["logpose", "oppHand", "turn", "chat"],
     });
   });
 
   it("drops unknown and repeated panels and puts missing ones back in their default column (#261)", () => {
     expect(parsePanelLayout("hand,bogus,hand,chat|log")).toEqual({
       left: ["hand", "chat", "preview", "recent"],
-      right: ["log", "oppHand", "turn"],
+      right: ["logpose", "log", "oppHand", "turn"],
     });
   });
 
   it("drops the retired Actions panel from an older saved layout (#368)", () => {
     expect(parsePanelLayout("preview,recent,log|oppHand,turn,actions,hand,chat")).toEqual(DEFAULT_PANEL_LAYOUT);
     expect(parsePanelLayout("actions,preview|log").left).not.toContain("actions");
+  });
+});
+
+describe("Log Pose panel slot (#568)", () => {
+  it("an older save that never mentions Log Pose puts it at the top of the right column, not the bottom (#568)", () => {
+    expect(parsePanelLayout("preview,recent,log|chat,turn,oppHand,hand").right).toEqual([
+      "logpose",
+      "chat",
+      "turn",
+      "oppHand",
+      "hand",
+    ]);
+  });
+
+  it("keeps the slot a save gives Log Pose, in either column (#568)", () => {
+    expect(parsePanelLayout("preview,logpose,recent,log|oppHand,turn,hand,chat")).toEqual({
+      left: ["preview", "logpose", "recent", "log"],
+      right: ["oppHand", "turn", "hand", "chat"],
+    });
+    expect(parsePanelLayout("preview,recent,log|oppHand,turn,logpose,hand,chat").right).toEqual([
+      "oppHand",
+      "turn",
+      "logpose",
+      "hand",
+      "chat",
+    ]);
+  });
+
+  it("a moved Log Pose saves and reads back in the same slot (#568)", () => {
+    const moved = movePanel(DEFAULT_PANEL_LAYOUT, "logpose", "right", "hand");
+    expect(moved.right).toEqual(["oppHand", "turn", "logpose", "hand", "chat"]);
+    expect(serializePanelLayout(moved)).not.toBe("");
+    expect(parsePanelLayout(serializePanelLayout(moved))).toEqual(moved);
+  });
+
+  it("placeLogPose keeps its saved slot in the column it is docked to (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, "right")).toEqual(saved);
+  });
+
+  it("placeLogPose brings it to the top of the docked column when it was saved in the other one (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, "left")).toEqual({
+      left: ["logpose", "preview", "recent", "log"],
+      right: ["oppHand", "turn", "hand", "chat"],
+    });
+  });
+
+  it("placeLogPose leaves the layout alone while it is not docked on the board (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "turn", "logpose", "hand", "chat"] as PanelId[] };
+    expect(placeLogPose(saved, null)).toEqual(saved);
+  });
+
+  it("in one combined column, Log Pose keeps its slot among that column's own panels (#568)", () => {
+    const saved = { left: ["preview", "recent", "log"] as PanelId[], right: ["oppHand", "logpose", "turn", "hand", "chat"] as PanelId[] };
+    const merged = mergeIntoColumn(placeLogPose(saved, "right"), "right");
+    expect(merged.right).toEqual(["oppHand", "logpose", "turn", "hand", "chat", "preview", "recent", "log"]);
+    expect(merged.left).toEqual([]);
+    // Docked left while saved right: it joins the combined left column at its top.
+    expect(mergeIntoColumn(placeLogPose(saved, "left"), "left").left).toEqual([
+      "logpose", "preview", "recent", "log", "oppHand", "turn", "hand", "chat",
+    ]);
   });
 });
 
@@ -46,11 +112,11 @@ describe("movePanel", () => {
   it("moves a panel into the other column before a given panel, or to its end (#261)", () => {
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "hand", "left", "recent")).toEqual({
       left: ["preview", "hand", "recent", "log"],
-      right: ["oppHand", "turn", "chat"],
+      right: ["logpose", "oppHand", "turn", "chat"],
     });
     expect(movePanel(DEFAULT_PANEL_LAYOUT, "preview", "right", null)).toEqual({
       left: ["recent", "log"],
-      right: ["oppHand", "turn", "hand", "chat", "preview"],
+      right: ["logpose", "oppHand", "turn", "hand", "chat", "preview"],
     });
   });
 
@@ -98,6 +164,7 @@ describe("nudgePanel", () => {
   it("moves past a hidden panel in one step, which keeps its place (#261)", () => {
     // The Grid hand is off screen (fan hand): Down on turn swaps it with chat.
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "turn", "down", visible).right).toEqual([
+      "logpose",
       "oppHand",
       "hand",
       "chat",
@@ -113,7 +180,7 @@ describe("nudgePanel", () => {
   it("sends a panel to the end of the other column with Left / Right (#261)", () => {
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "left", visible)).toEqual({
       left: ["preview", "recent", "log", "chat"],
-      right: ["oppHand", "turn", "hand"],
+      right: ["logpose", "oppHand", "turn", "hand"],
     });
     expect(nudgePanel(DEFAULT_PANEL_LAYOUT, "chat", "right", visible)).toBe(DEFAULT_PANEL_LAYOUT);
   });
@@ -135,5 +202,90 @@ describe("matSpotAt", () => {
     expect(matSpotAt(mat, 600, 300)).toBeNull();
     expect(matSpotAt(mat, 250, 120)).toBeNull();
     expect(matSpotAt(mat, 600, 20)).toBeNull();
+  });
+
+  // The opponent's mat sits 150 px in from each side of the playmat, 100 to 350 px down.
+  const opp = { left: 450, right: 750, top: 100, bottom: 350 };
+
+  it("pins to the open space beside the opponent mat, down to the mat's bottom edge (#462)", () => {
+    expect(matSpotAt(mat, 350, 120, opp)).toBe("left");
+    expect(matSpotAt(mat, 350, 340, opp)).toBe("left");
+    expect(matSpotAt(mat, 850, 340, opp)).toBe("right");
+    // Over the mat itself the top band still works by thirds.
+    expect(matSpotAt(mat, 600, 120, opp)).toBe("centre");
+    expect(matSpotAt(mat, 480, 120, opp)).toBe("left");
+  });
+
+  it("is not a spot in the open space below the opponent mat's bottom edge (#462)", () => {
+    expect(matSpotAt(mat, 350, 400, opp)).toBeNull();
+    expect(matSpotAt(mat, 850, 400, opp)).toBeNull();
+  });
+});
+
+describe("collapsedColumns", () => {
+  const none = { left: [], right: ["turn", "hand"] } as Record<"left" | "right", PanelId[]>;
+
+  it("collapses a column with no panel to show so the board gets its width (#449)", () => {
+    expect(collapsedColumns(none, false)).toEqual({ left: true, right: false });
+    expect(collapsedColumns({ left: ["log"], right: [] }, false)).toEqual({ left: false, right: true });
+  });
+
+  it("keeps both columns open while a panel is dragged, so they stay drop targets (#449)", () => {
+    expect(collapsedColumns(none, true)).toEqual({ left: false, right: false });
+  });
+
+  it("keeps a column that holds the defend tray (#449)", () => {
+    expect(collapsedColumns({ left: ["log"], right: [] }, false, { right: true })).toEqual({
+      left: false,
+      right: false,
+    });
+  });
+});
+
+describe("one combined side column (#529)", () => {
+  const layout = { left: ["preview", "log"] as PanelId[], right: ["turn", "chat"] as PanelId[] };
+
+  it("puts the chosen column's panels first, then the other's, each in its own order (#529)", () => {
+    expect(mergeIntoColumn(layout, "right")).toEqual({ left: [], right: ["turn", "chat", "preview", "log"] });
+    expect(mergeIntoColumn(layout, "left")).toEqual({ left: ["preview", "log", "turn", "chat"], right: [] });
+  });
+
+  it("does not change the layout it is given, so the split comes back with Both (#529)", () => {
+    mergeIntoColumn(layout, "left");
+    expect(layout).toEqual({ left: ["preview", "log"], right: ["turn", "chat"] });
+  });
+
+  it("a drop is never aimed at a column that is not there (#529)", () => {
+    const only = { right: { left: 900, right: 1200 } };
+    expect(panelDropAt(only, [], "log", 5, 100).column).toBe("right");
+  });
+});
+
+describe("reordering in the one combined column (#529)", () => {
+  const saved = { left: ["preview", "log"] as PanelId[], right: ["turn", "chat", "hand"] as PanelId[] };
+
+  it("an untouched order gives back the saved split (#529)", () => {
+    expect(splitMergedLayout(mergeIntoColumn(saved, "right"), saved, "right")).toEqual(saved);
+    expect(splitMergedLayout(mergeIntoColumn(saved, "left"), saved, "left")).toEqual(saved);
+  });
+
+  it("a reorder keeps each column's panel count, so both stay populated (#529)", () => {
+    const moved = { left: [], right: ["log", "turn", "chat", "hand", "preview"] as PanelId[] };
+    expect(splitMergedLayout(moved, saved, "right")).toEqual({ right: ["log", "turn", "chat"], left: ["hand", "preview"] });
+  });
+});
+
+describe("one column with a docked Log Pose (#573)", () => {
+  const saved = placeLogPose(parsePanelLayout(""), "left");
+
+  it("one column: a docked Log Pose moved down the column stays there (#573)", () => {
+    const merged = mergeIntoColumn(saved, "left");
+    const order = merged.left.filter((p) => p !== "logpose");
+    for (const to of [3, order.length]) {
+      const reordered = { left: [...order.slice(0, to), "logpose", ...order.slice(to)] as PanelId[], right: [] as PanelId[] };
+      const store = splitMergedLayout(reordered, saved, "left", "logpose");
+      const shown = mergeIntoColumn(placeLogPose(store, "left"), "left").left;
+      expect(shown).toEqual(reordered.left);
+    }
   });
 });

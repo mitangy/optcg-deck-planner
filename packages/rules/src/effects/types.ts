@@ -35,6 +35,7 @@ export type CountExpr =
   | { of: "var_sum"; name: string; field: "cost" | "power" }
   | { of: "leader_power"; player: Rel }
   | { of: "self_power" }
+  | { of: "self_base_power" }
   | { of: "battle_power"; role: "attacker" | "defender" }
   | { of: "sum"; exprs: CountExpr[] }
   /** Number of distinct card names among cards matching the selector. */
@@ -279,8 +280,8 @@ export type Cost =
   | { k: "play_from_hand"; count: number; filter?: Filter }
   | { k: "hand_to_deck_top"; count: number }
   | { k: "trash_to_deck_shuffle"; count: number }
-  | { k: "life_face_down"; count: number }
-  | { k: "life_face_up"; count: number }
+  | { k: "life_face_down"; count: number; position?: LifeFacePosition }
+  | { k: "life_face_up"; count: number; position?: LifeFacePosition }
   | { k: "mill"; count: number }
   | { k: "power"; target: "leader" | "self" | "active_leader"; amount: number }
   | { k: "give_opponent_don"; count: number }
@@ -291,6 +292,9 @@ export type Cost =
   | { k: "unattach_don"; count: number }
   /** "A or B": pay exactly one option (the player picks among payable ones). */
   | { k: "either"; options: Cost[][]; labels: string[] };
+
+/** Which Life cards a face-up/down turn may reach: the top N (default), the top or the bottom N, or any single card. */
+export type LifeFacePosition = "top" | "top_or_bottom" | "any";
 
 export type Placement = "deck_bottom" | "deck_top" | "trash" | "top_or_bottom" | "hand" | "shuffle";
 
@@ -309,7 +313,10 @@ export interface LookPick {
 export type Effect =
   | { do: "seq"; steps: Effect[] }
   | { do: "if"; cond: Cond; then: Effect; else?: Effect }
-  /** "You may [costs]: [then]" — optional; declining skips `then`. */
+  /**
+   * "You may [costs]: [then]" — optional; declining skips `then`. With `chooser: "opponent"` the opponent decides and
+   * pays: `costs` are written from their view ("you" is the chooser), offered only when payable in full (#515).
+   */
   | { do: "may"; costs?: Cost[]; then: Effect; prompt?: string; bind?: string; chooser?: Rel }
   /** Pay costs without an optional prompt (e.g. mandatory costs inside a sequence). */
   | { do: "pay"; costs: Cost[]; then: Effect; bind?: string }
@@ -354,12 +361,14 @@ export type Effect =
   | { do: "swap_base_power"; target: Target; duration: Duration; with?: Target }
   | { do: "discard"; player: Rel; count: Value; chooser?: Rel; filter?: Filter; min?: number; random?: boolean }
   | { do: "hand_to_deck"; player: Rel; count: number; position: "top" | "bottom" | "top_or_bottom"; chooser?: Rel; filter?: Filter; min?: number }
-  | { do: "hand_to_life"; count: number; position: "top" | "bottom"; faceUp: boolean; filter?: Filter; min?: number }
+  /** `reveal`: "Reveal up to 1 ... from your hand and add it to your Life cards" shows the card to the opponent first. */
+  | { do: "hand_to_life"; count: number; position: "top" | "bottom" | "top_or_bottom"; faceUp: boolean; filter?: Filter; min?: number; reveal?: boolean }
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
   | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
-  | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number }
-  | { do: "mill"; player: Rel; count: Value }
+  | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number; position?: LifeFacePosition }
+  /** `bind`: the trashed card(s), for "the trashed card" (#515). */
+  | { do: "mill"; player: Rel; count: Value; bind?: string }
   /** `reveal`: the picked cards are shown to both players (printed "reveal"). Omitted = private. */
   | { do: "look"; player: Rel; count: Value; picks: LookPick[]; rest: Placement; reveal?: boolean }
   | { do: "look_life"; player: RelOrAny; count: number; rest: "top_or_bottom" | "any_order"; prompt?: string }
@@ -466,6 +475,11 @@ export interface EventTrigger {
   byYourEffect?: boolean;
   /** Further events that trigger the same ability ("When A or B"). */
   alsoEvents?: GameEventKind[];
+  /**
+   * Further events that trigger the same ability whatever caused them: `byOpponentEffect`, `byEffect` and
+   * `byYourEffect` do not apply to these ("removed from the field by your opponent's effect or K.O.'d").
+   */
+  anyCauseEvents?: GameEventKind[];
   /** Minimum count carried by the event (e.g. "2 or more DON!! cards are returned"). */
   minCount?: number;
   /** Played-from zone for character_played ("played from your trash"). */
@@ -503,6 +517,8 @@ export interface Ability {
   don?: number;
   /** Gate conditions checked when the ability would activate/apply. */
   conditions?: Cond[];
+  /** Gate conditions checked when a queued trigger is about to resolve instead of when it was queued (a "would do nothing" gate that an earlier effect in the same window can change). */
+  resolveConditions?: Cond[];
   /** Costs paid when activated or accepted (a cost makes a trigger optional). */
   costs?: Cost[];
   effect?: Effect;

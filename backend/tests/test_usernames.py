@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.db import _ensure_user_username, get_db
 from app.game_tokens import verify_game_token
 from app.main import app
-from app.models import User
+from app.models import DuelRating, User
 from app.routers import auth as auth_router
 from app.usernames import (
     UsernameError,
@@ -263,7 +263,7 @@ def test_username_suggestion_endpoint(client):
 
 
 def test_duel_token_and_leaderboard_use_username(client):
-    c, _ = client
+    c, SessionLocal = client
     _login(c)
     r = c.post("/duel/token")
     assert r.status_code == 200, r.text
@@ -276,6 +276,10 @@ def test_duel_token_and_leaderboard_use_username(client):
     assert r.json()["display_name"] == "Usopp"
     assert verify_game_token(r.json()["token"])["name"] == "Usopp"
 
+    # The board lists only players with games (#431).
+    with SessionLocal() as db:
+        db.query(DuelRating).update({"games_played": 1})
+        db.commit()
     board = c.get("/duel/leaderboard").json()["entries"]
     assert board[0]["name"] == "Usopp"
     assert board[0]["username"] == "Usopp"

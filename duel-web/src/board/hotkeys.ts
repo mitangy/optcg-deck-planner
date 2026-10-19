@@ -8,6 +8,8 @@ export type HotkeyAction =
   | "escape"
   | "hand_prev"
   | "hand_next"
+  /** F: toggle full screen (only when the browser offers it). */
+  | "fullscreen"
   /** 1-9: the Nth secondary action button. */
   | { kind: "slot"; n: number }
   /** A/E/P/D: the button for this mnemonic letter (lowercase). */
@@ -43,6 +45,8 @@ export type HotkeyContext = {
   escOwned: boolean;
   /** Keep hand open is on: H hides / shows the hand instead of pinning it. */
   handHides: boolean;
+  /** The browser offers full screen (not installed as an app, not iPhone): F toggles it. */
+  fullscreenOffered: boolean;
 };
 
 /** Maps a keydown to a desktop shortcut; the DOM facts arrive in `ctx` so this stays pure. */
@@ -56,6 +60,12 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
     // A held key would otherwise arm and then confirm End turn on its own.
     if (ctx.focus === "control" || ctx.spectating || e.repeat) return null;
     return "primary";
+  }
+  // Spectators get it too: watching on a big screen is the main use.
+  if (e.key.toLowerCase() === "f") {
+    // A held key would otherwise flip in and out of full screen.
+    if (!ctx.fullscreenOffered || e.repeat) return null;
+    return "fullscreen";
   }
   if (ctx.spectating) return null;
   if (e.key === "Escape") return ctx.escOwned ? null : "escape";

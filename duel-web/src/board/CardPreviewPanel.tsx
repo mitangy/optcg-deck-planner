@@ -1,8 +1,9 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import { isPlaceholderArt } from "../cards/cardImage";
+import { useArtFallback } from "../cards/useArtFallback";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { usePreviewCard } from "./cardPreview";
+import { usePreviewCard, type PreviewCard } from "./cardPreview";
 import { CardInspect } from "./CardInspect";
 import { inspectOnContextMenu } from "./inspectGestures";
 import { useMoreBelow } from "./scrollCue";
@@ -31,12 +32,6 @@ function EffectText({ text }: { text: string }) {
 /** Large art + ability text for the last hovered card (wide layouts only). */
 export function CardPreviewPanel() {
   const preview = usePreviewCard();
-  const big = useDuelSettings().previewBigCard;
-  const [failed, setFailed] = useState<string | null>(null);
-  const [inspectOpen, setInspectOpen] = useState(false);
-  const metaRef = useRef<HTMLDivElement | null>(null);
-  const scrollCue = useMoreBelow(metaRef, [preview?.defId, preview?.caption, preview?.live]);
-
   if (!preview) {
     return (
       <aside className="card-preview card-preview-empty" aria-label="Card preview">
@@ -45,22 +40,37 @@ export function CardPreviewPanel() {
       </aside>
     );
   }
+  return <CardPreviewContent preview={preview} />;
+}
+
+/**
+ * The card's art and text, shared by the side panel and the floating pop-up
+ * (`popup`: the pop-up's header already names the card, so the name is left out
+ * and the art stacks above the text instead of sitting beside it).
+ */
+export function CardPreviewContent({ preview, popup = false }: { preview: PreviewCard; popup?: boolean }) {
+  const big = useDuelSettings().previewBigCard;
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const metaRef = useRef<HTMLDivElement | null>(null);
+  const scrollCue = useMoreBelow(metaRef, [preview.defId, preview.caption, preview.live]);
 
   const openInspect = (e: MouseEvent) => inspectOnContextMenu(e, () => setInspectOpen(true));
   const entry = lookupCard(preview.defId);
-  const src = resolveCardImageUrl(preview.defId, {
+  const tcgSrc = resolveCardImageUrl(preview.defId, {
     ownerSeat: preview.ownerSeat,
     size: "large",
   });
+  const { src, fail } = useArtFallback(tcgSrc, preview.defId);
   const art =
-    src && src !== failed ? (
+    src ? (
       <img
         className="card-preview-img"
         src={src}
         alt={entry.name}
-        onError={() => setFailed(src)}
+        draggable={false}
+        onError={fail}
         onLoad={(e) => {
-          if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) setFailed(src);
+          if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) fail();
         }}
         onContextMenu={openInspect}
       />
@@ -72,7 +82,7 @@ export function CardPreviewPanel() {
   const effect = entry.effectText?.trim() ?? "";
   return (
     <aside
-      className={`card-preview ${big ? "card-preview-big" : "card-preview-compact"}`}
+      className={`card-preview ${big ? "card-preview-big" : "card-preview-compact"}${popup ? " card-preview-in-popup" : ""}`}
       aria-label="Card preview"
       aria-live="polite"
     >
@@ -80,14 +90,6 @@ export function CardPreviewPanel() {
         <div className="card-preview-stage">
           {art}
           {preview.caption ? <p className="card-preview-caption card-preview-caption-big">{preview.caption}</p> : null}
-          {preview.live ? (
-            <LiveCardStatus
-              live={preview.live}
-              atlasPower={entry.power}
-              atlasCost={entry.cost}
-              className="card-preview-live card-preview-live-big"
-            />
-          ) : null}
         </div>
       ) : (
         <>
@@ -95,7 +97,7 @@ export function CardPreviewPanel() {
             {art}
             <div className="card-preview-headtext">
               {preview.caption ? <p className="card-preview-caption">{preview.caption}</p> : null}
-              <h2 className="card-preview-name">{entry.name}</h2>
+              {popup ? null : <h2 className="card-preview-name">{entry.name}</h2>}
               {entry.traits?.length ? (
                 <p className="card-preview-traits">{entry.traits.join(" / ")}</p>
               ) : null}

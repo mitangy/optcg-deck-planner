@@ -1,9 +1,11 @@
 /**
  * Wire types for protocolVersion 5 — mirrored from game-server/src/protocol.ts.
- * Do not import @optcg/rules into the app.
+ * Do not import @optcg/rules into the app, except through the lazy replay chunk (src/replay), which
+ * loads the engine on /replay only; the main bundle must stay free of rules data.
  */
 
 import { lookupCard } from "../cards/atlas";
+import { asDonArtId } from "../board/donArt";
 import { getApiBaseUrl } from "../config";
 
 export const PROTOCOL_VERSION = 5 as const;
@@ -25,7 +27,14 @@ export type DuelJoinOptions = {
   role?: "player" | "spectator";
   /** Optional deck for this seat. */
   deck?: PlayerDeckWire;
+  /** Take over the seat `preferredSeat` that this account already holds (move a live match to this device). */
+  takeover?: boolean;
+  /** Practice only: game token of the signed-in account that owns this (guest-identity) seat. */
+  ownerToken?: string;
 };
+
+/** Close code the server uses on a socket whose seat another device took over. */
+export const TAKEN_OVER_CLOSE_CODE = 4451;
 
 export type DuelCreateOptions = {
   protocolVersion?: ProtocolVersion;
@@ -82,6 +91,8 @@ export type WelcomeMessage = {
   players?: SeatPlayers;
   /** Whether the room is ranked; absent from an older server. */
   ranked?: boolean;
+  /** How the game's turn order was decided: null = coin flip, a seat = the rematch loser who chose; absent from an older server. */
+  firstSeatPickedBy?: Seat | null;
   /** Players of unranked rooms only. */
   brief?: BriefTicketWire;
 };
@@ -170,6 +181,8 @@ export type CosmeticsMessage = {
 export type SeatSkin = {
   playmat: string | null;
   cardBack: string | null;
+  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
+  donArt: number | null;
 };
 
 export type SkinMessage = {
@@ -207,6 +220,7 @@ export function parseSkin(raw: unknown): SkinMessage {
     skin: {
       playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS),
       cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS),
+      donArt: asDonArtId(skin.donArt),
     },
   };
 }
@@ -342,8 +356,12 @@ export type PlayerView = {
   winner: Seat | null;
   winReason: string | null;
   legalIntents: Intent[];
-  /** Spectators of unranked rooms: both hands, indexed by seat. */
+  /** Spectators of unranked rooms, and every viewer once the match is over (#482): both hands, indexed by seat. A replay viewer gets `HIDDEN` placeholders for a hand it may not show. */
   revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Hand cards an effect revealed this turn, per seat. Public: they stay face up until the next turn (#491). */
+  handReveals?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  /** Once the match is over (#482): every Life card's defId, in life order, indexed by seat. */
+  revealedLife?: [string[], string[]];
 };
 
 export function isProtocolVersion(v: unknown): v is ProtocolVersion {
@@ -360,7 +378,7 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
   for (const choice of view.pendingChoices ?? []) {
     const request = choice.request;
-    const hiddenViewer = view.spectator || (choice.privateToSeat != null && choice.privateToSeat !== view.seat);
+    const hiddenViewer = choice.privateToSeat != null && (view.spectator || choice.privateToSeat !== view.seat);
     if (hiddenViewer && request && "options" in request && request.options.some((o) => o.defId && o.defId !== "HIDDEN" && !o.instanceId)) {
       throw new Error("privacy leak: private choice options visible to this viewer");
     }
@@ -401,6 +419,8 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     view,
     players: parseSeatPlayers(o.players),
     ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    firstSeatPickedBy:
+      o.firstSeatPickedBy === null ? null : o.firstSeatPickedBy === 0 || o.firstSeatPickedBy === 1 ? o.firstSeatPickedBy : undefined,
     // A spectator is never offered a brief, whatever the server sent.
     brief: role === "spectator" || view.spectator ? undefined : parseBriefTicket(o.brief),
   };
@@ -635,13 +655,63 @@ export function parseChatHistory(raw: unknown): ChatLine[] {
   return o.messages.map(asChatLine);
 }
 
+/** One undoable action: who took it and a short description ("play Nami"). */
+export type UndoActionInfo = { seat: Seat; label: string };
+
+/** What an undo request takes back: the last action, or every action of that turn (#536). */
+export type UndoScope = "action" | "turn";
+
+/** Whether one scope can be requested now, and why not (#536). */
+export type UndoOption = {
+  /** Can be requested without force. */
+  available: boolean;
+  /** Actions it would take back. */
+  steps: number;
+  blockedReason?: string;
+  /** Blocked only by a reveal: a forced request goes through. */
+  forceable: boolean;
+  /** What was revealed, when a reveal sits in the range. */
+  revealReason?: string;
+};
+
+/** An open request awaiting the other seat's answer. */
+export type UndoPending = {
+  /** Server-assigned per request; an accept echoes it so a changed request is not applied unseen (#540). Absent from older servers. */
+  id?: number;
+  from: Seat;
+  toTurn: number;
+  action: UndoActionInfo | null;
+  scope: UndoScope;
+  steps: number;
+  /** Asked past a reveal. */
+  force: boolean;
+  revealReason: string | null;
+};
+
 /** Undo availability pushed by the server (enabled only in unranked rooms). */
 export type UndoState = {
   enabled: boolean;
-  /** Turn an undo would rewind to right now; null when nothing to undo. */
+  /** Turn of the state an undo would restore right now; null when nothing to undo. */
   targetTurn: number | null;
-  /** Open request awaiting the other seat's answer. */
-  pending: { from: Seat; toTurn: number } | null;
+  /** The last action, which an undo would take back; null when nothing to undo. */
+  action: UndoActionInfo | null;
+  /** Per-scope availability; null from an older server (then only the last action can be undone). */
+  options: { action: UndoOption; turn: UndoOption } | null;
+  /** Why nothing can be requested plainly; null when something can. */
+  blockedReason: string | null;
+  pending: UndoPending | null;
+};
+
+/** Broadcast after an accepted undo. */
+export type UndoApplied = {
+  toTurn: number;
+  /** Intent count after the rewind; absent from older servers. */
+  toStep?: number;
+  by: Seat;
+  action: UndoActionInfo | null;
+  /** What went; "action" from older servers. */
+  scope: UndoScope;
+  steps?: number;
 };
 
 /** Client to room: your hand's order (card instance ids, left to right) for spectators' fans. */
@@ -652,26 +722,76 @@ export type HandOrderMessage = {
 
 export type UndoAction = "request" | "accept" | "decline" | "cancel";
 
+/** Extra fields of a "request": default is the last action, not forced. */
+export type UndoRequestOptions = { scope?: UndoScope; force?: boolean; id?: number };
+
+function parseUndoOption(raw: unknown): UndoOption | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.available !== "boolean") return null;
+  return {
+    available: o.available,
+    steps: typeof o.steps === "number" ? o.steps : 0,
+    ...(typeof o.blockedReason === "string" ? { blockedReason: o.blockedReason } : {}),
+    forceable: o.forceable === true,
+    ...(typeof o.revealReason === "string" ? { revealReason: o.revealReason } : {}),
+  };
+}
+
 export function parseUndoState(raw: unknown): UndoState {
   if (!raw || typeof raw !== "object") throw new Error("undo_state body required");
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   const turn = typeof o.targetTurn === "number" ? o.targetTurn : null;
   const p = o.pending as Record<string, unknown> | null | undefined;
-  const pending =
+  const pending: UndoPending | null =
     p && typeof p === "object" && (p.from === 0 || p.from === 1) && typeof p.toTurn === "number"
-      ? { from: p.from as Seat, toTurn: p.toTurn }
+      ? {
+          ...(typeof p.id === "number" ? { id: p.id } : {}),
+          from: p.from as Seat,
+          toTurn: p.toTurn,
+          action: parseUndoActionInfo(p.action),
+          scope: p.scope === "turn" ? "turn" : "action",
+          steps: typeof p.steps === "number" ? p.steps : 1,
+          force: p.force === true,
+          revealReason: typeof p.revealReason === "string" ? p.revealReason : null,
+        }
       : null;
-  return { enabled: o.enabled === true, targetTurn: turn, pending };
+  const opts = o.options as Record<string, unknown> | null | undefined;
+  const optAction = opts && typeof opts === "object" ? parseUndoOption(opts.action) : null;
+  const optTurn = opts && typeof opts === "object" ? parseUndoOption(opts.turn) : null;
+  return {
+    enabled: o.enabled === true,
+    targetTurn: turn,
+    action: parseUndoActionInfo(o.action),
+    options: optAction && optTurn ? { action: optAction, turn: optTurn } : null,
+    blockedReason: typeof o.blockedReason === "string" ? o.blockedReason : null,
+    pending,
+  };
 }
 
-export function parseUndoApplied(raw: unknown): { toTurn: number; by: Seat } {
+/** Lenient: an older server sends no action, and a malformed one is just dropped. */
+function parseUndoActionInfo(raw: unknown): UndoActionInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const a = raw as Record<string, unknown>;
+  if ((a.seat !== 0 && a.seat !== 1) || typeof a.label !== "string" || a.label === "") return null;
+  return { seat: a.seat, label: a.label };
+}
+
+export function parseUndoApplied(raw: unknown): UndoApplied {
   if (!raw || typeof raw !== "object") throw new Error("undo_applied body required");
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   if (typeof o.toTurn !== "number") throw new Error("undo_applied.toTurn required");
   if (o.by !== 0 && o.by !== 1) throw new Error("undo_applied.by required");
-  return { toTurn: o.toTurn, by: o.by };
+  return {
+    toTurn: o.toTurn,
+    ...(typeof o.toStep === "number" ? { toStep: o.toStep } : {}),
+    by: o.by,
+    action: parseUndoActionInfo(o.action),
+    scope: o.scope === "turn" ? "turn" : "action",
+    ...(typeof o.steps === "number" ? { steps: o.steps } : {}),
+  };
 }
 
 /** Rematch vote after a match ends (unranked rooms). */
@@ -679,6 +799,8 @@ export type RematchState = {
   /** Over, unranked, and both players still in the room. */
   available: boolean;
   requested: [boolean, boolean];
+  /** That seat's current request carries a different deck for the next game. */
+  newDeck: [boolean, boolean];
   declinedBy: Seat | null;
   /** Both agreed: the loser picks who goes first. */
   chooser: Seat | null;
@@ -691,10 +813,12 @@ export function parseRematchState(raw: unknown): RematchState {
   const o = raw as Record<string, unknown>;
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   const req = Array.isArray(o.requested) ? o.requested : [];
+  const newDeck = Array.isArray(o.newDeck) ? o.newDeck : [];
   const seatOrNull = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
   return {
     available: o.available === true,
     requested: [req[0] === true, req[1] === true],
+    newDeck: [newDeck[0] === true, newDeck[1] === true],
     declinedBy: seatOrNull(o.declinedBy),
     chooser: seatOrNull(o.chooser),
   };

@@ -141,7 +141,7 @@ function sse<T>(kind: "chat" | "review" | "brief", schema: z.ZodType<T>, run: Ru
     res.on("close", () => abort.abort());
     let streaming = false;
     try {
-      const token = await admitWith(plannerApi, bearer);
+      const token = await admitWith(plannerApi, bearer, kind);
       res.status(200).set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" });
       res.flushHeaders();
       streaming = true;

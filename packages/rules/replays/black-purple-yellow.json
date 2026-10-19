@@ -158,6 +158,7 @@
     { "seat": 0, "intent": {"type":"pass_block"} },
     { "seat": 0, "intent": {"type":"counter_from_hand","handIndex":1} },
     { "seat": 0, "intent": {"type":"pass_counter"} },
-    { "seat": 1, "intent": {"type":"activate_ability","sourceId":"card_101","abilityId":"eb05-057#m0"} }
+    { "seat": 1, "intent": {"type":"activate_ability","sourceId":"card_101","abilityId":"eb05-057#0"} },
+    { "seat": 1, "intent": {"type":"resolve_pending_choice","accept":true,"selectedOptionIds":["o0"]} }
   ]
 }

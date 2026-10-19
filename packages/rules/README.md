@@ -38,7 +38,13 @@ npm run scenario-coverage             # supported cards no test mentions, by set
 npm run scenario-coverage -- --summary OP01 EB01
 npm run bench:views                   # µs per move: applyIntent, and both seats' views with and without the query cache
 npm run bench:views -- --gate         # CI: exit 1 unless cached views are ≥1.8x faster than uncached
+npm run lint:programs                 # static lints over every compiled card program (also a vitest: programLint.test.ts)
+npm run lint:programs -- --all        # also list the allowlisted findings and why
 ```
+
+`lint:programs` reports a card that reads a variable no earlier step writes, and an "if you do / if they do not" payoff
+gated on a `may` that is not a cost (accepting and paying partly still pays off). Accepted findings live in
+`src/tools/cardText/programLintAllowlist.ts`, keyed by ability id, each with a reason.
 
 ## Golden replays
 

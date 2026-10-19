@@ -8,12 +8,12 @@ import json
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request
-from sqlalchemy import delete, or_, select, text
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -31,12 +31,14 @@ from app.models import (
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
+    DuelLobbySeen,
     DuelMatchSeatLog,
     DuelPresence,
     DuelRating,
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
+from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
 from app.routers.api import _require_catalog_token
@@ -53,8 +55,10 @@ from app.schemas import (
     DuelMatchHistoryOut,
     DuelMatchIngest,
     DuelMatchProgressIngest,
+    DuelMatchReplayOut,
     DuelMatchOut,
     DuelPresenceSnapshot,
+    DuelLiveOut,
     DuelRatingOut,
     DuelTokenOut,
     GameServerPoolIn,
@@ -66,6 +70,8 @@ log = logging.getLogger(__name__)
 
 # A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
+# A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
+PROGRESS_STALE_AFTER = timedelta(hours=24)
 
 _token_rate = RateLimiter(max_calls=30, period_s=60, name="duel_token_rate")
 _ingest_rate = RateLimiter(max_calls=120, period_s=60, name="duel_ingest_rate")
@@ -431,7 +437,7 @@ def ingest_match_progress(
     """Keep the latest log of a game that has no result yet, so a game cut short still has one.
 
     With Redis configured, live snapshots (one per turn) go to Redis only; the
-    ``final`` snapshot a closing room sends is written to Postgres so the log
+    ``closed`` snapshot a closing room sends is written to Postgres so the log
     outlives Redis's expiry.
     """
     _require_ingest_secret(settings, x_duel_ingest_token)
@@ -440,7 +446,7 @@ def ingest_match_progress(
     if body.seat0_user_id == body.seat1_user_id:
         raise HTTPException(status_code=400, detail="Seats must be different users")
     r = redis_client.get_redis()
-    if r is not None and not body.final:
+    if r is not None and not body.closed:
         try:
             _progress_to_redis(r, db, body, match_id)
             return
@@ -481,6 +487,7 @@ def _fill_progress(row: DuelMatchProgress, body: DuelMatchProgressIngest, match_
     row.seat0_leader_id = body.seat0_leader_id
     row.seat1_leader_id = body.seat1_leader_id
     row.turns = body.turns
+    row.closed = body.closed
     row.replay = _capped_json(body.replay, "progress replay", match_id)
     row.seat0_log = _capped_json(seat_logs[0], "progress seat 0 log", match_id)
     row.seat1_log = _capped_json(seat_logs[1], "progress seat 1 log", match_id)
@@ -572,6 +579,25 @@ def my_rating(
 ) -> DuelRatingOut:
     rating = _get_or_create_rating(db, user.id)
     db.commit()
+    seat0 = DuelMatch.seat0_user_id == user.id
+    seat1 = DuelMatch.seat1_user_id == user.id
+    wins = db.scalar(
+        select(func.count(DuelMatch.id)).where(
+            or_(
+                (seat0) & (DuelMatch.winner_seat == 0),
+                (seat1) & (DuelMatch.winner_seat == 1),
+            )
+        )
+    )
+    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1)))
+    rank = None
+    if rating.games_played > 0:
+        ahead = db.scalar(
+            select(func.count())
+            .select_from(DuelRating)
+            .where(DuelRating.games_played > 0, DuelRating.rating > rating.rating)
+        )
+        rank = 1 + (ahead or 0)
     return DuelRatingOut(
         user_id=user.id,
         email=user.email,
@@ -579,6 +605,9 @@ def my_rating(
         username=user.username,
         rating=rating.rating,
         games_played=rating.games_played,
+        wins=wins or 0,
+        losses=(played or 0) - (wins or 0),
+        rank=rank,
     )
 
 
@@ -645,6 +674,18 @@ def _utc(when: datetime) -> datetime:
     return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
+def _progress_closed(progress: DuelMatchProgress, now: datetime) -> bool:
+    """Nobody is playing this cut-off game any more: its room said so, or it went quiet for a day."""
+    if progress.closed:
+        return True
+    updated = progress.updated_at
+    if updated is None:
+        return False
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    return now - updated > PROGRESS_STALE_AFTER
+
+
 def _sort_time(iso: str | None) -> datetime:
     if not iso:
         return datetime.min.replace(tzinfo=timezone.utc)
@@ -658,6 +699,7 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
         return []
     opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
     opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
+    now = datetime.now(timezone.utc)
     entries = []
     for r in rows:
         seat = 0 if r.seat0_user_id == user.id else 1
@@ -679,6 +721,7 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
                 has_replay=r.replay is not None,
                 has_log=(r.seat0_log if seat == 0 else r.seat1_log) is not None,
                 finished=False,
+                replay_ready=r.replay is not None and _progress_closed(r, now),
             )
         )
     return entries
@@ -717,6 +760,7 @@ def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[Due
                 rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
                 has_replay=r.match_id in with_replay,
                 has_log=(r.match_id, seat) in with_log,
+                replay_ready=r.match_id in with_replay,
             )
         )
     return matches
@@ -765,6 +809,49 @@ def my_match(
     )
 
 
+@router.get("/matches/me/{match_id}/replay", response_model=DuelMatchReplayOut)
+def my_match_replay(
+    match_id: str,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> DuelMatchReplayOut:
+    """The recording of one of the signed-in player's games, for the replay viewer.
+
+    It holds both hands and decks, so it goes only to the game's own players, and only once
+    nobody is playing it any more. Finished games always qualify; a game that never sent a
+    result qualifies after its room closed.
+    """
+    row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
+    if row is not None:
+        if user.id not in (row.seat0_user_id, row.seat1_user_id):
+            raise HTTPException(status_code=404, detail="Match not found")
+        log_row = db.get(DuelMatchLog, match_id)
+        if log_row is None:
+            raise HTTPException(status_code=404, detail="No replay was kept for this match")
+        seat0_id, seat1_id, turns, replay_text, finished = row.seat0_user_id, row.seat1_user_id, row.turns, log_row.replay, True
+    else:
+        progress = db.get(DuelMatchProgress, match_id)
+        players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
+        if user.id not in players:
+            raise HTTPException(status_code=404, detail="Match not found")
+        if not _progress_closed(progress, datetime.now(timezone.utc)):
+            raise HTTPException(status_code=409, detail="This game is still being played")
+        if progress.replay is None:
+            raise HTTPException(status_code=404, detail="No replay was kept for this match")
+        seat0_id, seat1_id, turns, replay_text, finished = progress.seat0_user_id, progress.seat1_user_id, progress.turns, progress.replay, False
+    names = {u.id: duel_display_name(u) for u in db.scalars(select(User).where(User.id.in_((seat0_id, seat1_id)))).all()}
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return DuelMatchReplayOut(
+        match_id=match_id,
+        your_seat=0 if seat0_id == user.id else 1,
+        players=[names.get(seat0_id, "Player"), names.get(seat1_id, "Player")],
+        finished=finished,
+        turns=turns,
+        replay=json.loads(replay_text),
+    )
+
+
 @router.get("/leaderboard", response_model=DuelLeaderboardOut)
 def leaderboard(
     db: Annotated[Session, Depends(get_db)],
@@ -774,6 +861,7 @@ def leaderboard(
     rows = db.execute(
         select(DuelRating, User)
         .join(User, User.id == DuelRating.user_id)
+        .where(DuelRating.games_played > 0)
         .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())
         .limit(limit)
     ).all()
@@ -788,6 +876,41 @@ def leaderboard(
         for rating, user in rows
     ]
     return DuelLeaderboardOut(entries=entries)
+
+
+LIVE_CACHE_S = 30.0
+_live_clock = time.monotonic
+_live_cache: tuple[float, DuelLiveOut] | None = None
+
+
+def reset_live_cache() -> None:
+    global _live_cache
+    _live_cache = None
+
+
+@router.get("/live", response_model=DuelLiveOut)
+def live_counts(db: Annotated[Session, Depends(get_db)]) -> DuelLiveOut:
+    """Public headcount for the lobby: players online and matches in progress (counts only)."""
+    global _live_cache
+    tick = _live_clock()
+    if _live_cache is not None and tick - _live_cache[0] < LIVE_CACHE_S:
+        return _live_cache[1]
+    now = datetime.now(timezone.utc)
+    online: set[int] = set()
+    rooms: set[str] = set()
+    for row in db.scalars(select(DuelPresence)):
+        if now - _utc(row.updated_at) > PRESENCE_TTL:
+            continue
+        if row.phase != "finished":
+            online.add(row.user_id)
+        if row.role == "player" and row.phase == "playing":
+            rooms.add(row.room_id)
+    for seen in db.scalars(select(DuelLobbySeen)):
+        if now - _utc(seen.seen_at) <= ONLINE_TTL:
+            online.add(seen.user_id)
+    out = DuelLiveOut(online=len(online), matches=len(rooms))
+    _live_cache = (tick, out)
+    return out
 
 
 def _report_out(row: CardReport, user: User | None) -> CardReportOut:

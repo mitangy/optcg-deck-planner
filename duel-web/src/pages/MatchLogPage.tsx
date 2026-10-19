@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { CardInspect } from "../board/CardInspect";
 import { TONE_ICON } from "../board/BattleLogPanel";
 import type { LogSegment } from "../board/battleLog";
 import { fetchMatchDetail, type MatchDetail } from "../history/historyApi";
-import { matchLogTurns } from "../history/matchLog";
+import { groupHand, matchLogTurns } from "../history/matchLog";
 import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
@@ -14,6 +14,7 @@ import { useLogPosePage } from "@optcg/analyst-client";
 import { LogPoseReview } from "../history/LogPoseReview";
 import { MATCH_LOG_STARTERS } from "../logPose";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -63,7 +64,15 @@ export function MatchLogPage() {
   }, [detail]);
   const row = useMemo(() => (detail ? matchRow(detail.match, cardName) : null), [detail]);
   const turns = useMemo(() => (detail?.log ? matchLogTurns(detail.log) : []), [detail]);
+  const intro = turns.find((t) => t.turn === 0);
+  const playTurns = turns.filter((t) => t.turn > 0);
   const log = detail?.log ?? null;
+  // Chips scroll in place and keep the hash in sync (so the URL can be shared) without a navigation.
+  const jumpTo = (e: MouseEvent<HTMLAnchorElement>, turn: number) => {
+    e.preventDefault();
+    document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.history.replaceState(window.history.state, "", `#turn-${turn}`);
+  };
   const seat = log?.seat;
   const opponentSeat = seat === undefined ? undefined : ((1 - seat) as 0 | 1);
   const wentFirst = log ? log.turns.find((t) => t.turn === 1)?.activeSeat === log.seat : null;
@@ -78,10 +87,80 @@ export function MatchLogPage() {
       <span key={i}>{seg.text}</span>
     );
 
+  // One button per distinct card, with a ×N badge for extra copies.
+  const handCards = (ids: string[], ownerSeat: 0 | 1 | undefined) =>
+    groupHand(ids).map(({ defId, count }) => (
+      <span key={defId} className="log-card-group">
+        <CardButton defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat })} />
+        {count > 1 ? (
+          <span className="log-card-count" title={`${count} copies`} aria-label={`${count} copies`} role="img">
+            ×{count}
+          </span>
+        ) : null}
+      </span>
+    ));
+
+  const renderTurn = (t: (typeof turns)[number]) => (
+    <section
+      key={t.turn}
+      id={`turn-${t.turn}`}
+      className="match-log-turn"
+      data-yours={t.yours ? "true" : undefined}
+    >
+      <h2 className="match-log-turn-title">
+        {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
+        <span>{t.label}</span>
+      </h2>
+      <div className="match-log-turn-body" data-hands={t.hand || t.opponentHand || t.opponentHandCount != null ? "true" : undefined}>
+        {t.hand || t.opponentHand || t.opponentHandCount != null ? (
+          <div className="match-log-turn-hand">
+            {t.hand ? (
+              t.hand.length ? (
+                <div className="match-log-turn-hand-row">
+                  <span className="match-log-turn-hand-label">Your hand ({t.hand.length})</span>
+                  <p className="match-log-hand-cards match-log-turn-hand-cards">
+                    {handCards(t.hand, seat)}
+                  </p>
+                </div>
+              ) : (
+                <span className="match-log-turn-hand-label">Your hand: empty</span>
+              )
+            ) : null}
+            {t.opponentHand ? (
+              t.opponentHand.length ? (
+                <div className="match-log-turn-hand-row">
+                  <span className="match-log-turn-hand-label">Opponent's hand ({t.opponentHand.length})</span>
+                  <p className="match-log-hand-cards match-log-turn-hand-cards">
+                    {handCards(t.opponentHand, opponentSeat)}
+                  </p>
+                </div>
+              ) : (
+                <span className="match-log-turn-hand-label">Opponent's hand: empty</span>
+              )
+            ) : t.opponentHandCount != null ? (
+              <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
+            ) : null}
+          </div>
+        ) : null}
+        <ul className="battle-log-lines match-log-lines">
+          {t.entries.map((line) => (
+            <li key={line.id} className={`log-line log-${line.tone}${line.important ? " log-important" : ""}`}>
+              <span className="log-icon" aria-hidden>
+                {TONE_ICON[line.tone] ?? ""}
+              </span>
+              <span className="log-text">{line.segments.map(segment)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+
   return (
     <div className="app-shell">
-      <div className="page page-narrow">
+      <div className="page match-log-page">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/history" label="History" ariaLabel="Back to match history" />
           <h1 className="page-title">Match log</h1>
         </header>
@@ -118,6 +197,23 @@ export function MatchLogPage() {
           </section>
         ) : null}
 
+        {playTurns.length ? (
+          <nav className="match-log-jump" aria-label="Jump to turn">
+            {playTurns.map((t) => (
+              <a
+                key={t.turn}
+                href={`#turn-${t.turn}`}
+                className="match-log-jump-chip"
+                data-yours={t.yours ? "true" : undefined}
+                title={`Turn ${t.turn}: ${t.label}`}
+                onClick={(e) => jumpTo(e, t.turn)}
+              >
+                {t.turn}
+              </a>
+            ))}
+          </nav>
+        ) : null}
+
         {detail && !log ? (
           <section className="panel">
             <p className="panel-copy">
@@ -136,76 +232,26 @@ export function MatchLogPage() {
 
         {log ? (
           <div className="match-log">
-            <section className="match-log-hand" aria-label="Your opening hand">
-              <h2 className="match-log-turn-title">Your opening hand</h2>
-              <p className="match-log-hand-cards">
-                {log.openingHand.map((defId, i) => (
-                  <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: seat })} />
-                ))}
-              </p>
-            </section>
-            {log.opponentOpeningHand ? (
-              <section className="match-log-hand" aria-label="Opponent's opening hand">
-                <h2 className="match-log-turn-title">Opponent's opening hand</h2>
+            <div className="match-log-openings">
+              <section className="match-log-hand" aria-label="Your opening hand">
+                <h2 className="match-log-turn-title">Your opening hand</h2>
                 <p className="match-log-hand-cards">
-                  {log.opponentOpeningHand.map((defId, i) => (
-                    <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: opponentSeat })} />
-                  ))}
+                  {handCards(log.openingHand, seat)}
                 </p>
               </section>
-            ) : null}
-            {turns.map((t) => (
-              <section key={t.turn} id={`turn-${t.turn}`} className="match-log-turn" data-yours={t.yours ? "true" : undefined}>
-                <h2 className="match-log-turn-title">
-                  {t.turn > 0 ? <span className="match-log-turn-no">Turn {t.turn}</span> : null}
-                  <span>{t.label}</span>
-                </h2>
-                {t.hand || t.opponentHand || t.opponentHandCount != null ? (
-                  <div className="match-log-turn-hand">
-                    {t.hand ? (
-                      t.hand.length ? (
-                        <div className="match-log-turn-hand-row">
-                          <span className="match-log-turn-hand-label">Your hand ({t.hand.length})</span>
-                          <p className="match-log-hand-cards match-log-turn-hand-cards">
-                            {t.hand.map((defId, i) => (
-                              <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: seat })} />
-                            ))}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="match-log-turn-hand-label">Your hand: empty</span>
-                      )
-                    ) : null}
-                    {t.opponentHand ? (
-                      t.opponentHand.length ? (
-                        <div className="match-log-turn-hand-row">
-                          <span className="match-log-turn-hand-label">Opponent's hand ({t.opponentHand.length})</span>
-                          <p className="match-log-hand-cards match-log-turn-hand-cards">
-                            {t.opponentHand.map((defId, i) => (
-                              <CardButton key={i} defId={defId} name={cardName(defId)} onInspect={() => setInspect({ defId, ownerSeat: opponentSeat })} />
-                            ))}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="match-log-turn-hand-label">Opponent's hand: empty</span>
-                      )
-                    ) : t.opponentHandCount != null ? (
-                      <span className="match-log-turn-opp">Opponent: {t.opponentHandCount} {t.opponentHandCount === 1 ? "card" : "cards"}</span>
-                    ) : null}
-                  </div>
-                ) : null}
-                <ul className="battle-log-lines match-log-lines">
-                  {t.entries.map((line) => (
-                    <li key={line.id} className={`log-line log-${line.tone}${line.important ? " log-important" : ""}`}>
-                      <span className="log-icon" aria-hidden>
-                        {TONE_ICON[line.tone] ?? ""}
-                      </span>
-                      <span className="log-text">{line.segments.map(segment)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+              {log.opponentOpeningHand ? (
+                <section className="match-log-hand" aria-label="Opponent's opening hand">
+                  <h2 className="match-log-turn-title">Opponent's opening hand</h2>
+                  <p className="match-log-hand-cards">
+                    {handCards(log.opponentOpeningHand, opponentSeat)}
+                  </p>
+                </section>
+              ) : null}
+            </div>
+            {intro ? renderTurn(intro) : null}
+            <div className="match-log-turns">
+              {playTurns.map(renderTurn)}
+            </div>
             {log.diverged ? (
               <p className="field-hint history-hint">The log stops early: card rules changed after this game was played.</p>
             ) : null}

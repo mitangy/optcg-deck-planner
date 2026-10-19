@@ -18,10 +18,10 @@ server's CPU is the limit, at about 4 ms per move.
 | Game server sockets | permessage-deflate (threshold 512 B, no context takeover, level 1) | A board view is about 3 KB per seat per move and deflates about 3.5x |
 | Game server pool | `REDIS_URL` + `PUBLIC_ADDRESS` share rooms and seat reservations across processes (Colyseus `RedisPresence` / `RedisDriver`) | Render has no sticky sessions: each process is its own service with its own address |
 | Ranked queue | One queue room holds up to 5000 players | At 64 a second queue room opened and the two never paired |
-| Progress saves | A closing room's last log carries `final: true` | Live turn snapshots can stay in Redis; only the last one must hit Postgres |
+| Progress saves | A closing room's last log carries `closed: true` (from #476) | Live turn snapshots can stay in Redis; only the last one must hit Postgres |
 | Playmats | Seats send a signed `/duel/cosmetics/<id>/public/<sig>` link instead of a 450 KB data URL | Memory and bandwidth per match; the image is cached by the browser and CDN |
 | `/health` | Adds `commit`, `processId`, `roomCount`, `ccu` | Blue/green waits on `commit`; `roomCount` shows when a pool has drained |
-| API on Redis | Named rate limits, friends presence and live progress snapshots live in Redis when `REDIS_URL` is set; only a game's result and its `final` log are written to Postgres | Several API workers share limits, and live games stop writing Postgres every turn |
+| API on Redis | Named rate limits, friends presence and live progress snapshots live in Redis when `REDIS_URL` is set; only a game's result and its `closed` log are written to Postgres | Several API workers share limits, and live games stop writing Postgres every turn |
 | Game server address | `/duel/token` (and the dev and guest tokens) return `game_server_url`: the pool pointer in Redis (`duel:gs:current`), else `GAME_SERVER_URL`, else null. duel-web connects there and reconnects to the server a match started on | New games can move to another pool without rebuilding the front end |
 | Pool pointer | `GET`/`PUT /duel/admin/game-server-pool` with the `X-Catalog-Token` header, body `{"url": "https://…"}` (null clears it) | The blue/green workflow flips it |
 | Public playmat links | `GET /duel/cosmetics/<id>/public/<sig>` serves an upload without a session; `sig` is an HMAC of the id. Cosmetics responses carry `public_path` | Seats share a link instead of the image |
@@ -78,7 +78,7 @@ change a plan and need Miko's go-ahead.
   invite and the join, the friend's client looks on the new pool and gets
   "room not found"; re-inviting fixes it.
 - With Redis on, a live game's log stays in Redis (6 hour expiry) until the
-  room closes and sends its `final` log. If a game-server process crashes
+  room closes and sends its `closed` log. If a game-server process crashes
   without closing its rooms, those unfinished logs are lost after 6 hours;
   without Redis they stay in Postgres as before.
 - Catalog sync's lock and status, and the tournament sync background task,

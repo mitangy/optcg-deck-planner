@@ -100,6 +100,8 @@ export function takeCard(state: MatchState, loc: Located): { id: InstanceId; def
       break;
     case "hand":
       p.hand.splice(loc.index, 1);
+      // A card that leaves the hand is no longer revealed, even if it returns later (#491).
+      if (p.revealedHandIds) p.revealedHandIds = p.revealedHandIds.filter((id) => id !== loc.id);
       break;
     case "resolving":
       p.resolving.splice(loc.index, 1);

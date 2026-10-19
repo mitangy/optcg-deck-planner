@@ -18,8 +18,8 @@ export interface CardDataRow {
   text: string;
   /** Printed [Trigger] clause, including its tag, or "". */
   trigger: string;
-  /** `bandai`: official English card list. `bundled`: legacy catalog only (unverified). */
-  source: "bandai" | "bundled";
+  /** `bandai`: official English card list. `bundled`: legacy catalog only (unverified). `tcgplayer`: imported from TCGPlayer (tcgcsv) until Bandai publishes it (unverified). */
+  source: "bandai" | "bundled" | "tcgplayer";
   sourceUrl: string;
 }
 

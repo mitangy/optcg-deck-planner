@@ -19,6 +19,20 @@ export function splitCardActions(shown: Intent[]): { card: Intent[]; bar: Intent
   };
 }
 
+/**
+ * One-tap: the only action a card's pop-up would show, if it is exactly one.
+ * `donCounts` is the quick DON!! row ([1], [1, 2], ...), empty when there is none.
+ * A tap never gives DON!!, so a lone DON!! row, an action plus a DON!! row, or
+ * two or more actions are all null: the pop-up opens.
+ */
+export function soleCardButton<T>(
+  actions: readonly T[],
+  donCounts: readonly number[],
+): { kind: "action"; action: T } | null {
+  if (actions.length === 1 && donCounts.length === 0) return { kind: "action", action: actions[0]! };
+  return null;
+}
+
 /** "leader_give_rested_don" -> "Leader give rested don"; opaque ids ("a1") -> null. */
 export function humanizeAbilityId(id: unknown): string | null {
   if (typeof id !== "string" || !/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(id)) return null;
@@ -126,25 +140,32 @@ export function counterPrimaryLabel(
 }
 
 export type PopoverPlacement = { left: number; top: number; above: boolean };
+export type PopoverSize = { width: number; height: number };
 
 /**
- * Where a card's popover goes: centred on the card, clamped inside the
- * viewport, tucked over the card's top edge, or below it with no room above.
- * `top` is the anchor edge (the popover's bottom when above, its top below).
+ * Where a card's popover goes: centred on the card (clamped inside the
+ * viewport), tucked over the card's top edge when its whole height fits above,
+ * else below the card when it fits there, else clamped so every button stays
+ * on screen (it then covers part of the card). `top` is the anchor edge (the
+ * popover's bottom when `above`, its top otherwise). A positive `overlap`
+ * tucks it over the card's edge; a negative one leaves a gap.
  */
 export function popoverPlacement(
   box: Box,
-  width: number,
-  viewportWidth: number,
+  size: PopoverSize,
+  viewport: PopoverSize,
   edge = 8,
-  headroom = 72,
   overlap = 10,
 ): PopoverPlacement {
-  const half = width / 2;
+  const half = size.width / 2;
   const cx = box.left + box.width / 2;
-  const left = Math.min(Math.max(cx, edge + half), Math.max(edge + half, viewportWidth - edge - half));
-  const above = box.top > headroom;
-  return above
-    ? { left, top: box.top + overlap, above }
-    : { left, top: box.top + box.height - overlap, above };
+  const left = Math.min(Math.max(cx, edge + half), Math.max(edge + half, viewport.width - edge - half));
+  const aboveBottom = box.top + overlap;
+  const belowTop = box.top + box.height - overlap;
+  if (aboveBottom - size.height >= edge) return { left, top: aboveBottom, above: true };
+  if (belowTop + size.height <= viewport.height - edge) return { left, top: belowTop, above: false };
+  // Neither side has room: take the roomier one and slide it back on screen.
+  const preferred = aboveBottom - edge > viewport.height - edge - belowTop ? aboveBottom - size.height : belowTop;
+  const top = Math.min(Math.max(preferred, edge), Math.max(edge, viewport.height - edge - size.height));
+  return { left, top, above: false };
 }

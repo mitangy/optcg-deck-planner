@@ -6,6 +6,7 @@ import {
   compactLegal,
   copilotAvailable,
   copilotShown,
+  gameAttached,
   nextIntent,
   planCardMode,
   playBlockReason,
@@ -114,7 +115,45 @@ describe("when the copilot is offered (#416)", () => {
   });
 });
 
+describe("when the live game is attached to Log Pose (#620)", () => {
+  const attached = { ...base, setting: false, briefSetting: true };
+
+  it("attaches with the matchup brief on and the copilot off, so the brief's panel can see the hand (#620)", () => {
+    expect(gameAttached(attached)).toBe(true);
+    expect(copilotAvailable({ ...attached })).toBe(false);
+  });
+
+  it("attaches with the copilot on and the brief off (#620)", () => {
+    expect(gameAttached({ ...base, setting: true, briefSetting: false })).toBe(true);
+  });
+
+  it("attaches to nothing when both settings are off (#620)", () => {
+    expect(gameAttached({ ...attached, briefSetting: false })).toBe(false);
+  });
+
+  it("stays out of ranked games, spectators, and rooms without a ticket, Log Pose or a ticket seat (#620)", () => {
+    expect(gameAttached({ ...attached, ranked: true })).toBe(false);
+    expect(gameAttached({ ...attached, ranked: null })).toBe(false);
+    expect(gameAttached({ ...attached, role: "spectator" })).toBe(false);
+    expect(gameAttached({ ...attached, brief: null })).toBe(false);
+    expect(gameAttached({ ...attached, logPoseEnabled: false })).toBe(false);
+    expect(gameAttached({ ...attached, ticketSeat: undefined })).toBe(false);
+  });
+});
+
 describe("the snapshot sent to the analyst (#416)", () => {
+  it("says who goes first, and during the mulligan whether you chose (#620)", () => {
+    const you = mkView().you;
+    const mull = (over: Record<string, unknown>, mulliganDone?: boolean) => buildSnapshot(mkView({ phase: "mulligan", ...over, you: { ...you, mulliganDone } }), null, null);
+    expect(mull({ firstSeat: 0 }, false)).toMatchObject({ first: true, mulliganDone: false });
+    expect(mull({ firstSeat: 1 }, true)).toMatchObject({ first: false, mulliganDone: true });
+    const old = mull({}, false);
+    expect(old).not.toHaveProperty("first");
+    // Past the mulligan the flag is noise.
+    expect(buildSnapshot(mkView({ firstSeat: 0, you: { ...you, mulliganDone: true } }), null, null)).not.toHaveProperty("mulliganDone");
+  });
+
+
   it("never carries the opponent's hand, even from a malformed view, or either seat's revealed hands (#416)", () => {
     const view = mkView({
       revealedHands: [[{ id: "r0", defId: "ST77-777" }], [{ id: "r1", defId: "ST88-888" }]],
@@ -315,7 +354,17 @@ describe("playing out an approved plan (#416)", () => {
     expect(nextIntent(p, first.cursor, mkView({}, []))).toMatchObject({ kind: "blocked", cursor: { step: 0, done: 1 } });
   });
 
-  it("uses the named ability and target, and attacks the named Leader or Character (#416)", () => {
+  it("runs a planned activate with a target even though engine legal activations never carry one (#419)", () => {
+    const legal: Intent[] = [{ type: "activate_ability", sourceId: "c1", abilityId: "a1" }];
+    const view = mkView({}, legal);
+    const act = (s: TurnPlan["steps"][number]) => nextIntent(plan([s]), startCursor, view);
+    expect(act({ action: "activate", source: "c1", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "send", intent: legal[0] });
+    // Ignoring the target must not loosen the source or ability match.
+    expect(act({ action: "activate", source: "c2", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
+    expect(act({ action: "activate", source: "c1", abilityId: "a9", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
+  });
+
+  it("uses the named ability, and attacks the named Leader or Character (#416)", () => {
     const legal: Intent[] = [
       { type: "activate_ability", sourceId: "c1", abilityId: "a1" },
       { type: "activate_ability", sourceId: "c1", abilityId: "a2", targetId: "o1" },
@@ -325,7 +374,6 @@ describe("playing out an approved plan (#416)", () => {
     const view = mkView({}, legal);
     const act = (s: TurnPlan["steps"][number]) => nextIntent(plan([s]), startCursor, view);
     expect(act({ action: "activate", source: "c1", abilityId: "a2", label: "x" })).toMatchObject({ kind: "send", intent: legal[1] });
-    expect(act({ action: "activate", source: "c1", target: "o1", label: "x" })).toMatchObject({ kind: "send", intent: legal[1] });
     expect(act({ action: "activate", source: "c1", abilityId: "a9", label: "x" })).toMatchObject({ kind: "blocked" });
     expect(act(attack("L0", "L1"))).toMatchObject({ kind: "send", intent: legal[2] });
     expect(act(attack("L0", "o1"))).toMatchObject({ kind: "send", intent: legal[3] });
@@ -455,6 +503,19 @@ describe("the Play this turn button (#416)", () => {
     expect(playBlockReason(p, mkView(), stepsRunning)).toMatch(/another plan is running/i);
     expect(playBlockReason(p, mkView({ winner: 0 }), null)).toBeTruthy();
     expect(playBlockReason(p, null, null)).toBeTruthy();
+  });
+
+  it("refuses a plan made in an earlier game: instance ids are re-permuted per game (#419)", () => {
+    const gameA = plan([{ action: "play", card: "card_17", label: "Play card_17" }]);
+    const stamped: TurnPlan = { ...gameA, gameKey: "mb1.gameA" };
+    // Game B has a different card under the same id and a legal play for it on the same turn.
+    const viewB = mkView({ you: { ...mkView().you, hand: [{ id: "card_17", defId: "OP01-120", playCost: 5 }] } }, [{ type: "play_card", handIndex: 0 }]);
+    expect(playBlockReason(stamped, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
+    expect(planCardMode(stamped, null, null, viewB, "mb1.gameB")).toEqual({ kind: "idle", disabledReason: "This plan was for an earlier game." });
+    // A plan with no stamp can't be tied to this game either.
+    expect(playBlockReason(gameA, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
+    // The same game's own plan still plays.
+    expect(playBlockReason(stamped, viewB, null, "mb1.gameA")).toBeNull();
   });
 
   it("lets a finished run stop blocking the next plan (#416)", () => {

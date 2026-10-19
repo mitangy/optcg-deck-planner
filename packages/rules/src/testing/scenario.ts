@@ -38,6 +38,8 @@ export type Step =
   | { play: string; seat?: Seat; rejects?: true; extra?: { trashCharacterId?: string } }
   /** Counter Event from the defender's hand. */
   | { counter: string }
+  /** Trash a Character card with a Counter from the defender's hand (a rules action, not an effect). */
+  | { counterCharacter: string }
   | { attack: Where; at: "leader" | Where; rejects?: true }
   /** Defender declines to block. */
   | { passBlock: true }
@@ -62,6 +64,8 @@ export interface SeatExpect {
   /** Deck size change since setup. */
   deckDelta?: number;
   deckTop?: string;
+  /** Definition id of the last card in the deck. */
+  deckBottom?: string;
   don?: { active?: number; rested?: number; attached?: number; deck?: number };
   /** Field Characters that are rested, by definition id. */
   rested?: string[];
@@ -140,6 +144,11 @@ function runStepOnly(h: Harness, step: Step): void {
     const handIndex = h.state.players[seat].hand.findIndex((c) => c.defId === step.counter);
     if (handIndex < 0) throw new Error(`${step.counter} not in seat ${seat}'s hand`);
     h.act(seat, { type: "counter_event", handIndex });
+  } else if ("counterCharacter" in step) {
+    const seat = (active === 0 ? 1 : 0) as Seat;
+    const handIndex = h.state.players[seat].hand.findIndex((c) => c.defId === step.counterCharacter);
+    if (handIndex < 0) throw new Error(`${step.counterCharacter} not in seat ${seat}'s hand`);
+    h.act(seat, { type: "counter_from_hand", handIndex });
   } else if ("attack" in step) {
     const attacker = locate(h, step.attack);
     const target = step.at === "leader" ? "leader" : locate(h, step.at);
@@ -183,6 +192,7 @@ function check(h: Harness, seat: Seat, deckBefore: number, e: SeatExpect | undef
   if (e.trash) expect(sorted(p.trash)).toEqual(sorted(e.trash));
   if (e.deckDelta !== undefined) expect(p.deck.length - deckBefore).toBe(e.deckDelta);
   if (e.deckTop) expect(p.deck[0]).toBe(e.deckTop);
+  if (e.deckBottom) expect(p.deck[p.deck.length - 1]).toBe(e.deckBottom);
   if (e.don?.active !== undefined) expect(p.costArea.filter((d) => !d.rested).length).toBe(e.don.active);
   if (e.don?.rested !== undefined) expect(p.costArea.filter((d) => d.rested).length).toBe(e.don.rested);
   if (e.don?.attached !== undefined) expect(p.attachedDons.length).toBe(e.don.attached);

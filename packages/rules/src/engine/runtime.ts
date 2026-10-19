@@ -12,7 +12,7 @@ import type { BindingValue, CardInstance, ChoiceOption, ChoiceRequest, GameEvent
 import { addModifier, expiryFor } from "./modifiers.js";
 import { forOpponent } from "./perspective.js";
 import {
-  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
+  basePowerOf, canPayCosts, canPayCost, costDependsOnHiddenInfo, selectorReadsHiddenZone, candidates, lifeFaceGroups, protectedFromSource, costOf, ctxFor, evalCond, evalValue, filterMatches, hasRestriction, isNegated, playerRestricted, powerOf, selectorMatches, type EvalCtx,
 } from "./queries.js";
 import {
   activeDon, alloc, attachDon, drawCards, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, putOnField, returnDonById, returnDonToDeck, takeCard, type Located,
@@ -80,6 +80,12 @@ function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): 
   card.usedAbilities = rest;
 }
 
+/** Conditions checked only when a queued trigger is about to resolve (`Ability.resolveConditions`). */
+export function resolveGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string }, ability: Ability, eventCardId?: InstanceId): boolean {
+  const ctx: EvalCtx = { seat, sourceId: source.id, sourceDefId: source.defId, vars: {}, ...(eventCardId ? { eventCardId } : {}) };
+  return (ability.resolveConditions ?? []).every((c) => evalCond(state, ctx, c));
+}
+
 /** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
@@ -112,39 +118,50 @@ export interface EventInfo {
   fromZone?: string;
 }
 
-/** Dispatch an internal rules event to "When …" abilities on the field. */
-export function dispatchEvent(state: MatchState, kind: GameEventKind, info: EventInfo): void {
-  if (info.byEffectOf == null && acting && kind !== "character_ko") info = { ...info, byEffectOf: acting.seat };
+/**
+ * Dispatch an internal rules event to "When …" abilities on the field. One occurrence can carry several kinds
+ * (a K.O. by an effect is both `character_ko` and `character_removed_by_effect`): each ability is queued at most once,
+ * when any of the kinds matches it under its own gates.
+ */
+export function dispatchEvent(state: MatchState, event: GameEventKind | readonly GameEventKind[], info: EventInfo): void {
+  const kinds: readonly GameEventKind[] = typeof event === "string" ? [event] : event;
+  if (info.byEffectOf == null && acting && !kinds.includes("character_ko")) info = { ...info, byEffectOf: acting.seat };
   const source = acting;
-  if (kind === "event_activated" && info.card) turnLog(state, info.seat).events.push(info.card.defId);
-  if (kind === "character_ko" && info.card) turnLog(state, info.seat).koed.push(info.card.defId);
-  if (kind === "card_trashed_from_hand" && info.byEffectOf != null) turnLog(state, info.seat).handTrashed += 1;
+  if (kinds.includes("event_activated") && info.card) turnLog(state, info.seat).events.push(info.card.defId);
+  if (kinds.includes("character_ko") && info.card) turnLog(state, info.seat).koed.push(info.card.defId);
+  if (kinds.includes("card_trashed_from_hand") && info.byEffectOf != null) turnLog(state, info.seat).handTrashed += 1;
   for (const seat of [0, 1] as Seat[]) {
     for (const card of fieldCards(state.players[seat])) {
       if (isNegated(state, card)) continue;
       for (const ability of abilitiesFor(card.defId)) {
         const et = ability.eventTrigger;
-        if (ability.trigger !== "on_event" || !et || (et.event !== kind && !et.alsoEvents?.includes(kind))) continue;
-        if (kind === "self_ko") continue;
-        if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage" || kind === "battle_ended_vs_character") { if (info.card?.id !== card.id) continue; }
-        else {
-          const rel = info.seat === seat ? "you" : "opponent";
-          if (et.player !== "any" && et.player !== rel) continue;
-        }
-        if (et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) continue;
-        if (et.byEffect && info.byEffectOf == null) continue;
-        if (et.byYourEffect && info.byEffectOf !== seat) continue;
-        if (et.minCount != null && (info.count ?? 1) < et.minCount) continue;
-        if (et.fromZone && info.fromZone !== et.fromZone) continue;
-        {
+        if (ability.trigger !== "on_event" || !et) continue;
+        const matches = (kind: GameEventKind): boolean => {
+          if (et.event !== kind && !et.alsoEvents?.includes(kind) && !et.anyCauseEvents?.includes(kind)) return false;
+          if (kind === "self_ko") return false;
+          // Events listed only in `anyCauseEvents` ignore the by-effect flags below.
+          const anyCause = et.event !== kind && !et.alsoEvents?.includes(kind);
+          if (kind === "self_rested" || kind === "self_attacked" || kind === "attack_damage" || kind === "battle_ended_vs_character") { if (info.card?.id !== card.id) return false; }
+          else {
+            const rel = info.seat === seat ? "you" : "opponent";
+            if (et.player !== "any" && et.player !== rel) return false;
+          }
+          if (!anyCause && et.byOpponentEffect && (info.byEffectOf == null || info.byEffectOf === info.seat)) return false;
+          if (!anyCause && et.byEffect && info.byEffectOf == null) return false;
+          if (!anyCause && et.byYourEffect && info.byEffectOf !== seat) return false;
+          if (et.minCount != null && (info.count ?? 1) < et.minCount) return false;
+          if (et.fromZone && info.fromZone !== et.fromZone) return false;
           const ctx = ctxFor(seat, card);
           const loc = info.card ? locate(state, info.card.id) : null;
           const cardMatch = et.filter ? (info.card ? loc != null && filterMatches(state, ctx, et.filter, loc) : true) : true;
           const srcLoc = source ? locate(state, source.id) : null;
           const srcMatch = et.sourceFilter ? srcLoc != null && filterMatches(state, ctx, et.sourceFilter, srcLoc) : true;
-          if (et.either ? !((et.filter != null && info.card != null && cardMatch) || (et.sourceFilter != null && srcMatch)) : !(cardMatch && srcMatch)) continue;
-        }
+          return et.either ? (et.filter != null && info.card != null && cardMatch) || (et.sourceFilter != null && srcMatch) : cardMatch && srcMatch;
+        };
+        if (!kinds.some(matches)) continue;
         if (!abilityGateOpen(state, seat, { id: card.id, defId: card.defId, card }, ability, info.card?.id)) continue;
+        // A Once Per Turn ability queues once per batch, even when several events in it match (#600).
+        if (ability.oncePerTurn && state.triggerQueue.some((t) => t.sourceInstanceId === card.id && t.abilityId === ability.id && t.batch === state.triggerBatch)) continue;
         state.triggerQueue.push({ id: alloc(state, "trig"), seat, sourceInstanceId: card.id, sourceDefId: card.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch, ...(info.card ? { eventCardId: info.card.id } : {}) });
       }
     }
@@ -188,7 +205,8 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
     if (!abilityGateOpen(state, loc.seat, { ...entry, ...(koed ? { card: koed } : {}) }, ability)) continue;
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: loc.seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: ability.id, window: "on_event", batch: state.triggerBatch });
   }
-  dispatchEvent(state, "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
+  // A K.O. by an effect is also a removal from the field by that effect: one occurrence, so each ability queues once.
+  dispatchEvent(state, cause.byEffectOf != null ? ["character_ko", "character_removed_by_effect"] : "character_ko", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
   if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
 }
 
@@ -374,10 +392,14 @@ function completeFrame(sim: Sim, frame: ResolutionFrame): void {
     const parentId = frame.bindings._parent;
     const target = frame.bindings._target;
     const parent = state.resolutionFrames.find((f) => f.id === parentId);
-    if (parent && typeof target === "string") parent.bindings[`_repl:${target}`] = replaced;
+    if (parent && typeof target === "string") {
+      parent.bindings[`_repl:${target}`] = replaced;
+      if (replaced) coverBatch(state, frame, parent);
+    }
     else if (typeof target === "string") {
       const step = state.steps[0];
       if (step && step.kind === "battle_ko" && step.targetId === target) (step as { replaced?: boolean }).replaced = replaced;
+      else if (step && (step.kind === "life_damage" || step.kind === "effect_damage")) step.replaced = replaced;
     }
     return;
   }
@@ -404,10 +426,12 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
     case "confirm": {
       // Costs that depend on hidden cards (#369) are always asked: skipping the prompt would tell the opponent the
       // player cannot pay. An unpayable one is marked privately so only declining is legal.
+      // The opponent pays their own costs: payable means payable from their zones, in full (#515).
       let unpayable = false;
-      if (instr.costs && !canPayCosts(state, ctx, instr.costs)) {
+      const payCtx: EvalCtx = instr.chooser === "opponent" ? { ...ctx, seat: otherSeat(frame.seat) } : ctx;
+      if (instr.costs && !canPayCosts(state, payCtx, instr.costs)) {
         const hiddenCosts = state.privateChoicesV2 && instr.chooser !== "opponent" ? instr.costs.filter(costDependsOnHiddenInfo) : [];
-        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, ctx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, payCtx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
         unpayable = true;
       }
       const ability = abilityById(frame.abilityId)?.ability;
@@ -555,6 +579,7 @@ function removalBlocked(state: MatchState, loc: Located, byEffectOf: Seat, kind:
   const opp = byEffectOf !== loc.seat;
   if (kind === "ko" && (protectedFromSource(state, loc, "cannot_be_ko_by_effect_from", source, byEffectOf) || protectedFromSource(state, loc, "cannot_be_ko_by_opponent_effect_from", source, byEffectOf))) return true;
   if (kind === "rest" && protectedFromSource(state, loc, "cannot_be_rested_by_opponent_effect_from", source, byEffectOf)) return true;
+  if (kind === "rest" && hasRestriction(state, loc.seat, loc.card, "cannot_be_rested")) return true;
   if (kind === "rest") return opp && hasRestriction(state, loc.seat, loc.card, "cannot_be_rested_by_opponent_effect");
   if (kind === "ko" && (hasRestriction(state, loc.seat, loc.card, "cannot_be_ko") || hasRestriction(state, loc.seat, loc.card, "cannot_be_ko_by_effect"))) return true;
   if (kind === "ko" && opp && hasRestriction(state, loc.seat, loc.card, "cannot_be_ko_by_opponent_effect")) return true;
@@ -574,7 +599,8 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
       if (r.byOpponent && !byOpponent) continue;
       if (r.sourceFilter) { const src = acting ? locate(state, acting.id) : null; if (!src || !filterMatches(state, ctxFor(seat, card), r.sourceFilter, src)) continue; }
       if (r.event === "removed_by_opponent_effect" && !byOpponent) continue;
-      if (r.target === "self" ? card.id !== loc.id : !selectorMatches(state, ctxFor(seat, card), r.target, loc)) continue;
+      // Damage is dealt to the player: the replacement's source card is the card itself.
+      if (!events.includes("life_damage") && (r.target === "self" ? card.id !== loc.id : !selectorMatches(state, ctxFor(seat, card), r.target, loc))) continue;
       if (!abilityGateOpen(state, seat, { id: card.id, defId: card.defId, card }, ability)) continue;
       if (r.instead.do === "pay" && !canPayCosts(state, ctxFor(seat, card), r.instead.costs)) continue;
       return { seat, card, ability };
@@ -594,10 +620,47 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
   return null;
 }
 
+/** "If you would take damage, ... instead" (Gloriosa EB05-052): a replacement available to `seat` right now. */
+export function findDamageReplacement(state: MatchState, seat: Seat): { seat: Seat; card: CardInstance; ability: Ability } | null {
+  const leader = locate(state, state.players[seat].leader.id);
+  return leader ? findReplacement(state, leader, ["life_damage"], true) : null;
+}
+
 export function pushReplacementFrame(sim: Sim, hit: { seat: Seat; card: CardInstance; ability: Ability }, targetId: InstanceId, parentId?: string): void {
   const { state } = sim;
   markUsed(state, hit.card.id, hit.ability);
   state.resolutionFrames.push({ id: alloc(state, "frame"), seat: hit.seat, sourceInstanceId: hit.card.id, sourceDefId: hit.card.defId, abilityId: hit.ability.id, window: "replacement", operationIndex: 0, bindings: { _target: targetId, _last: [targetId], ...(parentId ? { _parent: parentId } : {}) }, program: "replacement" });
+}
+
+/** An effect is about to move a Character off the field (to hand, deck, trash or Life): "removed from the field by an effect". */
+function removedByEffect(state: MatchState, frame: ResolutionFrame, loc: Located): void {
+  if (loc.zone === "character") dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+}
+
+/**
+ * An accepted replacement that protects a selector ("your Characters", not "this Character") covers every later
+ * target of the same simultaneous removal it matches: one acceptance and one payment save them all (OP17-023, OP17-095 Q&A).
+ */
+function coverBatch(state: MatchState, replFrame: ResolutionFrame, parent: ResolutionFrame): void {
+  const r = abilityById(replFrame.abilityId)?.ability.replacement;
+  const events = parent.bindings._actEvents as ReplacementEvent[] | undefined;
+  const ids = parent.bindings._actTargets;
+  if (!r || r.target === "self" || !events || !Array.isArray(ids)) return;
+  const byOpponent = parent.bindings._actByOpponent === true;
+  if (!(events.includes(r.event) || r.alsoEvents?.some((e) => events.includes(e)))) return;
+  if (r.byOpponent && !byOpponent) return;
+  if (r.event === "removed_by_opponent_effect" && !byOpponent) return;
+  const source = locate(state, replFrame.sourceInstanceId)?.card ?? { id: replFrame.sourceInstanceId, defId: replFrame.sourceDefId, rested: false, attachedDonIds: [] };
+  const from = typeof parent.bindings._actIndex === "number" ? parent.bindings._actIndex + 1 : ids.length;
+  // Only a plain payment is shared by the batch; a replacement that acts on the protected card (Bege's "add it to Life",
+  // Sabo's "-1000 to it") saves just the one it was used for (#593).
+  if (r.instead.do !== "pay") return;
+  for (const id of ids.slice(from) as string[]) {
+    const key = `_repl:${id}`;
+    const loc = locate(state, id);
+    if (parent.bindings[key] !== undefined || !loc || !isOnField(loc) || loc.zone === "leader") continue;
+    if (selectorMatches(state, ctxFor(replFrame.seat, source), r.target, loc)) parent.bindings[key] = true;
+  }
 }
 
 /** Apply a removal to each target in order; may pause for replacement prompts. */
@@ -625,6 +688,8 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
         const hit = events.length ? findReplacement(state, loc, events, byOpponent) : null;
         if (hit) {
           frame.bindings._actIndex = index;
+          frame.bindings._actEvents = events;
+          frame.bindings._actByOpponent = byOpponent;
           pushReplacementFrame(sim, hit, loc.id, frame.id);
           return "interrupt";
         }
@@ -633,7 +698,7 @@ function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kin
     apply(loc);
     record(loc);
   }
-  for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key.startsWith("_repl:")) delete frame.bindings[key];
+  for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key === "_actEvents" || key === "_actByOpponent" || key.startsWith("_repl:")) delete frame.bindings[key];
   done?.();
   return "next";
 }
@@ -686,9 +751,15 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       });
     }
     case "activate": {
+      // Like `play`: "set X as active. If you do, ..." gates on the cards this step actually set active.
+      frame.bindings._affected = [];
       for (const loc of targetsOf(effect.target)) {
-        if ((loc.zone as string) === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = false; continue; }
-        if (loc.card && isOnField(loc)) loc.card.rested = false;
+        if ((loc.zone as string) === "don") {
+          const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id);
+          if (d) { d.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
+          continue;
+        }
+        if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
       }
       return "next";
     }
@@ -697,7 +768,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return forEachTarget(sim, frame, targets, "return", (loc) => {
         if (loc.zone === "leader" || loc.zone === "hand") return;
         if (isOnField(loc)) {
-          dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
+          removedByEffect(state, frame, loc);
           dispatchEvent(state, "character_returned", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
         }
         moveToZone(sim, loc, "hand");
@@ -714,6 +785,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const targets = targetsOf(effect.target);
       return forEachTarget(sim, frame, targets, "remove", (loc) => {
         if (loc.zone === "leader") return;
+        removedByEffect(state, frame, loc);
         moveToZone(sim, loc, "deck", { position });
       }, () => { delete frame.bindings._end; });
     }
@@ -722,6 +794,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return forEachTarget(sim, frame, targets, frame.program === "trash_for_space" ? null : "remove", (loc) => {
         if (loc.zone === "leader" || loc.zone === "trash") return;
         if (frame.program === "trash_for_space") sim.events.push({ type: "character_trashed_for_space", seat: loc.seat, defId: loc.defId });
+        else removedByEffect(state, frame, loc);
         moveToZone(sim, loc, "trash");
       });
     }
@@ -737,6 +810,7 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
         // Re-locate: an earlier move shifted the indexes of the zone it left.
         const loc = locate(state, target.id);
         if (!loc || loc.zone === "leader" || loc.zone === "life") continue;
+        removedByEffect(state, frame, loc);
         const entry = takeCard(state, loc);
         putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
         if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, byEffectOf: frame.seat });
@@ -790,7 +864,8 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       const main = abilitiesFor(loc.defId).find((a) => a.trigger === "main");
       const entry = takeCard(state, loc);
       putCard(state, loc.seat, "resolving", entry);
-      dispatchEvent(state, "event_activated", { seat: loc.seat, card: entry });
+      // Activating the Event card from the hand is an Event activation (OP15-046 Sabo); using only its [Main] effect from the trash is not (EB03-031 Reiju).
+      if (loc.zone === "hand") dispatchEvent(state, "event_activated", { seat: loc.seat, card: entry });
       frame.operationIndex += 1;
       if (!main) { const again = locate(state, entry.id)!; putCard(state, loc.seat, "trash", takeCard(state, again)); return "jumped"; }
       startAbility(sim, loc.seat, entry, main, "main");
@@ -943,15 +1018,31 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
     }
     case "life_face": {
       const p = state.players[seatOf(frame, effect.player)];
-      let n = effect.count;
-      for (let i = 0; i < p.life.length && n > 0; i += 1) if (p.faceUpLife[i] !== effect.faceUp) { p.faceUpLife[i] = effect.faceUp; n -= 1; }
+      if (effect.position && effect.position !== "top") {
+        const groups = lifeFaceGroups(p.faceUpLife, effect.count, effect.faceUp, effect.position);
+        if (groups.length > 1 && frame.bindings._lifeFace === undefined) {
+          const options = groups.map((g, k) => ({ id: `m${k}`, label: effect.position === "top_or_bottom" ? (g[0] === 0 ? "Top" : "Bottom") : `Life card ${g[0]! + 1}${g[0] === 0 ? " (top)" : g[0] === p.life.length - 1 ? " (bottom)" : ""}`, eligible: true }));
+          pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — turn which Life card face-${effect.faceUp ? "up" : "down"}?`, request: { type: "mode", options }, bindings: { __bind: "_lifeFace", __repeat: "1" } });
+          return "wait";
+        }
+        const chosen = groups[Number(frame.bindings._lifeFace ?? 0)] ?? [];
+        delete frame.bindings._lifeFace;
+        for (const i of chosen) p.faceUpLife[i] = effect.faceUp;
+        return "next";
+      }
+      for (let i = 0; i < Math.min(effect.count, p.life.length); i += 1) p.faceUpLife[i] = effect.faceUp;
       return "next";
     }
     case "mill": {
       const seat = seatOf(frame, effect.player);
       const p = state.players[seat];
       const n = evalValue(state, ctx, effect.count);
-      for (let i = 0; i < n && p.deck.length; i += 1) moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      const trashed: string[] = [];
+      for (let i = 0; i < n && p.deck.length; i += 1) {
+        trashed.push(p.zoneInstanceIds.deck[0]!);
+        moveToZone(sim, { seat, zone: "deck", index: 0, id: p.zoneInstanceIds.deck[0]!, defId: p.deck[0]! }, "trash");
+      }
+      if (effect.bind) frame.bindings[effect.bind] = trashed;
       return "next";
     }
     case "shuffle": {
@@ -995,7 +1086,15 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
       return "next";
     }
     case "reveal": {
-      for (const loc of targetsOf(effect.target)) sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
+      for (const loc of targetsOf(effect.target)) {
+        sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
+        // Revealed hand cards stay face up for the rest of the turn (#491).
+        if (loc.zone === "hand") {
+          const p = state.players[loc.seat];
+          const ids = p.revealedHandIds ?? (p.revealedHandIds = []);
+          if (!ids.includes(loc.id)) ids.push(loc.id);
+        }
+      }
       return "next";
     }
     case "look_life": {

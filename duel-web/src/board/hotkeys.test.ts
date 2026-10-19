@@ -11,6 +11,7 @@ const base: HotkeyContext = {
   cardKeys: true,
   escOwned: false,
   handHides: false,
+  fullscreenOffered: true,
 };
 const space = { key: " ", code: "Space" };
 
@@ -66,7 +67,7 @@ describe("hotkeyAction", () => {
     expect(hotkeyAction({ key: "?" }, base)).toBe("help");
   });
 
-  it("gives spectators only the help list", () => {
+  it("gives spectators only the help list and full screen", () => {
     const ctx = { ...base, spectating: true };
     expect(hotkeyAction(space, ctx)).toBeNull();
     expect(hotkeyAction({ key: "h" }, ctx)).toBeNull();
@@ -76,6 +77,24 @@ describe("hotkeyAction", () => {
     expect(hotkeyAction({ key: "e" }, ctx)).toBeNull();
     expect(hotkeyAction({ key: "ArrowLeft" }, ctx)).toBeNull();
     expect(hotkeyAction({ key: "Escape" }, ctx)).toBeNull();
+  });
+
+  it("F toggles full screen, either case, when the browser offers it (#468)", () => {
+    expect(hotkeyAction({ key: "f" }, base)).toBe("fullscreen");
+    expect(hotkeyAction({ key: "F" }, base)).toBe("fullscreen");
+    // Not tied to the desktop card keys: a spectator, or a narrow window, can still go full screen.
+    expect(hotkeyAction({ key: "f" }, { ...base, spectating: true })).toBe("fullscreen");
+    expect(hotkeyAction({ key: "f" }, { ...base, cardKeys: false, wide: false })).toBe("fullscreen");
+  });
+
+  it("F does nothing when full screen is not offered, with a modifier, held down or while typing (#468)", () => {
+    expect(hotkeyAction({ key: "f" }, { ...base, fullscreenOffered: false })).toBeNull();
+    expect(hotkeyAction({ key: "f", ctrlKey: true }, base)).toBeNull();
+    expect(hotkeyAction({ key: "f", metaKey: true }, base)).toBeNull();
+    expect(hotkeyAction({ key: "f", altKey: true }, base)).toBeNull();
+    expect(hotkeyAction({ key: "f", repeat: true }, base)).toBeNull();
+    expect(hotkeyAction({ key: "f" }, { ...base, typing: true })).toBeNull();
+    expect(hotkeyAction({ key: "f" }, { ...base, modalOpen: true })).toBeNull();
   });
 
   it("does nothing while a modal is open", () => {

@@ -4,7 +4,10 @@
  * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
+import { asDonArtId } from "./board/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
+import { clampPopupSize } from "./board/popupSize";
+import { PROMPT_DOCKS, type PromptDock } from "./board/promptDock";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
 /** When "End turn" asks for a second tap. */
@@ -39,6 +42,11 @@ export type HandLayoutPref = "auto" | HandLayout;
 
 /** Text size across the app, on top of the automatic scaling with the window. */
 export type TextSize = "small" | "medium" | "large" | "xlarge";
+/** Which way a Life stack fans on the mat (#499). */
+export type LifeFan = "down" | "up";
+
+/** Desktop side columns: one combined column on the right or left, or both. */
+export type SideColumns = "both" | "right" | "left";
 
 export type DuelSettings = {
   /** Mint tokens with a dev user key instead of the guest id (dev builds only). */
@@ -52,6 +60,8 @@ export type DuelSettings = {
   theme: ThemeId;
   /** Dark or light menus and panels, or follow the device. */
   colorMode: ColorMode;
+  /** TCGPlayer productId of the DON!! card art you play with (#440); null = the bundled art. */
+  donArt: number | null;
 
   // —— Gameplay ——
   /** Second tap before ending the turn: always, only while you can still act, or never. */
@@ -79,6 +89,23 @@ export type DuelSettings = {
    * on this device: pixels from a desktop window mean nothing on a phone.
    */
   promptPos: string;
+  /**
+   * Desktop card preview pop-up: where it was dragged, as the "x,y" pixel position of its top-left
+   * corner; "" = the default spot at the top right of the board. Stays on this device.
+   */
+  previewPopupPos: string;
+  /** Desktop card preview pop-up: pinned = it stays open on the last hovered card instead of only showing while the mouse is on a card. Stays on this device. */
+  previewPopupPinned: boolean;
+  /** Every in-game pop-up but the hover card: its size as a percent of normal (70 to 160, steps of 10). Stays on this device. */
+  popupSize: number;
+  /** Desktop hover card pop-up: its own size as a percent of the default width (70 to 160, steps of 10), apart from the other pop-ups. Stays on this device. */
+  previewPopupSize: number;
+  /**
+   * Desktop: the side column pop-ups dock into ("left" / "right"), or "" to
+   * float. Follows the account; phones and landscape phones (no side columns)
+   * ignore it. See board/promptDock.ts.
+   */
+  promptDock: PromptDock;
   /** Desktop: the fanned hand (or corner dock) stays raised instead of tucking away. */
   keepHandOpen: boolean;
   /**
@@ -88,11 +115,18 @@ export type DuelSettings = {
    */
   panelLayout: string;
   /**
+   * Desktop: "right" / "left" puts every side panel into that one column (the other collapses and
+   * the saved panelLayout is left as it was); "both" keeps the two. Landscape phones ignore it.
+   */
+  sideColumns: SideColumns;
+  /**
    * Desktop: column widths and panel heights dragged out by the panel edges,
-   * e.g. "L=260;R=340;preview=0.45"; "" keeps every default.
+   * and the corner a column frees below it, e.g. "L=260;R=340;RC=0.28;preview=0.45"; "" keeps every default.
    * See board/panelSizes.ts.
    */
   panelSizes: string;
+  /** Desktop, Bigger playing area: its own column widths (same format, only "L=" / "R=" are read). */
+  panelSizesBig: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -112,10 +146,16 @@ export type DuelSettings = {
   battleArrow: boolean;
   /** A green glow on your Leader and Characters that can attack right now. */
   attackGlow: boolean;
+  /** Portrait phones: your own mat is drawn the simplified way the opponent's is (count row, bigger cards). */
+  compactOwnBoard: boolean;
   /** Desktop card preview: only the card, as big as fits (on), or a smaller card with its stat icons and text (off). */
   previewBigCard: boolean;
+  /** Desktop: the card preview floats as a large pop-up you can drag anywhere, instead of sitting in a side column. */
+  previewPopup: boolean;
   /** DON!! given to a rested Leader or Character stays upright under it instead of turning sideways with it. */
   donUpright: boolean;
+  /** Board power badges show only the total instead of printed power plus the bonus (#534). */
+  totalPower: boolean;
   /**
    * Desktop: the opponent's hand pinned above the playmat ("left", "centre" or
    * "right") instead of in its side panel; "" keeps it in the panel. Phones
@@ -125,10 +165,41 @@ export type DuelSettings = {
   oppHandSpot: OppHandSpot;
   /** Text size (power numbers, card text, buttons), scaled further by the window size. */
   textSize: TextSize;
+  /**
+   * Which way your Life cards fan: "down" puts the top card at the bottom of
+   * the fan, nearest you; "up" puts it at the top, toward the middle. The
+   * opponent's Life fans the other way, mirroring yours (#499).
+   */
+  lifeFan: LifeFan;
   /** Desktop: tilt the board away from you, seen from your seat. */
   tiltedBoard: boolean;
+  /**
+   * Bigger playing area: the side columns shrink to their minimum and the
+   * board's margins, gaps and chrome are trimmed so the mats and cards grow.
+   */
+  bigBoard: boolean;
+  /**
+   * True once Bigger playing area was switched by hand. Builds before #556
+   * stored `bigBoard: false` for everyone, so a stored false only counts
+   * as a choice when this is set (the default flipped to on).
+   */
+  bigBoardChosen: boolean;
+  /**
+   * Computers: Keep / Mulligan, End turn and the other action buttons sit in
+   * the side column under Turn and clocks, so the two playmats touch (#556).
+   * Off: they float in a strip between the mats.
+   */
+  actionsBeside: boolean;
+  /** Desktop: the Recent plays panel (the Battle log has no switch). */
+  showRecentPlays: boolean;
+  /** Match chat: desktop panel, phone pill, landscape rail button. */
+  showChat: boolean;
+  /** Desktop: the Card preview panel (the hovered card's art and text, top of the left column). */
+  showCardPreview: boolean;
   /** "Your turn" / "Opponent's turn" banner over the board. */
   turnSplash: boolean;
+  /** The opening-hand explainer during the mulligan step: who goes first, what Keep and Mulligan do (#599). */
+  gameHints: boolean;
   /** Tone down board animations even when the OS has no reduced-motion preference. */
   reduceMotion: boolean;
   /** Speed of card motion (draw, play, KO, DON!! ...). */
@@ -162,6 +233,7 @@ const DEFAULTS: DuelSettings = {
   playmatOpacity: 1,
   theme: DEFAULT_THEME,
   colorMode: "dark",
+  donArt: null,
   endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",
@@ -171,9 +243,16 @@ const DEFAULTS: DuelSettings = {
   spectatorNearFanPos: "",
   spectatorFarFanPos: "",
   promptPos: "",
+  previewPopupPos: "",
+  previewPopupPinned: false,
+  popupSize: 100,
+  previewPopupSize: 100,
+  promptDock: "",
   keepHandOpen: false,
   panelLayout: "",
+  sideColumns: "right",
   panelSizes: "",
+  panelSizesBig: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
@@ -182,12 +261,23 @@ const DEFAULTS: DuelSettings = {
   cantAttackWarning: true,
   battleArrow: true,
   attackGlow: true,
+  compactOwnBoard: false,
   previewBigCard: false,
+  previewPopup: true,
   donUpright: false,
+  totalPower: false,
   oppHandSpot: "",
   textSize: "medium",
+  lifeFan: "down",
   tiltedBoard: false,
+  bigBoard: true,
+  bigBoardChosen: false,
+  actionsBeside: true,
+  showRecentPlays: true,
+  showChat: true,
+  showCardPreview: true,
   turnSplash: true,
+  gameHints: false,
   reduceMotion: false,
   animationSpeed: "normal",
   cardSpotlight: true,
@@ -216,6 +306,8 @@ export function resolveHandLayout(pref: HandLayoutPref, tallDesktop: boolean): H
  */
 const LEGACY_RIGHT_FAN_POS = "0.88,1";
 export const TEXT_SIZES: readonly TextSize[] = ["small", "medium", "large", "xlarge"];
+export const LIFE_FANS: readonly LifeFan[] = ["down", "up"];
+export const SIDE_COLUMNS: readonly SideColumns[] = ["both", "right", "left"];
 const CHANGE_EVENT = "optcg-duel:settings-change";
 
 /** Stored values from older builds or hand edits fall back to defaults field by field. */
@@ -239,6 +331,8 @@ function sanitize(
     ...rest
   } = parsed;
   const next = { ...DEFAULTS, ...rest };
+  // Stored before the default flipped (#556): an untouched false is not a choice.
+  if (rest.bigBoardChosen !== true) next.bigBoard = DEFAULTS.bigBoard;
   if (!END_TURN_CONFIRM.includes(next.endTurnConfirm)) next.endTurnConfirm = DEFAULTS.endTurnConfirm;
   // Older builds stored a boolean auto-pass: true is today's `auto`, anything else `always`.
   if (rest.responseStops === undefined) next.responseStops = deviceDefaults().responseStops;
@@ -254,6 +348,8 @@ function sanitize(
   if (storedLayout === "fanRight" || storedLayout === "fanCenter") next.handLayout = "fan";
   if (!HAND_LAYOUTS.includes(next.handLayout)) next.handLayout = DEFAULTS.handLayout;
   if (!TEXT_SIZES.includes(next.textSize)) next.textSize = DEFAULTS.textSize;
+  if (!LIFE_FANS.includes(next.lifeFan)) next.lifeFan = DEFAULTS.lifeFan;
+  if (!PROMPT_DOCKS.includes(next.promptDock)) next.promptDock = DEFAULTS.promptDock;
   if (!OPP_HAND_SPOTS.includes(next.oppHandSpot)) next.oppHandSpot = DEFAULTS.oppHandSpot;
   // Builds before #295 had a separate "Opponent hand, top right" switch; on is
   // the hand pinned top right, unless a spot was picked since.
@@ -261,7 +357,13 @@ function sanitize(
   // A theme removed in a later build (or synced from a newer one) falls back to the default.
   if (!THEME_IDS.includes(next.theme)) next.theme = DEFAULTS.theme;
   if (!COLOR_MODES.includes(next.colorMode)) next.colorMode = DEFAULTS.colorMode;
+  if (!SIDE_COLUMNS.includes(next.sideColumns)) next.sideColumns = DEFAULTS.sideColumns;
+  next.popupSize = clampPopupSize(next.popupSize);
+  next.previewPopupSize = clampPopupSize(next.previewPopupSize);
+  // Accounts store "no art" as 0 (their settings take only strings, numbers and booleans).
+  next.donArt = asDonArtId(next.donArt);
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
+    if (k === "donArt") continue;
     if (typeof next[k] !== typeof DEFAULTS[k]) (next as Record<string, unknown>)[k] = DEFAULTS[k];
   }
   return next;
@@ -270,6 +372,10 @@ function sanitize(
 /** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
   "useDevKey",
+  "previewPopupPos",
+  "previewPopupPinned",
+  "popupSize",
+  "previewPopupSize",
   "devUserKey",
   "promptPos",
 ];
@@ -278,7 +384,9 @@ const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
 export function syncedSettings(s: DuelSettings): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   for (const k of Object.keys(DEFAULTS) as (keyof DuelSettings)[]) {
-    if (!DEVICE_ONLY_KEYS.includes(k)) out[k] = s[k];
+    if (DEVICE_ONLY_KEYS.includes(k)) continue;
+    // The account takes no null: 0 stands for the default art (#440).
+    out[k] = k === "donArt" ? (s.donArt ?? 0) : (s[k] as string | number | boolean);
   }
   return out;
 }
@@ -347,6 +455,7 @@ export function saveSettings(next: DuelSettings, opts: { remote?: boolean } = {}
 /** Merge a patch into the stored settings (used by the in-match settings sheet). */
 export function updateSettings(patch: Partial<DuelSettings>): DuelSettings {
   const next = { ...snapshot(), ...patch };
+  if ("bigBoard" in patch) next.bigBoardChosen = true;
   saveSettings(next);
   return next;
 }

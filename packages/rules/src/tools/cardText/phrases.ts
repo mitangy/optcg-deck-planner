@@ -9,6 +9,8 @@ export interface Ctx {
   ph: Placeholders;
   /** Printed type of the card whose text is being compiled. */
   selfType: "leader" | "character" | "event" | "stage";
+  /** Compiling an "On Event" ability: "that Character" is the card that caused the event (`_event`), not a chosen target. */
+  eventCard?: boolean;
 }
 
 export interface CardPhrase {
@@ -150,6 +152,11 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^with a type including (§Q\d+§(?: or §Q\d+§)*)/))) {
       const quotes = m[1]!.split(/ or /).map((part) => quote(part, ctx)); if (quotes.some((q) => q == null)) return false; filter.traitIncludes = quotes as string[]; continue;
     }
+    // "with both the {A} and {B} types": the card has both traits (traits is any-of, so the second goes in `all`).
+    if ((m = take(/^with both the (§T\d+§) and (§T\d+§) types?/))) {
+      const first = traitList(m[1]!, ctx); const second = traitList(m[2]!, ctx); if (!first || !second) return false;
+      filter.traits = first; filter.all = [...(filter.all ?? []), { traits: second }]; continue;
+    }
     if ((m = take(/^(?:with )?(?:a )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
     if ((m = take(/^other than (§N\d+§(?:(?:, | or |, or )§N\d+§)*)/))) { const names = nameList(m[1]!, ctx); if (!names) return false; filter.notNames = names; continue; }
     if ((m = take(/^other than this (?:character|leader|card|stage)/i))) { filter.excludeSelf = true; continue; }
@@ -160,10 +167,11 @@ function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalC
     if ((m = take(/^with the <(\w+)> attribute/))) { filter.attributes = [m[1]!]; continue; }
     if ((m = take(/^with (?:a )?\[(Blocker|Rush|Double Attack|Banish)\]/))) { filter.keyword = m[1]!.toLowerCase().replace(" ", "_") as Filter["keyword"]; continue; }
     if ((m = take(/^that (?:was|were) played (?:on|during) this turn/))) { filter.playedThisTurn = true; continue; }
-    if ((m = take(/^(?:with |and )?(?:the )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
+    if ((m = take(/^(?:with |and )?(?:both )?(?:the )?(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type/))) { const traits = traitList(m[1]!, ctx); if (!traits) return false; filter.traits = traits; continue; }
     if ((m = take(/^(?:with )?(\d+) to (\d+) (base )?power/))) { const key = m[3] ? "basePower" : "power"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[1]!) } }, { [key]: { op: "<=", value: num(m[2]!) } }]; continue; }
     if ((m = take(/^(?:with )?(?:a |an )?(base )?cost of (\d+) to (\d+)/))) { const key = m[1] ? "baseCost" : "cost"; filter.all = [...(filter.all ?? []), { [key]: { op: ">=", value: num(m[2]!) } }, { [key]: { op: "<=", value: num(m[3]!) } }]; continue; }
     if ((m = take(/^(?:and |with )?no base effect/i))) { filter.vanilla = true; continue; }
+    if ((m = take(/^without (\[(?:Blocker|Rush|Double Attack|Banish|Unblockable)\])(?! effect)/))) { filter.textExcludes = [...(filter.textExcludes ?? []), m[1]!]; continue; }
     if ((m = take(/^without (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textExcludes = [...(filter.textExcludes ?? []), m[1]!]; continue; }
     if ((m = take(/^with (?:a |an )?(\[[^\]]+\]) effect/i))) { filter.textIncludes = [...(filter.textIncludes ?? []), m[1]!]; continue; }
     if ((m = take(/^that has (\d+) or (less|more) power/))) { filter.power = cmp(m[2]!, num(m[1]!)); continue; }
@@ -200,7 +208,8 @@ export interface PhraseOptions {
 
 /** Parse "up to 1 of your opponent's rested Characters with a cost of 3 or less". */
 export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {}): CardPhrase | null {
-  let text = input.trim();
+  // "up to 1 of your Leader or up to 1 of your Characters" picks one card among both: same as "Leader or Characters".
+  let text = input.trim().replace(/^up to (\d+) of (your(?: opponent's)?) (leader(?: card)?) or up to \1 of \2 (characters?)\b/i, "up to $1 of $2 $3 or $4");
   const selfMatch = /^this (character|leader|stage|card|event)(?: card)?$/i.exec(text);
   if (selfMatch) return { selector: { player: "you", zone: "field" }, quant: { kind: "self" } };
   const leader = /^(your|your opponent's|their|its owner's) leader(?: card)?$/i.exec(text);
@@ -238,6 +247,12 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     if ((m = new RegExp(`^(${COLORS.join("|")})(?:(?:, | or | and )(${COLORS.join("|")}))* `, "i").exec(text))) {
       filter.colors = m[0].trim().split(/, | or | and /).map((c) => c.toLowerCase()); text = text.slice(m[0].length); continue;
     }
+    // "{A} type Character card or Character card with a type including "B" / with a [Trigger]": either alternative
+    // qualifies. Must come before the plain "{A} type" rule below, which would take only the first half.
+    if ((m = /^(§T\d+§(?:(?:, | or )§T\d+§)*) type (?:cards?|characters?|character cards?) or (?:cards?|characters?|character cards?) (?:with a type including (§Q\d+§)|with (?:a )?\[Trigger\]),? ?/i.exec(text))) {
+      const traits = traitList(m[1]!, ctx); const q = m[2] ? quote(m[2], ctx) : null; if (!traits || (m[2] && !q)) return null;
+      filter.any = [{ traits }, q ? { traitIncludes: [q] } : { hasTrigger: true }]; text = (/character/i.test(m[0]) ? "character cards " : "cards ") + text.slice(m[0].length); continue;
+    }
     if ((m = /^(§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) { const traits = traitList(m[1]!, ctx); if (!traits) return null; filter.traits = traits; text = text.slice(m[0].length); continue; }
     if ((m = /^\[(Blocker|Rush|Double Attack|Banish|Trigger)\] /.exec(text))) {
       if (m[1] === "Trigger") filter.hasTrigger = true; else filter.keyword = m[1]!.toLowerCase().replace(" ", "_") as Filter["keyword"];
@@ -250,10 +265,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       const names = nameList(m[1]!, ctx); if (!names) return null;
       const other: Filter = { types: [m[3]!.toLowerCase() as "event"], ...(m[2] ? { colors: [m[2].toLowerCase()] } : {}) };
       filter.any = [{ names }, other]; text = "cards " + text.slice(m[0].length); continue;
-    }
-    if ((m = /^(§T\d+§(?:(?:, | or )§T\d+§)*) type (?:cards?|characters?|character cards?) or (?:cards?|characters?|character cards?) with a type including (§Q\d+§) ?/.exec(text))) {
-      const traits = traitList(m[1]!, ctx); const q = quote(m[2]!, ctx); if (!traits || !q) return null;
-      filter.any = [{ traits }, { traitIncludes: [q] }]; text = (/character/i.test(m[0]) ? "character cards " : "cards ") + text.slice(m[0].length); continue;
     }
     if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) {
       const names = nameList(m[1]!, ctx); const traits = traitList(m[2]!, ctx); if (!names || !traits) return null;
@@ -270,7 +281,8 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     if (!names) return null;
     filter.names = names;
     text = text.slice(named[0].length).trim();
-    zone = opts.zone ?? "leader_or_character";
+    // "a [Kalgara] Character" is a Character on the field, never the Leader; bare "[Name]" may be either.
+    zone = opts.zone ?? (/\bcharacters?$/i.test(named[0]) ? "character" : "leader_or_character");
   } else {
     const nounMatch = /^(leader or character cards?|leader or characters?|leaders? or characters?|leader and character cards?|leader or stage cards?|leaders? or stages?|DON!! cards?|character or event cards?|event or stage cards?|character or stage cards?|characters? or stages?|character cards?|characters?|leaders?|event cards?|events?|stage cards?|stages?|cards?)(?=$| |,)/i.exec(text);
     if (!nounMatch) return null;
@@ -309,6 +321,19 @@ function leaderFilter(adj: string, ctx: Ctx): Filter | null {
     return null;
   }
   return Object.keys(filter).length ? filter : null;
+}
+
+/**
+ * "Cards" on the field in a rest context also means DON!! in the cost area ("rest 1 of your cards", "N or more rested
+ * cards"; official rulings OP14-020, OP06-038). Only the bare "cards" noun, optionally narrowed to rested/active; DON!!
+ * given to Leader/Characters is not in the cost area and never counts.
+ */
+export function withCostAreaDon(selector: Selector, rested?: boolean): Selector {
+  if (selector.zone !== "field" || selector.also?.length || selector.player === "any") return selector;
+  const keys = Object.keys(selector.filter ?? {});
+  if (keys.some((k) => k !== "rested")) return selector;
+  const state = rested ?? selector.filter?.rested;
+  return { ...selector, also: [{ player: selector.player, zone: "don", ...(state == null ? {} : { filter: { rested: state } }) }] };
 }
 
 export function relOf(text: string): Rel | null {

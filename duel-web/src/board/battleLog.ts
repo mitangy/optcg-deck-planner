@@ -39,6 +39,11 @@ export type BattleLogEntry = {
   important: boolean;
   segments: LogSegment[];
   /**
+   * Intents the room had applied when this line happened (the `step` of its
+   * events message). An undo to step N drops the lines past N (#497).
+   */
+  step?: number;
+  /**
    * Set when the line shows a card being revealed (a reveal, or a search that
    * reveals and adds to hand): the card to put on screen for the viewer.
    */
@@ -50,12 +55,13 @@ export type BattleLogEntry = {
 /**
  * A played or trashed card for the board spotlight (see cardSpotlight.ts).
  * `play` ends on the field (`instanceId`, when the card stays there); `trash`
- * ends in its owner's trash. `label` is the short caption under the card.
+ * ends in its owner's trash; `draw` (the viewer's own Draw Phase card) ends in
+ * their hand. `label` is the short caption under the card.
  */
 export type CardSpotlight = {
   defId: string;
   ownerSeat: 0 | 1;
-  kind: "play" | "trash";
+  kind: "play" | "trash" | "draw";
   label: string;
   instanceId?: string;
 };
@@ -264,6 +270,18 @@ function revealOf(e: LooseEvent): BattleLogEntry["reveal"] {
   return seat != null && !isHiddenDef(e.defId) ? { defId: e.defId as string, ownerSeat: seat } : undefined;
 }
 
+/**
+ * "You draw <card>" for the viewer's own Draw Phase card, which the server sends
+ * only to the drawer; every other draw (an effect, the opponent's) stays a count.
+ */
+function drawLine(e: LooseEvent, youSeat: number | null): Line {
+  const defId = Array.isArray(e.defIds) && e.defIds.length === 1 ? e.defIds[0] : undefined;
+  if (e.turnDraw === true && isYou(e.seat, youSeat) && typeof defId === "string" && !isHiddenDef(defId)) {
+    return spotted(line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} `, card(defId, e.seat)), e, defId, "draw", "Drew");
+  }
+  return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
+}
+
 function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line | null {
   const { youSeat } = ctx;
   switch (e.type) {
@@ -278,7 +296,7 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       if (e.phase === "main") return line("phase", false, `—— Main phase · ${seatLabel(e.activeSeat, youSeat)} ——`);
       return null;
     case "drew":
-      return line("routine", false, `${act(e.seat, youSeat, "draw", "draws")} ${Number(e.count) || 1}`);
+      return drawLine(e, youSeat);
     case "don_placed": {
       const count = Number(e.count) || 0;
       // "You place 0 DON!!" (an empty DON!! deck) is noise.
@@ -511,20 +529,29 @@ export function groupBattleLogByTurn(
 }
 
 /**
- * Battle log after an accepted undo: turns past `toTurn` no longer happened,
- * so their lines go (the replayed turns would otherwise merge into them);
- * `toTurn` keeps its lines and gains a marker so the rewind is visible.
+ * Battle log after an accepted undo: what the rewound action(s) did no longer
+ * happened, so those lines go (replayed ones would otherwise merge into them)
+ * and a marker names the action taken back. Lines carry the room's intent
+ * count (`step`): the ones past `toStep` go. Lines without a step (older
+ * servers) fall back to dropping turns after `toTurn`.
  */
 export function rewindBattleLog(
   entries: readonly BattleLogEntry[],
   toTurn: number,
   by: 0 | 1,
   youSeat: number | null,
+  toStep?: number,
+  actionLabel?: string,
+  wholeTurn = false,
 ): BattleLogEntry[] {
   const who = youSeat == null ? playerLabel(by) : by === youSeat ? "You" : "Opponent";
-  const text = `${who} undid the turn — rewound to the start of turn ${toTurn}.`;
+  const text = wholeTurn
+    ? `${who} undid the whole turn.`
+    : actionLabel
+      ? `${who} undid: ${actionLabel}.`
+      : `${who} undid the last action.`;
   return [
-    ...entries.filter((e) => e.turn <= toTurn),
+    ...entries.filter((e) => (e.step !== undefined && toStep !== undefined ? e.step <= toStep : e.turn <= toTurn)),
     {
       id: `${toTurn}-undo-${Math.random().toString(36).slice(2, 9)}`,
       turn: toTurn,
@@ -532,6 +559,7 @@ export function rewindBattleLog(
       tone: "effect",
       important: true,
       segments: [{ kind: "text", text }],
+      ...(toStep !== undefined ? { step: toStep } : {}),
     },
   ];
 }

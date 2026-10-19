@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { clampSheet, clampSize, dragSheet, dragSize, keySize, maxSize, readSheet, readSize, SHEET_KEY, SIZE_KEY, writeSheet, writeSize } from "./panelSize";
+import { clampSheet, clampSize, dragRect, dragSheet, keyRect, maxSize, readSheet, readSize, SHEET_KEY, SIZE_KEY, writeSheet, writeSize } from "./panelSize";
 
 const vp = { w: 1200, h: 800 };
 
@@ -15,26 +15,61 @@ describe("panel size (#390)", () => {
     expect(clampSize({ w: 400, h: 400 }, { w: 300, h: 375 })).toEqual({ w: 284, h: 359 });
   });
 
-  it("grows up and left when the top or left edge is dragged that way, keeping the other side (#390)", () => {
-    const start = { w: 420, h: 600 };
-    expect(dragSize(start, "top", -999, -100, vp)).toEqual({ w: 420, h: 700 });
-    expect(dragSize(start, "left", -150, -999, vp)).toEqual({ w: 570, h: 600 });
-    expect(dragSize(start, "corner", -50, -60, vp)).toEqual({ w: 470, h: 660 });
-    expect(dragSize(start, "corner", 500, 500, vp)).toEqual({ w: 320, h: 360 });
-    expect(dragSize(start, "top", 0, -9999, vp).h).toBe(784);
+  const at = (w: number, h: number, r = 100, b = 50) => ({ size: { w, h }, pos: { r, b } });
+
+  it("grows up and left when the top or left edge is dragged that way, keeping the right and bottom edges (#390, #532)", () => {
+    const start = at(420, 600);
+    expect(dragRect(start, "top", -999, -100, vp)).toEqual(at(420, 700));
+    expect(dragRect(start, "left", -150, -999, vp)).toEqual(at(570, 600));
+    expect(dragRect(start, "top-left", -50, -60, vp)).toEqual(at(470, 660));
+    expect(dragRect(start, "top-left", 500, 500, vp)).toEqual(at(320, 360));
+    expect(dragRect(start, "top", 0, -9999, vp).size.h).toBe(800 - 50 - 16);
   });
 
-  it("moves a handle with the arrow keys, 16px at a time or 64px with Shift, only along its own axis (#390)", () => {
-    const start = { w: 420, h: 600 };
-    expect(keySize(start, "top", "ArrowUp", false, vp)).toEqual({ w: 420, h: 616 });
-    expect(keySize(start, "top", "ArrowDown", true, vp)).toEqual({ w: 420, h: 536 });
-    expect(keySize(start, "top", "ArrowLeft", false, vp)).toBeNull();
-    expect(keySize(start, "left", "ArrowLeft", false, vp)).toEqual({ w: 436, h: 600 });
-    expect(keySize(start, "left", "ArrowRight", false, vp)).toEqual({ w: 404, h: 600 });
-    expect(keySize(start, "left", "ArrowUp", false, vp)).toBeNull();
-    expect(keySize(start, "corner", "ArrowUp", false, vp)).toEqual({ w: 420, h: 616 });
-    expect(keySize(start, "corner", "ArrowLeft", false, vp)).toEqual({ w: 436, h: 600 });
-    expect(keySize(start, "top", "Enter", false, vp)).toBeNull();
+  it("dragging the right edge keeps the left edge: the gap to the right shrinks by what the width gains (#532)", () => {
+    expect(dragRect(at(420, 600), "right", 80, 999, vp)).toEqual(at(500, 600, 20));
+    expect(dragRect(at(420, 600), "right", -60, 0, vp)).toEqual(at(360, 600, 160));
+  });
+
+  it("dragging the bottom edge keeps the top edge: the gap to the bottom shrinks by what the height gains (#532)", () => {
+    expect(dragRect(at(420, 600), "bottom", 999, 30, vp)).toEqual(at(420, 630, 100, 20));
+    expect(dragRect(at(420, 600), "bottom", 0, -100, vp)).toEqual(at(420, 500, 100, 150));
+  });
+
+  it("dragging the bottom-right corner moves only that corner, and the top-right and bottom-left ones each move theirs (#532)", () => {
+    expect(dragRect(at(420, 600), "bottom-right", 80, 40, vp)).toEqual(at(500, 640, 20, 10));
+    expect(dragRect(at(420, 600), "top-right", 80, -40, vp)).toEqual(at(500, 640, 20, 50));
+    expect(dragRect(at(420, 600), "bottom-left", -30, 20, vp)).toEqual(at(450, 620, 100, 30));
+  });
+
+  it("stops a right or bottom edge at the viewport edge and at the minimum without moving the opposite edge (#532)", () => {
+    // Left edge at 1200 - 100 - 420 = 680: it can't be pulled past the right edge of the window...
+    expect(dragRect(at(420, 600), "right", 5000, 0, vp)).toEqual(at(520, 600, 0));
+    expect(dragRect(at(420, 600), "bottom", 0, 5000, vp)).toEqual(at(420, 650, 100, 0));
+    // ...and pushing it back past the minimum leaves the left/top edge exactly where it was.
+    const small = dragRect(at(420, 600), "bottom-right", -5000, -5000, vp);
+    expect(small).toEqual(at(320, 360, 200, 290));
+    expect(vp.w - small.pos.r - small.size.w).toBe(vp.w - 100 - 420);
+    expect(vp.h - small.pos.b - small.size.h).toBe(vp.h - 50 - 600);
+  });
+
+  it("moves a handle with the arrow keys, 16px at a time or 64px with Shift, the way the edge points, only along its own axis (#390, #532)", () => {
+    const start = at(420, 600);
+    expect(keyRect(start, "top", "ArrowUp", false, vp)).toEqual(at(420, 616));
+    expect(keyRect(start, "top", "ArrowDown", true, vp)).toEqual(at(420, 536));
+    expect(keyRect(start, "top", "ArrowLeft", false, vp)).toBeNull();
+    expect(keyRect(start, "left", "ArrowLeft", false, vp)).toEqual(at(436, 600));
+    expect(keyRect(start, "left", "ArrowRight", false, vp)).toEqual(at(404, 600));
+    expect(keyRect(start, "left", "ArrowUp", false, vp)).toBeNull();
+    expect(keyRect(start, "right", "ArrowRight", false, vp)).toEqual(at(436, 600, 84));
+    expect(keyRect(start, "right", "ArrowLeft", true, vp)).toEqual(at(356, 600, 164));
+    expect(keyRect(start, "right", "ArrowDown", false, vp)).toBeNull();
+    expect(keyRect(start, "bottom", "ArrowDown", false, vp)).toEqual(at(420, 616, 100, 34));
+    expect(keyRect(start, "bottom", "ArrowUp", false, vp)).toEqual(at(420, 584, 100, 66));
+    expect(keyRect(start, "top-left", "ArrowUp", false, vp)).toEqual(at(420, 616));
+    expect(keyRect(start, "top-left", "ArrowLeft", false, vp)).toEqual(at(436, 600));
+    expect(keyRect(start, "bottom-right", "ArrowRight", false, vp)).toEqual(at(436, 600, 84));
+    expect(keyRect(start, "top", "Enter", false, vp)).toBeNull();
   });
 });
 

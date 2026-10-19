@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -45,6 +46,9 @@ class User(Base):
 
     decks: Mapped[list[Deck]] = relationship(back_populates="user", cascade="all, delete-orphan")
     owned: Mapped[list[Owned]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    shopping_extras: Mapped[list[ShoppingExtra]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 # Case-insensitive uniqueness for usernames (NULLs allowed on SQLite + Postgres).
@@ -123,6 +127,42 @@ class Owned(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped[User] = relationship(back_populates="owned")
+
+
+class OwnedPrinting(Base):
+    """Copies of one alt-art printing a user owns (per user, like ``Owned``)."""
+
+    __tablename__ = "owned_printings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", "product_id", name="uq_user_owned_printing"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ShoppingExtra(Base):
+    """Card added straight to Master Shopping without a deck.
+
+    ``qty`` is a TARGET number of copies to own (like a deck's needed count),
+    combined with deck need by max, not a count of copies to buy.
+    """
+
+    __tablename__ = "shopping_extras"
+    __table_args__ = (UniqueConstraint("user_id", "card_id", name="uq_user_shopping_extra"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="shopping_extras")
 
 
 class ShareLink(Base):
@@ -444,6 +484,9 @@ class DuelMatchProgress(Base):
     replay: Mapped[str | None] = mapped_column(Text, nullable=True)
     seat0_log: Mapped[str | None] = mapped_column(Text, nullable=True)
     seat1_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The game server sets this on the snapshot it sends as the room closes: nobody is playing this
+    # game any more, so its recording (both hands included) can be watched (#476).
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -573,6 +616,24 @@ class AnalystAccess(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # This player's monthly credit in dollars; NULL means the default (ANALYST_USER_CREDIT_USD).
+    credit_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Extra credit an owner granted for one month: topup_usd counts only while topup_month ("2026-10") is the current month.
+    topup_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    topup_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    # Approved at once by the free-spots rule (it keeps its spot used even if later revoked).
+    auto_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When a player out of credit asked for more; cleared when an owner grants or dismisses it.
+    topup_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AnalystSetting(Base):
+    """One global Log Pose setting (today only the chat model), the same for every player and both apps."""
+
+    __tablename__ = "analyst_settings"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[str] = mapped_column(String(64))
 
 
 class AnalystLesson(Base):
@@ -676,6 +737,14 @@ class AnalystUsage(Base):
     cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    # The thread a chat call belonged to. No foreign key: deleting a thread keeps its usage rows (cost totals stay), with this nulled.
+    thread_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # ok | error | aborted | refused
+    outcome: Mapped[str] = mapped_column(String(16), default="ok")
+    # Why a refused request was turned away: credit | daily | monthly | busy.
+    refusal: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
@@ -863,6 +932,27 @@ class DuelUserSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class DuelSavedDeck(Base):
+    """A signed-in player's saved duel deck (the browser keeps its own cache).
+
+    ``deck_id`` is the client's id; ``updated_at_ms`` is the client's
+    ``updatedAt`` and decides last-writer-wins. A deleted deck stays as a
+    tombstone (``deleted``, ``data`` empty) so other devices learn of it.
+    """
+
+    __tablename__ = "duel_saved_decks"
+    __table_args__ = (UniqueConstraint("user_id", "deck_id", name="uq_duel_saved_deck"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    deck_id: Mapped[str] = mapped_column(String(64))
+    data: Mapped[str] = mapped_column(Text, default="")
+    updated_at_ms: Mapped[int] = mapped_column(BigInteger, default=0)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class DuelCosmetic(Base):

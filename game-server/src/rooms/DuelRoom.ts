@@ -9,11 +9,11 @@ import {
   getPlayerView,
   getSpectatorView,
   projectGameEvents,
-  reseedMatch,
   listLegalIntents,
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
   RULES_VERSION,
+  revealReason,
   seatLog,
   serializeMatch,
   skipMulligans,
@@ -42,6 +42,7 @@ import { checkMatchmakeToken, claimCreatorRoom, gameSeed, releaseCreatorRoom } f
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
+  TAKEN_OVER_CLOSE_CODE,
   parseChatMessage,
   parseHandOrderMessage,
   parseCosmeticsMessage,
@@ -62,6 +63,8 @@ import {
   type RematchAction,
   type RematchStateMessage,
   type UndoAction,
+  type UndoOption,
+  type UndoScope,
   type UndoAppliedMessage,
   type UndoStateMessage,
   type BriefTicketWire,
@@ -74,6 +77,7 @@ import {
   type MatchProgressPayload,
   type MatchResultPayload,
 } from "../writeback.js";
+import { undoLabel } from "../undoLabel.js";
 import { applyHandOrder, idsInHand } from "../handOrder.js";
 import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
@@ -105,16 +109,23 @@ const CHAT_RATE_WINDOW_MS = 5000;
 const CHAT_HISTORY_LIMIT = 50;
 /** Any message type, per client: more than this in one second drops the client (intents alone allow 20). */
 const MAX_MESSAGES_PER_SECOND = 40;
-/** Turn-start snapshots kept for undo (unranked rooms only). */
-const UNDO_HISTORY_LIMIT = 20;
+/** Per-action snapshots kept for undo (unranked rooms only). */
+const UNDO_HISTORY_LIMIT = 40;
 
-type TurnSnapshot = {
+/** The state just before one applied intent; undoing restores it. */
+type UndoSnapshot = {
   /** serializeMatch() output — a deep copy the engine can never mutate. */
   match: string;
   rng: RngState;
   turnNumber: number;
   /** Replay intents up to this state, so an undo drops the rewound ones. */
   intentCount: number;
+  /** Seat that took the action this snapshot precedes. */
+  seat: Seat;
+  /** Short description of that action ("play Nami"). */
+  label: string;
+  /** Why this action exposed hidden cards ("cards were drawn"); absent when it did not (#536). */
+  revealReason?: string;
 };
 
 export class DuelRoom extends Room implements PresenceSource {
@@ -134,6 +145,10 @@ export class DuelRoom extends Room implements PresenceSource {
   private rng: Rng | null = null;
   private matchId = "";
   private seed = 0;
+  /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
+  private firstGameSeat: Seat = 0;
+  /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
+  private firstSeatPickedBy: Seat | null = null;
   /** This game's inputs, sent with the result for the backend to keep. Never sent to players. */
   private replay: MatchReplay | null = null;
   private autoSkipMulligan = true;
@@ -142,6 +157,12 @@ export class DuelRoom extends Room implements PresenceSource {
   private seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private presetSeatUserIds: [number, number] | undefined;
   private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
+  /**
+   * Account that controls each seat: the verified ownerToken uid (practice, where
+   * seats are guest ids), else the seat's own userId. Who may take the seat over (#451).
+   */
+  private seatOwnerUids: [number | null, number | null] = [null, null];
+  private lastMetadataKey = "";
   private spectators: SpectatorSlot[] = [];
   /** Per-seat alt-art prefs (cosmetics only; not rules state). */
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
@@ -186,13 +207,16 @@ export class DuelRoom extends Room implements PresenceSource {
   private gameNumber = 0;
   private rematchRequested: [boolean, boolean] = [false, false];
   private rematchDeclinedBy: Seat | null = null;
+  /** Deck each seat picked with its rematch request (null: keep the current deck). */
+  private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private lastTimerActiveSeat: Seat | null = null;
-  /** Start-of-turn states, oldest first (unranked rooms only). */
-  private turnSnapshots: TurnSnapshot[] = [];
-  /** True once anything happened after the newest snapshot. */
-  private actedSinceSnapshot = false;
-  private undoRequest: { from: Seat; toTurn: number } | null = null;
+  /** States before each applied action, oldest first (unranked rooms only). */
+  private undoStack: UndoSnapshot[] = [];
+  /** Oldest snapshots fell off the stack (UNDO_HISTORY_LIMIT), so the earliest kept turn may be cut short. */
+  private undoTruncated = false;
+  private undoRequest: UndoStateMessage["pending"] = null;
+  private undoRequestSeq = 0;
   private lastUndoStateKey = "";
   /** Turn of the last progress snapshot, so the log is saved once per turn. */
   private progressTurn: number | null = null;
@@ -223,6 +247,7 @@ export class DuelRoom extends Room implements PresenceSource {
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);
     this.seed = parsed.seed;
+    this.firstGameSeat = parsed.firstSeat;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
     if (parsed.players) {
@@ -323,7 +348,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.log("info", "room_disposed", { matchId: this.matchId });
     // A game closing without a result keeps its log up to the last action.
     if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
-      await this.saveProgress(true, true);
+      await this.saveProgress(true);
     }
   }
 
@@ -373,6 +398,8 @@ export class DuelRoom extends Room implements PresenceSource {
       preferredSeat?: Seat;
       role: "player" | "spectator";
       deck?: PlayerDeckWire;
+      takeover: boolean;
+      ownerUid: number | null;
     };
     try {
       identity = this.resolveIdentity(options);
@@ -409,6 +436,11 @@ export class DuelRoom extends Room implements PresenceSource {
         sessionId: client.sessionId,
       });
       this.sendSync(client);
+      return;
+    }
+
+    if (identity.takeover && identity.role === "player") {
+      this.takeOverSeat(client, identity);
       return;
     }
 
@@ -490,6 +522,7 @@ export class DuelRoom extends Room implements PresenceSource {
     if (identity.deck) {
       this.seatDecks[seat] = identity.deck;
     }
+    this.seatOwnerUids[seat] = identity.ownerUid ?? identity.userId;
 
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
     presence.markDirty();
@@ -503,10 +536,77 @@ export class DuelRoom extends Room implements PresenceSource {
     });
 
     if (this.seats[0] && this.seats[1] && !this.matchStarted) {
-      this.startMatch();
+      this.startMatch(this.firstGameSeat, null);
     } else if (this.matchStarted && this.match) {
       this.sendSync(client);
     }
+    this.refreshMetadata();
+  }
+
+  /**
+   * Move a seat to this connection (#451). Only the account that controls the seat
+   * may do it; identity, deck and clocks stay as they were, so nothing is
+   * written back differently and the opponent never sees a leave.
+   */
+  private takeOverSeat(
+    client: Client,
+    identity: { userId: number; preferredSeat?: Seat },
+  ) {
+    const seat = identity.preferredSeat;
+    if (seat !== 0 && seat !== 1) {
+      this.rejectJoin(client, "bad_protocol", "takeover needs a preferredSeat");
+      return;
+    }
+    const slot = this.seats[seat];
+    const owner = this.seatOwnerUids[seat] ?? slot?.userId;
+    if (!slot || owner !== identity.userId) {
+      this.rejectJoin(client, "unauthorized", "You don't hold a seat in this match");
+      return;
+    }
+    if (this.matchOverSent) {
+      this.rejectJoin(client, "match_over", "That match has ended");
+      return;
+    }
+    const oldSessionId = slot.sessionId;
+    slot.sessionId = client.sessionId;
+    this.intentTimestamps.delete(oldSessionId);
+    this.chatTimestamps.delete(oldSessionId);
+    // A seat dropped mid-grace: kill the pending reclaim so the old socket's
+    // reconnection token can never take the seat back from this one.
+    const pending = (
+      this as unknown as {
+        _reconnections: Record<string, [string, { reject(reason?: unknown): void }]>;
+      }
+    )._reconnections;
+    for (const entry of Object.values(pending)) {
+      if (entry[0] === oldSessionId) entry[1].reject(false);
+    }
+    const old = this.clients.find((c) => c.sessionId === oldSessionId);
+    if (old) {
+      old.send("taken_over", { protocolVersion: PROTOCOL_VERSION, seat });
+      old.leave(TAKEN_OVER_CLOSE_CODE);
+    }
+    this.awayUntil[seat] = null;
+    this.broadcastPresence();
+    presence.markDirty();
+    this.log("info", "player_taken_over", {
+      matchId: this.matchId,
+      seat,
+      oldSessionId,
+      sessionId: client.sessionId,
+    });
+    if (this.matchStarted && this.match) this.sendSync(client);
+    this.refreshMetadata();
+  }
+
+  /** Lobby lookup data (GET /active-matches): who holds the seats and how far along the room is. */
+  private refreshMetadata() {
+    const phase = this.matchOverSent ? "finished" : this.matchStarted ? "playing" : "waiting";
+    const metadata = { owners: [...this.seatOwnerUids], phase, ranked: this.ranked };
+    const key = JSON.stringify(metadata);
+    if (key === this.lastMetadataKey) return;
+    this.lastMetadataKey = key;
+    void this.setMetadata(metadata).catch(() => undefined);
   }
 
   /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
@@ -537,6 +637,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.awayUntil = [null, null];
     this.undoRequest = null;
     this.syncPublicState();
+    this.broadcastViews([]);
     this.stopSeatClock();
     this.clearTimerLoop();
     this.broadcastTimer();
@@ -584,6 +685,8 @@ export class DuelRoom extends Room implements PresenceSource {
       this.broadcastPresence();
       this.sendSync(client);
     } catch {
+      // Another device took the seat over: it is theirs now, not ours to free or forfeit.
+      if (this.seats[seat]?.sessionId !== client.sessionId) return;
       this.log("info", "player_reclaim_timeout", {
         matchId: this.matchId,
         seat,
@@ -602,6 +705,9 @@ export class DuelRoom extends Room implements PresenceSource {
     preferredSeat?: Seat;
     role: "player" | "spectator";
     deck?: PlayerDeckWire;
+    takeover: boolean;
+    /** Verified uid of join.ownerToken, else null. */
+    ownerUid: number | null;
   } {
     const join = parseJoinOptions(options);
     const role = join.role ?? "player";
@@ -612,6 +718,9 @@ export class DuelRoom extends Room implements PresenceSource {
     if (required && join.secret !== required) {
       throw Object.assign(new Error("unauthorized"), { code: "unauthorized" as const });
     }
+    // Practice seats are guest ids; a valid ownerToken names the account that may
+    // take them over. An invalid one is ignored, never a reason to reject the join.
+    const ownerUid = join.ownerToken ? (verifyGameToken(join.ownerToken)?.uid ?? null) : null;
     if (join.gameToken) {
       const payload = verifyGameToken(join.gameToken);
       if (!payload) {
@@ -627,6 +736,8 @@ export class DuelRoom extends Room implements PresenceSource {
         preferredSeat: join.preferredSeat,
         role,
         deck: join.deck,
+        takeover: join.takeover === true,
+        ownerUid,
       };
     }
     if (requireGameToken()) {
@@ -642,6 +753,8 @@ export class DuelRoom extends Room implements PresenceSource {
       preferredSeat: join.preferredSeat,
       role,
       deck: join.deck,
+      takeover: join.takeover === true,
+      ownerUid,
     };
   }
 
@@ -655,8 +768,10 @@ export class DuelRoom extends Room implements PresenceSource {
           sessionId,
         });
         this.seats[i] = null;
+        this.seatOwnerUids[i] = null;
       }
     }
+    this.refreshMetadata();
     this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
     presence.markDirty();
     this.intentTimestamps.delete(sessionId);
@@ -730,7 +845,8 @@ export class DuelRoom extends Room implements PresenceSource {
     return null;
   }
 
-  private startMatch(firstSeat: Seat = 0) {
+  private startMatch(firstSeat: Seat, pickedBy: Seat | null) {
+    this.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
@@ -790,7 +906,8 @@ export class DuelRoom extends Room implements PresenceSource {
 
     this.match = match;
     this.matchStarted = true;
-    this.recordTurnSnapshot();
+    this.refreshMetadata();
+    this.recordUndoStep(null, null, []);
     this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
     this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
@@ -804,7 +921,7 @@ export class DuelRoom extends Room implements PresenceSource {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(match, slot.seat);
+      const view = this.playerView(match, slot.seat);
       const welcome: WelcomeMessage = {
         protocolVersion: PROTOCOL_VERSION,
         matchId: this.matchId,
@@ -813,6 +930,7 @@ export class DuelRoom extends Room implements PresenceSource {
         view,
         players: this.playersInfo(),
         ranked: this.ranked,
+        firstSeatPickedBy: this.firstSeatPickedBy,
         brief: this.briefFor(slot.seat),
       };
       client.send("welcome", welcome);
@@ -1041,6 +1159,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1082,6 +1201,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     const before = this.match;
+    const undoSnap = this.captureUndoSnapshot(seat, intent);
     const result = applyIntent(before, intent, { seat, rng: this.rng });
     if (!result.ok) {
       this.log("info", "illegal_intent", {
@@ -1097,14 +1217,14 @@ export class DuelRoom extends Room implements PresenceSource {
       );
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
-        view: getPlayerView(before, seat),
+        view: this.playerView(before, seat),
       });
       return;
     }
 
     this.match = result.state;
     this.replay?.intents.push({ seat, intent });
-    this.recordTurnSnapshot();
+    this.recordUndoStep(undoSnap, before, result.events);
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
@@ -1119,8 +1239,8 @@ export class DuelRoom extends Room implements PresenceSource {
     this.endReason = null;
     this.replay = null;
     this.progressTurn = null;
-    this.turnSnapshots = [];
-    this.actedSinceSnapshot = false;
+    this.undoStack = [];
+    this.undoTruncated = false;
     this.undoRequest = null;
     this.lastUndoStateKey = "";
     this.turnEndsAt = null;
@@ -1129,6 +1249,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSeat = null;
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
+    this.rematchDecks = [null, null];
     this.seatHandOrder = [[], []];
     this.publicArtDefs = [new Set(), new Set()];
     this.sentPublicArt = ["{}", "{}"];
@@ -1146,6 +1267,7 @@ export class DuelRoom extends Room implements PresenceSource {
       protocolVersion: PROTOCOL_VERSION,
       available,
       requested: [...this.rematchRequested],
+      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
       declinedBy: this.rematchDeclinedBy,
       chooser: available && both && this.match?.winner != null ? ((1 - this.match.winner) as Seat) : null,
     };
@@ -1168,8 +1290,10 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     let action: RematchAction;
+    let deck: PlayerDeckWire | undefined;
     try {
-      action = parseRematchMessage(message);
+      ({ action, deck } = parseRematchMessage(message));
+      if (deck) assertKnownDeck(deck);
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1187,11 +1311,13 @@ export class DuelRoom extends Room implements PresenceSource {
     switch (action) {
       case "request":
         this.rematchRequested[seat] = true;
+        this.rematchDecks[seat] = deck ?? null;
         this.rematchDeclinedBy = null;
         this.broadcastRematchState();
         return;
       case "decline":
         this.rematchRequested = [false, false];
+        this.rematchDecks = [null, null];
         this.rematchDeclinedBy = seat;
         this.broadcastRematchState();
         return;
@@ -1203,62 +1329,125 @@ export class DuelRoom extends Room implements PresenceSource {
         }
         const firstSeat: Seat = action === "first" ? seat : ((1 - seat) as Seat);
         this.seed = gameSeed();
-        this.log("info", "rematch_start", { matchId: this.matchId, game: this.gameNumber + 1, firstSeat });
-        this.startMatch(firstSeat);
+        this.log("info", "rematch_start", {
+          matchId: this.matchId,
+          game: this.gameNumber + 1,
+          firstSeat,
+          newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
+        });
+        for (const s of [0, 1] as const) {
+          const picked = this.rematchDecks[s];
+          if (picked) this.seatDecks[s] = picked;
+        }
+        this.startMatch(firstSeat, seat);
         return;
       }
     }
   }
 
   /**
-   * Track start-of-turn states for undo. Call after every state change: a new
-   * turn number (outside mulligan) records a snapshot, anything else marks the
-   * current turn as having actions to undo. A state change also voids any
-   * open undo request, since it named a turn relative to the old state.
+   * Snapshot the state an undo of `intent` would restore. Call before the
+   * intent is applied; null when undo does not apply (ranked, mulligan, over).
    */
-  private recordTurnSnapshot() {
+  private captureUndoSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
+    const m = this.match;
+    if (this.ranked || !m || !this.rng) return null;
+    if (m.phase === "mulligan" || m.winner !== null) return null;
+    return {
+      match: serializeMatch(m),
+      rng: this.rng.snapshot(),
+      turnNumber: m.turnNumber,
+      intentCount: this.replay?.intents.length ?? 0,
+      seat,
+      label: undoLabel(m, seat, intent),
+    };
+  }
+
+  /**
+   * Bookkeeping after every state change. Pushes the snapshot taken before the
+   * applied action; one that revealed hidden cards carries the reason, and an
+   * undo that would take it back needs a forced request (#497, #536). A state
+   * change also voids any open undo request, since it named an action relative
+   * to the old state.
+   */
+  private recordUndoStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
     if (this.match && this.match.winner === null && this.match.turnNumber !== this.progressTurn) {
       this.progressTurn = this.match.turnNumber;
       void this.saveProgress();
     }
-    if (this.ranked || !this.match || !this.rng) return;
-    const m = this.match;
-    const top = this.turnSnapshots.at(-1);
-    if (m.phase !== "mulligan" && m.winner === null && top?.turnNumber !== m.turnNumber) {
-      this.turnSnapshots.push({
-        match: serializeMatch(m),
-        rng: this.rng.snapshot(),
-        turnNumber: m.turnNumber,
-        intentCount: this.replay?.intents.length ?? 0,
-      });
-      if (this.turnSnapshots.length > UNDO_HISTORY_LIMIT) this.turnSnapshots.shift();
-      this.actedSinceSnapshot = false;
-    } else if (top) {
-      this.actedSinceSnapshot = true;
+    const after = this.match;
+    if (this.ranked || !after) return;
+    if (snap && before) {
+      const reason = revealReason(before, after, events);
+      this.undoStack.push(reason ? { ...snap, revealReason: reason } : snap);
+      if (this.undoStack.length > UNDO_HISTORY_LIMIT) {
+        this.undoStack.shift();
+        this.undoTruncated = true;
+      }
     }
     this.undoRequest = null;
     this.broadcastUndoState();
   }
 
   /**
-   * Snapshot an undo would restore: the current turn's start once something
-   * happened this turn, otherwise the previous turn's start.
+   * Index of the snapshot `scope` rewinds to, or null when it cannot (nothing
+   * to undo, or the whole turn is no longer in the history). A turn is every
+   * action since the first one of the last action's turn, by either seat.
    */
-  private undoTargetIndex(): number | null {
-    const n = this.turnSnapshots.length;
-    if (n === 0) return null;
-    if (this.actedSinceSnapshot) return n - 1;
-    return n >= 2 ? n - 2 : null;
+  private undoTargetIndex(scope: UndoScope): number | null {
+    const last = this.undoStack.length - 1;
+    if (last < 0) return null;
+    if (scope === "action") return last;
+    const turn = this.undoStack[last]!.turnNumber;
+    let start = last;
+    while (start > 0 && this.undoStack[start - 1]!.turnNumber === turn) start -= 1;
+    if (start === 0 && this.undoTruncated) return null;
+    return start;
+  }
+
+  private undoOption(scope: UndoScope): UndoOption {
+    if (this.undoStack.length === 0) {
+      return { available: false, steps: 0, blockedReason: "Nothing to undo yet", forceable: false };
+    }
+    const idx = this.undoTargetIndex(scope);
+    if (idx === null) {
+      return { available: false, steps: 0, blockedReason: "Undo history limit reached", forceable: false };
+    }
+    const range = this.undoStack.slice(idx);
+    const reveal = [...range].reverse().find((snap) => snap.revealReason)?.revealReason;
+    if (reveal) {
+      return {
+        available: false,
+        steps: range.length,
+        blockedReason: `Undo stops here: ${reveal}`,
+        forceable: true,
+        revealReason: reveal,
+      };
+    }
+    return { available: true, steps: range.length, forceable: false };
   }
 
   private undoState(): UndoStateMessage {
     const enabled = !this.ranked;
     const over = !this.match || this.match.winner !== null || this.matchOverSent;
-    const idx = enabled && !over ? this.undoTargetIndex() : null;
+    const top = enabled && !over ? (this.undoStack.at(-1) ?? null) : null;
+    let options: UndoStateMessage["options"] = null;
+    let blockedReason: string | null = null;
+    if (!enabled) {
+      blockedReason = "No undo in ranked";
+    } else if (!over) {
+      options = { action: this.undoOption("action"), turn: this.undoOption("turn") };
+      if (!options.action.available && !options.turn.available) {
+        blockedReason = options.action.blockedReason ?? options.turn.blockedReason ?? "Nothing to undo yet";
+      }
+    }
     return {
       protocolVersion: PROTOCOL_VERSION,
       enabled,
-      targetTurn: idx === null ? null : this.turnSnapshots[idx]!.turnNumber,
+      targetTurn: top ? top.turnNumber : null,
+      action: top ? { seat: top.seat, label: top.label } : null,
+      options,
+      blockedReason,
       pending: over ? null : this.undoRequest,
     };
   }
@@ -1286,8 +1475,11 @@ export class DuelRoom extends Room implements PresenceSource {
       return;
     }
     let action: UndoAction;
+    let scope: UndoScope;
+    let force: boolean;
+    let id: number | undefined;
     try {
-      action = parseUndoMessage(message);
+      ({ action, scope, force, id } = parseUndoMessage(message));
     } catch (e) {
       const err = e as Error & { code?: ErrorCode };
       this.sendError(client, err.code ?? "bad_protocol", err.message);
@@ -1309,16 +1501,34 @@ export class DuelRoom extends Room implements PresenceSource {
     const req = this.undoRequest;
     switch (action) {
       case "request": {
-        const idx = this.undoTargetIndex();
-        if (idx === null) {
-          this.sendError(client, "illegal_intent", "Nothing to undo yet");
+        const top = this.undoStack.at(-1);
+        const idx = this.undoTargetIndex(scope);
+        const option = this.undoOption(scope);
+        if (!top || idx === null) {
+          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
           return;
         }
-        this.undoRequest = { from: seat, toTurn: this.turnSnapshots[idx]!.turnNumber };
+        // A reveal in range blocks a plain request; force goes past it, and only it.
+        if (!option.available && !(force && option.forceable)) {
+          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
+          return;
+        }
+        this.undoRequest = {
+          id: (this.undoRequestSeq += 1),
+          from: seat,
+          toTurn: this.undoStack[idx]!.turnNumber,
+          action: { seat: top.seat, label: top.label },
+          scope,
+          steps: option.steps,
+          force: option.revealReason !== undefined,
+          revealReason: option.revealReason ?? null,
+        };
         this.log("info", "undo_requested", {
           matchId: this.matchId,
           seat,
           toTurn: this.undoRequest.toTurn,
+          scope,
+          force: this.undoRequest.force,
         });
         this.broadcastUndoState();
         return;
@@ -1344,49 +1554,54 @@ export class DuelRoom extends Room implements PresenceSource {
           this.sendError(client, "unauthorized", "The other player must accept the undo");
           return;
         }
-        this.applyUndo(req.from);
+        // An accept names the request it saw; the requester may have changed it since (#540).
+        if (id !== undefined && id !== req.id) {
+          this.sendError(client, "illegal_intent", "The undo request changed; review it again");
+          this.sendUndoState(client);
+          return;
+        }
+        this.applyUndo(req.from, req.scope);
         return;
       }
     }
   }
 
-  /** Entropy for an undo re-seed. A method so tests can pin it. */
-  private freshSeed(): number {
-    return gameSeed();
-  }
-
-  private applyUndo(by: Seat) {
-    const idx = this.undoTargetIndex();
-    if (idx === null) {
+  private applyUndo(by: Seat, scope: UndoScope) {
+    const idx = this.undoTargetIndex(scope);
+    const last = this.undoStack.at(-1);
+    const snap = idx === null ? undefined : this.undoStack[idx];
+    if (!snap || !last) {
       this.undoRequest = null;
       this.broadcastUndoState();
       return;
     }
-    const snap = this.turnSnapshots[idx]!;
+    const steps = this.undoStack.length - idx!;
+    this.undoStack.length = idx!;
     this.match = deserializeMatch(snap.match);
-    this.turnSnapshots = this.turnSnapshots.slice(0, idx + 1);
+    this.rng = createSeededRng(snap.rng);
     this.replay?.intents.splice(snap.intentCount);
-    // Restoring the old rng would repeat the same draws and shuffles, so both
-    // players could read the upcoming deck order off the rewound turn (#369).
-    // Re-seed from fresh entropy instead, and record it so the replay still
-    // rebuilds the game. The engine draws from match.rng, not the room's.
-    const reseed = this.freshSeed();
-    // Both players saw their next draws, so the decks are reshuffled too.
-    this.match = reseedMatch(this.match, reseed, true);
-    this.rng = createSeededRng(reseed);
-    if (this.replay) {
-      const kept = (this.replay.reseeds ?? []).filter((r) => r.atIntent < snap.intentCount);
-      kept.push({ atIntent: snap.intentCount, seed: reseed >>> 0, shuffleDecks: true });
-      this.replay.reseeds = kept;
-    }
-    this.actedSinceSnapshot = false;
+    // Restore the state exactly: match.rng and deck order come back with the
+    // snapshot (the engine draws from match.rng), so drawing again gives the same
+    // cards as before the undo (#449). Nothing is recorded in the replay; older
+    // replays may still carry `reseeds` from the #369 behavior and keep working.
     this.undoRequest = null;
-    this.log("info", "undo_applied", { matchId: this.matchId, by, toTurn: snap.turnNumber });
+    this.log("info", "undo_applied", {
+      matchId: this.matchId,
+      by,
+      toTurn: snap.turnNumber,
+      label: last.label,
+      scope,
+      steps,
+    });
 
     const applied: UndoAppliedMessage = {
       protocolVersion: PROTOCOL_VERSION,
       toTurn: snap.turnNumber,
+      toStep: snap.intentCount,
       by,
+      action: { seat: last.seat, label: last.label },
+      scope,
+      steps,
     };
     this.broadcast("undo_applied", applied);
     this.syncPublicState();
@@ -1402,14 +1617,17 @@ export class DuelRoom extends Room implements PresenceSource {
   private broadcastViews(events: GameEvent[]) {
     if (!this.match) return;
     this.updatePublicArt(events);
+    // Replay intents applied so far: lets clients drop battle-log lines on undo.
+    const step = this.replay?.intents.length ?? 0;
     for (const slot of this.seats) {
       if (!slot) continue;
       const client = this.clients.find((c) => c.sessionId === slot.sessionId);
       if (!client) continue;
-      const view = getPlayerView(this.match, slot.seat);
+      const view = this.playerView(this.match, slot.seat);
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, slot.seat),
+        step,
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -1423,6 +1641,7 @@ export class DuelRoom extends Room implements PresenceSource {
       client.send("events", {
         protocolVersion: PROTOCOL_VERSION,
         events: projectGameEvents(events, null),
+        step,
       });
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
@@ -1604,6 +1823,7 @@ export class DuelRoom extends Room implements PresenceSource {
       phase: "game_over",
     };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1620,6 +1840,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.endReason = "timeout";
     this.match = { ...this.match, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
     this.syncPublicState();
+    this.broadcastViews([]);
     this.undoRequest = null;
     this.broadcastUndoState();
     this.stopSeatClock();
@@ -1650,6 +1871,7 @@ export class DuelRoom extends Room implements PresenceSource {
       intentType: intent.type,
     });
     const before = this.match;
+    const undoSnap = this.captureUndoSnapshot(seat, intent);
     const result = applyIntent(before, intent, { seat, rng: this.rng });
     if (!result.ok) {
       this.refreshTurnClock();
@@ -1658,7 +1880,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
     this.match = result.state;
     this.replay?.intents.push({ seat, intent });
-    this.recordTurnSnapshot();
+    this.recordUndoStep(undoSnap, before, result.events);
     this.syncPublicState();
     this.broadcastViews(result.events);
     this.onMatchAdvanced();
@@ -1729,6 +1951,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.autoDispose = false;
     this.resultPending = this.writebackResult(result.winner, result.reason).then(() => {
       this.matchOverSent = true;
+      this.refreshMetadata();
       presence.markDirty();
       this.log("info", "match_end", { matchId: this.matchId, ...result });
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
@@ -1803,13 +2026,13 @@ export class DuelRoom extends Room implements PresenceSource {
    * never reaches a result (server restart, both players gone) still has one.
    * Sent at the start of every turn and when the room closes without a result.
    * `reveal` adds the opponent's hands to each log; only a game that can no
-   * longer be played (the room closing) gets them.
+   * longer be played (the room closing) gets them, and is marked `closed` so
+   * the backend lets the players watch its recording (#476).
    */
-  private saveProgress(reveal = false, final = false): Promise<void> {
+  private saveProgress(reveal = false): Promise<void> {
     const seats = this.ingestSeats();
     if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    const payload = this.progressPayload(seats[0], seats[1], reveal);
-    return this.progress.push({ matchId: this.gameKey(), payload: final ? { ...payload, final: true } : payload });
+    return this.progress.push({ matchId: this.gameKey(), payload: { ...this.progressPayload(seats[0], seats[1], reveal), ...(reveal ? { closed: true } : {}) } });
   }
 
   private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {
@@ -1908,7 +2131,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
-    const view = getPlayerView(this.match, seat);
+    const view = this.playerView(this.match, seat);
     const welcome: WelcomeMessage = {
       protocolVersion: PROTOCOL_VERSION,
       matchId: this.matchId,
@@ -1917,6 +2140,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
       brief: this.briefFor(seat),
     };
     client.send("welcome", welcome);
@@ -1939,6 +2163,17 @@ export class DuelRoom extends Room implements PresenceSource {
       });
       if (!this.ranked) client.send("rematch_state", this.rematchState());
     }
+  }
+
+  /** Player view; after game over the revealed hands follow each player's arranged order (#482). */
+  private playerView(match: MatchState, seat: Seat) {
+    const view = getPlayerView(match, seat);
+    if (!view.revealedHands) return view;
+    const [h0, h1] = view.revealedHands;
+    return {
+      ...view,
+      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
+    };
   }
 
   /**
@@ -1970,6 +2205,7 @@ export class DuelRoom extends Room implements PresenceSource {
       view,
       players: this.playersInfo(),
       ranked: this.ranked,
+      firstSeatPickedBy: this.firstSeatPickedBy,
     };
     client.send("welcome", welcome);
     client.send("view", {
@@ -2032,7 +2268,7 @@ export class DuelRoom extends Room implements PresenceSource {
 }
 
 /** Same check createMatch applies (unknown ids / non-Leader leaders), surfaced at join. */
-function hashToNegativeId(s: string): number {
+export function hashToNegativeId(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   const n = Math.abs(h) % 1_000_000_000;

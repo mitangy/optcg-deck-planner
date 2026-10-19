@@ -406,6 +406,8 @@ export function protectedFromSource(state: MatchState, target: Located, restrict
 export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: CardInstance, attackerDefId: string): boolean {
   const attackerLoc = findBattleCard(state, attackerDefId);
   const attrs = attackerLoc ? attributesOf(state, attackerLoc) : (getCardDef(attackerDefId).attribute ?? "").split("/");
+  // "Cannot be K.O.'d in battle by Leaders" compiles to the `__leader` pseudo-attribute (tools/cardText/grammar.ts).
+  if (getCardDef(attackerDefId).type === "leader") attrs.push("__leader");
   for (const { entry, s } of staticsFor(state, seat, card)) {
     if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by_attribute" && s.attribute && attrs.includes(s.attribute)) return true;
     if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by" && s.filter && attackerLoc && filterMatches(state, ctxFor(entry.seat, entry.card), s.filter, attackerLoc)) return true;
@@ -638,6 +640,7 @@ export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): num
     case "leader_power": { const s = relSeat(ctx, expr.player); return powerOf(state, s, state.players[s].leader); }
     case "don_attached_total": return state.players[relSeat(ctx, expr.player)].attachedDons.length;
     case "self_power": { const loc = locateCard(state, ctx.sourceId); return loc?.card ? powerOf(state, loc.seat, loc.card) : 0; }
+    case "self_base_power": { const loc = locateCard(state, ctx.sourceId); return loc?.card ? basePowerOf(state, loc.seat, loc.card) : 0; }
     case "battle_power": {
       const b = state.battle;
       if (!b) return 0;
@@ -735,6 +738,27 @@ export function evalCond(state: MatchState, ctx: EvalCtx, cond: Cond): boolean {
 // Cost payability
 // ---------------------------------------------------------------------------
 
+/**
+ * The groups of Life cards (indices, 0 = top) a face-up/down turn may flip, each group being one legal choice.
+ * Default / "top": the top `count` cards, all of which must currently be the opposite way. "top_or_bottom":
+ * the top `count` or the bottom `count`. "any": any single card that is currently the opposite way (#492).
+ */
+export function lifeFaceGroups(faceUpLife: boolean[], count: number, toFaceUp: boolean, position: "top" | "top_or_bottom" | "any" = "top"): number[][] {
+  const n = faceUpLife.length;
+  if (n < count) return [];
+  const ok = (indices: number[]) => indices.every((i) => faceUpLife[i] !== toFaceUp);
+  const top = Array.from({ length: count }, (_, i) => i);
+  if (position === "top") return ok(top) ? [top] : [];
+  if (position === "top_or_bottom") {
+    const bottom = Array.from({ length: count }, (_, i) => n - count + i);
+    const groups = [top, bottom].filter(ok);
+    return groups.length === 2 && top.some((i) => bottom.includes(i)) ? [groups[0]!] : groups;
+  }
+  const flippable = faceUpLife.map((up, i) => (up !== toFaceUp ? i : -1)).filter((i) => i >= 0);
+  if (flippable.length < count) return [];
+  return count === 1 ? flippable.map((i) => [i]) : [flippable.slice(0, count)];
+}
+
 export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean {
   const p = state.players[ctx.seat];
   const src = locateCard(state, ctx.sourceId);
@@ -743,9 +767,10 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "return_don": return donOnField(p) >= cost.count;
     case "trash_hand": case "reveal_hand": case "hand_to_deck_bottom":
       return candidates(state, ctx, { player: "you", zone: "hand", ...(cost.filter ? { filter: cost.filter } : {}) }).filter((l) => l.id !== ctx.sourceId).length >= cost.count;
-    case "rest_self": return src?.card != null && onField(src) && !src.card.rested;
+    case "rest_self": return src?.card != null && onField(src) && !src.card.rested && !hasRestriction(state, src.seat, src.card, "cannot_be_rested");
     case "trash_self": case "self_to_hand": case "self_to_deck_bottom": return src != null && (src.zone === "character" || src.zone === "stage");
-    case "rest_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !l.card.rested).length >= cost.count;
+    // DON!! in the cost area ("rest 1 of your cards") has no card; it counts when it is active.
+    case "rest_cards": return candidates(state, ctx, cost.selector).filter((l) => (l.card ? !l.card.rested : (l.zone as string) === "don" && state.players[l.seat].costArea[l.index]?.rested === false)).length >= cost.count;
     case "trash_cards": case "return_cards_to_hand": case "cards_to_deck_bottom": return candidates(state, ctx, cost.selector).length >= cost.count;
     case "trash_to_deck_bottom": return candidates(state, ctx, { player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }).length >= cost.count;
     case "life_to_hand": case "trash_life": return p.life.length >= cost.count;
@@ -755,8 +780,8 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "play_from_hand": return candidates(state, ctx, { player: "you", zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }).length >= cost.count;
     case "hand_to_deck_top": return p.hand.filter((c) => c.id !== ctx.sourceId).length >= cost.count;
     case "trash_to_deck_shuffle": return p.trash.length >= cost.count;
-    case "life_face_down": return p.faceUpLife.filter(Boolean).length >= cost.count;
-    case "life_face_up": return p.faceUpLife.filter((up) => !up).length >= cost.count;
+    case "life_face_down": return lifeFaceGroups(p.faceUpLife, cost.count, false, cost.position).length > 0;
+    case "life_face_up": return lifeFaceGroups(p.faceUpLife, cost.count, true, cost.position).length > 0;
     case "mill": return p.deck.length >= cost.count;
     case "power": return cost.target !== "active_leader" || !p.leader.rested;
     case "give_opponent_don": { const o = state.players[otherSeat(ctx.seat)]; return o.costArea.filter((d) => d.rested).length >= cost.count && o.characters.length > 0; }

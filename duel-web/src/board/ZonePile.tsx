@@ -1,13 +1,24 @@
 import type { CSSProperties } from "react";
+import { CardArt } from "../cards/CardArt";
+import { artAfterError } from "../cards/cardImage";
+import { isPreviewArtPath } from "../cards/previewArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
+import type { LifeFan } from "../settings";
 import { inspectOnContextMenu } from "./inspectGestures";
+import { endPreviewHover, hoverPreviewCard } from "./cardPreview";
 
 /** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
   if (count > 0) return String(count);
   if (expectedCount != null && expectedCount > 0) return `0 / ${expectedCount}`;
   return "0";
+}
+
+/** The fan direction drawn on a side: yours follows the setting, the opponent's mirrors it across the midline (#499). */
+export function lifeFanForSide(pref: LifeFan, side: "you" | "opp"): LifeFan {
+  if (side === "you") return pref;
+  return pref === "down" ? "up" : "down";
 }
 
 /** Visible face-down cards in the life fan — one per life, capped at 5. */
@@ -41,6 +52,21 @@ export function stackPileFaceCount(count: number): number {
   return Math.min(count, 3);
 }
 
+/**
+ * `--life-face-art` for a face-up Life card. A CSS background has no error
+ * event, so a card TCGplayer has no art for (EB05) gets its preview scan as a
+ * second layer that shows through when the first fails. Cards without preview
+ * art get a single layer (no extra request per Life card).
+ */
+export function lifeFaceArt(defId: string, ownerSeat?: Seat): string {
+  const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+  if (!primary) return "none";
+  const next = artAfterError(primary, defId);
+  const layers = [primary];
+  if (next && isPreviewArtPath(next)) layers.push(next);
+  return layers.map((u) => `url("${u}")`).join(", ");
+}
+
 type Props = {
   label: string;
   count: number;
@@ -52,10 +78,14 @@ type Props = {
   /** Optional top-face art (trash top card). */
   topDefId?: string | null;
   ownerSeat?: Seat;
+  /** Life only: which way the faces fan (default down). */
+  lifeFan?: LifeFan;
   /** Opens zone browser when set (typically trash). */
   onOpen?: () => void;
   /** Right-click (mouse) opens the top card's details instead of the browser menu. */
   onInspectTop?: () => void;
+  /** Life only: right-click (mouse) on a face-up Life card opens that card's details. */
+  onInspectFace?: (defId: string) => void;
 };
 
 export function ZonePile({
@@ -66,8 +96,10 @@ export function ZonePile({
   topDefId,
   faceUp,
   ownerSeat,
+  lifeFan = "down",
   onOpen,
   onInspectTop,
+  onInspectFace,
 }: Props) {
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
@@ -81,14 +113,22 @@ export function ZonePile({
 
   const stack =
     variant === "life" ? (
-      <div className="zone-pile-stack" aria-hidden>
+      <div className={`zone-pile-stack${lifeFan === "up" ? " is-fan-up" : ""}`} aria-hidden>
         {lifePileFaces(count, faceUp).map((defId, i) =>
           defId ? (
             <span
               key={i}
               className="zone-pile-face is-face-up"
               data-def-id={defId}
-              style={{ "--life-face-art": `url("${resolveCardImageUrl(defId, { ownerSeat, size: "thumb" })}")` } as CSSProperties}
+              // Hovering a face-up Life card shows it in the preview, like a field card (#529).
+              onPointerEnter={(e) => {
+                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat }, e.currentTarget);
+              }}
+              onPointerLeave={(e) => {
+                if (e.pointerType === "mouse") endPreviewHover();
+              }}
+              onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId)) : undefined}
+              style={{ "--life-face-art": lifeFaceArt(defId, ownerSeat) } as CSSProperties}
             />
           ) : (
             <span key={i} className="zone-pile-face" />
@@ -105,7 +145,13 @@ export function ZonePile({
         {faces >= 3 ? <span className="zone-pile-face" /> : null}
         {faces >= 2 ? <span className="zone-pile-face mid" /> : null}
         {topArt ? (
-          <img className="zone-pile-face top don-pile-art" src={topArt} alt="" />
+          <CardArt
+            src={topArt}
+            defId={topDefId!}
+            className="zone-pile-face top don-pile-art"
+            draggable={false}
+            fallback={<span className="zone-pile-face top" />}
+          />
         ) : (
           <span className="zone-pile-face top" />
         )}

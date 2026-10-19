@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
@@ -9,6 +10,7 @@ import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
 import "../history/history.css";
+import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -20,10 +22,9 @@ const cardName = (id: string) => lookupCard(id).name || id;
 
 /** Your Leader's art on a history row; a plain block when the art is missing or fails. */
 function LeaderArt({ defId }: { defId: string | null }) {
-  const src = defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null;
-  const [failed, setFailed] = useState<string | null>(null);
-  return src && src !== failed ? (
-    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={() => setFailed(src)} />
+  const { src, fail } = useArtFallback(defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null, defId);
+  return src ? (
+    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={fail} />
   ) : (
     <span className="history-leader-art history-leader-art-empty" aria-hidden />
   );
@@ -53,10 +54,14 @@ export function HistoryPage() {
     [state],
   );
 
+  // Rows without a recording keep a blank slot so the rows with one stay aligned with them.
+  const anyReplay = rows.some((r) => r.replay);
+
   return (
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
+          <NavMenu />
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">Match history</h1>
         </header>
@@ -99,7 +104,7 @@ export function HistoryPage() {
         {rows.length > 0 ? (
           <ol className="history-list">
             {rows.map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className="history-item">
                 <Link
                   to={`/history/${encodeURIComponent(r.id)}`}
                   className="history-row history-row-link"
@@ -120,6 +125,19 @@ export function HistoryPage() {
                   {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
                   <span className="history-chevron" aria-hidden>›</span>
                 </Link>
+                {r.replay ? (
+                  <Link
+                    className="history-replay-btn"
+                    to={`/replay/${encodeURIComponent(r.id)}`}
+                    aria-label={`Watch replay: ${r.yourLeader} vs ${r.opponentLeader}, ${r.opponent}`}
+                    title="Watch this game again"
+                  >
+                    <span aria-hidden>▶</span>
+                    <span className="history-replay-label">Watch</span>
+                  </Link>
+                ) : anyReplay ? (
+                  <span className="history-replay-slot" aria-hidden />
+                ) : null}
               </li>
             ))}
           </ol>

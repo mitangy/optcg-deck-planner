@@ -92,6 +92,8 @@ export type PrintingView = {
   is_special: boolean;
   /** Per-deck (or shopping max-across-decks) alt want for play. */
   wanted?: number;
+  /** Copies of this alt the user owns. */
+  owned?: number;
 };
 
 export type CatalogCardResult = {
@@ -118,6 +120,8 @@ export type CardView = {
   needed: number;
   /** Total owned, shared by every deck (what the Owned stepper edits). */
   owned: number;
+  /** Copies owned across alt printings; they count toward Owned for still_need. */
+  alts_owned?: number;
   still_need: number;
   /** Separate per leader: copies leaders earlier in deck order use first (0 when shared). */
   earlier_leaders_need?: number;
@@ -153,6 +157,7 @@ export type ShoppingItem = {
   cost: number | string | null;
   need: number;
   owned: number;
+  alts_owned?: number;
   still_need: number;
   market_price: number | null;
   low_price: number | null;
@@ -170,6 +175,10 @@ export type ShoppingItem = {
   need_by_leader?: { label: string; need: number }[];
   /** True when `need` adds need_by_leader together; false when it takes the max. */
   need_summed?: boolean;
+  /** Target copies added straight to Master Shopping without a deck; 0 when none. */
+  extra_qty?: number;
+  /** Need from decks alone (`need` also folds in `extra_qty` by max). */
+  deck_need?: number;
 };
 
 /** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
@@ -212,14 +221,18 @@ export type OwnedCard = {
   card_type: string;
   cost: number | string | null;
   owned: number;
+  /** Copies owned across alt printings (on top of `owned`). */
+  alts_owned?: number;
   market_price: number | null;
   low_price: number | null;
-  /** owned × market_price of the standard printing; null when unpriced. */
+  /** Base copies at the standard price plus alt copies at their own prices; null when any is unpriced. */
   value: number | null;
   image_url: string;
   tcgplayer_url: string;
   product_id?: number | null;
   used_in: string[];
+  /** Copies still to buy on the full shopping list (decks + added directly); 0 when covered. */
+  buying?: number;
 };
 
 export type OwnedCollectionResponse = {
@@ -385,6 +398,63 @@ export type GroupBuyReceiptMatchReport = {
   can_apply_partial: boolean;
 };
 
+export type MetaLeader = {
+  leader_id: string;
+  name: string;
+  color: string;
+  image_url: string;
+  decks: number;
+  share: number;
+  top8: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  win_rate: number | null;
+};
+
+export type MetaLeadersResponse = {
+  days: number;
+  min_players: number;
+  events: number;
+  total_decks: number;
+  source: string;
+  source_url: string;
+  leaders: MetaLeader[];
+};
+
+export type MetaDeckCard = {
+  card_id: string;
+  count: number;
+  name: string;
+  cost: string;
+  card_type: string;
+  image_url: string;
+};
+
+export type MetaDeck = {
+  id: number;
+  event_id: string;
+  event: string;
+  event_url: string;
+  /** YYYY-MM-DD */
+  date: string;
+  set_label?: string | null;
+  players: number;
+  placing: number | null;
+  record: { wins: number; losses: number; ties: number };
+  cards: MetaDeckCard[];
+  card_count: number;
+  /** OPTCGSim paste format, accepted as-is by POST /decks. */
+  text: string;
+};
+
+export type MetaDecksResponse = {
+  leader_id: string;
+  name: string;
+  image_url: string;
+  decks: MetaDeck[];
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -395,6 +465,11 @@ export const api = {
     request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),
   googleLoginUrl: () => `${API_URL}/auth/google`,
+  metaLeaders: (days: number) => request<MetaLeadersResponse>(`/meta/leaders?days=${days}`),
+  metaDecks: (leader: string, days: number, top: number) =>
+    request<MetaDecksResponse>(
+      `/meta/decks?leader=${encodeURIComponent(leader)}&days=${days}&top=${top}&limit=50`,
+    ),
   decks: () => request<DeckSummary[]>("/decks"),
   deck: (id: number) => request<DeckDetail>(`/decks/${id}`),
   createDeck: (name: string, decklist: string) =>
@@ -404,6 +479,11 @@ export const api = {
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
+  renameDeck: (id: number, name: string) =>
+    request<DeckDetail>(`/decks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
   setDeckAsMain: (id: number) =>
     request<DeckDetail>(`/decks/${id}/set-main`, { method: "POST" }),
   resetDeckOwned: (id: number) =>
@@ -441,6 +521,14 @@ export const api = {
         body: JSON.stringify({ qty, deck_ids: deckIds }),
       },
     ),
+  setAltOwned: (cardId: string, productId: number, qty: number) =>
+    request<{ card_id: string; product_id: number; qty: number }>(
+      `/owned/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty }),
+      },
+    ),
   searchCatalog: (opts?: {
     q?: string;
     color?: string;
@@ -455,13 +543,21 @@ export const api = {
     const qs = params.toString();
     return request<CatalogCardResult[]>(`/catalog/cards${qs ? `?${qs}` : ""}`);
   },
-  shopping: (deckIds?: number[]) => {
+  shopping: (deckIds?: number[], opts?: { extras?: boolean }) => {
     const params = new URLSearchParams();
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));
+    // Directly added cards are on by default; only the off state needs sending.
+    if (opts?.extras === false) params.set("extras", "false");
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
   },
   ownedCollection: () => request<OwnedCollectionResponse>("/owned"),
+  /** Set the target copies to own for a card added straight to Master Shopping; 0 removes it. */
+  setShoppingExtra: (cardId: string, qty: number) =>
+    request<{ card_id: string; qty: number }>(`/shopping/extras/${encodeURIComponent(cardId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ qty }),
+    }),
   setOwned: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/owned/${encodeURIComponent(cardId)}`, {
       method: "PUT",

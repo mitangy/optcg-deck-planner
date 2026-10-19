@@ -3,7 +3,7 @@
  * a bad or finished room says so back in the lobby.
  */
 import type { BrowserContext, Page } from "@playwright/test";
-import { test, expect, mintGameToken, FAKE_API, RED_VANILLA } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, GAME_SERVER, RED_VANILLA } from "./fixtures";
 
 const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile";
 const FAR_HAND = ":is(.spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
@@ -12,6 +12,12 @@ const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
 async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ ...use, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await ctx.newPage();
+  // The two-column board with no card preview pop-up and the normal-size board, as before #529 and #556 (what these layouts were written for).
+  await page.addInitScript(() => {
+    const key = "optcg-duel:settings";
+    const cur = JSON.parse(localStorage.getItem(key) || "{}");
+    localStorage.setItem(key, JSON.stringify({ sideColumns: "both", previewPopup: false, bigBoard: false, bigBoardChosen: true, ...cur }));
+  });
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/health") return route.fulfill({ json: { ok: true } });
@@ -81,7 +87,7 @@ test("a spectator who arrives before the match starts sees waiting, not an error
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -197,12 +203,12 @@ test("a desktop spectator sees both hands as fans, near at the bottom and far al
   expect(duel.errors).toEqual([]);
 });
 
-test("a portrait phone spectator sees an overlapped fan strip for each hand (#346)", async ({ page, duel, browser }, info) => {
+test("a portrait phone spectator sees a row of small cards for each hand (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "phone-375", "portrait phone layout");
   const roomId = await practiceRoomId(page, duel);
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-row-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".hand-row-spec-grid .card-tile")).toHaveCount(5, { timeout: 30_000 });
   await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   const far = await boxes(spec, ".spec-far-cards .card-tile");
   const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
@@ -235,7 +241,7 @@ test.describe("landscape phone", () => {
     });
     await page.goto("/");
     await page.getByRole("button", { name: "Play", exact: true }).click();
-    await page.getByRole("button", { name: /^Private room/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
     await page.getByRole("button", { name: "Create room" }).click();
     await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
     // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
@@ -248,15 +254,15 @@ test.describe("landscape phone", () => {
     await page.screenshot({ path: info.outputPath("waiting-room-landscape.png") });
   });
 
-  test("a landscape phone spectator sees both hands as small fans in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
+  test("a landscape phone spectator sees both hands as small card grids in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
     test.skip(info.project.name !== "phone-375", "one landscape run is enough");
     const roomId = await practiceRoomId(page, duel);
     // The watcher is its own context: give it this describe's landscape window, not the project's.
     const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
     await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-    await expect(spec.locator(".rail-hand-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+    await expect(spec.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
     await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
-    const near = await boxes(spec, ".rail-hand-fan .card-tile");
+    const near = await boxes(spec, ".rail-hand-spec .card-tile");
     const far = await boxes(spec, ".spec-far-cards .card-tile");
     expectOnScreen([...near, ...far], 812, 375);
     // The far fan is above the near one, and neither touches a mat.
@@ -290,7 +296,7 @@ async function labelBox(page: Page, scope: string): Promise<Box> {
   return (await page.locator(`${scope} .hand-label`).first().boundingBox())!;
 }
 
-const NEAR_LABEL = ":is(.hand-fan, .rail-hand-fan, .hand-rail-head-spec)";
+const NEAR_LABEL = ":is(.hand-fan, .rail-hand-spec, .hand-rail-head-spec)";
 const FAR_LABEL = ".spec-far";
 
 test("the two desktop hand labels match and line up, and each fan is draggable by its grip, at 1280x720 and 1440x900 (#346)", async ({ page, duel, browser }, info) => {
@@ -380,7 +386,7 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   // Portrait: both labels centred over their strips.
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-row-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".hand-row-spec-grid .card-tile")).toHaveCount(5, { timeout: 30_000 });
   await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   expect(await labelStyle(spec, NEAR_LABEL)).toEqual(await labelStyle(spec, FAR_LABEL));
   const nearP = await labelBox(spec, NEAR_LABEL);
@@ -398,7 +404,7 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   // Landscape: both left-aligned in the right column.
   const land = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
   await land.page.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(land.page.locator(".rail-hand-fan .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(land.page.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
   expect(await labelStyle(land.page, NEAR_LABEL)).toEqual(await labelStyle(land.page, FAR_LABEL));
   const nearL = await labelBox(land.page, NEAR_LABEL);
   const farL = await labelBox(land.page, FAR_LABEL);
@@ -449,13 +455,13 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   // Two real online players in a private room (practice is hotseat and sends no hand order).
   const host = await newPlayer(browser, info.project.use, 21, "host");
   const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
-  await host.page.route("http://127.0.0.1:2567/matchmake/create/**", (route) => {
+  await host.page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
     const body = JSON.parse(route.request().postData() ?? "{}");
     return route.continue({ postData: JSON.stringify({ ...body, seed: 7 }) });
   });
   await host.page.goto("/");
   await host.page.getByRole("button", { name: "Play", exact: true }).click();
-  await host.page.getByRole("button", { name: /^Private room/ }).click();
+  await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
   await host.page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -470,7 +476,7 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await watch.page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })));
   await watch.page.goto(`/watch/${encodeURIComponent(roomId)}`);
   const phone = (info.project.use.viewport?.width ?? 1280) < 720;
-  const specNear = phone ? ".hand-row-fan .card-tile" : ".hand-fan-cards .card-tile";
+  const specNear = phone ? ".hand-row-spec-grid .card-tile" : ".hand-fan-cards .card-tile";
   await expect(watch.page.locator(specNear)).toHaveCount(5, { timeout: 30_000 });
   await expect(watch.page.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   await expect(host.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });

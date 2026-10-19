@@ -1,0 +1,29 @@
+/** Alt art sync script mutations (scripts/test_sync_alt_arts.py, unittest) (#581). */
+const F = "scripts/sync_alt_arts.py";
+module.exports = {
+  cwd: "scripts",
+  runner: "unittest",
+  module: "test_sync_alt_arts",
+  mutations: [
+    { id: "alt-threshold-inclusive", file: F, from: `return all(hamming(h, r) > HASH_THRESHOLD for r in refs)`, to: `return all(hamming(h, r) >= HASH_THRESHOLD for r in refs)`, kills: ["test_exactly_threshold_bits_apart_is_the_same_art"] },
+    { id: "alt-new-alts-not-compared", file: F, from: `        if h:\n            refs.append(h)\n`, to: ``, kills: ["test_art_matching_a_newly_added_alt_is_dropped"] },
+    { id: "alt-existing-alts-not-compared", file: F, from: `refs = [hashes[p] for p in ref_pids if hashes.get(p)]`, to: `refs = [hashes[p] for p in ref_pids[:1] if hashes.get(p)]`, kills: ["test_art_matching_an_existing_alt_is_dropped"] },
+    { id: "alt-imaged-product-needs-marker", file: F, from: `        if not h and not marked:\n`, to: `        if not marked:\n`, kills: ["test_unmarked_product_with_different_art_is_added_with_its_suffix_label_590", "test_unmarked_product_with_the_same_art_is_left_out_590"] },
+    { id: "alt-unmarked-skips-hash-check", file: F, from: `        if h and refs and not is_new_art(h, refs):`, to: `        if h and refs and marked and not is_new_art(h, refs):`, kills: ["test_unmarked_product_with_the_same_art_is_left_out_590"] },
+    { id: "alt-unmarked-imageless-added", file: F, from: `        if not h and not marked:\n`, to: `        if False:\n`, kills: ["test_unmarked_image_less_product_is_left_out_even_with_a_suffix_590", "test_image_less_product_without_a_marker_is_left_out"] },
+    { id: "alt-unmarked-ignores-missing-primary-art", file: F, from: `        if h and not marked and not primary_has_art:`, to: `        if False:`, kills: ["test_unmarked_product_needs_a_real_picture_of_the_primary_590"] },
+    { id: "alt-marked-label-from-suffix", file: F, from: `label_for(prod["name"]) if marked else suffix_label(prod["name"])`, to: `suffix_label(prod["name"])`, kills: ["test_marked_product_keeps_its_old_label_590"] },
+    { id: "alt-unmarked-label-from-marker-table", file: F, from: `label_for(prod["name"]) if marked else suffix_label(prod["name"])`, to: `label_for(prod["name"])`, kills: ["test_unmarked_product_with_different_art_is_added_with_its_suffix_label_590", "test_two_unmarked_products_with_one_suffix_are_numbered_590"] },
+    { id: "alt-suffix-first-paren", file: F, from: `    m = SUFFIX.search(TRAILING_BRACKET.sub("", name).strip())`, to: `    m = re.search(r"\\(([^()]*)\\)", TRAILING_BRACKET.sub("", name).strip())`, kills: ["test_label_is_the_last_parenthesised_part_590"] },
+    { id: "alt-suffix-keeps-trailing-bracket", file: F, from: `    m = SUFFIX.search(TRAILING_BRACKET.sub("", name).strip())`, to: `    m = SUFFIX.search(name.strip())`, kills: ["test_a_trailing_bracket_tag_is_ignored_590"] },
+    { id: "alt-card-number-suffix-is-a-label", file: F, from: `    if not s or NOT_A_NAME.match(s):`, to: `    if not s:`, kills: ["test_no_suffix_or_a_card_number_suffix_is_promo_590"] },
+    { id: "alt-anniversary-not-shortened", file: F, from: `    a = ANNIVERSARY.search(s)\n    if a:`, to: `    a = None\n    if a:`, kills: ["test_anniversary_sets_get_a_short_year_and_language_590"] },
+    { id: "alt-label-not-trimmed", file: F, from: `LABEL_MAX = 28\nTRAILING`, to: `LABEL_MAX = 999\nTRAILING`, kills: ["test_long_names_are_trimmed_but_keep_the_identifying_part_590"] },
+    { id: "alt-label-cut-without-trim-steps", file: F, from: `    for pattern, repl in TRIM_STEPS:`, to: `    for pattern, repl in ():`, kills: ["test_long_names_are_trimmed_but_keep_the_identifying_part_590"] },
+    { id: "alt-imageless-needs-a-hash", file: F, from: `        if h and refs and not is_new_art(h, refs):`, to: `        if not (h and refs and is_new_art(h, refs)):`, kills: ["test_image_less_product_with_a_marker_is_added_on_the_marker_alone"] },
+    { id: "alt-id-reuses-gaps", file: F, from: `return max(nums, default=0) + 1`, to: `return len(nums) + 1`, kills: ["test_new_ids_follow_the_highest_existing_id_and_never_reuse_gaps"] },
+    { id: "alt-duplicate-label-kept", file: F, from: `    if label not in taken:\n        return label\n`, to: `    return label\n`, kills: ["test_a_label_the_card_already_has_gets_a_number"] },
+    { id: "alt-known-product-readded", file: F, from: `        if pid == primary_pid or pid in known_pids:\n            continue\n`, to: ``, kills: ["test_the_primary_and_existing_alt_products_are_never_candidates"] },
+    { id: "alt-pcc-label-plain", file: F, from: `if suffix and len(suffix) <= PCC_SUFFIX_MAX:`, to: `if False:`, kills: ["test_premium_card_collection_keeps_a_short_volume"] },
+  ],
+};

@@ -24,6 +24,8 @@ export type HotseatResumeBlob = {
   /** Opponent deck for vs-self (optional for older resume blobs). */
   enemyDeckWire?: { leaderId: string; deck: string[] };
   enemyDeckName?: string;
+  /** Signed-in account that owns both seats, so a fresh fallback match stays movable (#451). */
+  owner?: "session" | "dev";
   seats: [
     { reconnectionToken: string },
     { reconnectionToken: string },

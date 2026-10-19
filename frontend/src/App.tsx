@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -10,6 +10,7 @@ import {
   DeckSummary,
   money,
   needBreakdownLabel,
+  PrintingView,
   OwnedCard,
   OwnedCollectionResponse,
   ShoppingItem,
@@ -26,11 +27,14 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
+import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
 import { LegalPage } from "./LegalPage";
+import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   CardSearchInput,
@@ -45,22 +49,25 @@ import {
   SORT_LABELS,
   SortMenu,
   useCardSorts,
+  usePersistedChoice,
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
-import { collectionTotals, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
+import { nextExtraTarget } from "./shoppingExtras";
+import { collectionTotals, holdsCopies, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
-import { cardImageUrl } from "./cardImage";
-import { CardThumb, MobileCardMedia } from "./CardThumb";
+import { MetaPage } from "./MetaPage";
+import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
+import { baseTileFor, mainImageUrl } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   consumeLoginNext,
@@ -85,6 +92,13 @@ const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
+const SHOPPING_ADD_OPEN_KEY = "optcg_shopping_add_open";
+const SHOPPING_EXTRAS_KEY = "optcg_shopping_include_extras";
+const SHOPPING_ONLY_NEED_KEY = "optcg_shopping_only_need";
+const DECK_ONLY_NEED_KEY = "optcg_deck_only_need";
+const SHARE_ONLY_NEED_KEY = "optcg_share_only_need";
+const DECK_EDITOR_COLOR_KEY = "optcg_deck_editor_color";
+const DECK_EDITOR_TYPE_KEY = "optcg_deck_editor_card_type";
 const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
 const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
 
@@ -271,55 +285,50 @@ function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function shoppingRemainingForItem(item: {
-  still_need: number;
-  product_id?: number | null;
-  market_price: number | null;
-  alt_arts?: { product_id: number; wanted?: number; market_price: number | null }[];
-}): number | null {
-  const still = item.still_need;
-  if (still <= 0) return 0;
-  let remaining = still;
-  let total = 0;
-  let missingPrice = false;
-  for (const alt of item.alt_arts ?? []) {
-    if (remaining <= 0) break;
-    const want = alt.wanted ?? 0;
-    const take = Math.min(Math.max(0, want), remaining);
-    if (take <= 0) continue;
-    if (alt.market_price == null) missingPrice = true;
-    else total += take * alt.market_price;
-    remaining -= take;
-  }
-  if (remaining > 0) {
-    if (item.market_price == null) missingPrice = true;
-    else total += remaining * item.market_price;
-  }
-  if (missingPrice) return null;
-  return Math.round(total * 100) / 100;
+/** Alt owned changes still-needed copies everywhere, including group-buy needs. */
+function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
+  invalidateOwnedViews(qc);
+  void qc.invalidateQueries({ queryKey: ["decks"] });
+  void qc.invalidateQueries({ queryKey: ["group-buy"] });
+  void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
 
-function applyAltWantOptimistic(
+function sumAltOwned(alts: { owned?: number }[]): number {
+  return alts.reduce((n, a) => n + (a.owned ?? 0), 0);
+}
+
+/** Alt copies count as owned: still_need = Need − base owned − alt owned (− earlier leaders' claim). */
+function stillNeedFor(need: number, owned: number, altsOwned: number, earlierLeadersNeed = 0): number {
+  return Math.max(0, need - Math.max(0, owned + altsOwned - earlierLeadersNeed));
+}
+
+function applyAltOwnedOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
   productId: number,
   qty: number,
 ) {
   const id = cardId.toUpperCase();
+  const patchAlts = (alts: PrintingView[] | undefined) =>
+    (alts ?? []).map((a) => (a.product_id === productId ? { ...a, owned: qty } : a));
   qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
     if (!old) return old;
     let cardsStill = 0;
     let remaining = 0;
     const items = old.items.map((item) => {
-      if (item.card_id.toUpperCase() !== id) {
-        cardsStill += item.still_need;
-        if (item.remaining_cost != null) remaining += item.remaining_cost;
-        return item;
+      let patched = item;
+      if (item.card_id.toUpperCase() === id) {
+        const alt_arts = patchAlts(item.alt_arts);
+        const alts_owned = sumAltOwned(alt_arts);
+        const still_need = stillNeedFor(item.need, item.owned, alts_owned);
+        patched = {
+          ...item,
+          alt_arts,
+          alts_owned,
+          still_need,
+          remaining_cost: remainingCostForCard({ still_need, market_price: item.market_price }),
+        };
       }
-      const alt_arts = (item.alt_arts ?? []).map((a) =>
-        a.product_id === productId ? { ...a, wanted: qty } : a,
-      );
-      const patched = { ...item, alt_arts, remaining_cost: shoppingRemainingForItem({ ...item, alt_arts }) };
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
@@ -337,21 +346,31 @@ function applyAltWantOptimistic(
       ...old,
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
+        const alt_arts = patchAlts(card.alt_arts);
+        const alts_owned = sumAltOwned(alt_arts);
         return {
           ...card,
-          alt_arts: (card.alt_arts ?? []).map((a) =>
-            a.product_id === productId ? { ...a, wanted: qty } : a,
-          ),
+          alt_arts,
+          alts_owned,
+          still_need: stillNeedFor(card.needed, card.owned, alts_owned, card.earlier_leaders_need ?? 0),
         };
       }),
     };
   });
 }
 
-function patchOwnedQty(cardId: string, qty: number, need: number, market: number | null | undefined) {
-  const still = Math.max(0, need - qty);
-  const remaining =
-    market != null && !Number.isNaN(market) ? Math.round(still * market * 100) / 100 : null;
+function patchOwnedQty(
+  cardId: string,
+  qty: number,
+  need: number,
+  market: number | null | undefined,
+  altsOwned = 0,
+) {
+  const still = stillNeedFor(need, qty, altsOwned);
+  const remaining = remainingCostForCard({
+    still_need: still,
+    market_price: market != null && !Number.isNaN(market) ? market : null,
+  });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
 
@@ -436,7 +455,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alts_owned ?? 0);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -458,8 +477,11 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
         // Earlier leaders take their copies first in "Separate per leader" mode.
-        const available = Math.max(0, qty - (card.earlier_leaders_need ?? 0));
-        return { ...card, owned: qty, still_need: Math.max(0, card.needed - available) };
+        return {
+          ...card,
+          owned: qty,
+          still_need: stillNeedFor(card.needed, qty, card.alts_owned ?? 0, card.earlier_leaders_need ?? 0),
+        };
       }),
     };
   });
@@ -476,6 +498,15 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
     },
   });
   const shortName = (user.name || user.email).split("@")[0];
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // On phones the nav row scrolls inside itself; keep the active link visible.
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>("a.active");
+    if (!nav || !active) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [pathname]);
 
   return (
     <div className="app">
@@ -493,11 +524,12 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
               <span>Planner</span>
             </Link>
           </div>
-          <nav aria-label="Primary">
+          <nav aria-label="Primary" ref={navRef}>
             <NavLink to="/" end>
               Shopping
             </NavLink>
             <NavLink to="/decks">Decks</NavLink>
+            <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
@@ -518,6 +550,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         </div>
       </header>
       <main className="app-main">{children}</main>
+      <WhatsNewCard app="planner" Link={Link} />
     </div>
   );
 }
@@ -753,6 +786,17 @@ function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
 }
 
+/** Used-in text on the public list: decks, the leader breakdown, and cards added without a deck. */
+function sharedUsedIn(item: ShoppingItem): string {
+  return [
+    item.used_in.join(", "),
+    needBreakdownLabel(item),
+    (item.extra_qty ?? 0) > 0 ? "Added directly" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
     const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
@@ -789,6 +833,35 @@ function loadShowShoppingDons(): boolean {
   }
 }
 
+/** Deck names as small chips (one per deck), then an optional note and action. */
+function UsedInCell({
+  decks,
+  note = "",
+  action = null,
+  className = "",
+}: {
+  decks: string[];
+  note?: string;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`used-in-cell${className ? ` ${className}` : ""}`}>
+      {decks.length > 0 && (
+        <ul className="used-in-chips" aria-label="Used in decks">
+          {decks.map((name) => (
+            <li key={name} className="used-in-chip" title={name}>
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+      {note && <span className="used-in-note">{note}</span>}
+      {action}
+    </div>
+  );
+}
+
 function ShoppingItemsView({
   items,
   layout,
@@ -799,8 +872,10 @@ function ShoppingItemsView({
   onToggleSelectVisible,
   showAltArts,
   altRow,
-  usedInLabel,
+  usedInNote,
   onOwnedSaved,
+  onRemoveExtra,
+  removingExtraId,
 }: {
   items: ShoppingItem[];
   layout: CardLayout;
@@ -811,10 +886,27 @@ function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
-  usedInLabel: (item: ShoppingItem) => string;
+  usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
+  onRemoveExtra: (cardId: string) => void;
+  removingExtraId: string | null;
 }) {
   if (items.length === 0) return null;
+  const removeExtraButton = (item: ShoppingItem) =>
+    (item.extra_qty ?? 0) > 0 ? (
+      <button
+        type="button"
+        className="ghost danger remove-extra"
+        aria-label={`Remove ${item.card_id} from added cards`}
+        disabled={removingExtraId === item.card_id}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemoveExtra(item.card_id);
+        }}
+      >
+        Remove
+      </button>
+    ) : null;
 
   if (layout === "grid") {
     return (
@@ -853,7 +945,7 @@ function ShoppingItemsView({
               )}
               <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
                 <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                  <CardThumb src={item.image_url || undefined} alt={item.name} />
+                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
                 </div>
                 <div className="grid-card-body">
                   <div className="card-id">{item.card_id}</div>
@@ -862,6 +954,11 @@ function ShoppingItemsView({
                     {item.still_need}/{item.need} still needed
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                   </div>
+                  {item.used_in.length > 0 && (
+                    <div className="grid-card-used-in" onClick={stopCardSelectBubble}>
+                      <UsedInCell decks={item.used_in} />
+                    </div>
+                  )}
                   <div className="grid-card-price" onClick={stopCardSelectBubble}>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
                   </div>
@@ -878,6 +975,12 @@ function ShoppingItemsView({
                     >
                       TCGPlayer
                     </a>
+                  )}
+                  {(item.extra_qty ?? 0) > 0 && (
+                    <div className="grid-card-extra muted" onClick={stopCardSelectBubble}>
+                      <span>Added directly</span>
+                      {removeExtraButton(item)}
+                    </div>
                   )}
                   {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
                     <div className="grid-card-alts" onClick={stopCardSelectBubble}>
@@ -913,7 +1016,6 @@ function ShoppingItemsView({
               <th>Market</th>
               <th>Remaining</th>
               <th>Cost</th>
-              {showAltArts && <th>Alt arts</th>}
               <th>Used in</th>
             </tr>
           </thead>
@@ -935,7 +1037,7 @@ function ShoppingItemsView({
                   </td>
                   <td className="card-cell">
                     <div className="card-cell-inner">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
                       <div>
                         <div className="card-id">{item.card_id}</div>
                         <div>{item.name}</div>
@@ -946,6 +1048,11 @@ function ShoppingItemsView({
                         )}
                       </div>
                     </div>
+                    {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+                      <div className="card-cell-alts" onClick={stopCardSelectBubble}>
+                        {altRow(item)}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
@@ -958,8 +1065,9 @@ function ShoppingItemsView({
                   </td>
                   <td>{money(item.remaining_cost)}</td>
                   <td>{item.cost ?? "—"}</td>
-                  {showAltArts && <td onClick={stopCardSelectBubble}>{altRow(item)}</td>}
-                  <td className="used-in">{usedInLabel(item)}</td>
+                  <td className="used-in">
+                    <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
+                  </td>
                 </tr>
               );
             })}
@@ -989,7 +1097,8 @@ function ShoppingItemsView({
               <div className="mobile-card-top">
                 <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
                   <MobileCardMedia
-                    src={item.image_url || undefined}
+                    src={mainImageUrl(item)}
+                    cardId={item.card_id}
                     alt={item.name}
                     cost={item.cost}
                     rarity={item.rarity}
@@ -1039,8 +1148,15 @@ function ShoppingItemsView({
                   {altRow(item)}
                 </div>
               )}
-              {item.used_in.length > 0 && (
-                <p className="used-in mobile-used-in">{usedInLabel(item)}</p>
+              {(item.used_in.length > 0 || (item.extra_qty ?? 0) > 0) && (
+                <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                  <UsedInCell
+                    className="mobile-used-in"
+                    decks={item.used_in}
+                    note={usedInNote(item)}
+                    action={removeExtraButton(item)}
+                  />
+                </div>
               )}
             </article>
           );
@@ -1089,15 +1205,28 @@ function ShoppingPage() {
     [activeDeckIds],
   );
 
+  const [includeExtras, setIncludeExtras] = usePersistedOpen(SHOPPING_EXTRAS_KEY, true);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["shopping", shoppingKey],
-    queryFn: () => api.shopping(shoppingKey.length ? shoppingKey : undefined),
-    enabled: filterReady && allDeckIds.length > 0,
+    queryKey: ["shopping", shoppingKey, includeExtras],
+    queryFn: () =>
+      api.shopping(shoppingKey.length ? shoppingKey : undefined, { extras: includeExtras }),
+    // Runs with zero decks too: cards added directly make a list on their own.
+    enabled: filterReady,
+  });
+  // Unfiltered list: tells whether any card was added directly even while hidden by the filter.
+  const fullShoppingById = useFullShoppingById();
+  const hasExtras = useMemo(
+    () => [...fullShoppingById.values()].some((i) => (i.extra_qty ?? 0) > 0),
+    [fullShoppingById],
+  );
+  const removeExtra = useMutation({
+    mutationFn: (cardId: string) => api.setShoppingExtra(cardId, 0),
+    onSuccess: () => invalidateOwnedViews(qc),
   });
   const shareQ = useQuery({
     queryKey: ["share", "shopping"],
     queryFn: api.getShoppingShare,
-    enabled: filterReady && allDeckIds.length > 0,
+    enabled: filterReady,
   });
   const meQ = useMe();
   const sumAcrossLeaders = Boolean(meQ.data?.sum_across_leaders);
@@ -1118,7 +1247,7 @@ function ShoppingPage() {
       invalidateAltWantViews(qc);
     },
   });
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHOPPING_ONLY_NEED_KEY, true);
   const [showDons, setShowDons] = useState(loadShowShoppingDons);
   const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
@@ -1138,8 +1267,8 @@ function ShoppingPage() {
     },
     onDragStateChange: setPageDragging,
   });
-  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
-  const [altWantErr, setAltWantErr] = useState<string | null>(null);
+  const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
+  const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
   const sortingByDeck = effectiveSorts.includes("deck");
 
   useEffect(() => {
@@ -1150,36 +1279,30 @@ function ShoppingPage() {
     }
   }, [showDons]);
 
-  const changeShoppingAltWant = async (cardId: string, productId: number, qty: number) => {
-    setAltWantErr(null);
-    setAltWantBusyKey(`${cardId}:${productId}`);
-    applyAltWantOptimistic(qc, cardId, productId, qty);
+  const changeShoppingAltOwned = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltOwnedOptimistic(qc, cardId, productId, qty);
     try {
-      const res = await api.setCardPrinting(
-        cardId,
-        productId,
-        qty,
-        activeDeckIds.length ? activeDeckIds : undefined,
-      );
-      applyAltWantOptimistic(qc, cardId, productId, res.qty);
-      invalidateAltWantViews(qc);
+      const res = await api.setAltOwned(cardId, productId, qty);
+      applyAltOwnedOptimistic(qc, cardId, productId, res.qty);
     } catch (e) {
-      setAltWantErr((e as Error).message);
-      invalidateAltWantViews(qc);
+      setAltOwnedErr((e as Error).message);
     } finally {
-      setAltWantBusyKey(null);
+      invalidateAltOwnedViews(qc);
+      setAltOwnedBusyKey(null);
     }
   };
 
   const shoppingAltRow = (item: ShoppingItem) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
-      cardNeeded={item.need}
       editable
-      onWantChange={(productId, qty) => void changeShoppingAltWant(item.card_id, productId, qty)}
+      base={baseTileFor(item)}
+      onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
       busyProductId={
-        altWantBusyKey?.startsWith(`${item.card_id}:`)
-          ? Number(altWantBusyKey.slice(item.card_id.length + 1))
+        altOwnedBusyKey?.startsWith(`${item.card_id}:`)
+          ? Number(altOwnedBusyKey.slice(item.card_id.length + 1))
           : null
       }
     />
@@ -1352,6 +1475,7 @@ function ShoppingPage() {
     if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
       parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
     }
+    if (!includeExtras) parts.push("No added cards");
     return parts.join(" · ");
   }, [
     onlyNeed,
@@ -1362,6 +1486,7 @@ function ShoppingPage() {
     sumAcrossLeaders,
     activeDeckIds.length,
     allDeckIds.length,
+    includeExtras,
   ]);
 
   const createShare = useMutation({
@@ -1405,21 +1530,26 @@ function ShoppingPage() {
     onError: (e: Error) => setExportMsg(e.message),
   });
 
-  function usedInLabel(item: ShoppingItem): string {
-    const decks = item.used_in.join(", ");
+  /** Everything on the "Used in" line besides the deck names (those render as chips). */
+  function usedInNote(item: ShoppingItem): string {
+    const parts: string[] = [];
     const breakdown = needBreakdownLabel(item);
     if ((item.leader_count ?? 1) > 1) {
       const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
       // The breakdown already says the card is shared; the sort note only
       // matters when grouping by deck.
-      if (!breakdown) return `${decks} · shared (sorted under ${primary})`;
-      return sortingByDeck ? `${decks} · ${breakdown} · sorted under ${primary}` : `${decks} · ${breakdown}`;
+      if (!breakdown) parts.push(`shared (sorted under ${primary})`);
+      else parts.push(sortingByDeck ? `${breakdown} · sorted under ${primary}` : breakdown);
+    } else if (breakdown) {
+      parts.push(breakdown);
+    } else if (sortingByDeck && item.primary_leader_name) {
+      parts.push(item.primary_leader_name);
     }
-    if (breakdown) return `${decks} · ${breakdown}`;
-    if (sortingByDeck && item.primary_leader_name) {
-      return `${decks} · ${item.primary_leader_name}`;
+    const extra = item.extra_qty ?? 0;
+    if (extra > 0) {
+      parts.push(`Added directly${extra > (item.deck_need ?? 0) && item.used_in.length > 0 ? ` (want ${extra})` : ""}`);
     }
-    return decks;
+    return parts.join(" · ");
   }
 
   function toggleDeck(id: number) {
@@ -1435,6 +1565,7 @@ function ShoppingPage() {
 
   function selectAllDecks() {
     setSelectedDeckIds(allDeckIds);
+    setIncludeExtras(true);
   }
 
   function toggleCard(cardId: string) {
@@ -1458,52 +1589,27 @@ function ShoppingPage() {
     });
   }
 
-  if (decksQ.isLoading || (allDeckIds.length > 0 && !filterReady)) {
-    return <ShoppingListSkeleton />;
-  }
   if (decksQ.error) return <p className="error">{(decksQ.error as Error).message}</p>;
-  if (allDeckIds.length === 0) {
-    return (
-      <section>
-        <h1>Master Shopping</h1>
-        <p className="muted">
-          No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list.
-        </p>
-        {/* Price lookup works without any decks — useful before you own a list. */}
-        <p className="muted">
-          Or{" "}
-          <button type="button" className="ghost linkish" onClick={() => setScanOpen(true)}>
-            scan a card
-          </button>{" "}
-          to check its market price.
-        </p>
-        {scanOpen && (
-          <CardScanner
-            items={[]}
-            initialImage={droppedImage}
-            onClose={() => {
-              setScanOpen(false);
-              setDroppedImage(null);
-            }}
-          />
-        )}
-      </section>
-    );
+  if (decksQ.isLoading || !filterReady) {
+    return <ShoppingListSkeleton />;
   }
   if (isLoading) return <ShoppingListSkeleton />;
   if (error) return <p className="error">{(error as Error).message}</p>;
 
   const shareInfo = shareQ.data;
   const shareUrl = shareInfo ? `${window.location.origin}${shareInfo.path}` : null;
+  // No decks and nothing added directly: only the search drawer and a hint.
+  const emptyList = allDeckIds.length === 0 && (data?.items.length ?? 0) === 0;
 
   return (
     <section>
       <div className="page-head">
         <div>
-          <p className="eyebrow">Across your decks</p>
+          <p className="eyebrow">{allDeckIds.length === 0 ? "Cards you are buying" : "Across your decks"}</p>
           <h1>Master Shopping</h1>
-          <ShoppingStatStrip data={data} />
+          {!emptyList && <ShoppingStatStrip data={data} />}
         </div>
+        {!emptyList && (
         <div className="page-head-actions">
           <ShoppingSharePanel
             shareInfo={shareInfo}
@@ -1534,8 +1640,27 @@ function ShoppingPage() {
             {startGroupBuy.isPending ? "Starting…" : "Start group buy"}
           </button>
         </div>
+        )}
       </div>
 
+      <ShoppingAddPanel defaultOpen={(data?.items.length ?? 0) === 0} />
+
+      {emptyList ? (
+        <>
+          <p className="muted">
+            No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list, or add cards above.
+          </p>
+          {/* Price lookup works without any decks — useful before you own a list. */}
+          <p className="muted">
+            Or{" "}
+            <button type="button" className="ghost linkish" onClick={() => setScanOpen(true)}>
+              scan a card
+            </button>{" "}
+            to check its market price.
+          </p>
+        </>
+      ) : (
+        <>
       {selectedTotals.count > 0 && (
         <div className="buy-bar">
           <div className="buy-bar-summary">
@@ -1598,7 +1723,7 @@ function ShoppingPage() {
           {exportMsg}
         </p>
       ) : null}
-      {altWantErr && <p className="error">{altWantErr}</p>}
+      {altOwnedErr && <p className="error">{altOwnedErr}</p>}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -1690,6 +1815,16 @@ function ShoppingPage() {
                   {d.name}
                 </label>
               ))}
+              {(hasExtras || !includeExtras) && (
+                <label className="deck-chip">
+                  <input
+                    type="checkbox"
+                    checked={includeExtras}
+                    onChange={(e) => setIncludeExtras(e.target.checked)}
+                  />
+                  Added directly
+                </label>
+              )}
             </div>
           </div>
         </CollapsibleFilters>
@@ -1711,8 +1846,10 @@ function ShoppingPage() {
         onToggleSelectVisible={toggleSelectVisible}
         showAltArts={showAltArts}
         altRow={shoppingAltRow}
-        usedInLabel={usedInLabel}
+        usedInNote={usedInNote}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
+        onRemoveExtra={(id) => removeExtra.mutate(id)}
+        removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
       />
 
       {showDons && hasDonsInData && (
@@ -1733,11 +1870,15 @@ function ShoppingPage() {
               onToggleSelectVisible={toggleSelectVisible}
               showAltArts={showAltArts}
               altRow={shoppingAltRow}
-              usedInLabel={usedInLabel}
+              usedInNote={usedInNote}
               onOwnedSaved={() => invalidateOwnedViews(qc)}
+              onRemoveExtra={(id) => removeExtra.mutate(id)}
+              removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
             />
           )}
         </div>
+      )}
+        </>
       )}
       {/* Confirms the page is receiving the drag, so a failure is legible as
           "not accepted" rather than "nothing happened". */}
@@ -1800,6 +1941,16 @@ function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefin
   );
 }
 
+/** "+2 alt" beside the Owned stepper: copies owned as alt arts (edited on the deck page / Master Shopping). */
+function AltsOwnedNote({ count }: { count?: number }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className="alts-owned-note" title="Alt-art copies you own, on top of Owned">
+      +{count} alt
+    </span>
+  );
+}
+
 function CollectionItemsView({
   items,
   layout,
@@ -1810,7 +1961,10 @@ function CollectionItemsView({
   onOwnedSaved: () => void;
 }) {
   if (items.length === 0) return null;
-  const usedIn = (item: OwnedCard) => (item.used_in.length ? item.used_in.join(", ") : "Not in a deck");
+  const usedIn = (item: OwnedCard) =>
+    [item.used_in.length ? item.used_in.join(", ") : "Not in a deck", item.buying ? `Buying ${item.buying}` : ""]
+      .filter(Boolean)
+      .join(" · ");
 
   if (layout === "grid") {
     return (
@@ -1819,13 +1973,14 @@ function CollectionItemsView({
           <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
             <div className="grid-card collection-grid-card">
               <div className="grid-card-media">
-                <CardThumb src={item.image_url || undefined} alt={item.name} />
+                <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
               </div>
               <div className="grid-card-body">
                 <div className="card-id">{item.card_id}</div>
                 <div className="grid-card-name">{item.name}</div>
                 <div className="grid-card-meta muted">
                   Value <strong className="collection-value">{money(item.value)}</strong>
+                  {item.buying ? ` · Buying ${item.buying}` : ""}
                 </div>
                 <div className="grid-card-price">
                   <MarketPrice price={item.market_price} productId={item.product_id} />
@@ -1833,6 +1988,7 @@ function CollectionItemsView({
                 <div className="grid-card-owned">
                   <span>Owned</span>
                   <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                 </div>
                 {item.tcgplayer_url && (
                   <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
@@ -1866,7 +2022,7 @@ function CollectionItemsView({
               <tr key={item.card_id} data-card-id={item.card_id}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={item.image_url || undefined} alt={item.name} />
+                    <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                     <div>
                       <div className="card-id">{item.card_id}</div>
                       <div>{item.name}</div>
@@ -1880,6 +2036,7 @@ function CollectionItemsView({
                 </td>
                 <td>
                   <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                 </td>
                 <td>
                   <MarketPrice price={item.market_price} productId={item.product_id} />
@@ -1899,6 +2056,7 @@ function CollectionItemsView({
             <div className="mobile-card-top">
               <MobileCardMedia
                 src={item.image_url || undefined}
+                cardId={item.card_id}
                 alt={item.name}
                 cost={item.cost}
                 rarity={item.rarity}
@@ -1922,6 +2080,7 @@ function CollectionItemsView({
                   <div className="mobile-card-owned">
                     <span>Owned</span>
                     <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+<AltsOwnedNote count={item.alts_owned} />
                   </div>
                 </div>
               </div>
@@ -1972,41 +2131,56 @@ function CollectionOwnedControl({
   );
 }
 
-function CollectionAddPanel({
-  ownedById,
+/**
+ * Catalog search drawer shared by Collection and Master Shopping: the deck
+ * editor's search box + color/type filters + result rows, with the per-row
+ * action and an optional extra meta line supplied by the page.
+ */
+function CatalogAddDrawer({
+  className,
+  summary,
+  storageKey,
   defaultOpen,
+  idleHint,
   onScan,
-  onOwnedSaved,
+  renderMeta,
+  renderAction,
 }: {
-  ownedById: Map<string, number>;
+  className?: string;
+  summary: string;
+  storageKey: string;
   defaultOpen: boolean;
-  onScan: () => void;
-  onOwnedSaved: () => void;
+  idleHint: string;
+  onScan?: () => void;
+  renderMeta?: (card: CatalogCardResult) => ReactNode;
+  renderAction: (card: CatalogCardResult) => ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = useState("");
+  const [color, setColor] = usePersistedChoice(`${storageKey}_color`, "", ["", ...COLOR_ORDER]);
+  const [cardType, setCardType] = usePersistedChoice(`${storageKey}_card_type`, "", CATALOG_TYPE_FILTERS);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
     return () => window.clearTimeout(t);
   }, [query]);
 
-  const searchEnabled = Boolean(debouncedQ || color);
+  const searchEnabled = Boolean(debouncedQ || color || cardType);
   const searchQ = useQuery({
-    queryKey: ["catalog-search", debouncedQ, color, ""],
-    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, color: color || undefined, limit: 40 }),
+    queryKey: ["catalog-search", debouncedQ, color, cardType],
+    queryFn: () =>
+      api.searchCatalog({
+        q: debouncedQ || undefined,
+        color: color || undefined,
+        card_type: cardType || undefined,
+        limit: 40,
+      }),
     enabled: searchEnabled,
   });
 
   return (
-    <div className="deck-editor collection-add">
-      <CollapsibleDrawer
-        label="Add cards"
-        summary="Search the catalog or scan a card"
-        storageKey={COLLECTION_ADD_OPEN_KEY}
-        defaultOpen={defaultOpen}
-      >
+    <div className={`deck-editor ${className ?? ""}`.trim()}>
+      <CollapsibleDrawer label="Add cards" summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
         <div className="deck-editor-filters">
           <CardSearchInput value={query} onChange={setQuery} />
           <div className="deck-editor-filter-row">
@@ -2021,13 +2195,29 @@ function CollectionAddPanel({
                 ))}
               </select>
             </label>
-            <button type="button" className="ghost scan-open" onClick={onScan}>
-              Scan
-            </button>
+            <label className="deck-editor-select">
+              <span className="sr-only">Card type</span>
+              <select
+                value={cardType}
+                onChange={(e) => setCardType(e.target.value)}
+                aria-label="Filter catalog by card type"
+              >
+                {CATALOG_TYPE_FILTERS.map((t) => (
+                  <option key={t || "all"} value={t}>
+                    {t ? t : "All types"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {onScan && (
+              <button type="button" className="ghost scan-open" onClick={onScan}>
+                Scan
+              </button>
+            )}
           </div>
         </div>
 
-        {!searchEnabled && <p className="muted deck-editor-status">Search the catalog by name or ID to add cards</p>}
+        {!searchEnabled && <p className="muted deck-editor-status">{idleHint}</p>}
         {searchEnabled && searchQ.isLoading && <InlineSkeleton lines={3} label="Searching catalog…" />}
         {searchEnabled && searchQ.error && (
           <p className="error deck-editor-status">{(searchQ.error as Error).message}</p>
@@ -2037,31 +2227,170 @@ function CollectionAddPanel({
         )}
         {searchQ.data && searchQ.data.length > 0 && (
           <ul className="deck-editor-results">
-            {searchQ.data.map((card) => (
-              <li key={card.card_id} className="deck-editor-result" data-catalog-id={card.card_id}>
-                <div className="deck-editor-result-main">
-                  <CardThumb src={card.image_url || undefined} alt={card.name} />
-                  <div>
-                    <div className="card-id">{card.card_id}</div>
-                    <div>{card.name}</div>
-                    <div className="muted">
-                      {[card.color, card.card_type, money(card.market_price)].filter(Boolean).join(" · ")}
+            {searchQ.data.map((card) => {
+              const meta = renderMeta?.(card);
+              return (
+                <li key={card.card_id} className="deck-editor-result" data-catalog-id={card.card_id}>
+                  <div className="deck-editor-result-main">
+                    <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
+                    <div>
+                      <div className="card-id">{card.card_id}</div>
+                      <div>{card.name}</div>
+                      <div className="muted">
+                        {[card.color, card.card_type, money(card.market_price)].filter(Boolean).join(" · ")}
+                      </div>
+                      {meta ? <div className="muted deck-editor-result-meta">{meta}</div> : null}
                     </div>
                   </div>
-                </div>
-                <div className="deck-editor-result-actions">
-                  <CollectionOwnedControl
-                    cardId={card.card_id}
-                    owned={ownedById.get(card.card_id) ?? 0}
-                    onSaved={onOwnedSaved}
-                  />
-                </div>
-              </li>
-            ))}
+                  <div className="deck-editor-result-actions">{renderAction(card)}</div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CollapsibleDrawer>
     </div>
+  );
+}
+
+/** Every card on the full shopping list (all decks + added directly), keyed by card id. */
+function useFullShoppingById(): Map<string, ShoppingItem> {
+  const q = useQuery({ queryKey: ["shopping", "all"], queryFn: () => api.shopping() });
+  return useMemo(() => new Map((q.data?.items ?? []).map((i) => [i.card_id, i])), [q.data]);
+}
+
+function CollectionAddPanel({
+  ownedById,
+  defaultOpen,
+  onScan,
+  onOwnedSaved,
+}: {
+  ownedById: Map<string, number>;
+  defaultOpen: boolean;
+  onScan: () => void;
+  onOwnedSaved: () => void;
+}) {
+  const shoppingById = useFullShoppingById();
+  return (
+    <CatalogAddDrawer
+      className="collection-add"
+      summary="Search the catalog or scan a card"
+      storageKey={COLLECTION_ADD_OPEN_KEY}
+      defaultOpen={defaultOpen}
+      idleHint="Search the catalog by name or ID to add cards"
+      onScan={onScan}
+      renderMeta={(card) => {
+        const buying = shoppingById.get(card.card_id)?.still_need ?? 0;
+        return buying > 0 ? `Buying ${buying}` : null;
+      }}
+      renderAction={(card) => (
+        <CollectionOwnedControl
+          cardId={card.card_id}
+          owned={ownedById.get(card.card_id) ?? 0}
+          onSaved={onOwnedSaved}
+        />
+      )}
+    />
+  );
+}
+
+/** "Add" for a card that needs nothing yet; otherwise a copies-to-buy stepper. Same footprint either way. */
+function ShoppingExtraControl({
+  card,
+  item,
+  owned,
+}: {
+  card: CatalogCardResult;
+  item: ShoppingItem | undefined;
+  owned: number;
+}) {
+  const qc = useQueryClient();
+  const stillNeed = item?.still_need ?? 0;
+  const extraQty = item?.extra_qty ?? 0;
+  const save = useMutation({
+    mutationFn: (target: number) => api.setShoppingExtra(card.card_id, target),
+    // Stay pending until the list refetches, so a quick second press never steps from stale counts.
+    onSuccess: async () => {
+      invalidateOwnedViews(qc);
+      await qc.refetchQueries({ queryKey: ["shopping"], type: "active" });
+    },
+  });
+  const step = (delta: 1 | -1) =>
+    save.mutate(
+      nextExtraTarget({ owned, deckNeed: item?.deck_need ?? 0, extraQty, stillNeed }, delta),
+    );
+  return (
+    <span className="shopping-extra-control">
+      {stillNeed > 0 ? (
+        <>
+          <button
+            type="button"
+            className="owned-btn"
+            aria-label={`Buy fewer ${card.card_id}`}
+            // Deck-driven copies are changed in the deck; only direct targets step down here.
+            disabled={save.isPending || extraQty === 0}
+            onClick={() => step(-1)}
+          >
+            −
+          </button>
+          <span className="deck-editor-qty" title="Copies to buy">
+            {stillNeed}
+          </span>
+          <button
+            type="button"
+            className="owned-btn"
+            aria-label={`Buy more ${card.card_id}`}
+            disabled={save.isPending}
+            onClick={() => step(1)}
+          >
+            +
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={save.isPending}
+          aria-label={`Add ${card.card_id} to shopping list`}
+          title={save.error ? (save.error as Error).message : undefined}
+          onClick={() => step(1)}
+        >
+          {save.isError ? "Retry" : "Add"}
+        </button>
+      )}
+    </span>
+  );
+}
+
+function ShoppingAddPanel({ defaultOpen }: { defaultOpen: boolean }) {
+  const shoppingById = useFullShoppingById();
+  const ownedQ = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
+  const ownedById = useMemo(
+    () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, i.owned])),
+    [ownedQ.data],
+  );
+  const ownedOf = (cardId: string) => shoppingById.get(cardId)?.owned ?? ownedById.get(cardId) ?? 0;
+  return (
+    <CatalogAddDrawer
+      className="shopping-add"
+      summary="Search the catalog to add cards to buy, no deck needed"
+      storageKey={SHOPPING_ADD_OPEN_KEY}
+      defaultOpen={defaultOpen}
+      idleHint="Search the catalog by name or ID to add cards to buy"
+      renderMeta={(card) => {
+        const deckNeed = shoppingById.get(card.card_id)?.deck_need ?? 0;
+        return [`Owned ${ownedOf(card.card_id)}`, deckNeed > 0 ? `Decks need ${deckNeed}` : ""]
+          .filter(Boolean)
+          .join(" · ");
+      }}
+      renderAction={(card) => (
+        <ShoppingExtraControl
+          card={card}
+          item={shoppingById.get(card.card_id)}
+          owned={ownedOf(card.card_id)}
+        />
+      )}
+    />
   );
 }
 
@@ -2111,7 +2440,7 @@ function CollectionPage() {
     return [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
   }, [allItems, showDons, sparesOnly, colors, search, effectiveSorts]);
 
-  const shown = useMemo(() => collectionTotals(items.filter((i) => i.owned > 0)), [items]);
+  const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
   const filterSummary = useMemo(() => {
@@ -2402,18 +2731,18 @@ function DecksPage() {
             <section key={group.key} className="deck-leader-group">
               <header className="deck-leader-group-head">
                 {group.leaderCardId ? (
-                  group.leaderImageUrl ? (
-                    <img
-                      src={cardImageUrl(group.leaderImageUrl, "thumb") || group.leaderImageUrl}
-                      alt=""
-                      className="deck-leader-group-thumb"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
-                      <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
-                    </div>
-                  )
+                  <CardArtImg
+                    src={group.leaderImageUrl}
+                    cardId={group.leaderCardId}
+                    alt=""
+                    className="deck-leader-group-thumb"
+                    loading="lazy"
+                    fallback={
+                      <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
+                        <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
+                      </div>
+                    }
+                  />
                 ) : null}
                 <div className="deck-leader-group-title">
                   <h2>{heading}</h2>
@@ -2448,23 +2777,23 @@ function DecksPage() {
                       <div className="deck-card-main">
                         {leaderImage || d.leader_card_id ? (
                           <div className="deck-card-leader-art">
-                            {leaderImage ? (
-                              <img
-                                src={cardImageUrl(leaderImage, "thumb") || leaderImage}
-                                alt={leaderName || d.leader_card_id || "Leader"}
-                                className="deck-card-leader-thumb"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div
-                                className="thumb placeholder deck-card-leader-thumb"
-                                aria-label={d.leader_card_id || "Leader"}
-                              >
-                                <span className="deck-card-leader-fallback">
-                                  {d.leader_card_id || "?"}
-                                </span>
-                              </div>
-                            )}
+                            <CardArtImg
+                              src={leaderImage}
+                              cardId={d.leader_card_id}
+                              alt={leaderName || d.leader_card_id || "Leader"}
+                              className="deck-card-leader-thumb"
+                              loading="lazy"
+                              fallback={
+                                <div
+                                  className="thumb placeholder deck-card-leader-thumb"
+                                  aria-label={d.leader_card_id || "Leader"}
+                                >
+                                  <span className="deck-card-leader-fallback">
+                                    {d.leader_card_id || "?"}
+                                  </span>
+                                </div>
+                              }
+                            />
                           </div>
                         ) : null}
                         <div className="deck-card-body">
@@ -2550,10 +2879,7 @@ function summarizeDeckProgress(cards: CardView[]) {
   const copiesNeeded = cards.reduce((sum, c) => sum + c.needed, 0);
   const copiesStill = cards.reduce((sum, c) => sum + c.still_need, 0);
   const copiesOwned = copiesNeeded - copiesStill;
-  const remainingMarket = cards.reduce((sum, c) => {
-    if (c.still_need <= 0 || c.market_price == null) return sum;
-    return sum + c.still_need * c.market_price;
-  }, 0);
+  const remainingMarket = deckRemainingMarket(cards);
   return {
     uniqueTotal,
     uniqueComplete,
@@ -2650,8 +2976,8 @@ function CardTable({
   editing = false,
   onNeededChange,
   neededBusyId = null,
-  onAltWantChange,
-  altWantBusyKey = null,
+  onAltOwnedChange,
+  altOwnedBusyKey = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -2660,23 +2986,23 @@ function CardTable({
   editing?: boolean;
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
-  onAltWantChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a printing want save is in flight. */
-  altWantBusyKey?: string | null;
+  onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while an alt owned save is in flight. */
+  altOwnedBusyKey?: string | null;
 }) {
   const altRow = (c: CardView) => (
     <AltArtsRow
       alts={c.alt_arts ?? []}
-      cardNeeded={c.needed}
-      editable={Boolean(onAltWantChange)}
-      onWantChange={
-        onAltWantChange
-          ? (productId, qty) => onAltWantChange(c.card_id, productId, qty)
+      editable={Boolean(onAltOwnedChange)}
+      base={baseTileFor(c)}
+      onOwnedChange={
+        onAltOwnedChange
+          ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
           : undefined
       }
       busyProductId={
-        altWantBusyKey?.startsWith(`${c.card_id}:`)
-          ? Number(altWantBusyKey.slice(c.card_id.length + 1))
+        altOwnedBusyKey?.startsWith(`${c.card_id}:`)
+          ? Number(altOwnedBusyKey.slice(c.card_id.length + 1))
           : null
       }
     />
@@ -2691,7 +3017,7 @@ function CardTable({
             className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
           >
             <div className="grid-card-media">
-              <CardThumb src={c.image_url || undefined} alt={c.name} />
+              <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
             </div>
             <div className="grid-card-body">
               <div className="card-id">{c.card_id}</div>
@@ -2745,7 +3071,6 @@ function CardTable({
               <th>Market</th>
               <th>Type</th>
               <th>Cost</th>
-              {showAltArts && <th>Alt arts</th>}
             </tr>
           </thead>
           <tbody>
@@ -2753,7 +3078,7 @@ function CardTable({
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={c.image_url || undefined} alt={c.name} />
+                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{c.name}</div>
@@ -2764,6 +3089,9 @@ function CardTable({
                       )}
                     </div>
                   </div>
+                  {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
+                    <div className="card-cell-alts">{altRow(c)}</div>
+                  )}
                 </td>
                 <td>
                   <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
@@ -2788,8 +3116,7 @@ function CardTable({
                 </td>
                 <td>{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                {showAltArts && <td>{altRow(c)}</td>}
-              </tr>
+                              </tr>
             ))}
           </tbody>
         </table>
@@ -2804,7 +3131,8 @@ function CardTable({
           >
             <div className="mobile-card-top">
               <MobileCardMedia
-                src={c.image_url || undefined}
+                src={mainImageUrl(c)}
+                cardId={c.card_id}
                 alt={c.name}
                 cost={c.cost}
                 rarity={c.rarity}
@@ -2946,8 +3274,8 @@ function DeckEditorPanel({
 
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = useState("");
-  const [cardType, setCardType] = useState("");
+  const [color, setColor] = usePersistedChoice(DECK_EDITOR_COLOR_KEY, "", ["", ...COLOR_ORDER]);
+  const [cardType, setCardType] = usePersistedChoice(DECK_EDITOR_TYPE_KEY, "", CATALOG_TYPE_FILTERS);
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -3106,7 +3434,7 @@ function DeckEditorPanel({
               return (
                 <li key={card.card_id} className="deck-editor-result">
                   <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
+                    <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
                     <div>
                       <div className="card-id">{card.card_id}</div>
                       <div>{card.name}</div>
@@ -3180,10 +3508,18 @@ function AvailableDonSection({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [query]);
   const donQ = useQuery({
-    queryKey: ["catalog-don"],
-    queryFn: () => api.searchCatalog({ card_type: "DON", limit: 100 }),
+    queryKey: ["catalog-don", debouncedQ],
+    queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),
     staleTime: 60_000,
+    // Keep the grid on screen while the next search loads so typing never collapses it to a skeleton.
+    placeholderData: keepPreviousData,
   });
 
   const neededById = useMemo(() => {
@@ -3217,7 +3553,7 @@ function AvailableDonSection({
   const resultCount = donQ.data?.length ?? 0;
   const summary = [
     `${donCount}/${DON_DECK_LIMIT} in deck`,
-    resultCount > 0 ? `${resultCount} available` : null,
+    resultCount > 0 ? `${resultCount} ${debouncedQ ? "found" : "available"}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -3230,41 +3566,47 @@ function AvailableDonSection({
         storageKey={DECK_DON_AVAILABLE_OPEN_KEY}
         defaultOpen={false}
       >
+        <div className="deck-editor-filters">
+          <CardSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search DON!! by name, set or ID"
+            label="Search DON!! cards"
+          />
+        </div>
         {err && <p className="error deck-editor-status">{err}</p>}
         {donQ.isLoading && <InlineSkeleton lines={3} label="Loading DON!! cards…" />}
         {donQ.error && <p className="error deck-editor-status">{(donQ.error as Error).message}</p>}
         {donQ.data && donQ.data.length === 0 && (
-          <p className="muted deck-editor-status">No DON!! cards in the catalog yet.</p>
+          <p className="muted deck-editor-status">
+            {debouncedQ ? `No DON!! cards match “${debouncedQ}”.` : "No DON!! cards in the catalog yet."}
+          </p>
         )}
         {donQ.data && donQ.data.length > 0 && (
-          <ul className="deck-editor-results don-available-list">
+          <ul className="don-available-list">
             {donQ.data.map((card) => {
               const inDeck = neededById.get(card.card_id) ?? 0;
               const busy = pendingId === card.card_id;
               const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
               return (
-                <li key={card.card_id} className="deck-editor-result">
-                  <div className="deck-editor-result-main">
-                    <CardThumb src={card.image_url || undefined} alt={card.name} />
-                    <div>
-                      <div className="card-id">{card.card_id}</div>
-                      <div>{card.name}</div>
-                      <div className="muted">
-                        {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
-                        {inDeck > 0 ? ` · In deck ×${inDeck}` : ""}
-                      </div>
+                <li key={card.card_id} className="don-tile">
+                  <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
+                  <div className="don-tile-text">
+                    <div className="card-id">{card.card_id}</div>
+                    <div className="don-tile-name">{card.name}</div>
+                    <div className="muted don-tile-meta">
+                      {[card.group_name, money(card.market_price)].filter(Boolean).join(" · ")}
                     </div>
+                    {inDeck > 0 && <div className="don-tile-indeck">In deck ×{inDeck}</div>}
                   </div>
-                  <div className="deck-editor-result-actions">
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      disabled={busy || atCap}
-                      onClick={() => void addOne(card)}
-                    >
-                      {inDeck > 0 ? "Add another" : "Add"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn secondary don-tile-add"
+                    disabled={busy || atCap}
+                    onClick={() => void addOne(card)}
+                  >
+                    {inDeck > 0 ? "Add another" : "Add"}
+                  </button>
                 </li>
               );
             })}
@@ -3305,7 +3647,7 @@ function DeckDetailPage() {
   const lastError = useRef<Error | null>(null);
   if (error) lastError.current = error as Error;
   else if (data) lastError.current = null;
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(DECK_ONLY_NEED_KEY, true);
   const deckUnavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -3334,9 +3676,11 @@ function DeckDetailPage() {
   }, [rowFlash, sideEdit]);
   const [neededBusyId, setNeededBusyId] = useState<string | null>(null);
   const [neededErr, setNeededErr] = useState<string | null>(null);
-  const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
-  const [altWantErr, setAltWantErr] = useState<string | null>(null);
+  const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
+  const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [renameText, setRenameText] = useState("");
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const shareDeck = useMutation({
@@ -3430,18 +3774,18 @@ function DeckDetailPage() {
     }
   };
 
-  const changeAltWant = async (cardId: string, productId: number, qty: number) => {
-    setAltWantErr(null);
-    setAltWantBusyKey(`${cardId}:${productId}`);
-    applyAltWantOptimistic(qc, cardId, productId, qty);
+  const changeAltOwned = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltOwnedOptimistic(qc, cardId, productId, qty);
     try {
-      const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
-      applyDeckUpdate(detail);
+      const res = await api.setAltOwned(cardId, productId, qty);
+      applyAltOwnedOptimistic(qc, cardId, productId, res.qty);
     } catch (e) {
-      setAltWantErr((e as Error).message);
-      invalidateAltWantViews(qc);
+      setAltOwnedErr((e as Error).message);
     } finally {
-      setAltWantBusyKey(null);
+      invalidateAltOwnedViews(qc);
+      setAltOwnedBusyKey(null);
     }
   };
 
@@ -3458,6 +3802,30 @@ function DeckDetailPage() {
     },
     onError: (e: Error) => setResetMsg(e.message),
   });
+
+  const rename = useMutation({
+    mutationFn: (name: string) => api.renameDeck(deckId, name),
+    onSuccess: (detail) => {
+      applyDeckUpdate(detail);
+      setRenaming(false);
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      // Same-leader decks list this one by name under "Compared to Main".
+      void qc.invalidateQueries({ queryKey: ["deck"] });
+    },
+  });
+  const submitRename = () => {
+    const name = renameText.trim();
+    if (!name || rename.isPending) return;
+    if (name === data?.name) {
+      setRenaming(false);
+      return;
+    }
+    rename.mutate(name);
+  };
+  const cancelRename = () => {
+    rename.reset();
+    setRenaming(false);
+  };
 
   const setMain = useMutation({
     mutationFn: () => api.setDeckAsMain(deckId),
@@ -3552,10 +3920,11 @@ function DeckDetailPage() {
     <section className="deck-main">
       <div className="page-head">
         <div className="deck-detail-head">
-          {leaderArt && (
-            <img
+          {data.leader_card_id && (
+            <CardArtImg
               className="deck-detail-leader"
-              src={cardImageUrl(leaderArt, "thumb") || leaderArt}
+              src={leaderArt}
+              cardId={data.leader_card_id}
               alt={data.leader_name || data.leader_card_id || "Leader"}
             />
           )}
@@ -3563,13 +3932,71 @@ function DeckDetailPage() {
           <p className="eyebrow">
             <Link to="/decks">← Decks</Link>
           </p>
-          <div className="deck-detail-title-row">
+          <div className={`deck-detail-title-row${renaming ? " is-renaming" : ""}`}>
+            {renaming && (
+              <form
+                className="deck-rename-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitRename();
+                }}
+              >
+                <input
+                  className="deck-rename-input"
+                  aria-label="Deck name"
+                  value={renameText}
+                  maxLength={200}
+                  autoFocus
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setRenameText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="btn primary deck-rename-btn"
+                  disabled={rename.isPending || !renameText.trim()}
+                >
+                  Save
+                </button>
+                <button type="button" className="btn secondary deck-rename-btn" onClick={cancelRename}>
+                  Cancel
+                </button>
+              </form>
+            )}
             <h1>{data.name}</h1>
+            <button
+              type="button"
+              className="deck-rename-trigger"
+              aria-label="Rename deck"
+              title="Rename deck"
+              onClick={() => {
+                rename.reset();
+                setRenameText(data.name);
+                setRenaming(true);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                <path
+                  d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3zM14.5 7.5l3 3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             {data.is_main && <span className="deck-main-badge">Main deck</span>}
             <span className="muted deck-size-inline">
               Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
             </span>
           </div>
+          {rename.isError && <p className="error deck-rename-error">{(rename.error as Error).message}</p>}
           <p className="muted">
             {data.leader_card_id
               ? `Leader ${data.leader_card_id}${data.leader_name ? ` · ${data.leader_name}` : ""}`
@@ -3740,7 +4167,7 @@ function DeckDetailPage() {
       )}
 
       {neededErr && <p className="error">{neededErr}</p>}
-      {altWantErr && <p className="error">{altWantErr}</p>}
+      {altOwnedErr && <p className="error">{altOwnedErr}</p>}
 
       {data.prior_decks.length > 0 && (
         <p className="banner">
@@ -3757,8 +4184,8 @@ function DeckDetailPage() {
         editing={editing}
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
-        onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-        altWantBusyKey={altWantBusyKey}
+        onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+        altOwnedBusyKey={altOwnedBusyKey}
       />
       {additional.length > 0 && (
         <>
@@ -3773,8 +4200,8 @@ function DeckDetailPage() {
             editing={editing}
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
-            onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-            altWantBusyKey={altWantBusyKey}
+            onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+            altOwnedBusyKey={altOwnedBusyKey}
           />
         </>
       )}
@@ -3799,8 +4226,8 @@ function DeckDetailPage() {
           editing={editing}
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
-          onAltWantChange={(cardId, productId, qty) => void changeAltWant(cardId, productId, qty)}
-          altWantBusyKey={altWantBusyKey}
+          onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+          altOwnedBusyKey={altOwnedBusyKey}
         />
       )}
     </section>
@@ -3953,9 +4380,49 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+/** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
+function MetaRoute() {
+  const { data: user, isLoading } = useMe();
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (user) {
+    return (
+      <Shell user={user}>
+        <MetaPage user={user} />
+      </Shell>
+    );
+  }
+  return (
+    <div className="app public-app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to="/login">
+              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <span>Planner</span>
+            </Link>
+          </div>
+          <div className="user">
+            <BuildTag />
+            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+              Play Duel
+            </a>
+            <ThemeToggle />
+            <Link className="btn secondary" to="/login">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </header>
+      <main className="app-main">
+        <MetaPage user={null} />
+      </main>
+    </div>
+  );
+}
+
 function PublicSharePage() {
   const { token = "" } = useParams();
-  const [onlyNeed, setOnlyNeed] = useState(true);
+  const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
   const { data, isLoading, error } = useQuery({
@@ -4049,7 +4516,7 @@ function PublicSharePage() {
                     className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
                   >
                     <div className="grid-card-media">
-                      <CardThumb src={item.image_url || undefined} alt={item.name} />
+                      <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                     </div>
                     <div className="grid-card-body">
                       <div className="card-id">{item.card_id}</div>
@@ -4089,7 +4556,7 @@ function PublicSharePage() {
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
                             <div className="card-cell-inner">
-                              <CardThumb src={item.image_url || undefined} alt={item.name} />
+                              <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
                               <div>
                                 <div className="card-id">{item.card_id}</div>
                                 <div>{item.name}</div>
@@ -4108,7 +4575,7 @@ function PublicSharePage() {
                           </td>
                           <td>{money(item.remaining_cost)}</td>
                           <td className="used-in">
-                            {[item.used_in.join(", "), needBreakdownLabel(item)].filter(Boolean).join(" · ")}
+                            {sharedUsedIn(item)}
                           </td>
                         </tr>
                       ))}
@@ -4125,6 +4592,7 @@ function PublicSharePage() {
                       <div className="mobile-card-top">
                         <MobileCardMedia
                           src={item.image_url || undefined}
+                          cardId={item.card_id}
                           alt={item.name}
                           cost={item.cost}
                           rarity={item.rarity}
@@ -4151,11 +4619,7 @@ function PublicSharePage() {
                           </div>
                         </div>
                       </div>
-                      {item.used_in.length > 0 && (
-                        <p className="used-in mobile-used-in">
-                          {[item.used_in.join(", "), needBreakdownLabel(item)].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
+                      {sharedUsedIn(item) && <p className="used-in mobile-used-in">{sharedUsedIn(item)}</p>}
                     </article>
                   ))}
                 </div>
@@ -4183,8 +4647,10 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
+        <Route path="/meta" element={<MetaRoute />} />
         <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
         <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
+        <Route path="/whats-new" element={<WhatsNewPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />

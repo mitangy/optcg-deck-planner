@@ -5,6 +5,7 @@ import { BackLink } from "./BackLink";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
+import { useArtFallback } from "../cards/useArtFallback";
 import {
   deleteDeck,
   ensureDefaultDeck,
@@ -27,6 +28,8 @@ import { useSwipeMove } from "../decks/useSwipeMove";
 import { DESKTOP_DECKS_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
+import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
+import { NavMenu } from "../nav/NavMenu";
 
 type PlannerState =
   | { status: "loading" }
@@ -139,9 +142,8 @@ function PlannerRow({
   /** Phones: swipe sideways to add; resolves false when nothing was added. */
   onSwipe?: () => Promise<boolean | undefined>;
 }) {
-  const art = deck.leader_image_url || null;
-  const [failedArt, setFailedArt] = useState<string | null>(null);
-  const showArt = Boolean(art) && art !== failedArt;
+  const { src: art, fail: failArt } = useArtFallback(deck.leader_image_url || null, deck.leader_card_id);
+  const showArt = Boolean(art);
   const count = deck.main_cards || deck.card_count;
   return (
     <SwipeRow
@@ -168,7 +170,7 @@ function PlannerRow({
             src={art!}
             alt=""
             loading="lazy"
-            onError={() => setFailedArt(art)}
+            onError={failArt}
           />
         ) : (
           <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>
@@ -198,10 +200,12 @@ function DeckRow({
   onDelete: () => void;
 }) {
   const leader = lookupCard(deck.leaderId);
-  const leaderArt = resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" });
-  const [failedArtSrc, setFailedArtSrc] = useState<string | null>(null);
+  const { src: leaderArt, fail: failLeaderArt } = useArtFallback(
+    resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }),
+    deck.leaderId,
+  );
   const canDelete = !deck.id.startsWith("test-");
-  const showArt = Boolean(leaderArt) && leaderArt !== failedArtSrc;
+  const showArt = Boolean(leaderArt);
 
   return (
     <SwipeRow
@@ -215,7 +219,7 @@ function DeckRow({
             src={leaderArt!}
             alt=""
             loading="lazy"
-            onError={() => setFailedArtSrc(leaderArt ?? null)}
+            onError={failLeaderArt}
           />
         ) : (
           <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>
@@ -252,6 +256,7 @@ function DeckRow({
 export function DeckListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
+  const syncedDecks = useSavedDecksVersion();
   const [planner, setPlanner] = useState<PlannerState>({ status: "loading" });
   const [plannerTry, setPlannerTry] = useState(0);
   const [importing, setImporting] = useState(false);
@@ -393,7 +398,7 @@ export function DeckListPage() {
     ensureDefaultDeck();
     ensureTestDecks();
     return listSavedDecks();
-  }, [tick]);
+  }, [tick, syncedDecks]);
 
   const plannerLeft = useMemo(
     () => (planner.status === "ready" ? plannerDecksNotLocal(planner.decks, decks) : []),
@@ -438,18 +443,30 @@ export function DeckListPage() {
     <div className={`app-shell${drag ? " is-deck-dragging" : ""}`}>
       <div className="deck-config deck-config-wide deck-list-page">
         <header className="deck-config-header">
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
+          <div className="deck-config-nav">
+            <NavMenu />
+            <BackLink to="/" label="Home" ariaLabel="Back to home" />
+          </div>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
             <p className="meta">Choose a deck to edit, or create a new one.</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary deck-list-new"
-            onClick={() => navigate("/decks/new")}
-          >
-            New deck
-          </button>
+          <div className="deck-list-header-actions">
+            <button
+              type="button"
+              className="btn btn-secondary deck-list-meta"
+              onClick={() => navigate("/decks/meta")}
+            >
+              Meta decks
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary deck-list-new"
+              onClick={() => navigate("/decks/new")}
+            >
+              New deck
+            </button>
+          </div>
         </header>
 
         <div className="deck-list-columns">

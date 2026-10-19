@@ -157,11 +157,49 @@ describe("resolveDropIntents", () => {
     ).toEqual([]);
     expect(
       resolveDropIntents(
+        { type: "attack", attackerId: "c1" },
+        { kind: "play_field" },
+        intents,
+        { opponentLeaderId: "ol" },
+      ),
+    ).toEqual([]);
+  });
+
+  it("a playable hand card dropped off any drop zone is played (#552)", () => {
+    const play = [{ type: "play_card", handIndex: 0 }];
+    // An empty spot is not a drop zone at all.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 0 }, null, intents)).toEqual(play);
+    // Nor is another kind of zone.
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 0 },
+        { kind: "attack_target", targetId: "o1" },
+        intents,
+      ),
+    ).toEqual(play);
+    expect(
+      resolveDropIntents(
         { type: "play_card", handIndex: 0 },
         { kind: "give_don_target", targetId: "leader" },
         intents,
       ),
-    ).toEqual([]);
+    ).toEqual(play);
+    // A full-board-only card has no plain play to send, and never trashes on its own.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 2 }, null, intents)).toEqual([]);
+    // A card with no legal play at all does nothing.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 1 }, null, intents)).toEqual([]);
+    // Dropped on a Character to trash, it trashes that one, not a plain play.
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 2 },
+        { kind: "play_trash", characterId: "c2" },
+        intents,
+      ),
+    ).toEqual([{ type: "play_card", handIndex: 2, trashCharacterId: "c2" }]);
+    // Counter and attack drags still need their own target.
+    const counterable: Intent[] = [...intents, { type: "counter_from_hand", handIndex: 3 }];
+    expect(resolveDropIntents({ type: "counter", handIndex: 3 }, null, counterable, { defenderId: "c1" })).toEqual([]);
+    expect(resolveDropIntents({ type: "attack", attackerId: "c1" }, null, intents, { opponentLeaderId: "ol" })).toEqual([]);
   });
 
   it("resolves play_card field and trash drops", () => {

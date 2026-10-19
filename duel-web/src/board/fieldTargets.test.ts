@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChoiceOptionView, PendingChoiceView } from "../net/protocol";
-import { boardPickSpots, isHandPick, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
+import { answersAtPick, boardPickSpots, isHandPick, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
 
 const board = new Map<string, BoardCardInfo>([
   ["c1", { seat: 0, name: "Karoo" }],
@@ -128,6 +128,19 @@ describe("pick helpers", () => {
     expect(resolvesOnPick(false, 1, 1)).toBe(false);
     expect(resolvesOnPick(true, 0, 1)).toBe(false);
     expect(resolvesOnPick(true, 1, 2)).toBe(false);
+  });
+
+  it("one-tap answers an exactly-N request on the Nth pick and no sooner (#502)", () => {
+    expect(answersAtPick(true, 2, 2, 2)).toBe(true);
+    expect(answersAtPick(true, 3, 3, 3)).toBe(true);
+    expect(answersAtPick(true, 2, 2, 1)).toBe(false);
+    expect(answersAtPick(false, 2, 2, 2)).toBe(false);
+  });
+
+  it("one-tap keeps Confirm for \"up to\" and optional picks (#502)", () => {
+    expect(answersAtPick(true, 1, 2, 2)).toBe(false);
+    expect(answersAtPick(true, 0, 2, 2)).toBe(false);
+    expect(answersAtPick(true, 0, 0, 0)).toBe(false);
   });
 
   it("captions the range and the running count (#254)", () => {

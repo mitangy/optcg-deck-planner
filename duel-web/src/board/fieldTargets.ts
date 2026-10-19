@@ -27,6 +27,14 @@ export function resolvesOnPick(oneTap: boolean, min: number, max: number): boole
   return oneTap && min === 1 && max === 1;
 }
 
+/**
+ * One-tap for exactly N picks (min === max === N, N >= 1): the Nth pick is the
+ * answer. "Up to" picks (min < max) keep their Confirm button.
+ */
+export function answersAtPick(oneTap: boolean, min: number, max: number, count: number): boolean {
+  return oneTap && min === max && min >= 1 && count === max;
+}
+
 /** "Choose 1" / "Choose up to 2" / "Choose 1–3", plus how many are picked when more than one can be. */
 export function pickCaption(min: number, max: number, selectedCount: number): string {
   const range = min === max ? `${max}` : min === 0 ? `up to ${max}` : `${min}–${max}`;

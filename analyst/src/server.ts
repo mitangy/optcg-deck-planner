@@ -23,6 +23,7 @@ import {
 } from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
+import { GAME_PRIMER } from "./primer";
 import { searchCards } from "./search";
 import { exclusive, simulateDeck } from "./simulate";
 
@@ -40,13 +41,13 @@ Ground rules:
 - Rules questions: search rules_lookup first with the player's question in their own words, then with narrower searches if needed; when an official Q&A answer settles it, cite that Q&A entry. Cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case. When your answer rests on an official Q&A ruling or a comprehensive rule, name it in one short sentence (the card's Q&A or the rule number).
 - Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact. For a matchup or leader overview, or when asked whether a leader is good or how it plays, give one keep/mulligan rule and the key cards by number, plus a turn-by-turn line, and say when the stats are marked too_few_games.
 - Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids.
-- When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.`;
+- When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.` + GAME_PRIMER;
 
 const PERSONAL_INSTRUCTIONS = `
 
 This is the player's personal link, so you can also see their own games and decks:
 - list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. You never see the opponent's hidden cards, so don't guess them as fact.
+- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game).
 - Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
@@ -333,7 +334,8 @@ function registerOfficialTools(add: Add, catalog: Catalog, library: OfficialLibr
       title: "Rules lookup",
       description:
         "Search the official ONE PIECE CARD GAME Comprehensive Rules by words (query) or read a numbered section with everything under it (section, e.g. 7-1 or 10-1-4). " +
-        "A query also returns matching official general rules Q&A. Read live from the official site.",
+        "A query also returns matching official general rules Q&A and card-specific Q&A rulings found by topic (cardRulings). " +
+        "Questions about events (time limits, extra turns, rounds, penalties, deck lists) also return sections of Bandai's Tournament Rules Manual, which are event rules, not game rules. Read live from the official site.",
       inputSchema: {
         query: z.string().max(200).optional().describe("Words to find, e.g. 'blocker once per battle' or 'deck out'"),
         section: z.string().max(20).optional().describe("Section number, e.g. 6-5-3 or 10-1-4"),
@@ -343,7 +345,7 @@ function registerOfficialTools(add: Add, catalog: Catalog, library: OfficialLibr
     },
     async (args) => {
       if (!args.query && !args.section) return failure(new Error("Give a query or a section number."));
-      return json(await rulesLookup(library, args));
+      return json(await rulesLookup(library, args, catalog));
     },
   );
 
@@ -491,7 +493,7 @@ function registerCorpus(add: Add, api: PlannerApi) {
         gameId: z.string().max(40),
         fromTurn: z.number().int().min(1).max(200).optional(),
         toTurn: z.number().int().min(1).max(200).optional(),
-        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
       },
       annotations: readOnly,
     },
@@ -549,12 +551,12 @@ function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
       title: "Review match",
       description:
         "Replay one of the player's duels (a match_id from list_my_matches with has_replay) and return a turn-by-turn log from their seat, " +
-        "their opening hand, the result and the final board. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+        "their opening hand, their hand after the draw each turn (plus the opponent's hand, revealed only for finished games) with counter values, both boards (power, rested, DON!!, Life, deck, trash) each turn, deck lists (the opponent's only for finished games), the result and the final board. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
       inputSchema: {
         matchId: z.string().max(80),
         fromTurn: z.number().int().min(1).max(200).optional(),
         toTurn: z.number().int().min(1).max(200).optional(),
-        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 400"),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
       },
       annotations: readOnly,
     },

@@ -5,6 +5,7 @@ name: Nightly regression
 on:
   schedule:
     - cron: "0 6 * * *"
+    - cron: "17 7 * * 0"
   workflow_dispatch:
     inputs:
       games:
@@ -14,7 +15,7 @@ on:
         description: "First fuzz seed (default: derived from today's UTC date)"
         default: ""
       stryker_shard:
-        description: "Stryker shard 0-4 (default: rotates by day of year)"
+        description: "Stryker shard 0-4 (default: all five shards)"
         default: ""
 
 permissions:
@@ -22,11 +23,13 @@ permissions:
 
 jobs:
   fuzz:
+    # The Sunday 07:17 schedule is Stryker's; the nightly jobs skip it.
+    if: ${{ github.event.schedule != '17 7 * * 0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -42,37 +45,41 @@ jobs:
           echo "fuzz seed range: ${SEED}..$(( SEED + GAMES - 1 )) (replay one game: npx tsx src/sim/fuzz.ts 1 <seed>, in packages/rules)"
           npm run fuzz -w @optcg/rules -- "$GAMES" "$SEED"
 
-  mutation-anchors:
-    # Fast stale-anchor check for every mutation suite; no tests run.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: node tools/mutation-check/run.cjs --check-anchors
-
   stryker-rules:
     # Report-only breadth mutation run over the rules engine. Survivors never
     # fail the job (thresholds.break is null); only a tool error does.
-    # All ~9,800 mutants take ~14h at concurrency 2, so each night tests one of
-    # five shards (each ~1-2h), rotating by day of year: the whole engine every
-    # five nights. Each shard keeps its own incremental file.
+    # Weekly (Sunday) or on demand: all ~9,800 mutants take ~14h at concurrency
+    # 2, so the engine is split into five shards (each ~1-2h) that run in
+    # parallel, each with its own incremental file. Survivors are printed as
+    # SURVIVOR lines in each shard's job log and read by a weekly Claude routine
+    # that turns real ones into tests (see tools/mutation-check/README.md).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '17 7 * * 0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
+    env:
+      # workflow_dispatch can limit the run to one shard; a job-level `if`
+      # cannot see the matrix, so every step is guarded by this flag instead.
+      RUN_SHARD: ${{ inputs.stryker_shard == '' || inputs.stryker_shard == format('{0}', matrix.shard) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        if: ${{ env.RUN_SHARD == 'true' }}
+      - uses: actions/setup-node@v7
+        if: ${{ env.RUN_SHARD == 'true' }}
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: package-lock.json
-      - run: npm ci
-      - name: Pick tonight's shard
+      - if: ${{ env.RUN_SHARD == 'true' }}
+        run: npm ci
+      - name: Pick shard
+        if: ${{ env.RUN_SHARD == 'true' }}
         id: shard
         env:
-          SHARD_INPUT: ${{ inputs.stryker_shard }}
+          SHARD: ${{ matrix.shard }}
         run: |
           SHARDS=(
             "src/engine/runtime.ts"
@@ -81,21 +88,22 @@ jobs:
             "src/effects/validate.ts,src/effects/compile.ts"
             "src/engine/procedure.ts,src/engine/state.ts"
           )
-          SHARD="${SHARD_INPUT:-$(( 10#$(date -u +%j) % ${#SHARDS[@]} ))}"
           echo "Stryker shard ${SHARD}: ${SHARDS[$SHARD]}"
           echo "index=${SHARD}" >> "$GITHUB_OUTPUT"
           echo "mutate=${SHARDS[$SHARD]}" >> "$GITHUB_OUTPUT"
       - name: Restore Stryker incremental file
-        uses: actions/cache@v4
+        if: ${{ env.RUN_SHARD == 'true' }}
+        uses: actions/cache@v6
         with:
           path: packages/rules/reports/stryker-incremental.json
           key: stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-${{ github.run_id }}
           restore-keys: |
             stryker-rules-${{ runner.os }}-shard${{ steps.shard.outputs.index }}-
       - name: Stryker
+        if: ${{ env.RUN_SHARD == 'true' }}
         run: npm run mutation:stryker -w @optcg/rules -- --mutate "${{ steps.shard.outputs.mutate }}"
       - name: Survivors summary
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.RUN_SHARD == 'true' }}
         env:
           MUTATE: ${{ steps.shard.outputs.mutate }}
         run: |
@@ -111,6 +119,10 @@ jobs:
               for (const m of d.mutants) {
                 if (m.status in c) c[m.status]++;
                 if (m.status === "Survived") worst.push(`${file}:${m.location.start.line} ${m.mutatorName}`);
+                if (m.status === "Survived" || m.status === "NoCoverage") {
+                  const rep120 = String(m.replacement ?? "").replace(/\s+/g, " ").slice(0, 120);
+                  console.log(`SURVIVOR ${file}:${m.location.start.line}:${m.location.start.column} ${m.mutatorName} ${m.status} => ${rep120}`);
+                }
               }
               out.push(`| ${file} | ${c.Killed + c.Timeout} | ${c.Survived} | ${c.NoCoverage} |`);
             }
@@ -118,81 +130,24 @@ jobs:
             out.push("", "Survivors are a to-do list for tools/mutation-check entries, not a score to chase.");
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, out.join("\n") + "\n");
           '
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && env.RUN_SHARD == 'true' }}
         with:
-          name: stryker-rules-report
+          name: stryker-rules-report-${{ matrix.shard }}
           path: packages/rules/reports/mutation/
-          if-no-files-found: ignore
-
-  mutmut-backend:
-    # Report-only breadth mutation run over backend pricing/aggregation modules
-    # (see backend/setup.cfg). mutmut works in backend/mutants, a copy. CI only:
-    # never run it locally alongside tools/mutation-check/run.cjs.
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: backend/.python-version
-          cache: "pip"
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-mutation.txt
-      - name: Install backend deps
-        working-directory: backend
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-mutation.txt
-      - name: Restore mutmut state
-        uses: actions/cache@v4
-        with:
-          path: backend/mutants
-          key: mutmut-backend-${{ github.run_id }}
-          restore-keys: |
-            mutmut-backend-
-      - name: mutmut
-        working-directory: backend
-        run: mutmut run
-      - name: Survivors summary
-        if: ${{ !cancelled() }}
-        working-directory: backend
-        run: |
-          if [ -d mutants ]; then
-            mutmut results > mutmut-results.txt || true
-            {
-              echo "## mutmut survivors (backend)"
-              echo
-              echo "Survived: $(grep -c ': survived' mutmut-results.txt || true)"
-              echo
-              echo '```'
-              grep ': survived' mutmut-results.txt | head -40 || true
-              echo '```'
-              echo
-              echo "Survivors are a to-do list for tools/mutation-check entries, not a score to chase."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No mutmut results produced." >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: mutmut-backend-results
-          path: |
-            backend/mutmut-results.txt
-            backend/mutants/mutmut-stats.json
           if-no-files-found: ignore
 
   log-pose-eval-live:
     # Re-checks the Log Pose eval's FAQ cases against Bandai's live FAQ. Free (no model calls).
     # Exit 1 (a case went stale or its answer changed) is reported in the summary only;
     # exit 2 (the official site was unreachable twice) fails the job.
+    # The Sunday 07:17 schedule is Stryker's; the nightly jobs skip it.
+    if: ${{ github.event.schedule != '17 7 * * 0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -209,14 +164,14 @@ jobs:
   # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
-    needs: [fuzz, mutation-anchors, stryker-rules, mutmut-backend, log-pose-eval-live]
+    needs: [fuzz, stryker-rules, log-pose-eval-live]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       issues: write
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const title = "Nightly regression failure";

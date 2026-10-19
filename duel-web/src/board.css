@@ -30,6 +30,7 @@
   overflow: hidden;
   padding: 6px 8px;
   container-type: size;
+  container-name: playmat;
 }
 
 .arena .playmat-inner {
@@ -62,7 +63,7 @@
 }
 
 /* Battle / choice prompt gets its own strip between the mats. The strip is
-   always reserved (ornament when idle) so a battle starting never moves the
+   always reserved (empty when idle) so a battle starting never moves the
    board, and the mat-size math below subtracts it. */
 .arena .playmat {
   --midline-h: 1.6rem;
@@ -101,6 +102,15 @@
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* A battle is the strip's loudest moment: a solid raised fill and a gold
+   edge so it stands out from the felt instead of blending in (#539). */
+.arena .midline .prompt.prompt-battle {
+  background: var(--arena-raised);
+  border-color: var(--chrome);
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.45);
 }
 
 /* —— One playmat —— */
@@ -486,6 +496,20 @@
   margin-top: 0;
 }
 
+/* Fans up (#499): column-reverse puts the last face (top of Life) at the top, in front. */
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up {
+  flex-direction: column-reverse;
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+  margin-top: 0;
+  margin-bottom: calc(var(--c) * -0.46);
+}
+
+.arena .side-field .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+  margin-bottom: 0;
+}
+
 .arena .side-field .zone-pile-life .zone-pile-stack:empty::before {
   width: var(--c);
   height: calc(var(--c) / 1.4);
@@ -552,7 +576,7 @@
    Column widths live on the board root, not .arena-body, so fixed overlays
    (prompts, hand dock, turn splash) can line up with the board column. */
 @media (min-width: 900px) and (min-height: 500px),
-  (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+  (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena {
     --left-w: clamp(190px, 18vw, 320px);
     --rail-w: clamp(250px, 22vw, 380px);
@@ -797,21 +821,192 @@
   pointer-events: none;
 }
 
-.board-col .card-preview-live-big {
-  position: absolute;
-  left: 0.25rem;
-  right: 0.25rem;
-  bottom: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  background: rgb(var(--deep-rgb) / 0.85);
-  font-size: 0.78rem;
-  pointer-events: none;
-}
-
 /* Fit, never crop: the "Image Coming Soon" placeholder is not card-shaped. */
 .board-col .card-preview-img {
   object-fit: contain;
+}
+
+/* —— Card preview pop-up (#529) ——
+   The preview as a large floating box (CardPreviewPopup), fixed so it never shifts
+   the board: above every play-area layer (prompts 45/46, field bar 45, undo request 50, attack aim 55, copilot
+   pill 56), below what the pointer carries (hand lift / drag ghost 60, moving hand fan 92, panel drag 90/91), menus
+   (match / undo menu 60/61) and dialogs (#583). CardPreviewPopup steps it off the hovered card. The default spot is the
+   top right of the board, left of the right column; a dragged spot is inline left/top. */
+.arena .card-preview-popup {
+  position: fixed;
+  z-index: 58;
+  top: 72px;
+  right: calc(var(--rail-w, 0px) + 16px);
+  /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once
+     it has been dragged), the header, the padding and border, and for the small card + text view a share for the text.
+     The card is 5:7, so the box is never wider than that room allows; past it the pop-up stops growing instead of
+     the card stopping inside a bigger and bigger empty box. */
+  --pp-room: 80px;
+  --pp-head: 2.9rem;
+  --pp-pad: 0.6rem;
+  --pp-text: 7rem;
+  --pp-art-h: calc(100dvh - var(--pp-room) - var(--pp-head) - 2 * var(--pp-pad) - 2px - var(--pp-text));
+  /* --preview-popup-scale is the Card pop-up size setting (1 = 100%); never wider than the window. */
+  width: min(
+    calc(clamp(280px, 22vw, 420px) * var(--preview-popup-scale, 1)),
+    calc(100vw - 16px),
+    max(200px, calc(var(--pp-art-h) * 5 / 7 + 2 * var(--pp-pad) + 2px))
+  );
+  max-height: calc(100dvh - var(--pp-room));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(var(--deep-rgb) / 0.97);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+/* The big card has no text under it. */
+.arena .card-preview-popup.card-preview-popup-big {
+  --pp-text: 0px;
+}
+
+/* A dragged pop-up may use the whole window height. */
+.arena .card-preview-popup.card-preview-popup-placed {
+  --pp-room: 16px;
+}
+
+.arena .card-preview-popup.is-dragging {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65);
+  user-select: none;
+}
+
+.card-preview-popup-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  touch-action: none;
+}
+
+.is-dragging .card-preview-popup-head {
+  cursor: grabbing;
+}
+
+.card-preview-popup-grip {
+  color: var(--muted);
+  line-height: 1;
+}
+
+.card-preview-popup-title {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+}
+
+.card-preview-popup-pin {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
+.card-preview-popup-size {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-preview-popup-size:hover:not(:disabled),
+.card-preview-popup-size:focus-visible {
+  background: rgb(var(--chrome-bright-rgb) / 0.15);
+  color: var(--chrome-bright);
+}
+
+.card-preview-popup-size:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.card-preview-popup-pin:hover,
+.card-preview-popup-pin:focus-visible,
+.card-preview-popup-pin.is-pinned {
+  opacity: 1;
+  filter: none;
+  background: rgb(var(--chrome-bright-rgb) / 0.15);
+}
+
+.card-preview-popup-close {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-preview-popup-close:hover,
+.card-preview-popup-close:focus-visible {
+  background: rgb(var(--chrome-bright-rgb) / 0.15);
+  color: var(--chrome-bright);
+}
+
+/* The art stacks above the text and is as large as the box allows. */
+.arena .card-preview-popup .card-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.6rem;
+  box-sizing: border-box;
+}
+
+/* No height cap here: the pop-up's width is capped instead (.card-preview-popup), so the art box stays 5:7 and fills it. */
+.card-preview-in-popup .card-preview-img,
+.card-preview-in-popup .card-preview-placeholder {
+  object-fit: contain;
+}
+
+.card-preview-in-popup.card-preview-big .card-preview-img,
+.card-preview-in-popup.card-preview-big .card-preview-placeholder {
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+}
+
+.card-preview-in-popup .card-preview-meta {
+  max-height: min(30dvh, 280px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 /* Recent plays: a fixed-height list (about four rows, scrolls for the rest) so
@@ -1047,6 +1242,14 @@
   padding-right: var(--safe-r);
 }
 
+/* One combined column (sideColumns) holds every panel; on a short window their minimum heights
+   add up to more than the column, so it scrolls instead of cutting the last ones off. */
+.arena.arena-wide.arena-single-col .board-col {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
 .arena.arena-wide .board-col > * {
   flex: 0 0 auto;
 }
@@ -1078,6 +1281,18 @@
 .arena.arena-wide .board-col .chat-panel:not(.collapsed) {
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* The message list is what gives way in a short panel (it scrolls); the header and the
+   input row keep their height, so Send is never cut off the bottom (#529). */
+.arena.arena-wide .board-col .chat-panel .chat-body {
+  min-height: 0;
+}
+
+.arena.arena-wide .board-col .chat-panel .chat-toggle,
+.arena.arena-wide .board-col .chat-panel .chat-form-wrap,
+.arena.arena-wide .board-col .chat-panel .chat-readonly {
+  flex: 0 0 auto;
 }
 
 /* Tall desktop, Grid hand: an always-open grid panel (see RAIL_HAND_QUERY). */
@@ -1156,8 +1371,7 @@
   min-height: min-content;
 }
 
-.arena.arena-wide .board-panel[data-panel="recent"],
-.arena.arena-wide .board-panel[data-panel="actions"] {
+.arena.arena-wide .board-panel[data-panel="recent"] {
   min-height: 4.5rem;
 }
 
@@ -1193,7 +1407,7 @@
 .arena.arena-wide .board-col:has(> [data-panel="hand"])
   > .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
   flex: 0 1 8rem;
-  min-height: 5rem;
+  min-height: 7.5rem;
 }
 
 /* The grip: a small bar on the panel's top edge, shown on hover / focus.
@@ -1277,7 +1491,9 @@ body.is-panel-drag .panel-grip {
 .arena.arena-wide .col-resize {
   top: 0;
   bottom: 0;
-  z-index: 40;
+  /* Over the panels, under the fanned hand (16): a card reaching over the
+     column edge gets the pointer, not this handle (#449). */
+  z-index: 15;
   width: 9px;
   cursor: col-resize;
 }
@@ -1424,6 +1640,10 @@ body.is-panel-drag * {
 }
 
 .opp-fan-face .card-caption,
+.opp-corner-face .card-caption,
+.opp-corner-face .card-overlays,
+.opp-compact-face .card-caption,
+.opp-compact-face .card-overlays,
 .opp-fan-face .card-overlays,
 .opp-hand-face .card-caption,
 .opp-hand-face .card-overlays {
@@ -1952,6 +2172,18 @@ body.is-panel-drag * {
   justify-self: end;
 }
 
+/* The default spot stacks the handle's controls (menu, Hand, Sort) one under
+   another at the far left of the fan (#449). A column is taller than the
+   tucked strip, so it is lifted until its bottom sits on the strip's bottom
+   edge: nothing is clipped by the window. Held in the free space left of the
+   mat, so it never covers the mat's DON!! deck or the cards. */
+.hand-fan-center:not(.hand-fan-spec) .hand-fan-head {
+  justify-self: start;
+  flex-direction: column;
+  align-items: flex-start;
+  transform: translateY(calc(var(--fan-ch) * var(--fan-peek) - 100% - 4px));
+}
+
 .hand-fan-center .hand-fan-cards {
   grid-column: 2;
   grid-row: 1;
@@ -2154,6 +2386,209 @@ body.is-panel-drag * {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
 }
 
+/* —— Hand in the corner of a shortened column (#633) ——
+   Dragging the bottom edge of a side column up (.col-cut) frees a corner below
+   it. The fan in its default spot then sits in that corner, from the board's
+   edge to the screen edge (--corner-l / --corner-r / --corner-w, measured by
+   CornerFit): fully shown, never rising over the board, so it never tucks.
+   No box behind it: the cards rest on the felt in the same gentle arc, and the
+   head row is a quiet label like the column's panel titles. Card height is the
+   corner's height less the head row, or what the width allows for this many
+   cards, so a big hand overlaps more instead of shrinking. */
+
+.arena.arena-wide .board-col[data-col-cut] {
+  align-self: start;
+  height: calc(100% - 100dvh * var(--cut));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 10px 24px rgb(var(--deep-rgb) / 0.35);
+}
+
+.arena.arena-wide .arena-left[data-col-cut] {
+  --cut: var(--cut-left);
+  border-bottom-right-radius: 14px;
+}
+
+.arena.arena-wide .arena-rail[data-col-cut] {
+  --cut: var(--cut-right);
+  border-bottom-left-radius: 14px;
+}
+
+/* A shortened column's panels give way to its height: they may shrink (the Turn
+   panel still keeps what its content needs), the floors that guard a full-height
+   column relax, and anything that still does not fit scrolls with the column. */
+.arena.arena-wide .board-col[data-col-cut] > .board-panel {
+  flex-shrink: 1;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="oppHand"] {
+  min-height: 4.25rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="recent"] {
+  min-height: 4rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel[data-panel="preview"] {
+  min-height: 7rem;
+}
+
+.arena.arena-wide .board-col[data-col-cut] > .board-panel:is([data-panel="log"], [data-panel="chat"], [data-panel="hand"]) {
+  min-height: 4rem;
+}
+
+/* The bar on a column's bottom edge. Fixed to the window (the column may scroll),
+   centred on the edge once there is a cut, resting on the window's bottom edge
+   before. Under the fan (16) so a card reaching up still gets the pointer. */
+.col-cut {
+  position: fixed;
+  z-index: 15;
+  bottom: calc(100dvh * var(--cut, 0) - 12px);
+  width: 64px;
+  height: 24px;
+  display: flex;
+  cursor: row-resize;
+  touch-action: none;
+  border-radius: 8px;
+  /* The bar itself is the element's own background (so it is a painted, reachable control). */
+  background: linear-gradient(var(--muted), var(--muted)) center / 32px 3px no-repeat;
+  opacity: 0.55;
+  transition:
+    opacity 160ms ease,
+    background-size 160ms ease;
+}
+
+/* No cut yet: the bar rests just above the window's bottom edge. */
+.col-cut:not(.has-cut) {
+  bottom: 0;
+  background-position: center calc(100% - 4px);
+}
+
+.col-cut-left {
+  --cut: var(--cut-left);
+  left: calc(var(--left-w) / 2 - 32px);
+}
+
+.col-cut-right {
+  --cut: var(--cut-right);
+  right: calc(var(--rail-w) / 2 - 32px);
+}
+
+.col-cut:hover,
+.col-cut:focus-visible,
+body.is-panel-resize-row .col-cut {
+  opacity: 1;
+  background-image: linear-gradient(var(--chrome-bright), var(--chrome-bright));
+  background-size: 44px 3px;
+}
+
+.col-cut:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.hand-fan.hand-fan-corner {
+  /* Never rises, tucks or drops, whatever the hover, focus, pin or drag state. */
+  transform: none !important;
+}
+
+.hand-fan.hand-fan-corner {
+  --corner-h: calc(100dvh * var(--corner-cut, 0.28));
+  --fan-ch: min(
+    calc((var(--corner-h) - 2.4rem - var(--safe-b)) / 1.2),
+    calc(var(--corner-w, 100vw) / (0.3 * var(--n) + 1.4) * 1.4),
+    30dvh
+  );
+  --fan-cw: calc(var(--fan-ch) / 1.4);
+  left: var(--corner-l, 0px);
+  right: var(--corner-r, 0px);
+  height: var(--corner-h);
+  box-sizing: border-box;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  /* The bottom padding clears the outer cards, which sit lower on the arc and tilt their corners down. */
+  padding: 0 calc(var(--fan-cw) * 0.35) calc(var(--fan-ch) * 0.2 + var(--safe-b));
+}
+
+.hand-fan-corner .hand-fan-cards {
+  width: min(100%, calc(var(--fan-cw) * (0.62 * var(--n) + 0.38)));
+  height: var(--fan-ch);
+  transition: opacity 160ms ease;
+}
+
+.arena .hand-fan-corner .hand-fan-cards > * {
+  border-radius: 6px;
+  box-shadow: -3px 2px 10px rgb(var(--deep-rgb) / 0.55);
+}
+
+.arena .hand-fan-corner .hand-fan-cards > .card-tile:is(:hover, :focus-visible) {
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 16px)) rotate(var(--rot, 0deg)) scale(1.06);
+}
+
+.arena .hand-fan-corner .hand-fan-cards > .card-tile.selected {
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 20px)) rotate(var(--rot, 0deg)) scale(1.06);
+}
+
+/* The head row: a quiet label like the column's panel titles. */
+.hand-fan-corner .hand-fan-head {
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+/* The label reads like a panel title; Sort and the menu keep their pill so
+   they stay legible on the light felt too. */
+.hand-fan-corner .hand-fan-head .hand-fan-toggle {
+  background: transparent;
+  border-color: transparent;
+  min-height: 1.5rem;
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle {
+  padding-left: 0;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+.hand-fan-corner .hand-fan-head .hand-rail-btn {
+  border-color: var(--line);
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle ~ .hand-rail-btn {
+  margin-left: auto;
+}
+
+.hand-fan-corner .hand-fan-head .hand-fan-toggle ~ .hand-rail-btn ~ .hand-rail-btn {
+  margin-left: 0;
+}
+
+/* The hand never rises or tucks here, so the caret has nothing to show. */
+.hand-fan-corner .hand-dock-caret {
+  display: none;
+}
+
+/* Hidden: only the head row stays, at the bottom edge. */
+.hand-fan-corner.is-hidden {
+  height: auto;
+}
+
+.hand-fan-corner.is-hidden .hand-fan-cards {
+  height: 0;
+  visibility: hidden;
+}
+
+/* A card dragged out of the hand: the corner stays put (it covers no board) and fades a little. */
+.hand-fan-corner.is-dragging .hand-fan-cards {
+  opacity: 0.5;
+}
+
+.hand-fan-corner.is-dragging > * {
+  pointer-events: none;
+}
+
 /* Portrait phones: the hand strip overlaps its cards in a shallow fan so the
    whole hand fits without scrolling; tap lifts the card you picked. */
 .arena .hand-row.hand-row-fan {
@@ -2213,9 +2648,114 @@ body.is-panel-drag * {
   }
 }
 
+/* Life check (#495): only the Life card, big, floating over the board with its
+   buttons under it: no box, header or prompt text. */
+.arena .ability-prompt.life-trigger-card,
+.arena.arena-wide .ability-prompt.life-trigger-card {
+  --lt-w: min(240px, 62vw, calc((100dvh - 11rem) / 1.4));
+  width: max-content;
+  max-width: calc(100vw - 1.5rem);
+  max-height: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.life-trigger-card .card-tile {
+  width: var(--lt-w);
+  height: calc(var(--lt-w) * 1.4);
+  flex: none;
+  border-radius: 10px;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.65),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.life-trigger-card .card-tile .card-caption {
+  display: none;
+}
+.arena .ability-prompt.life-trigger-card .ability-prompt-actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: none;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+.life-trigger-card .ability-prompt-actions .btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+/* Hide / dock stay reachable but small, in a row above the card (off the art). */
+.life-trigger-card .life-trigger-tools {
+  /* As wide as the card (more only if the buttons need it), centred over it. */
+  align-self: center;
+  width: max-content;
+  min-width: var(--lt-w);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: -0.3rem;
+  min-height: 1.4rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.life-trigger-card.is-dragging .life-trigger-tools {
+  cursor: grabbing;
+}
+/* Grip mark on the left; Hide, dock and size buttons stay on the right. */
+.life-trigger-card .life-trigger-grip {
+  margin-right: auto;
+  padding-left: 0.2rem;
+  color: var(--muted, currentColor);
+  opacity: 0.7;
+  font-family: system-ui, sans-serif;
+  line-height: 1;
+}
+.life-trigger-card .life-trigger-tools .prompt-hide,
+.life-trigger-card .life-trigger-tools .prompt-dock-tools,
+.life-trigger-card .life-trigger-tools .prompt-size-tools {
+  position: static;
+}
+.life-trigger-card .life-trigger-tools button {
+  cursor: pointer;
+}
+.life-trigger-card .prompt-size-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.85rem;
+}
+.life-trigger-card .prompt-hide {
+  height: 1.4rem;
+  padding: 0 0.55rem;
+  font-size: 0.65rem;
+}
+.life-trigger-card .prompt-dock-btn {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+/* Phones pin pop-ups between both edges; centre the card between them instead. */
+@media (max-width: 640px) {
+  .arena .ability-prompt.life-trigger-card {
+    width: max-content;
+    margin-inline: auto;
+  }
+}
+
 /* —— Landscape phones: slimmer columns, compact game state —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena {
     --left-w: clamp(140px, 20vw, 210px);
     --rail-w: clamp(190px, 26vw, 260px);
@@ -2498,6 +3038,63 @@ body.is-panel-drag * {
   cursor: not-allowed;
 }
 
+/* `/ff` result floats over the bottom of the chat log so the input never moves. */
+.chat-form-wrap {
+  position: relative;
+}
+
+.chat-command {
+  position: absolute;
+  left: 0.45rem;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+
+.chat-command.hint {
+  bottom: 100%;
+  margin-bottom: 0.2rem;
+  pointer-events: none;
+}
+
+.chat-command > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chat-command .chat-command-confirm {
+  order: 3;
+  flex: 1 0 100%;
+}
+
+.chat-command button {
+  min-height: 32px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-command .chat-command-confirm {
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  color: var(--on-chrome);
+}
+
 /* Narrow: chat and battle log float from the top of the play area (not the
    board root) so a wrapped HUD can never cover them. Phone blocks below
    refine the battle-log pill. */
@@ -2731,7 +3328,7 @@ body.is-panel-drag * {
 
 /* —— Landscape phones: rail layout with height-bound mats —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena .hud-bar {
     --hud-py: 0.25rem;
     --hud-px: 0.6rem;
@@ -3273,6 +3870,36 @@ body.is-panel-drag * {
   flex: 1 1 8rem;
 }
 
+.rematch-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.rematch-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--ink);
+}
+
+.rematch-deck select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+}
+
 /* —— Choice targets: live readiness under each field card —— */
 
 .choice-readiness {
@@ -3706,7 +4333,8 @@ body.is-panel-drag * {
 @media (max-width: 899px) and (orientation: portrait) {
   /* Same width as your mat (the base portrait rule), so when the height binds (mulligan
      explainer, 320px screens) both mats shrink together and stay centred on one axis. */
-  .arena .side-opp.side-counts .side-grid {
+  .arena .side-opp.side-counts .side-grid,
+  .arena .side-you.side-counts .side-grid {
     --g: 1.6cqw;
     --c: min(
       calc((100cqw - 2.8cqw - 4 * 1.6cqw) / 5),
@@ -3724,7 +4352,8 @@ body.is-panel-drag * {
 
   /* Leader sits between the stage and the cost area: no room to turn at
      full size. */
-  .arena .side-opp.side-counts .zone-leader {
+  .arena .side-opp.side-counts .zone-leader,
+  .arena .side-you.side-counts .zone-leader {
     --rest-k: 0.714;
     --rest-shift: 0px;
   }
@@ -3804,7 +4433,7 @@ body.is-panel-drag * {
 
 /* —— Landscape phones: icon rail | board | slim action column, hand under the board —— */
 
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp {
     --lp-rail-w: calc(44px + var(--safe-l));
     --left-w: var(--lp-rail-w);
@@ -3984,7 +4613,8 @@ body.is-panel-drag * {
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
   }
 
-  .opp-hand-compact .card-back {
+  .opp-hand-compact .card-back,
+  .opp-hand-compact .card-tile.opp-compact-face {
     width: 15px;
     height: 21px;
     flex: none;
@@ -4062,7 +4692,7 @@ body.is-panel-drag * {
   }
 }
 
-@media (hover: hover) and (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp .hand-dock:hover {
     width: auto;
     transform: none;
@@ -4279,7 +4909,7 @@ body.is-panel-drag * {
 }
 
 /* Landscape phones: the tray fills the right column above the primary. */
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena.arena-lp .arena-rail .defend-tray {
     flex: 1 1 0;
     min-height: 0;
@@ -4910,6 +5540,174 @@ body.is-panel-drag * {
   box-shadow: none;
 }
 
+/* —— Buttons beside the board (#556, #564) ——
+   Computers: the dock rides in a narrow gutter against the right edge of the
+   two mats, so no strip is needed between them. The strip is taken out of the
+   flow and its share is given back to the mats (the mat math subtracts
+   --midline-h and 3 gaps; the two gaps the strip would have cost are -2 gaps
+   here and the mats touch via a -1 gap margin), so the board is the same size
+   whether the mulligan banner, a battle line or nothing is showing.
+   The gutter is the playmat's own right padding, reserved for the whole game:
+   every mat size rule reads the playmat's content box, so the mats lay out in
+   what is left and never move when the buttons change. The dock itself is
+   absolutely placed in it (left / seam are read from the laid-out mats by
+   sideDockPlacement.ts): the primary button is centred on the line where the
+   mats meet, extras stack above it, the caption sits below. */
+.arena {
+  --side-dock-w: 8rem;
+  --side-dock-gap: 0.4rem;
+}
+
+.arena.arena-side-actions .playmat {
+  --midline-h: calc(-2 * var(--mat-gap));
+  position: relative;
+}
+
+.arena.arena-wide.arena-side-actions .playmat {
+  padding-right: calc(var(--side-dock-w) + var(--side-dock-gap) + 2px);
+}
+
+.arena.arena-side-actions .midline {
+  display: none;
+}
+
+.arena.arena-side-actions .playmat-inner > .side-field.side-you {
+  margin-top: calc(-1 * var(--mat-gap));
+}
+
+/* A zero-height anchor on the seam; the primary hangs half its height below
+   it and the extras grow upward, so the primary never moves. */
+.side-dock {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--side-dock-left, 0px) + var(--side-dock-gap));
+  top: var(--side-dock-seam, 50%);
+  width: var(--side-dock-w);
+  height: 0;
+  pointer-events: none;
+}
+
+.side-dock .primary-dock.primary-dock-inline {
+  position: absolute;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: calc(-0.5 * var(--dock-h));
+  transform: none;
+  z-index: auto;
+  width: auto;
+  height: auto;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-sizing: border-box;
+}
+
+.primary-dock-inline .primary-dock-main {
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
+  width: auto;
+}
+
+.primary-dock-inline .intent-btn.dock-extra {
+  flex: 0 0 var(--dock-h);
+  height: var(--dock-h);
+  min-width: 0;
+  max-width: none;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline .intent-btn.intent-btn-primary {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.primary-dock-inline.has-extras .intent-btn.intent-btn-primary {
+  font-size: 0.78rem;
+}
+
+/* With extras the labels wrap onto two lines: no room for the key tags on top of
+   that (the keys still work). A lone primary keeps its Space tag. */
+.primary-dock-inline.has-extras .intent-btn.dock-extra[data-key-tag]::after,
+.primary-dock-inline.has-extras.has-primary .primary-dock-main::after {
+  content: none;
+}
+
+.primary-dock-inline .waiting-opp {
+  height: 100%;
+  min-height: 0;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+/* Under the primary, within the gutter's width. It stops at the bottom of the board
+   (scrolling inside if a long mulligan text needs more) and takes no part in layout. */
+.side-dock .dock-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--dock-h) / 2 + 0.4rem);
+  max-height: max(0px, calc(100cqh - var(--side-dock-seam, 0px) - var(--dock-h) / 2 - 1rem));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-width: 0;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  pointer-events: auto;
+}
+
+.dock-caption .prompt {
+  /* Chrome, like the strip's prompt: a double-click must not select a word (#314). */
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  background: rgb(var(--deep-rgb) / 0.94);
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+.dock-caption .prompt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dock-caption .prompt.prompt-battle {
+  background: var(--arena-raised);
+  border-color: var(--chrome);
+  font-weight: 600;
+}
+
+.dock-caption .dock-caption-mulligan {
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
+  color: var(--ink);
+}
+
+.dock-caption .dock-caption-mulligan strong {
+  color: var(--chrome-bright);
+}
+
 /* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */
 .opp-hand-corner {
   --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);
@@ -4920,6 +5718,9 @@ body.is-panel-drag * {
 .opp-hand-corner .opp-corner-cards {
   display: flex;
   justify-content: center;
+}
+.opp-hand-corner .opp-corner-face {
+  pointer-events: auto;
 }
 .opp-hand-corner .opp-corner-card {
   flex: 0 0 auto;
@@ -4967,11 +5768,25 @@ body.is-panel-drag * {
   order: 2;
 }
 
-/* —— Opponent hand pinned above the playmat (desktop, oppHandSpot) ——
-   The mats give up a strip at the top for it, like the phone hint row, so
-   it never covers the opponent's cards. */
-.arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat) {
+/* —— Opponent hand pinned to the playmat (desktop, oppHandSpot) ——
+   Top centre: the mats give up a strip at the top for it, like the phone hint
+   row, so it never covers the opponent's cards. Left / right: the hand fills
+   the open space beside the opponent's mat (see .opp-hand-mat-side below);
+   only when the window is too narrow to leave that space (and while the board
+   is tilted) does it fall back to the same top strip. Bigger playing area's
+   two-row mats fill the width, so there the mats shrink by a gutter for the
+   hand instead (--hand-gutter, #529). The reservation sits on
+   .playmat-inner for those, because a container query cannot style its own
+   container. */
+.arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat-centre),
+.arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side) {
   --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
+}
+
+@container playmat (aspect-ratio < 1.02) {
+  .arena.arena-wide .playmat-inner:has(> .opp-hand-mat-side) {
+    --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
+  }
 }
 
 .opp-hand-mat {
@@ -5034,6 +5849,119 @@ body.is-panel-drag * {
   order: -1;
 }
 
+/* Left / right with room: the hand is a small horizontal fan centred in the gutter
+   beside the opponent's mat, over the mat's height. The mat math below mirrors
+   .side-field (--hint-h is 0 here, nothing is reserved at the top). The
+   tilted board keeps the strip. */
+@container playmat (aspect-ratio >= 1.02) {
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {
+    --m-h: calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2);
+    --m-w: min(100cqw, calc(var(--m-h) * 1.95));
+    position: absolute;
+    /* The mats and the strip share the space left over by 3 gaps, so the opponent
+       mat starts half a gap down. */
+    top: calc(var(--mat-gap) / 2);
+    width: calc((100cqw - var(--m-w)) / 2 - 0.6rem);
+    max-width: none;
+    height: var(--m-h);
+    container-type: size;
+    justify-content: stretch;
+  }
+
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-left {
+    left: 0;
+  }
+
+  .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-right {
+    right: 0;
+  }
+
+  /* Bigger playing area: the mats fill the width, so they give up a gutter on the hand's side
+     (padding here, and --hand-gutter taken off the width the mat is sized from) and the hand
+     sits in it at the opponent mat's height. */
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .playmat-inner:has(> .opp-hand-mat-side) {
+    --hand-gutter: calc(var(--dock-cw, 4.6rem) * 1.9);
+  }
+
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .playmat-inner:has(> .opp-hand-mat-left) {
+    padding-left: var(--hand-gutter);
+  }
+
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .playmat-inner:has(> .opp-hand-mat-right) {
+    padding-right: var(--hand-gutter);
+  }
+
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .opp-hand-mat-side {
+    --m-h: min(
+      calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+      calc((100cqw - var(--hand-gutter)) / 2.9)
+    );
+    /* The mats are centred, so the opponent's starts after the space left over above them. */
+    top: max(calc(var(--mat-gap) / 2), calc((100cqh - 2 * var(--m-h) - var(--midline-h) - 2 * var(--mat-gap)) / 2));
+    position: absolute;
+    width: calc(var(--hand-gutter) - 0.6rem);
+    max-width: none;
+    height: var(--m-h);
+    container-type: size;
+    justify-content: stretch;
+  }
+
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .opp-hand-mat-left {
+    left: 0;
+  }
+
+  .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .opp-hand-mat-right {
+    right: 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side > .board-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat {
+    --pad: 0.3rem;
+    --cw: min(calc(var(--dock-cw, 4.6rem) * 0.75), calc(100cqw * 0.6));
+    --step: min(
+      calc(var(--cw) * 0.55),
+      calc((100cqw - var(--pad) - var(--cw)) / max(1, var(--n) - 1))
+    );
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.3rem 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner.opp-hand-corner-mat > .opp-hand-count {
+    order: 0;
+    align-self: center;
+  }
+
+  /* A small horizontal fan, like a regular hand, centred in the gutter, vertically on the mat. */
+  .arena.arena-wide .opp-hand-mat-side .opp-corner-cards {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card {
+    width: var(--cw);
+    height: calc(var(--cw) * 1.4);
+    margin-top: 0;
+    margin-left: 0;
+    transform: rotate(calc(var(--rot, 0deg) * 0.6));
+    transform-origin: 50% 0;
+  }
+
+  .arena.arena-wide .opp-hand-mat-side .opp-hand-corner-mat .opp-corner-card + .opp-corner-card {
+    margin-top: 0;
+    margin-left: calc(var(--step) - var(--cw));
+  }
+}
+
 /* Drop target while dragging the opponent hand over the top of the mat. */
 .panel-drop-spot {
   position: fixed;
@@ -5053,7 +5981,7 @@ body.is-panel-drag * {
 
 /* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
    cost line goes (the art shows it) unless an effect changed it. */
-@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .arena .side-field .card-caption .name {
     font-size: clamp(0.625rem, calc(var(--c) * 0.12 * var(--text-scale, 1)), 0.74rem);
   }
@@ -5069,7 +5997,7 @@ body.is-panel-drag * {
 }
 
 /* Landscape phones: the rail is narrow, so the pill's subtext wraps instead of being cut. */
-@media (orientation: landscape) and (min-width: 600px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
   .waiting-opp-text span {
     white-space: normal;
     overflow-wrap: anywhere;
@@ -5331,17 +6259,21 @@ body.is-panel-drag * {
   z-index: 92;
 }
 
-/* Portrait phones: a strip above the top mat, smaller than the near one. */
-@media (max-width: 899px) and (orientation: portrait) {
-  .arena.arena-spec-top:not(.arena-wide) {
-    --fan-cw: clamp(48px, 14vw, 72px);
-    --fan-ch: calc(var(--fan-cw) * 1.4);
-  }
+/* Phones: both hands are grids of small upright cards (SpectatorFarHand grid
+   mode, and the plain hand row for the near hand), so the height the two fans
+   took goes to the mats. One shared card size, in px so the hint row can add
+   it up. */
+.arena.arena-spec-grid {
+  --spec-cw: clamp(40px, 12.5vw, 56px);
+  --spec-ch: calc(var(--spec-cw) * 1.4);
+}
 
-  .arena.arena-spec-top:not(.arena-wide) .playmat {
-    /* Under the Chat button and Battle log pill, which float over the top of the board. */
+/* Portrait: the far row sits under the Chat button and Battle log pill, which
+   float over the top of the board. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena.arena-spec-grid:not(.arena-wide) .playmat {
     --spec-pills: 2.4rem;
-    --hint-h: calc(var(--fan-ch) * 1.1 + 4px + var(--spec-pills));
+    --hint-h: calc(var(--spec-ch) + 4px + var(--spec-pills));
   }
 }
 
@@ -5391,11 +6323,41 @@ body.is-panel-drag * {
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
 }
 
-/* Portrait phones: full-width overlapped strip, like the near one. */
-.arena .spec-far-portrait .spec-far-cards {
+/* The grid: cards side by side, no overlap, rotation or drop. A hand wider than
+   the row scrolls sideways (never wraps) so the mats do not move as it grows. */
+.arena .spec-far-grid .spec-far-cards {
+  --fan-cw: var(--spec-cw);
+  --fan-ch: var(--spec-ch);
   width: 100%;
-  padding-inline: calc(var(--fan-cw) * 0.3);
-  --fan-gap: 0.4rem;
+  gap: 4px;
+  padding-inline: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.arena .spec-far-grid .spec-far-cards::-webkit-scrollbar {
+  display: none;
+}
+
+/* Centred while it fits (auto margins collapse to nothing once it overflows). */
+.arena .spec-far-grid .spec-far-cards > :first-child {
+  margin-left: auto;
+}
+
+.arena .spec-far-grid .spec-far-cards > :last-child {
+  margin-right: auto;
+}
+
+.arena .spec-far-grid .spec-far-cards > * {
+  transform: none;
+  margin-left: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.arena .spec-far-grid .spec-far-cards > .card-tile:hover,
+.arena .spec-far-grid .spec-far-cards > .card-tile:focus-visible {
+  transform: none;
 }
 
 /* Portrait phones: both labels are centred over their strip. The far one sits
@@ -5418,34 +6380,54 @@ body.is-panel-drag * {
   justify-content: center;
 }
 
-.arena .spec-far-portrait .spec-far-cards.spec-far-scroll {
-  justify-content: flex-start;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  gap: 0.3rem;
+/* Tiles this small keep their cost and power readable: a one-line name and
+   smaller badges than the hand's usual caption. */
+.arena .spec-far-grid .card-caption,
+.arena .hand-row-spec-grid .card-caption {
+  padding: 1px 2px;
 }
 
-.arena .spec-far-portrait .spec-far-cards.spec-far-scroll > * {
-  transform: none;
-  margin-left: 0;
+.arena .spec-far-grid .card-caption .name,
+.arena .hand-row-spec-grid .card-caption .name {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(var(--spec-cw) * 0.15);
+  line-height: 1.15;
 }
 
-/* Landscape phones: two small fans in the right column, the far one on top.
-   The mats are height-bound there and leave side margins, so the column
-   widens to give the overlapped cards room to show their cost and power. */
+.arena .spec-far-grid .card-caption .meta,
+.arena .hand-row-spec-grid .card-caption .meta {
+  font-size: calc(var(--spec-cw) * 0.14);
+  line-height: 1.1;
+}
+
+.arena .spec-far-grid .power-badge,
+.arena .hand-row-spec-grid .power-badge {
+  top: 2px;
+  right: 2px;
+  padding: 0 2px;
+  font-size: calc(var(--spec-cw) * 0.17);
+  line-height: 1.2;
+}
+
+/* Landscape phones: both hands are wrapping grids in the right column, the far
+   one on top. The mats are height-bound there and leave side margins, so the
+   column widens to give the cards room to show their cost and power. */
 .arena.arena-lp.arena-spec-lp {
   --rail-w: clamp(200px, 30vw, 260px);
 }
 
+.arena.arena-lp.arena-spec-grid {
+  --spec-cw: clamp(34px, 11vh, 44px);
+}
+
 .arena .spec-far-landscape {
-  --fan-cw: clamp(40px, 13vh, 52px);
-  --fan-ch: calc(var(--fan-cw) * 1.4);
   --hint-h: auto;
   height: auto;
   flex-direction: column;
   align-items: stretch;
-  padding: 0.2rem 0 calc(var(--fan-ch) * 0.1);
+  padding: 0.2rem 0 0.25rem;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
 }
@@ -5457,28 +6439,695 @@ body.is-panel-drag * {
 }
 
 .arena .spec-far-landscape .hand-label,
-.arena .rail-hand-fan > .hand-label-head .hand-label {
+.arena .rail-hand-spec > .hand-label-head .hand-label {
   min-height: 1.3rem;
   padding: 0 0.5rem;
   font-size: 0.62rem;
 }
 
-.arena .rail-hand-fan > .hand-label-head {
+.arena .rail-hand-spec > .hand-label-head {
   padding: 0.2rem 0.5rem 0;
 }
 
-.arena .spec-far-landscape .spec-far-cards {
-  width: 100%;
-  margin-top: calc(var(--fan-ch) * 0.1);
-  padding-inline: calc(var(--fan-cw) * 0.3);
-  --fan-gap: 0.25rem;
+.arena .spec-far-landscape.spec-far-grid .spec-far-cards {
+  height: auto;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  overflow: visible;
+  padding-inline: 0.5rem;
 }
 
-.arena.arena-spec-lp .rail-hand-fan .hand-row-inner.hand-fan-cards {
-  --fan-cw: clamp(40px, 13vh, 52px);
-  --fan-ch: calc(var(--fan-cw) * 1.4);
-  --fan-gap: 0.25rem;
+.arena .spec-far-landscape.spec-far-grid .spec-far-cards > * {
+  margin-inline: 0;
+}
+
+/* The near hand: the plain hand row, shrunk to the same small upright cards. */
+.arena .hand-row-spec-grid .hand-row-inner {
+  --spec-gap: 4px;
+  gap: var(--spec-gap);
+  padding: 0.2rem 0.1rem 0.15rem;
+}
+
+.arena .hand-row-spec-grid .hand-row-inner .card-tile.full {
+  width: var(--spec-cw);
+  height: var(--spec-ch);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.arena .hand-row-spec-grid .hand-row-inner .card-tile:hover {
+  transform: none;
+}
+
+/* Portrait: one row, centred while it fits and scrolling sideways past that. */
+.arena .hand-row-spec-grid .hand-row-inner > :first-child {
+  margin-left: auto;
+}
+
+.arena .hand-row-spec-grid .hand-row-inner > :last-child {
+  margin-right: auto;
+}
+
+.arena .hand-row-spec-grid {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+.arena .hand-row-spec-grid::-webkit-scrollbar {
+  display: none;
+}
+
+/* Landscape: wraps inside the column instead. */
+.arena .rail-hand-spec .hand-row-spec-grid {
+  overflow: visible;
+}
+
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner {
+  flex-wrap: wrap;
+  padding: 0.2rem 0.5rem 0.25rem;
+}
+
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner > :first-child,
+.arena .rail-hand-spec .hand-row-spec-grid .hand-row-inner > :last-child {
+  margin-inline: 0;
+}
+
+/* Holding a card must not open the phone's image sheet (iOS Save / Share), start
+   an image drag or select the caption: the app's own press-and-hold inspects it.
+   Card art and tiles only, so chat inputs, the log and the inspect panel's card
+   text stay selectable. (#445) */
+.card-tile,
+.card-tile *,
+.board-root img,
+.card-preview-img,
+.card-inspect-art,
+.card-inspect-art img,
+.card-spotlight-card,
+.card-spotlight-card *,
+.reveal-card,
+.reveal-card *,
+.trash-viewer-backdrop img,
+.defend-chip,
+.defend-chip * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* —— Log Pose docked into a side column (desktop) ——
+   A docked, open Log Pose is a movable side panel like the others (data-panel="logpose": its grip and dividers
+   work, and its slot is saved in panelLayout); the .lp-dock-host inside it is where the panel renders. It takes
+   most of the column's height (the panels around it shrink to their minimum heights) and sits above its
+   neighbours, so a card fan that overhangs its own panel never draws over the Log Pose panel. */
+.arena.arena-wide .board-panel[data-panel="logpose"] {
+  flex: 1 1 60%;
+  /* The host's 340px plus the padding (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts). */
+  min-height: 352px;
+  z-index: 2;
+  /* A little air, so the panel reads as a card like the others and not as the column's own edge. */
+  padding: 6px;
+}
+
+.arena.arena-wide .board-panel[data-panel="logpose"] > .lp-dock-host {
+  min-height: 340px;
+}
+
+/* While Log Pose is docked in a column, that column is at least as wide as the panel's minimum (320px), so its
+   header stays on one row. The saved column widths are untouched: undocked or closed, the column is itself again. */
+.arena.arena-wide.arena-lp-dock-left .arena-body {
+  grid-template-columns: max(var(--left-w), 320px) minmax(0, 1fr) var(--rail-w);
+}
+
+.arena.arena-wide.arena-lp-dock-right .arena-body {
+  grid-template-columns: var(--left-w) minmax(0, 1fr) max(var(--rail-w), 320px);
+}
+
+/* The opponent-hand fan hangs its cards from above its own top edge (the rest is clipped by the column). With the
+   Log Pose host directly above it nothing is "above" any more, so it gets that room itself and shows whole. */
+.arena.arena-wide .board-panel[data-panel="logpose"] + .board-panel .opp-hand-fan {
+  padding-top: calc(var(--fan-w) * 0.5);
+}
+
+/* —— Bigger playing area (bigBoard setting, DuelBoard adds .arena-big) ——
+   The mats are sized from the room the board has, so the board gives its
+   margins back: narrower side columns on desktop, a thinner HUD, tighter gaps
+   and paddings around and inside the mats on every device. The hand, End
+   turn and prompts keep their own sizes; only chrome and spacing shrink. The
+   columns start at the narrow widths below; a width dragged out here is saved
+   apart from the normal layout's (`panelSizesBig`) and applied as the inline
+   --left-w / --rail-w, so turning the mode off brings the normal widths back. */
+
+/* Desktop: the columns shrink to what their panels need (COLUMN_MIN_PX; the
+   Turn panel's four stat columns keep the rail at 250). Landscape phones keep
+   their icon rail and slim action column. */
+.arena.arena-big.arena-wide:not(.arena-lp) {
+  --left-w: clamp(180px, 13vw, 240px);
+  --rail-w: clamp(250px, 17vw, 330px);
+}
+
+/* A column with every panel hidden gives its whole width to the board. */
+.arena.arena-no-left .arena-left,
+.arena.arena-no-right .arena-rail {
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+.arena.arena-big .hud-bar {
+  --hud-py: 0.15rem;
+}
+
+.arena.arena-big .playmat {
+  --mat-gap: 3px;
+  padding: 2px 3px;
+}
+
+/* The mat's own padding and the gaps between its piles and cards (the tilted
+   board keeps this three-row layout). */
+.arena.arena-big.arena-wide.arena-tilt:not(.arena-lp) .side-grid {
+  --g: 0.9cqh;
+  --c: min(
+    calc((100cqw - 3.6cqh - 6 * 0.9cqh) / 7),
+    calc((100cqh - 3.6cqh - 2 * 0.9cqh) / 3.8)
+  );
+  padding: 1.8cqh;
+}
+
+/* —— Two-row mats (desktop and landscape phones) ——
+   Both are height-bound, so the usual three rows (Characters, Leader, DON!!)
+   leave empty felt beside the mats. The DON!! cost area and the DON!! deck
+   move up into the Leader's row, which makes each mat two card rows tall and
+   wider, and the cards much bigger. Eight columns; yours is below, the
+   opponent's is the same mat turned 180°:
+
+     life characters characters characters characters characters .    deck
+     life cost       cost       leader     stage      dondeck    .    trash
+
+   The spare column beside the Characters is where a rested Character spills
+   (--char-span 6). The mat is as wide as its eight columns need (--mat-h is
+   capped so the mat never gets taller than that), or as the board column
+   allows. The tilted board and phone portrait keep their own layouts. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field {
+  --mat-h: min(
+    calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+    calc((100cqw - var(--hand-gutter, 0px)) / 2.9)
+  );
+  width: calc(var(--mat-h) * 2.9);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-grid {
+  --g: 1.4cqh;
+  --c: min(
+    calc((100cqw - 3cqh - 7 * 1.4cqh) / 8),
+    calc((100cqh - 3cqh - 1.4cqh) / 2.8)
+  );
+  padding: 1.5cqh;
+  grid-template-columns: repeat(8, var(--c));
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+  grid-template-areas:
+    "life characters characters characters characters characters . deck"
+    "life cost cost cost leader stage dondeck trash";
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-opp .side-grid {
+  grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+  grid-template-areas:
+    "trash dondeck stage leader cost cost cost life"
+    "deck . characters characters characters characters characters life";
+}
+
+/* The cost area is three columns wide (it takes the spare column beside the Leader, #529) and
+   one card tall: the label ("DON!! 3/9") on top, the chips under it in one row (they shrink
+   with the count so 10 fit; resting ones turn on their side and run wider, so a mostly
+   rested 10 can still wrap to a second row, always inside the strip). */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip {
   width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: calc(var(--c) * 0.02);
+  padding: calc(var(--c) * 0.04) calc(var(--c) * 0.07);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-label {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.35em;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.04em 0.4em 0.06em;
+  line-height: 1.1;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.11), 0.75rem);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-nums {
+  font-size: clamp(0.58rem, calc(var(--c) * 0.14), 0.95rem);
+  line-height: 1.1;
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-strip-rail {
+  --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
+  flex: 1 1 0;
+  min-height: 0;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--c) * 0.025) calc(var(--c) * 0.03);
+  padding: 0;
+}
+
+/* Chips wrap instead of overlapping; a rested one turns on its side, so its
+   box is as tall as a chip is wide. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-chip-btn + .don-chip-btn {
+  margin-left: 0;
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-chip.rested {
+  margin: calc(var(--don-w) * -0.2) calc(var(--don-w) * 0.2);
+}
+
+/* Separate DON!! piles (#381) wrap as groups, each with a faint ring so a
+   pile still reads as one when the chips wrap (no extra height). */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-pile {
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: calc(var(--c) * 0.04);
+  border-radius: calc(var(--c) * 0.04);
+  background: rgb(var(--chrome-bright-rgb) / 0.1);
+  box-shadow: 0 0 0 calc(var(--c) * 0.02) rgb(var(--chrome-bright-rgb) / 0.3);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-pile + .don-pile {
+  margin-left: 0;
+}
+
+/* The selection pill sits on the label row, at the right end. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .don-select-count {
+  left: auto;
+  right: calc(var(--c) * 0.07);
+  top: calc(var(--c) * 0.05);
+  transform: none;
+  max-width: calc(100% - var(--c) * 0.9);
+  padding: 0.03rem 0.35rem;
+  font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.62rem);
+}
+
+/* A rested Leader or Stage turns at 85%, so the pair (Leader, Stage back to back)
+   spills 0.1 of a card into the DON!! deck's column on one side, and the rested
+   Leader reaches about 0.19 of a card past its cell toward the cost area on the
+   other. The cost area keeps that edge inset (rested or not, so nothing shifts
+   when the Leader turns) so its gray box is never under the Leader or on a DON!! chip. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-leader,
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage {
+  --rest-k: 0.85;
+  --rest-shift: calc(var(--c) * -0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-stage,
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-leader {
+  --rest-shift: calc(var(--c) * 0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-stage {
+  --rest-shift: calc(var(--c) * -0.095);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-cost {
+  --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+  padding-right: var(--cost-inset);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field.side-opp .zone-cost {
+  padding-right: 0;
+  padding-left: var(--cost-inset);
+}
+
+/* The turn-order tag stays inside the Life column, off the first Character. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .mat-order {
+  top: 1.5cqh;
+  left: 1.5cqh;
+  padding: 0.1em 0.45em;
+  font-size: clamp(0.5rem, 3.9cqh, 0.78rem);
+}
+
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-opp .mat-order {
+  top: auto;
+  left: auto;
+  bottom: 1.5cqh;
+  right: 1.5cqh;
+}
+
+/* A full-height row: the DON!! deck is as big as the Deck pile beside it. */
+.arena.arena-big.arena-wide:not(.arena-lp):not(.arena-tilt) .side-field .zone-don-deck .zone-pile-stack {
+  width: calc(var(--c) * 0.64);
+  height: calc(var(--c) * 0.88);
+}
+
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena.arena-big .side-grid {
+    --g: 0.6cqw;
+    --c: min(
+      calc((100cqw - 1.2cqw - 5 * 0.6cqw) / 6),
+      calc((100cqh - 1.2cqw - 2 * 0.6cqw) / 4.05)
+    );
+    padding: 0.6cqw;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+  .arena.arena-big.arena-lp .playmat {
+    --mat-gap: 2px;
+    --midline-h: 1rem;
+    padding: 1px 3px calc(2px + var(--safe-b));
+  }
+
+  /* Two-row mats (see the desktop rules above). The mat is as wide as its
+     eight columns need, or as the board column allows. */
+  .arena.arena-big.arena-lp .side-field {
+    --mat-h: min(
+      calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+      calc(100cqw / 2.95)
+    );
+    width: calc(var(--mat-h) * 2.95);
+  }
+
+  .arena.arena-big.arena-lp .side-grid {
+    --g: 1.2cqh;
+    --c: min(
+      calc((100cqw - 3cqw - 7 * 1.2cqh) / 8),
+      calc((100cqh - 3cqh - 1.2cqh) / 2.8)
+    );
+    padding: 1.5cqh 1.5cqw;
+    justify-content: center;
+    grid-template-columns: repeat(8, var(--c));
+    grid-template-rows: calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+    grid-template-areas:
+      "life characters characters characters characters characters . deck"
+      "life cost cost cost leader stage dondeck trash";
+  }
+
+  .arena.arena-big.arena-lp .side-opp .side-grid {
+    grid-template-areas:
+      "trash dondeck stage leader cost cost cost life"
+      "deck . characters characters characters characters characters life";
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-cost {
+    display: flex;
+    align-items: center;
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-leader,
+  .arena.arena-big.arena-lp .side-field .zone-stage {
+    --rest-k: 0.85;
+    --rest-shift: calc(var(--c) * -0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-stage,
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-leader {
+    --rest-shift: calc(var(--c) * 0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-stage {
+    --rest-shift: calc(var(--c) * -0.095);
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-cost {
+    --cost-inset: max(0px, calc(var(--c) * 0.25 - var(--g)));
+    padding-right: var(--cost-inset);
+  }
+
+  .arena.arena-big.arena-lp .side-field.side-opp .zone-cost {
+    padding-right: 0;
+    padding-left: var(--cost-inset);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: calc(var(--c) * 0.02);
+    padding: calc(var(--c) * 0.04) calc(var(--c) * 0.07);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip-label {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    align-self: flex-start;
+    gap: 0.3em;
+    margin: 0;
+    padding: 0.04em 0.35em 0.06em;
+    line-height: 1.1;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-strip-rail {
+    --don-w: min(calc(var(--c) * 0.36), calc((var(--c) * (2.78 - 0.03 * (var(--don-count, 1) - 1)) - max(0px, var(--cost-inset) - var(--c) * 0.04)) / max(1, var(--don-count, 1))));
+    flex: 1 1 0;
+    min-height: 0;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--c) * 0.025) calc(var(--c) * 0.03);
+    padding: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-chip-btn + .don-chip-btn {
+    margin-left: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-chip.rested {
+    margin: calc(var(--don-w) * -0.2) calc(var(--don-w) * 0.2);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-pile {
+    flex-wrap: wrap;
+    max-width: 100%;
+    gap: calc(var(--c) * 0.04);
+    border-radius: calc(var(--c) * 0.04);
+    background: rgb(var(--chrome-bright-rgb) / 0.1);
+    box-shadow: 0 0 0 calc(var(--c) * 0.02) rgb(var(--chrome-bright-rgb) / 0.3);
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-pile + .don-pile {
+    margin-left: 0;
+  }
+
+  .arena.arena-big.arena-lp .side-field .don-select-count {
+    left: auto;
+    right: calc(var(--c) * 0.07);
+    top: calc(var(--c) * 0.05);
+    transform: none;
+    max-width: calc(100% - var(--c) * 0.9);
+    padding: 0.03rem 0.35rem;
+    font-size: clamp(0.45rem, calc(var(--c) * 0.1), 0.62rem);
+  }
+
+  .arena.arena-big.arena-lp .side-field .zone-don-deck .zone-pile-stack {
+    width: calc(var(--c) * 0.6);
+    height: calc(var(--c) * 0.84);
+  }
+}
+
+/* —— No top bar (#468) ——
+   Bigger playing area on a computer drops the top bar: the board takes the whole window height. The bar's
+   buttons (Brief, Log Pose, Undo, the ⋯ match menu) ride in one row at the top of the right column (the left one
+   when the right is empty). The row has a fixed height and is in the column's flow, so a button coming or going
+   never moves a panel; it is not a movable panel (no data-panel), so drag and resize leave it alone. */
+.arena.arena-wide .col-actions {
   box-sizing: border-box;
-  padding-inline: calc(var(--fan-cw) * 0.3);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+  height: calc(44px + var(--safe-t));
+  padding: var(--safe-t) 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.35);
+}
+
+.arena.arena-wide .col-actions > * {
+  flex: none;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn,
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+}
+
+.arena.arena-wide .col-actions .hud-menu-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Brief and Log Pose are icons here (the buttons keep their names): with Undo and the hot-seat switch beside them,
+   their text labels would not fit the narrowest column. */
+.arena.arena-wide .col-actions .hud-brief-btn.hud-brief-text {
+  width: 36px;
+  padding: 0;
+}
+
+.arena.arena-wide .col-actions .hud-brief-label {
+  display: none;
+}
+
+/* The pop-ups that hang under the old bar sit at the top of the window now. */
+.arena.arena-no-hud .undo-request {
+  top: calc(var(--safe-t) + 0.75rem);
+}
+
+.arena.arena-no-hud .float-layer-peek {
+  padding-top: calc(var(--safe-t) + 0.75rem);
+}
+
+/* An effect revealed this hand card to the opponent (#491): a small pill across the top of the card.
+   Absolutely placed inside the tile, so the card keeps its size and the hand its layout. */
+.hand-revealed-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: calc(100% - 4px);
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: rgba(8, 14, 22, 0.88);
+  border: 1px solid #f3c969;
+  color: #f3c969;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+.card-tile.hand-revealed {
+  outline: 1px solid rgba(243, 201, 105, 0.55);
+  outline-offset: -1px;
+}
+
+/* Revealed cards sit among card backs (#491): paint them above their overlapping neighbours so they stay readable. */
+.opp-hand-corner .opp-corner-face,
+.opp-hand-fan .opp-fan-face,
+.opp-hand-faces .card-tile.opp-hand-face {
+  z-index: 2;
+}
+
+/* —— Undo choice menu (#536): a fixed overlay in a portal, so opening it never shifts the button or its row —— */
+.hud-undo-btn.is-blocked {
+  opacity: 0.45;
+  cursor: help;
+}
+
+.undo-menu {
+  position: fixed;
+  z-index: 60;
+  width: min(300px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--chrome);
+  border-radius: 12px;
+  background: rgb(var(--deep-rgb) / 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.undo-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.undo-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.undo-menu-item:hover,
+.undo-menu-item:focus-visible {
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.16);
+  outline: none;
+}
+
+.undo-menu-label {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.undo-menu-reason {
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: var(--ink-dim, var(--ink));
+  opacity: 0.8;
+}
+
+.undo-menu-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.undo-menu-item.is-disabled:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.undo-menu-item.is-disabled .undo-menu-label {
+  opacity: 0.6;
+}
+
+.undo-menu-item.is-warn {
+  border-color: rgba(230, 160, 60, 0.55);
+  background: rgba(230, 160, 60, 0.12);
+  color: #ffd9a0;
+}
+
+.undo-menu-item.is-warn:hover,
+.undo-menu-item.is-warn:focus-visible {
+  border-color: #e6a03c;
+  background: rgba(230, 160, 60, 0.24);
+}
+
+.undo-menu-note {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.undo-request p.undo-request-warn {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(230, 160, 60, 0.55);
+  border-radius: 8px;
+  background: rgba(230, 160, 60, 0.12);
+  color: #ffd9a0;
 }

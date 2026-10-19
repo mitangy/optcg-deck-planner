@@ -12,7 +12,8 @@ export type PanelId =
   | "oppHand"
   | "turn"
   | "hand"
-  | "chat";
+  | "chat"
+  | "logpose";
 
 export type PanelColumn = "left" | "right";
 
@@ -26,11 +27,13 @@ export const PANEL_LABELS: Record<PanelId, string> = {
   turn: "Turn and clocks",
   hand: "Hand (Grid)",
   chat: "Chat",
+  logpose: "Log Pose",
 };
 
 export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   left: ["preview", "recent", "log"],
-  right: ["oppHand", "turn", "hand", "chat"],
+  // Log Pose has a slot only while it is docked and open; it sits at the top of the right column, where a docked panel always was.
+  right: ["logpose", "oppHand", "turn", "hand", "chat"],
 };
 
 const PANEL_IDS = [...DEFAULT_PANEL_LAYOUT.left, ...DEFAULT_PANEL_LAYOUT.right];
@@ -59,6 +62,11 @@ export function parsePanelLayout(saved: string): PanelLayout {
     return out;
   };
   const layout: PanelLayout = { left: read(leftRaw), right: read(rightRaw) };
+  // Older saves never mention Log Pose: it goes back to the top of its column (where a docked panel sat before it was movable), not the end.
+  if (!seen.has("logpose")) {
+    seen.add("logpose");
+    layout[defaultColumnOf("logpose")].unshift("logpose");
+  }
   for (const id of PANEL_IDS) if (!seen.has(id)) layout[defaultColumnOf(id)].push(id);
   return layout;
 }
@@ -99,6 +107,17 @@ export function movePanel(
   return next;
 }
 
+/**
+ * Log Pose's column is decided by the side it is docked to (`side`; null = not docked on the board, the layout is
+ * left alone so its saved slot survives). Its place in that column is its saved slot; when it was saved in the
+ * other column it comes in at the top.
+ */
+export function placeLogPose(layout: PanelLayout, side: PanelColumn | null): PanelLayout {
+  if (side == null || layout[side].includes("logpose")) return layout;
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  return { [side]: ["logpose", ...layout[side]], [other]: layout[other].filter((p) => p !== "logpose") } as PanelLayout;
+}
+
 export type PanelRect = { id: PanelId; column: PanelColumn; top: number; bottom: number };
 export type ColumnRect = { left: number; right: number };
 
@@ -110,13 +129,13 @@ export type PanelDrop = { column: PanelColumn; beforeId: PanelId | null };
  * it whose middle is below the pointer, else at the end.
  */
 export function panelDropAt(
-  columns: Record<PanelColumn, ColumnRect>,
+  columns: Partial<Record<PanelColumn, ColumnRect>>,
   panels: readonly PanelRect[],
   dragId: PanelId,
   x: number,
   y: number,
 ): PanelDrop {
-  const dist = (c: ColumnRect) => (x < c.left ? c.left - x : x > c.right ? x - c.right : 0);
+  const dist = (c: ColumnRect | undefined) => (!c ? Infinity : x < c.left ? c.left - x : x > c.right ? x - c.right : 0);
   const column: PanelColumn = dist(columns.left) <= dist(columns.right) ? "left" : "right";
   const inColumn = panels
     .filter((p) => p.column === column && p.id !== dragId)
@@ -147,6 +166,48 @@ export function nudgePanel(
   return movePanel(layout, id, column, shown[i + 2] ?? null);
 }
 
+/**
+ * Which desktop columns collapse to nothing: one with no panel to show (every
+ * panel in it hidden or moved away). While a panel is being dragged both stay
+ * open as drop targets, and a column holding the defend tray (`busy`) stays.
+ */
+export function collapsedColumns(
+  shown: Record<PanelColumn, readonly PanelId[]>,
+  dragging: boolean,
+  busy: Partial<Record<PanelColumn, boolean>> = {},
+): Record<PanelColumn, boolean> {
+  const collapse = (c: PanelColumn) => !dragging && shown[c].length === 0 && !busy[c];
+  return { left: collapse("left"), right: collapse("right") };
+}
+
+/**
+ * One combined column (the `sideColumns` setting): every panel goes into
+ * `side`, that column's own panels first, then the other column's, each in its
+ * saved order. The saved layout is never written from this, so the split comes
+ * back with "both".
+ */
+export function mergeIntoColumn(layout: PanelLayout, side: PanelColumn): PanelLayout {
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  return { [side]: [...layout[side], ...layout[other]], [other]: [] } as PanelLayout;
+}
+
+/**
+ * A reorder made in the one combined column, split back into the saved two:
+ * the new order's first panels go to `side` (as many as it held before), the
+ * rest to the other column, so switching back to Both still gives two
+ * populated columns and an untouched order restores the saved layout. A docked
+ * panel (`docked`: Log Pose, which must stay in `side`) pulls the cut down to
+ * just after it, so moving it low in the column keeps it where it was put.
+ */
+export function splitMergedLayout(next: PanelLayout, saved: PanelLayout, side: PanelColumn, docked?: PanelId): PanelLayout {
+  const other: PanelColumn = side === "left" ? "right" : "left";
+  const order = [...next[side], ...next[other]];
+  const at = docked ? order.indexOf(docked) : -1;
+  const keep = saved[side].length;
+  const cut = Math.max(keep, at + 1);
+  return { [side]: order.slice(0, cut), [other]: order.slice(cut) } as PanelLayout;
+}
+
 export function samePanelLayout(a: PanelLayout, b: PanelLayout): boolean {
   return serializePanelLayoutRaw(a) === serializePanelLayoutRaw(b);
 }
@@ -159,16 +220,30 @@ export type MatSpot = "left" | "centre" | "right";
 export type OppHandSpot = MatSpot | "";
 export const OPP_HAND_SPOTS: readonly OppHandSpot[] = ["", "left", "centre", "right"];
 
+/**
+ * The playmat leaves open space beside the opponent's mat for a left / right
+ * hand once its inner box is at least this much wider than tall (kept in step
+ * with the `@container playmat (aspect-ratio >= 1.02)` rules in board.css).
+ * The tilted board never does.
+ */
+export const MAT_SIDE_MIN_ASPECT = 1.02;
+
 export type MatRect = { left: number; right: number; top: number; bottom: number };
 
 /**
  * The mat spot a dragged opponent hand lands on: over the top strip of the
- * playmat (its top fifth, or just above it), by thirds of its width. Null
- * anywhere else, so it goes back to a column.
+ * playmat (its top fifth, or just above it), by thirds of its width. With
+ * `opp` (the opponent's mat, when there is open space beside it) the gutters
+ * on either side of that mat, from the strip down to its bottom edge, are the
+ * left / right spots too. Null anywhere else, so it goes back to a column.
  */
-export function matSpotAt(mat: MatRect, x: number, y: number): MatSpot | null {
+export function matSpotAt(mat: MatRect, x: number, y: number, opp?: MatRect): MatSpot | null {
   if (x < mat.left || x > mat.right) return null;
   const band = (mat.bottom - mat.top) * 0.2;
+  if (opp && y >= mat.top - band / 2 && y <= opp.bottom) {
+    if (x < opp.left) return "left";
+    if (x > opp.right) return "right";
+  }
   if (y < mat.top - band / 2 || y > mat.top + band) return null;
   const third = (mat.right - mat.left) / 3;
   if (x < mat.left + third) return "left";

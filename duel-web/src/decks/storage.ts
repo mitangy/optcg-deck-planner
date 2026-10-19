@@ -2,6 +2,7 @@ import {
   isOptcgCardId,
   listAtlasIds,
   lookupCard,
+  maxCopiesFor,
   registerAtlasStub,
 } from "../cards/atlas";
 import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
@@ -20,8 +21,34 @@ export type SavedDeck = {
   artPrefs?: Record<string, string>;
   /** Deck planner deck this copy is linked to (see `decks/planner.ts`). */
   plannerDeckId?: number;
+  /** Saved edits on a planner-linked deck: games keep this version instead of re-importing the planner's (#481). */
+  editedLocally?: boolean;
   updatedAt: number;
 };
+
+/** What a local edit did, for account sync (see `account/deckSync.ts`). */
+export type LocalDeckChange =
+  | { kind: "upsert"; deck: SavedDeck }
+  | { kind: "delete"; id: string; at: number };
+
+/** Fired on `window` when decks changed from outside the page that is showing them (account sync). */
+export const SAVED_DECKS_CHANGED_EVENT = "optcg:saved-decks-changed";
+
+const changeListeners = new Set<(change: LocalDeckChange) => void>();
+
+/** Subscribe to local deck saves and deletes. Remote applies do not fire it. */
+export function onLocalDecksChange(cb: (change: LocalDeckChange) => void): () => void {
+  changeListeners.add(cb);
+  return () => void changeListeners.delete(cb);
+}
+
+function emit(change: LocalDeckChange) {
+  for (const cb of [...changeListeners]) cb(change);
+}
+
+function announceChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SAVED_DECKS_CHANGED_EVENT));
+}
 
 export type DeckValidation = {
   ok: boolean;
@@ -79,7 +106,7 @@ export function validateImportedList(text: string): DeckValidation {
       continue;
     }
 
-    if (line.count > 4) {
+    if (line.count > maxCopiesFor(line.cardId)) {
       errors.push(`${line.cardId} has ${line.count} copies (max 4)`);
     }
     const entry = lookupCard(line.cardId);
@@ -186,6 +213,8 @@ export function saveDeck(input: {
   artPrefs?: Record<string, string>;
   /** Omit to keep the existing planner link. */
   plannerDeckId?: number;
+  /** Omit to keep the existing value. */
+  editedLocally?: boolean;
 }): SavedDeck {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
@@ -204,12 +233,14 @@ export function saveDeck(input: {
     cards: [...input.cards],
     artPrefs,
     plannerDeckId: input.plannerDeckId ?? existing?.plannerDeckId,
+    editedLocally: input.editedLocally ?? existing?.editedLocally,
     updatedAt: Date.now(),
   };
   const idx = decks.findIndex((d) => d.id === id);
   if (idx >= 0) decks[idx] = next;
   else decks.push(next);
   writeAll(decks);
+  emit({ kind: "upsert", deck: next });
   return next;
 }
 
@@ -234,8 +265,33 @@ export function setDeckArtPref(
 }
 
 export function deleteDeck(id: string) {
-  writeAll(readAll().filter((d) => d.id !== id));
+  const decks = readAll();
+  writeAll(decks.filter((d) => d.id !== id));
   if (getSelectedDeckId() === id) setSelectedDeckId(null);
+  if (decks.some((d) => d.id === id)) emit({ kind: "delete", id, at: Date.now() });
+}
+
+/** Write decks that came from the account. Does not fire local-change listeners; pages re-read on the event. */
+export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[] }) {
+  if (change.upsert.length === 0 && change.remove.length === 0) return;
+  const gone = new Set(change.remove);
+  const incoming = new Map(change.upsert.map((d) => [d.id, d]));
+  const next = readAll()
+    .filter((d) => !gone.has(d.id))
+    .map((d) => incoming.get(d.id) ?? d);
+  const have = new Set(next.map((d) => d.id));
+  for (const d of change.upsert) if (!have.has(d.id)) next.push(d);
+  writeAll(next);
+  const selected = getSelectedDeckId();
+  if (selected && gone.has(selected) && !incoming.has(selected)) setSelectedDeckId(null);
+  announceChanged();
+}
+
+/** Forget every deck in this browser (sign-out: they belonged to the account). */
+export function clearLocalDecks() {
+  localStorage.removeItem(STORAGE_KEY);
+  setSelectedDeckId(null);
+  announceChanged();
 }
 
 /** Default leader placeholder for a blank deck (replace via import or manual edits). */
@@ -330,6 +386,8 @@ export function upsertPlannerDeck(input: {
     cards: v.cards,
     artPrefs: kept,
     plannerDeckId: input.plannerId,
+    // A planner pull replaces local edits on purpose.
+    editedLocally: false,
   });
   return { ok: true, deck, warnings: v.warnings };
 }
@@ -376,6 +434,7 @@ export function ensureDefaultDeck(): SavedDeck {
   const kept = listSavedDecks().filter((d) => d.id !== "default-st01");
   if (kept.length !== listSavedDecks().length) {
     writeAll(kept);
+    emit({ kind: "delete", id: "default-st01", at: Date.now() });
     if (getSelectedDeckId() === "default-st01") setSelectedDeckId(null);
   }
   const tests = ensureTestDecks();
@@ -444,18 +503,18 @@ function ensureSeedDeck(id: string, name: string, list: string, legacyName: stri
     if (renamed === existing.name) return existing;
     existing.name = renamed;
     writeAll(all);
+    emit({ kind: "upsert", deck: existing });
     return existing;
   }
   const v = validateImportedList(list);
   if (!v.ok || !v.leaderId) {
     throw new Error(`Seed deck ${id} invalid: ${v.errors.join("; ")}`);
   }
-  return saveDeck({
-    id,
-    name,
-    leaderId: v.leaderId,
-    cards: v.cards,
-  });
+  // updatedAt 0: a seed made on a fresh device never beats the account's copy of it.
+  const seed: SavedDeck = { id, name, leaderId: v.leaderId, cards: v.cards, updatedAt: 0 };
+  writeAll([...all, seed]);
+  emit({ kind: "upsert", deck: seed });
+  return seed;
 }
 
 /** Seed the two constructed test decks once (insert-if-absent). */

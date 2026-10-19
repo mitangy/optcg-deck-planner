@@ -2,19 +2,22 @@
  * The playmat / card back this seat shares with the opponent through the game
  * server. An account upload with a public path is sent as that short path (the
  * opponent's board loads it from the API); anything else is shrunk to a small
- * base64 data URL, as before.
+ * base64 data URL, as before. The DON!! art id rides along.
  */
 import { activePublicPath } from "./account/cosmeticsSync";
 import { cardBackShareUrl } from "./cardBack";
 import type { CosmeticKind } from "./net/prefsApi";
 import { SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS, type SeatSkin } from "./net/protocol";
 import { playmatShareUrl } from "./playmat";
+import { currentSettings } from "./settings";
 
 export type SkinSources = {
   /** Account upload path for the image in use, or null. */
   publicPath: (kind: CosmeticKind) => string | null;
   /** Small data URL of the image in use, or null when none is set. */
   dataUrl: (kind: CosmeticKind) => Promise<string | null>;
+  /** DON!! card art id in use (#440), or null for the bundled art. */
+  donArt: () => number | null;
 };
 
 const browserSources: SkinSources = {
@@ -23,6 +26,7 @@ const browserSources: SkinSources = {
     kind === "playmat"
       ? playmatShareUrl(SKIN_MAX_PLAYMAT_CHARS)
       : cardBackShareUrl(SKIN_MAX_CARD_BACK_CHARS),
+  donArt: () => currentSettings().donArt,
 };
 
 export type SharedSkin = {
@@ -50,8 +54,9 @@ export async function buildSharedSkin(
     return sources.dataUrl(kind);
   }
   const [playmat, cardBack] = await Promise.all([one("playmat"), one("cardBack")]);
-  if (!playmat && !cardBack) return null;
-  return { skin: { playmat, cardBack }, usesPath };
+  const donArt = sources.donArt();
+  if (!playmat && !cardBack && !donArt) return null;
+  return { skin: { playmat, cardBack, donArt }, usesPath };
 }
 
 /** The game server's complaint about a skin field that is not a data URL (servers before public paths). */

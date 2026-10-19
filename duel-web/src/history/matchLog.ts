@@ -36,3 +36,10 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
   }
   return turns;
 }
+
+/** A hand as distinct cards with copy counts, in the order each card first appears. */
+export function groupHand(defIds: string[]): { defId: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const id of defIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].map(([defId, count]) => ({ defId, count }));
+}

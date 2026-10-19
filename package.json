@@ -7,9 +7,10 @@
     "analyst"
   ],
   "scripts": {
-    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/analyst-client && npm run test -w @optcg/game-server && npm run test -w @optcg/analyst",
+    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/patch-notes && npm run test -w @optcg/analyst-client && npm run test -w @optcg/game-server && npm run test -w @optcg/analyst",
     "test:rules": "npm run test -w @optcg/rules",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
+    "test:patch-notes": "npm run test -w @optcg/patch-notes",
     "test:analyst-client": "npm run test -w @optcg/analyst-client",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",

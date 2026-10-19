@@ -9,6 +9,7 @@ import App from "./App";
 import "./styles.css";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import "@optcg/site-legal/siteLegal.css";
+import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 

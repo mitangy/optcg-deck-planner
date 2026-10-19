@@ -1,14 +1,17 @@
 import { useState, type CSSProperties } from "react";
 import { cardBackCssValue } from "../cardBack";
 import { lookupCard } from "../cards/atlas";
+import { attackReadyClass } from "./attackGlow";
 import type { CardView, Seat } from "../net/protocol";
 import { CardInspect } from "./CardInspect";
 import { CardTile } from "./CardTile";
 import { DonStrip } from "./DonStrip";
+import { useDuelSettings } from "../settings";
 import type { DonPiles } from "./donPiles";
 import { donTotal } from "./donTotals";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
-import { ZonePile, zonePileCountLabel } from "./ZonePile";
+import type { LifeFan } from "../settings";
+import { ZonePile, lifeFanForSide, zonePileCountLabel } from "./ZonePile";
 
 type SideData = {
   leader: CardView;
@@ -77,6 +80,8 @@ type BattleDropTargets = {
 
 type Props = {
   side: "you" | "opp";
+  /** Your Life fan setting; the opponent side draws the mirror of it (#499). */
+  lifeFan?: LifeFan;
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
@@ -106,6 +111,8 @@ type Props = {
   turnOrder?: "first" | "second";
   /** Custom card back (object URL) for face-down cards on this half. */
   cardBackUrl?: string | null;
+  /** DON!! face for this half (already resolved to a URL); the bundled art when absent (#440). */
+  donArtUrl?: string;
   /** This half's player is taking the current turn (glow + tag). */
   activeTurn?: boolean;
   /**
@@ -192,6 +199,7 @@ function CountChip({
 
 export function SideField({
   side,
+  lifeFan,
   data,
   compact,
   drag,
@@ -208,15 +216,22 @@ export function SideField({
   matOpacity = 1,
   turnOrder,
   cardBackUrl,
+  donArtUrl,
   activeTurn = false,
   countRow = false,
 }: Props) {
+  /** One-tap actions: a click can fire a one-shot action, so wait out the double-click (inspect) window (#513). */
+  const oneTap = useDuelSettings().oneTapActions;
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
-  const counts = countRow && side === "opp";
+  /** A face-up Life card opened by right-click on the pile. */
+  const [lifeFaceInspect, setLifeFaceInspect] = useState<string | null>(null);
+  /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
+  const counts = countRow;
+  const who = side === "you" ? "Your" : "Opponent";
   const faceUpLife = data.faceUpLife ?? [];
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
@@ -255,7 +270,7 @@ export function SideField({
         matImageUrl ? " has-mat-art" : ""
       }${activeTurn ? " is-active-turn" : ""}${counts ? " side-counts" : ""}`}
       style={
-        matImageUrl || cardBackUrl
+        matImageUrl || cardBackUrl || donArtUrl
           ? ({
               ...(matImageUrl
                 ? { "--mat-art": `url("${matImageUrl}")`, "--mat-dim": String(matDim),
@@ -263,6 +278,7 @@ export function SideField({
                   }
                 : null),
               ...(cardBackUrl ? { "--card-back-art": cardBackCssValue(cardBackUrl) } : null),
+              ...(donArtUrl ? { "--don-face-art": `url("${donArtUrl}")` } : null),
             } as CSSProperties)
           : undefined
       }
@@ -275,18 +291,18 @@ export function SideField({
             <CountChip
               kind="life"
               text={zonePileCountLabel(data.lifeCount, leaderLife ?? undefined)}
-              label={`Opponent life: ${data.lifeCount} cards${
+              label={`${who} life: ${data.lifeCount} cards${
                 faceUpLife.length ? `, ${faceUpLife.length} face up` : ""
               }`}
               extra={faceUpLife.length ? `${faceUpLife.length}\u2191` : undefined}
               onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
             />
-            <CountChip kind="deck" text={String(data.deckCount)} label={`Opponent deck: ${data.deckCount} cards`} />
-            <CountChip kind="don" text={String(data.donDeckCount)} label={`Opponent DON!! deck: ${data.donDeckCount} cards`} />
+            <CountChip kind="deck" text={String(data.deckCount)} label={`${who} deck: ${data.deckCount} cards`} />
+            <CountChip kind="don" text={String(data.donDeckCount)} label={`${who} DON!! deck: ${data.donDeckCount} cards`} />
             <CountChip
               kind="trash"
               text={String(data.trash.length)}
-              label={`View opponent trash, ${data.trash.length} cards`}
+              label={`View ${who.toLowerCase()} trash, ${data.trash.length} cards`}
               onOpen={() => setTrashOpen(true)}
             />
           </div>
@@ -299,7 +315,9 @@ export function SideField({
             expectedCount={leaderLife ?? undefined}
             faceUp={faceUpLife}
             ownerSeat={ownerSeat}
+            lifeFan={lifeFanForSide(lifeFan ?? "down", side)}
             onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
+            onInspectFace={setLifeFaceInspect}
           />
         </div>}
 
@@ -337,7 +355,7 @@ export function SideField({
               const extraClass = [
                 isTargetable ? "attack-target" : "",
                 isActionable && !isSelected ? "has-actions" : "",
-                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? "attack-ready" : "",
+                attackReadyIds?.has(c.id) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(c.defId).colors) : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -357,7 +375,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
-                  instantClick={isSelectable}
+                  instantClick={isSelectable && !oneTap}
                   dropAttr={dropAttr}
                   dropHighlight={giveHl || trashHl || counterDropHl(c.id)}
                   {...attackDragProps(c.id)}
@@ -409,7 +427,7 @@ export function SideField({
             const extraClass = [
               isTargetable ? "attack-target" : "",
               isActionable && !isSelected ? "has-actions" : "",
-              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? "attack-ready" : "",
+              attackReadyIds?.has(leaderId) && !isSelected && !isTargetable ? attackReadyClass(lookupCard(data.leader.defId).colors) : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -428,7 +446,7 @@ export function SideField({
                 classNameExtra={extraClass || undefined}
                 inspectGestures
                 onClick={tapHandler}
-                instantClick={isSelectable}
+                instantClick={isSelectable && !oneTap}
                 dropAttr={
                   interactive && drag?.giveDonHighlightIds?.has(leaderId)
                     ? `give_don:${leaderId}`
@@ -482,7 +500,7 @@ export function SideField({
                   classNameExtra={extraClass || undefined}
                   inspectGestures
                   onClick={tapHandler}
-                  instantClick={isSelectable}
+                  instantClick={isSelectable && !oneTap}
                   ownerSeat={ownerSeat}
                   viewingSeat={viewingSeat}
                 />
@@ -502,6 +520,7 @@ export function SideField({
         <div className="zone-cost">
           <DonStrip
             side={side}
+            donArt={donArtUrl}
             tokens={data.costArea}
             activeCount={data.activeDonCount}
             totalCount={data.costAreaCount ?? data.costArea?.length ?? 0}
@@ -541,6 +560,15 @@ export function SideField({
           note="face up"
           emptyText="No face-up Life cards."
           onClose={() => setLifeOpen(false)}
+          ownerSeat={ownerSeat}
+          viewingSeat={viewingSeat}
+        />
+      ) : null}
+      {lifeFaceInspect ? (
+        <CardInspect
+          defId={lifeFaceInspect}
+          open
+          onClose={() => setLifeFaceInspect(null)}
           ownerSeat={ownerSeat}
           viewingSeat={viewingSeat}
         />

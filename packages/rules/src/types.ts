@@ -42,7 +42,7 @@ export interface CardDef {
   traits?: string[];
   hasTrigger?: boolean;
   /** `bandai` when verified against the official card list snapshot. */
-  dataSource?: "bandai" | "bundled" | "stub";
+  dataSource?: "bandai" | "bundled" | "tcgplayer" | "stub";
 }
 
 export interface CardInstance {
@@ -228,6 +228,11 @@ export interface PlayerState {
   attachedDons: DonInstance[];
   mulliganDone: boolean;
   turnsStarted: number;
+  /**
+   * Instance ids of cards in `hand` that an effect revealed this turn (e.g. "reveal 2 Events from your hand"). They stay face up to
+   * the opponent until the next turn begins or the card leaves the hand (#491). Optional so older saved states still load.
+   */
+  revealedHandIds?: string[];
   /** DON!! cards this player owns in total (10 unless a rule changes it). */
   donTotal?: number;
   /** What happened this turn, for "during this turn" conditions. Reset when a turn starts. */
@@ -260,9 +265,10 @@ export type EngineStep =
   | { kind: "after_block_triggers" }
   | { kind: "damage" }
   | { kind: "battle_ko"; targetSeat: Seat; targetId: InstanceId; replaced?: boolean }
-  | { kind: "life_damage" }
+  /** `lethal`: the defender was at 0 Life when the hit landed (loses unless a damage replacement applies). `dealt`: damage events already fired for this hit. */
+  | { kind: "life_damage"; replaced?: boolean; lethal?: boolean; dealt?: boolean }
   /** Effect damage outside battle (Life to hand with Trigger checks). */
-  | { kind: "effect_damage"; seat: Seat; remaining: number }
+  | { kind: "effect_damage"; seat: Seat; remaining: number; replaced?: boolean }
   | { kind: "end_battle" }
   | { kind: "end_phase" }
   | { kind: "start_turn_triggers" };
@@ -337,7 +343,7 @@ export interface ResolutionFrame {
 export type GameEvent =
   | { type: "mulligan_resolved"; seat: Seat; didMulligan: boolean }
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
-  | { type: "drew"; seat: Seat; count: number }
+  | { type: "drew"; seat: Seat; count: number; /** Turn-start draw only: the drawn card, hidden from everyone but the drawer by projectGameEvents. */ defIds?: CardDefId[]; /** True for the Draw Phase draw (not an effect draw). */ turnDraw?: boolean }
   | { type: "don_placed"; seat: Seat; count: number }
   | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId; costPaid: number }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }

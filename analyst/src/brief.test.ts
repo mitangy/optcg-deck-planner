@@ -6,7 +6,7 @@ import { BRIEF_INSTRUCTIONS, briefVariant, costUsd, runBrief, toCitation, type C
 const catalog = loadCatalog();
 const TICKET = "mb1.ticket-body.ticket-sig";
 const BUDGET_OPEN = { allowed: true, spent_today_usd: 0.5, daily_cap_usd: 3 };
-const BUDGET_SPENT = { allowed: false, spent_today_usd: 3.1, daily_cap_usd: 3 };
+const BUDGET_SPENT = { allowed: false, refusal: "daily", spent_today_usd: 3.1, daily_cap_usd: 3 };
 const usage = (input: number, output: number) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
 
 type Call = { url: string; method: string; headers: Record<string, string>; body?: any };
@@ -23,6 +23,7 @@ function planner(answers: Record<string, unknown>) {
     const answer = answers[key];
     if (answer === null) return new Response(null, { status: 204 });
     if (typeof answer === "number") return new Response(JSON.stringify({ detail: "Not a valid brief ticket" }), { status: answer });
+    if (typeof answer === "function") return new Response(JSON.stringify((answer as (u: string) => unknown)(url)), { status: 200 });
     return new Response(JSON.stringify(answer), { status: 200 });
   }) as unknown as typeof fetch;
   return { calls, api: { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl } };
@@ -137,8 +138,57 @@ describe("matchup brief", () => {
   it("an empty budget stops a brief that has to be written, after the lookup (#401)", async () => {
     const { seen, callModel } = scriptedModel([]);
     const { api } = planner({ "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null }, "GET /analyst/chat/budget": BUDGET_SPENT });
-    await expect(run(deps(api, callModel), true)).rejects.toMatchObject({ status: 429, code: "budget" });
+    await expect(run(deps(api, callModel), true)).rejects.toMatchObject({ status: 429, code: "daily" });
     expect(seen).toHaveLength(0);
+  });
+
+  it("a player out of credit gets no brief and no error (#446)", async () => {
+    const { seen, callModel } = scriptedModel([]);
+    const { calls, api } = planner({
+      "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
+      "GET /analyst/chat/budget": { ...BUDGET_SPENT, refusal: "credit" },
+      "POST /analyst/chat/usage": null,
+    });
+    const events = await run(deps(api, callModel), true);
+    expect(seen).toHaveLength(0);
+    expect(events).toEqual([{ event: "done", data: { cached: false, refused: "credit" } }]);
+    expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "brief", cost_usd: 0, outcome: "refused", refusal: "credit" });
+  });
+
+  it("a brief whose credit runs out between rounds is dropped quietly: nothing saved, no error (#446)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
+      "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET_SPENT, refusal: "credit" } : BUDGET_OPEN),
+      "POST /analyst/chat/usage": null,
+      "PUT /analyst/briefs": null,
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
+    const { seen, callModel } = scriptedModel([
+      { content: [toolUse], stop_reason: "tool_use", usage: usage(1000, 100) },
+      { content: [{ type: "text", text: "Never asked." }], stop_reason: "end_turn", usage: usage(10, 10) },
+    ]);
+    const events = await run(deps(api, callModel), true);
+    expect(seen).toHaveLength(1);
+    expect(events.at(-1)).toEqual({ event: "done", data: { cached: false, refused: "credit" } });
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    const rows = calls.filter((c) => c.url.endsWith("/chat/usage")).map((c) => c.body);
+    expect(rows[0]).toMatchObject({ kind: "brief", outcome: "ok", tool_calls: 1 });
+    expect(rows[1]).toEqual({ kind: "brief", cost_usd: 0, outcome: "refused", refusal: "credit" });
+  });
+
+  it("writes the brief on the model the budget names (#428)", async () => {
+    const { calls, api } = planner({
+      "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
+      "GET /analyst/chat/budget": { ...BUDGET_OPEN, model: "claude-opus-5-5" },
+      "POST /analyst/chat/usage": null,
+      "PUT /analyst/briefs": null,
+    });
+    const { seen, callModel } = scriptedModel([
+      { content: [{ type: "text", text: "**Game plan** Curve out.", citations: [loc("card:OP01-016", "A 4 cost character")] }], stop_reason: "end_turn", usage: usage(1_000_000, 100_000) },
+    ]);
+    await run(deps(api, callModel), true);
+    expect(seen[0]!.model).toBe("claude-opus-5-5");
+    expect(calls.find((c) => c.url.endsWith("/chat/usage"))!.body).toMatchObject({ kind: "brief", model: "claude-opus-5-5" });
   });
 
   it("writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)", async () => {
@@ -200,12 +250,12 @@ describe("matchup brief", () => {
     ]);
     const spend = calls.find((c) => c.url.endsWith("/chat/usage"))!.body;
     expect(spend).toMatchObject({ kind: "brief", input_tokens: 3000, output_tokens: 300 });
-    expect(events.at(-1)).toEqual({ event: "done", data: { cached: false, cost_usd: costUsd(usage(3000, 300)), saved: true } });
+    expect(events.at(-1)).toEqual({ event: "done", data: { cached: false, cost_usd: expect.closeTo(costUsd(usage(3000, 300)), 9), saved: true } });
   });
 
   it("the cache variant follows the newest set (#401)", () => {
     const set = (prefix: string) => ({ cards: new Map(Array.from({ length: 60 }, (_, i) => [`${prefix}-${String(i + 1).padStart(3, "0")}`, {}])) }) as unknown as Catalog;
-    expect(briefVariant(set("OP14"))).toBe("v1:OP14");
-    expect(briefVariant(set("OP15"))).toBe("v1:OP15");
+    expect(briefVariant(set("OP14"))).toBe("v2:OP14");
+    expect(briefVariant(set("OP15"))).toBe("v2:OP15");
   });
 });

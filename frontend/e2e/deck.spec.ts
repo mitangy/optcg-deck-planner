@@ -125,14 +125,14 @@ test("owned stepper saves each click and updates still needed", async ({ page, p
   const owned = row.getByRole("textbox");
   await expect(owned).toHaveValue("2");
 
-  await row.getByRole("button", { name: "Increase owned" }).click();
+  await row.getByRole("button", { name: "Increase owned", exact: true }).click();
   await expect(owned).toHaveValue("3");
   await expect(row).toContainText("1/4");
   expect(planner.owned.get("EB01-002")).toBe(3);
   expect(planner.requests).toContain("PUT /owned/EB01-002");
 
-  await row.getByRole("button", { name: "Decrease owned" }).click();
-  await row.getByRole("button", { name: "Decrease owned" }).click();
+  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
+  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
   await expect(owned).toHaveValue("1");
   await expect(row).toContainText("3/4");
   expect(planner.owned.get("EB01-002")).toBe(1);
@@ -150,7 +150,7 @@ test("owned stepper saves each click and updates still needed", async ({ page, p
 test("cannot take owned below zero", async ({ page, planner }) => {
   const kid = page.locator('[data-card-id="EB01-003"]:visible');
   await expect(kid.getByRole("textbox")).toHaveValue("0");
-  await expect(kid.getByRole("button", { name: "Decrease owned" })).toBeDisabled();
+  await expect(kid.getByRole("button", { name: "Decrease owned", exact: true })).toBeDisabled();
   expect(planner.requests.filter((r) => r.startsWith("PUT /owned"))).toEqual([]);
 });
 
@@ -161,6 +161,31 @@ test("edit mode opens the card editor and in-deck steppers without breaking layo
   await expectStationary(edit, () => edit.click(), "Edit deck");
   await expect(page.getByRole("button", { name: /^Done/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Increase EB01-002 in deck" }).first()).toBeVisible();
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("DON!! browser shows big card tiles and searches the DON!! catalog (#435)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: /Available DON!! cards/ }).click();
+  const tiles = page.locator(".don-tile");
+  await expect(tiles).toHaveCount(3);
+  for (const img of await page.locator(".don-tile .thumb").all()) {
+    expect((await img.boundingBox())!.width).toBeGreaterThanOrEqual(120);
+  }
+  const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(await noOverflow()).toBe(true);
+
+  const sent = page.waitForRequest((r) => r.url().includes("/catalog/cards") && r.url().includes("card_type=DON") && r.url().includes("q=zoro"));
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await sent;
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles.first()).toContainText("DON-002");
+
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("nothing-like-this");
+  await expect(page.getByText("No DON!! cards match “nothing-like-this”.")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search DON!! cards" }).fill("zoro");
+  await expect(tiles).toHaveCount(1);
+
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
@@ -202,4 +227,30 @@ test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
   await page.locator('[data-hint-id="count"]:visible').click();
   await expect(page.locator(".dh-pop").getByRole("button", { name: "Dismiss" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Ask Log Pose/ })).toHaveCount(0);
+});
+
+test("an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625)", async ({ page, planner }) => {
+  // Still needed: Izo 2 x $1.25, Kid & Killer 4 x $6.80, EB01-009 2 x $3.50, EB01-011 1 x $0.10 = $36.80.
+  const left = page.locator(".deck-progress-meta");
+  await expect(left).toHaveText("$36.80 left");
+
+  // Alt arts are shown by default.
+  const inc = page.locator(IZO).getByRole("button", { name: /Increase owned for/ });
+  const qty = page.locator(IZO).locator(".alt-want-qty");
+  await expect(page.locator(IZO).locator(".alt-want-caption")).toHaveText("Owned");
+  await expect(page.locator(IZO).locator(".alt-art-base")).toHaveCount(0);
+
+  // One owned alt copy covers one Izo: 36.80 - 1.25.
+  await inc.click();
+  await expect(qty).toHaveText("1");
+  await expect(left).toHaveText("$35.55 left");
+  expect(planner.altOwned.get("EB01-002:201")).toBe(1);
+  await expect(page.locator(IZO)).toContainText("1/4");
+  // The alt is now the main image and the base art sits in a Base tile.
+  await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
+  await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
+  // Both still-needed copies covered: 36.80 - 2.50, and Izo leaves the "still need" list.
+  await inc.click();
+  await expect(left).toHaveText("$34.30 left");
+  await expect(page.locator(IZO)).toHaveCount(0);
 });

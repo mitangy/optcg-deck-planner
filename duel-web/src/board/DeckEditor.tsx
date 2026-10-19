@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./useMediaQuery";
-import { lookupCard } from "../cards/atlas";
+import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import {
   hasActiveCardSearch,
   listAtlasColors,
@@ -12,20 +12,17 @@ import {
 } from "../cards/searchAtlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import {
-  addCardToDeck,
+  addCard,
   countCardInDeck,
-  MAX_COPIES_PER_CARD,
   MAX_MAIN_DECK_SIZE,
-  removeAllCopiesFromDeck,
-  removeCardFromDeck,
+  removeAllCopies,
+  removeCard,
+  type CardsEditResult,
+  type DeckDraft,
 } from "../decks/editDeck";
 import { DeckStatsSection } from "../decks/DeckStatsSection";
 import { groupDeckStacks } from "../decks/groupStacks";
-import {
-  getSavedDeck,
-  setDeckArtPref,
-  type SavedDeck,
-} from "../decks/storage";
+import { setDeckArtPref, type SavedDeck } from "../decks/storage";
 import { useDuelSettings } from "../settings";
 
 const ATTRIBUTE_OPTIONS = [
@@ -43,6 +40,7 @@ function StackCard({
   editable,
   selected,
   onSelect,
+  onEdit,
   onChanged,
 }: {
   deck: SavedDeck;
@@ -51,6 +49,9 @@ function StackCard({
   editable: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Edit the unsaved draft's card list; resolves to the edit's error, if any. */
+  onEdit: (edit: (cards: readonly string[]) => CardsEditResult) => string | null;
+  /** An art pref changed (those save straight away). */
   onChanged: () => void;
 }) {
   const entry = lookupCard(defId);
@@ -61,25 +62,14 @@ function StackCard({
 
   function bump(delta: -1 | 1) {
     setEditError(null);
-    const result =
-      delta < 0
-        ? removeCardFromDeck(deck.id, defId)
-        : addCardToDeck(deck.id, defId);
-    if (!result.ok) {
-      setEditError(result.error);
-      return;
-    }
-    onChanged();
+    const error = onEdit((cards) => (delta < 0 ? removeCard(cards, defId) : addCard(cards, defId)));
+    if (error) setEditError(error);
   }
 
   function removeAll() {
     setEditError(null);
-    const result = removeAllCopiesFromDeck(deck.id, defId);
-    if (!result.ok) {
-      setEditError(result.error);
-      return;
-    }
-    onChanged();
+    const error = onEdit((cards) => removeAllCopies(cards, defId));
+    if (error) setEditError(error);
   }
 
   return (
@@ -131,7 +121,7 @@ function StackCard({
                 type="button"
                 className="btn btn-secondary deck-stack-qty"
                 aria-label={`Add one ${entry.name}`}
-                disabled={count >= MAX_COPIES_PER_CARD}
+                disabled={count >= maxCopiesFor(entry.id)}
                 onClick={() => bump(1)}
               >
                 +
@@ -182,16 +172,19 @@ function toggleInList(list: string[], value: string): string[] {
 }
 
 type Props = {
-  deckId: string;
-  /** Bump when parent saves/imports so editor reloads deck from storage. */
-  refreshKey?: number;
-  onDeckChanged?: () => void;
+  /**
+   * The deck as the editor shows it: the unsaved draft's leader and cards on top of the saved deck's name and art
+   * prefs. Card edits go to `onChange` and are not saved until the page's Save (#481).
+   */
+  deck: SavedDeck;
+  onChange: (next: DeckDraft) => void;
+  /** An art pref was saved (those apply straight away); the page re-reads the saved deck. */
+  onArtChanged?: () => void;
   /** Rendered above Add cards (the import panel); on desktop both sit in the side column. */
   sideTop?: ReactNode;
 };
 
-export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: Props) {
-  const [tick, setTick] = useState(0);
+export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
   const [query, setQuery] = useState("");
   const [colors, setColors] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
@@ -212,16 +205,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
     () => typeof window !== "undefined" && window.matchMedia?.(DESKTOP_DECKS_QUERY).matches === true,
   );
 
-  const deck = useMemo(() => {
-    void tick;
-    void refreshKey;
-    return getSavedDeck(deckId);
-  }, [deckId, tick, refreshKey]);
-
-  const stacks = useMemo(
-    () => (deck ? groupDeckStacks(deck.leaderId, deck.cards) : null),
-    [deck],
-  );
+  const stacks = useMemo(() => groupDeckStacks(deck.leaderId, deck.cards), [deck.leaderId, deck.cards]);
 
   const colorOpts = useMemo(() => listAtlasColors(), []);
   const typeOpts = useMemo(() => listAtlasTypes(), []);
@@ -272,15 +256,18 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
     [browsing, searchFilters],
   );
 
-  if (!deck || !stacks) {
-    return <p className="meta">Deck not found.</p>;
-  }
-
   const currentDeck = deck;
 
+  /** Apply a card-list edit to the draft; returns the edit's error instead of changing anything. */
+  function edit(change: (cards: readonly string[]) => CardsEditResult): string | null {
+    const result = change(currentDeck.cards);
+    if (!result.ok) return result.error;
+    onChange({ name: currentDeck.name, leaderId: currentDeck.leaderId, cards: result.cards });
+    return null;
+  }
+
   function refresh() {
-    setTick((n) => n + 1);
-    onDeckChanged?.();
+    onArtChanged?.();
   }
 
   function clearFilters() {
@@ -300,12 +287,8 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
 
   function onAdd(defId: string) {
     setSearchError(null);
-    const result = addCardToDeck(currentDeck.id, defId);
-    if (!result.ok) {
-      setSearchError(result.error);
-      return;
-    }
-    refresh();
+    const error = edit((cards) => addCard(cards, defId));
+    if (error) setSearchError(error);
   }
 
   return (
@@ -487,7 +470,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
                     const inDeck = countCardInDeck(currentDeck, entry.id);
                     const imageUrl =
                       resolveCardImageUrl(entry.id, currentDeck) ?? entry.imageUrl;
-                    const atCap = inDeck >= MAX_COPIES_PER_CARD;
+                    const atCap = inDeck >= maxCopiesFor(entry.id);
                     const deckFull = currentDeck.cards.length >= MAX_MAIN_DECK_SIZE;
                     return (
                       <li key={entry.id} className="deck-search-row">
@@ -564,6 +547,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
               editable={false}
               selected={inspectDefId === stacks.leader.defId}
               onSelect={() => setInspectDefId(stacks.leader.defId)}
+              onEdit={edit}
               onChanged={refresh}
             />
           </div>
@@ -586,6 +570,7 @@ export function DeckEditor({ deckId, refreshKey = 0, onDeckChanged, sideTop }: P
                   editable
                   selected={inspectDefId === s.defId}
                   onSelect={() => setInspectDefId(s.defId)}
+                  onEdit={edit}
                   onChanged={refresh}
                 />
               ))}

@@ -5,7 +5,7 @@
  * propose_turn_plan tool, which checks a whole turn against the snapshot and writes nothing.
  */
 import { z } from "zod";
-import type { Catalog } from "./catalog";
+import type { Catalog, CardRow } from "./catalog";
 import { PlannerApiError, plannerCall, type PlannerApi } from "./matches";
 import type { ToolDef } from "./server";
 
@@ -59,6 +59,8 @@ const gameSnapshot = z.object({
   turn: z.number().int().min(0).max(1000),
   phase: z.string().max(40),
   yourTurn: z.boolean(),
+  first: z.boolean().optional(),
+  mulliganDone: z.boolean().optional(),
   you: z.object({
     ...board,
     hand: z.array(z.object({ id: instId, defId, cost: count.optional(), counter: count.optional() })).max(20),
@@ -78,6 +80,8 @@ const gameSnapshot = z.object({
 export const gameContext = z.object({
   ticket: z.string().min(10).max(4000),
   snapshot: gameSnapshot,
+  /** False when the player has not turned on the copilot setting: Log Pose coaches in words and plans are refused. */
+  plans: z.boolean().optional(),
   log: z.array(z.string().max(200)).max(40).optional(),
 });
 
@@ -130,6 +134,25 @@ function summarize(catalog: Catalog, ids: string[]): string {
 
 const MAX_TEXT = 400;
 
+const MAX_TRIGGER = 200;
+const cap = (t: string, max: number) => (t.length > max ? `${t.slice(0, max - 1)}…` : t);
+
+/** One card of a card reference: id, name, type, colors, life, cost, power, counter, traits, the (truncated) rules text and the card's own "[Trigger] ..." text. */
+export function cardReferenceLine(c: CardRow): string {
+  const stats = [
+    c.type,
+    c.colors.length ? c.colors.join("/") : "",
+    c.life !== undefined ? `life ${c.life}` : "",
+    c.cost !== undefined ? `cost ${c.cost}` : "",
+    c.power !== undefined ? `power ${c.power}` : "",
+    c.counter ? `counter ${c.counter}` : "",
+    c.traits.length ? `traits: ${c.traits.join("/")}` : "",
+  ].filter(Boolean);
+  const text = cap(c.text, MAX_TEXT);
+  const trigger = c.trigger.trim() ? ` ${cap(c.trigger.trim(), MAX_TRIGGER)}` : "";
+  return `- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}${trigger}`;
+}
+
 /** The <game> block that starts the user message: the board as the player sees it, readable by the model. */
 export function gameContextBlock(catalog: Catalog, game: GameContext, claims: GameClaims): string {
   const s = game.snapshot;
@@ -157,6 +180,10 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
   ];
   const lines: string[] = [
     `turn ${s.turn}, phase ${s.phase}, ${s.yourTurn ? "your turn" : "opponent's turn"}`,
+    ...(s.first === undefined ? [] : [s.first ? "You go first." : "You go second."]),
+    ...(s.phase === "mulligan"
+      ? [`Mulligan step: Your hand is your opening 5 cards. You may keep it or mulligan once (return all 5, shuffle, draw 5).${s.mulliganDone ? " You already chose." : ""}`]
+      : []),
     ...side("Your", s.you),
     `Your rested DON!!: ${s.you.donRested}`,
     `Your hand: ${s.you.hand.length ? s.you.hand.map((h) => `${nameOfDef(catalog, h.defId)} [${h.id}] (cost ${h.cost ?? catalog.cards.get(h.defId)?.cost ?? "?"}${h.counter ? `, counter ${h.counter}` : ""})`).join("; ") : "empty"}`,
@@ -175,9 +202,7 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
   for (const id of ids) {
     const c = catalog.cards.get(id);
     if (!c) continue;
-    const stats = [c.type, c.cost !== undefined ? `cost ${c.cost}` : "", c.power !== undefined ? `power ${c.power}` : "", c.counter ? `counter ${c.counter}` : ""].filter(Boolean);
-    const text = c.text.length > MAX_TEXT ? `${c.text.slice(0, MAX_TEXT - 1)}…` : c.text;
-    lines.push(`- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}`);
+    lines.push(cardReferenceLine(c));
   }
   return `<game>\n${lines.join("\n")}\n</game>`;
 }
@@ -207,13 +232,18 @@ function describeLegal(a: LegalAction, named: (id: string) => string): string {
   }
 }
 
+/** Added after COPILOT_INSTRUCTIONS when the copilot setting is off: the game is attached but plans are not. */
+export const NO_PLANS_INSTRUCTIONS = `
+Turn play-out is off for this game, so propose_turn_plan is refused: give the line in words. If they want turns played out, they can turn on the Log Pose copilot setting in duel settings.`;
+
 export const COPILOT_INSTRUCTIONS = `
 
 The player turned on Log Pose for their live casual game. Their message starts with a <game> block: the board as they see it, their hand, the legal actions, the recent log, their deck list and the cards on the table. You coach; you do not play.
 You only know what is in the <game> block. Never guess the opponent's hand or deck order; reason about what their leader usually plays and call it your read. Card text for cards on the table is in the block's card reference; look up anything else with get_cards.
-Be brief: the player reads this on a phone between moves. Lead with the play, then a short why.
-When they ask you to plan or play their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one or two sentences what the plan does and that they tap Play this turn to run it. If the tool refuses, fix the plan and call it again. Never say you made a move: only the player runs the plan.
-Choices that come up mid-turn (searches, targets, triggers) are the player's; mention what you would pick. For defensive questions (block or counter) answer in text and don't propose a plan.`;
+Be brief: the player reads this on a phone between moves. Keep in-game answers to about 60 words in at most three short lines, with no headings: the play first in one line (for example "Attack their Leader with Luffy, +2 DON!!"), then one or two sentences of why. Add an alternative, a risk or a number only when it would change their decision. Don't recap the board, their hand or the legal actions, and don't quote card text back; they can see it. Go deeper only when they ask for more.
+When they ask you to plan or play their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one sentence what the plan does and that they tap Play this turn to run it; don't list the steps again, the plan card shows them. Keep each step's why to a few words, and leave it out when the step is obvious. If the tool refuses, fix the plan and call it again. Never say you made a move: only the player runs the plan.
+In the mulligan step, judge keep or mulligan from Your hand, your deck list and whether they go first; never ask them for their hand, it is in the block.
+Choices that come up mid-turn (searches, targets, triggers) are the player's; mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.`;
 
 const planStep = z.object({
   action: z.enum(["play", "give_don", "activate", "attack", "end_turn"]),
@@ -348,7 +378,7 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
       case "give_don":
         return a.type === "give_don" && a.target === first.target;
       case "activate":
-        return a.type === "activate_ability" && a.source === first.source && (!first.abilityId || a.abilityId === first.abilityId) && (!first.target || a.target === first.target);
+        return a.type === "activate_ability" && a.source === first.source && (!first.abilityId || a.abilityId === first.abilityId);
       case "attack":
         return a.type === "declare_attack" && a.attacker === first.attacker && a.target === first.target;
       case "end_turn":
@@ -369,7 +399,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     title: "Plan the turn",
     description:
       "Plan the player's whole turn from the <game> block. Nothing is played: the app shows the steps as a card the player can run with Play this turn. " +
-      "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId, target), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
+      "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId; the target, if any, is chosen when the ability resolves and is the player's to pick), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
       "Characters played earlier in the plan can act in later steps by their hand id. The plan is checked against the board and refused with the reason when a step can't work.",
     inputSchema: {
       summary: z.string().trim().min(3).max(300),
@@ -378,6 +408,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args) => {
       if (!game) return refusal(NO_GAME_ERROR);
+      if (game.plans === false) return refusal("Turn play-out is off for this game; describe the line in words instead.");
       const r = checkTurnPlan(catalog, game, args as { summary: string; steps: PlanStepInput[] });
       return r.ok ? { content: [{ type: "text" as const, text: JSON.stringify(r.plan) }] } : refusal(r.error);
     },

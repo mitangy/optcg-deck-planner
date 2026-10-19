@@ -63,7 +63,8 @@ const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | nul
   [/^when (?:a card is removed from )?your or your opponent's life cards?(?: is removed)?$/i, () => ({ event: "life_removed", player: "any" })],
   [/^when your opponent activates an event or \[Trigger\]$/i, () => ({ event: "event_activated", player: "opponent" })],
   [/^when you play a character with a \[Trigger\]$/i, () => ({ event: "character_played", player: "you", filter: { hasTrigger: true } })],
-  [/^when your (.+?) is removed from the field by your opponent's effect(?: or KO'd)?$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", byOpponentEffect: true, ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
+  // "... or KO'd": a K.O. by anyone counts too (battle, either player's effect), so the by-opponent flag only gates the removal.
+  [/^when your (.+?) is removed from the field by your opponent's effect( or KO'd)?$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", byOpponentEffect: true, ...(m[2] ? { anyCauseEvents: ["character_ko" as const] } : {}), ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when (?:this leader or any of your characters|any of your characters or this leader) (?:is|are) given a DON!! card$/i, () => ({ event: "don_given", player: "you" })],
   [/^when your opponent activates (?:a )?\[Blocker\]$/i, () => ({ event: "blocker_activated", player: "opponent" })],
   [/^when this character battles and KOs your opponent's character$/i, () => ({ event: "battle_ko_opponent", player: "you" })],
@@ -71,15 +72,16 @@ const EVENT_RULES: [RegExp, (m: RegExpExecArray, ctx: Ctx) => EventTrigger | nul
   [/^when a card is added to your hand from your life$/i, () => ({ event: "life_to_hand", player: "you" })],
   [/^when a \[Trigger\] activates$/i, () => ({ event: "trigger_activated", player: "any" })],
   [/^when a card is removed from your opponent's life cards$/i, () => ({ event: "life_removed", player: "opponent" })],
-  [/^when a character is removed from the field by your effect$/i, () => ({ event: "character_removed_by_effect", player: "any" })],
+  [/^when a character is removed from the field by your effect$/i, () => ({ event: "character_removed_by_effect", player: "any", byYourEffect: true })],
   [/^when your (.+?) is removed from the field by an effect$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_removed_by_effect", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
-  [/^when you play (?:a |an )?(.+?) from your hand$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_played", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
+  [/^when you play (?:a |an )?(.+?) from your hand$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_played", player: "you", fromZone: "hand", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
+  [/^when (?:a|an) (.+?) (?:is|are) played from your (hand|trash)$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_played", player: "you", fromZone: m[2]!.toLowerCase() as "hand" | "trash", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when (?:one of )?your (?!opponent's )(.+?) (?:is|are) KO'd$/i, (m, ctx) => { const p = parseCardPhrase("all your " + m[1]!, ctx); return p ? { event: "character_ko", player: "you", ...(p.selector.filter ? { filter: p.selector.filter } : {}) } : null; }],
   [/^when a character is KO'd$/i, () => ({ event: "character_ko", player: "any" })],
   [/^when this character is KO'd( by your opponent's effect)?$/i, (m) => ({ event: "self_ko", player: "you", ...(m[1] ? { byOpponentEffect: true } : {}) })],
   [/^when this (?:character|leader)'s attack deals damage to your opponent's life$/i, () => ({ event: "attack_damage", player: "you" })],
-  [/^when your opponent's character is returned to the owner's hand(?: by your effect)?$/i, () => ({ event: "character_returned", player: "opponent" })],
-  [/^when a card is trashed from your hand(?: by an effect)?$/i, () => ({ event: "card_trashed_from_hand", player: "you" })],
+  [/^when your opponent's character is returned to the owner's hand( by your effect)?$/i, (m) => ({ event: "character_returned", player: "opponent", ...(m[1] ? { byYourEffect: true } : {}) })],
+  [/^when a card is trashed from your hand( by an effect)?$/i, (m) => ({ event: "card_trashed_from_hand", player: "you", ...(m[1] ? { byEffect: true } : {}) })],
   [/^when a DON!! card on your field is returned to your DON!! deck by your effect$/i, () => ({ event: "don_returned", player: "you" })],
   [/^when your opponent's character is KO'd$/i, () => ({ event: "character_ko", player: "opponent" })],
   [/^when (?:one of )?your opponent's characters? (?:is|are) KO'd by your effects?$/i, () => ({ event: "character_ko", player: "opponent", byOpponentEffect: true })],
@@ -130,9 +132,18 @@ function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; con
   return null;
 }
 
-const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent's effect)?, (you may )?(.+?) instead$/i;
+const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent(?:'s effect)?)?, (you may )?(.+?) instead$/i;
+
+/** "If you would take damage, you may trash this Character instead." */
+const DAMAGE_REPLACEMENT_RE = /^if you would take damage, (you may )?(.+?) instead$/i;
 
 function parseReplacement(text: string, ctx: Ctx): Replacement | null {
+  const dmg = DAMAGE_REPLACEMENT_RE.exec(clean(text));
+  if (dmg) {
+    const costs = parseCosts(dmg[2]!, ctx);
+    const instead: Effect | null = costs ? { do: "pay", costs, then: { do: "nothing" } } : parseStatement(dmg[2]!, ctx);
+    return instead ? { event: "life_damage", target: "self", instead, optional: Boolean(dmg[1]) } : null;
+  }
   const m = REPLACEMENT_RE.exec(clean(text));
   if (!m) return null;
   const subject = m[1]!.replace(/^(?:one of|any of) /i, "");
@@ -145,18 +156,29 @@ function parseReplacement(text: string, ctx: Ctx): Replacement | null {
   const how = (m[5] ?? "").toLowerCase();
   const byOpponent = /opponent/.test(m[0]!.toLowerCase().split("would be")[1] ?? "");
   let event: Replacement["event"];
-  if (/leave the field|or KO'd/i.test(m[4]!)) event = "ko";
-  else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = "ko";
-  else if (m[4]!.toLowerCase().startsWith("removed")) event = "removed_by_opponent_effect";
+  // "removed from the field by your opponent's effect or K.O.'d": every K.O. (battle, either player's effect) and
+  // any removal by the opponent's effect, so it is not gated on the opponent as a whole.
+  if (/or KO'd/i.test(m[4]!)) return buildReplacement({ event: "ko", alsoEvents: ["removed_by_opponent_effect"] }, target, m, ctx);
+  if (/leave the field/i.test(m[4]!)) event = "ko";
+  // "would be removed from the field" (any cause, own effects and bounce included) is not only a K.O.
+  else if (m[4]!.toLowerCase().startsWith("removed") && !/opponent/i.test(m[0]!)) event = m[5] ? "ko" : "removed";
+  // "removed from the field by your opponent" (no "effect") also covers the opponent K.O.ing it in battle.
+  else if (m[4]!.toLowerCase().startsWith("removed")) {
+    return buildReplacement({ event: "removed_by_opponent_effect", ...(/by your opponent(?!')/i.test(m[0]!) ? { alsoEvents: ["ko_in_battle" as const] } : {}), byOpponent }, target, m, ctx);
+  }
   else if (how.includes("battle")) event = "ko_in_battle";
   else if (how.includes("effect")) event = "ko_by_effect";
   else event = "ko";
+  return buildReplacement({ event, byOpponent }, target, m, ctx);
+}
+
+function buildReplacement(when: Pick<Replacement, "event" | "alsoEvents" | "byOpponent">, target: Replacement["target"], m: RegExpExecArray, ctx: Ctx): Replacement | null {
   const insteadText = m[7]!;
   const costs = parseCosts(insteadText, ctx);
   let instead: Effect | null = costs ? { do: "pay", costs, then: { do: "nothing" } } : null;
   if (!instead) instead = parseStatement(insteadText, ctx);
   if (!instead) return null;
-  return { event, target, byOpponent, instead, optional: Boolean(m[6]) };
+  return { event: when.event, target, ...(when.alsoEvents ? { alsoEvents: when.alsoEvents } : {}), ...(when.byOpponent !== undefined ? { byOpponent: when.byOpponent } : {}), instead, optional: Boolean(m[6]) };
 }
 
 function splitCostBody(body: string, ctx: Ctx): { costs: Cost[]; optional: boolean; rest: string; conditions: Cond[] } | null {
@@ -241,11 +263,15 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
   // "This effect can be activated when X. EFFECT" / "... at the start of your turn."
   const activatedWhen = /^this effect can be activated (when .+?|at the start of your turn)\. (.+)$/i.exec(body);
   if (activatedWhen) {
+    // "can be activated" is optional, and a [Once Per Turn] is only spent when the player uses it: declining
+    // leaves it available for a later occurrence the same turn.
+    const optional = (effect: Effect): Effect => ({ do: "may", then: effect, bind: "_did", prompt: restoreNames(activatedWhen[2]!, ctx.ph) });
     if (/start of your turn/i.test(activatedWhen[1]!)) {
       const parsed = parseEffectBody(activatedWhen[2]!, ctx, sentences);
-      return parsed.effect ? [{ id: nextId(), trigger: "start_of_your_turn", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), effect: parsed.effect }] : null;
+      return parsed.effect ? [{ id: nextId(), trigger: "start_of_your_turn", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), effect: optional(parsed.effect) }] : null;
     }
-    return compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
+    const inner = compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
+    return inner ? inner.map((a) => (a.effect && !a.costs?.length ? { ...a, effect: optional(a.effect) } : a)) : null;
   }
   // Costs before an event trigger: "You may trash 2 cards from your hand: When ..., ...".
   const costFirst = splitCostBody(body, ctx);
@@ -257,7 +283,7 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
   const ev = parseEventTrigger(body, ctx);
   if (ev) {
     const split = splitCostBody(ev.rest, ctx);
-    const parsed = parseEffectBody(split ? split.rest : ev.rest, ctx, sentences);
+    const parsed = parseEffectBody(split ? split.rest : ev.rest, { ...ctx, eventCard: true }, sentences);
     if (!parsed.effect) return null;
     return [{ id: nextId(), trigger: "on_event", ...base, eventTrigger: ev.trigger, conditions: [...h.conditions, ...ev.conditions], ...(split?.costs.length ? { costs: split.costs } : {}), effect: parsed.effect }];
   }

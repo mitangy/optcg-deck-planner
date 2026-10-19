@@ -2,7 +2,7 @@ export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "full
 
 /**
  * Which entries the phone HUD's ⋯ menu shows, in display order (destructive
- * ones last). Reload rejoins the saved match; Report a problem opens the feedback dialog. Concede is for live players only; hotseat has no room to share. Spectators can share the watch link too.
+ * ones last). Reload rejoins the saved match; Report a problem opens the feedback dialog. Concede is for live players only; hotseat has no room to share. Spectators can share the watch link too. A replay has no room to share.
  */
 export function matchMenuItems(o: {
   spectating: boolean;
@@ -10,6 +10,8 @@ export function matchMenuItems(o: {
   hotseat: boolean;
   fullscreenOffered: boolean;
   canConcede: boolean;
+  /** A recorded game: there is no room to share and nothing to concede. */
+  replay?: boolean;
 }): MatchMenuItemId[] {
   const items: MatchMenuItemId[] = [];
   if (!o.hotseat) items.push("copy-room", "copy-spectate");
@@ -21,5 +23,6 @@ export function matchMenuItems(o: {
   items.push("report");
   if (o.canConcede && !o.spectating && !o.over) items.push("concede");
   items.push("leave");
-  return items;
+  // A recording has no room to share and nothing to concede.
+  return o.replay ? items.filter((id) => id !== "copy-room" && id !== "copy-spectate" && id !== "concede") : items;
 }

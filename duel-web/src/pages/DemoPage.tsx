@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CardView, ChatLine, PlayerView, RematchState, UndoState } from "../net/protocol";
+import type { CardView, ChatLine, PlayerView, RematchState, Seat, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import type { RematchDeckOption } from "../decks/rematchDecks";
 import { motionDemoSteps } from "./motionDemo";
 import type { MatchHistoryEntry } from "../history/historyApi";
 
@@ -244,7 +245,7 @@ function withExtraOption(view: PlayerView): PlayerView {
 }
 
 /**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|unpayable|empty|hand|order|mode|effects|don|don2`).
+ * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|trigger|notrigger|unpayable|empty|hand|order|mode|effects|don|don2`).
  * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
  */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
@@ -413,6 +414,31 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
   }),
+  // Life check on a card with a [Trigger]: just the card with Activate Trigger / Add to hand (#495).
+  trigger: demoChoice({
+    id: "demo-trigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "OP01-029",
+    optional: true,
+    prompt: "Radical Beam!! — activate this card's [Trigger]?",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
+  }),
+  // Life check on a card without [Trigger]: one No Trigger button (#352, #495).
+  notrigger: demoChoice({
+    id: "demo-notrigger",
+    seat: 0,
+    kind: "life_trigger",
+    cardDefId: "ST01-003",
+    optional: true,
+    noTrigger: true,
+    prompt: "Karoo has no [Trigger]. Add it to your hand.",
+    request: { type: "confirm" },
+    privateToSeat: 0,
+    hideCardDefFromOthers: true,
+  }),
   // The same cost prompt when the hand can't pay it: asked anyway so the opponent can't tell (#369).
   unpayable: demoChoice({
     id: "demo-unpayable",
@@ -561,6 +587,30 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       trash: trashFor(base.opponent.trash),
     },
   };
+}
+
+/** `?over`: the game-over reveal (#482), both hands and every Life card, as the server sends it. */
+function withGameOverReveal(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "OP09-082", "ST01-003", "ST01-009", "ST01-006", "ST01-014"];
+  const cycle = (n: number, offset: number) => Array.from({ length: n }, (_, i) => sample[(i + offset) % sample.length]!);
+  return {
+    ...base,
+    revealedHands: [
+      base.you.hand.map((c) => ({ id: c.id, defId: c.defId })),
+      cycle(base.opponent.handCount, 2).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+    ],
+    revealedLife: [cycle(base.you.lifeCount, 1), cycle(base.opponent.lifeCount, 3)],
+  };
+}
+
+/** `?reveal`: two of the opponent's hand cards and your first hand card revealed by an effect (#491). */
+function withHandReveals(base: PlayerView): PlayerView {
+  const sample = ["OP16-108", "ST01-014"];
+  const reveals: PlayerView["handReveals"] = [
+    base.you.hand.slice(0, 1).map((c) => ({ id: c.id, defId: c.defId })),
+    sample.slice(0, Math.min(2, base.opponent.handCount)).map((defId, i) => ({ id: `o-h${i + 1}`, defId })),
+  ];
+  return { ...base, handReveals: reveals };
 }
 
 /** `?full`: a full board, so playing a Character asks which one to replace. */
@@ -825,20 +875,68 @@ function withOneActiveDon(base: PlayerView): PlayerView {
   };
 }
 
+/** `?turn0&pickedby=coin|0|1`: how the turn order was decided, for the mulligan banner's opening line (#549). */
+function demoPickedBy(v: string | null): Seat | null | undefined {
+  if (v === "coin") return null;
+  return v === "0" ? 0 : v === "1" ? 1 : undefined;
+}
+
+/** Sample undo states for `?undo[=ask|force|menu|blocked|limit]` (#536). */
+export function demoUndoState(kind: string | null): UndoState {
+  const free = { available: true, forceable: false } as const;
+  const base: UndoState = {
+    enabled: true,
+    targetTurn: 3,
+    action: { seat: 0, label: "play Nami" },
+    options: { action: { ...free, steps: 1 }, turn: { ...free, steps: 3 } },
+    blockedReason: null,
+    pending: null,
+  };
+  const looked = "a deck or Life card was looked at";
+  if (kind === "ask") {
+    return { ...base, action: { seat: 1, label: "attack with Zoro" }, pending: { from: 1, toTurn: 3, action: { seat: 1, label: "attack with Zoro" }, scope: "action", steps: 1, force: false, revealReason: null } };
+  }
+  if (kind === "force") {
+    return { ...base, action: { seat: 1, label: "play Nami" }, pending: { from: 1, toTurn: 3, action: { seat: 1, label: "play Nami" }, scope: "turn", steps: 3, force: true, revealReason: looked } };
+  }
+  if (kind === "blocked") {
+    const reason = `Undo stops here: ${looked}`;
+    const blocked = { available: false, forceable: true, blockedReason: reason, revealReason: looked } as const;
+    return { ...base, options: { action: { ...blocked, steps: 1 }, turn: { ...blocked, steps: 3 } }, blockedReason: reason };
+  }
+  if (kind === "limit") {
+    return {
+      ...base,
+      options: {
+        action: { ...free, steps: 1 },
+        turn: { available: false, forceable: false, steps: 0, blockedReason: "Undo history limit reached" },
+      },
+    };
+  }
+  return base;
+}
+
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
- * state (`&first=1` makes the opponent go first), `?practice` hotseat chrome
+ * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
- * undo (`?undo=ask` shows an incoming request), `?waiting` the invite screen,
+ * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
+ * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
- * (`&rematch=ask|wait|choose|left`), `?full` a full board, `?rest=N` / `?restlead` /
- * `?oppfull` rested cards (see withRestedField), `?statuses` stacked status
+ * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
+ * `?oppfull` rested cards (see withRestedField), `?green` a Green Leader and Character (attack-ready glow colour), `?statuses` stacked status
  * icons (see withManyStatuses), `?motion` a button that steps
  * through every card animation, `?box` the old pop-up instead of floating-card
  * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
  */
+/** Saved decks offered on the demo rematch panel (`?over`). */
+const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
+  { id: "demo-zoro", name: "Zoro Aggro", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
+  { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
+];
+
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
   const prompt = params.get("prompt");
@@ -866,6 +964,18 @@ export function DemoPage() {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
+  // `?green`: swap in a Green Leader and a Green Character (y-c3), to check
+  // the attack-ready glow stays visible on green art (#449).
+  const colored: PlayerView = params.has("green")
+    ? {
+        ...board,
+        you: {
+          ...board.you,
+          leader: { ...board.you.leader, defId: "ST02-001" },
+          characters: board.you.characters.map((c) => (c.id === "y-c3" ? { ...c, defId: "ST02-005" } : c)),
+        },
+      }
+    : board;
   // `?cantattack`: your main phase where only the Leader may attack, so the
   // summoning-sick / rested Characters show the "can't attack" warning.
   // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
@@ -873,7 +983,7 @@ export function DemoPage() {
   // so the attack-ready glow shows on a Character as well (#412).
   const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
     ? {
-        ...(params.has("unaffordable") ? withOneActiveDon(board) : board),
+        ...(params.has("unaffordable") ? withOneActiveDon(colored) : colored),
         phase: "main",
         battle: null,
         legalIntents: [
@@ -882,10 +992,10 @@ export function DemoPage() {
           ...(params.has("attackready")
             ? [{ type: "declare_attack", attackerId: "y-c3", target: { kind: "leader" } }]
             : []),
-          ...board.legalIntents.filter((i) => i.type === "give_don"),
+          ...colored.legalIntents.filter((i) => i.type === "give_don"),
         ],
       }
-    : board;
+    : colored;
   const withTurn: PlayerView = withWaiting(
     params.has("oppturn") ? { ...mainPhase, activeSeat: 1 } : mainPhase,
     params.get("wait"),
@@ -908,26 +1018,23 @@ export function DemoPage() {
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
   // `?counter=block`: the block step until No block (or a Counter drag) passes it.
   const [blockPassed, setBlockPassed] = useState(false);
-  const shown: PlayerView =
+  const live: PlayerView =
     haki !== "hand"
       ? withHakiResolving(view, haki === "asking")
       : params.get("counter") === "block" && !blockPassed
         ? withBlockStep(view)
         : view;
+  const shown: PlayerView = params.has("over")
+    ? withGameOverReveal(live)
+    : params.has("reveal")
+      ? withHandReveals(live)
+      : live;
   // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
   const [motionRun, setMotionRun] = useState(0);
   const nextMotion = motionSteps?.[motionStep + 1];
-  const [undo, setUndo] = useState<UndoState | null>(() =>
-    params.has("undo")
-      ? {
-          enabled: true,
-          targetTurn: 3,
-          pending: params.get("undo") === "ask" ? { from: 1, toTurn: 2 } : null,
-        }
-      : null,
-  );
+  const [undo, setUndo] = useState<UndoState | null>(() => (params.has("undo") ? demoUndoState(params.get("undo")) : null));
   const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
   // `?reveal`: the opponent reveals a card (then another) a moment after load.
   const [log, setLog] = useState<BattleLogEntry[]>(DEMO_BATTLE_LOG);
@@ -953,6 +1060,7 @@ export function DemoPage() {
     return {
       available: mode !== "left",
       requested: mode === "ask" ? [false, true] : mode === "wait" ? [true, false] : mode === "choose" ? [true, true] : [false, false],
+      newDeck: [false, params.has("oppdeck")],
       declinedBy: null,
       chooser: mode === "choose" ? 0 : null,
     };
@@ -979,6 +1087,7 @@ export function DemoPage() {
         view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
         matchId="demo-playmat"
+        firstSeatPickedBy={demoPickedBy(params.get("pickedby"))}
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
         loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}
@@ -986,6 +1095,7 @@ export function DemoPage() {
           params.has("over")
             ? {
                 state: rematch,
+                deckOptions: DEMO_REMATCH_DECKS,
                 onAction: (action) =>
                   setRematch((r) =>
                     action === "request"
@@ -1015,7 +1125,14 @@ export function DemoPage() {
               }
             : undefined
         }
-        onConcede={params.has("practice") ? undefined : () => undefined}
+        onConcede={
+          params.has("practice")
+            ? undefined
+            : () => {
+                const w = window as { __demoConcedes?: number };
+                w.__demoConcedes = (w.__demoConcedes ?? 0) + 1;
+              }
+        }
         timer={
           params.has("clock")
             ? {
@@ -1037,13 +1154,24 @@ export function DemoPage() {
           undo
             ? {
                 state: undo,
-                onAction: (action) =>
+                defaultOpen: ["menu", "blocked", "limit"].includes(params.get("undo") ?? ""),
+                onAction: (action, opts) =>
                   setUndo((u) =>
                     u
                       ? {
                           ...u,
                           pending:
-                            action === "request" ? { from: 0, toTurn: u.targetTurn ?? 1 } : null,
+                            action === "request"
+                              ? {
+                                  from: 0,
+                                  toTurn: u.targetTurn ?? 1,
+                                  action: u.action,
+                                  scope: opts?.scope ?? "action",
+                                  steps: opts?.scope === "turn" ? (u.options?.turn.steps ?? 1) : 1,
+                                  force: opts?.force === true,
+                                  revealReason: opts?.force ? "a deck or Life card was looked at" : null,
+                                }
+                              : null,
                         }
                       : u,
                   ),

@@ -13,6 +13,9 @@ const SCREENS = [
   "?statuses",
   "?over",
   "?undo=ask",
+  "?undo=force",
+  "?undo=menu",
+  "?undo=blocked",
   "?faceup=2",
   "?counter=block",
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
@@ -193,20 +196,40 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
   }
 });
 
-// The idle midline ornament is a 45°-rotated span, so a caret dropped in it drew as a slanted text cursor.
-test("clicking the midline between the mats leaves no text caret (#314)", async ({ page }) => {
+// The strip between the mats draws no divider line or diamond, but keeps its height for the prompt text (#449).
+test("an idle midline strip has no divider line and keeps the height of one with a prompt (#449)", async ({ page }) => {
+  // The strip exists in the floating-dock layout; with the buttons beside the board it is gone (#556).
+  await page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: false })));
   await page.goto("/demo?cantattack");
-  await page.locator(".midline-ornament").waitFor();
-  const box = (await page.locator(".midline").first().boundingBox())!;
-  for (const fx of [0.5, 0.2]) {
-    await page.mouse.click(box.x + box.width * fx, box.y + box.height / 2);
-    const selection = await page.evaluate(() => {
-      const s = getSelection();
-      return { type: s?.type, inMidline: !!s?.anchorNode?.parentElement?.closest(".midline") };
-    });
-    expect({ fx, ...selection }).not.toMatchObject({ type: "Caret", inMidline: true });
-  }
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".midline")).toHaveCount(1);
+  // The phone Rotate hint is the only thing an idle strip may hold.
+  await expect(page.locator(".midline > :not(.rotate-hint)")).toHaveCount(0);
+  await expect(page.locator(".midline-ornament")).toHaveCount(0);
+  const idle = (await page.locator(".midline").boundingBox())!.height;
+  await page.goto("/demo?attacked");
+  await expect(page.locator(".midline .prompt-text")).toBeVisible();
+  expect((await page.locator(".midline").boundingBox())!.height).toBeCloseTo(idle, 0);
 });
+
+// The prompt text in the strip between the mats is chrome: double-clicking it must not select a word (#314).
+for (const [where, beside, sel] of [
+  ["midline", false, ".midline .prompt-text"],
+  ["caption under the buttons", true, ".dock-caption .prompt-text"],
+] as const) {
+  test(`double-clicking the ${where} prompt text selects nothing (#314, #556)`, async ({ page }, info) => {
+    test.skip(beside && info.project.name !== "desktop-1280", "the dock caption is desktop only");
+    // A tall window keeps the caption in the column's flow; on a short one it floats and lets clicks through.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.addInitScript((b) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: b })), beside);
+    await page.goto("/demo?attacked");
+    const text = page.locator(sel);
+    await expect(text).toBeVisible();
+    await text.dblclick();
+    const selected = await page.evaluate(() => getSelection()?.toString() ?? "");
+    expect(selected).toBe("");
+  });
+}
 
 // DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
 test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
@@ -408,6 +431,55 @@ test("Turn and clocks keeps its content height and its column its width when dra
   expect(narrow.contentW).toBeLessThanOrEqual(Math.ceil(narrow.w));
 });
 
+// A fanned hand parked against a screen edge reaches over the side column; where a card and the
+// column's resize handle overlap, the card wins: the handle neither lights up nor grabs the drag (#449).
+for (const side of ["left", "right"] as const) {
+  test(`a hand card over the ${side} column edge gets the pointer, not the resize handle (#449)`, async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
+    await page.addInitScript(
+      (pos) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "fan", handFanPos: pos })),
+      side === "right" ? "0.97,1" : "0.03,1",
+    );
+    await page.goto("/demo?full&hand=8");
+    await page.locator(".board-root").waitFor();
+    const handle = page.locator(`.col-resize-${side}`);
+    const col = page.locator(`[data-panel-col="${side}"]`);
+    await page.locator(".hand-fan").hover({ position: { x: 30, y: 8 }, force: true });
+    await page.waitForTimeout(700);
+    // The middle of the patch where a fanned card and the handle overlap.
+    const spot = await page.evaluate((cls) => {
+      const h = document.querySelector(cls)!.getBoundingClientRect();
+      for (const c of document.querySelectorAll(".hand-fan .card-tile")) {
+        const r = c.getBoundingClientRect();
+        const x0 = Math.max(r.left, h.left);
+        const x1 = Math.min(r.right, h.right);
+        const y0 = Math.max(r.top, h.top);
+        const y1 = Math.min(r.bottom, h.bottom);
+        if (x1 - x0 > 4 && y1 - y0 > 4) return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+      }
+      return null;
+    }, `.col-resize-${side}`);
+    expect(spot, "a fanned card should reach over the column edge").not.toBeNull();
+    const { x, y } = spot!;
+    await page.mouse.move(x, y);
+    expect(await page.evaluate(([px, py]) => !!document.elementFromPoint(px!, py!)?.closest(".hand-fan .card-tile"), [x, y])).toBe(true);
+    await page.waitForTimeout(250);
+    expect(await handle.evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+    const w0 = (await col.boundingBox())!.width;
+    await page.mouse.down();
+    await page.mouse.move(x + (side === "right" ? -80 : 80), y, { steps: 6 });
+    await page.mouse.up();
+    expect(Math.abs((await col.boundingBox())!.width - w0)).toBeLessThan(2);
+    // Off the card the handle still grabs.
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + (side === "right" ? -60 : 60), box.y + 120, { steps: 6 });
+    await page.mouse.up();
+    expect((await col.boundingBox())!.width).toBeGreaterThan(w0 + 40);
+  });
+}
+
 // Phones and landscape phones have no side columns to resize.
 test("phones show no panel resize handles (#347)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");
@@ -432,7 +504,8 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   const grip = (await page.locator(".hand-fan-grip").boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
-  await page.mouse.move(grip.x + 200, 300, { steps: 8 });
+  // The docked fan's grip sits above its cards (the handle is stacked, #449), so aim higher to land clear of the End turn dock.
+  await page.mouse.move(grip.x + 200, 230, { steps: 8 });
   await page.mouse.up();
   await expect(fan).toHaveClass(/hand-fan-float/);
   const box = (await fan.boundingBox())!;
@@ -519,6 +592,22 @@ test("the waiting pill stays on screen on a landscape phone (#262)", async ({ pa
   expect(text).toBeLessThanOrEqual(1);
 });
 
+// A landscape phone narrower than 600px (iPhone SE, 568x320) gets the landscape layout, not the portrait one whose
+// hand panel fills the screen and squeezes the mats to nothing (#469).
+test("a small landscape phone gets the landscape board with readable cards (#469)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "landscape phone layout");
+  for (const size of [{ width: 568, height: 320 }, { width: 640, height: 360 }]) {
+    await page.setViewportSize(size);
+    await page.goto("/demo");
+    await page.locator(".board-root").waitFor();
+    await expect(page.locator(".arena")).toHaveClass(/arena-lp/);
+    const card = (await page.locator(".side-grid .card-tile").first().boundingBox())!;
+    expect(card.width, `card width at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(24);
+    expect(card.y + card.height).toBeLessThanOrEqual(size.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(size.width);
+  }
+});
+
 // Deck editor (#262): art that fails to load falls back to the card id
 // instead of a broken image, and − count + stay on one row.
 async function openSeededDeck(page: import("@playwright/test").Page, failArt: boolean) {
@@ -596,7 +685,8 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".recent-play-opp .recent-play-who",
     ".log-phase .log-text",
   ],
-  "/": [".home-kicker"],
+  // The wordmark kicker is hidden on a wide window; the deck hero and the side column are what shows.
+  "/": [".home-deck-label", ".friends-title"],
   "/settings": [".panel-title"],
 };
 
@@ -606,7 +696,7 @@ test("light mode secondary text meets 4.5:1 contrast in every theme (#262)", asy
   const low: string[] = [];
   for (const theme of LIGHT_THEMES) {
     await page.addInitScript(
-      (t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ theme: t, colorMode: "light" })),
+      (t) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ theme: t, colorMode: "light", previewPopupPinned: true })),
       theme,
     );
     for (const [url, selectors] of Object.entries(LIGHT_TEXT)) {
@@ -690,9 +780,48 @@ test("desktop mulligan puts Keep and Mulligan side by side in the board dock, wi
   await expect(page.locator(".intent-empty")).toHaveCount(0);
 });
 
-// The opponent hand pins above the top of the playmat (left, centre or right)
-// instead of its side panel, and drags back into a column (#264).
-test("the opponent hand pins to the top of the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
+// Mulligan floats over the board in the desktop dock, so its fill must be opaque (#461).
+test("the Mulligan button has a solid background, not see-through (#461)", async ({ page }) => {
+  await page.goto("/demo?turn0");
+  await page.locator(".board-root").waitFor();
+  const redo = page.getByRole("button", { name: /^Mulligan/ });
+  await expect(redo).toBeVisible();
+  const bg = await redo.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const m = bg.match(/^rgba?\(([^)]+)\)$/);
+  expect(m, `unparseable background ${bg}`).not.toBeNull();
+  const parts = m![1].split(/[\s,/]+/).filter(Boolean);
+  const alpha = parts.length > 3 ? Number(parts[3]) : 1;
+  expect(alpha, `background was ${bg}`).toBe(1);
+});
+
+// A battle in the midline must stand out from the felt: opaque fill and a gold edge (#539).
+test("the battle strip has a solid background and a gold edge (#539)", async ({ page }) => {
+  await page.goto("/demo?counter");
+  await page.locator(".board-root").waitFor();
+  const strip = page.locator(".arena .midline .prompt");
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText("→");
+  const { bg, border, chrome } = await strip.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--chrome)";
+    el.closest(".arena")!.appendChild(probe);
+    const chrome = getComputedStyle(probe).color;
+    probe.remove();
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, border: cs.borderTopColor, chrome };
+  });
+  const m = bg.match(/^rgba?\(([^)]+)\)$/);
+  expect(m, `unparseable background ${bg}`).not.toBeNull();
+  const parts = m![1].split(/[\s,/]+/).filter(Boolean);
+  const alpha = parts.length > 3 ? Number(parts[3]) : 1;
+  expect(alpha, `background was ${bg}`).toBe(1);
+  expect(border).toBe(chrome);
+});
+
+// The opponent hand pins to the playmat (beside the opponent's mat for left /
+// right, above it for centre) instead of its side panel, and drags back into a
+// column (#264, #462).
+test("the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
@@ -714,10 +843,10 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await page.mouse.up();
   await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
   expect(await inColumn()).toBe(0);
-  // It sits above the opponent's mat, not over its cards.
+  // It sits in the open space beside the opponent's mat, not over its cards.
   const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
   const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
-  expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + 1);
+  expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
   if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
   expect(issues, formatIssues(issues)).toEqual([]);
@@ -732,6 +861,144 @@ test("the opponent hand pins to the top of the mat, stays after a reload, and dr
   await expect(page.locator(".opp-hand-mat")).toHaveCount(0);
   await expect.poll(inColumn).toBe(1);
   expect(duel.errors).toEqual([]);
+});
+
+// Left / right: the hand fills the open space beside the opponent's mat, over
+// the mat's height, and the mat keeps the strip it would give up for the top
+// centre spot. A narrow window has no such space, so the hand stays above the
+// mat there (#462).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  for (const spot of ["left", "right"] as const) {
+    test(`the opponent hand fills the open space beside the opponent mat with spot ${spot} at ${vp.width}x${vp.height} (#462)`, async ({ page, duel }, info) => {
+      test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+      await page.setViewportSize(vp);
+      const open = async (oppHandSpot: string) => {
+        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
+          oppHandSpot,
+          // The normal-size board with the floating dock: this is about the strip the mat gives up.
+          bigBoard: false,
+          bigBoardChosen: true,
+          actionsBeside: false,
+        });
+        await page.goto("/demo?full");
+        await page.locator(".board-root").waitFor();
+        await page.waitForTimeout(400);
+      };
+      await open("centre");
+      const centreMat = (await page.locator(".side-field.side-opp").boundingBox())!;
+
+      await open(spot);
+      await expect(page.locator(`.opp-hand-mat-side.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
+      const hand = (await page.locator(".opp-hand-mat-side").boundingBox())!;
+      const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+      const playmat = (await page.locator(".playmat").boundingBox())!;
+      // No strip reserved: the mat is bigger than with the top centre spot.
+      expect(mat.height).toBeGreaterThan(centreMat.height + 4);
+      // Entirely in the gutter between the mat and the playmat's edge...
+      if (spot === "left") {
+        expect(hand.x).toBeGreaterThanOrEqual(playmat.x - 1);
+        expect(hand.x + hand.width).toBeLessThanOrEqual(mat.x + 1);
+      } else {
+        expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
+        expect(hand.x + hand.width).toBeLessThanOrEqual(playmat.x + playmat.width + 1);
+      }
+      // ...over the opponent mat's height, not above it.
+      expect(hand.y).toBeGreaterThanOrEqual(mat.y - 1);
+      expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + mat.height + 1);
+      expect(hand.width).toBeGreaterThan(30);
+      // Every card back stays inside the wrapper.
+      const backs = await page.locator(".opp-hand-mat-side .opp-corner-card").evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+        }),
+      );
+      expect(backs.length).toBeGreaterThan(0);
+      for (const b of backs) {
+        expect(b.l).toBeGreaterThanOrEqual(hand.x - 1);
+        expect(b.r).toBeLessThanOrEqual(hand.x + hand.width + 1);
+        expect(b.t).toBeGreaterThanOrEqual(hand.y - 1);
+        expect(b.b).toBeLessThanOrEqual(hand.y + hand.height + 1);
+      }
+      // Laid out horizontally like a regular hand: each back sits right of the last,
+      // and the row is not stacked down the gutter.
+      const cardH = backs[0].b - backs[0].t;
+      for (let i = 1; i < backs.length; i++) expect(backs[i].l).toBeGreaterThan(backs[i - 1].l);
+      const tops = backs.map((b) => b.t);
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(cardH / 2);
+      const issues = (await duel.audit()).filter((i) => !isKnown(i));
+      if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
+      expect(issues, formatIssues(issues)).toEqual([]);
+      expect(duel.errors).toEqual([]);
+    });
+  }
+}
+
+// The fan and its count sit in the middle of the gutter, vertically on the opponent
+// mat's height rather than stuck to the top (#582).
+for (const vp of [
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  for (const spot of ["left", "right"] as const) {
+    for (const big of [true, false]) {
+      test(`the opponent hand on the ${spot} is centred beside the opponent mat at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#582)`, async ({ page }, info) => {
+        test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+        await page.setViewportSize(vp);
+        await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
+          oppHandSpot: spot,
+          bigBoard: big,
+          bigBoardChosen: true,
+        });
+        await page.goto("/demo?full");
+        await page.locator(".board-root").waitFor();
+        await expect(page.locator(`.opp-hand-mat-side.opp-hand-mat-${spot} .opp-hand-corner`)).toBeVisible();
+        await page.waitForTimeout(400);
+        const m = await page.evaluate(() => {
+          const box = (el: Element) => el.getBoundingClientRect();
+          const wrap = box(document.querySelector(".opp-hand-mat-side")!);
+          const mat = box(document.querySelector(".side-field.side-opp")!);
+          const kids = [...document.querySelectorAll(".opp-hand-mat-side .opp-hand-corner > *")].map(box);
+          const backs = [...document.querySelectorAll(".opp-hand-mat-side .opp-corner-card")].map(box);
+          return {
+            wrapX: wrap.left + wrap.width / 2,
+            matY: mat.top + mat.height / 2,
+            top: Math.min(...kids.map((r) => r.top)),
+            bottom: Math.max(...kids.map((r) => r.bottom)),
+            backL: Math.min(...backs.map((r) => r.left)),
+            backR: Math.max(...backs.map((r) => r.right)),
+            kids: kids.length,
+            backs: backs.length,
+          };
+        });
+        expect(m.kids).toBeGreaterThan(0);
+        expect(m.backs).toBeGreaterThan(0);
+        expect(Math.abs((m.top + m.bottom) / 2 - m.matY)).toBeLessThan(6);
+        expect(Math.abs((m.backL + m.backR) / 2 - m.wrapX)).toBeLessThan(6);
+      });
+    }
+  }
+}
+
+test("the top centre opponent hand keeps a strip above the mat, and left / right fall back to it when the window leaves no room beside the mat (#462)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
+  for (const [spot, vp] of [
+    ["centre", { width: 1280, height: 720 }],
+    ["right", { width: 1000, height: 1100 }],
+  ] as const) {
+    await page.setViewportSize(vp);
+    await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), { oppHandSpot: spot });
+    await page.goto("/demo?full");
+    await page.locator(".board-root").waitFor();
+    await page.waitForTimeout(400);
+    const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
+    const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
+    expect(hand.height, `${spot} strip has room for the cards`).toBeGreaterThan(20);
+    expect(hand.y + hand.height, `${spot} strip sits above the mat`).toBeLessThanOrEqual(mat.y + 1);
+  }
 });
 
 // Block step: dragging a Counter onto the defender passes the block and plays
@@ -870,6 +1137,161 @@ for (const handLayout of ["fan", "grid"]) {
       return { x: field.x + field.width / 2, y: field.y + field.height / 2 };
     });
     await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+  });
+}
+
+// A playable hand card dropped anywhere outside the hand is played, not only on
+// the Characters / Stage zone (#552). Dropped back on the hand it never plays,
+// sorted or not. Phone landscape is covered as well as portrait.
+const dragAnywhere: Array<{ name: string; only?: string; viewport?: { width: number; height: number } }> = [
+  { name: "" },
+  { name: " (landscape)", only: "phone-375", viewport: { width: 812, height: 375 } },
+];
+for (const variant of dragAnywhere) {
+  test.describe(`drag anywhere${variant.name}`, () => {
+    if (variant.viewport) test.use({ viewport: variant.viewport });
+    test.beforeEach(() => {
+      test.skip(variant.only != null && test.info().project.name !== variant.only, "phone only");
+    });
+
+    // Drag the card at `from` to `to`: touch on phones, the mouse on desktop.
+    async function dragCard(page: import("@playwright/test").Page, id: string, to: { x: number; y: number }) {
+      const touch = test.info().project.name === "phone-375";
+      const card = page.locator(`[data-motion-id="${id}"]`).first();
+      if (!touch) await page.mouse.move(4, 4);
+      await page.waitForFunction(() =>
+        document
+          .getAnimations()
+          .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+      );
+      let b = (await card.boundingBox())!;
+      if (!touch) {
+        await page.mouse.move(b.x + b.width / 2, b.y + 12);
+        await page.waitForTimeout(450);
+        b = (await card.boundingBox())!;
+      }
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      if (touch) {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
+        // The landscape hand is a side rail that scrolls up and down, so lift it sideways there.
+        const wide = (page.viewportSize()?.width ?? 0) > (page.viewportSize()?.height ?? 0);
+        const lift = wide ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 };
+        for (const p of [lift, { x: to.x, y: wide ? to.y : start.y - 16 }, to]) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [p] });
+          await page.waitForTimeout(30);
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        return;
+      }
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x, start.y - 14, { steps: 4 });
+      await page.mouse.move(to.x, to.y, { steps: 10 });
+      await page.mouse.up();
+    }
+
+    // A point on the opponent's side that is not any drop zone.
+    async function emptySpot(page: import("@playwright/test").Page) {
+      const spot = await page.evaluate(() => {
+        const side = document.querySelector(".side-opp")!.getBoundingClientRect();
+        for (let fy = 0.5; fy < 1; fy += 0.05) {
+          for (let fx = 0.05; fx < 1; fx += 0.05) {
+            const x = side.left + side.width * fx;
+            const y = side.top + side.height * fy;
+            const el = document.elementFromPoint(x, y);
+            if (el && el.closest(".side-opp") && !el.closest("[data-dnd-drop]") && !el.closest(".card-tile")) return { x, y };
+          }
+        }
+        return null;
+      });
+      expect(spot, "an empty spot on the opponent's side").not.toBeNull();
+      return spot!;
+    }
+
+    test(`a playable hand card dropped on an empty spot off the field is played (#552)${variant.name}`, async ({ page }) => {
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const first = await cards.first().getAttribute("data-motion-id");
+      const spot = await emptySpot(page);
+      await dragCard(page, first!, spot);
+      await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+    });
+
+    // A press that leaves the card in one jump and lets go elsewhere never reaches the card's own
+    // pointer up, so the press stayed armed: the next plain hover over the card (no button held)
+    // lifted it as a drag stuck to the pointer, and the next click anywhere played it.
+    test(`a press released off the card does not lift it on the next hover or play it on the next click (#621)${variant.name}`, async ({ page }) => {
+      test.skip(test.info().project.name === "phone-375", "mouse only: a touch press is captured by its card");
+      // With One-tap actions a click that selects a playable card plays it at once.
+      await page.addInitScript(() =>
+        localStorage.setItem("optcg-duel:settings", JSON.stringify({ oneTapActions: true })),
+      );
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const card = cards.first();
+      await page.mouse.move(4, 4);
+      await page.waitForFunction(() =>
+        document
+          .getAnimations()
+          .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+      );
+      let b = (await card.boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + 12);
+      await page.waitForTimeout(450);
+      b = (await card.boundingBox())!;
+      const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const spot = await emptySpot(page);
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      // One jump off the card, then let go there.
+      await page.mouse.move(spot.x, spot.y, { steps: 1 });
+      await page.mouse.up();
+      // Back over the card with no button held, moving across it.
+      await page.mouse.move(start.x, start.y + 14, { steps: 1 });
+      await page.mouse.move(start.x, start.y - 14, { steps: 3 });
+      await page.waitForTimeout(200);
+      await expect(page.locator(".card-tile.card-dragging")).toHaveCount(0);
+      await page.mouse.click(spot.x, spot.y);
+      await page.waitForTimeout(400);
+      expect(await sent()).toEqual([]);
+      await expect(card).not.toHaveClass(/selected/);
+    });
+
+    test(`with Sort on, a card dropped back on the hand is not played or moved (#552)${variant.name}`, async ({ page }) => {
+      await page.addInitScript(() =>
+        localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })),
+      );
+      await page.goto("/demo");
+      await page.locator(".board-root").waitFor();
+      await expect(page.locator(".hand-sort-btn.active").first()).toBeVisible();
+      const cards = page.locator(
+        ".hand-fan-cards > .card-tile, .hand-row-inner > .card-tile, .rail-hand-cards > .card-tile, .hand-dock-cards > .card-tile",
+      );
+      const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
+      const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
+      const before = await order();
+      // y-h1 is hand card 0 (a playable one); sorting only moves it on screen.
+      const id = before.find((x) => x === "y-h1") ?? before[0]!;
+      // Over a neighbouring card in the hand.
+      const neighbour = (await cards.nth(before.indexOf(id) === 0 ? 1 : 0).boundingBox())!;
+      await dragCard(page, id!, { x: neighbour.x + neighbour.width / 2, y: neighbour.y + neighbour.height / 2 });
+      await page.waitForTimeout(500);
+      expect(await sent()).toEqual([]);
+      expect(await order()).toEqual(before);
+      // Dropped off the hand it is still played.
+      const spot = await emptySpot(page);
+      await dragCard(page, id!, spot);
+      await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
+    });
   });
 }
 

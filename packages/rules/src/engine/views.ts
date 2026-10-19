@@ -15,8 +15,11 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   if (isNegated(state, c)) statuses.push("Effects negated");
   if (hasRestriction(state, seat, c, "cannot_attack")) statuses.push("Cannot attack");
   const rush = keywords.includes("rush") || keywords.includes("rush_character");
-  if (c.summoningSick && !rush && def.type === "character") statuses.push("Summoning sick");
-  for (const k of keywords) statuses.push(KEYWORD_LABELS[k] ?? k);
+  // Summoning sickness only matters on its controller's own turn; the flag lingers until their next Refresh.
+  const sick = Boolean(c.summoningSick) && state.activeSeat === seat;
+  if (sick && !rush && def.type === "character") statuses.push("Summoning sick");
+  // Rush only matters the turn the card is played; afterwards its pill is noise (the keyword stays in `keywords`).
+  for (const k of keywords) if (sick || (k !== "rush" && k !== "rush_character")) statuses.push(KEYWORD_LABELS[k] ?? k);
   if (hasRestriction(state, seat, c, "no_refresh")) statuses.push("Won't refresh");
   for (const label of c.statusLabels ?? []) if (!statuses.includes(label)) statuses.push(label);
   return {
@@ -27,7 +30,7 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
     power: powerOf(state, seat, c),
     printedPower: def.power ?? null,
     fieldCost: def.type === "character" ? costOf(state, seat, c) : def.cost,
-    summoningSick: Boolean(c.summoningSick && !rush),
+    summoningSick: sick && !rush,
     rush,
     keywords,
     statusLabels: statuses,
@@ -66,6 +69,18 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
     delete projected.sourceInstanceId;
   }
   return projected;
+}
+
+type HandCard = { id: string; defId: string };
+
+/** Each seat's hand cards an effect revealed this turn, in hand order, indexed by seat. Public information (#491). */
+function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]] } | null {
+  const of = (seat: Seat): HandCard[] => {
+    const ids = state.players[seat].revealedHandIds;
+    return ids?.length ? state.players[seat].hand.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, defId: c.defId })) : [];
+  };
+  const reveals: [HandCard[], HandCard[]] = [of(0), of(1)];
+  return reveals[0].length || reveals[1].length ? { handReveals: reveals } : null;
 }
 
 /**
@@ -135,16 +150,26 @@ function buildPlayerView(state: MatchState, seat: Seat) {
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
+    // Hand cards revealed by an effect stay face up for the rest of the turn; both seats ride along for everyone (#491).
+    ...handReveals(state),
+    // Once the match is over nothing is left to protect (#482): both hands and every Life card
+    // ride along, indexed by seat. Absent entirely while the game is live.
+    ...(state.winner !== null
+      ? {
+          revealedHands: [0, 1].map((s) => state.players[s as Seat].hand.map((c): HandCard => ({ id: c.id, defId: c.defId }))) as [HandCard[], HandCard[]],
+          revealedLife: [[...state.players[0].life], [...state.players[1].life]] as [string[], string[]],
+        }
+      : null),
   };
 }
-
-type HandCard = { id: string; defId: string };
 
 /**
  * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has
  * no `hand`, so clients that guard against hand leaks keep working. With
  * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,
- * indexed by seat.
+ * indexed by seat. After the game ends (`winner` set) every view, ranked or not,
+ * carries `revealedHands` and `revealedLife` (#482). Like player views, it carries
+ * `handReveals` (cards revealed from hand this turn) when any exist (#491).
  */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
   const base = getPlayerView(state, cameraSeat);
@@ -166,6 +191,10 @@ export function projectGameEvents(events: readonly GameEvent[], viewerSeat: Seat
   return events.map((event) => {
     if (event.type === "life_added" && !event.faceUp) return { ...event, defId: "HIDDEN" };
     if ((event.type === "life_taken" || event.type === "trigger_available") && viewerSeat !== event.seat) return { ...event, defId: "HIDDEN" };
+    if (event.type === "drew" && event.defIds && viewerSeat !== event.seat) {
+      const { defIds: _hidden, ...rest } = event;
+      return structuredClone(rest) as GameEvent;
+    }
     if (event.type === "card_moved" && event.hidden && viewerSeat !== event.seat) return { ...event, defId: "HIDDEN" };
     if ((event.type === "pending_choice_added" || event.type === "pending_choice_resolved") && event.hideCardDefFromOthers && event.privateToSeat !== viewerSeat) {
       return event.type === "pending_choice_added" ? { ...event, cardDefId: "HIDDEN", prompt: "Opponent is resolving a private card choice." } : { ...event, cardDefId: "HIDDEN" };

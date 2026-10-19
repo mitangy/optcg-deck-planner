@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
 import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
-import { costOf, keywordsOf, powerOf } from "../engine/queries.js";
+import { basePowerOf, costOf, keywordsOf, powerOf } from "../engine/queries.js";
 
 describe("choose a cost and reveal (OP11-081)", () => {
   it("K.O.s when the revealed card has the chosen cost", () => {
@@ -297,15 +297,24 @@ describe("turning Life face-up as a cost (OP08-058 Pudding)", () => {
     expect(h.choice).toBeUndefined();
   });
 
-  it("is offered with 2 face-down Life cards and adds a rested DON!!", () => {
+  it("is offered with the top 2 Life cards face-down and turns exactly those face-up, adding a rested DON!!", () => {
     const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
     h.life(0, FILLER, FILLER, FILLER, FILLER);
-    h.state.players[0].faceUpLife = [true, true, false, false];
+    h.state.players[0].faceUpLife = [false, false, false, false];
     const before = h.state.players[0].costArea.length;
     h.attack(h.state.players[0].leader, "leader");
     h.accept();
-    expect(h.state.players[0].faceUpLife).toEqual([true, true, true, true]);
+    expect(h.state.players[0].faceUpLife).toEqual([true, true, false, false]);
     expect(h.state.players[0].costArea.length).toBe(before + 1);
+  });
+
+  it("is not offered when the top 2 Life cards are already face-up, even with face-down cards below (#490)", () => {
+    const h = new Harness({ leaders: ["OP08-058", "ST01-001"] });
+    h.life(0, FILLER, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, true, false, false];
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].faceUpLife).toEqual([true, true, false, false]);
   });
 });
 
@@ -331,4 +340,256 @@ describe("turning Life face-down as a cost (OP08-063 Katakuri)", () => {
     expect(h.state.players[0].faceUpLife).toEqual([false, false, false]);
     expect(h.state.players[0].costArea.length).toBe(8);
   });
+
+  it("is not offered when only a lower Life card is face-up (#490)", () => {
+    const h = new Harness();
+    h.hand(0, "OP08-063");
+    h.don(0, 7);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [false, true, false];
+    h.play(0, "OP08-063");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[0].faceUpLife).toEqual([false, true, false]);
+  });
+});
+
+describe("Life face-up/down costs that name a position (#492)", () => {
+  it("ST13-009 can turn any face-up Life card face-down, not just the top (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [false, true, false];
+    h.play(0, "ST13-009");
+    h.accept();
+    h.forced();
+    expect(h.state.players[0].faceUpLife).toEqual([false, false, false]);
+  });
+
+  it("ST13-009 lets the player choose which face-up Life card to turn face-down (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, false, true];
+    h.play(0, "ST13-009");
+    h.accept();
+    expect(h.choice?.request?.type).toBe("mode");
+    h.pick("Life card 3 (bottom)");
+    expect(h.state.players[0].faceUpLife).toEqual([true, false, false]);
+  });
+
+  it("ST13-009 is not offered when no Life card is face-up (#492)", () => {
+    const h = new Harness();
+    h.hand(0, "ST13-009");
+    h.don(0, 9);
+    h.life(0, FILLER, FILLER);
+    h.play(0, "ST13-009");
+    expect(h.choice).toBeUndefined();
+  });
+
+  it("ST36-005 can turn the bottom Life card face-up (#492)", () => {
+    const h = new Harness();
+    const [kid] = h.field(0, "ST36-005");
+    h.life(0, FILLER, FILLER, FILLER);
+    h.state.players[0].faceUpLife = [true, false, false];
+    const activate = h.legal(0).filter((i) => i.type === "activate_ability" && i.sourceId === kid!.id);
+    expect(activate.length).toBe(1);
+    h.act(0, activate[0]!);
+    h.forced();
+    expect(h.state.players[0].faceUpLife).toEqual([true, false, true]);
+  });
+
+  it("ST36-005 asks top or bottom when both ends can be turned face-up (#492)", () => {
+    const h = new Harness();
+    const [kid] = h.field(0, "ST36-005");
+    h.life(0, FILLER, FILLER, FILLER);
+    h.act(0, h.legal(0).find((i) => i.type === "activate_ability" && i.sourceId === kid!.id)!);
+    expect(h.choice?.request?.type).toBe("mode");
+    h.pick("Bottom");
+    expect(h.state.players[0].faceUpLife).toEqual([false, false, true]);
+  });
+});
+
+describe("OP16-015 Luffy On Your Opponent's Attack (#567)", () => {
+  function setup() {
+    const h = new Harness();
+    const [luffy] = h.field(1, "OP16-015");
+    h.hand(1, "OP16-016", "OP16-016");
+    const [a, b] = h.field(0, FILLER, FILLER);
+    h.life(1, FILLER, FILLER, FILLER);
+    return { h, luffy: luffy!, a: a!, b: b! };
+  }
+
+  it("OP16-015 is not offered again once both base powers are 7000 (#567)", () => {
+    const { h, luffy, a, b } = setup();
+    const leader = h.state.players[1].leader;
+    h.attack(a, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("OP16-016");
+    expect(basePowerOf(h.state, 1, leader)).toBe(7000);
+    expect(basePowerOf(h.state, 1, luffy)).toBe(7000);
+    h.passBattle();
+    h.attack(b, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(1);
+  });
+
+  it("OP16-015 is offered again when an effect changed the Leader's base power (#567)", () => {
+    const { h, a, b } = setup();
+    const leader = h.state.players[1].leader;
+    h.attack(a, "leader");
+    h.accept();
+    h.pick("OP16-016");
+    h.passBattle();
+    h.state.modifiers = h.state.modifiers.filter((m) => !(m.target.kind === "card" && m.target.id === leader.id && m.effect.type === "base_power"));
+    expect(basePowerOf(h.state, 1, leader)).not.toBe(7000);
+    h.attack(b, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+  });
+});
+
+describe("EB05-046 Yamato On Your Opponent's Attack (#607)", () => {
+  function setup(trashed: number) {
+    const h = new Harness();
+    h.field(1, "EB05-046");
+    h.hand(1, FILLER, FILLER, FILLER);
+    h.trash(1, ...Array.from({ length: trashed }, () => FILLER));
+    const [a, b] = h.field(0, FILLER, FILLER);
+    h.life(1, FILLER, FILLER, FILLER);
+    return { h, a: a!, b: b! };
+  }
+
+  it("EB05-046 Yamato is not offered again once the Leader's base power is 7000 (#607)", () => {
+    const { h, a, b } = setup(9);
+    const leader = h.state.players[1].leader;
+    expect(basePowerOf(h.state, 1, leader)).not.toBe(7000);
+    h.attack(a, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick(FILLER);
+    expect(basePowerOf(h.state, 1, leader)).toBe(7000);
+    h.passBattle();
+    const handSize = h.state.players[1].hand.length;
+    h.attack(b, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(handSize);
+  });
+
+  it("EB05-046 Yamato is not offered when the trash can't reach 10 (#607)", () => {
+    const { h, a } = setup(8);
+    h.attack(a, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].hand.length).toBe(3);
+  });
+});
+
+describe("Repeat prompts that do nothing (#607)", () => {
+  /** Seat 1 defends; seat 0 has three attackers. */
+  function defend(h: Harness, ...attackers: string[]) {
+    const mine = h.field(0, ...attackers);
+    h.life(1, FILLER, FILLER, FILLER, FILLER);
+    return mine;
+  }
+
+  it("OP04-059 is not offered again once it has [Blocker] this turn (#607)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP03-058"] });
+    const [iceburg] = h.field(1, "OP04-059");
+    h.don(1, 2);
+    const [a, b] = defend(h, FILLER, FILLER);
+    expect(keywordsOf(h.state, 1, iceburg!).has("blocker")).toBe(false);
+    h.attack(a!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(keywordsOf(h.state, 1, iceburg!).has("blocker")).toBe(true);
+    h.passBattle();
+    const donActive = h.state.players[1].costArea.length;
+    h.attack(b!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(donActive);
+  });
+
+  it("OP04-059 is not offered without a {Water Seven} Leader (#607)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "ST01-001"] });
+    h.field(1, "OP04-059");
+    h.don(1, 1);
+    const [a] = defend(h, FILLER);
+    h.attack(a!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(1);
+  });
+
+  it("OP04-069 is not offered again once its base power equals the attacker's (#607)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [a, b] = defend(h, FILLER, FILLER);
+    expect(basePowerOf(h.state, 1, bon!)).toBe(4000);
+    h.attack(a!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(basePowerOf(h.state, 1, bon!)).toBe(3000);
+    h.passBattle();
+    const donActive = h.state.players[1].costArea.length;
+    h.attack(b!, "leader");
+    expect(h.choice).toBeUndefined();
+    expect(h.state.players[1].costArea.length).toBe(donActive);
+  });
+
+  it("OP04-069 is offered again when the next attacker has different power (#607)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [a, big] = defend(h, FILLER, "OP14-049");
+    h.attack(a!, "leader");
+    h.accept();
+    h.pick("o0");
+    h.passBattle();
+    h.attack(big!, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.forced();
+    expect(basePowerOf(h.state, 1, bon!)).toBe(10000);
+  });
+
+  it("OP04-069 is offered when the attacker's When Attacking raised its power above Bon Kurei's base (#609)", () => {
+    const h = new Harness();
+    const [bon] = h.field(1, "OP04-069");
+    h.don(1, 2);
+    const [fullbody] = h.field(0, "OP02-111");
+    h.field(0, "OP02-100");
+    h.life(1, FILLER, FILLER, FILLER, FILLER);
+    h.attach(0, fullbody!, 1);
+    // Declared at 4000, equal to Bon Kurei's base power; [When Attacking] then makes it 7000.
+    expect(basePowerOf(h.state, 1, bon!)).toBe(4000);
+    h.attack(fullbody!, "leader");
+    expect(h.choice?.kind).not.toBe("order_effects");
+    h.forced();
+    expect(h.choice?.request?.type).toBe("confirm");
+    h.accept();
+    h.pick("o0");
+    expect(basePowerOf(h.state, 1, bon!)).toBe(7000);
+  });
+
+  for (const id of ["OP14-045", "OP14-049"]) {
+    it(`${id} does not queue another [Rush] gain once it has [Rush], so trashing several cards asks no order (#607)`, () => {
+      const h = new Harness();
+      const [card] = h.field(0, id);
+      h.hand(0, "OP11-083", "OP11-083", FILLER, FILLER, FILLER, FILLER);
+      h.don(0, 2);
+      h.play(0, "OP11-083");
+      h.pick(FILLER, FILLER);
+      // Rush not gained yet: both trashed cards queue a gain, so the player orders them.
+      expect(h.choice?.kind).toBe("order_effects");
+      h.act(0, { type: "order_pending_effects", orderedIds: h.choice!.unorderedChoices!.map((c) => c.id) });
+      expect(keywordsOf(h.state, 0, card!).has("rush")).toBe(true);
+      h.play(0, "OP11-083");
+      h.pick(FILLER, FILLER);
+      expect(h.choice).toBeUndefined();
+      expect(h.state.players[0].trash.length).toBe(4);
+    });
+  }
 });

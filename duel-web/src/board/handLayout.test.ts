@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { spectatorFans, spectatorFarStrip, usesPhoneFan, usesRailHand } from "./handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
 
 describe("hand layout (#271)", () => {
-  it("portrait phones fan up to 8 cards and scroll a bigger hand (#271)", () => {
-    expect(usesPhoneFan(false, "fan", 8)).toBe(true);
-    expect(usesPhoneFan(false, "fan", 9)).toBe(false);
+  it("portrait phones keep the fan when the hand grows past 8 cards (#445)", () => {
+    // Hand sizes are not an input: a 9+ card hand used to flip to the scrolling Grid whatever the setting said.
+    expect(usesPhoneFan(false, "fan")).toBe(true);
+    expect(usesPhoneFan(false, "auto")).toBe(true);
   });
 
   it("the Grid layout never fans (#271)", () => {
-    expect(usesPhoneFan(false, "grid", 5)).toBe(false);
+    expect(usesPhoneFan(false, "grid")).toBe(false);
   });
 
   it("landscape phones keep the hand in the right column, even in a short window (#271)", () => {
@@ -33,8 +34,10 @@ describe("spectator hand fans (#346)", () => {
     expect(spectatorFans(false, false, false)).toBeNull();
   });
 
-  it("the far strip on a portrait phone fans up to 8 cards and scrolls a bigger hand (#346)", () => {
-    expect(spectatorFarStrip(8)).toBe("fan");
-    expect(spectatorFarStrip(9)).toBe("scroll");
+  it("phones show a spectator's hands as grids, the desktop keeps the fans (#512)", () => {
+    expect(spectatorHandGrid("portrait")).toBe(true);
+    expect(spectatorHandGrid("landscape")).toBe(true);
+    expect(spectatorHandGrid("desktop")).toBe(false);
+    expect(spectatorHandGrid(null)).toBe(false);
   });
 });

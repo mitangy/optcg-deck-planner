@@ -1,4 +1,6 @@
 /** TCGplayer CDN size rewrite — mirrors frontend/src/cardImage.ts for duel-web. */
+import { altPreviewArtPath, isPreviewArtPath, previewArtPath } from "./previewArt";
+
 const TCGPLAYER_PRODUCT_IMAGE =
   /^(https?:\/\/tcgplayer-cdn\.tcgplayer\.com\/product\/\d+)(?:_[^./]+)?(\.[a-z0-9]+)$/i;
 
@@ -29,16 +31,28 @@ export function localCardArtPath(defId: string): string {
   return `/cards/${defId.trim().toUpperCase()}.png`;
 }
 
+export function isLocalCardsUrl(src: string | undefined | null): boolean {
+  return !!src && src.trim().startsWith("/cards/");
+}
+
 export function isTcgplayerCdnUrl(src: string | undefined | null): boolean {
   return !!src && TCGPLAYER_PRODUCT_IMAGE.test(src.trim());
 }
 
 /**
- * The art to try after `failed` did not load: the local mirror once when the
- * TCGplayer CDN fails, then nothing (show the text fallback).
+ * The art to try after `failed` did not load. The card's preview image (new
+ * cards TCGplayer has no art for yet) comes before the local mirror; a failed
+ * preview, or any other URL, ends the chain (show the text fallback):
+ * - TCGplayer CDN: the alt printing's own preview (by product id), else the card's preview, else the local `/cards/<ID>.png` mirror
+ * - local `/cards/...` (not the preview): preview, else nothing
  */
 export function artAfterError(failed: string, defId: string): string | null {
-  return isTcgplayerCdnUrl(failed) ? localCardArtPath(defId) : null;
+  if (isPreviewArtPath(failed)) return null;
+  if (isTcgplayerCdnUrl(failed)) {
+    return altPreviewArtPath(failed) ?? previewArtPath(defId) ?? localCardArtPath(defId);
+  }
+  if (isLocalCardsUrl(failed)) return previewArtPath(defId);
+  return null;
 }
 
 /**

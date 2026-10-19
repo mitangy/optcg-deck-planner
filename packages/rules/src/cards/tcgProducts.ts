@@ -288,5 +288,367 @@ export const TCG_PRODUCTS: Record<
         "productId": 695757
       }
     ]
+  },
+  "EB05-001": {
+    "productId": 718686,
+    "alts": []
+  },
+  "EB05-002": {
+    "productId": 715970,
+    "alts": []
+  },
+  "EB05-004": {
+    "productId": 721358,
+    "alts": []
+  },
+  "EB05-005": {
+    "productId": 715608,
+    "alts": []
+  },
+  "EB05-006": {
+    "productId": 718679,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Special Art",
+        "productId": 722703
+      }
+    ]
+  },
+  "EB05-007": {
+    "productId": 714391,
+    "alts": []
+  },
+  "EB05-008": {
+    "productId": 722776,
+    "alts": []
+  },
+  "EB05-009": {
+    "productId": 718687,
+    "alts": []
+  },
+  "EB05-010": {
+    "productId": 712886,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 722644
+      }
+    ]
+  },
+  "EB05-011": {
+    "productId": 715605,
+    "alts": []
+  },
+  "EB05-012": {
+    "productId": 716976,
+    "alts": []
+  },
+  "EB05-013": {
+    "productId": 714390,
+    "alts": []
+  },
+  "EB05-014": {
+    "productId": 718678,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "productId": 718677
+      }
+    ]
+  },
+  "EB05-016": {
+    "productId": 718684,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Special Art",
+        "productId": 712885
+      }
+    ]
+  },
+  "EB05-017": {
+    "productId": 715825,
+    "alts": []
+  },
+  "EB05-018": {
+    "productId": 721365,
+    "alts": []
+  },
+  "EB05-019": {
+    "productId": 722713,
+    "alts": []
+  },
+  "EB05-020": {
+    "productId": 718676,
+    "alts": []
+  },
+  "EB05-021": {
+    "productId": 718680,
+    "alts": []
+  },
+  "EB05-022": {
+    "productId": 715824,
+    "alts": []
+  },
+  "EB05-023": {
+    "productId": 714389,
+    "alts": []
+  },
+  "EB05-024": {
+    "productId": 721369,
+    "alts": []
+  },
+  "EB05-025": {
+    "productId": 714852,
+    "alts": []
+  },
+  "EB05-027": {
+    "productId": 716975,
+    "alts": []
+  },
+  "EB05-028": {
+    "productId": 717813,
+    "alts": []
+  },
+  "EB05-030": {
+    "productId": 722646,
+    "alts": []
+  },
+  "EB05-031": {
+    "productId": 721353,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Special Art",
+        "productId": 722712
+      }
+    ]
+  },
+  "EB05-034": {
+    "productId": 718685,
+    "alts": []
+  },
+  "EB05-035": {
+    "productId": 714558,
+    "alts": []
+  },
+  "EB05-036": {
+    "productId": 713242,
+    "alts": []
+  },
+  "EB05-037": {
+    "productId": 718642,
+    "alts": []
+  },
+  "EB05-038": {
+    "productId": 715823,
+    "alts": []
+  },
+  "EB05-040": {
+    "productId": 722648,
+    "alts": []
+  },
+  "EB05-042": {
+    "productId": 713205,
+    "alts": []
+  },
+  "EB05-043": {
+    "productId": 721355,
+    "alts": []
+  },
+  "EB05-044": {
+    "productId": 717461,
+    "alts": []
+  },
+  "EB05-045": {
+    "productId": 714393,
+    "alts": []
+  },
+  "EB05-046": {
+    "productId": 718683,
+    "alts": []
+  },
+  "EB05-047": {
+    "productId": 716124,
+    "alts": []
+  },
+  "EB05-048": {
+    "productId": 719768,
+    "alts": []
+  },
+  "EB05-049": {
+    "productId": 722647,
+    "alts": []
+  },
+  "EB05-050": {
+    "productId": 721378,
+    "alts": []
+  },
+  "EB05-051": {
+    "productId": 715821,
+    "alts": []
+  },
+  "EB05-052": {
+    "productId": 718682,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 722774
+      }
+    ]
+  },
+  "EB05-054": {
+    "productId": 714392,
+    "alts": []
+  },
+  "EB05-055": {
+    "productId": 718681,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 722645
+      }
+    ]
+  },
+  "EB05-056": {
+    "productId": 712887,
+    "alts": []
+  },
+  "EB05-057": {
+    "productId": 716522,
+    "alts": []
+  },
+  "EB05-060": {
+    "productId": 719549,
+    "alts": []
+  },
+  "OP18-055": {
+    "productId": 722714,
+    "alts": []
+  },
+  "OP18-021": {
+    "productId": 712888,
+    "alts": []
+  },
+  "OP18-119": {
+    "productId": 712891,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 712890
+      }
+    ]
+  },
+  "OP18-031": {
+    "productId": 712892,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Manga Rare",
+        "productId": 712893
+      }
+    ]
+  },
+  "OP18-041": {
+    "productId": 718688,
+    "alts": []
+  },
+  "OP18-060": {
+    "productId": 718690,
+    "alts": []
+  },
+  "OP18-022": {
+    "productId": 718691,
+    "alts": []
+  },
+  "OP18-001": {
+    "productId": 718692,
+    "alts": []
+  },
+  "OP18-079": {
+    "productId": 718693,
+    "alts": []
+  },
+  "OP18-003": {
+    "productId": 719550,
+    "alts": []
+  },
+  "OP18-028": {
+    "productId": 719772,
+    "alts": []
+  },
+  "OP18-056": {
+    "productId": 721348,
+    "alts": []
+  },
+  "OP18-066": {
+    "productId": 721379,
+    "alts": []
+  },
+  "OP18-086": {
+    "productId": 721380,
+    "alts": []
+  },
+  "OP18-016": {
+    "productId": 721384,
+    "alts": []
+  },
+  "OP18-025": {
+    "productId": 721560,
+    "alts": []
+  },
+  "OP18-044": {
+    "productId": 721832,
+    "alts": []
+  },
+  "OP18-076": {
+    "productId": 721836,
+    "alts": []
+  },
+  "OP18-089": {
+    "productId": 722262,
+    "alts": []
+  },
+  "OP18-024": {
+    "productId": 722650,
+    "alts": []
+  },
+  "OP18-106": {
+    "productId": 722651,
+    "alts": []
+  },
+  "OP18-017": {
+    "productId": 722652,
+    "alts": []
+  },
+  "OP18-069": {
+    "productId": 722777,
+    "alts": []
+  },
+  "OP18-091": {
+    "productId": 723145,
+    "alts": []
+  },
+  "OP18-111": {
+    "productId": 723152,
+    "alts": []
+  },
+  "OP18-010": {
+    "productId": 723255,
+    "alts": []
+  },
+  "OP18-032": {
+    "productId": 723256,
+    "alts": []
+  },
+  "OP18-052": {
+    "productId": 723257,
+    "alts": []
   }
 };

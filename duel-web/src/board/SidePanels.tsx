@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   PANEL_LABELS,
   matSpotAt,
+  MAT_SIDE_MIN_ASPECT,
   movePanel,
   nudgePanel,
   panelDropAt,
@@ -36,13 +37,19 @@ export type MatPin = { id: PanelId; spot: MatSpot | null; onChange: (spot: MatSp
 
 /** Measure the desktop side columns and their panels inside `root`. */
 function measure(root: HTMLElement) {
-  const columns = {} as Record<PanelColumn, ColumnRect & { top: number }>;
+  const columns: Partial<Record<PanelColumn, ColumnRect & { top: number }>> = {};
   const panels: PanelRect[] = [];
   for (const col of root.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const column = col.dataset.panelCol as PanelColumn;
+    // The column the single-column setting folded away is not a drop target.
+    if (col.hasAttribute("data-col-off")) continue;
     const r = col.getBoundingClientRect();
-    columns[column] = { left: r.left, right: r.right, top: r.top };
+    // An empty column's drop line goes under the action row (no top bar), not over it.
+    const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
+    columns[column] = { left: r.left, right: r.right, top: actions ? actions.getBoundingClientRect().bottom : r.top };
     for (const p of col.querySelectorAll<HTMLElement>(":scope > [data-panel]")) {
+      // The action buttons and the defend tray ride in the column but are not movable panels (#556).
+      if (p.dataset.panel === "actions" || p.dataset.panel === "defend") continue;
       const pr = p.getBoundingClientRect();
       panels.push({ id: p.dataset.panel as PanelId, column, top: pr.top, bottom: pr.bottom });
     }
@@ -72,9 +79,9 @@ export function usePanelDrag(
       const root = rootRef.current;
       if (!root) return;
       const { columns, panels } = measure(root);
-      if (!columns.left || !columns.right) return;
+      if (!columns.left && !columns.right) return;
       const drop = panelDropAt(columns, panels, id, x, y);
-      const col = columns[drop.column];
+      const col = columns[drop.column]!;
       const rest = panels.filter((p) => p.column === drop.column && p.id !== id);
       const before = drop.beforeId ? rest.find((p) => p.id === drop.beforeId) : null;
       const top = before ? before.top : rest.length ? Math.max(...rest.map((p) => p.bottom)) : col.top;
@@ -82,11 +89,25 @@ export function usePanelDrag(
       const matEl = latest.current.matPin?.id === id ? root.querySelector<HTMLElement>("[data-mat-drop]") : null;
       if (matEl) {
         const r = matEl.getBoundingClientRect();
-        const spot = matSpotAt(r, x, y);
+        // Open space beside the opponent's mat is where left / right sit; a
+        // narrow or tilted board has none and falls back to the top strip.
+        const inner = matEl.querySelector<HTMLElement>(".playmat-inner");
+        const roomy =
+          inner != null &&
+          !matEl.closest(".arena-tilt") &&
+          inner.clientWidth >= inner.clientHeight * MAT_SIDE_MIN_ASPECT;
+        const gutter = roomy ? matEl.querySelector<HTMLElement>(".side-field.side-opp")?.getBoundingClientRect() : undefined;
+        const spot = matSpotAt(r, x, y, gutter);
         if (spot) {
-          const width = r.width / 3;
-          const left = r.left + (spot === "left" ? 0 : spot === "centre" ? width : 2 * width);
-          mat = { spot, left, top: r.top, width, height: Math.min(r.height * 0.2, 96) };
+          if (gutter && spot !== "centre") {
+            const left = spot === "left" ? r.left : gutter.right;
+            const width = spot === "left" ? gutter.left - r.left : r.right - gutter.right;
+            mat = { spot, left, top: gutter.top, width, height: gutter.bottom - gutter.top };
+          } else {
+            const width = r.width / 3;
+            const left = r.left + (spot === "left" ? 0 : spot === "centre" ? width : 2 * width);
+            mat = { spot, left, top: r.top, width, height: Math.min(r.height * 0.2, 96) };
+          }
         }
       }
       setDrag({ id, x, y, drop, line: { left: col.left, width: col.right - col.left, top }, mat });

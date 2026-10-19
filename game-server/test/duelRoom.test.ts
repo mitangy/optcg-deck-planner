@@ -14,12 +14,15 @@ import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
+import { deviceHandoffTests } from "./deviceHandoff.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
   seat: 0 | 1;
   you: { hand: { id: string; defId: string }[]; lifeCount: number; mulliganDone: boolean };
   opponent: { handCount: number };
+  revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+  revealedLife?: [string[], string[]];
   legalIntents: (Record<string, unknown> & { type: string })[];
   winner: 0 | 1 | null;
   phase: string;
@@ -28,6 +31,8 @@ type PlayerView = {
 
 type SeatBag = {
   welcome?: PlayerView;
+  /** The latest welcome's firstSeatPickedBy (null = coin flip). */
+  pickedBy?: 0 | 1 | null;
   players?: { name: string | null }[];
   views: PlayerView[];
   errors: { code: string; message: string }[];
@@ -45,8 +50,9 @@ function joinOpts(devUserId: string, preferredSeat?: 0 | 1) {
 function attach(client: ClientRoom, bag: SeatBag) {
   client.onMessage(
     "welcome",
-    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[] }) => {
+    (msg: { seat: 0 | 1; view: PlayerView; players?: { name: string | null }[]; firstSeatPickedBy?: 0 | 1 | null }) => {
       bag.welcome = msg.view;
+      bag.pickedBy = msg.firstSeatPickedBy;
       bag.players = msg.players;
       bag.views.push(msg.view);
     },
@@ -430,6 +436,8 @@ describe("DuelRoom", () => {
       spectator?: boolean;
       you: PlayerView["you"] & { handCount?: number };
       revealedHands?: [{ id: string; defId: string }[], { id: string; defId: string }[]];
+      revealedLife?: [string[], string[]];
+      winner?: 0 | 1 | null;
     };
   };
 
@@ -703,19 +711,19 @@ describe("DuelRoom", () => {
     const dupB = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     await waitUntil(() => aLeft, 3000);
 
+    // Listen before the second player joins: pairing runs inside that join, so `matched` for dupB can arrive
+    // before the join call returns. Pairing creates a duel room, which can be slow on a loaded CI runner.
+    const matched = (c: typeof dupB) =>
+      new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("matched timeout")), 20000);
+        c.onMessage("matched", (m: { roomId: string; seat: number }) => {
+          clearTimeout(t);
+          resolve(m);
+        });
+      });
+    const mineP = matched(dupB);
     const other = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("other-user"));
-    const [mine, theirs] = await Promise.all(
-      [dupB, other].map(
-        (c) =>
-          new Promise<{ roomId: string; seat: number }>((resolve, reject) => {
-            const t = setTimeout(() => reject(new Error("matched timeout")), 5000);
-            c.onMessage("matched", (m: { roomId: string; seat: number }) => {
-              clearTimeout(t);
-              resolve(m);
-            });
-          }),
-      ),
-    );
+    const [mine, theirs] = await Promise.all([mineP, matched(other)]);
     assert.equal(mine!.roomId, theirs!.roomId);
     assert.notEqual(mine!.seat, theirs!.seat);
     await dupB.leave(true);
@@ -944,7 +952,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("undo: request/accept rewinds to the turn start in unranked rooms", async () => {
+  it("undo: request/accept takes back the last action in unranked rooms (#497)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 21,
@@ -953,19 +961,20 @@ describe("DuelRoom", () => {
     type UndoState = {
       enabled: boolean;
       targetTurn: number | null;
-      pending: { from: 0 | 1; toTurn: number } | null;
+      action: { seat: 0 | 1; label: string } | null;
+      pending: { from: 0 | 1; toTurn: number; action: { seat: 0 | 1; label: string } | null } | null;
     };
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
     ];
     const undo: [UndoState[], UndoState[]] = [[], []];
-    const applied: { toTurn: number; by: number }[] = [];
+    const applied: { toTurn: number; toStep: number; by: number; action: { seat: 0 | 1; label: string } }[] = [];
 
     const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
     attach(c0, bags[0]);
     c0.onMessage("undo_state", (msg: UndoState) => undo[0].push(msg));
-    c0.onMessage("undo_applied", (msg: { toTurn: number; by: number }) => applied.push(msg));
+    c0.onMessage("undo_applied", (msg: (typeof applied)[number]) => applied.push(msg));
     const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
     attach(c1, bags[1]);
     c1.onMessage("undo_state", (msg: UndoState) => undo[1].push(msg));
@@ -976,6 +985,7 @@ describe("DuelRoom", () => {
     assert.equal(undo[0].at(-1)!.enabled, true);
     // Nothing has happened yet: nothing to undo.
     assert.equal(undo[0].at(-1)!.targetTurn, null);
+    assert.equal(undo[0].at(-1)!.action, null);
 
     const start = bags[0].views.at(-1)!;
     const active = start.activeSeat;
@@ -987,12 +997,14 @@ describe("DuelRoom", () => {
       () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn + 1,
       5000,
     );
-    // Fresh turn with no actions: undo targets the previous turn's start.
+    // The last action was ending the turn: that is what an undo takes back.
     await waitUntil(() => undo[1].at(-1)?.targetTurn === startTurn, 5000);
+    assert.deepEqual(undo[1].at(-1)!.action, { seat: active, label: "end turn" });
 
     // The requester cannot accept their own request.
     other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await waitUntil(() => undo[0].at(-1)?.pending != null, 5000);
+    assert.deepEqual(undo[0].at(-1)!.pending!.action, { seat: active, label: "end turn" });
     other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     const otherBag = bags[active === 0 ? 1 : 0];
     await waitUntil(() => otherBag.errors.some((e) => e.code === "unauthorized"), 5000);
@@ -1000,6 +1012,8 @@ describe("DuelRoom", () => {
     activeClient.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
     assert.equal(applied[0]!.toTurn, startTurn);
+    assert.deepEqual(applied[0]!.action, { seat: active, label: "end turn" });
+    assert.equal(applied[0]!.toStep, 0);
     await waitUntil(
       () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn,
       5000,
@@ -1013,6 +1027,330 @@ describe("DuelRoom", () => {
 
     await c0.leave(true);
     await c1.leave(true);
+  });
+
+  it("one undo takes back one action, not the whole turn, and repeats step further back (#497)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 21,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const applied: { toStep: number; action: { label: string } }[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_applied", (msg: (typeof applied)[number]) => applied.push(msg));
+    const steps: unknown[] = [];
+    c0.onMessage("events", (msg: { step?: number }) => steps.push(msg.step));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const other = (1 - active) as 0 | 1;
+
+    const undoOnce = async () => {
+      const n = applied.length;
+      clients[other].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+      await new Promise((r) => setTimeout(r, 50));
+      clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
+      await waitUntil(() => applied.length === n + 1, 5000);
+    };
+
+    const atStart = JSON.stringify(internals(room).match);
+    // Action 1: give DON!! (reveals nothing). Action 2: end the turn.
+    const give = bags[active].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
+    assert.ok(give, "the opening player can give DON!!");
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: give });
+    await waitUntil(() => internals(room).replay!.intents.length === 1, 5000);
+    const afterGive = JSON.stringify(internals(room).match);
+    clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
+    await waitUntil(() => internals(room).replay!.intents.length === 2, 5000);
+    const afterEnd = JSON.stringify(internals(room).match);
+    assert.notEqual(afterEnd, afterGive);
+    // Each events message says how many intents had been applied, so clients can trim their log on undo.
+    await waitUntil(() => steps.includes(2), 5000);
+    assert.ok(steps.includes(1));
+
+    // The opponent of the player who acts asks, and the last action by either seat is the one undone.
+    await undoOnce();
+    assert.equal(applied.at(-1)!.action.label, "end turn");
+    assert.equal(applied.at(-1)!.toStep, 1);
+    // Back to right after the first action: DON!! is still given, the turn is not rewound to its start.
+    assert.equal(JSON.stringify(internals(room).match), afterGive);
+    assert.equal(internals(room).replay!.intents.length, 1);
+
+    await undoOnce();
+    assert.match(applied.at(-1)!.action.label, /^give DON!! to /);
+    assert.equal(applied.at(-1)!.toStep, 0);
+    assert.equal(JSON.stringify(internals(room).match), atStart);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  /** Two seated players, unranked, with an undo listener per seat; `active` is the seat to move. */
+  async function undoRoom(seed: number) {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed,
+      autoSkipMulligan: true,
+    });
+    type Opt = { available: boolean; steps: number; blockedReason?: string; forceable: boolean; revealReason?: string };
+    type UState = {
+      targetTurn: number | null;
+      action: { seat: number; label: string } | null;
+      options: { action: Opt; turn: Opt } | null;
+      blockedReason: string | null;
+      pending: { id: number; from: number; scope: string; steps: number; force: boolean; revealReason: string | null } | null;
+    };
+    type Applied = { toStep: number; toTurn: number; scope: string; steps: number; action: { label: string } };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const undo: UState[][] = [[], []];
+    const applied: Applied[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("undo_state", (m: UState) => undo[0]!.push(m));
+    c0.onMessage("undo_applied", (m: Applied) => applied.push(m));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    c1.onMessage("undo_state", (m: UState) => undo[1]!.push(m));
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    const clients: [ClientRoom, ClientRoom] = [c0, c1];
+    const active = bags[0].views.at(-1)!.activeSeat as 0 | 1;
+    const steps = () => internals(room).replay!.intents.length;
+    const act = async (seat: 0 | 1, intent: { type: string }) => {
+      const n = steps();
+      clients[seat].send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
+      await waitUntil(() => steps() === n + 1, 5000);
+    };
+    const give = (seat: 0 | 1) => bags[seat].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
+    /** Swap the first hand card for Nami (looks at the deck: a reveal) and make sure there is a DON!! to pay with. */
+    const playRevealer = async (seat: 0 | 1) => {
+      const m = internals(room).match as unknown as {
+        players: { hand: { defId: string }[]; costArea: { rested: boolean }[]; donDeck: { rested: boolean }[] }[];
+      };
+      m.players[seat]!.hand[0]!.defId = "OP01-016";
+      m.players[seat]!.costArea.push(m.players[seat]!.donDeck.pop()!);
+      await act(seat, { type: "play_card", handIndex: 0 } as never);
+    };
+    const request = (seat: 0 | 1, extra: Record<string, unknown> = {}) =>
+      clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", ...extra });
+    const accept = (seat: 0 | 1, id?: number) =>
+      clients[seat].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept", ...(id === undefined ? {} : { id }) });
+    const last = (seat: 0 | 1) => undo[seat]!.at(-1)!;
+    const close = async () => {
+      await c0.leave(true);
+      await c1.leave(true);
+    };
+    return { room, bags, undo, applied, clients, active, other: (1 - active) as 0 | 1, steps, act, give, playRevealer, request, accept, last, close };
+  }
+
+  it("whole-turn undo rewinds every action of the turn to its start (#536)", async () => {
+    const t = await undoRoom(21);
+    // Turn 1 by the opening seat: give DON!!, then end the turn. Turn 2 by the other seat: give DON!! twice.
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    const turnTwoStart = JSON.stringify(internals(t.room).match);
+    const stepsAtStart = t.steps();
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    assert.notEqual(JSON.stringify(internals(t.room).match), turnTwoStart);
+
+    await waitUntil(() => t.last(t.other).options?.turn.steps === 2, 5000);
+    const opts = t.last(t.other).options!;
+    assert.equal(opts.turn.available, true);
+    assert.equal(opts.action.steps, 1);
+
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.deepEqual(
+      { scope: t.last(t.active).pending!.scope, steps: t.last(t.active).pending!.steps, force: t.last(t.active).pending!.force },
+      { scope: "turn", steps: 2, force: false },
+    );
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: 2, toStep: stepsAtStart });
+    // The match is exactly the state before the turn's first action, and only that turn went.
+    assert.equal(JSON.stringify(internals(t.room).match), turnTwoStart);
+    assert.equal(t.steps(), stepsAtStart);
+    await waitUntil(() => t.last(t.other).options?.action.steps === 1 && t.last(t.other).action?.label === "end turn", 5000);
+    await t.close();
+  });
+
+  it("an undo accept applies only the request the opponent saw (#540)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    const stepsBefore = t.steps();
+    await waitUntil(() => t.last(t.other).options?.turn.steps === 2, 5000);
+
+    t.request(t.other, { scope: "action" });
+    await waitUntil(() => t.last(t.active).pending?.scope === "action", 5000);
+    const seen = t.last(t.active).pending!;
+    // The requester widens to the whole turn just before the answer arrives.
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.last(t.active).pending?.scope === "turn", 5000);
+    assert.notEqual(t.last(t.active).pending!.id, seen.id);
+
+    // The stale answer is refused and the dialog is refreshed to the current request.
+    const states = t.undo[t.active]!.length;
+    t.accept(t.active, seen.id);
+    await waitUntil(() => t.bags[t.active].errors.some((e) => e.code === "illegal_intent"), 5000);
+    await waitUntil(() => t.undo[t.active]!.length > states, 5000);
+    assert.equal(t.applied.length, 0);
+    assert.equal(t.steps(), stepsBefore);
+    assert.equal(t.last(t.active).pending!.scope, "turn");
+
+    // Answering the current request applies exactly it.
+    t.accept(t.active, t.last(t.active).pending!.id);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps }, { scope: "turn", steps: 2 });
+    await t.close();
+  });
+
+  it("a request without a scope still takes back one action (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    t.request(t.other);
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.scope, "action");
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.equal(t.applied[0]!.steps, 1);
+    assert.equal(t.steps(), 1);
+    await t.close();
+  });
+
+  it("action undo is blocked after a reveal, with the reason, until forced (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    await waitUntil(() => t.last(t.other).options?.action.forceable === true, 5000);
+    const o = t.last(t.other);
+    assert.equal(o.options!.action.available, false);
+    assert.match(o.options!.action.blockedReason!, /^Undo stops here: .+/);
+    assert.equal(o.blockedReason, o.options!.action.blockedReason);
+    assert.equal(o.options!.action.revealReason, "a deck or Life card was looked at");
+
+    t.request(t.other);
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.code === "illegal_intent"), 5000);
+    assert.match(t.bags[t.other].errors.at(-1)!.message, /^Undo stops here: /);
+    assert.equal(t.last(t.active).pending, null);
+    assert.equal(t.steps(), 2);
+    await t.close();
+  });
+
+  it("forcing an undo past a reveal works, and the opponent's request says it was forced (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    await waitUntil(() => t.last(t.other).options?.action.forceable === true, 5000);
+
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    const pending = t.last(t.active).pending!;
+    assert.equal(pending.force, true);
+    assert.equal(pending.revealReason, "a deck or Life card was looked at");
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.equal(t.steps(), 1);
+    assert.match(t.applied[0]!.action.label, /^play /);
+    // Back to the plain give-DON!! as the last action (the hand swap above was made on the live match).
+    assert.equal(t.last(t.other).action?.label.startsWith("give DON!!"), true);
+    await t.close();
+  });
+
+  it("force is only taken when a reveal is the blocker (#536)", async () => {
+    const t = await undoRoom(21);
+    // Nothing to undo yet: force does not change that.
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.bags[t.other].errors.length > 0, 5000);
+    assert.equal(t.bags[t.other].errors.at(-1)!.message, "Nothing to undo yet");
+    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    // A plain action: force adds nothing, the request is not marked forced.
+    await t.act(t.active, t.give(t.active));
+    t.request(t.other, { force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.force, false);
+    assert.equal(t.last(t.active).pending!.revealReason, null);
+    await t.close();
+  });
+
+  it("whole-turn undo is blocked by a reveal mid-turn unless forced (#536)", async () => {
+    const t = await undoRoom(21);
+    const atStart = JSON.stringify(internals(t.room).match);
+    await t.act(t.active, t.give(t.active));
+    await t.playRevealer(t.active);
+    // Nami's look leaves a choice to answer before the turn can end.
+    for (let i = 0; i < 4 && !t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "end_turn"); i += 1) {
+      await waitUntil(() => t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "resolve_pending_choice"), 5000);
+      await t.act(t.active, t.bags[t.active].views.at(-1)!.legalIntents.find((x) => x.type === "resolve_pending_choice")!);
+    }
+    await t.act(t.active, { type: "end_turn" });
+    const turnSteps = t.steps();
+    await waitUntil(() => t.last(t.other).action?.label === "end turn", 5000);
+    const o = t.last(t.other).options!;
+    // The last action alone is fine; the turn as a whole crosses the reveal.
+    assert.equal(o.action.available, true);
+    assert.equal(o.turn.available, false);
+    assert.equal(o.turn.forceable, true);
+    assert.equal(o.turn.steps, turnSteps);
+    assert.ok(turnSteps >= 4);
+    assert.match(o.turn.blockedReason!, /^Undo stops here: /);
+    assert.equal(t.last(t.other).blockedReason, null);
+
+    t.request(t.other, { scope: "turn" });
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.code === "illegal_intent"), 5000);
+    assert.equal(t.last(t.active).pending, null);
+
+    t.request(t.other, { scope: "turn", force: true });
+    await waitUntil(() => t.last(t.active).pending != null, 5000);
+    assert.equal(t.last(t.active).pending!.force, true);
+    t.accept(t.active);
+    await waitUntil(() => t.applied.length === 1, 5000);
+    assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: turnSteps, toStep: 0 });
+    assert.equal(t.steps(), 0);
+    assert.equal(JSON.stringify(internals(t.room).match), atStart);
+    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    await t.close();
+  });
+
+  it("whole-turn undo is unavailable once the history no longer reaches the turn start (#536)", async () => {
+    const t = await undoRoom(21);
+    await t.act(t.active, t.give(t.active));
+    await t.act(t.active, { type: "end_turn" });
+    // Pad the history to the limit with turn-2 snapshots, then take two more turn-2 actions: the oldest one falls off.
+    const stack = (t.room as unknown as { undoStack: { turnNumber: number }[] }).undoStack;
+    const template = stack.at(-1)!;
+    stack.length = 0;
+    for (let i = 0; i < 39; i += 1) stack.push({ ...template, turnNumber: 2 });
+    await t.act(t.other, t.give(t.other));
+    await waitUntil(() => t.bags[t.other].views.at(-1)!.legalIntents.some((x) => x.type === "give_don"), 5000);
+    await t.act(t.other, t.give(t.other));
+    assert.equal(stack.length, 40);
+    await waitUntil(() => t.last(t.active).options?.turn.blockedReason === "Undo history limit reached", 5000);
+    const o = t.last(t.active).options!;
+    assert.equal(o.turn.available, false);
+    assert.equal(o.turn.forceable, false);
+    assert.equal(o.action.available, true);
+    t.request(t.other, { scope: "turn", force: true });
+    await waitUntil(() => t.bags[t.other].errors.some((e) => e.message === "Undo history limit reached"), 5000);
+    assert.equal(t.last(t.active).pending, null);
+    await t.close();
   });
 
   it("undo is disabled in ranked rooms", async () => {
@@ -1033,7 +1371,8 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bag);
     await waitUntil(() => states.length > 0, 5000);
     assert.equal(states.at(-1)!.enabled, false);
-    c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    assert.equal((states.at(-1) as { blockedReason?: string }).blockedReason, "No undo in ranked");
+    c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", scope: "turn", force: true });
     await waitUntil(() => bag.errors.some((e) => e.code === "unauthorized"), 5000);
 
     await c0.leave(true);
@@ -1112,6 +1451,54 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)", async () => {
+    const { bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    assert.ok(bags[0].welcome!.you.hand.length > 0);
+    for (const bag of bags) assert.ok(bag.views.every((v) => v.revealedHands === undefined && v.revealedLife === undefined), "live views carry no hidden cards");
+
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => bags.every((b) => b.views.at(-1)?.winner != null) && specViews.at(-1)?.winner != null, 8000);
+
+    const ids = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
+    const hand0 = ids(bags[0].welcome!.you.hand);
+    const hand1 = ids(bags[1].welcome!.you.hand);
+    for (const final of [bags[0].views.at(-1)!, bags[1].views.at(-1)!, specViews.at(-1)!]) {
+      assert.deepEqual(ids(final.revealedHands?.[0]), hand0);
+      assert.deepEqual(ids(final.revealedHands?.[1]), hand1);
+      assert.equal(final.revealedLife?.[0].length, bags[0].welcome!.you.lifeCount);
+      assert.equal(final.revealedLife?.[1].length, bags[1].welcome!.you.lifeCount);
+    }
+  });
+
+  it("the first game starts with the seat the room was created for and calls it a coin flip (#549)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 41,
+      firstSeat: 1,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    for (const bag of bags) {
+      const view = bag.welcome as PlayerView & { firstSeat?: number };
+      assert.equal(view.firstSeat, 1);
+      assert.equal(view.activeSeat, 1);
+      assert.equal(bag.pickedBy, null);
+    }
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("rematch: both agree, the loser picks turn order, a fresh game starts", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1153,6 +1540,93 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
+    // The mulligan banner credits the loser (seat 0) with the choice (#549).
+    assert.equal(bags[0].pickedBy, 0);
+    assert.equal(bags[1].pickedBy, 0);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  /** Two default-deck seats at match over (seat 0 conceded), ready to trade rematch requests. */
+  async function rematchRoom(seed: number) {
+    type Rematch = { available: boolean; requested: [boolean, boolean]; newDeck: [boolean, boolean]; chooser: 0 | 1 | null };
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const rematch: Rematch[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("rematch_state", (msg: Rematch) => rematch.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => rematch.some((r) => r.available), 8000);
+    return { c0, c1, bags, rematch };
+  }
+  const leaderOf = (bag: SeatBag) => (bag.views.at(-1) as PlayerView & { you: { leader: { defId: string } } }).you.leader.defId;
+  const altDeck = {
+    leaderId: "OP01-001",
+    deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]),
+  };
+
+  it("rematch: a player who picks a different deck plays it in the next game (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(43);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.requested[0], 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [true, false]);
+
+    const before = [bags[0].views.length, bags[1].views.length];
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before[0], 5000);
+    await waitUntil(() => bags[1].views.length > before[1], 5000);
+    assert.equal(leaderOf(bags[0]), "OP01-001");
+    assert.equal(leaderOf(bags[1]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: declining drops a picked deck (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(44);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: altDeck });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0], 5000);
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "decline" });
+    await waitUntil(() => rematch.at(-1)!.newDeck[0] === false && !rematch.at(-1)!.requested[0], 5000);
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+    await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+
+    const before = bags[0].views.length;
+    bags[0].welcome = undefined;
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+    await waitUntil(() => bags[0].welcome != null && bags[0].views.length > before, 5000);
+    assert.equal(leaderOf(bags[0]), "ST01-001");
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("rematch: a deck with unknown cards is refused (#479)", async () => {
+    const { c0, c1, bags, rematch } = await rematchRoom(45);
+    const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
+    c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request", deck: badDeck });
+    await waitUntil(() => bags[0].errors.some((e) => e.code === "bad_protocol"), 5000);
+    assert.equal(rematch.at(-1)!.requested[0], false);
+    assert.deepEqual(rematch.at(-1)!.newDeck, [false, false]);
 
     await c0.leave(true);
     await c1.leave(true);
@@ -1293,13 +1767,12 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("an accepted undo re-seeds the rng instead of restoring it, and the replay still rebuilds (#369)", async () => {
+  it("an accepted undo restores the turn exactly, so the same cards are drawn again, and the replay rebuilds (#449)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 53,
       autoSkipMulligan: true,
     });
-    Object.assign(room, { freshSeed: () => 777_001 });
     const bags: [SeatBag, SeatBag] = [
       { views: [], errors: [] },
       { views: [], errors: [] },
@@ -1320,30 +1793,23 @@ describe("DuelRoom", () => {
     const atTurnStart = internals(room).replay!.intents.length;
     const next = (1 - active) as 0 | 1;
     await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
+    const turnStart = JSON.stringify(internals(room).match);
+    // The next player ends their turn: the following turn's draw happens here.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    const afterFirst = JSON.stringify(internals(room).match);
     clients[active].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await new Promise((r) => setTimeout(r, 50));
     clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
 
-    assert.equal(internals(room).match.rng.seed, 777_001);
-    assert.deepEqual(internals(room).replay!.reseeds, [{ atIntent: atTurnStart, seed: 777_001, shuffleDecks: true }]);
-    // Both players saw their next draws, so the decks are reshuffled: same cards, new order.
-    const snapped = JSON.parse((room as unknown as { turnSnapshots: { match: string }[] }).turnSnapshots.at(-1)!.match) as MatchState;
-    for (const seat of [0, 1] as const) {
-      const now = internals(room).match.players[seat];
-      const was = snapped.players[seat];
-      assert.deepEqual([...now.zoneInstanceIds.deck].sort(), [...was.zoneInstanceIds.deck].sort());
-      assert.notDeepEqual(now.zoneInstanceIds.deck, was.zoneInstanceIds.deck);
-      assert.deepEqual(now.life, was.life);
-      assert.equal(now.deck.length, now.zoneInstanceIds.deck.length);
-    }
-    // The game goes on from the new seed and the recording still rebuilds it.
-    const moved = internals(room).replay!.intents.length;
+    // Rewound exactly: same rng, same deck order, nothing recorded as a re-seed.
+    assert.equal(JSON.stringify(internals(room).match), turnStart);
+        assert.equal(internals(room).replay!.reseeds?.length ?? 0, 0);
+    // Playing the same move again draws the same cards as before the undo.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
-    await waitUntil(() => internals(room).replay!.intents.length > moved, 5000);
-    assert.equal(internals(room).match.rng.seed, 777_001);
+    await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
+    assert.equal(JSON.stringify(internals(room).match), afterFirst);
     assertReplayRebuilds(room);
 
     await c0.leave(true);
@@ -1433,6 +1899,7 @@ describe("DuelRoom", () => {
       const text = JSON.stringify(payload.seat_logs);
       assert.ok(!text.includes('"opponentHand"'), "no opponent hand in a live snapshot");
       assert.ok(!text.includes('"opponentOpeningHand"'));
+      assert.equal(payload.closed, undefined, "a live snapshot is not closed (#476)");
     }
 
     // The hand count stays in a live snapshot, so the page can still show it.
@@ -1451,40 +1918,7 @@ describe("DuelRoom", () => {
     await waitUntil(() => sent.length > live, 5000);
     const closing = sent.at(-1)!.seat_logs!;
     assert.ok(closing.every((l) => l.opponentOpeningHand && l.turns.some((t) => t.opponentHand)));
-  });
-
-  it("only a closing room's last log is marked final, so live turns can stay out of Postgres (#389)", async () => {
-    const room = await colyseus.createRoom<DuelRoom>("duel", {
-      protocolVersion: PROTOCOL_VERSION,
-      seed: 71,
-      autoSkipMulligan: true,
-    });
-    const sent: MatchProgressPayload[] = [];
-    Object.assign(room, {
-      ingestSeats: () => [101, 102],
-      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
-        sent.push(payload);
-      },
-      persistMatchResult: async () => {},
-    });
-    const bags: [SeatBag, SeatBag] = [
-      { views: [], errors: [] },
-      { views: [], errors: [] },
-    ];
-    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
-    attach(c0, bags[0]);
-    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
-    attach(c1, bags[1]);
-    await syncSeat(c0, bags[0]);
-    await syncSeat(c1, bags[1]);
-    await playSome([c0, c1], bags, 6);
-    assert.ok(sent.length > 0, "turn snapshots were sent");
-    assert.ok(sent.every((p) => p.final === undefined), "live snapshots are not final");
-    const live = sent.length;
-    await c0.leave(true);
-    await c1.leave(true);
-    await waitUntil(() => sent.length > live, 5000);
-    assert.equal(sent.at(-1)!.final, true);
+    assert.equal(sent.at(-1)!.closed, true, "the closing snapshot opens the recording to the players (#476)");
   });
 
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
@@ -1768,4 +2202,6 @@ describe("DuelRoom", () => {
     assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
     assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
   });
+
+  deviceHandoffTests(() => colyseus);
 });

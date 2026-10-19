@@ -25,6 +25,16 @@ export function copilotAvailable(o: {
 }
 
 /**
+ * Whether the live game is registered with Log Pose, so a chat can see the hand and board. Wider than
+ * `copilotAvailable`: the matchup brief opens the Log Pose panel over the board during the mulligan, and the
+ * player chats there with the copilot setting off. The same room, player, ticket and account checks apply; only
+ * plans, the button and the executor need the copilot setting itself.
+ */
+export function gameAttached(o: Parameters<typeof copilotAvailable>[0] & { briefSetting: boolean }): boolean {
+  return copilotAvailable({ ...o, setting: o.setting || o.briefSetting });
+}
+
+/**
  * Whether the board draws the copilot's button: the game offers it and the view is from the seat the ticket was
  * minted for. In hotseat the ticket is seat 0's, so the button is there for seat 0's turns only.
  */
@@ -145,6 +155,8 @@ export function buildSnapshot(view: PlayerView, battleLine: string | null | unde
     turn: view.turnNumber,
     phase: view.phase,
     yourTurn: view.activeSeat === view.seat,
+    ...(view.firstSeat === undefined ? {} : { first: view.firstSeat === view.seat }),
+    ...(view.phase === "mulligan" && typeof you.mulliganDone === "boolean" ? { mulliganDone: you.mulliganDone } : {}),
     you: {
       leader: leaderCard(you.leader),
       characters: cards(you.characters),
@@ -254,8 +266,8 @@ function stepIntent(step: PlanStep, view: PlayerView): Intent | string {
         (i) =>
           i.type === "activate_ability" &&
           i.sourceId === step.source &&
-          (step.abilityId == null || i.abilityId === step.abilityId) &&
-          (step.target == null || i.targetId === step.target),
+          // The engine's legal activations never carry a target: it is chosen when the ability resolves.
+          (step.abilityId == null || i.abilityId === step.abilityId),
         "That ability can't be used right now.",
       );
     case "attack":
@@ -363,10 +375,12 @@ export function stepRunOtherSeat(run: PlanRun, view: PlayerView): PlanRun {
 }
 
 /** Why Play this turn is unavailable for a plan, or null when it can start. */
-export function playBlockReason(plan: TurnPlan, view: PlayerView | null, run: PlanRun | null | undefined): string | null {
+export function playBlockReason(plan: TurnPlan, view: PlayerView | null, run: PlanRun | null | undefined, gameKey?: string | null): string | null {
   if (runActive(run)) return "Another plan is running. Stop it first.";
   if (!view || view.spectator) return "Waiting for the game.";
   if (view.winner != null) return "The game is over.";
+  // Instance ids are per-game counters, so a plan from another game (or one with no game on record) names the wrong cards.
+  if (gameKey && plan.gameKey !== gameKey) return "This plan was for an earlier game.";
   if (plan.turn !== view.turnNumber) return "This plan was for an earlier turn.";
   if (view.activeSeat !== view.seat) return "It isn't your turn.";
   return null;
@@ -388,7 +402,7 @@ export type PlanCardMode =
   | { kind: "stopped"; step: number; reason?: string };
 
 /** What a Turn plan card shows: its own run if it has one (running or finished), else whether it may start. */
-export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null): PlanCardMode {
+export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null, gameKey?: string | null): PlanCardMode {
   if (own) {
     const step = own.cursor.step;
     switch (own.state) {
@@ -404,5 +418,5 @@ export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, ac
         return { kind: "stopped", step, reason: own.reason };
     }
   }
-  return { kind: "idle", disabledReason: playBlockReason(plan, view, active) };
+  return { kind: "idle", disabledReason: playBlockReason(plan, view, active, gameKey) };
 }

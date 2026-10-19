@@ -27,6 +27,8 @@ export type MatchRow = {
   /** Bounty change, e.g. "+16" or "−12"; null for unranked games. */
   bountyDelta: string | null;
   when: string | null;
+  /** The recording can be watched in the replay viewer (Watch button). */
+  replay: boolean;
 };
 
 /** The row's `data-outcome`, which colours its edge. */
@@ -56,6 +58,7 @@ export function matchRow(
     turns: m.turns != null ? `${m.turns} turns` : null,
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,
     when: m.created_at ? relativeTime(new Date(m.created_at), now) : null,
+    replay: m.replay_ready === true,
   };
 }
 

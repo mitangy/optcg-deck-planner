@@ -227,6 +227,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   position: fixed;
   z-index: 30;
   box-sizing: border-box;
+  /* Grows with the font (big screens, Text size) so the buttons keep fitting their labels (#493). */
+  width: min(max(250px, 18.5em), calc(100vw - 16px));
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -274,6 +276,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   font: inherit;
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 
@@ -299,8 +303,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 /* +1 / +2 / All chips inside the card-actions popover. */
 .don-quick-icon {
-  width: 22px;
-  height: 31px;
+  width: 32px;
+  height: 45px;
   flex: none;
   border-radius: 2px;
   object-fit: cover;
@@ -601,7 +605,9 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 :root[data-motion="reduce"] .hand-dock .hand-dock-cards > *,
 :root[data-motion="reduce"] .hand-fan,
 :root[data-motion="reduce"] .hand-fan-cards,
-:root[data-motion="reduce"] .hand-fan-cards > * {
+:root[data-motion="reduce"] .hand-fan-cards > *,
+:root[data-motion="reduce"] .hand-fan-corner .hand-fan-cards,
+:root[data-motion="reduce"] .col-cut {
   transition: none;
 }
 :root[data-motion="reduce"] .sheet,
@@ -623,6 +629,25 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   flex-direction: column;
   gap: 0.2rem;
   min-width: 0;
+}
+
+/* "Show on screen": the hide switches sit together in a boxed group. */
+.gameplay-group {
+  gap: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.gameplay-group > .field-hint {
+  margin: -0.5rem 0 0;
+}
+
+/* Inside a .field the switch labels would take the small muted field-label look. */
+.gameplay-group .gameplay-toggle .switch {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 400;
 }
 
 .gameplay-toggle .field-hint {
@@ -781,8 +806,8 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 .reveal-card img,
 .reveal-fallback {
   display: block;
-  height: min(62dvh, 26rem);
-  max-width: min(78vw, 22rem);
+  height: min(calc(62dvh / var(--popup-scale, 1)), 26rem);
+  max-width: min(calc(78vw / var(--popup-scale, 1)), 22rem);
   width: auto;
   aspect-ratio: 5 / 7;
   object-fit: contain;
@@ -797,7 +822,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   color: var(--chrome-bright, #f0dca8);
 }
 .reveal-caption {
-  max-width: min(90vw, 26rem);
+  max-width: min(calc(90vw / var(--popup-scale, 1)), 26rem);
   padding: 6px 12px;
   border-radius: 999px;
   background: rgba(8, 14, 20, 0.92);
@@ -825,7 +850,7 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
   .reveal-card img,
   .reveal-fallback {
-    height: min(78dvh, 20rem);
+    height: min(calc(78dvh / var(--popup-scale, 1)), 20rem);
   }
 }
 :root[data-motion="reduce"] .reveal-card {
@@ -986,4 +1011,71 @@ body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
 }
 :root[data-motion="reduce"] .hand-lift-layer > .card-tile.hand-lift {
   transition: none;
+}
+
+/* —— Gameplay settings groups (#496) —— */
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+  /* Jumped-to headings clear the sticky chip row in the in-match sheet. */
+  scroll-margin-top: 3.4rem;
+}
+
+.settings-group + .settings-group {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.settings-group-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.settings-group-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.settings-group-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.settings-group-chip:hover,
+.settings-group-chip:focus-visible {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+/* In the sheet the chips stay put while the groups scroll under them. */
+.sheet .settings-group-jump {
+  position: sticky;
+  top: -0.9rem;
+  z-index: 2;
+  margin: -0.9rem -1rem 0;
+  padding: 0.6rem 1rem;
+  background: var(--arena-panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet .settings-group {
+  scroll-margin-top: 4.4rem;
 }

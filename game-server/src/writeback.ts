@@ -22,12 +22,8 @@ export type MatchProgressPayload = Pick<
   MatchResultPayload,
   "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
 > & {
-  /**
-   * The room is closing without a result: this is the game's last log and must
-   * be stored durably. Live turn snapshots leave it out, so the API may keep
-   * them in Redis instead of writing Postgres every turn.
-   */
-  final?: true;
+  /** Only on the snapshot sent as the room closes: nobody is playing any more, so the recording can be watched (#476). */
+  closed?: boolean;
 };
 
 export interface OutboxDatabase {

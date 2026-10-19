@@ -4,7 +4,14 @@
 export type AccessState = "none" | "pending" | "denied";
 
 export type ChatSession =
-  | { enabled: false; access?: AccessState }
+  | {
+      enabled: false;
+      access?: AccessState;
+      /** Free spots in all, how many are left, and the monthly credit a spot brings (only when requests are open). */
+      freeSpots?: number;
+      spotsLeft?: number;
+      freeCreditUsd?: number;
+    }
   | { enabled: true; token: string; expires_at: string; chat_url: string; owner?: boolean; pendingRequests?: number };
 
 /** The access state from a session body; anything unknown means "can't ask". */
@@ -38,10 +45,21 @@ export async function fetchChatSession(apiBase: string, fetchImpl: typeof fetch 
       access: unknown;
       owner: unknown;
       pending_requests: unknown;
+      free_spots: unknown;
+      spots_left: unknown;
+      free_credit_usd: unknown;
     }>;
     if (body.enabled !== true || !body.token || !body.chat_url || !body.expires_at) {
       const access = parseAccess(body.access);
-      return access ? { enabled: false, access } : { enabled: false };
+      if (!access) return { enabled: false };
+      const out: ChatSession = { enabled: false, access };
+      const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : undefined);
+      const freeSpots = count(body.free_spots);
+      const spotsLeft = count(body.spots_left);
+      if (freeSpots !== undefined) out.freeSpots = freeSpots;
+      if (spotsLeft !== undefined) out.spotsLeft = spotsLeft;
+      if (typeof body.free_credit_usd === "number" && body.free_credit_usd > 0) out.freeCreditUsd = body.free_credit_usd;
+      return out;
     }
     const out: ChatSession = { enabled: true, token: body.token, expires_at: body.expires_at, chat_url: body.chat_url.replace(/\/+$/, "") };
     if (body.owner === true) {
