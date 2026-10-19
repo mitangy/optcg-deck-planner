@@ -4,10 +4,21 @@ const rectify = "frontend/src/cardRectify.ts";
 const sim = "frontend/src/optcgsimExport.ts";
 const mass = "frontend/src/tcgplayerMassEntry.ts";
 const login = "frontend/src/GroupBuys.tsx";
+const cs = "frontend/src/columnSort.tsx";
 module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Sortable table headers (#636)
+    { id: "colsort-empties-first", file: cs, from: "return aEmpty === bEmpty ? a.index - b.index : aEmpty ? 1 : -1;", to: "return aEmpty === bEmpty ? a.index - b.index : aEmpty ? -1 : 1;", kills: ["keeps empty values last in both directions", "treats an empty string like a missing value"] },
+    { id: "colsort-empty-string-is-a-value", file: cs, from: "v === null || v === undefined || v === \"\"", to: "v === null || v === undefined", kills: ["treats an empty string like a missing value"] },
+    { id: "colsort-desc-not-reversed", file: cs, from: "const sign = sort.dir === \"asc\" ? 1 : -1;", to: "const sign = 1;", kills: ["keeps empty values last in both directions", "ties keep the incoming order in both directions"] },
+    { id: "colsort-ties-reverse", file: cs, from: "return cmp !== 0 ? sign * cmp : a.index - b.index;", to: "return sign * (cmp !== 0 ? cmp : a.index - b.index);", kills: ["ties keep the incoming order in both directions"] },
+    { id: "colsort-numbers-as-text", file: cs, from: "if (typeof a === \"number\" && typeof b === \"number\") return a - b;", to: "if (typeof a === \"number\" && typeof b === \"number\") return String(a).localeCompare(String(b));", kills: ["compares numbers by value, not as text"] },
+    { id: "colsort-not-natural-order", file: cs, from: "numeric: true, sensitivity", to: "numeric: false, sensitivity", kills: ["reads card numbers in natural order"] },
+    { id: "colsort-third-click-keeps-sort", file: cs, from: "  return null;\n}\n\nconst isEmpty", to: "  return { key, dir: firstDir };\n}\n\nconst isEmpty", kills: ["cycles first direction, reverse, then clears"] },
+    { id: "colsort-first-click-reversed", file: cs, from: "if (!current || current.key !== key) return { key, dir: firstDir };", to: "if (!current || current.key !== key) return { key, dir: firstDir === \"asc\" ? \"desc\" : \"asc\" };", kills: ["cycles first direction, reverse, then clears", "starts text columns ascending"] },
+    { id: "colsort-other-column-keeps-cycle", file: cs, from: "if (!current || current.key !== key) return", to: "if (!current) return", kills: ["switching to another column restarts"] },
     // shopping extras (#525)
     { id: "extra-plus-ignores-owned", file: "frontend/src/shoppingExtras.ts", from: "const listTarget = owned + stillNeed;", to: "const listTarget = stillNeed;", kills: ["+ on a card that is covered targets one copy beyond what is owned"] },
     { id: "extra-plus-two-copies", file: "frontend/src/shoppingExtras.ts", from: "if (delta > 0) return listTarget + 1;", to: "if (delta > 0) return listTarget + 2;", kills: ["+ buys one more than the list already wants", "+ on a deck-driven card goes above the deck need"] },

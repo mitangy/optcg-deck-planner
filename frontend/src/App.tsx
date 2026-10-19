@@ -69,6 +69,7 @@ import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "./columnSort";
 import {
   consumeLoginNext,
   GroupBuyDetailPage,
@@ -862,6 +863,29 @@ function UsedInCell({
   );
 }
 
+const usedInSortValue = (decks: string[]) => decks.join(", ");
+
+function shoppingColumnValue(item: ShoppingItem, key: string) {
+  switch (key) {
+    case "card":
+      return item.card_id;
+    case "owned":
+      return item.owned;
+    case "still":
+      return item.still_need;
+    case "market":
+      return item.market_price;
+    case "remaining":
+      return item.remaining_cost;
+    case "cost":
+      return costSortValue(item.cost);
+    case "used":
+      return usedInSortValue(item.used_in);
+    default:
+      return null;
+  }
+}
+
 function ShoppingItemsView({
   items,
   layout,
@@ -891,6 +915,8 @@ function ShoppingItemsView({
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
 }) {
+  const { sort, onSort } = useColumnSort("optcg_colsort_shopping");
+  const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
   if (items.length === 0) return null;
   const removeExtraButton = (item: ShoppingItem) =>
     (item.extra_qty ?? 0) > 0 ? (
@@ -1010,17 +1036,17 @@ function ShoppingItemsView({
                   aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
                 />
               </th>
-              <th>Card</th>
-              <th>Owned</th>
-              <th>Still needed</th>
-              <th>Market</th>
-              <th>Remaining</th>
-              <th>Cost</th>
-              <th>Used in</th>
+              <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
             </tr>
           </thead>
           <tbody>
-            {items.map((item: ShoppingItem) => {
+            {tableItems.map((item: ShoppingItem) => {
               const checked = selectedCardIds.has(item.card_id);
               return (
                 <tr
@@ -1951,6 +1977,25 @@ function AltsOwnedNote({ count }: { count?: number }) {
   );
 }
 
+function collectionColumnValue(item: OwnedCard, key: string) {
+  switch (key) {
+    case "card":
+      return item.card_id;
+    case "owned":
+      return item.owned;
+    case "market":
+      return item.market_price;
+    case "value":
+      return item.value;
+    case "cost":
+      return costSortValue(item.cost);
+    case "used":
+      return usedInSortValue(item.used_in);
+    default:
+      return null;
+  }
+}
+
 function CollectionItemsView({
   items,
   layout,
@@ -1960,6 +2005,8 @@ function CollectionItemsView({
   layout: CardLayout;
   onOwnedSaved: () => void;
 }) {
+  const { sort, onSort } = useColumnSort("optcg_colsort_collection");
+  const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
   if (items.length === 0) return null;
   const usedIn = (item: OwnedCard) =>
     [item.used_in.length ? item.used_in.join(", ") : "Not in a deck", item.buying ? `Buying ${item.buying}` : ""]
@@ -2009,16 +2056,16 @@ function CollectionItemsView({
         <table className="data-table collection-table">
           <thead>
             <tr>
-              <th>Card</th>
-              <th>Owned</th>
-              <th>Market</th>
-              <th>Value</th>
-              <th>Cost</th>
-              <th>Used in</th>
+              <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Value" colKey="value" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {tableItems.map((item) => (
               <tr key={item.card_id} data-card-id={item.card_id}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
@@ -2968,6 +3015,25 @@ function DeckProgressSummary({ cards }: { cards: CardView[] }) {
   );
 }
 
+function deckColumnValue(c: CardView, key: string) {
+  switch (key) {
+    case "card":
+      return c.card_id;
+    case "owned":
+      return c.owned;
+    case "still":
+      return c.still_need;
+    case "market":
+      return c.market_price;
+    case "type":
+      return c.card_type;
+    case "cost":
+      return costSortValue(c.cost);
+    default:
+      return null;
+  }
+}
+
 function CardTable({
   cards,
   onOwnedSaved,
@@ -2990,6 +3056,8 @@ function CardTable({
   /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
 }) {
+  const { sort, onSort } = useColumnSort("optcg_colsort_deck");
+  const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
   const altRow = (c: CardView) => (
     <AltArtsRow
       alts={c.alt_arts ?? []}
@@ -3065,16 +3133,16 @@ function CardTable({
         <table className="data-table">
           <thead>
             <tr>
-              <th>Card</th>
-              <th>Owned</th>
-              <th>Still needed</th>
-              <th>Market</th>
-              <th>Type</th>
-              <th>Cost</th>
+              <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
             </tr>
           </thead>
           <tbody>
-            {cards.map((c) => (
+            {tableCards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
@@ -4446,6 +4514,8 @@ function PublicSharePage() {
     list = [...list].sort((a, b) => compareCardOrder(a, b, ["color", "set"]));
     return list;
   }, [data, onlyNeed, search]);
+  const { sort, onSort } = useColumnSort("optcg_colsort_share");
+  const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
 
   return (
     <div className="app public-app">
@@ -4543,16 +4613,16 @@ function PublicSharePage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Card</th>
-                        <th>Owned</th>
-                        <th>Still needed</th>
-                        <th>Market</th>
-                        <th>Remaining</th>
-                        <th>Used in</th>
+                        <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => (
+                      {tableItems.map((item) => (
                         <tr key={item.card_id} className={item.still_need > 0 ? "need" : "done"}>
                           <td className="card-cell">
                             <div className="card-cell-inner">

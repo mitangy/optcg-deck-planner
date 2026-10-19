@@ -1665,6 +1665,49 @@ th {
   z-index: 1;
 }
 
+/* Sortable column headers: the arrow lives in a fixed-width slot so sorting never resizes the header. */
+.th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  white-space: inherit;
+  cursor: pointer;
+}
+
+.th-sort-btn:hover {
+  color: var(--ink);
+}
+
+.th-sort-btn:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: var(--focus-ring);
+}
+
+.th-sort-arrow {
+  flex: none;
+  width: 0.9em;
+  text-align: center;
+  font-size: 0.85em;
+  opacity: 0.35;
+}
+
+.th-sort-arrow.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
 tr.need td {
   background: var(--need);
 }

@@ -29,6 +29,7 @@ import {
 } from "./cardListControls";
 import { CardThumb, MobileCardMedia } from "./CardThumb";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
 import { invalidateOwnedViews } from "./ownedCollection";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
@@ -297,6 +298,42 @@ function userSortKeyForLine(line: GroupBuyLine, members: GroupBuyMember[]): stri
 type GroupBuyDisplayRow =
   | { kind: "header"; key: string; userId: number; displayName: string }
   | { kind: "line"; key: string; line: GroupBuyLine };
+
+function groupBuyLineValue(line: GroupBuyLine, key: string) {
+  switch (key) {
+    case "card":
+      return line.card_id;
+    case "mine":
+      return line.my_qty;
+    case "total":
+      return line.total_qty;
+    case "who":
+      return line.members.map((m) => m.display_name).join(", ");
+    case "market":
+      return line.market_price;
+    case "est":
+      return line.remaining_cost;
+    default:
+      return null;
+  }
+}
+
+function groupBuyOweValue(m: GroupBuyMember, key: string) {
+  switch (key) {
+    case "member":
+      return m.display_name;
+    case "cards":
+      return m.card_cost ?? 0;
+    case "shipping":
+      return m.shipping_share ?? 0;
+    case "tax":
+      return m.tax_share ?? 0;
+    case "owes":
+      return m.total_owed ?? 0;
+    default:
+      return null;
+  }
+}
 
 function buildGroupBuyDisplayRows(
   lines: GroupBuyLine[],
@@ -674,6 +711,17 @@ export function GroupBuyDetailPage() {
     () => buildGroupBuyDisplayRows(lines, members, groupingByUser),
     [lines, members, groupingByUser],
   );
+  const { sort: cardsSort, onSort: onCardsSort } = useColumnSort("optcg_colsort_gb_cards");
+  const { sort: oweSort, onSort: onOweSort } = useColumnSort("optcg_colsort_gb_owe");
+  // A header sort replaces the per-user section headers, which only make sense in the menu order.
+  const tableRows = useMemo(
+    () =>
+      cardsSort
+        ? buildGroupBuyDisplayRows(sortByColumn(lines, cardsSort, groupBuyLineValue), members, false)
+        : displayRows,
+    [cardsSort, lines, members, displayRows],
+  );
+  const oweMembers = useMemo(() => sortByColumn(members, oweSort, groupBuyOweValue), [members, oweSort]);
 
   const decks = decksQ.data ?? [];
   const myContribution = useMemo(() => {
@@ -1371,15 +1419,15 @@ export function GroupBuyDetailPage() {
               <table className="data-table group-buy-owe-table">
                 <thead>
                   <tr>
-                    <th>Member</th>
-                    <th>Cards</th>
-                    <th>Shipping</th>
-                    <th>Tax</th>
-                    <th>Owes</th>
+                    <SortableTh label="Member" colKey="member" firstDir="asc" sort={oweSort} onSort={onOweSort} />
+                    <SortableTh label="Cards" colKey="cards" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                    <SortableTh label="Shipping" colKey="shipping" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                    <SortableTh label="Tax" colKey="tax" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                    <SortableTh label="Owes" colKey="owes" firstDir="desc" sort={oweSort} onSort={onOweSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((m) => (
+                  {oweMembers.map((m) => (
                     <tr key={m.user_id}>
                       <td>
                         <span className="group-buy-member-cell">
@@ -1695,12 +1743,14 @@ export function GroupBuyDetailPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Card</th>
-                    {detail.status === "open" ? <th>Your buy</th> : null}
-                    <th>Total</th>
-                    <th>Who</th>
-                    <th>Market</th>
-                    <th>Est.</th>
+                    <SortableTh label="Card" colKey="card" firstDir="asc" sort={cardsSort} onSort={onCardsSort} />
+                    {detail.status === "open" ? (
+                      <SortableTh label="Your buy" colKey="mine" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
+                    ) : null}
+                    <SortableTh label="Total" colKey="total" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
+                    <SortableTh label="Who" colKey="who" firstDir="asc" sort={cardsSort} onSort={onCardsSort} />
+                    <SortableTh label="Market" colKey="market" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
+                    <SortableTh label="Est." colKey="est" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
                     {detail.is_host ? (
                       <th title="Default printing when no alt-art wants are set">Printing</th>
                     ) : null}
@@ -1708,7 +1758,7 @@ export function GroupBuyDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayRows.map((row) => {
+                  {tableRows.map((row) => {
                     if (row.kind === "header") {
                       return (
                         <tr key={row.key} className="group-buy-user-header-row">
@@ -1927,6 +1977,8 @@ export function PublicGroupBuyPage() {
       ),
     );
   }, [detail, search, effectiveSorts]);
+  const { sort, onSort } = useColumnSort("optcg_colsort_gb_public");
+  const tableLines = useMemo(() => sortByColumn(lines, sort, groupBuyLineValue), [lines, sort]);
 
   if (!token) return <p className="error">Missing public link.</p>;
   if (detailQ.isLoading) return <GroupBuyDetailSkeleton />;
@@ -2095,15 +2147,15 @@ export function PublicGroupBuyPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Card</th>
-                    <th>Qty</th>
-                    <th>Who</th>
-                    <th>Market</th>
-                    <th>Remaining</th>
+                    <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Qty" colKey="total" firstDir="desc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Who" colKey="who" firstDir="asc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Remaining" colKey="est" firstDir="desc" sort={sort} onSort={onSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {lines.map((line) => (
+                  {tableLines.map((line) => (
                     <tr key={line.card_id} className="need">
                       <td className="card-cell">
                         <div className="card-cell-inner">

@@ -126,3 +126,39 @@ test("Collection picks up a card marked Buying in person on the shopping list (#
   await expect(page.locator(row("EB01-003"))).toBeVisible();
   await expect(totals).toContainText("$33.00");
 });
+
+test("clicking a table header sorts the Collection rows, again reverses, a third time restores the order (#636)", async ({ page, planner, isMobile }) => {
+  test.skip(isMobile, "the header table is the desktop layout; phones use the Sort menu");
+  const order = () =>
+    page.locator("table.collection-table tbody tr[data-card-id]").evaluateAll((els) => els.map((e) => e.getAttribute("data-card-id")));
+  const market = page.getByRole("button", { name: "Sort by Market" });
+  const header = page.getByRole("columnheader", { name: /Market/ });
+
+  // Value sort is the default order (Izo's two copies outrank Oden).
+  await expect(header).toHaveAttribute("aria-sort", "none");
+  expect(await order()).toEqual(["EB01-002", "EB01-001", "EB01-006"]);
+
+  const before = await header.boundingBox();
+  await market.click();
+  // Market starts highest first: Oden $2.40, Izo $1.25, Chopper $0.30.
+  await expect(header).toHaveAttribute("aria-sort", "descending");
+  expect(await order()).toEqual(["EB01-001", "EB01-002", "EB01-006"]);
+  expect(await header.boundingBox()).toEqual(before);
+
+  await market.click();
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  expect(await order()).toEqual(["EB01-006", "EB01-002", "EB01-001"]);
+
+  await market.click();
+  await expect(header).toHaveAttribute("aria-sort", "none");
+  expect(await order()).toEqual(["EB01-002", "EB01-001", "EB01-006"]);
+
+  // The choice is remembered across a reload.
+  await market.click();
+  await page.reload();
+  await expect(page.getByRole("columnheader", { name: /Market/ })).toHaveAttribute("aria-sort", "descending");
+  expect(await order()).toEqual(["EB01-001", "EB01-002", "EB01-006"]);
+
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
