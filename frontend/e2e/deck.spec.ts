@@ -66,7 +66,7 @@ test("each card row names the card, how many are still needed and its price", as
   await expect(page.locator(IZO)).toContainText("EB01-002");
   await expect(page.locator(IZO)).toContainText("Izo");
   await expectStill(page.locator(IZO), 2, 4);
-  await expect(page.locator(IZO).getByRole("button", { name: /\$1\.25/ }).first()).toBeVisible();
+  await expect(page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ })).toBeVisible();
   // Izo has alt arts on screen, so its Owned cell is the read-only total.
   await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("2");
   await expect(page.locator(IZO).getByRole("textbox")).toHaveCount(0);
@@ -92,7 +92,7 @@ test("List/Grid toggle swaps the layout and passes the audit", async ({ page, pl
 });
 
 test("expanding a market price shows the last sales without moving the price", async ({ page, planner }) => {
-  const price = page.locator(IZO).getByRole("button", { name: /\$1\.25/ }).first();
+  const price = page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ });
   await expectStationary(price, () => price.click(), "market price");
   await expect(price).toHaveAttribute("aria-expanded", "true");
 
