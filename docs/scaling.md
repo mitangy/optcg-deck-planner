@@ -7,7 +7,24 @@ worker and an in-memory API.
 
 The capacity numbers behind this plan (2026-10-05): one game-server process on
 Render Starter (0.5 CPU) holds about **400 concurrent matches**; the game
-server's CPU is the limit, at about 4 ms per move.
+server's CPU is the limit, at about 4 ms per move. That was measured before
+the rules view cache, which removes most of the per-move view cost, so the real
+figure is now higher; rerun the load test below before sizing anything on it.
+
+## Current tiers (checked 2026-10-19)
+
+| Service | Plan | Notes |
+|---|---|---|
+| `optcg-game-server` (Render) | Starter, 0.5 CPU / 512 MB, 1 instance | PR previews on: each open PR gets its own Starter copy |
+| `optcg-api` (Render) | Starter, 0.5 CPU / 512 MB, 1 instance | PR previews on, same as above. Start command is set in the dashboard and has no `--workers` |
+| `optcg-analyst` (Render) | Free | Sleeps when idle |
+| Render Key Value | none | Needed for steps 3 to 5 |
+| Neon `optcg-deck-planner` | Paid (the API reports `build`), autoscaling 0.25 to 2 CU, default suspend | The billing period restarted 2026-10-17, when the plan changed |
+| Vercel (`optcg-duel-web`, `optcg-deck-planner`) | Pro since 2026-10-09 | Builds are most of the bill; traffic and functions are about $0 |
+
+The Render services are configured in the dashboard, not from `render.yaml`, so
+a start command or env var in `render.yaml` only takes effect once it is copied
+to the dashboard.
 
 ## What changed in the code
 
@@ -43,7 +60,7 @@ server's CPU is the limit, at about 4 ms per move.
 | `REDIS_URL` | API | Rate limits, presence and live progress shared across workers; also holds the pool pointer |
 | `GAME_SERVER_URL` | API | Game server URL handed out with each duel token when no pool pointer is set |
 | `COSMETIC_URL_SECRET` | API | Signs public playmat links (falls back to `SESSION_SECRET`) |
-| `WEB_CONCURRENCY` | API | Uvicorn workers. Keep `1` on Starter (512 MB); raise only with Redis set, since rate limits and presence are per-process without it |
+| `WEB_CONCURRENCY` | API | Uvicorn workers. Keep `1` on Starter (512 MB); raise only with Redis set, since rate limits and presence are per-process without it. Only read when the dashboard start command ends in `--workers ${WEB_CONCURRENCY:-1}` (it doesn't yet) |
 
 ## Rollout, in order
 
@@ -51,8 +68,8 @@ Each step is independently useful and reversible. The ones marked **paid**
 change a plan and need Miko's go-ahead.
 
 1. **Merge the code.** No settings change. The outbox and presence fixes alone
-   let Neon sleep when nobody is playing, which is what keeps the free plan's
-   compute-hours from running out mid-month.
+   let Neon sleep when nobody is playing, so its compute is billed only while
+   people play. Done 2026-10-19 (#389).
 2. **Game server Starter to Standard (paid).** One process, 1 CPU and 2 GB:
    roughly 800 concurrent matches. No Redis needed.
 3. **Redis (paid).** Render Key Value in the same region. Set `REDIS_URL` on the
@@ -64,6 +81,7 @@ change a plan and need Miko's go-ahead.
    `PUBLIC_ADDRESS`. Any process can take a matchmaking request; the client's
    socket then goes straight to the process holding its room. Each process
    holds about 800 matches on Standard, so 5 processes cover about 4000.
+   Leave PR previews off on these services, or every PR copies the pool.
 5. **Blue/green deploys.** Create the green pool the same way with
    `redis://…/2`. Turn off auto-deploy on all `gs-*` services, set the repo
    secrets and variables listed at the top of
@@ -72,8 +90,9 @@ change a plan and need Miko's go-ahead.
    until every process reports the new commit on `/health`, then flips the
    API's pointer (`PUT /duel/admin/game-server-pool`). New games start on the
    new pool; running games finish where they are.
-6. **Neon Launch (paid)** once traffic keeps the database awake most of the
-   day anyway, and **Vercel Pro** if the app becomes commercial (Hobby terms).
+6. **Neon and Vercel.** Both are already on paid plans (see Current tiers).
+   Neon's 2 CU autoscaling ceiling is the next limit to watch: raise it if the
+   database sits at 2 CU during busy hours.
 
 ## Known limits
 
