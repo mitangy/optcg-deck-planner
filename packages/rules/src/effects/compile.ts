@@ -6,7 +6,7 @@
 import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, Target, Value } from "./types.js";
 
 export type Instr =
-  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean; countValue?: Value }
+  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean; countValue?: Value; /** The pick is played by the next step: cards that cannot be played right now are not offered (#656). */ forPlay?: boolean }
   /** Schedule the ability's `index`-th delayed effect for the end of this turn. */
   | { op: "delay"; index: number; when: "end_of_turn" | "end_of_battle" | "opponent_main" }
   /** Yes/no. When `costs` is set the prompt is skipped (as "no") unless they are payable. */
@@ -133,6 +133,8 @@ function withResolvedTarget(effect: Effect & { target: Target }, out: Instr[]): 
     const onlyState = effect.do === "rest" ? false : effect.do === "activate" ? true : null;
     const target = onlyState == null ? effect.target : { ...effect.target, selector: withRested(effect.target.selector, onlyState) };
     const bind = selectFor(target, purposeOf(effect), out);
+    const picked = out[out.length - 1];
+    if (effect.do === "play" && picked?.op === "select") picked.forPlay = true;
     out.push({ op: "act", effect: { ...effect, target: { ref: "var", name: bind } } as Effect });
     return;
   }
