@@ -4,7 +4,7 @@ import { basePowerOf, powerOf } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Behavior pinned from the 2026-10-19 weekly Stryker run (#PRNUM).
+// Behavior pinned from the 2026-10-19 weekly Stryker run (#649).
 
 const NAMI = "OP17-023"; // 1-cost {East Blue}/{Straw Hat Crew}: if one of your such Characters would be K.O.'d, you may rest this Character instead.
 const ARAMAKI = "OP17-059"; // [On Play] DON!! -1: Draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 2 or less.
@@ -30,7 +30,7 @@ function aramakiAt(field: string[], targets: string[]): Harness {
 }
 
 describe("batch-covering replacement", () => {
-  it("declining the first replacement does not save the later targets, which are asked again (#PRNUM)", () => {
+  it("declining the first replacement does not save the later targets, which are asked again (#649)", () => {
     const h = aramakiAt([NAMI, ALVIDA, MERRY], [ALVIDA, MERRY]);
     expect(h.choice?.request?.type).toBe("confirm");
     h.decline();
@@ -42,7 +42,7 @@ describe("batch-covering replacement", () => {
     expect(h.state.players[0].characters[0]!.rested).toBe(false);
   });
 
-  it("one acceptance saves only the later targets its selector matches (#PRNUM)", () => {
+  it("one acceptance saves only the later targets its selector matches (#649)", () => {
     const h = aramakiAt([NAMI, ALVIDA, KAROO], [ALVIDA, KAROO]);
     h.accept();
     // Karoo is neither {East Blue} nor {Straw Hat Crew}: Nami cannot save it.
@@ -64,14 +64,14 @@ describe("replacement bookkeeping between acts of one ability", () => {
     return h;
   }
 
-  it("the second K.O. of one ability picks its own target rather than reusing the first act's (#PRNUM)", () => {
+  it("the second K.O. of one ability picks its own target rather than reusing the first act's (#649)", () => {
     const h = lucci([ALVIDA, MERRY]);
     h.pick(ALVIDA);
     h.pick(MERRY);
     expect(ids(h, 0)).toEqual([]);
   });
 
-  it("a K.O. saved by Nami does not protect the same Character from the ability's second K.O. (#PRNUM)", () => {
+  it("a K.O. saved by Nami does not protect the same Character from the ability's second K.O. (#649)", () => {
     const h = lucci([NAMI, ALVIDA]);
     h.pick(ALVIDA);
     h.accept();
@@ -93,7 +93,7 @@ describe("queued triggers", () => {
   const YAMATO = "EB05-046"; // [On Your Opponent's Attack] You may trash 1 card from your hand: If you have 10 or more cards in your trash, your Leader's base power becomes 7000 during this turn.
   const BON_KUREI = "OP04-069"; // [On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the attacker's.
 
-  it("a [Once Per Turn] trigger queued twice in one turn resolves once (#PRNUM)", () => {
+  it("a [Once Per Turn] trigger queued twice in one turn resolves once (#649)", () => {
     const h = new Harness();
     const [ace] = h.field(0, ACE);
     const [bonney] = h.field(0, BONNEY);
@@ -112,7 +112,7 @@ describe("queued triggers", () => {
     expect(h.state.players[0].deck.length).toBe(deckBefore - 2);
   });
 
-  it("two copies of a [Once Per Turn] trigger each fire for one K.O. (#PRNUM)", () => {
+  it("two copies of a [Once Per Turn] trigger each fire for one K.O. (#649)", () => {
     const h = new Harness();
     const [vista] = h.field(0, VISTA);
     h.attach(0, vista!, 1);
@@ -129,7 +129,7 @@ describe("queued triggers", () => {
     expect(h.state.players[1].deck.length).toBe(deckBefore - 2);
   });
 
-  it("a trigger whose resolve-time gate closed does nothing and the next trigger still starts (#PRNUM)", () => {
+  it("a trigger whose resolve-time gate closed does nothing and the next trigger still starts (#649)", () => {
     const h = new Harness();
     const [bon] = h.field(1, BON_KUREI, YAMATO);
     h.hand(1, KAROO, KAROO);
@@ -159,7 +159,7 @@ describe("Events, selections and costs", () => {
   const WIRE = "OP01-053"; // vanilla 2-cost
   const TASHIGI = "OP14-029"; // [Activate: Main] [Once Per Turn] You may rest 2 of your cards: +2000 power until the end of your opponent's next End Phase.
 
-  it("activating an Event from the hand with Sabo counts as an Event activation for the opponent's Luffy (#PRNUM)", () => {
+  it("activating an Event from the hand with Sabo counts as an Event activation for the opponent's Luffy (#649)", () => {
     const h = new Harness({ leaders: [KYROS, "ST01-001"] });
     h.hand(0, SABO, BARRIER_BULLS);
     h.don(0, 7);
@@ -172,7 +172,7 @@ describe("Events, selections and costs", () => {
     expect(powerOf(h.state, 1, luffy!)).toBe(7000 + 3000);
   });
 
-  it("a K.O. selection with a total cost limit of 4 accepts exactly 4 and rejects 5 (#PRNUM)", () => {
+  it("a K.O. selection with a total cost limit of 4 accepts exactly 4 and rejects 5 (#649)", () => {
     const h = new Harness();
     h.hand(0, LOKI);
     h.don(0, 10);
@@ -185,7 +185,7 @@ describe("Events, selections and costs", () => {
     expect(pick(idOf(SAI), idOf(WIRE)).ok).toBe(true);
   });
 
-  it("\"rest 2 of your cards\" as a cost counts an active DON!! and never a rested one (#PRNUM)", () => {
+  it("\"rest 2 of your cards\" as a cost counts an active DON!! and never a rested one (#649)", () => {
     const abilityId = abilitiesFor(TASHIGI).find((a) => a.trigger === "activate_main")!.id;
     const activate = (active: number, rested: number) => {
       const h = new Harness();
