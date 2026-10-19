@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { GroupBuyReceiptLine, GroupBuyReceiptMatchReport } from "./api";
 import { api } from "./api";
+import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
 
 const STATUS_LABEL: Record<string, string> = {
   exact: "Matched",
@@ -165,6 +166,28 @@ export function ReceiptImportPanel({
     return report.lines.filter((l) => (showMatched ? true : isMismatchLine(l)));
   }, [report, showMatched]);
 
+  const { sort, onSort } = useColumnSort("optcg_colsort_receipt");
+  const tableLines = useMemo(
+    () =>
+      sortByColumn(visibleLines, sort, (line, key) => {
+        switch (key) {
+          case "status":
+            return STATUS_LABEL[line.status] || line.status;
+          case "card":
+            return line.card_id;
+          case "need":
+            return line.needed_qty;
+          case "receipt":
+            return line.receipt_qty;
+          case "apply":
+            return line.staged_qty > 0 ? line.staged_qty : null;
+          default:
+            return null;
+        }
+      }),
+    [visibleLines, sort],
+  );
+
   const matchedCount = useMemo(
     () => (report ? report.lines.filter(isMatchedLine).length : 0),
     [report],
@@ -320,15 +343,15 @@ export function ReceiptImportPanel({
                     <th scope="col" className="group-buy-receipt-check">
                       Include
                     </th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Card</th>
-                    <th scope="col">Need</th>
-                    <th scope="col">Receipt</th>
-                    <th scope="col">Apply</th>
+                    <SortableTh label="Status" colKey="status" firstDir="asc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Need" colKey="need" firstDir="desc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Receipt" colKey="receipt" firstDir="desc" sort={sort} onSort={onSort} />
+                    <SortableTh label="Apply" colKey="apply" firstDir="desc" sort={sort} onSort={onSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleLines.map((line) => {
+                  {tableLines.map((line) => {
                     const canStage = line.staged_qty > 0;
                     return (
                       <tr

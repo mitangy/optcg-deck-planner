@@ -206,6 +206,7 @@ export function AltArtsRow({
   onWantChange,
   busyProductId = null,
   base = null,
+  cardId,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -215,6 +216,8 @@ export function AltArtsRow({
   onWantChange?: (productId: number, qty: number) => void;
   busyProductId?: number | null;
   base?: BaseArt | null;
+  /** Falls back to the card's preview art when an alt (or the base) has none of its own. */
+  cardId?: string | null;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
@@ -225,7 +228,7 @@ export function AltArtsRow({
     <div className="alt-arts">
       {base && (
         <div className="alt-art alt-art-base">
-          <CardThumb src={base.image_url || undefined} alt={`${base.name} base art`} />
+          <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} />
           <div className="alt-meta">
             <MarketPrice price={base.market_price} productId={base.product_id} />
             <span className="alt-base-label">Base</span>
@@ -238,7 +241,7 @@ export function AltArtsRow({
         const busy = busyProductId === alt.product_id;
         return (
           <div key={alt.product_id} className="alt-art">
-            <CardThumb src={alt.image_url || undefined} alt={alt.name} />
+            <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} />
             <div className="alt-meta">
               <MarketPrice price={alt.market_price} productId={alt.product_id} />
               {editable && onOwnedChange ? (
