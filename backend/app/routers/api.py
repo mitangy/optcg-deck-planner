@@ -370,7 +370,12 @@ def post_share(
 ):
     try:
         return services.create_or_update_share(
-            db, user, body.kind, deck_id=body.deck_id, deck_ids=body.deck_ids
+            db,
+            user,
+            body.kind,
+            deck_id=body.deck_id,
+            deck_ids=body.deck_ids,
+            include_extras=body.include_extras,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

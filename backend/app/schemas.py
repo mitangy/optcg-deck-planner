@@ -300,6 +300,8 @@ class ShareCreate(BaseModel):
     kind: str = Field(default="shopping", pattern="^(shopping|deck)$")
     deck_id: int | None = None
     deck_ids: list[int] | None = None
+    # Shopping shares: None keeps the link's current choice (new links include them).
+    include_extras: bool | None = None
 
 
 class ShareInfo(BaseModel):
@@ -307,6 +309,7 @@ class ShareInfo(BaseModel):
     kind: str
     deck_id: int | None = None
     deck_ids: list[int] | None = None
+    include_extras: bool = True
     path: str
 
 

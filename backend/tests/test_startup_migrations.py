@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, User
+from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -58,7 +58,13 @@ _LEGACY_DDL = [
     f"""CREATE TABLE analyst_access (
         id {_PK} PRIMARY KEY, user_id INTEGER NOT NULL UNIQUE REFERENCES users (id), status VARCHAR(16),
         note VARCHAR(500), created_at {_TS}, updated_at {_TS}, decided_at {_TS})""",
+    # share_links before include_extras (#527)
+    f"""CREATE TABLE share_links (
+        id {_PK} PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users (id),
+        token VARCHAR(64) NOT NULL UNIQUE, kind VARCHAR(32), deck_id INTEGER,
+        deck_ids_json TEXT, created_at {_TS}, revoked_at {_TS})""",
     "INSERT INTO users (email, name, google_sub) VALUES ('old@example.com', 'Old', 'sub-old')",
+    "INSERT INTO share_links (user_id, token, kind) VALUES (1, 'old-share', 'shopping')",
     "INSERT INTO decks (user_id, name, leader_card_id, sort_order) VALUES (1, 'Red Luffy', 'OP01-001', 0)",
     "INSERT INTO analyst_usage (user_id, kind, model, cost_usd) VALUES (1, 'chat', 'claude-sonnet-5-5', 0.07)",
     "INSERT INTO analyst_access (user_id, status, note) VALUES (1, 'approved', 'hi')",
@@ -113,6 +119,15 @@ def test_old_rows_get_defaults_for_every_added_column(legacy_engine):
         match = db.query(DuelMatch).one()
         assert (match.seat0_leader_id, match.seat1_leader_id, match.turns) == (None, None, None)
         assert (match.match_id, match.seat0_rating_after) == ("old-match", 1016)
+
+
+def test_an_old_shopping_share_link_still_includes_added_cards_527(legacy_engine):
+    """Links made before include_extras existed keep showing the Added directly cards, as they always did."""
+    app_db.init_db()
+    assert "include_extras" in _columns(legacy_engine, "share_links")
+    with Session(legacy_engine) as db:
+        link = db.query(ShareLink).one()
+        assert (link.token, link.include_extras) == ("old-share", True)
 
 
 def test_an_old_review_gets_a_citations_column_and_reads_back_without_sources(legacy_engine):

@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -179,6 +180,11 @@ class ShareLink(Base):
     )
     # JSON list of deck ids for shopping shares; null/empty = all decks
     deck_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Shopping shares: show the "Added directly" cards (shopping_extras). Links made
+    # before this column existed keep showing them (#527).
+    include_extras: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

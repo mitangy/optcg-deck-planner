@@ -1422,6 +1422,7 @@ def _share_info(link: ShareLink) -> ShareInfo:
         kind=link.kind,
         deck_id=link.deck_id,
         deck_ids=_share_deck_ids(link),
+        include_extras=link.include_extras,
         path=f"/share/{link.token}",
     )
 
@@ -1432,6 +1433,7 @@ def create_or_update_share(
     kind: str,
     deck_id: int | None = None,
     deck_ids: list[int] | None = None,
+    include_extras: bool | None = None,
 ) -> ShareInfo:
     kind = (kind or "shopping").strip().lower()
     if kind not in {"shopping", "deck"}:
@@ -1476,6 +1478,8 @@ def create_or_update_share(
     deck_ids_json = json.dumps(sorted(set(deck_ids))) if deck_ids else None
     if existing:
         existing.deck_ids_json = deck_ids_json
+        if include_extras is not None:
+            existing.include_extras = include_extras
         db.commit()
         db.refresh(existing)
         return _share_info(existing)
@@ -1486,6 +1490,7 @@ def create_or_update_share(
         kind="shopping",
         deck_id=None,
         deck_ids_json=deck_ids_json,
+        include_extras=True if include_extras is None else include_extras,
     )
     db.add(link)
     db.commit()
@@ -1577,7 +1582,9 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
             deck_name=detail.name,
         )
 
-    shopping = shopping_list(db, owner, deck_ids=_share_deck_ids(link))
+    shopping = shopping_list(
+        db, owner, deck_ids=_share_deck_ids(link), include_extras=link.include_extras
+    )
     return PublicShoppingResponse(
         items=shopping.items,
         cards_still_needed=shopping.cards_still_needed,
