@@ -274,6 +274,12 @@ const COST_RULES: Rule<Cost>[] = [
   [/^place this card at the (top|bottom) of your life cards face-(up|down)$/i, (m) => ({ k: "place_self_in_life", faceUp: m[2] === "up" })],
 ];
 
+/** "trash this Character and 1 of your X": the "1 of your X" is another card, never the paying card itself (#656). */
+function excludingSelf(costs: Cost[]): Cost[] {
+  return costs.map((c) => ("selector" in c && c.selector && (c.k === "trash_cards" || c.k === "rest_cards" || c.k === "return_cards_to_hand" || c.k === "cards_to_deck_bottom")
+    ? { ...c, selector: { ...c.selector, filter: { ...c.selector.filter, excludeSelf: true } } } : c));
+}
+
 export function parseCosts(text: string, ctx: Ctx): Cost[] | null {
   const t = text.trim().replace(/^you may /i, "").replace(/,$/, "").trim();
   if (!t) return [];
@@ -295,9 +301,9 @@ export function parseCosts(text: string, ctx: Ctx): Cost[] | null {
   const noComma = /^(DON!! -\d+) (?:you may )?(.+)$/i.exec(t);
   if (noComma) { const a = parseCosts(noComma[1]!, ctx); const b = a && parseCosts(noComma[2]!, ctx); if (a && b) return [...a, ...b]; }
   const carry = /^(rest|trash|return|place) (this (?:character|stage|leader|card)) and (\d+ .+)$/i.exec(t);
-  if (carry) { const a = parseCosts(carry[1] + " " + carry[2], ctx); const b = a && parseCosts(carry[1] + " " + carry[3], ctx); if (a && b) return [...a, ...b]; }
+  if (carry) { const a = parseCosts(carry[1] + " " + carry[2], ctx); const b = a && parseCosts(carry[1] + " " + carry[3], ctx); if (a && b) return [...a, ...excludingSelf(b)]; }
   const carry2 = /^(rest|trash|return|place) (\d+ .+?) and (this (?:character|stage|leader|card))(.*)$/i.exec(t);
-  if (carry2) { const a = parseCosts(carry2[1] + " " + carry2[2] + carry2[4], ctx); const b = a && parseCosts(carry2[1] + " " + carry2[3] + carry2[4], ctx); if (a && b) return [...a, ...b]; }
+  if (carry2) { const a = parseCosts(carry2[1] + " " + carry2[2] + carry2[4], ctx); const b = a && parseCosts(carry2[1] + " " + carry2[3] + carry2[4], ctx); if (a && b) return [...excludingSelf(a), ...b]; }
   // "[RDON 1] you may rest this Character"
   const rdon = /^(\[RDON \d+\])\s+(.+)$/.exec(t);
   if (rdon) { const a = parseCosts(rdon[1]!, ctx); const b = a && parseCosts(rdon[2]!, ctx); if (a && b) return [...a, ...b]; }
@@ -643,7 +649,7 @@ const EFFECT_RULES: EffectRule[] = [
   [/^look at all of your life cards and place them back in any order$/i, () => ({ do: "look_life", player: "you", count: 99, rest: "any_order" })],
   [new RegExp(`^negate the effects? of (.+?) ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "negate", target, duration: d } : null; }],
   [new RegExp(`^(.+?) cannot attack ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "restrict", target, restriction: "cannot_attack", duration: d } : null; }],
-  [/^(.+?) will not become active in (?:your opponent's|your|their owner's|the owner's) next refresh phase$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "restrict", target, restriction: "no_refresh", duration: "permanent" } : null; }],
+  [/^(.+?) will not become active in (?:your opponent's|your|their owner's|the owner's) next refresh phase$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "restrict", target: target.ref === "choose" ? { ...target, selector: withCostAreaDon(target.selector) } : target, restriction: "no_refresh", duration: "permanent" } : null; }],
   [new RegExp(`^(.+?) cannot be KO'd by (?:your opponent's )?effects ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "restrict", target, restriction: /opponent/.test(m[0]) ? "cannot_be_ko_by_opponent_effect" : "cannot_be_ko_by_effect", duration: d } : null; }],
   [new RegExp(`^(.+?) cannot be KO'd in battle ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "restrict", target, restriction: "cannot_be_ko_in_battle", duration: d } : null; }],
   [new RegExp(`^(.+?) cannot be KO'd ${DUR}$`, "i"), (m, ctx) => { const target = fieldTarget(m[1]!, ctx); const d = parseDuration(m[2]); return target && d ? { do: "restrict", target, restriction: "cannot_be_ko", duration: d } : null; }],
