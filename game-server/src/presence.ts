@@ -26,6 +26,8 @@ export class PresenceReporter {
   private started = false;
   private debounce: ReturnType<typeof setTimeout> | null = null;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
+  /** The API already holds an empty snapshot for this process. */
+  private lastSentEmpty = false;
 
   constructor(
     private send: typeof fetch = fetch,
@@ -66,13 +68,15 @@ export class PresenceReporter {
   }
 
   async flush(): Promise<void> {
+    const entries = this.snapshot();
     try {
       const res = await this.send(`${getApiBaseUrl()}/duel/presence`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Duel-Ingest-Token": getDuelIngestSecret() },
-        body: JSON.stringify({ instance_id: this.instanceId, entries: this.snapshot() }),
+        body: JSON.stringify({ instance_id: this.instanceId, entries }),
         signal: AbortSignal.timeout(10000),
       });
+      this.lastSentEmpty = res.ok && entries.length === 0;
       if (!res.ok) console.warn(`Presence push failed: HTTP ${res.status}`);
     } catch {
       // A cold or unreachable API just means friends see stale status until the next beat.
@@ -84,8 +88,18 @@ export class PresenceReporter {
     if (this.started) return;
     this.started = true;
     void this.flush();
-    this.heartbeat = setInterval(() => void this.flush(), this.heartbeatMs);
+    this.heartbeat = setInterval(() => void this.beat(), this.heartbeatMs);
     this.heartbeat.unref?.();
+  }
+
+  /**
+   * Re-send so rows stay fresh during long games. With nobody in a room and the
+   * empty snapshot already delivered there is nothing to refresh: skipping it
+   * lets the API's database sleep while the game server is idle.
+   */
+  private async beat(): Promise<void> {
+    if (this.lastSentEmpty && this.snapshot().length === 0) return;
+    await this.flush();
   }
 
   stop(): void {

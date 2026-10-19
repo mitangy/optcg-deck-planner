@@ -1,0 +1,88 @@
+name: Game server blue/green deploy
+
+# Deploys the idle game-server pool, waits until every process in it reports
+# this commit, then points new games at it. Games already running on the old
+# pool finish there; nothing is cut off. See docs/scaling.md.
+#
+# Needs (repo settings, per colour BLUE / GREEN):
+#   secrets.RENDER_DEPLOY_HOOKS_<COLOUR>  Render deploy hook URLs, space separated
+#   vars.GS_HEALTH_URLS_<COLOUR>          each process's base URL, space separated
+#   vars.GS_POOL_URL_<COLOUR>             the URL clients get for that pool
+#   vars.API_URL                          backend base URL
+#   secrets.CATALOG_SYNC_TOKEN            admin token for the pool pointer
+
+on:
+  workflow_dispatch:
+    inputs:
+      colour:
+        description: "Pool to deploy and switch new games to"
+        required: true
+        type: choice
+        options: [blue, green]
+      force:
+        description: "Deploy even if games are still running on that pool (they get cut off)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-server-blue-green
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COLOUR: ${{ inputs.colour }}
+      HOOKS: ${{ inputs.colour == 'blue' && secrets.RENDER_DEPLOY_HOOKS_BLUE || secrets.RENDER_DEPLOY_HOOKS_GREEN }}
+      HEALTH_URLS: ${{ inputs.colour == 'blue' && vars.GS_HEALTH_URLS_BLUE || vars.GS_HEALTH_URLS_GREEN }}
+      POOL_URL: ${{ inputs.colour == 'blue' && vars.GS_POOL_URL_BLUE || vars.GS_POOL_URL_GREEN }}
+      API_URL: ${{ vars.API_URL }}
+      ADMIN_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
+      COMMIT: ${{ github.sha }}
+    steps:
+      - name: Check configuration
+        run: |
+          for v in HOOKS HEALTH_URLS POOL_URL API_URL ADMIN_TOKEN; do
+            if [ -z "${!v}" ]; then echo "::error::$v is not configured for the $COLOUR pool"; exit 1; fi
+          done
+
+      - name: Make sure the pool has drained
+        if: ${{ !inputs.force }}
+        run: |
+          for url in $HEALTH_URLS; do
+            rooms=$(curl -fsS "$url/health" | jq -r '.roomCount // 0') || rooms=0
+            if [ "$rooms" != "0" ]; then
+              echo "::error::$url still has $rooms rooms; wait for them to finish or re-run with force"; exit 1
+            fi
+          done
+
+      - name: Trigger deploys
+        run: |
+          for hook in $HOOKS; do
+            curl -fsS -X POST "$hook" > /dev/null
+          done
+
+      - name: Wait for every process to run this commit
+        run: |
+          deadline=$(( $(date +%s) + 1200 ))
+          for url in $HEALTH_URLS; do
+            until [ "$(curl -fsS "$url/health" 2>/dev/null | jq -r '.commit // empty')" = "$COMMIT" ]; do
+              if [ "$(date +%s)" -gt "$deadline" ]; then
+                echo "::error::$url never reported $COMMIT; new games stay on the current pool"; exit 1
+              fi
+              sleep 10
+            done
+            echo "$url is on $COMMIT"
+          done
+
+      - name: Point new games at the ${{ inputs.colour }} pool
+        run: |
+          curl -fsS -X PUT "$API_URL/duel/admin/game-server-pool" \
+            -H "Content-Type: application/json" -H "X-Catalog-Token: $ADMIN_TOKEN" \
+            --data "$(jq -n --arg url "$POOL_URL" '{url: $url}')"
+          echo "New games now start on $POOL_URL. Running games finish on the old pool."

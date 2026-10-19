@@ -19,6 +19,19 @@ jobs:
   rules-and-game-server:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Redis for the game-server pool tests (two processes sharing rooms).
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      REDIS_TEST_URL: redis://127.0.0.1:6379/15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -34,6 +47,8 @@ jobs:
       - run: npm run eval:validate -w @optcg/analyst
       # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
       - run: npm run fuzz:smoke -w @optcg/rules
+      # Views (getPlayerView per seat after every move) must stay well ahead of the uncached path, timed in one process.
+      - run: npm run bench:views -w @optcg/rules -- --gate
       # Every mutation anchor must still match exactly once (no tests run).
       - run: node tools/mutation-check/run.cjs --check-anchors
 
@@ -295,15 +310,17 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/optcg_test
         run: python -m pytest -q
 
-  mutation-proofs:
-    # Pull requests only: re-proves the mutation entries this PR adds or changes
-    # (tools/mutation-check/changed.cjs), so a new test cannot merge without a
-    # mutation that kills it. Installs only what the changed suites need, and
-    # finishes in seconds when no entry changed. Playwright suites (duel-e2e,
-    # frontend-e2e) are skipped here; run those locally.
+  mutation-plan:
+    # Pull requests only. Finds the mutation entries this PR adds or changes
+    # (tools/mutation-check/changed.cjs) and splits them into parts, one per
+    # parallel runner, so a big PR does not run every mutation serially on one
+    # machine (#632 took 41 minutes that way). Needs no installs.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      any: ${{ steps.plan.outputs.any }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -322,44 +339,72 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - name: Find changed mutations
-        id: changed
+      - name: Plan mutation parts
+        id: plan
         run: |
           set -o pipefail
-          node tools/mutation-check/changed.cjs "$BASE_SHA" --list | tee "$RUNNER_TEMP/changed.txt"
-          # Lines look like "suite: id, id"; match the suite name before the colon.
-          need() { grep -qE "^($1):" "$RUNNER_TEMP/changed.txt" && echo true || echo false; }
+          node tools/mutation-check/changed.cjs "$BASE_SHA" --matrix > "$RUNNER_TEMP/matrix.json"
+          cat "$RUNNER_TEMP/matrix.json"
           {
-            echo "root=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server')"
-            echo "duel_web=$(need 'duel-web')"
-            echo "frontend=$(need 'frontend')"
-            echo "mobile=$(need 'mobile')"
-            echo "backend=$(need 'backend')"
-            echo "any=$(need 'rules|deck-analytics|patch-notes|analyst-client|analyst|game-server|duel-web|frontend|mobile|backend|importer|cosmetics|preview-art|alt-arts')"
+            echo "matrix=$(cat "$RUNNER_TEMP/matrix.json")"
+            echo "any=$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(m.length>0)' "$RUNNER_TEMP/matrix.json")"
           } >> "$GITHUB_OUTPUT"
+
+  mutation-proofs-part:
+    # One runner per part of the plan. Installs only what its suite needs.
+    # Playwright suites (duel-e2e, frontend-e2e) are never planned; run those
+    # locally. Matrix values come from PR content, so they reach the shell only
+    # through env, never interpolated into the script.
+    needs: mutation-plan
+    if: github.event_name == 'pull_request' && needs.mutation-plan.outputs.any == 'true'
+    name: mutation-proofs (${{ matrix.suite }} ${{ matrix.part }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.mutation-plan.outputs.matrix) }}
+    # Redis for the game-server pool tests, so their mutations can be killed here too.
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      REDIS_TEST_URL: redis://127.0.0.1:6379/15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
       - name: Install root workspace deps
-        if: steps.changed.outputs.root == 'true'
+        if: contains(fromJSON('["rules","deck-analytics","patch-notes","analyst-client","analyst","game-server"]'), matrix.suite)
         run: npm ci
       - name: Install duel-web deps
-        if: steps.changed.outputs.duel_web == 'true'
+        if: matrix.suite == 'duel-web'
         run: npm ci
         working-directory: duel-web
       - name: Install frontend deps
-        if: steps.changed.outputs.frontend == 'true'
+        if: matrix.suite == 'frontend'
         run: npm ci
         working-directory: frontend
       - name: Install mobile deps
-        if: steps.changed.outputs.mobile == 'true'
+        if: matrix.suite == 'mobile'
         run: npm ci
         working-directory: mobile
       - uses: actions/setup-python@v7
-        if: steps.changed.outputs.backend == 'true'
+        if: matrix.suite == 'backend'
         with:
           python-version-file: backend/.python-version
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
       - name: Install backend deps
-        if: steps.changed.outputs.backend == 'true'
+        if: matrix.suite == 'backend'
         working-directory: backend
         run: |
           pip install -r requirements.txt
@@ -367,6 +412,27 @@ jobs:
           # run.cjs's pytest runner reads this; the importer and cosmetics
           # suites use plain python3 (standard library only).
           echo "BACKEND_PYTHON=$(which python)" >> "$GITHUB_ENV"
-      - name: Run changed mutation proofs
-        if: steps.changed.outputs.any == 'true'
-        run: node tools/mutation-check/changed.cjs "$BASE_SHA"
+      - name: Run mutation proofs
+        env:
+          SUITE: ${{ matrix.suite }}
+          ONLY: ${{ matrix.only }}
+        run: node tools/mutation-check/run.cjs "$SUITE" --only "$ONLY"
+
+  mutation-proofs:
+    # Aggregates the plan and the parts under the original check name, so branch
+    # protection and the PR checks list keep one `mutation-proofs`. The parts job
+    # is skipped when no mutation entry changed, which counts as a pass.
+    needs: [mutation-plan, mutation-proofs-part]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check results
+        env:
+          PLAN_RESULT: ${{ needs.mutation-plan.result }}
+          PARTS_RESULT: ${{ needs.mutation-proofs-part.result }}
+        run: |
+          echo "mutation-plan: ${PLAN_RESULT}"
+          echo "mutation-proofs parts: ${PARTS_RESULT}"
+          test "${PLAN_RESULT}" = "success"
+          test "${PARTS_RESULT}" = "success" || test "${PARTS_RESULT}" = "skipped"

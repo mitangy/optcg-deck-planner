@@ -24,7 +24,10 @@ type Queued = {
  * tell each client to `joinById` with their preferred seat.
  */
 export class MatchmakerRoom extends Room {
-  maxClients = 64;
+  // One queue room serves every process in a pool (found through the Redis
+  // driver), so it must hold everyone queued at once: a second room would
+  // split the queue into two that never pair with each other.
+  maxClients = 5000;
   maxMessagesPerSecond = 10;
   private queue: Queued[] = [];
 

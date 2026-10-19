@@ -83,6 +83,10 @@ function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]]
   return reveals[0].length || reveals[1].length ? { handReveals: reveals } : null;
 }
 
+/**
+ * What `seat` may see of `state`. Static-ability results are memoized for the
+ * duration of the call (the state is only read), which is most of its cost.
+ */
 export function getPlayerView(state: MatchState, seat: Seat) {
   return withQueryCache(state, () => buildPlayerView(state, seat));
 }

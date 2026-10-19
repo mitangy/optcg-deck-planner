@@ -32,7 +32,10 @@ services:
     # Redeploy on every push to the linked branch (frontend is on Vercel separately).
     autoDeploy: true
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # WEB_CONCURRENCY workers (1 by default: Starter has 512 MB). Raise it only
+    # with REDIS_URL set, so rate limits, presence and live-game progress are
+    # shared; startup migrations take a Postgres advisory lock (app.db.startup_lock).
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers ${WEB_CONCURRENCY:-1}
     healthCheckPath: /health
     buildFilter:
       paths:
@@ -67,6 +70,18 @@ services:
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
+      # Optional Redis / Key Value (redis://… or rediss://…). Unset: rate limits are
+      # per worker and presence / live-game progress stay in Postgres.
+      - key: REDIS_URL
+        sync: false
+      # Game-server URL handed out with duel tokens; PUT /duel/admin/game-server-pool
+      # overrides it while Redis is set (blue/green). Unset: clients use their build default.
+      - key: GAME_SERVER_URL
+        sync: false
+      # Signs public playmat / card back links (falls back to SESSION_SECRET).
+      # Rotating it retires every link handed out so far.
+      - key: COSMETIC_URL_SECRET
+        sync: false
       - key: DUEL_CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
       # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/cors.py).

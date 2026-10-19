@@ -691,6 +691,18 @@ describe("DuelRoom", () => {
     await c2.leave(true);
   });
 
+  it("ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#389)", async () => {
+    const joined: ClientRoom[] = [];
+    for (let i = 0; i < 66; i++) {
+      const c = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts(`crowd-${i}`));
+      c.onMessage("queued", () => {});
+      c.onMessage("matched", () => {});
+      joined.push(c);
+    }
+    assert.equal(new Set(joined.map((c) => c.roomId)).size, 1);
+    await Promise.all(joined.map((c) => c.leave(true)));
+  });
+
   it("ranked_queue keeps one place per account, dropping the older entry (#318)", async () => {
     const dupA = await colyseus.sdk.joinOrCreate("ranked_queue", joinOpts("same-user"));
     let aLeft = false;

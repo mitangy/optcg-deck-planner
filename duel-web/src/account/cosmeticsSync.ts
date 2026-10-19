@@ -19,6 +19,7 @@ import {
   type AccountCosmetics,
   type CosmeticKind,
 } from "../net/prefsApi";
+import { SKIN_PUBLIC_PATH } from "../net/protocol";
 import { playmatSlot } from "../playmat";
 import { planCosmeticSync } from "./syncPlan";
 
@@ -77,6 +78,18 @@ async function applyChoice(kind: CosmeticKind, id: number | null) {
     await SLOTS[kind].put(await downloadAccountCosmetic(id));
   }
   setLocalAccountId(kind, id);
+}
+
+/**
+ * Public path of the image this browser shows for `kind`, when it is an account
+ * upload the API can serve to the opponent (null: share it as a data URL).
+ */
+export function activePublicPath(kind: CosmeticKind): string | null {
+  if (!state.signedIn) return null;
+  const id = localAccountId(kind);
+  if (id === null) return null;
+  const path = state.items.find((i) => i.id === id)?.public_path;
+  return typeof path === "string" && SKIN_PUBLIC_PATH.test(path) ? path : null;
 }
 
 /** Bring this browser and the account in line (on sign-in and app start). */

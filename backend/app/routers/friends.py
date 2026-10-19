@@ -10,6 +10,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import duel_live, redis_client
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship, User
@@ -36,8 +37,8 @@ INVITE_TTL = timedelta(minutes=10)
 INVITE_ROOM_GRACE = timedelta(seconds=30)
 MAX_FRIENDS = 200
 
-_request_rate = RateLimiter(max_calls=20, period_s=60)
-_invite_rate = RateLimiter(max_calls=20, period_s=60)
+_request_rate = RateLimiter(max_calls=20, period_s=60, name="friends_request_rate")
+_invite_rate = RateLimiter(max_calls=20, period_s=60, name="friends_invite_rate")
 
 
 def utcnow() -> datetime:
@@ -68,8 +69,17 @@ def live_presence(db: Session, user_ids: list[int], now: datetime) -> dict[int, 
     """Fresh presence rows per user (stale rows from a dead game-server are skipped)."""
     if not user_ids:
         return {}
+    rows: list[DuelPresence] | None = None
+    r = redis_client.get_redis()
+    if r is not None:
+        try:
+            rows = duel_live.read_presence(r, user_ids)
+        except redis_client.RedisError:
+            redis_client.report_failure("presence read")
+    if rows is None:
+        rows = list(db.scalars(select(DuelPresence).where(DuelPresence.user_id.in_(user_ids))))
     out: dict[int, list[DuelPresence]] = {}
-    for row in db.scalars(select(DuelPresence).where(DuelPresence.user_id.in_(user_ids))):
+    for row in rows:
         if now - _utc(row.updated_at) <= PRESENCE_TTL:
             out.setdefault(row.user_id, []).append(row)
     return out

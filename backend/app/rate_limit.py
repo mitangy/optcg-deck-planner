@@ -1,4 +1,4 @@
-"""Simple in-process sliding-window rate limiter."""
+"""Sliding-window rate limiter: in-process, or shared through Redis when REDIS_URL is set."""
 
 from __future__ import annotations
 
@@ -6,16 +6,24 @@ import hmac
 import os
 import threading
 import time
+import uuid
 import weakref
 from collections import defaultdict, deque
+
+from app import redis_client
 
 
 class RateLimiter:
     _all: "weakref.WeakSet[RateLimiter]" = weakref.WeakSet()
 
-    def __init__(self, max_calls: int, period_s: float) -> None:
+    def __init__(self, max_calls: int, period_s: float, name: str | None = None) -> None:
+        """``name`` makes the budget shared by every worker when Redis is configured.
+
+        Unnamed limiters always count in-process (each worker has its own budget).
+        """
         self.max_calls = max_calls
         self.period_s = period_s
+        self.name = name
         self._hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
         self._last_sweep = time.monotonic()
@@ -29,6 +37,32 @@ class RateLimiter:
                 limiter._hits.clear()
 
     def allow(self, key: str) -> bool:
+        r = redis_client.get_redis() if self.name else None
+        if r is not None:
+            try:
+                return self._allow_shared(r, key)
+            except redis_client.RedisError:
+                redis_client.report_failure(f"rate limit {self.name}")
+        return self._allow_local(key)
+
+    def _allow_shared(self, r, key: str) -> bool:
+        """One sorted set per key (score = wall-clock time), the same window as the local path."""
+        rkey = f"rl:{self.name}:{key}"
+        now = time.time()
+        member = f"{now:.6f}:{uuid.uuid4().hex}"
+        pipe = r.pipeline(transaction=True)
+        pipe.zremrangebyscore(rkey, "-inf", now - self.period_s)
+        pipe.zadd(rkey, {member: now})
+        pipe.zcard(rkey)
+        pipe.pexpire(rkey, max(1, int(self.period_s * 1000)))
+        count = pipe.execute()[2]
+        if count > self.max_calls:
+            # Over budget: a refused call does not count against later ones.
+            r.zrem(rkey, member)
+            return False
+        return True
+
+    def _allow_local(self, key: str) -> bool:
         now = time.monotonic()
         with self._lock:
             cutoff = now - self.period_s

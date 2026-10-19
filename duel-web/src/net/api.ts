@@ -1,6 +1,7 @@
 /** Duel-web ↔ FastAPI helpers (tokens + light auth). */
 import { getApiBaseUrl } from "../config";
 import { devKeyAllowed, loadSettings } from "../settings";
+import { rememberAssignedGameServer } from "./gameServer";
 
 export type DuelTokenResponse = {
   token: string;
@@ -11,6 +12,11 @@ export type DuelTokenResponse = {
   display_name?: string;
   rating: number;
   games_played: number;
+  /**
+   * Game server pool for matches started with this token. Null / absent:
+   * use the build-time VITE_GAME_SERVER_URL (see net/gameServer.ts).
+   */
+  game_server_url?: string | null;
 };
 
 export type AuthUser = {
@@ -154,7 +160,9 @@ async function mintWithRetry(
         },
         timeoutMs,
       );
-      return await readToken(res);
+      const token = await readToken(res);
+      rememberAssignedGameServer(token);
+      return token;
     } catch (e) {
       lastErr = e;
       if (!isRetryableMintError(e) || i === attempts - 1) {
