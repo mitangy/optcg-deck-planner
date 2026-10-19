@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-19
+  { date: "2026-10-19", app: "planner", pr: 640, title: "Alt art tiles show EB05 and OP18 previews", text: "The alt art and Base tiles under EB05 and OP18 cards now show preview art instead of an empty box until TCGPlayer posts the official pictures. Eyelashes (OP18-015) has preview art too." },
   // 2026-10-18
   { date: "2026-10-18", app: "duel", pr: 633, title: "Make room for your hand under a side column", text: "Drag the bottom edge of a side column up to make room for your hand: the fanned hand sits in that corner, fully shown, and never covers the board. Drag the bar back down or double-click it to undo; Reset layout does too. Desktop windows only." },
   { date: "2026-10-18", app: "duel", pr: 630, title: "Deleted decks stay deleted and sign-out keeps unsaved decks", text: "A duel deck you delete while signed in no longer comes back the next time you open the app, even if the account was slow to load. Decks that could not be saved to your account, like ones with very long names, are now kept in this browser when you sign out instead of being removed." },
