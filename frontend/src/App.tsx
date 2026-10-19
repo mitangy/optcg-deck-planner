@@ -1494,6 +1494,7 @@ function ShoppingPage() {
       api.createShare({
         kind: "shopping",
         deck_ids: activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds,
+        include_extras: includeExtras,
       }),
     onSuccess: async (info) => {
       await qc.invalidateQueries({ queryKey: ["share", "shopping"] });
