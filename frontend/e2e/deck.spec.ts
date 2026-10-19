@@ -4,8 +4,20 @@
  * audit, and every toggle checks its trigger does not move (CLAUDE.md UI-polish
  * rules 1 and 6). Runs at desktop-1200 and phone-375.
  */
+import type { Locator } from "@playwright/test";
 import { expect, formatIssues, test, DECK_ID } from "./fixtures";
 import { expectStationary } from "./audit";
+
+/** Still needed: the table shows "2" over "of 4"; the phone list says "Still need 2 of 4". */
+async function expectStill(row: Locator, still: number, need: number) {
+  const num = row.locator(".still-need-num");
+  if (await num.count()) {
+    await expect(num).toHaveText(String(still));
+    await expect(row.locator(".still-need-of")).toHaveText(`of ${need}`);
+  } else {
+    await expect(row).toContainText(`Still need ${still} of ${need}`);
+  }
+}
 
 const IZO = '[data-card-id="EB01-002"]:visible';
 
@@ -53,9 +65,11 @@ test("opens the deck and passes the UI audit", async ({ page, planner }) => {
 test("each card row names the card, how many are still needed and its price", async ({ page }) => {
   await expect(page.locator(IZO)).toContainText("EB01-002");
   await expect(page.locator(IZO)).toContainText("Izo");
-  await expect(page.locator(IZO)).toContainText("2/4");
-  await expect(page.locator(IZO).getByRole("button", { name: /\$1\.25/ })).toBeVisible();
-  await expect(page.locator(IZO).getByRole("textbox")).toHaveValue("2");
+  await expectStill(page.locator(IZO), 2, 4);
+  await expect(page.locator(IZO).getByRole("button", { name: /\$1\.25/ }).first()).toBeVisible();
+  // Izo has alt arts on screen, so its Owned cell is the read-only total.
+  await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("2");
+  await expect(page.locator(IZO).getByRole("textbox")).toHaveCount(0);
 });
 
 test("List/Grid toggle swaps the layout and passes the audit", async ({ page, planner }) => {
@@ -78,7 +92,7 @@ test("List/Grid toggle swaps the layout and passes the audit", async ({ page, pl
 });
 
 test("expanding a market price shows the last sales without moving the price", async ({ page, planner }) => {
-  const price = page.locator(IZO).getByRole("button", { name: /\$1\.25/ });
+  const price = page.locator(IZO).getByRole("button", { name: /\$1\.25/ }).first();
   await expectStationary(price, () => price.click(), "market price");
   await expect(price).toHaveAttribute("aria-expanded", "true");
 
@@ -120,24 +134,31 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   expect(issues, `filters open:\n${formatIssues(issues)}`).toEqual([]);
 });
 
-test("owned stepper saves each click and updates still needed", async ({ page, planner }) => {
+test("owned stepper saves each click and updates still needed (#652)", async ({ page, planner }) => {
   const row = page.locator(IZO);
-  const owned = row.getByRole("textbox");
-  await expect(owned).toHaveValue("2");
+  const total = row.locator(".owned-total-num");
+  await expect(total).toHaveText("2");
 
-  await row.getByRole("button", { name: "Increase owned", exact: true }).click();
-  await expect(owned).toHaveValue("3");
-  await expect(row).toContainText("1/4");
+  // With alt tiles on screen the base count is edited under the Base tile.
+  const inc = row.getByRole("button", { name: "Increase owned for Izo base art", exact: true });
+  const dec = row.getByRole("button", { name: "Decrease owned for Izo base art", exact: true });
+  await inc.click();
+  await expect(total).toHaveText("3");
+  await expectStill(row, 1, 4);
   expect(planner.owned.get("EB01-002")).toBe(3);
   expect(planner.requests).toContain("PUT /owned/EB01-002");
 
-  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
-  await row.getByRole("button", { name: "Decrease owned", exact: true }).click();
-  await expect(owned).toHaveValue("1");
-  await expect(row).toContainText("3/4");
+  await dec.click();
+  await dec.click();
+  await expect(total).toHaveText("1");
+  await expectStill(row, 3, 4);
   expect(planner.owned.get("EB01-002")).toBe(1);
 
-  // Typing a number and leaving the box saves it too.
+  // Hide alt arts: the Owned cell is the typeable stepper again, and typing a number saves it too.
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await page.getByLabel("Show alt arts").uncheck();
+  const owned = row.getByRole("textbox");
+  await expect(owned).toHaveValue("1");
   await owned.fill("4");
   await owned.blur();
   await expect(row).toHaveCount(0); // fully owned: drops out of "Still need only"
@@ -235,17 +256,21 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
   await expect(left).toHaveText("$36.80 left");
 
   // Alt arts are shown by default.
-  const inc = page.locator(IZO).getByRole("button", { name: /Increase owned for/ });
-  const qty = page.locator(IZO).locator(".alt-want-qty");
-  await expect(page.locator(IZO).locator(".alt-want-caption")).toHaveText("Owned");
-  await expect(page.locator(IZO).locator(".alt-art-base")).toHaveCount(0);
+  const inc = page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true });
+  const qty = page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-want-qty");
+  // The Base tile and the alt tile each have an Owned stepper.
+  await expect(page.locator(IZO).locator(".alt-want-caption")).toHaveText(["Owned", "Owned"]);
+  await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
 
   // One owned alt copy covers one Izo: 36.80 - 1.25.
   await inc.click();
   await expect(qty).toHaveText("1");
   await expect(left).toHaveText("$35.55 left");
   expect(planner.altOwned.get("EB01-002:201")).toBe(1);
-  await expect(page.locator(IZO)).toContainText("1/4");
+  // Owned is the total (2 base + 1 alt) and Still needed is what is left of 4.
+  await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("3");
+  await expect(page.locator(IZO).locator(".owned-total-split")).toHaveText("2 base + 1 alt");
+  await expectStill(page.locator(IZO), 1, 4);
   // The alt is now the main image and the base art sits in a Base tile.
   await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
