@@ -116,7 +116,7 @@ const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
 
 /** Estimated seconds per mutation, observed in CI (each mutation re-runs its suite). */
-const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 20, frontend: 10, analyst: 7, mobile: 5, backend: 4, "analyst-client": 3, "deck-analytics": 3, "patch-notes": 3 };
+const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 20, frontend: 10, analyst: 7, mobile: 5, backend: 15, "analyst-client": 3, "deck-analytics": 3, "patch-notes": 3 };
 const DEFAULT_SECONDS = 5;
 const MAX_PARTS = 8;
 const TARGET_PART_SECONDS = 150;
