@@ -1888,6 +1888,65 @@ tr.done td {
   font-weight: 700;
 }
 
+/* Read-only Owned total (base + alts). Same height as the stepper so rows do not shift. */
+.owned-total {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-height: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.owned-total-num {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.owned-total-split {
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.grid-card-owned .owned-total {
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+/* Still needed: the count, with the deck need as a muted "of N" line. */
+.still-need {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.still-need-num {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.still-need-of {
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+}
+
+.need-cell > .still-need-num {
+  margin-right: 0.3rem;
+}
+
+.need-cell > .still-need-of {
+  margin-right: 0.3rem;
+}
+
 .alt-want-label {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -2725,6 +2784,10 @@ tr.done td {
   }
 
   /* Slightly tighter stepper when Owned sits beside Market / TCGPlayer */
+  .mobile-card-price-row .mobile-card-owned .owned-total {
+    min-height: 2rem;
+  }
+
   .mobile-card-price-row .mobile-card-owned .owned-btn {
     width: 2rem;
     height: 2rem;
@@ -2788,6 +2851,11 @@ tr.done td {
 
   .mobile-card-owned .owned-wrap {
     gap: 0.2rem;
+  }
+
+  .mobile-card-owned .owned-total {
+    align-items: flex-end;
+    min-height: 2.2rem;
   }
 
   .mobile-card-owned .owned-btn {

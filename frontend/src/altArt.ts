@@ -20,14 +20,20 @@ export function mainImageUrl(card: HasAlts & { image_url?: string | null }): str
   return featuredAlt(card)?.image_url || card.image_url || undefined;
 }
 
-/** The "Base" tile for the alt-arts row; null unless an owned alt is the main image. */
-export function baseTileFor(card: HasAlts & {
-  name: string;
-  image_url?: string | null;
-  market_price: number | null | undefined;
-  product_id?: number | null;
-}) {
-  if (!featuredAlt(card)) return null;
+/**
+ * The "Base" tile for the alt-arts row; null unless an owned alt is the main
+ * image. `always` keeps it even then, for pages that edit the base count there.
+ */
+export function baseTileFor(
+  card: HasAlts & {
+    name: string;
+    image_url?: string | null;
+    market_price: number | null | undefined;
+    product_id?: number | null;
+  },
+  always = false,
+) {
+  if (!always && !featuredAlt(card)) return null;
   return {
     name: card.name,
     image_url: card.image_url || undefined,

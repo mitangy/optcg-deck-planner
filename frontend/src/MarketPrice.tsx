@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api, money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { InlineSkeleton } from "./Skeleton";
@@ -206,6 +206,7 @@ export function AltArtsRow({
   onWantChange,
   busyProductId = null,
   base = null,
+  baseOwnedControl,
   cardId,
 }: {
   alts: PrintingView[] | null | undefined;
@@ -216,6 +217,8 @@ export function AltArtsRow({
   onWantChange?: (productId: number, qty: number) => void;
   busyProductId?: number | null;
   base?: BaseArt | null;
+  /** Owned stepper for the base count, shown inside the Base tile. */
+  baseOwnedControl?: ReactNode;
   /** Falls back to the card's preview art when an alt (or the base) has none of its own. */
   cardId?: string | null;
 }) {
@@ -231,6 +234,7 @@ export function AltArtsRow({
           <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} />
           <div className="alt-meta">
             <MarketPrice price={base.market_price} productId={base.product_id} />
+            {baseOwnedControl}
             <span className="alt-base-label">Base</span>
           </div>
         </div>

@@ -4,6 +4,7 @@
  * spec and screen size that claims it.
  */
 const app = "frontend/src/App.tsx";
+const owned = "frontend/src/OwnedCells.tsx";
 const css = "frontend/src/styles.css";
 const market = "frontend/src/MarketPrice.tsx";
 const controls = "frontend/src/cardListControls.tsx";
@@ -40,7 +41,7 @@ module.exports = {
     { id: "e2e-alt-owned-not-saved", args: "deck.spec -g \"owned alt art\"", file: app, from: "const changeAltOwned = async (cardId: string, productId: number, qty: number) => {\n    setAltOwnedErr(null);\n    setAltOwnedBusyKey(`${cardId}:${productId}`);\n    applyAltOwnedOptimistic(qc, cardId, productId, qty);\n    try {\n      const res = await api.setAltOwned(cardId, productId, qty);", to: "const changeAltOwned = async (cardId: string, productId: number, qty: number) => {\n    setAltOwnedErr(null);\n    setAltOwnedBusyKey(`${cardId}:${productId}`);\n    applyAltOwnedOptimistic(qc, cardId, productId, qty);\n    try {\n      const res = { qty };", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
     { id: "e2e-alt-arts-default-off", args: "deck.spec -g \"owned alt art\"", file: controls, from: "  return raw !== \"0\";", to: "  return raw === \"1\";", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
     { id: "e2e-deck-main-art-ignores-owned-alt", args: "deck.spec -g \"owned alt art\"", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return card.image_url || undefined;", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
-    { id: "e2e-deck-base-tile-missing", args: "deck.spec -g \"owned alt art\"", file: app, from: "      base={baseTileFor(c)}", to: "      base={null}", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
+    { id: "e2e-deck-base-tile-missing", args: "deck.spec -g \"owned alt art\"", file: app, from: "      base={baseTileFor(c, Boolean(onAltOwnedChange))}", to: "      base={null}", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
     { id: "e2e-alt-owned-stepper-caption-want", args: "deck.spec -g \"owned alt art\"", file: market, from: "                  caption=\"Owned\"", to: "                  caption=\"Want\"", kills: [`${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [desktop-1200]`, `${deck} > an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625) [phone-375]`] },
     // Master Shopping shows each deck as a chip (#625)
     { id: "e2e-used-in-chips-dropped", args: "shopping-extras --project=desktop-1200 -g \"direct target\"", file: app, from: "      {decks.length > 0 && (\n        <ul className=\"used-in-chips\"", to: "      {false && (\n        <ul className=\"used-in-chips\"", kills: ["shopping-extras.spec.ts > a direct target above the deck need raises the list and the Collection shows Buying (#525) [desktop-1200]"] },
@@ -68,12 +69,12 @@ module.exports = {
     { id: "e2e-don-tiles-small", args: "deck -g \"DON!! browser\"", file: css, from: ".don-tile .thumb {\n  width: 100%;\n  height: auto;", to: ".don-tile .thumb {\n  width: 60px;\n  height: auto;", kills: [`${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [desktop-1200]`, `${deck} > DON!! browser shows big card tiles and searches the DON!! catalog (#435) [phone-375]`] },
 
     // Owned stepper
-    { id: "e2e-owned-plus-adds-two", args: "deck --project=desktop-1200 -g \"owned stepper\"", file: app, from: "        onClick={() => commit(displayQty + 1)}", to: "        onClick={() => commit(displayQty + 2)}", kills: [`${deck} > owned stepper saves each click and updates still needed [desktop-1200]`] },
-    { id: "e2e-owned-minus-never-disabled", args: "deck --project=phone-375 -g \"below zero\"", file: app, from: "        disabled={mutation.isPending || displayQty <= 0}", to: "        disabled={mutation.isPending}", kills: [`${deck} > cannot take owned below zero [phone-375]`] },
-    // The row shows "still needed / needed" in both layouts.
+    { id: "e2e-owned-plus-adds-two", args: "deck --project=desktop-1200 -g \"owned stepper\"", file: owned, from: "      onClick={() => commit(displayQty + 1)}", to: "      onClick={() => commit(displayQty + 2)}", kills: [`${deck} > owned stepper saves each click and updates still needed (#652) [desktop-1200]`] },
+    { id: "e2e-owned-minus-never-disabled", args: "deck --project=phone-375 -g \"below zero\"", file: owned, from: "      disabled={mutation.isPending || displayQty <= 0}", to: "      disabled={mutation.isPending}", kills: [`${deck} > cannot take owned below zero [phone-375]`] },
+    // The row shows the still-needed count and the deck need in both layouts.
     { id: "e2e-row-still-needed-swapped", args: "deck -g \"each card row\"", edits: [
-      { file: app, from: "                    `${c.still_need}/${c.needed}`\n", to: "                    `${c.needed}/${c.still_need}`\n" },
-      { file: app, from: "[c.color, `${c.still_need}/${c.needed} still needed`, c.card_type || \"\"]", to: "[c.color, `${c.needed}/${c.still_need} still needed`, c.card_type || \"\"]" },
+      { file: owned, from: "<span className=\"still-need-num\">{still}</span>", to: "<span className=\"still-need-num\">{need}</span>" },
+      { file: owned, from: "return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;", to: "return still > 0 ? `Still need ${need} of ${still}` : `Have all ${need}`;" },
     ], kills: [`${deck} > each card row names the card, how many are still needed and its price [desktop-1200]`, `${deck} > each card row names the card, how many are still needed and its price [phone-375]`] },
 
     // Pixel snapshots (@visual): small CSS regressions that no DOM assertion sees
