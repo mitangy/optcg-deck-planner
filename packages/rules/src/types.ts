@@ -151,7 +151,7 @@ export type ChoiceRequest =
    * Pick between `min` and `max` eligible options. `distinctNames`: no two
    * picks may share a card name ("with different card names").
    */
-  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true }
+  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true; /** The picks' costs (or powers) must add up to at most this; the engine rejects a larger total (#635). */ totalCostAtMost?: number; totalPowerAtMost?: number }
   /** Pick exactly one labeled mode. */
   | { type: "mode"; options: ChoiceOption[] }
   /** Order every option (first = placed first / top-most). */

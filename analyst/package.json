@@ -17,7 +17,10 @@
     "eval:compare": "tsx evals/compare.ts",
     "eval:check-live": "tsx evals/check-live.ts",
     "eval:grade": "tsx evals/grade-human.ts",
-    "eval:validate": "tsx evals/validate.ts"
+    "eval:validate": "tsx evals/validate.ts",
+    "upload-bot-games": "tsx scripts/upload-bot-games.ts",
+    "bot-lessons": "tsx scripts/bot-lessons.ts",
+    "meta-decks": "tsx scripts/meta-decks.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

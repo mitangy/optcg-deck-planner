@@ -46,6 +46,19 @@ describe("source ids and their badges (#390)", () => {
     expect(kindLabel(parseSource("tourney:OP01-001"))).not.toBe(kindLabel(parseSource("stats:OP01-001")));
   });
 
+  it("reads bot-simulation sources, badges them apart from Win rate, and shows their record line (#635)", () => {
+    expect(parseSource("botsim:OP01-001~OP02-001#optional_accepted:OP08-058")).toMatchObject({ kind: "botsim", id: "OP01-001", opponent: "OP02-001", part: "optional_accepted:OP08-058" });
+    expect(parseSource("botgame:b_abc#t7")).toMatchObject({ kind: "botgame", id: "b_abc", turn: 7 });
+    expect(parseSource("position:m1#t5s2")).toMatchObject({ kind: "position", id: "m1", part: "t5s2" });
+    expect(parseSource("position:g_1#t5").turn).toBe(5);
+    expect(kindLabel(parseSource("botsim:OP01-001"))).toBe("Bot simulation");
+    expect(kindLabel(parseSource("botgame:b_abc#t7"))).toBe("Bot game turn 7");
+    expect(kindLabel(parseSource("position:g_1#t5"))).toBe("Position estimate");
+    expect(kindLabel(parseSource("botsim:OP01-001"))).not.toBe(kindLabel(parseSource("stats:OP01-001")));
+    expect(hasRecord(parseSource("botsim:OP01-001~OP02-001"))).toBe(true);
+    expect(hasRecord(parseSource("position:g_1#t5"))).toBe(false);
+  });
+
   it("shows the win-record line for optcgduel.app win rates and tournament records only (#397)", () => {
     expect(["stats:OP01-001", "tourney:OP01-001~OP02-001", "tourney:OP01-001#OP01-016"].map((s) => hasRecord(parseSource(s)))).toEqual([true, true, true]);
     expect(["event:6abc", "card:OP01-006", "playbook:OP01-001"].map((s) => hasRecord(parseSource(s)))).toEqual([false, false, false]);

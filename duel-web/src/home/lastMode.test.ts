@@ -24,8 +24,8 @@ describe("last Play mode", () => {
     expect(readLastMode(s)).toBe("create");
   });
 
-  it("keeps the other three modes as they are (#431)", () => {
-    for (const m of ["hotseat", "queue", "spectate", "create"] as const) {
+  it("keeps the other modes as they are (#431, #631)", () => {
+    for (const m of ["hotseat", "bot", "queue", "spectate", "create"] as const) {
       const s = memory();
       writeLastMode(m, s);
       expect(readLastMode(s)).toBe(m);
