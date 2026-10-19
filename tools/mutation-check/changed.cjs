@@ -3,7 +3,7 @@
  * Run only the mutations that are new or changed versus a base git ref, so a
  * PR proves the tests it adds or edits without paying for a full run.
  *
- *   node tools/mutation-check/changed.cjs <base-ref> [--list]
+ *   node tools/mutation-check/changed.cjs <base-ref> [--list | --matrix]
  *
  * Every suite file under suites/ is loaded at <base-ref> (via `git show`) and at
  * HEAD's working tree; entries are matched by `id` and compared by a serialized
@@ -13,6 +13,9 @@
  *
  * --list prints "<suite>: <id>, <id>" per suite on stdout and runs nothing
  * (messages go to stderr, so empty stdout means nothing changed).
+ * --matrix prints one line of JSON on stdout and runs nothing: an array of
+ * {suite, part, only, count} parts that CI fans out over parallel runners, each
+ * running `run.cjs <suite> --only <only>`. `[]` when nothing changed.
  * Playwright suites (duel-e2e, frontend-e2e) are not run here: they start
  * servers and take too long for a PR job, so run them locally.
  * Writes a short summary to $GITHUB_STEP_SUMMARY when it is set.
@@ -28,8 +31,9 @@ const SUITES_DIR = path.join(__dirname, "suites");
 
 const args = process.argv.slice(2);
 const listOnly = args.includes("--list");
+const matrixOnly = args.includes("--matrix");
 const baseArg = args.find((a) => !a.startsWith("--"));
-if (!baseArg) { console.error("usage: changed.cjs <base-ref> [--list]"); process.exit(2); }
+if (!baseArg) { console.error("usage: changed.cjs <base-ref> [--list | --matrix]"); process.exit(2); }
 
 const git = (...a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 let base;
@@ -108,8 +112,47 @@ for (const file of fs.readdirSync(SUITES_DIR).filter((f) => f.endsWith(".cjs")).
   if (ids.length) changed.push({ name, runner: head.runner, ids });
 }
 
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
+
+/** Estimated seconds per mutation, observed in CI (each mutation re-runs its suite). */
+const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 20, frontend: 10, analyst: 7, mobile: 5, backend: 4, "analyst-client": 3, "deck-analytics": 3, "patch-notes": 3 };
+const DEFAULT_SECONDS = 5;
+const MAX_PARTS = 8;
+const TARGET_PART_SECONDS = 150;
+
+/**
+ * Split changed ids into parts for parallel runners. Every part also pays one
+ * baseline suite run, so a part with n ids costs about (n + 1) * w seconds.
+ * Greedily gives the costliest suite another part while the cap allows.
+ */
+function planMatrix(suites) {
+  const plan = suites.map(({ name, ids }) => ({ name, ids, w: SECONDS_PER_MUTATION[name] ?? DEFAULT_SECONDS, parts: 1 }));
+  const cost = (s) => (Math.ceil(s.ids.length / s.parts) + 1) * s.w;
+  for (;;) {
+    if (plan.reduce((n, s) => n + s.parts, 0) >= MAX_PARTS) break;
+    const next = plan.filter((s) => s.parts < s.ids.length).sort((a, b) => cost(b) - cost(a))[0];
+    if (!next || cost(next) <= TARGET_PART_SECONDS) break;
+    next.parts += 1;
+  }
+  const out = [];
+  for (const s of plan) {
+    for (let i = 0; i < s.parts; i += 1) {
+      const ids = s.ids.filter((_, k) => k % s.parts === i); // round-robin
+      out.push({ suite: s.name, part: `${i + 1}/${s.parts}`, only: onlyPattern(ids), count: ids.length, ids });
+    }
+  }
+  for (const s of plan) {
+    const got = out.filter((p) => p.suite === s.name).flatMap((p) => p.ids).sort();
+    const want = [...s.ids].sort();
+    if (got.length !== want.length || got.some((id, i) => id !== want[i])) throw new Error(`matrix for ${s.name} does not cover each changed id exactly once`);
+  }
+  return out.map(({ ids, ...rest }) => rest);
+}
+
 if (!changed.length) {
   console.error(`No mutation entries changed versus ${baseArg} (${base.slice(0, 7)}).`);
+  if (matrixOnly) console.log("[]");
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## Mutation proofs\n\nNo mutation entries changed.\n");
   process.exit(0);
 }
@@ -117,8 +160,24 @@ if (listOnly) {
   for (const { name, ids } of changed) console.log(`${name}: ${ids.join(", ")}`);
   process.exit(0);
 }
+if (matrixOnly) {
+  const runnable = [];
+  const rows = ["## Mutation proofs", "", "| Suite | Changed | Parts |", "|---|---|---|"];
+  for (const { name, runner, ids } of changed) {
+    if (runner === "playwright") {
+      const line = `[${name}] skipped (Playwright suite; run locally): ${ids.join(", ")}`;
+      console.error(line);
+      rows.push(`| ${name} | ${ids.length} | skipped (Playwright suite; run locally) |`);
+    } else runnable.push({ name, ids });
+  }
+  const matrix = planMatrix(runnable);
+  for (const { name, ids } of runnable) rows.push(`| ${name} | ${ids.length} | ${matrix.filter((p) => p.suite === name).length} |`);
+  console.error(`Planned ${matrix.length} part(s) for ${runnable.length} suite(s).`);
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${rows.join("\n")}\n`);
+  console.log(JSON.stringify(matrix));
+  process.exit(0);
+}
 
-const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const summary = ["## Mutation proofs", "", "| Suite | Changed | Result |", "|---|---|---|"];
 let failed = 0;
 for (const { name, runner, ids } of changed) {
@@ -128,7 +187,7 @@ for (const { name, runner, ids } of changed) {
     continue;
   }
   console.log(`[${name}] running ${ids.length} changed mutation(s): ${ids.join(", ")}`);
-  const only = `^(${ids.map(escapeRegex).join("|")})$`;
+  const only = onlyPattern(ids);
   const run = spawnSync(process.execPath, [path.join(__dirname, "run.cjs"), name, "--only", only], { cwd: REPO, stdio: "inherit" });
   const ok = run.status === 0;
   if (!ok) failed += 1;
