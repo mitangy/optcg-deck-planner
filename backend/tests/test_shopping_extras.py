@@ -165,3 +165,72 @@ def test_shopping_extras_http_put_get_flags_and_unknown_card_404_525(client):
 
     c.put("/shopping/extras/OP01-002", json={"qty": 0})
     assert c.get("/shopping").json()["items"] == []
+
+
+def _share_setup(db):
+    user = _setup(db, email="sharer@example.com")
+    add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})
+    services.set_shopping_extra(db, user, "OP01-002", 2)
+    return user
+
+
+def _public_ids(db, token):
+    return sorted(i.card_id for i in services.public_share_view(db, token).items)
+
+
+def test_share_made_with_extras_off_hides_added_directly_cards_527(db):
+    user = _share_setup(db)
+
+    info = services.create_or_update_share(db, user, "shopping", include_extras=False)
+
+    assert info.include_extras is False
+    assert _public_ids(db, info.token) == ["OP01-001"]
+
+
+def test_share_without_the_flag_still_includes_extras_527(db):
+    user = _share_setup(db)
+
+    info = services.create_or_update_share(db, user, "shopping")
+
+    assert info.include_extras is True
+    assert _public_ids(db, info.token) == ["OP01-001", "OP01-002"]
+
+
+def test_old_share_link_row_defaults_to_including_extras_527(db):
+    from app.models import ShareLink
+
+    user = _share_setup(db)
+    db.add(ShareLink(user_id=user.id, token="old-token", kind="shopping"))
+    db.commit()
+
+    assert _public_ids(db, "old-token") == ["OP01-001", "OP01-002"]
+    assert services.get_active_shopping_share(db, user).include_extras is True
+
+
+def test_resharing_follows_the_latest_extras_choice_527(db):
+    user = _share_setup(db)
+    first = services.create_or_update_share(db, user, "shopping", include_extras=False)
+
+    again = services.create_or_update_share(db, user, "shopping", include_extras=True)
+    assert again.token == first.token
+    assert _public_ids(db, first.token) == ["OP01-001", "OP01-002"]
+
+    services.create_or_update_share(db, user, "shopping", include_extras=False)
+    assert _public_ids(db, first.token) == ["OP01-001"]
+    assert services.get_active_shopping_share(db, user).include_extras is False
+
+
+def test_share_http_extras_off_hides_them_on_the_public_page_527(client):
+    c, SessionLocal = client
+    _signed_in(c, SessionLocal)
+    with SessionLocal() as db:
+        add_catalog(db, "OP01-002", name="Zoro", product_id=2, market=3.0)
+    c.put("/shopping/extras/OP01-002", json={"qty": 2})
+
+    shared = c.post("/share", json={"kind": "shopping", "include_extras": False}).json()
+    assert shared["include_extras"] is False
+    assert c.get(f"/public/share/{shared['token']}").json()["items"] == []
+
+    c.post("/share", json={"kind": "shopping", "include_extras": True})
+    items = c.get(f"/public/share/{shared['token']}").json()["items"]
+    assert [i["card_id"] for i in items] == ["OP01-002"]

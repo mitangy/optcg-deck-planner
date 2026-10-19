@@ -81,6 +81,24 @@ def _ensure_user_session_version() -> None:
         )
 
 
+def _ensure_share_link_include_extras() -> None:
+    """Add include_extras on existing DBs; old links keep showing added cards (#527)."""
+    inspector = inspect(engine)
+    if "share_links" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("share_links")}
+    if "include_extras" in existing:
+        return
+    default = "TRUE" if engine.dialect.name == "postgresql" else "1"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE share_links ADD COLUMN include_extras BOOLEAN "
+                f"NOT NULL DEFAULT {default}"
+            )
+        )
+
+
 def _ensure_deck_is_main() -> None:
     """Add is_main on existing DBs (create_all does not alter tables)."""
     inspector = inspect(engine)
@@ -224,6 +242,7 @@ def init_db() -> None:
     _ensure_deck_is_main()
     _ensure_user_sum_across_leaders()
     _ensure_user_username()
+    _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
     _ensure_duel_progress_closed()
     _ensure_analyst_review_citations()
