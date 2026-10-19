@@ -4,7 +4,8 @@ name: Bot self-play corpus
 # through the real duel engine, and the games are uploaded to Log Pose's bot game corpus (#635). Log Pose reads them
 # as "bot simulations", apart from real games and tournaments.
 #
-# Needs a repository variable ANALYST_API_URL (the backend's base URL, e.g. https://optcg-backend.onrender.com) and a
+# Needs ANALYST_API_URL (the backend's base URL, e.g. https://optcg-backend.onrender.com; a repository variable or a
+# secret) and a
 # secret ANALYST_SERVICE_SECRET (the same value as the backend's ANALYST_SERVICE_SECRET). Without both it does nothing.
 # Optional variable META_API_URL if the public /meta endpoints live somewhere else.
 on:
@@ -34,9 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      ANALYST_API_URL: ${{ vars.ANALYST_API_URL }}
+      ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
       ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
-      META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL }}
+      META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
     steps:
       - name: Check configuration
         id: cfg
