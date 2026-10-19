@@ -996,6 +996,7 @@ export function GroupBuyDetailPage() {
     return (
       <AltArtsRow
         alts={alts}
+        cardId={line.card_id}
         cardNeeded={line.my_need ?? 0}
         editable={canEditWants}
         onWantChange={

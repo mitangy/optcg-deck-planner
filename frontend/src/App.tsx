@@ -1323,6 +1323,7 @@ function ShoppingPage() {
   const shoppingAltRow = (item: ShoppingItem) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
+      cardId={item.card_id}
       editable
       base={baseTileFor(item)}
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
@@ -3061,6 +3062,7 @@ function CardTable({
   const altRow = (c: CardView) => (
     <AltArtsRow
       alts={c.alt_arts ?? []}
+      cardId={c.card_id}
       editable={Boolean(onAltOwnedChange)}
       base={baseTileFor(c)}
       onOwnedChange={
