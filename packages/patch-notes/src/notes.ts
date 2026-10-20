@@ -11,8 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-20
-  { date: "2026-10-20", app: "duel", pr: 660, title: "Phones: see your hand when you block or counter", text: "On phones, answering an attack now shows how many cards are in your hand next to the verdict, and how many will be left after the counters you picked." },
-  { date: "2026-10-20", app: "duel", pr: 660, title: "Phones: pop-ups stay below the top bar", text: "Tall pop-ups on a portrait phone no longer cover the top bar, so Undo and the menu stay in reach. Dragging a pop-up also stops under the bar." },
+  { date: "2026-10-20", app: "duel", pr: 661, title: "Phones: see your hand when you block or counter", text: "On phones, answering an attack now shows how many cards are in your hand next to the verdict, and how many will be left after the counters you picked." },
+  { date: "2026-10-20", app: "duel", pr: 661, title: "Phones: pop-ups stay below the top bar", text: "Tall pop-ups on a portrait phone no longer cover the top bar, so Undo and the menu stay in reach. Dragging a pop-up also stops under the bar." },
   // 2026-10-19
   { date: "2026-10-19", app: "duel", pr: 657, title: "Card fixes for Shirahoshi, Crocodile and more", text: "The Shirahoshi Leader can now play [Megalo] and reveal [Shirahoshi] as printed, Crocodile (OP04-058) no longer draws DON!! back when your opponent forces you to return it, Mr.13 & Ms.Friday needs another Baroque Works Character to activate, and Gastino respects \"cannot be removed\" protection. Mr.2, Thatch and similar cards no longer move from your hand if they were bounced first, Arlong can pick rested DON!!, Hyouzou is now a Merfolk, and play prompts skip cards a play lock forbids." },
   { date: "2026-10-19", app: "planner", pr: 653, title: "Owned counts your alt arts", text: "On Master Shopping and your decks, Owned now shows every copy you have, regular and alt art together. When alt arts are showing, change each count under its own art, including a new Owned stepper on the Base tile. Still needed now shows how many more you need, with the deck total underneath." },
