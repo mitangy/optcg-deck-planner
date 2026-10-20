@@ -167,24 +167,29 @@ export class OutboxScheduler {
   }
 
   private async run(): Promise<void> {
-    do {
-      this.again = false;
-      if (this.timer) { this.clearTimer(this.timer); this.timer = null; }
+    for (;;) {
+      do {
+        this.again = false;
+        if (this.timer) { this.clearTimer(this.timer); this.timer = null; }
+        try {
+          await this.outbox.drain();
+        } catch {
+          console.error("Outbox drain failed; retained rows will retry");
+        }
+      } while (this.again && !this.stopped);
+      let wait: number | null;
       try {
-        await this.outbox.drain();
+        wait = await this.outbox.nextDueInMs();
       } catch {
-        console.error("Outbox drain failed; retained rows will retry");
+        // Can't tell what is pending (database unreachable): look again later.
+        wait = 30_000;
       }
-    } while (this.again && !this.stopped);
-    let wait: number | null;
-    try {
-      wait = await this.outbox.nextDueInMs();
-    } catch {
-      // Can't tell what is pending (database unreachable): look again later.
-      wait = 30_000;
+      // A kick that landed while we asked may have queued a row this answer does not include.
+      if (this.again && !this.stopped) continue;
+      if (wait === null || this.stopped) return;
+      this.timer = this.setTimer(() => { this.timer = null; void this.kick(); }, Math.max(this.minWaitMs, wait));
+      return;
     }
-    if (wait === null || this.stopped) return;
-    this.timer = this.setTimer(() => { this.timer = null; void this.kick(); }, Math.max(this.minWaitMs, wait));
   }
 
   async stop(): Promise<void> {
