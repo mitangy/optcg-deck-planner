@@ -69,6 +69,15 @@ import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import {
+  AltsOwnedNote,
+  OwnedCell,
+  OwnedStepper,
+  StillNeededCell,
+  ownedCellIsTotal,
+  stillNeededText,
+  totalOwned,
+} from "./OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "./columnSort";
 import {
   consumeLoginNext,
@@ -655,116 +664,25 @@ function OwnedInput({
   cardId,
   value,
   onSaved,
+  compact = false,
+  name,
 }: {
   cardId: string;
   value: number;
   onSaved: () => void;
+  compact?: boolean;
+  name?: string;
 }) {
   const qc = useQueryClient();
-  const [draft, setDraft] = useState(String(value));
-  const [focused, setFocused] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const serverValueRef = useRef(value);
-  const pendingRef = useRef<number | null>(null);
-  const draftNum = Number(draft);
-  const displayQty = Number.isFinite(draftNum) ? Math.max(0, Math.floor(draftNum)) : 0;
-
-  const mutation = useMutation({
-    mutationFn: (n: number) => api.setOwned(cardId, n),
-    onSuccess: (res) => {
-      setErr(null);
-      serverValueRef.current = res.qty;
-      if (pendingRef.current === res.qty) pendingRef.current = null;
-      applyOwnedOptimistic(qc, cardId, res.qty);
-      if (!focused) setDraft(String(res.qty));
-      onSaved();
-    },
-    onError: (e: Error) => {
-      setErr(e.message);
-      pendingRef.current = null;
-      applyOwnedOptimistic(qc, cardId, serverValueRef.current);
-      if (!focused) setDraft(String(serverValueRef.current));
-    },
-  });
-
-  useEffect(() => {
-    serverValueRef.current = value;
-    // Don't clobber an in-progress edit or an optimistic value waiting on the server.
-    if (focused || pendingRef.current !== null) return;
-    setDraft(String(value));
-  }, [value, cardId, focused]);
-
-  function commit(next: number) {
-    const n = Math.max(0, Math.floor(next));
-    setDraft(String(n));
-    if (n === serverValueRef.current && pendingRef.current === null) return;
-    pendingRef.current = n;
-    applyOwnedOptimistic(qc, cardId, n);
-    mutation.mutate(n);
-  }
-
-  function parseDraft(): number | null {
-    const trimmed = draft.trim();
-    if (trimmed === "") return 0;
-    const n = Number(trimmed);
-    if (!Number.isFinite(n)) return null;
-    return Math.max(0, Math.floor(n));
-  }
-
   return (
-    <span className="owned-wrap">
-      <button
-        type="button"
-        className="owned-btn"
-        aria-label="Decrease owned"
-        disabled={mutation.isPending || displayQty <= 0}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => commit(displayQty - 1)}
-      >
-        −
-      </button>
-      <input
-        className="owned"
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={draft}
-        title={err ?? undefined}
-        disabled={mutation.isPending && !focused}
-        onFocus={() => setFocused(true)}
-        onChange={(e) => {
-          const raw = e.target.value;
-          if (raw === "" || /^\d+$/.test(raw)) setDraft(raw);
-        }}
-        onBlur={() => {
-          setFocused(false);
-          const n = parseDraft();
-          if (n == null) {
-            setDraft(String(serverValueRef.current));
-            return;
-          }
-          commit(n);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") {
-            setDraft(String(serverValueRef.current));
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-      />
-      <button
-        type="button"
-        className="owned-btn"
-        aria-label="Increase owned"
-        disabled={mutation.isPending}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => commit(displayQty + 1)}
-      >
-        +
-      </button>
-      {err && <span className="owned-err">!</span>}
-    </span>
+    <OwnedStepper
+      cardId={cardId}
+      value={value}
+      onSaved={onSaved}
+      applyOptimistic={(id, qty) => applyOwnedOptimistic(qc, id, qty)}
+      compact={compact}
+      name={name}
+    />
   );
 }
 
@@ -870,7 +788,7 @@ function shoppingColumnValue(item: ShoppingItem, key: string) {
     case "card":
       return item.card_id;
     case "owned":
-      return item.owned;
+      return totalOwned(item.owned, item.alts_owned);
     case "still":
       return item.still_need;
     case "market":
@@ -918,6 +836,15 @@ function ShoppingItemsView({
   const { sort, onSort } = useColumnSort("optcg_colsort_shopping");
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
   if (items.length === 0) return null;
+  // Master Shopping's alt tiles are always editable, so they own the per-art counts.
+  const ownedCell = (item: ShoppingItem) => (
+    <OwnedCell
+      isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
+      owned={item.owned}
+      altsOwned={item.alts_owned}
+      stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
+    />
+  );
   const removeExtraButton = (item: ShoppingItem) =>
     (item.extra_qty ?? 0) > 0 ? (
       <button
@@ -977,7 +904,7 @@ function ShoppingItemsView({
                   <div className="card-id">{item.card_id}</div>
                   <div className="grid-card-name">{item.name}</div>
                   <div className="grid-card-meta muted">
-                    {item.still_need}/{item.need} still needed
+                    {stillNeededText(item.still_need, item.need)}
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                   </div>
                   {item.used_in.length > 0 && (
@@ -990,7 +917,7 @@ function ShoppingItemsView({
                   </div>
                   <div className="grid-card-owned" onClick={stopCardSelectBubble}>
                     <span>Owned</span>
-                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                    {ownedCell(item)}
                   </div>
                   {item.tcgplayer_url && (
                     <a
@@ -1080,11 +1007,9 @@ function ShoppingItemsView({
                       </div>
                     )}
                   </td>
+                  <td>{ownedCell(item)}</td>
                   <td>
-                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
-                  </td>
-                  <td>
-                    {item.still_need}/{item.need}
+                    <StillNeededCell still={item.still_need} need={item.need} />
                   </td>
                   <td>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
@@ -1134,7 +1059,7 @@ function ShoppingItemsView({
                   <div className="card-id">{item.card_id}</div>
                   <div className="mobile-card-name">{item.name}</div>
                   <div className="mobile-card-meta">
-                    {[item.color, `${item.still_need}/${item.need} still needed`]
+                    {[item.color, stillNeededText(item.still_need, item.need)]
                       .filter(Boolean)
                       .join(" · ")}
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
@@ -1160,7 +1085,7 @@ function ShoppingItemsView({
                     </div>
                     <div className="mobile-card-owned">
                       <span>Owned</span>
-                      <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+                      {ownedCell(item)}
                     </div>
                   </div>
                 </div>
@@ -1325,7 +1250,16 @@ function ShoppingPage() {
       alts={item.alt_arts ?? []}
       cardId={item.card_id}
       editable
-      base={baseTileFor(item)}
+      base={baseTileFor(item, true)}
+      baseOwnedControl={
+        <OwnedInput
+          compact
+          name={item.name}
+          cardId={item.card_id}
+          value={item.owned}
+          onSaved={() => invalidateOwnedViews(qc)}
+        />
+      }
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
       busyProductId={
         altOwnedBusyKey?.startsWith(`${item.card_id}:`)
@@ -1966,16 +1900,6 @@ function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefin
         </span>
       </li>
     </ul>
-  );
-}
-
-/** "+2 alt" beside the Owned stepper: copies owned as alt arts (edited on the deck page / Master Shopping). */
-function AltsOwnedNote({ count }: { count?: number }) {
-  if (!count || count <= 0) return null;
-  return (
-    <span className="alts-owned-note" title="Alt-art copies you own, on top of Owned">
-      +{count} alt
-    </span>
   );
 }
 
@@ -3026,7 +2950,7 @@ function deckColumnValue(c: CardView, key: string) {
     case "card":
       return c.card_id;
     case "owned":
-      return c.owned;
+      return totalOwned(c.owned, c.alts_owned);
     case "still":
       return c.still_need;
     case "market":
@@ -3064,12 +2988,26 @@ function CardTable({
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
+  // With editable alt tiles on screen, the base count is edited under the Base tile.
+  const ownedCell = (c: CardView) => (
+    <OwnedCell
+      isTotal={ownedCellIsTotal(showAltArts, c.alt_arts?.length ?? 0, Boolean(onAltOwnedChange))}
+      owned={c.owned}
+      altsOwned={c.alts_owned}
+      stepper={<OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />}
+    />
+  );
   const altRow = (c: CardView) => (
     <AltArtsRow
       alts={c.alt_arts ?? []}
       cardId={c.card_id}
       editable={Boolean(onAltOwnedChange)}
-      base={baseTileFor(c)}
+      base={baseTileFor(c, Boolean(onAltOwnedChange))}
+      baseOwnedControl={
+        onAltOwnedChange ? (
+          <OwnedInput compact name={c.name} cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+        ) : undefined
+      }
       onOwnedChange={
         onAltOwnedChange
           ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
@@ -3098,7 +3036,7 @@ function CardTable({
               <div className="card-id">{c.card_id}</div>
               <div className="grid-card-name">{c.name}</div>
               <div className="grid-card-meta muted">
-                {[`${c.still_need}/${c.needed} still needed`, c.card_type || ""].filter(Boolean).join(" · ")}
+                {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
               </div>
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
@@ -3116,7 +3054,7 @@ function CardTable({
               ) : null}
               <div className="grid-card-owned">
                 <span>Owned</span>
-                <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+                {ownedCell(c)}
               </div>
               <OwnedClaimNote card={c} />
               {c.tcgplayer_url && (
@@ -3169,12 +3107,14 @@ function CardTable({
                   )}
                 </td>
                 <td>
-                  <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+                  {ownedCell(c)}
                   <OwnedClaimNote card={c} />
                 </td>
                 <td className="need-cell">
                   {editing && onNeededChange ? (
-                    <>{c.still_need}/{" "}
+                    <>
+                      <span className="still-need-num">{c.still_need}</span>
+                      <span className="still-need-of">of</span>
                       <NeededStepper
                         cardId={c.card_id}
                         value={c.needed}
@@ -3183,7 +3123,7 @@ function CardTable({
                       />
                     </>
                   ) : (
-                    `${c.still_need}/${c.needed}`
+                    <StillNeededCell still={c.still_need} need={c.needed} />
                   )}
                 </td>
                 <td>
@@ -3216,7 +3156,7 @@ function CardTable({
                 <div className="card-id">{c.card_id}</div>
                 <div className="mobile-card-name">{c.name}</div>
                 <div className="mobile-card-meta">
-                  {[c.color, `${c.still_need}/${c.needed} still needed`, c.card_type || ""]
+                  {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
                     .filter(Boolean)
                     .join(" · ")}
                 </div>
@@ -3232,7 +3172,7 @@ function CardTable({
                   </div>
                   <div className="mobile-card-owned">
                     <span>Owned</span>
-                    <OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />
+                    {ownedCell(c)}
                   </div>
                 </div>
                 <OwnedClaimNote card={c} />
@@ -4599,7 +4539,7 @@ function PublicSharePage() {
                       <div className="card-id">{item.card_id}</div>
                       <div className="grid-card-name">{item.name}</div>
                       <div className="grid-card-meta muted">
-                        Owned {item.owned} · {item.still_need}/{item.need} still needed
+                        Owned {totalOwned(item.owned, item.alts_owned)} · {stillNeededText(item.still_need, item.need)}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
                       </div>
                       <div className="grid-card-price">
@@ -4645,8 +4585,10 @@ function PublicSharePage() {
                               </div>
                             </div>
                           </td>
-                          <td>{item.owned}</td>
-                          <td>{item.still_need}/{item.need}</td>
+                          <td>{totalOwned(item.owned, item.alts_owned)}</td>
+                          <td>
+                            <StillNeededCell still={item.still_need} need={item.need} />
+                          </td>
                           <td>
                             <MarketPrice price={item.market_price} productId={item.product_id} />
                           </td>
@@ -4678,7 +4620,7 @@ function PublicSharePage() {
                           <div className="card-id">{item.card_id}</div>
                           <div className="mobile-card-name">{item.name}</div>
                           <div className="mobile-card-meta">
-                            {[`Owned ${item.owned}`, `${item.still_need}/${item.need} still needed`]
+                            {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, stillNeededText(item.still_need, item.need)]
                               .filter(Boolean)
                               .join(" · ")}
                             {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}

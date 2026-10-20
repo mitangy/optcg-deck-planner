@@ -16,6 +16,7 @@ DEFAULT_MAX_BODY_BYTES = 1024 * 1024
 ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/duel/cosmetics/", 5 * 1024 * 1024),
     ("/duel/matches", 8 * 1024 * 1024),
+    ("/analyst/bot-games", 8 * 1024 * 1024),
 )
 
 

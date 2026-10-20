@@ -529,7 +529,8 @@ const ENTRIES: [string, ManualEntry][] = [
     costs: [{ k: "give_opponent_don", count: 1 }], effect: giveDonChoice("rested") }]),
   card("OP15-022", [{ trigger: "static", text: "Under the rules of this game, you do not lose when your deck has 0 cards.", statics: [{ s: "deck_rule", rule: "deck_out_end_of_turn" }] }]),
   card("OP15-023", [{ trigger: "activate_main", oncePerTurn: true, text: "[Activate: Main] [Once Per Turn] You may give 1 of your opponent's rested DON!!",
-    costs: [{ k: "give_opponent_don", count: 1 }], effect: giveDonChoice("any") }]),
+    // Q&A: the second DON!! is also the opponent's, rested, given to their Leader or a Character; "up to" (#656).
+    costs: [{ k: "give_opponent_don", count: 1 }], effect: { do: "give_don", target: upTo(1, sel("opponent", "leader_or_character")), count: 1, donState: "rested", player: "opponent" } }]),
   card("OP15-024", [{ trigger: "static", text: "[Opponent's Turn] This Character cannot be rested by your opponent's Leader and Character effects",
     conditions: [{ c: "opponent_turn" }],
     statics: [{ s: "restrict", target: "self", restriction: "cannot_be_rested_by_opponent_effect_from", filter: { types: ["leader", "character"] } }, { s: "keyword", target: "self", keyword: "blocker" }] }]),

@@ -47,7 +47,7 @@ test("deck grid view @visual", async ({ page, planner }) => {
 
 test("deck market price panel open @visual", async ({ page, planner }) => {
   await planner.open(`/decks/${DECK_ID}`);
-  await page.locator(IZO).getByRole("button", { name: /\$1\.25/ }).click();
+  await page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ }).click();
   const panel = page.getByRole("region", { name: "Last 3 sold prices" });
   await expect(panel.getByRole("listitem")).toHaveCount(3);
   await settled(page);

@@ -1,6 +1,6 @@
 /** The Play mode a player used last, kept in this browser so Play can repeat it. */
 
-export type LastMode = "hotseat" | "create" | "queue" | "spectate";
+export type LastMode = "hotseat" | "bot" | "create" | "queue" | "spectate";
 
 export const LAST_MODE_KEY = "optcg-duel:lastPlayMode";
 
@@ -17,7 +17,7 @@ function browserStorage(): Store | null {
 /** Joining a room is the private room mode; anything unknown is no mode. */
 export function toLastMode(raw: string | null | undefined): LastMode | null {
   if (raw === "join") return "create";
-  return raw === "hotseat" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;
+  return raw === "hotseat" || raw === "bot" || raw === "create" || raw === "queue" || raw === "spectate" ? raw : null;
 }
 
 export function readLastMode(storage: Store | null = browserStorage()): LastMode | null {

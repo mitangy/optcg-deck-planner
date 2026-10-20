@@ -11,6 +11,7 @@ export type PrimaryAction =
 const SUBLINE: Record<LastMode, string> = {
   queue: "Ranked · 15 min per player",
   hotseat: "Practice",
+  bot: "Play vs Bot",
   create: "Private room",
   spectate: "Spectate",
 };
@@ -22,7 +23,7 @@ export function primaryAction(mode: LastMode | null): PrimaryAction {
   return { act: "sheet", mode, subline: SUBLINE[mode] };
 }
 
-const TILE_ORDER: readonly LastMode[] = ["queue", "hotseat", "create", "spectate"];
+const TILE_ORDER: readonly LastMode[] = ["queue", "hotseat", "bot", "create", "spectate"];
 
 /** The tiles under Play: every mode but the one Play already repeats. */
 export function modeTiles(lastMode: LastMode | null): LastMode[] {

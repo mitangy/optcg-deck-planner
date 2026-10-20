@@ -451,7 +451,10 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       {
         const vars: Record<string, BindingValue> = {};
         for (const [k, v] of Object.entries(frame.bindings)) if (!k.startsWith("__") && k !== "_await" && k !== "_delay" && k !== "_selectMeta") vars[k] = v;
-        state.delayed.push({ id: alloc(state, "delay"), seat: frame.seat, sourceInstanceId: frame.sourceInstanceId, sourceDefId: frame.sourceDefId, abilityId: frame.abilityId, index: instr.index, turn: state.turnNumber, when: instr.when, vars });
+        // "At the end of this turn, trash this Character": if it leaves the field first it is a new card, so the effect lapses (#656).
+        const src = locate(state, frame.sourceInstanceId);
+        const selfBound = (src?.zone === "character" || src?.zone === "stage") && JSON.stringify(compileDelayed(abilityById(frame.abilityId)!.ability, instr.index).instrs).includes('"ref":"self"');
+        state.delayed.push({ id: alloc(state, "delay"), seat: frame.seat, sourceInstanceId: frame.sourceInstanceId, sourceDefId: frame.sourceDefId, abilityId: frame.abilityId, index: instr.index, turn: state.turnNumber, when: instr.when, vars, ...(selfBound ? { selfBound: true } : {}) });
       }
       return "next";
     case "look": return execLook(sim, frame, instr);
@@ -459,11 +462,19 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
   }
 }
 
+/** Whether a card chosen to be played by an effect can enter the field now (play locks such as OP13-118 Luffy). */
+function playableByEffect(state: MatchState, loc: Located): boolean {
+  if (isOnField(loc)) return true;
+  const def = getCardDef(loc.defId);
+  if (def.type === "character" && playerRestricted(state, loc.seat, "cannot_play_characters", loc)) return false;
+  return !abilitiesFor(loc.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === "not_playable_by_effect"));
+}
+
 function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op: "select" }>): ExecResult {
   const { state } = sim;
   const ctx = frameCtx(frame);
   const chooser = instr.chooser === "you" ? frame.seat : otherSeat(frame.seat);
-  const list = candidates(state, ctx, instr.selector);
+  const list = candidates(state, ctx, instr.selector).filter((l) => !instr.forPlay || playableByEffect(state, l));
   const valueCount = instr.countValue != null ? Math.max(0, evalValue(state, ctx, instr.countValue)) : null;
   const max = Math.min(valueCount ?? instr.max, list.length);
   const min = Math.min(valueCount ?? instr.min, max);
@@ -492,7 +503,7 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     ? `${promptPrefix(frame)} — No card to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."} Confirm to continue.`
     : `${promptPrefix(frame)} — choose ${limit} card${max === 1 ? "" : "s"} to ${instr.purpose}${instr.purpose.endsWith(".") ? "" : "."}`;
   pushChoice(sim, frame, {
-    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}) }, bindings,
+    seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}), ...(instr.totalCostAtMost != null ? { totalCostAtMost: evalValue(state, ctx, instr.totalCostAtMost) } : {}), ...(instr.totalPowerAtMost != null ? { totalPowerAtMost: evalValue(state, ctx, instr.totalPowerAtMost) } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),
   });
   frame.bindings._selectMeta = JSON.stringify({ totalCostAtMost: instr.totalCostAtMost ?? null, totalPowerAtMost: instr.totalPowerAtMost ?? null, distinctNames: instr.distinctNames ?? false });
@@ -805,18 +816,15 @@ function execActInner(sim: Sim, frame: ResolutionFrame, effect: Effect): ExecRes
         return "wait";
       }
       const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
-      delete frame.bindings._end;
-      for (const target of targetsOf(effect.target)) {
-        // Re-locate: an earlier move shifted the indexes of the zone it left.
-        const loc = locate(state, target.id);
-        if (!loc || loc.zone === "leader" || loc.zone === "life") continue;
+      // Same path as to_hand / to_deck / to_trash, so "cannot be removed by effects" and removal replacements apply (#656).
+      return forEachTarget(sim, frame, targetsOf(effect.target), "remove", (loc) => {
+        if (loc.zone === "leader" || loc.zone === "life") return;
         removedByEffect(state, frame, loc);
         const entry = takeCard(state, loc);
         putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
         if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, byEffectOf: frame.seat });
         sim.events.push({ type: "life_added", seat: loc.seat, defId: entry.defId, source: loc.zone === "hand" ? "hand" : loc.zone === "trash" ? "trash" : loc.zone === "deck" ? "deck_top" : "field", ...(effect.faceUp ? { faceUp: true } : {}) });
-      }
-      return "next";
+      }, () => { delete frame.bindings._end; });
     }
     case "play": {
       frame.bindings._affected = [];

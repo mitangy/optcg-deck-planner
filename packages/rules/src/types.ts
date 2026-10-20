@@ -151,7 +151,7 @@ export type ChoiceRequest =
    * Pick between `min` and `max` eligible options. `distinctNames`: no two
    * picks may share a card name ("with different card names").
    */
-  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true }
+  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true; /** The picks' costs (or powers) must add up to at most this; the engine rejects a larger total (#635). */ totalCostAtMost?: number; totalPowerAtMost?: number }
   /** Pick exactly one labeled mode. */
   | { type: "mode"; options: ChoiceOption[] }
   /** Order every option (first = placed first / top-most). */
@@ -317,6 +317,8 @@ export interface DelayedEffect {
   when?: "end_of_turn" | "end_of_battle" | "opponent_main";
   /** Bindings captured when the delayed effect was created (e.g. the played card). */
   vars?: Record<string, BindingValue>;
+  /** The effect acts on "this Character/Stage": it lapses if that card leaves the field (a card that changes zones is a new card). */
+  selfBound?: boolean;
   id: string;
   seat: Seat;
   sourceInstanceId: InstanceId;

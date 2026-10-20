@@ -54,6 +54,7 @@ export {
   type TimelineStep,
 } from "./replayTimeline.js";
 export { SEAT_LOG_SCHEMA, seatLog, type SeatLog, type SeatLogTurn } from "./seatLog.js";
+export { BOT_LEVELS, chooseBotIntent, chooseBotIntentFromState, botTurnMemory, seedBotTurnMemory, noteBotPick, type BotTurnMemory, buildDeckPrior, DEFAULT_DECK_PRIOR, extractFeatures, evaluateLearned, describeIntent, ANALYSIS_DEFAULTS, VALUE_WEIGHTS, type DeckPrior, determinize, evaluate, EVAL_WEIGHTS, actingSeat, HARD_DEFAULTS, rankOptions, winProbability, type AnalysisOptions, type PositionOption, type BotLevel, type BotOptions, type BotView, type HardTrace } from "./bot/index.js";
 export type {
   Seat,
   InstanceId,

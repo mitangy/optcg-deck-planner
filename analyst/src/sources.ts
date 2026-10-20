@@ -7,7 +7,9 @@
  *   stats:<leader>[~<opp>|#<card>] playbook:<leader>[~<opp>]       lesson:<id>
  *   tourney:<leader>[~<opp>|#<card>] (Limitless TCG tournaments)   event:<limitless event id>
  *   match:<match_id>[#t<turn>]     game:<game_id>[#t<turn>]        deck:<hash>        odds:<shape>
- *   sim:<hash>[#curve|#cards|#line]
+ *   sim:<hash>[#curve|#cards|#line]  (goldfish)
+ *   botsim:<leader>[~<opp>][#<line>] (bot self-play stats)   botgame:<game_id>[#t<turn>] (bot self-play games, ids b_...)
+ *   position:<match or game id>#t<turn>[s<step>] (position estimates from bot simulations)
  * A tool without an adapter (or an answer that can't be adapted) keeps its plain text.
  */
 
@@ -390,7 +392,7 @@ const listCards = (cards: unknown) => (Array.isArray(cards) ? cards.map((c) => c
 const listDeck = (deck: unknown) => (Array.isArray(deck) ? deck.map((d: Rec) => `${d.copies}x ${d.name ?? d.id} (${d.id})`).join(", ") : "");
 
 /** A narrated game as search results: one overview and one per turn, `<prefix>:<id>` and `<prefix>:<id>#t<n>`. */
-export function gameResults(prefix: "match" | "game", id: string, game: Rec): SearchResultBlock[] {
+export function gameResults(prefix: "match" | "game" | "botgame", id: string, game: Rec): SearchResultBlock[] {
   const mine = prefix === "match";
   const versus = mine ? `${game.yourLeader} vs ${game.opponentLeader}` : `${game.leaders?.A} vs ${game.leaders?.B}`;
   const overview: Fact[] = mine
@@ -401,6 +403,7 @@ export function gameResults(prefix: "match" | "game", id: string, game: Rec): Se
         listDeck(game.yourDeck) && `Your deck list: ${listDeck(game.yourDeck)}.`,
         listDeck(game.opponentDeck) && `Opponent's deck list (revealed after the game): ${listDeck(game.opponentDeck)}.`,
         game.result && `Result: you ${game.result.won ? "won" : "lost"} (${game.result.reason}).`,
+        Array.isArray(game.biggestSwings) && game.biggestSwings.length > 0 && `Biggest swings in your estimated win chance (bot-simulation estimates): ${game.biggestSwings.map((w: Rec) => `turn ${w.turn} (${w.change > 0 ? "+" : ""}${w.change} points, to ${w.you}%)`).join(", ")}.`,
         game.finalState && `Final state, turn ${game.finalState.turn}: your life ${game.finalState.yourLife}, opponent life ${game.finalState.opponentLife}; your board: ${listCards(game.finalState.yourBoard) || "empty"}; opponent board: ${listCards(game.finalState.opponentBoard) || "empty"}.`,
       ]
     : [
@@ -429,6 +432,12 @@ function reviewAdapter(v: Rec): ToolContent[] {
 }
 
 function replayAdapter(v: Rec): ToolContent[] {
+  if (typeof v.kind === "string" && String(v.gameId).startsWith("b_")) {
+    const results = gameResults("botgame", String(v.gameId), v);
+    const header = `Game ${v.gameId}${v.date ? ` on ${v.date}` : ""}: a ${v.kind} on optcgduel.app's engine, simulated between bots, not a game between people.`;
+    if (results[0]) results[0].content.push({ type: "text", text: header });
+    return [...results, ...notesBlock(v)];
+  }
   const header = `Game ${v.gameId}${v.date ? ` on ${v.date}` : ""}, ${v.ranked ? "ranked" : "casual"}${v.ratingBands ? `; rating bands A ${v.ratingBands.A ?? "unknown"}, B ${v.ratingBands.B ?? "unknown"}` : ""}.`;
   const results = gameResults("game", String(v.gameId), v);
   if (results[0]) results[0].content.push({ type: "text", text: header });
@@ -437,18 +446,94 @@ function replayAdapter(v: Rec): ToolContent[] {
 
 function searchMatchesAdapter(v: Rec): ToolContent[] {
   const side = (s: Rec, label: string) =>
-    `Side ${label}: ${s.leader_name ?? s.leader} (${s.leader}), ${s.won ? "won" : "lost"}${s.went_first === true ? ", went first" : s.went_first === false ? ", went second" : ""}${s.rating_band ? `, rating ${s.rating_band}` : ""}.`;
-  const out = ((v.games ?? []) as Rec[]).map((g) =>
-    searchResult(`game:${g.game_id}`, `${g.A?.leader_name ?? g.A?.leader} vs ${g.B?.leader_name ?? g.B?.leader}${g.date ? ` (${g.date})` : ""}`, [
+    `Side ${label}: ${s.leader_name ?? s.leader} (${s.leader}), ${s.won === null || s.won === undefined ? "no result" : s.won ? "won" : "lost"}${s.went_first === true ? ", went first" : s.went_first === false ? ", went second" : ""}${s.rating_band ? `, rating ${s.rating_band}` : ""}.`;
+  const out = ((v.games ?? []) as Rec[]).map((g) => {
+    const title = `${g.A?.leader_name ?? g.A?.leader} vs ${g.B?.leader_name ?? g.B?.leader}`;
+    if (String(g.game_id).startsWith("b_")) {
+      const label = g.kind ?? "bot game (self-play)";
+      return searchResult(`botgame:${g.game_id}`, `${title} (${label})`, [
+        `This is a ${label} on optcgduel.app's engine, simulated between bots, not a game between people.`,
+        side(g.A, "A"),
+        side(g.B, "B"),
+        `${g.turns ? `${g.turns} turns, ` : ""}${g.date ? `played ${g.date}` : "date unknown"}.`,
+      ]);
+    }
+    return searchResult(`game:${g.game_id}`, `${title}${g.date ? ` (${g.date})` : ""}`, [
       side(g.A, "A"),
       side(g.B, "B"),
       `${g.ranked ? "Ranked" : "Casual"} game${g.turns ? `, ${g.turns} turns` : ""}${g.date ? `, played ${g.date}` : ""}.`,
-    ]),
-  );
+    ]);
+  });
+  const windowText = v.window_days ? ` (showing from offset ${v.offset}, last ${v.window_days} days)` : ` (showing from offset ${v.offset})`;
   return [
     ...out.filter((b): b is SearchResultBlock => b !== null),
-    { type: "text", text: `${v.total} games match (showing from offset ${v.offset}, last ${v.window_days} days). Read one with replay_match and its game_id.` },
+    { type: "text", text: `${v.total} games match${windowText}. Read one with replay_match and its game_id.${joined(v.notes) ? ` ${joined(v.notes)}` : ""}` },
   ];
+}
+
+// ——— bot simulation stats ———
+
+/** Bot-simulation stats as sources of their own (botsim:), never stats: or tourney:, so they stay apart from people's and tournament numbers. */
+function simStatsAdapter(v: Rec): ToolContent[] {
+  const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
+  const levels = v.levels ? String(v.levels).split("/").map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" vs ") : "mixed levels";
+  const w = `Source: bot self-play on optcgduel.app's engine (${levels}), last ${v.days} days: simulated games between bots, not games between people and not tournament results.`;
+  const out: (SearchResultBlock | null)[] = [];
+  const lineResults = (base: string, title: string) =>
+    ((v.lines ?? []) as Rec[]).map((l) =>
+      searchResult(`${base}#${l.line}`, `${title}: ${l.description ?? l.line}`, [
+        `Line: ${l.description ?? l.line}.`,
+        recordSentence("In bot games where the line happened", l.with),
+        recordSentence("In bot games where it did not", l.without),
+        "Bot play only: a link between a line and winning in bot games, not proof the line is good.",
+        w,
+      ]),
+    );
+  if (v.leaders) {
+    for (const l of v.leaders as Rec[]) {
+      out.push(searchResult(`botsim:${l.leader}`, `${name(l.leader, l.leader_name)} in bot simulations`, [typeof l.share === "number" && `Share of simulated games: ${pct(l.share)}.`, ...splitFactsFor(l), w]));
+    }
+  } else if (v.opponent) {
+    const title = `${name(v.leader, v.leader_name)} vs ${name(v.opponent, v.opponent_name)} in bot simulations`;
+    const base = `botsim:${v.leader}~${v.opponent}`;
+    out.push(
+      searchResult(base, title, [
+        v.mirror ? `Mirror match: ${v.games} simulated games; every game is a win and a loss for the same leader, so there is no win rate.` : null,
+        ...(v.mirror ? [] : splitFactsFor(v)),
+        w,
+      ]),
+      ...lineResults(base, title),
+    );
+  } else if (v.leader) {
+    const title = `${name(v.leader, v.leader_name)} in bot simulations`;
+    out.push(searchResult(`botsim:${v.leader}`, `${title}, all opponents`, [...splitFactsFor(v.overall ?? {}), w]));
+    for (const o of (v.opponents ?? []) as Rec[]) {
+      out.push(searchResult(`botsim:${v.leader}~${o.opponent}`, `${name(v.leader, v.leader_name)} vs ${name(o.opponent, o.opponent_name)} in bot simulations`, [...splitFactsFor(o), w]));
+    }
+    out.push(...lineResults(`botsim:${v.leader}`, title));
+  }
+  return out.filter((b): b is SearchResultBlock => b !== null);
+}
+
+// ——— position analysis ———
+
+function positionAdapter(v: Rec): ToolContent[] {
+  if (typeof v.sourceId !== "string" || !Array.isArray(v.options)) return [];
+  const g: Rec = v.game ?? {};
+  const who = g.seat === "you" ? "you" : g.seat;
+  const mover = v.activeSeat === 0 ? "Player A" : "Player B";
+  const facts: Fact[] = [
+    `Position check (bot-simulation estimates, not results) for ${who} in turn ${v.turn}, decision ${v.step + 1} of ${v.decisionsThisTurn}, ${g.kind === "botgame" ? "in a bot self-play game" : "in a recorded game"}; ${mover} is on turn, phase ${v.phase}.`,
+    `Estimated chance ${who === "you" ? "you win" : `${who} wins`} from this position: ${v.winChance}%.`,
+    ...(v.options as Rec[]).map((o) => `Option ${o.rank} of ${v.optionCount}: ${o.label} — estimated ${o.winChance}% to win (${o.samples} simulated games)${o.botPick ? ", the bot's pick" : ""}.`),
+    v.actual &&
+      (v.actual.matchedOption
+        ? `What was actually played: ${v.actual.label} — rank ${v.actual.rank} of ${v.optionCount}, estimated ${v.actual.winChance}% to win.`
+        : `What was actually played: ${v.actual.label} — not among the ranked options, so no estimate.`),
+    "These win chances come from bot simulations of this position; gaps of a few points between options are noise.",
+  ];
+  const r = searchResult(v.sourceId, `Position check: turn ${v.turn} (${who})`, facts);
+  return r ? [r, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
 // ——— deck check and odds ———
@@ -601,6 +686,8 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   review_match: reviewAdapter,
   replay_match: replayAdapter,
   search_matches: searchMatchesAdapter,
+  sim_stats: simStatsAdapter,
+  analyze_position: positionAdapter,
   analyze_deck: analyzeDeckAdapter,
   draw_odds: oddsAdapter,
   propose_deck_edit: proposalAdapter,

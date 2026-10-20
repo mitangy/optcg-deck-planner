@@ -31,6 +31,15 @@ export interface CardDataFile {
 
 const data = raw as unknown as CardDataFile;
 
+/**
+ * Official errata applied over the imported snapshot (the Bandai list can lag behind, and a re-import must not undo them).
+ * OP06-034 Hyouzou: type {Fish-Man} became {Merfolk} on 2024-12-06 (so Ikaros Much OP06-024 cannot play it).
+ */
+const ERRATA: Record<CardDefId, Partial<CardDataRow>> = {
+  "OP06-034": { traits: ["Merfolk"] },
+};
+for (const [id, patch] of Object.entries(ERRATA)) if (data.cards[id]) data.cards[id] = { ...data.cards[id]!, ...patch };
+
 export function cardDataFor(id: CardDefId): CardDataRow | undefined {
   return data.cards[id];
 }

@@ -292,7 +292,10 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     const orNamed = /^or (§N\d+§(?:(?: or |, )§N\d+§)*)(?: cards?)?/.exec(text);
     if (orNamed) {
       const names = nameList(orNamed[1]!, ctx); if (!names) return null;
-      filter.any = [{ types: types ?? undefined }, { names }];
+      // Leading adjectives ("{Neptunian} type Character card or [Megalo]") describe only the first branch (#656).
+      const lead: Filter = { ...filter };
+      for (const k of Object.keys(filter)) delete (filter as Record<string, unknown>)[k];
+      filter.any = [{ ...lead, types: types ?? undefined }, { names }];
       types = undefined; zone = "leader_or_character";
       text = text.slice(orNamed[0].length).trim();
     }

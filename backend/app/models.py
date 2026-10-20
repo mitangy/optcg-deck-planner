@@ -680,6 +680,39 @@ class AnalystCorpusId(Base):
     game_id: Mapped[str] = mapped_column(String(24), unique=True, index=True)
 
 
+class BotMatch(Base):
+    """One bot-vs-bot self-play game (#635). Kept apart from duel_matches on purpose.
+
+    Nothing here feeds matchup_stats, the leaderboard or ratings: bot games only reach
+    Log Pose through /analyst/bot-games and /analyst/stats/sim, always labelled as simulations.
+    Sides are "A" (seat 0) and "B" (seat 1).
+    """
+
+    __tablename__ = "bot_matches"
+    __table_args__ = (UniqueConstraint("batch_id", "batch_index", name="uq_bot_matches_batch_index"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    game_id: Mapped[str] = mapped_column(String(24), unique=True, index=True)
+    batch_id: Mapped[str] = mapped_column(String(64), index=True)
+    batch_index: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    rules_version: Mapped[str] = mapped_column(String(32), default="")
+    registry_hash: Mapped[str] = mapped_column(String(32), default="")
+    # Bot level per seat, "hard/hard" (seat 0 / seat 1).
+    levels: Mapped[str] = mapped_column(String(32), default="")
+    leader_a: Mapped[str] = mapped_column(String(32), index=True)
+    leader_b: Mapped[str] = mapped_column(String(32), index=True)
+    # Winning seat (0 / 1); NULL when the game did not finish.
+    winner: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_seat: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # {"A": {card: copies}, "B": {...}} for card searches.
+    decks: Mapped[str] = mapped_column(Text, default="{}")
+    # {"A": LineTally, "B": LineTally} from packages/rules/src/sim/selfPlay.ts.
+    tallies: Mapped[str] = mapped_column(Text, default="{}")
+    replay: Mapped[str] = mapped_column(Text)
+
+
 class AnalystThread(Base):
     """A Log Pose chat thread in the in-app panel."""
 

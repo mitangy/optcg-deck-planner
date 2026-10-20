@@ -1,0 +1,95 @@
+name: Bot self-play corpus
+
+# Nightly: the current meta decks (Limitless top finishes, from the public backend) play each other as Hard bots
+# through the real duel engine, and the games are uploaded to Log Pose's bot game corpus (#635). Log Pose reads them
+# as "bot simulations", apart from real games and tournaments.
+#
+# Needs ANALYST_API_URL (the backend's base URL, e.g. https://optcg-backend.onrender.com; a repository variable or a
+# secret) and a
+# secret ANALYST_SERVICE_SECRET (the same value as the backend's ANALYST_SERVICE_SECRET). Without both it does nothing.
+# Optional variable META_API_URL if the public /meta endpoints live somewhere else.
+on:
+  schedule:
+    - cron: "30 8 * * *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Stop starting new chunks after this many minutes"
+        default: "40"
+      chunk_games:
+        description: "Games per chunk (each chunk is uploaded when it finishes)"
+        default: "40"
+      budget_ms:
+        description: "Hard bot search time per decision in ms"
+        default: "200"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bot-selfplay
+  cancel-in-progress: false
+
+jobs:
+  selfplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
+      META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+    steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping bot self-play: set the ANALYST_API_URL variable and the ANALYST_SERVICE_SECRET secret to turn it on." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: ${{ steps.cfg.outputs.ready == 'true' }}
+      - uses: actions/setup-node@v7
+        if: ${{ steps.cfg.outputs.ready == 'true' }}
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+        if: ${{ steps.cfg.outputs.ready == 'true' }}
+      - name: Fetch the current meta decks
+        if: ${{ steps.cfg.outputs.ready == 'true' }}
+        run: npm run meta-decks -w @optcg/analyst -- --api "$META_API_URL" --out "$PWD/meta-decks.json" --leaders 16 --days 30
+      - name: Play and upload in chunks
+        if: ${{ steps.cfg.outputs.ready == 'true' }}
+        env:
+          MINUTES: ${{ inputs.minutes || '40' }}
+          CHUNK_GAMES: ${{ inputs.chunk_games || '40' }}
+          BUDGET_MS: ${{ inputs.budget_ms || '200' }}
+        run: |
+          START=$(date +%s)
+          LIMIT=$(( MINUTES * 60 ))
+          # Seeds never repeat between days: 20000 per day, and a chunk uses CHUNK_GAMES of them.
+          DAY_BASE=$(( ($(date -u +%s) / 86400) * 20000 ))
+          TODAY=$(date -u +%F)
+          CHUNK=0
+          TOTAL=0
+          mkdir -p selfplay-out
+          while [ $(( $(date +%s) - START )) -lt "$LIMIT" ] && [ $(( CHUNK * CHUNK_GAMES + CHUNK_GAMES )) -le 20000 ]; do
+            SEED=$(( DAY_BASE + CHUNK * CHUNK_GAMES ))
+            npm run selfplay -w @optcg/rules -- --games "$CHUNK_GAMES" --seed "$SEED" --levels hard,hard \
+              --decks "$PWD/meta-decks.json" --budget-ms "$BUDGET_MS" --out "$PWD/selfplay-out"
+            FILE="selfplay-out/selfplay-hard-hard-seed${SEED}-n${CHUNK_GAMES}.jsonl"
+            npm run upload-bot-games -w @optcg/analyst -- "$PWD/$FILE" --batch-id "nightly-${TODAY}-c${CHUNK}" --levels hard/hard
+            TOTAL=$(( TOTAL + CHUNK_GAMES ))
+            CHUNK=$(( CHUNK + 1 ))
+          done
+          echo "Bot self-play: $TOTAL Hard vs Hard games in $CHUNK chunks, uploaded to the bot game corpus." | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.cfg.outputs.ready == 'true' }}
+        with:
+          name: selfplay-games
+          path: selfplay-out/
+          retention-days: 7
+          if-no-files-found: ignore

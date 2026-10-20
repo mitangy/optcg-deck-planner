@@ -9,6 +9,17 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Owned shows the total including alt arts (#652)
+    { id: "owned-total-base-only", file: "frontend/src/OwnedCells.tsx", from: "return owned + Math.max(0, altsOwned ?? 0);", to: "return owned;", kills: ["totalOwned adds the alt copies to the base count (#652)", "the Owned cell is a read-only total, not a stepper, when editable alt tiles are shown (#652)"] },
+    { id: "owned-total-cell-shows-stepper", file: "frontend/src/OwnedCells.tsx", from: "if (isTotal) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;", to: "if (false) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;", kills: ["the Owned cell is a read-only total, not a stepper, when editable alt tiles are shown (#652)"] },
+    { id: "owned-total-hides-stepper-without-alts", file: "frontend/src/OwnedCells.tsx", from: "if (isTotal) return <OwnedTotal", to: "if (isTotal || altsOwned) return <OwnedTotal", kills: ["without alt tiles the Owned cell keeps its stepper and a +N alt note (#652)"] },
+    { id: "owned-total-when-alts-not-editable", file: "frontend/src/OwnedCells.tsx", from: "return showAltArts && altCount > 0 && altsEditable;", to: "return showAltArts && altCount > 0;", kills: ["the total only replaces the stepper when the alt tiles are shown, present and editable (#652)"] },
+    { id: "owned-total-when-alts-hidden", file: "frontend/src/OwnedCells.tsx", from: "return showAltArts && altCount > 0 && altsEditable;", to: "return altCount > 0 && altsEditable;", kills: ["the total only replaces the stepper when the alt tiles are shown, present and editable (#652)"] },
+    { id: "still-needed-shows-slash", file: "frontend/src/OwnedCells.tsx", from: "<span className=\"still-need-num\">{still}</span>", to: "<span className=\"still-need-num\">{still}/{need}</span>", kills: ["the cell shows the count with the deck need underneath, not 5/8 (#652)"] },
+    { id: "still-needed-text-never-complete", file: "frontend/src/OwnedCells.tsx", from: "return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;", to: "return `Still need ${still} of ${need}`;", kills: ["meta text says how many more are needed, or that you have them all (#652)"] },
+    { id: "base-owned-stepper-missing", file: "frontend/src/MarketPrice.tsx", from: "            {baseOwnedControl}\n", to: "", kills: ["the Base tile has an Owned stepper that saves the base count, not the total (#652)"] },
+    { id: "base-owned-stepper-adds-two", file: "frontend/src/OwnedCells.tsx", from: "onClick={() => commit(displayQty + 1)}", to: "onClick={() => commit(displayQty + 2)}", kills: ["the Base tile has an Owned stepper that saves the base count, not the total (#652)"] },
+    { id: "base-tile-never-forced", file: "frontend/src/altArt.ts", from: "if (!always && !featuredAlt(card)) return null;", to: "if (!featuredAlt(card)) return null;", kills: ["baseTileFor keeps the Base tile with no owned alt only when asked to (#652)"] },
     // Sortable table headers (#636)
     { id: "colsort-empties-first", file: cs, from: "return aEmpty === bEmpty ? a.index - b.index : aEmpty ? 1 : -1;", to: "return aEmpty === bEmpty ? a.index - b.index : aEmpty ? -1 : 1;", kills: ["keeps empty values last in both directions", "treats an empty string like a missing value"] },
     { id: "colsort-empty-string-is-a-value", file: cs, from: "v === null || v === undefined || v === \"\"", to: "v === null || v === undefined", kills: ["treats an empty string like a missing value"] },

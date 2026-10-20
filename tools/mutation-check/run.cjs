@@ -111,10 +111,10 @@ process.on("exit", restoreAll);
 
 /** Failed test names for a runner. */
 const runners = {
-  vitest(cwd) {
+  vitest(cwd, _suite, mutation) {
     const report = path.join(os.tmpdir(), `mutation-check-${process.pid}.json`);
     try { fs.unlinkSync(report); } catch {}
-    try { execSync(`npx vitest run --reporter=json --outputFile="${report}"`, { cwd, stdio: "ignore", timeout: 600000 }); } catch {}
+    try { execSync(`npx vitest run ${mutation?.args ?? ""} --reporter=json --outputFile="${report}"`, { cwd, stdio: "ignore", timeout: 600000 }); } catch {}
     if (!fs.existsSync(report)) return { error: "no vitest report (suite crashed?)", failed: [] };
     const data = JSON.parse(fs.readFileSync(report, "utf8"));
     fs.unlinkSync(report);
@@ -125,10 +125,10 @@ const runners = {
     }
     return { failed, total: data.numTotalTests };
   },
-  mocha(cwd) {
+  mocha(cwd, _suite, mutation) {
     const report = path.join(os.tmpdir(), `mutation-check-${process.pid}.json`);
     try { fs.unlinkSync(report); } catch {}
-    try { execSync(`npx mocha --import=tsx/esm "test/**/*.test.ts" --exit --timeout 60000 --reporter json --reporter-option output="${report}"`, { cwd, stdio: "ignore", timeout: 600000 }); } catch {}
+    try { execSync(`npx mocha --import=tsx/esm ${mutation?.args ?? '"test/**/*.test.ts"'} --exit --timeout 60000 --reporter json --reporter-option output="${report}"`, { cwd, stdio: "ignore", timeout: 600000 }); } catch {}
     if (!fs.existsSync(report)) return { error: "no mocha report (suite crashed?)", failed: [] };
     const data = JSON.parse(fs.readFileSync(report, "utf8"));
     fs.unlinkSync(report);

@@ -86,6 +86,9 @@ export function returnAttachedDon(player: PlayerState, card: CardInstance): void
 /** Remove a card from wherever it is. Field cards lose DON!!, modifiers and per-instance state. */
 export function takeCard(state: MatchState, loc: Located): { id: InstanceId; defId: CardDefId } {
   const p = state.players[loc.seat];
+  if ((loc.zone === "character" || loc.zone === "stage") && state.delayed.some((d) => d.selfBound && d.sourceInstanceId === loc.id)) {
+    state.delayed = state.delayed.filter((d) => !(d.selfBound && d.sourceInstanceId === loc.id));
+  }
   switch (loc.zone) {
     case "leader":
       throw new Error("The Leader cannot leave the field");
