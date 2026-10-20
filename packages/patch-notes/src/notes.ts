@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-20
-  { date: "2026-10-20", app: "duel", title: "Ranked results no longer get stuck", text: "A ranked match that ended at the same moment as another result was being checked could sit unsent, delaying your rating change, match history and replay until another match ended. It is now sent right away." },
+  { date: "2026-10-20", app: "duel", pr: 651, title: "Ranked results no longer get stuck", text: "A ranked match that ended at the same moment as another result was being checked could sit unsent, delaying your rating change, match history and replay until another match ended. It is now sent right away." },
   // 2026-10-19
   { date: "2026-10-19", app: "planner", pr: 651, title: "Alt arts count as owned when adding to Master Shopping", text: "Adding a card you own only as alt art copies to Master Shopping now works: Add puts it on the list, and the plus and minus buttons count your alt art copies as owned. The Owned count in the search results includes them too." },
   { date: "2026-10-19", app: "duel", pr: 657, title: "Card fixes for Shirahoshi, Crocodile and more", text: "The Shirahoshi Leader can now play [Megalo] and reveal [Shirahoshi] as printed, Crocodile (OP04-058) no longer draws DON!! back when your opponent forces you to return it, Mr.13 & Ms.Friday needs another Baroque Works Character to activate, and Gastino respects \"cannot be removed\" protection. Mr.2, Thatch and similar cards no longer move from your hand if they were bounced first, Arlong can pick rested DON!!, Hyouzou is now a Merfolk, and play prompts skip cards a play lock forbids." },
