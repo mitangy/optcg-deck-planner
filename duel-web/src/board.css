@@ -2625,6 +2625,11 @@ body.is-panel-resize-row .col-cut {
   overscroll-behavior: contain;
 }
 
+/* Portrait: a tall pop-up stops under the top bar (--hud-h, #660). */
+.arena:not(.arena-wide) .ability-prompt {
+  max-height: calc(100dvh - var(--prompt-base-bottom, 7.5rem) - var(--hud-h, 0px) - 0.5rem);
+}
+
 .arena.arena-wide .ability-prompt {
   left: calc(var(--left-w) + (100vw - var(--left-w) - var(--rail-w)) / 2);
   /* usePromptDodge moves it to the top of the board while a battle's target
@@ -2745,6 +2750,20 @@ body.is-panel-resize-row .col-cut {
   width: 1.4rem;
   height: 1.4rem;
 }
+/* Portrait: size the card so its top (tools row) stays under the top bar at any
+   Pop-up size; 5rem is the tools row, gaps and buttons around the art (#660). */
+.arena:not(.arena-wide) .ability-prompt.life-trigger-card {
+  --lt-w: min(
+    240px,
+    62vw,
+    calc(
+      (
+        (100dvh - var(--prompt-base-bottom, 7.5rem) - var(--hud-h, 0px) - 0.5rem) / var(--popup-scale, 1) - 5rem
+      ) / 1.4
+    )
+  );
+}
+
 /* Phones pin pop-ups between both edges; centre the card between them instead. */
 @media (max-width: 640px) {
   .arena .ability-prompt.life-trigger-card {
@@ -4773,6 +4792,35 @@ body.is-panel-resize-row .col-cut {
   color: #7fd1a0;
 }
 
+/* Verdict on the left, the phone-only hand count pill on the right (#660). */
+.defend-verdict-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.defend-verdict-row .defend-verdict {
+  flex: 1 1 0;
+}
+
+.defend-hand {
+  flex: none;
+  box-sizing: border-box;
+  min-width: 4.6em;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 .defend-chips {
   flex: 1 1 auto;
   min-height: 0;
@@ -4933,6 +4981,17 @@ body.is-panel-resize-row .col-cut {
 
   .arena.arena-lp .defend-verdict {
     height: 2.5em;
+  }
+
+  .arena.arena-lp .defend-verdict-row {
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .arena.arena-lp .defend-hand {
+    min-width: 6.4em;
+    font-size: 0.6rem;
+    line-height: 1.25;
   }
 
   .arena.arena-lp .defend-chips {

@@ -10,12 +10,18 @@ const EDGE = 8;
 /**
  * Offset for a dragged prompt whose undragged box is `base`, kept inside the
  * viewport. A prompt taller or wider than the view keeps its top-left edge on screen.
+ * `minTop` is the highest its top edge may go (below the phone top bar, #660).
  */
-export function clampPromptOffset(base: Rect, want: Offset, view: { width: number; height: number }): Offset {
+export function clampPromptOffset(
+  base: Rect,
+  want: Offset,
+  view: { width: number; height: number },
+  minTop: number = EDGE,
+): Offset {
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
   return {
     x: clamp(want.x, EDGE - base.left, view.width - EDGE - base.right),
-    y: clamp(want.y, EDGE - base.top, view.height - EDGE - base.bottom),
+    y: clamp(want.y, minTop - base.top, view.height - EDGE - base.bottom),
   };
 }
 
@@ -87,6 +93,13 @@ export function usePromptDrag(
       return { left: r.left - offset.x, right: r.right - offset.x, top: r.top - offset.y, bottom: r.bottom - offset.y };
     };
     const view = () => ({ width: window.innerWidth, height: window.innerHeight });
+    /** Portrait phones: the top bar's bottom edge plus a gap, so a drag never covers Undo or the menu (#660). */
+    const minTop = () => {
+      const arena = wrap.closest<HTMLElement>(".arena");
+      if (!arena || arena.classList.contains("arena-wide")) return EDGE;
+      const bar = arena.querySelector<HTMLElement>(":scope > .hud-bar");
+      return bar ? Math.max(EDGE, bar.getBoundingClientRect().bottom + EDGE) : EDGE;
+    };
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
@@ -109,7 +122,7 @@ export function usePromptDrag(
       prompt.classList.add("is-dragging");
       const move = (ev: PointerEvent) => {
         moved = true;
-        write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view()));
+        write(clampPromptOffset(base, { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y }, view(), minTop()));
         if (dockable) showDropHint(dropSide(ev));
       };
       const end = (ev: PointerEvent) => {
@@ -152,7 +165,7 @@ export function usePromptDrag(
       if (offset.x === 0 && offset.y === 0) return;
       const prompt = wrap.querySelector<HTMLElement>(BOX);
       if (!prompt || prompt.offsetHeight === 0) return;
-      const next = clampPromptOffset(baseRect(prompt), offset, view());
+      const next = clampPromptOffset(baseRect(prompt), offset, view(), minTop());
       if (next.x !== offset.x || next.y !== offset.y) write(next);
     };
     let raf = 0;
