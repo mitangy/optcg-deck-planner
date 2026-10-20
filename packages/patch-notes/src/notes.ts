@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-20
+  { date: "2026-10-20", app: "duel", pr: 659, title: "New alt arts for three Leaders", text: "The new alternate arts of Boa Hancock (OP14-041), Shirahoshi (OP11-022) and Nefeltari Vivi (EB03-001) can now be picked, with preview art until the official pictures are out. Nami's (EB05-061) preview now shows the English card." },
   // 2026-10-19
   { date: "2026-10-19", app: "duel", pr: 657, title: "Card fixes for Shirahoshi, Crocodile and more", text: "The Shirahoshi Leader can now play [Megalo] and reveal [Shirahoshi] as printed, Crocodile (OP04-058) no longer draws DON!! back when your opponent forces you to return it, Mr.13 & Ms.Friday needs another Baroque Works Character to activate, and Gastino respects \"cannot be removed\" protection. Mr.2, Thatch and similar cards no longer move from your hand if they were bounced first, Arlong can pick rested DON!!, Hyouzou is now a Merfolk, and play prompts skip cards a play lock forbids." },
   { date: "2026-10-19", app: "planner", pr: 653, title: "Owned counts your alt arts", text: "On Master Shopping and your decks, Owned now shows every copy you have, regular and alt art together. When alt arts are showing, change each count under its own art, including a new Owned stepper on the Base tile. Still needed now shows how many more you need, with the deck total underneath." },
