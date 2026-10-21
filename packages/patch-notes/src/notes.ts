@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-20
+  { date: "2026-10-20", app: "duel", pr: 659, title: "New alt arts for three Leaders", text: "The new alternate arts of Boa Hancock (OP14-041), Shirahoshi (OP11-022) and Nefeltari Vivi (EB03-001) can now be picked, with preview art until the official pictures are out. Nami's (EB05-061) preview now shows the English card." },
   { date: "2026-10-20", app: "duel", pr: 661, title: "Phones: see your hand when you block or counter", text: "On phones, answering an attack now shows how many cards are in your hand next to the verdict, and how many will be left after the counters you picked." },
   { date: "2026-10-20", app: "duel", pr: 661, title: "Phones: pop-ups stay below the top bar", text: "Tall pop-ups on a portrait phone no longer cover the top bar, so Undo and the menu stay in reach. Dragging a pop-up also stops under the bar." },
   // 2026-10-19
