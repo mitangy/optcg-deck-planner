@@ -1019,5 +1019,9 @@ module.exports = {
     scnManual("656-arlong-activate-gives-own-don", "effect: { do: \"give_don\", target: upTo(1, sel(\"opponent\", \"leader_or_character\")), count: 1, donState: \"rested\", player: \"opponent\" } }]),\n  card(\"OP15-024\"", "effect: giveDonChoice(\"any\") }]),\n  card(\"OP15-024\"", ["gives the opponent's rested DON!! to their Character, then up to 1 more"]),
     { id: "hyouzou-errata-dropped", file: "packages/rules/src/cards/cardData.ts", from: "  \"OP06-034\": { traits: [\"Merfolk\"] },\n", to: "", kills: ["Ikaros Much cannot play Hyouzou"] },
     { id: "play-lock-cards-still-offered", file: "packages/rules/src/engine/runtime.ts", from: ".filter((l) => !instr.forPlay || playableByEffect(state, l))", to: "", kills: ["the Shirahoshi Leader only offers Characters with base cost under 5"] },
+    { id: "leader-type-keyword-grant-rule-removed", file: GRAMMAR_FILE, from: "[/^your leader with (the §T\\d+§ type.*?) gains", to: "[/^your leader without (the §T\\d+§ type.*?) gains", kills: ["OP18-047 compiles to an if on Cross Guild or a type including Baroque Works, granting your Leader Unblockable this turn (#666)"] },
+    { id: "scn-666-mr1-ungated", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; a["OP18-047"].abilities[0].effect = e.then; }, kills: ["On Play gives a Leader with neither type nothing (#666)"] },
+    { id: "scn-666-mr1-drops-baroque-works", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[0]; }, kills: ["On Play gives a Leader with a type including \"Baroque Works\" [Unblockable] (#666)"] },
+    { id: "scn-666-mr1-drops-cross-guild", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[1]; }, kills: ["On Play gives a {Cross Guild} Leader [Unblockable] (#666)"] },
   ],
 };
