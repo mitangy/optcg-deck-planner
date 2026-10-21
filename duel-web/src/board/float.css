@@ -19,7 +19,7 @@
   --gap: 0.6rem;
   --per-row: var(--n);
   /* Height budget for one row of cards: header, axis, note and actions ≈ 11rem. */
-  --card-max: min(176px, calc(((100dvh - var(--hud-h, 0px)) / var(--popup-scale, 1) - 11rem) * 0.714));
+  --card-max: min(176px, calc(((100dvh - var(--hud-h, 0px) - var(--hand-room, 0px)) / var(--popup-scale, 1) - 11rem) * 0.714));
 }
 
 .arena.arena-wide .float-layer {
@@ -30,6 +30,21 @@
 /* Portrait: stay under the top bar so Undo and the menu stay in reach (--hud-h, #660). */
 .arena:not(.arena-wide) .float-layer {
   padding-top: max(0.75rem, var(--safe-t), var(--hud-h, 0px) + 0.5rem);
+  /* ...and above the hand (--hand-room, #663): the buttons ride in the bottom bar. */
+  padding-bottom: max(0.75rem, var(--safe-b), var(--hand-room, 0px) + 0.5rem);
+}
+
+/* Portrait: the hint sits under the title in the header's own backing (#663). */
+.float-layer .float-head .float-note {
+  padding: 0;
+  background: none;
+  text-shadow: none;
+  font-size: 0.72rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .float-stage {
@@ -321,11 +336,40 @@
   padding-block: 0.4rem;
 }
 
-/* Phones (portrait): two rows of three read better than five tiny cards. 21.5rem is the header, axis, note and buttons around two rows, so the stage fits under the top bar (#660). */
+/* Phones (portrait): two rows of three read better than five tiny cards. The budget is the room between the top bar and the hand (--hand-room) minus the header (hint included) and axis (H0), a row of nudge / effect text under each card row (R) and the gap between rows (#660, #663). Short screens keep one row of up to five, which makes bigger cards than two squeezed rows. */
 @media (max-width: 560px) and (orientation: portrait) {
   .float-layer {
     --per-row: min(var(--n), 3);
-    --card-max: min(150px, calc(((100dvh - var(--hud-h, 0px)) / var(--popup-scale, 1) - 21.5rem) / 2 * 0.714));
+    --rows: var(--rows3, 1);
+    --card-max: min(150px, calc(((100dvh - var(--hud-h, 0px) - var(--hand-room, 0px)) / var(--popup-scale, 1) - 8.5rem - var(--rows, 1) * 3rem - (var(--rows, 1) - 1) * 1.6rem) / var(--rows, 1) * 0.714));
+  }
+  /* Size − / + sit beside the title, not on a row of their own. */
+  .float-head-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .float-head-title .popup-size-btns {
+    margin: 0;
+  }
+}
+
+@media (max-width: 560px) and (orientation: portrait) and (max-height: 740px) {
+  .float-layer {
+    --per-row: min(var(--n), 5);
+    --rows: var(--rows5, 1);
+  }
+  /* Five cards across: slimmer step buttons so they stay under their card. */
+  .float-nudge {
+    gap: 0.05rem;
+    padding: 0 0.1rem;
+  }
+  .float-nudge button {
+    width: 1.3rem;
+  }
+  .float-slot {
+    min-width: 0.8rem;
   }
 }
 
@@ -522,7 +566,7 @@
   border-radius: 999px;
 }
 
-.float-stage-free > .float-head > strong::before {
+.float-stage-free > .float-head strong::before {
   content: "⠿";
   margin-right: 0.4rem;
   opacity: 0.6;

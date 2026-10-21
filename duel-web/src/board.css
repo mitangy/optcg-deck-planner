@@ -2750,15 +2750,16 @@ body.is-panel-resize-row .col-cut {
   width: 1.4rem;
   height: 1.4rem;
 }
-/* Portrait: size the card so its top (tools row) stays under the top bar at any
-   Pop-up size; 5rem is the tools row, gaps and buttons around the art (#660). */
+/* Portrait: the card sits above the hand (--hand-room) and under the top bar at any
+   Pop-up size; 2.5rem is the tools row and gap (the buttons ride in the bottom bar, #663). */
 .arena:not(.arena-wide) .ability-prompt.life-trigger-card {
+  --prompt-base-bottom: calc(var(--hand-room, 6.25rem) + 0.5rem);
   --lt-w: min(
     240px,
     62vw,
     calc(
       (
-        (100dvh - var(--prompt-base-bottom, 7.5rem) - var(--hud-h, 0px) - 0.5rem) / var(--popup-scale, 1) - 5rem
+        (100dvh - var(--prompt-base-bottom) - var(--hud-h, 0px) - 0.5rem) / var(--popup-scale, 1) - 2.5rem
       ) / 1.4
     )
   );

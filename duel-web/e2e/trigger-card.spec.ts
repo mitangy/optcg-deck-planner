@@ -36,7 +36,9 @@ for (const demo of ["trigger", "notrigger"] as const) {
       await page.waitForTimeout(500);
 
       const card = (await tile.boundingBox())!;
-      const buttons = prompt.locator(".ability-prompt-actions .btn");
+      // Portrait phones: the buttons ride in the bottom bar (#663); elsewhere they sit under the card.
+      const portrait = size.width <= 640 && size.height >= 500;
+      const buttons = portrait ? page.locator(".intent-prompt-slot .btn") : prompt.locator(".ability-prompt-actions .btn");
       await expect(buttons).toHaveCount(demo === "trigger" ? 2 : 1);
       expect(card.width).toBeGreaterThan(size.height < 400 ? 120 : 180);
       for (const box of [card, ...(await buttons.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON())))]) {
