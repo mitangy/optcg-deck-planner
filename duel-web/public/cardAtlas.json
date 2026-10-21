@@ -16892,7 +16892,7 @@
     "imageUrl": "/cards/OP06-034.png",
     "effectText": "[Activate: Main] [Once Per Turn] Rest up to 1 of your opponent's Characters with a cost of 4 or less and this Character gains +1000 power during this turn. Then, add 1 card from the top of your Life cards to your hand.",
     "traits": [
-      "Fish-Man"
+      "Merfolk"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
@@ -42684,6 +42684,25 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-036": {
+    "id": "OP18-036",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-036.png",
+    "effectText": "[End of Your Turn] You may trash this Character: Draw 1 card and set your Leader as active.",
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-041": {
     "id": "OP18-041",
     "name": "Ms. All Sunday",
@@ -42718,6 +42737,25 @@
       "Baroque Works"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-047": {
+    "id": "OP18-047",
+    "name": "Mr.1 (Daz.Bonez)",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-047.png",
+    "effectText": "[On Play] Your Leader with the {Cross Guild} type or a type including \"Baroque Works\" gains [Unblockable] during this turn. (This card cannot be blocked.)",
+    "traits": [
+      "Former Baroque Works",
+      "Cross Guild"
+    ],
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "OP18-052": {
@@ -42868,6 +42906,21 @@
     ],
     "abilitySupport": "ok"
   },
+  "OP18-077": {
+    "id": "OP18-077",
+    "name": "White Hobby Horse 1",
+    "type": "stage",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "imageUrl": "/cards/OP18-077.png",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate:Main] You may rest this Stage: Up to 1 of your {Straw Hat Crew} type Characters gains [Rush: Character] during this turn.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "abilitySupport": "ok"
+  },
   "OP18-079": {
     "id": "OP18-079",
     "name": "Spandam",
@@ -42961,6 +43014,25 @@
       "Giant",
       "Elbaph",
       "Giant Pirates"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-092": {
+    "id": "OP18-092",
+    "name": "Roronoa Zoro",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 2,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-092.png",
+    "effectText": "If there is a Character with a cost of 12 or more, this Character gains +3000 power. If you have 10 or more cards in your trash, this Character gains [Rush]. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Straw Hat Crew",
+      "Elbaph"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"

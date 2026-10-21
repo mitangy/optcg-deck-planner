@@ -3207,7 +3207,8 @@ img.zone-pile-face {
 
   /* Clear the taller hand rail when ability prompts float above it. */
   .ability-prompt {
-    bottom: 10rem;
+    --prompt-base-bottom: 10rem;
+    bottom: var(--prompt-base-bottom);
   }
 }
 
@@ -3900,7 +3901,9 @@ img.zone-pile-face {
 .ability-prompt {
   position: absolute;
   left: 50%;
-  bottom: 7.5rem;
+  /* Also read by the max-height limits (board.css, popupScale.css) so a tall pop-up stops under the top bar (#660). */
+  --prompt-base-bottom: 7.5rem;
+  bottom: var(--prompt-base-bottom);
   transform: translateX(-50%);
   z-index: 25;
   width: min(420px, calc(100vw - 1.5rem));
@@ -4008,9 +4011,10 @@ img.zone-pile-face {
     position: fixed;
     left: 0.5rem;
     right: 0.5rem;
-    bottom: 6.75rem;
+    --prompt-base-bottom: 6.75rem;
+    bottom: var(--prompt-base-bottom);
     width: auto;
-    max-height: calc(100dvh - 8rem);
+    max-height: calc(100dvh - var(--prompt-base-bottom) - var(--hud-h, 0px) - 0.5rem);
     overflow-y: auto;
     transform: none;
   }

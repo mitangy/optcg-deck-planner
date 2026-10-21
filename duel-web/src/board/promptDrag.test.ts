@@ -21,6 +21,13 @@ describe("clampPromptOffset (dragging a prompt, #324)", () => {
   });
 });
 
+describe("clampPromptOffset keeps a pop-up under the phone top bar (#660)", () => {
+  it("stops the top edge at the given minimum instead of the screen edge (#660)", () => {
+    expect(clampPromptOffset(base, { x: 0, y: -900 }, view, 90)).toEqual({ x: 0, y: -490 });
+    expect(clampPromptOffset(base, { x: 0, y: -300 }, view, 90)).toEqual({ x: 0, y: -300 });
+  });
+});
+
 describe("saved pop-up spot (#422)", () => {
   it("reads back what it saves, and centres anything that is not two numbers", () => {
     expect(parsePromptPos(serializePromptPos({ x: -40, y: -200 }))).toEqual({ x: -40, y: -200 });

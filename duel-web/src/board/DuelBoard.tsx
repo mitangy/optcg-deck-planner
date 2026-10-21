@@ -96,6 +96,7 @@ import { useSideDockPlacement } from "./sideDockPlacement";
 import { PrimaryDock } from "./PrimaryDock";
 import { waitingOnOpponent } from "./waitingOnOpponent";
 import { DefendTray } from "./DefendTray";
+import { useHudHeight } from "./useHudHeight";
 import { deriveDefend } from "./defendModel";
 import { clockFraction, resolveStagedCounters } from "./defendTray";
 import { ReplacePrompt } from "./ReplacePrompt";
@@ -357,6 +358,8 @@ export function DuelBoard({
   const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useHudHeight(rootRef, wide, view != null);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
   const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
   /** "Simple board on phones": your own mat gets the count row and bigger cards the opponent's has (portrait only). */
@@ -1630,6 +1633,7 @@ export function DuelBoard({
       <DefendTray
         model={defend}
         layout={railDefend ? "rail" : "tray"}
+        handCount={trayHere ? handCount : undefined}
         ownerSeat={boardSeat}
         clock={clockFraction(timer, now, boardSeat)}
         onToggleBlocker={(id) => {
@@ -2089,6 +2093,7 @@ export function DuelBoard({
       data-turn={view.turnNumber}
       data-seat={boardSeat}
       style={arenaStyle}
+      ref={rootRef}
     >
       {previewPopup ? <CardPreviewPopup /> : null}
       {lp || noTopBar ? null : compactHud ? (

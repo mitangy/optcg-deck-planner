@@ -176,3 +176,44 @@
   min-width: 6.5rem;
   font-size: 0.95rem;
 }
+
+/* Pop-up buttons (floating cards, Life trigger) fill the bar: the idle text steps
+   aside and the row never wraps (#663). */
+.intent-bar:has(.intent-prompt-slot .prompt-slot-row) .intent-empty {
+  display: none;
+}
+.intent-bar:has(.intent-prompt-slot .prompt-slot-row) .intent-prompt-slot {
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+}
+.intent-prompt-slot .prompt-slot-row {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  position: static;
+}
+.intent-prompt-slot .prompt-slot-row .btn,
+.intent-prompt-slot .prompt-slot-row .choice-place {
+  min-height: 48px;
+  min-width: 0;
+  padding-inline: 0.7rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.intent-prompt-slot .prompt-slot-row .btn-primary {
+  flex: 1 1 auto;
+}
+.intent-prompt-slot .prompt-slot-row .choice-place-seg {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+.intent-prompt-slot .prompt-slot-row .float-confirm {
+  min-width: 0;
+}
