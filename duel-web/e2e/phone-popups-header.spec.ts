@@ -32,10 +32,10 @@ async function expectUndoReachable(page: Page, popupTop: number) {
   expect(popupTop).toBeGreaterThanOrEqual(barBottom - 0.5);
 }
 
-test("a look pop-up on a portrait phone stays under the top bar so Undo works (#660)", async ({ page }) => {
+test("a look pop-up at Pop-up size 160% on a portrait phone stays under the top bar so Undo works (#660)", async ({ page }) => {
   phoneOnly();
   await page.setViewportSize({ width: 375, height: 667 });
-  await openDemo(page, "?undo&prompt=look");
+  await openDemo(page, "?undo&prompt=look", 160);
   const head = page.locator(".float-layer .float-head").first();
   await expect(head).toBeVisible();
   await expectUndoReachable(page, (await head.boundingBox())!.y);

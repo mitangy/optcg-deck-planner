@@ -1,3 +1,4 @@
+import { PromptSlotPortal, SLOT_ROW } from "./PromptSlotPortal";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { lookupCard } from "../cards/atlas";
 import type { ChoiceOptionView, ChoiceRequestView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
@@ -667,12 +668,12 @@ export function confirmIntent(choice: Pick<PendingChoiceView, "kind" | "noTrigge
 }
 
 /** Yes/No buttons; a Life card without [Trigger] or a cost that can't be paid has one decline button (#352, #369). */
-function ConfirmButtons({ choice, onSend }: { choice: PendingChoiceView; onSend: (i: Intent) => void }) {
+function ConfirmButtons({ choice, onSend, rowClass = "" }: { choice: PendingChoiceView; onSend: (i: Intent) => void; rowClass?: string }) {
   const noTrigger = choice.kind === "life_trigger" && choice.noTrigger === true;
   const cannotPay = choice.unpayable === true;
   if (noTrigger || cannotPay) {
     return (
-      <div className="ability-prompt-actions">
+      <div className={`ability-prompt-actions${rowClass}`}>
         <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space N" onClick={() => onSend({ type: "resolve_pending_choice", accept: false })}>
           {noTrigger ? "No Trigger" : "Can't pay"}
         </button>
@@ -680,7 +681,7 @@ function ConfirmButtons({ choice, onSend }: { choice: PendingChoiceView; onSend:
     );
   }
   return (
-    <div className="ability-prompt-actions">
+    <div className={`ability-prompt-actions${rowClass}`}>
       <button type="button" className="btn btn-primary" aria-keyshortcuts="Y Space" onClick={() => onSend({ type: "resolve_pending_choice", accept: true })}>
         {choice.kind === "life_trigger" ? "Activate Trigger" : "Yes"}
       </button>
@@ -716,7 +717,10 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
           <PromptHideButton onHide={onHide} />
         </div>
         <CardTile defId={choice.cardDefId} inspectGestures viewingSeat={mySeat} />
-        <ConfirmButtons choice={choice} onSend={onSend} />
+        {/* Portrait phones: the buttons ride in the bottom bar, off the hand (#663). */}
+        <PromptSlotPortal hidden={hidden}>
+          <ConfirmButtons choice={choice} onSend={onSend} rowClass={` ${SLOT_ROW}`} />
+        </PromptSlotPortal>
       </div>
     );
   }

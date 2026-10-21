@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-21
+  { date: "2026-10-21", app: "duel", pr: 664, title: "Phones: pop-ups no longer cover your hand", text: "On a portrait phone, Look and Search pop-ups, effect ordering and the Life card now stay above your hand. Their hint sits under the title, and their buttons (Hide, Top / Bottom, Confirm, Activate Trigger) sit in the bottom bar where End turn is." },
   // 2026-10-20
   { date: "2026-10-20", app: "duel", pr: 659, title: "New alt arts for three Leaders", text: "The new alternate arts of Boa Hancock (OP14-041), Shirahoshi (OP11-022) and Nefeltari Vivi (EB03-001) can now be picked, with preview art until the official pictures are out. Nami's (EB05-061) preview now shows the English card." },
   { date: "2026-10-20", app: "duel", pr: 661, title: "Phones: see your hand when you block or counter", text: "On phones, answering an attack now shows how many cards are in your hand next to the verdict, and how many will be left after the counters you picked." },

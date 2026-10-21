@@ -8,6 +8,8 @@ import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
 import { captureHideShrink } from "./hideShrink";
 import { PopupSizeButtons } from "./PopupSizeButtons";
+import { PromptSlotPortal, SLOT_ROW } from "./PromptSlotPortal";
+import { useMediaQuery, WIDE_BOARD_QUERY } from "./useMediaQuery";
 import { useFitPopupScale } from "./useFitPopupScale";
 import { usePromptDrag } from "./promptDrag";
 import { useDuelSettings } from "../settings";
@@ -160,15 +162,25 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
   const stageRef = useRef<HTMLDivElement | null>(null);
   useFitPopupScale(stageRef);
+  // Portrait phones: the hint sits under the title, the buttons in the bottom bar (#663).
+  const portrait = !useMediaQuery(WIDE_BOARD_QUERY);
+  const noteEl = note ? <div className="float-note">{note}</div> : null;
   const layer = peek ? (
     <BackPill label={`Back to ${name} · ${count} card${count === 1 ? "" : "s"}`} onShow={() => onPeek(false)} />
   ) : (
-    <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count } as CSSProperties}>
+    <div className={`float-layer${free ? " float-layer-free" : ""}`} role="dialog" aria-label={choice.prompt} style={{ "--n": count, "--rows3": Math.ceil(count / 3), "--rows5": Math.ceil(count / 5) } as CSSProperties}>
       <div ref={stageRef} className={`float-stage${free ? " float-stage-free" : ""}`}>
         <div className="float-head">
-          <strong>{name}</strong>
+          {portrait ? (
+            <div className="float-head-title">
+              <strong>{name}</strong>
+              <PopupSizeButtons className="float-size-btn" />
+            </div>
+          ) : (
+            <strong>{name}</strong>
+          )}
           <span className="float-prompt">{choice.prompt}</span>
-          <PopupSizeButtons className="float-size-btn" />
+          {portrait ? noteEl : <PopupSizeButtons className="float-size-btn" />}
         </div>
         {children}
         <div className="float-axis" aria-hidden>
@@ -176,21 +188,23 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
           <span className="float-axis-line" />
           <span>{axis[1]}</span>
         </div>
-        {note ? <div className="float-note">{note}</div> : null}
-        <div className="float-actions">
-          <button
-            type="button"
-            className="btn btn-secondary float-peek"
-            onClick={(e) => {
-              // The stage is the visible box; its layer spans the screen (#587).
-              captureHideShrink(e.currentTarget.closest(".float-stage"));
-              onPeek(true);
-            }}
-          >
-            Hide
-          </button>
-          {actions}
-        </div>
+        {portrait ? null : noteEl}
+        <PromptSlotPortal>
+          <div className={`float-actions ${SLOT_ROW}`}>
+            <button
+              type="button"
+              className="btn btn-secondary float-peek"
+              onClick={() => {
+                // The stage is the visible box; its layer spans the screen (#587).
+                captureHideShrink(stageRef.current);
+                onPeek(true);
+              }}
+            >
+              Hide
+            </button>
+            {actions}
+          </div>
+        </PromptSlotPortal>
       </div>
     </div>
   );
