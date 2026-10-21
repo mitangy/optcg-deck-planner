@@ -39,7 +39,7 @@
   transform-origin: 0 100%;
   width: min(420px, calc((100vw - 1.5rem) / var(--popup-scale, 1)));
   max-width: calc((100vw - 1rem) / var(--popup-scale, 1));
-  max-height: calc((100dvh - 8rem) / var(--popup-scale, 1));
+  max-height: calc((100dvh - var(--prompt-base-bottom, 7.5rem) - var(--hud-h, 0px) - 0.5rem) / var(--popup-scale, 1));
 }
 
 /* Dodged to the top of the board while a battle's target sits under the bottom spot. */

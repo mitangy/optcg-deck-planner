@@ -925,7 +925,7 @@ module.exports = {
     { id: "confirm-keys-held-key", file: `${src}/board/hotkeys.ts`, from: "  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return null;", to: "  if (e.ctrlKey || e.metaKey || e.altKey) return null;", kills: ["ignores a held key and modifier combos (#324)"] },
     { id: "confirm-keys-modifiers", file: `${src}/board/hotkeys.ts`, from: "  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return null;", to: "  if (e.repeat) return null;", kills: ["ignores a held key and modifier combos (#324)"] },
     // dragging a centred prompt by its header (#324)
-    { id: "prompt-drag-ignores-drag", file: `${src}/board/promptDrag.ts`, from: "    y: clamp(want.y, EDGE - base.top,", to: "    y: clamp(0, EDGE - base.top,", kills: ["moves the prompt by the drag inside the screen (#324)"] },
+    { id: "prompt-drag-ignores-drag", file: `${src}/board/promptDrag.ts`, from: "    y: clamp(want.y, minTop - base.top,", to: "    y: clamp(0, minTop - base.top,", kills: ["moves the prompt by the drag inside the screen (#324)"] },
     { id: "prompt-drag-unclamped", file: `${src}/board/promptDrag.ts`, from: "  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));", to: "  const clamp = (v: number, _lo: number, _hi: number) => v;", kills: ["stops the prompt at the screen edges (#324)"] },
     { id: "prompt-drag-oversized-off-screen", file: `${src}/board/promptDrag.ts`, from: "  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));", to: "  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);", kills: ["keeps the top-left of a prompt bigger than the screen on screen (#324)"] },
     { id: "hotkeys-card-focus-swallows-space", file: `${src}/board/hotkeys.ts`, from: "ctx.focus === \"control\" || ctx.spectating || e.repeat", to: "ctx.focus !== \"none\" || ctx.spectating || e.repeat", kills: ["still ends the turn with Space while a board or hand card has focus (#257)"] },
@@ -1702,5 +1702,9 @@ module.exports = {
     { id: "corner-bounds-no-gap", file: "duel-web/src/board/fanCorner.ts", from: "export const CORNER_GAP_PX = 10;", to: "export const CORNER_GAP_PX = 0;", kills: ["spans from the mat's edge to the screen edge on the column's side (#633)"] },
     { id: "corner-bounds-left-mirror", file: "duel-web/src/board/fanCorner.ts", from: "Math.round(viewportW - (mat.left - CORNER_GAP_PX))", to: "Math.round(viewportW - (mat.left + CORNER_GAP_PX))", kills: ["spans from the mat's edge to the screen edge on the column's side (#633)"] },
     { id: "corner-bounds-right-from-mat-left", file: "duel-web/src/board/fanCorner.ts", from: "Math.round(mat.right + CORNER_GAP_PX)", to: "Math.round(mat.left + CORNER_GAP_PX)", kills: ["spans from the mat's edge to the screen edge on the column's side (#633)"] },
+    // Phone defend tray hand count and pop-ups under the top bar (#660)
+    { id: "defend-hand-after-ignores-staged", file: `${src}/board/DefendTray.tsx`, from: "Math.max(handCount - staged, 0)", to: "handCount", kills: ["shows the hand after the staged counters (#660)"] },
+    { id: "defend-hand-pill-always-on", file: `${src}/board/DefendTray.tsx`, from: "{handCount != null ? (\n          <span", to: "{true ? (\n          <span", kills: ["leaves the hand count out when the hand is already on screen (#660)"] },
+    { id: "prompt-drag-ignores-min-top", file: `${src}/board/promptDrag.ts`, from: "    y: clamp(want.y, minTop - base.top,", to: "    y: clamp(want.y, EDGE - base.top,", kills: ["stops the top edge at the given minimum instead of the screen edge (#660)"] },
   ],
 };

@@ -103,6 +103,8 @@ type Props = {
   onSkipBlockCounter?: (id: string) => void;
   /** Drag-to-counter from the chips (counter step, and block step to skip the block). */
   counterDrag?: CounterDragHandlers;
+  /** Phones only: the hand is hidden while the tray is up, so show its size (#660). */
+  handCount?: number;
 };
 
 /**
@@ -121,6 +123,7 @@ export function DefendTray({
   onCounterEvent,
   onSkipBlockCounter,
   counterDrag,
+  handCount,
 }: Props) {
   const m = model;
   const stagedSet = new Set(m.stagedIds);
@@ -137,6 +140,9 @@ export function DefendTray({
         : `${total} · still short by ${m.remaining}`;
   } else if (m.gap === 0) verdict = "Safe";
   else verdict = `Need +${m.gap} to survive`;
+
+  const staged = m.phase === "counter" ? m.stagedIds.length : 0;
+  const handAfter = handCount != null ? Math.max(handCount - staged, 0) : 0;
 
   return (
     <section
@@ -156,12 +162,25 @@ export function DefendTray({
           {m.preview ? " (if it blocks)" : ""}
         </span>
       </p>
-      <p
-        className={`defend-verdict${m.gap === 0 || (m.stagedIds.length > 0 && safe) ? " is-safe" : ""}`}
-        role="status"
-      >
-        {verdict}
-      </p>
+      <div className="defend-verdict-row">
+        <p
+          className={`defend-verdict${m.gap === 0 || (m.stagedIds.length > 0 && safe) ? " is-safe" : ""}`}
+          role="status"
+        >
+          {verdict}
+        </p>
+        {handCount != null ? (
+          <span
+            className="defend-hand"
+            aria-label={`Your hand: ${handCount} ${handCount === 1 ? "card" : "cards"}${
+              staged > 0 ? `, ${handAfter} after these counters` : ""
+            }`}
+          >
+            Hand {handCount}
+            {staged > 0 ? ` → ${handAfter}` : ""}
+          </span>
+        ) : null}
+      </div>
       <div className="defend-chips">
         {m.phase === "block" ? (
           m.blockers.length === 0 && m.earlyCounters.length === 0 ? (
