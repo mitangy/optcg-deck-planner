@@ -19,12 +19,17 @@
   --gap: 0.6rem;
   --per-row: var(--n);
   /* Height budget for one row of cards: header, axis, note and actions ≈ 11rem. */
-  --card-max: min(176px, calc((100dvh / var(--popup-scale, 1) - 11rem) * 0.714));
+  --card-max: min(176px, calc(((100dvh - var(--hud-h, 0px)) / var(--popup-scale, 1) - 11rem) * 0.714));
 }
 
 .arena.arena-wide .float-layer {
   left: var(--left-w);
   right: var(--rail-w);
+}
+
+/* Portrait: stay under the top bar so Undo and the menu stay in reach (--hud-h, #660). */
+.arena:not(.arena-wide) .float-layer {
+  padding-top: max(0.75rem, var(--safe-t), var(--hud-h, 0px) + 0.5rem);
 }
 
 .float-stage {
@@ -316,11 +321,11 @@
   padding-block: 0.4rem;
 }
 
-/* Phones (portrait): two rows of three read better than five tiny cards. */
+/* Phones (portrait): two rows of three read better than five tiny cards. 21.5rem is the header, axis, note and buttons around two rows, so the stage fits under the top bar (#660). */
 @media (max-width: 560px) and (orientation: portrait) {
   .float-layer {
     --per-row: min(var(--n), 3);
-    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 14rem) / 2 * 0.714));
+    --card-max: min(150px, calc(((100dvh - var(--hud-h, 0px)) / var(--popup-scale, 1) - 21.5rem) / 2 * 0.714));
   }
 }
 
