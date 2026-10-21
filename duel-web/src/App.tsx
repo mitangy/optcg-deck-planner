@@ -31,6 +31,8 @@ import { useMediaQuery } from "./board/useMediaQuery";
 
 // The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
 const ReplayPage = lazy(() => import("./pages/ReplayPage"));
+// Staff only, so nobody else downloads it.
+const AdminPage = lazy(() => import("./admin/AdminPage"));
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();
@@ -71,6 +73,7 @@ export function App() {
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:matchId" element={<MatchLogPage />} />
         <Route path="/replay/:matchId" element={<Suspense fallback={null}><ReplayPage /></Suspense>} />
+        <Route path="/admin" element={<Suspense fallback={null}><AdminPage /></Suspense>} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />

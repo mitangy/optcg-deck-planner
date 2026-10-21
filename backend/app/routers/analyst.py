@@ -94,12 +94,12 @@ def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
 
 def is_chat_owner(settings: Settings, user: User) -> bool:
     """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
-    return user.email.strip().lower() in settings.analyst_chat_email_set
+    return user.role == "admin" or user.email.strip().lower() in settings.analyst_chat_email_set
 
 
 def is_model_admin(settings: Settings, user: User) -> bool:
     """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
-    return user.email.strip().lower() in settings.analyst_model_admin_email_set
+    return user.role == "admin" or user.email.strip().lower() in settings.analyst_model_admin_email_set
 
 
 # The models the chat may run on; the first is the default.

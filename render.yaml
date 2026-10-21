@@ -74,6 +74,18 @@ services:
       # per worker and presence / live-game progress stay in Postgres.
       - key: REDIS_URL
         sync: false
+      # Admin page Hosting tab (#667): read-only tokens, each optional. Unset: that card says
+      # "Not connected". ADMIN_EMAIL defaults to the owner (backend/app/config.py).
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_TEAM_ID
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
       # Game-server URL handed out with duel tokens; PUT /duel/admin/game-server-pool
       # overrides it while Redis is set (blue/green). Unset: clients use their build default.
       - key: GAME_SERVER_URL
