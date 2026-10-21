@@ -71,6 +71,15 @@ def login(c, SessionLocal, uid: int) -> None:
 
 
 def seat(db: Session, match_id: str, user_id: int, leader: str, won: bool, at: datetime, ranked: bool = True) -> None:
+    # Its finished match first: Postgres enforces the seat's foreign key to duel_matches.
+    db.add(
+        DuelMatch(
+            match_id=match_id, seat0_user_id=user_id, seat1_user_id=user_id, winner_seat=0 if won else 1,
+            ranked=ranked, turns=6, seat0_rating_before=1000, seat1_rating_before=1000,
+            seat0_rating_after=1000, seat1_rating_after=1000, created_at=at,
+        )
+    )
+    db.flush()
     db.add(DuelMatchSeat(match_id=match_id, seat=0, user_id=user_id, leader_id=leader, won=won, ranked=ranked, turns=6, created_at=at))
 
 
@@ -656,7 +665,7 @@ def test_startup_makes_only_the_admin_email_admin_and_adds_the_columns_667(monke
             )
         )
         for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test"]):
-            conn.execute(text("INSERT INTO users (email, name, google_sub) VALUES (:e, 'n', :s)"), {"e": email, "s": f"s{i}"})
+            conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (:i, :e, 'n', :s)"), {"i": i + 1, "e": email, "s": f"s{i}"})
     monkeypatch.setattr(app_db, "engine", engine)
     app_db._ensure_user_role_columns()
     with engine.begin() as conn:
