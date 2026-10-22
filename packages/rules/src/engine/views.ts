@@ -2,7 +2,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import { listLegalIntents } from "./intents.js";
-import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, powerOf, withQueryCache } from "./queries.js";
+import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, playerRestricted, powerOf, withQueryCache } from "./queries.js";
 import { activeDon, otherSeat } from "./state.js";
 
 const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush", rush_character: "Rush: Character", double_attack: "Double Attack", banish: "Banish", unblockable: "Unblockable" };
@@ -105,8 +105,14 @@ function buildPlayerView(state: MatchState, seat: Seat) {
       stage: you.stage ? cardView(state, seat, you.stage) : null,
       hand: you.hand.map((c) => {
         const def = getCardDef(c.defId);
-        const row: { id: string; defId: string; playCost?: number; counter?: number } = { id: c.id, defId: c.defId };
-        if (state.phase === "main" && state.activeSeat === seat && def.type !== "leader") row.playCost = playCostOf(state, seat, c);
+        const row: { id: string; defId: string; playCost?: number; counter?: number; blocked?: "characters" | "events" | "from_hand" } = { id: c.id, defId: c.defId };
+        if (state.phase === "main" && state.activeSeat === seat && def.type !== "leader") {
+          row.playCost = playCostOf(state, seat, c);
+          // Why an effect stops you playing it this turn (mirrors characterPlayable in intents.ts).
+          if (playerRestricted(state, seat, "cannot_play_cards_from_hand", c)) row.blocked = "from_hand";
+          else if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", c)) row.blocked = "characters";
+          else if (def.type === "event" && playerRestricted(state, seat, "cannot_play_events")) row.blocked = "events";
+        }
         // Live Counter (printed + "+N Counter" statics) while you answer an attack. Own hand only.
         if (defending && def.type === "character") row.counter = counterOf(state, seat, c);
         return row;

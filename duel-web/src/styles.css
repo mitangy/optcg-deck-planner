@@ -2774,6 +2774,12 @@ img.zone-pile-face {
   overflow-wrap: anywhere;
 }
 
+.card-caption .meta-blocked {
+  color: #ffab91;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .card-caption .meta-cost-modified {
   color: #ffd54f;
 }

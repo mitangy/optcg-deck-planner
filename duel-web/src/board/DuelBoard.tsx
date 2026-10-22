@@ -1551,6 +1551,7 @@ export function DuelBoard({
         playable,
         cost,
         activeDon: you.activeDonCount,
+        blocked: c.blocked,
       });
       const payload: DragPayload = counterable
         ? { type: "counter", handIndex: idx }
@@ -1561,6 +1562,7 @@ export function DuelBoard({
           motionId={c.id}
           defId={c.defId}
           playCost={c.playCost}
+          blocked={yourTurn && view?.phase === "main" ? c.blocked : undefined}
           showCounter={prefs.handCounters}
           selected={handFilter === idx}
           onClick={() => selectHandCard(idx)}
@@ -1732,7 +1734,7 @@ export function DuelBoard({
   const selectedHandCard = handFilter != null ? you.hand[handFilter] : undefined;
   const affordHint =
     selectedHandCard && yourTurn && view.phase === "main" && cardIntents.length === 0
-      ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount) ?? undefined
+      ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount, selectedHandCard.blocked) ?? undefined
       : undefined;
   // Desktop has no Actions panel: only the defend tray stays in the rail.
   const intentPanel = railDefend && defendTray ? (
