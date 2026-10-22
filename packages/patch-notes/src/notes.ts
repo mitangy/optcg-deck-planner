@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-22
+  { date: "2026-10-22", app: "duel", pr: 670, title: "Funkfreed is playable", text: "Funkfreed (OP18-108) is now in the duel app: when played you may trash a card with a type including \"CP\" to draw 2, and you can rest it to give your Spandam +1000 power this turn. Funkfreed and Roronoa Zoro (OP18-092) show preview art until their official images are out." },
   // 2026-10-21
   { date: "2026-10-21", app: "duel", pr: 666, title: "4 new OP18 cards", text: "Monkey.D.Luffy (OP18-036), Mr.1 (Daz.Bonez) (OP18-047), White Hobby Horse 1 (OP18-077) and Roronoa Zoro (OP18-092) are now in the duel app with their effects. Mr.1 makes a {Cross Guild} or Baroque Works Leader unblockable for the turn. The new alt art of the Nami Leader (OP11-041) can be picked too, and these cards show preview art until their official images are out." },
   { date: "2026-10-21", app: "duel", pr: 664, title: "Phones: pop-ups no longer cover your hand", text: "On a portrait phone, Look and Search pop-ups, effect ordering and the Life card now stay above your hand. Their hint sits under the title, and their buttons (Hide, Top / Bottom, Confirm, Activate Trigger) sit in the bottom bar where End turn is." },
