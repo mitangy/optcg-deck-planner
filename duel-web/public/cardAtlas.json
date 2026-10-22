@@ -43074,6 +43074,24 @@
     "attribute": "Slash",
     "abilitySupport": "keywords"
   },
+  "OP18-108": {
+    "id": "OP18-108",
+    "name": "Funkfreed",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-108.png",
+    "effectText": "[On Play] You may trash 1 card with a type including \"CP\" from your hand: Draw 2 cards. [Activate: Main] You may rest this Character: Up to 1 of your [Spandam] gains +1000 power during this turn.",
+    "traits": [
+      "CP9"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
   "OP18-111": {
     "id": "OP18-111",
     "name": "Momonga",
