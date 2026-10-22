@@ -130,3 +130,16 @@ test("an unplayable hand card is grayed out at full opacity (#356)", async ({ pa
   expect(style.opacity).toBe("1");
   expect(style.filter).toContain("grayscale");
 });
+
+test("a hand Character blocked by an effect says Can't play with the reason, an Event does not (#671)", async ({ page }) => {
+  await openDemo(page, "?blocked", {});
+  const blocked = page.locator(`${HAND_CARD}:has(.meta-blocked)`);
+  await expect(blocked.first()).toBeAttached();
+  const meta = blocked.first().locator(".meta");
+  await expect(meta).toBeVisible();
+  await expect(meta).toHaveText("Can't play");
+  await expect(meta).toHaveAttribute("title", "Cost 1. An effect stops you playing Character cards this turn.");
+  // Events in the demo hand (ST01-014, OP01-029) stay playable.
+  expect(await blocked.count()).toBe(4);
+  expect(await page.locator(`${HAND_CARD}`).count()).toBe(6);
+});

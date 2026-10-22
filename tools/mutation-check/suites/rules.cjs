@@ -1023,5 +1023,9 @@ module.exports = {
     { id: "scn-666-mr1-ungated", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; a["OP18-047"].abilities[0].effect = e.then; }, kills: ["On Play gives a Leader with neither type nothing (#666)"] },
     { id: "scn-666-mr1-drops-baroque-works", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[0]; }, kills: ["On Play gives a Leader with a type including \"Baroque Works\" [Unblockable] (#666)"] },
     { id: "scn-666-mr1-drops-cross-guild", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[1]; }, kills: ["On Play gives a {Cross Guild} Leader [Unblockable] (#666)"] },
+    // Hand rows say why a card cannot be played (#671)
+    { id: "cant-play-hint-view-field-missing", file: "packages/rules/src/engine/views.ts", from: 'row.blocked = "characters";', to: "void 0;", kills: ["after Alvida, a Character in hand is blocked with its reduced cost; an Event is not (#671)"] },
+    { id: "cant-play-hint-events-flagged-too", file: "packages/rules/src/engine/views.ts", from: 'else if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", c))', to: 'else if (playerRestricted(state, seat, "cannot_play_characters", c))', kills: ["after Alvida, a Character in hand is blocked with its reduced cost; an Event is not (#671)"] },
+    { id: "cant-play-hint-always-blocked", file: "packages/rules/src/engine/views.ts", from: 'else if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", c))', to: 'else if (def.type === "character")', kills: ["with no play restriction, no hand card is blocked (#671)"] },
   ],
 };
