@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app import duel_live, redis_client
 from app.auth import get_current_user
+from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship, User
 from app.rate_limit import RateLimiter
@@ -24,6 +25,7 @@ from app.schemas import (
     FriendRequestResult,
     FriendsOut,
 )
+from app.server_urls import normalize_server_url
 
 router = APIRouter(prefix="/friends", tags=["friends"])
 
@@ -106,6 +108,11 @@ def friend_status(
     return "offline", None, False
 
 
+def room_server_url(rows: list[DuelPresence], room_id: str | None) -> str | None:
+    """The pool a room is on, as its game server last reported it."""
+    return next((r.server_url for r in rows if r.room_id == room_id and r.server_url), None)
+
+
 def _mark_seen(db: Session, user_id: int, now: datetime) -> None:
     row = db.get(DuelLobbySeen, user_id)
     if row is None:
@@ -163,7 +170,14 @@ def list_friends(
         if f.status == "accepted":
             status, room_id, ranked = friend_status(presence.get(other.id, []), seen.get(other.id), now)
             friends.append(
-                FriendOut(user_id=other.id, username=other.username, status=status, room_id=room_id, ranked=ranked)
+                FriendOut(
+                    user_id=other.id,
+                    username=other.username,
+                    status=status,
+                    room_id=room_id,
+                    server_url=room_server_url(presence.get(other.id, []), room_id),
+                    ranked=ranked,
+                )
             )
         elif f.requester_id == user.id:
             outgoing.append(FriendRequestOut(user_id=other.id, username=other.username))
@@ -180,6 +194,8 @@ def list_friends(
             from_user_id=i.from_user_id,
             from_username=users[i.from_user_id].username or "Player",
             room_id=i.room_id,
+            # The game server's own report beats what the inviter's client said when it sent the invite.
+            server_url=room_server_url(presence.get(i.from_user_id, []), i.room_id) or i.server_url,
             expires_at=int(_utc(i.expires_at).timestamp()),
         )
         for i in invites
@@ -275,6 +291,7 @@ def invite_friend(
     body: FriendInviteIn,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> DuelInviteOut:
     if not _invite_rate.allow(f"duel-invite:{user.id}"):
         raise HTTPException(status_code=429, detail="Too many invites. Try again in a minute.")
@@ -286,10 +303,17 @@ def invite_friend(
     db.execute(
         delete(DuelInvite).where(DuelInvite.from_user_id == user.id, DuelInvite.to_user_id == other_id)
     )
+    # The recipient's client dials this address with its game token: keep only pools this API has handed out.
+    from app.routers.duel import known_game_server_urls  # duel imports this module
+
+    server_url = normalize_server_url(body.server_url)
+    if server_url not in known_game_server_urls(settings):
+        server_url = None
     invite = DuelInvite(
         from_user_id=user.id,
         to_user_id=other_id,
         room_id=body.room_id.strip(),
+        server_url=server_url,
         created_at=now,
         expires_at=now + INVITE_TTL,
     )
@@ -301,6 +325,7 @@ def invite_friend(
         from_user_id=user.id,
         from_username=user.username or "Player",
         room_id=invite.room_id,
+        server_url=invite.server_url,
         expires_at=int(_utc(invite.expires_at).timestamp()),
     )
 

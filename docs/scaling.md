@@ -26,6 +26,10 @@ server's CPU is the limit, at about 4 ms per move.
 | Pool pointer | `GET`/`PUT /duel/admin/game-server-pool` with the `X-Catalog-Token` header, body `{"url": "https://…"}` (null clears it) | The blue/green workflow flips it |
 | Public playmat links | `GET /duel/cosmetics/<id>/public/<sig>` serves an upload without a session; `sig` is an HMAC of the id. Cosmetics responses carry `public_path` | Seats share a link instead of the image |
 | API startup | Migrations run under a Postgres advisory lock | Several workers can start at once |
+| API background jobs | Catalog sync, tournament sync and the live-log sweep each take a non-blocking Postgres advisory lock for the length of a run | With `WEB_CONCURRENCY` above 1 only one worker runs a job at a time (SQLite keeps its in-process guard) |
+| Open-room cap | With `REDIS_URL`, each account's open-room count (`duel:rooms:<uid>`, 6 h expiry refreshed on every claim) lives in Redis | The cap holds across a pool instead of per process; a crashed process's count expires on its own |
+| Friend invites and presence | Presence entries carry the game server's `POOL_URL`; invites carry the pool the room was opened on | A friend joins on the pool the room is on, even if the pointer flipped since the invite |
+| Live-log sweep | With `REDIS_URL`, the API saves live game logs that have had no update for 30 minutes to Postgres as closed rows, then drops the Redis copy | A game-server crash no longer loses unfinished logs after 6 h |
 | Load test | `game-server/scripts/loadMatches.mjs` | Bot players over real decks; never point it at production |
 
 ## Environment variables
@@ -34,6 +38,7 @@ server's CPU is the limit, at about 4 ms per move.
 |---|---|---|
 | `REDIS_URL` | game server | Turns on the pool. Each blue/green colour uses its own Redis database (`redis://host:6379/1`, `/2`) so a draining pool keeps its own rooms and queue |
 | `PUBLIC_ADDRESS` | game server | This process's own public host (e.g. `optcg-gs-blue-1.onrender.com`). Required in production when `REDIS_URL` is set; the server refuses to start without it |
+| `POOL_URL` | game server | The URL clients use for this process's pool (the value of `GS_POOL_URL_<COLOUR>` for the blue/green workflow). Sent with presence so invites and friends find a room after the pointer flips. Same rules as the pointer: https (http for localhost), no credentials or query. Unset: presence carries no URL |
 | `WS_COMPRESSION` | game server | `off` disables permessage-deflate (on by default) |
 | `REDIS_URL` | API | Rate limits, presence and live progress shared across workers; also holds the pool pointer |
 | `GAME_SERVER_URL` | API | Game server URL handed out with each duel token when no pool pointer is set |
@@ -72,23 +77,22 @@ change a plan and need Miko's go-ahead.
 
 ## Known limits
 
-- The per-account open-room cap (`liveRoomsByCreator`) is per process, so in a
-  pool of N processes an account can hold up to N times the cap.
-- A friend invite carries a room id. If the pool pointer flips between the
-  invite and the join, the friend's client looks on the new pool and gets
-  "room not found"; re-inviting fixes it.
-- With Redis on, a live game's log stays in Redis (6 hour expiry) until the
-  room closes and sends its `closed` log. If a game-server process crashes
-  without closing its rooms, those unfinished logs are lost after 6 hours;
-  without Redis they stay in Postgres as before.
-- Catalog sync's lock and status, and the tournament sync background task,
-  are per API worker, so with `WEB_CONCURRENCY` above 1 they can run twice.
 - Public playmat links are bearer URLs: anyone given one can load that image
-  until it is deleted (cached copies outlive the delete). Rotating
-  `COSMETIC_URL_SECRET` retires every link at once. The route has no rate
-  limit, so it should sit behind a cache or CDN at scale.
+  until it is deleted (cached copies outlive the delete). That is by design:
+  opponents' browsers and the game server load it with no session. Rotating
+  `COSMETIC_URL_SECRET` retires every link at once. The route is limited to
+  600 requests a minute per address (shared across API workers with Redis),
+  and the image is cached for a year, so a cache or CDN in front still takes
+  most of the load at scale.
 - The ranked queue lives in one room on one process. That is fine into the
   thousands of queued players, but that process does all pairing.
+- An invite names the pool its room is on only if the API had handed that
+  pool's address out (the current assignment, `GAME_SERVER_URL`, or any address
+  the pointer has named). A pool the API never heard of is dropped from the
+  invite, and the friend's client then uses the current pool, as before.
+- The catalog sync status (`running`, `last_result`) is kept in memory by the
+  worker that ran it, so with several workers a status poll can hit a worker
+  that did not. Only one worker runs the sync at a time.
 
 ## Load testing
 
