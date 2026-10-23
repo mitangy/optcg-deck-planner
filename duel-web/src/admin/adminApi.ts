@@ -12,17 +12,36 @@ export type DayCount = { day: string };
 export type SignupDay = DayCount & { real: number; guests: number };
 export type MatchDay = DayCount & { ranked: number; casual: number };
 
+export type LeaderCount = { leader_id: string; games: number; wins: number };
+
 export type AdminOverview = {
   generated_at: string;
+  /** The window of the day charts and `top_leaders`. */
+  days: number;
   accounts: { total: number; real: number; guests: number; staff: number; banned: number; new_7d: number; new_30d: number };
   signups_by_day: SignupDay[];
   active: { d1: number; d7: number; d30: number; real_d7: number; real_d30: number };
   matches_by_day: MatchDay[];
   matches: { total: number; last_7d: number; ranked_7d: number; avg_turns_30d: number | null };
-  top_leaders_30d: { leader_id: string; games: number; wins: number }[];
+  /** The last `days` days, up to 25. */
+  top_leaders: LeaderCount[];
+  /** Kept for older clients: always the last 30 days. */
+  top_leaders_30d: LeaderCount[];
   planner: { decks: number; users_with_decks: number };
   log_pose: { questions_month: number; spend_month_usd: number; users_with_access: number };
 };
+
+export type DayMatchSeat = { user_id: number; name: string | null; leader_id: string | null; won: boolean };
+export type DayMatch = {
+  /** The id the replay page takes: /replay/:id. */
+  id: string;
+  created_at: string | null;
+  ranked: boolean;
+  turns: number | null;
+  winner_seat: number | null;
+  seats: DayMatchSeat[];
+};
+export type AdminDayMatches = { day: string; matches: DayMatch[] };
 
 export type EvalGroups = Record<string, { correct: number; total: number }>;
 
@@ -60,6 +79,8 @@ export type AdminBots = {
     last_batch_id: string | null;
     by_day: { day: string; games: number; finished: number }[];
   };
+  /** The window of `bot_games.by_day`. */
+  days: number;
   evals: EvalRun[];
 };
 
@@ -136,8 +157,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchAdminMe = () => call<AdminMe>("/admin/me");
-export const fetchAdminOverview = () => call<AdminOverview>("/admin/overview");
-export const fetchAdminBots = () => call<AdminBots>("/admin/bots");
+export const fetchAdminOverview = (days = 30) => call<AdminOverview>(`/admin/overview?days=${days}`);
+export const fetchAdminBots = (days = 14) => call<AdminBots>(`/admin/bots?days=${days}`);
+export const fetchAdminMatches = (day: string) => call<AdminDayMatches>(`/admin/matches?day=${encodeURIComponent(day)}`);
 export function fetchAdminFeedback(rating: FeedbackRating | null, limit: number, offset: number): Promise<AdminFeedback> {
   const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (rating) p.set("rating", rating);
