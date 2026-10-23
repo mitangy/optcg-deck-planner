@@ -885,17 +885,42 @@ def test_progress_sweep_only_runs_with_redis_682():
     asyncio.run(go())
 
 
+def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis, monkeypatch):
+    """No idle snapshot, no query: a sweep every 10 minutes must not keep Neon awake."""
+    from datetime import datetime, timedelta, timezone
+
+    from app import db as app_db
+    from app import duel_live, progress_sweep
+
+    def no_db(*_a, **_k):
+        raise AssertionError("the sweep touched Postgres with nothing to save")
+
+    monkeypatch.setattr(app_db, "try_advisory_lock", no_db)
+    monkeypatch.setattr(app_db, "SessionLocal", no_db)
+    # A live game that is still sending snapshots is not idle.
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": datetime.now(timezone.utc).timestamp()})
+    assert progress_sweep.run_once() == 0
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": (datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()})
+    try:
+        progress_sweep.run_once()
+    except AssertionError as e:
+        assert "touched Postgres" in str(e)
+    else:
+        raise AssertionError("an idle snapshot should start a sweep")
+
+
 @requires_postgres
 def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypatch):
     from sqlalchemy import text
 
     from app import db as app_db
-    from app import progress_sweep
+    from app import duel_live, progress_sweep
     engine = make_bare_engine()
     monkeypatch.setattr(app_db, "engine", engine)
     monkeypatch.setattr(app_db, "SessionLocal", lambda: type("S", (), {"close": lambda self: None})())
     sweeps: list[int] = []
     monkeypatch.setattr(progress_sweep, "sweep_idle_progress", lambda r, db: sweeps.append(1) or 3)
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"idle": 0})
     with engine.connect() as other_worker:
         other_worker.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.PROGRESS_SWEEP_LOCK_KEY})
         assert progress_sweep.run_once() is None

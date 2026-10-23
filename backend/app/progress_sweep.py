@@ -68,6 +68,14 @@ def run_once() -> int | None:
     r = redis_client.get_redis()
     if r is None:
         return None
+    try:
+        idle = duel_live.idle_progress_ids(r, datetime.now(timezone.utc) - timedelta(seconds=IDLE_AFTER_S), 1)
+    except redis_client.RedisError:
+        redis_client.report_failure("progress sweep")
+        return None
+    if not idle:
+        # Nothing to save: leave Postgres alone so Neon can scale to zero between games.
+        return 0
     lock = try_advisory_lock(PROGRESS_SWEEP_LOCK_KEY)
     if lock is None:
         return None
