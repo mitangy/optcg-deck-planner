@@ -17,6 +17,7 @@
     "eval:compare": "tsx evals/compare.ts",
     "eval:review-facts": "tsx evals/review-facts/run.ts",
     "eval:deck-advice": "tsx evals/deck-advice/run.ts",
+    "eval:puzzles": "tsx evals/puzzles/run.ts",
     "eval:check-live": "tsx evals/check-live.ts",
     "eval:grade": "tsx evals/grade-human.ts",
     "eval:validate": "tsx evals/validate.ts",
