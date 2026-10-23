@@ -90,15 +90,15 @@ export function HostingTab({ data }: { data: AdminHosting }) {
           <>
             <div className="adm-inline-stats">
               <span><b>{d.open_prs}</b> open PRs</span>
-              <span><b>{d.repo.open_issues}</b> open issues</span>
+              <span><b>{d.open_issues ?? "—"}</b> open issues</span>
               <span><b>{d.commits_7d}</b> commits in 7 days</span>
-              <span><b>{d.repo.stars}</b> stars</span>
+              <span><b>{d.stars ?? "—"}</b> stars</span>
               <span>{d.traffic_views ? <><b>{d.traffic_views.count}</b> views ({d.traffic_views.uniques} unique)</> : "Traffic not available"}</span>
             </div>
             <h3 className="adm-sub">CI on main</h3>
-            <Rows rows={d.main_ci.map((r, i) => ({ key: `ci${i}`, name: r.name, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
+            <Rows rows={d.ci_runs.map((r, i) => ({ key: `ci${i}`, name: r.name, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
             <h3 className="adm-sub">Nightly bot games</h3>
-            <Rows rows={d.bot_selfplay.map((r, i) => ({ key: `bot${i}`, name: r.name, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
+            <Rows rows={d.bot_runs.map((r, i) => ({ key: `bot${i}`, name: r.name, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
           </>
         )}
       </Card>

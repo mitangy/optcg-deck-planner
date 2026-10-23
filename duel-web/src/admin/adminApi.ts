@@ -93,11 +93,13 @@ export type RenderData = {
   services: { name: string; type: string; suspended: string | boolean; url: string | null; latest: { status: string; finished_at: string | null; commit: string | null } | null }[];
 };
 export type GithubData = {
-  repo: { stars: number; open_issues: number };
+  repo: string;
+  stars: number | null;
+  open_issues: number | null;
   open_prs: number;
   commits_7d: number;
-  main_ci: { name: string; conclusion: string | null; created_at: string; html_url: string }[];
-  bot_selfplay: { name: string; conclusion: string | null; created_at: string; html_url: string }[];
+  ci_runs: { name: string; conclusion: string | null; created_at: string; html_url: string }[];
+  bot_runs: { name: string; conclusion: string | null; created_at: string; html_url: string }[];
   traffic_views: { count: number; uniques: number } | null;
 };
 
