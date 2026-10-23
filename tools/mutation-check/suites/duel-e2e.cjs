@@ -293,11 +293,11 @@ module.exports = {
     { id: "e2e-sort-key-tag-ignores-setting", args: "gameplay-toggles --project=desktop-1280 -g \"without its S tab\"", file: "duel-web/src/board/DuelBoard.tsx", from: "data-key-tag={prefs.shortcutTags ? \"S\" : undefined}", to: "data-key-tag=\"S\"", kills: ["gameplay-toggles.spec.ts > Shortcut key tags off leaves the hand Sort button without its S tab (#340) [desktop-1280]"] },
     { id: "e2e-sort-key-tag-on-phones", args: "gameplay-toggles --project=phone-375 -g \"no S key tab\"", file: "duel-web/src/interactions.css", from: "   the button keeps its size and hit target. */\n@media (hover: hover) and (pointer: fine) {", to: "   the button keeps its size and hit target. */\n@media all {", kills: ["gameplay-toggles.spec.ts > phones show no S key tab on the hand Sort button (#340) [phone-375]"] },
     // Unplayable hand cards are grayed out at full opacity (#356)
-    { id: "e2e-unaffordable-faded", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "  opacity: 1;\n  filter: grayscale(1);\n", to: "  opacity: 0.55;\n  filter: grayscale(1);\n", kills: [
+    { id: "e2e-unaffordable-faded", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "  opacity: 1;\n}\n\n.arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) > :not(.card-caption) {\n  filter: grayscale(1);\n", to: "  opacity: 0.55;\n}\n\n.arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) > :not(.card-caption) {\n  filter: grayscale(1);\n", kills: [
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
     ] },
-    { id: "e2e-unaffordable-not-grayscale", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "  opacity: 1;\n  filter: grayscale(1);\n", to: "  opacity: 1;\n  filter: saturate(0.6);\n", kills: [
+    { id: "e2e-unaffordable-not-grayscale", args: "gameplay-toggles -g \"grayed out at full opacity\"", file: "duel-web/src/board.css", from: "> :not(.card-caption) {\n  filter: grayscale(1);\n", to: "> :not(.card-caption) {\n  filter: saturate(0.6);\n", kills: [
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [desktop-1280]",
       "gameplay-toggles.spec.ts > an unplayable hand card is grayed out at full opacity (#356) [phone-375]",
     ] },
@@ -1038,5 +1038,9 @@ module.exports = {
     { id: "e2e-float-hint-stays-below-cards", args: "phone-popup-off-hand --project=phone-375", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  const portrait = !useMediaQuery(WIDE_BOARD_QUERY);", to: "  const portrait = false;", kills: ["phone-popup-off-hand.spec.ts > the look pop-up's hint sits under its title and Hide sits in the bar on a portrait phone (#663) [phone-375]"] },
     // Hand cards an effect stops you playing (#671)
     { id: "e2e-blocked-hand-caption-not-passed", args: "gameplay-toggles -g \"blocked by an effect\"", file: "duel-web/src/board/DuelBoard.tsx", from: '          blocked={yourTurn && view?.phase === "main" ? c.blocked : undefined}\n', to: "", kills: ["gameplay-toggles.spec.ts > a hand Character blocked by an effect says Can't play with the reason, an Event does not (#671)"] },
+    { id: "e2e-blocked-caption-gray-wins", args: "gameplay-toggles -g \"Can't play is red\"", file: "duel-web/src/styles.css", from: ".card-caption .meta.meta-blocked {", to: ".card-caption .meta-blocked {", kills: ["gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards on (#673) [desktop-1280]", "gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards on (#673) [phone-375]", "gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards off (#673) [desktop-1280]", "gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards off (#673) [phone-375]"] },
+    { id: "e2e-unaffordable-gray-on-whole-tile", args: "gameplay-toggles -g \"Can't play is red\"", edits: [
+      { file: "duel-web/src/board.css", from: "  opacity: 1;\n}\n\n.arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) > :not(.card-caption) {\n  filter: grayscale(1);\n}", to: "  opacity: 1;\n  filter: grayscale(1);\n}" },
+    ], kills: ["gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards on (#673) [desktop-1280]", "gameplay-toggles.spec.ts > Can't play is red with Gray out unplayable cards on (#673) [phone-375]"] },
   ],
 };
