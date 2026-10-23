@@ -2,11 +2,13 @@
  * Builds the puzzle set (#677): positions from self-play and from the Harness, a generator per type, and quotas for how many
  * puzzles come from synthetic boards and from the newest sets. Deterministic for a seed and the same decks.
  */
-import { createSeededRng } from "@optcg/rules";
+import { createSeededRng, type MatchState, type Rng } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
-import { POSITION_GENERATORS, POWER_MIX } from "./generators";
-import { selfPlayPositions, syntheticPositions, type DeckSource, type Position } from "./positions";
-import { scenarioPuzzles } from "./scenario";
+import { DEFEND_MIX, defendPuzzle } from "./defend";
+import { POSITION_GENERATORS, POWER_MIX, type Made } from "./generators";
+import { lethalPuzzle } from "./lethal";
+import { lethalPosition, selfPlayPositions, syntheticPositions, type DeckSource, type Position } from "./positions";
+import { scenarioChainPuzzles, scenarioPuzzles } from "./scenario";
 import { PUZZLE_TYPES, type Puzzle, type PuzzleType } from "./types";
 
 export type GenerateOptions = {
@@ -38,6 +40,15 @@ const hash = (...xs: (string | number)[]): number => {
   return h >>> 0;
 };
 
+/** The types that start from a sampled or Harness position (the lethal type builds its own boards, the scenario types come from rows). */
+const GENERATORS: Record<string, (state: MatchState, catalog: Catalog, rng: Rng, prefer?: string) => Made | null> = { ...POSITION_GENERATORS, defend: defendPuzzle };
+
+/** Share of puzzles by first tag, for the types that are steered toward a mix. */
+const TYPE_MIX: Record<string, Record<string, number>> = { power: POWER_MIX, defend: DEFEND_MIX };
+
+/** Boards the lethal builder is asked for per puzzle wanted, before giving up on a short set. */
+const LETHAL_TRIES = 25;
+
 const cellOf = (synthetic: boolean, newSet: boolean) => `${synthetic ? "harness" : "selfplay"}-${newSet ? "new" : "old"}`;
 
 /** How many puzzles each (source, new-set) cell may hold so the shares come out as asked. */
@@ -49,10 +60,10 @@ export function quotas(n: number, synthShare: number, newShare: number): Record<
   return { [cellOf(true, true)]: newSynth, [cellOf(true, false)]: synth - newSynth, [cellOf(false, true)]: newSelf, [cellOf(false, false)]: self - newSelf };
 }
 
-/** The kind of power puzzle furthest below its share so far. */
-function nextKind(have: readonly { tags: string[] }[], n: number): string {
-  const short = (kind: string) => Math.ceil(n * POWER_MIX[kind]!) - have.filter((p) => p.tags[0] === kind).length;
-  return Object.keys(POWER_MIX).sort((a, b) => short(b) - short(a))[0]!;
+/** The kind of puzzle furthest below its share so far. */
+function nextKind(have: readonly { tags: string[] }[], n: number, mix: Record<string, number>): string {
+  const short = (kind: string) => Math.ceil(n * mix[kind]!) - have.filter((p) => p.tags[0] === kind).length;
+  return Object.keys(mix).sort((a, b) => short(b) - short(a))[0]!;
 }
 
 export function generatePuzzles(opts: GenerateOptions): GenerateResult {
@@ -66,7 +77,7 @@ export function generatePuzzles(opts: GenerateOptions): GenerateResult {
   const byType = new Map<PuzzleType, Puzzle[]>();
   const cellCount = new Map<PuzzleType, Record<string, number>>();
   const goal = quotas(n, synthShare, newShare);
-  const positionTypes = types.filter((t) => t !== "scenario");
+  const positionTypes = types.filter((t) => t in GENERATORS);
 
   for (let round = 0; round < maxRounds && positionTypes.some((t) => (byType.get(t)?.length ?? 0) < n); round += 1) {
     const roundSeed = seed * 1000 + round;
@@ -81,15 +92,16 @@ export function generatePuzzles(opts: GenerateOptions): GenerateResult {
       const order = createSeededRng(hash(seed, round, type)).shuffle([...batch]);
       for (const pos of order) {
         if (have.length >= n) break;
-        const prefer = type === "power" ? nextKind(have, n) : undefined;
-        const made = POSITION_GENERATORS[type as keyof typeof POSITION_GENERATORS](pos.state, catalog, createSeededRng(hash(seed, pos.id, type)), prefer);
+        const mix = TYPE_MIX[type];
+        const prefer = mix ? nextKind(have, n, mix) : undefined;
+        const made = GENERATORS[type]!(pos.state, catalog, createSeededRng(hash(seed, pos.id, type)), prefer);
         if (!made) {
           rejected[type] = (rejected[type] ?? 0) + 1;
           continue;
         }
         const cell = cellOf(pos.synthetic, made.newSet);
         if (strict && (cells[cell] ?? 0) >= (goal[cell] ?? 0)) continue;
-        if (strict && type === "power" && have.filter((p) => p.tags[0] === made.tags[0]).length >= Math.ceil(n * (POWER_MIX[made.tags[0]!] ?? 1))) continue;
+        if (strict && mix && have.filter((p) => p.tags[0] === made.tags[0]).length >= Math.ceil(n * (mix[made.tags[0]!] ?? 1))) continue;
         cells[cell] = (cells[cell] ?? 0) + 1;
         have.push({ ...made, id: "", source: pos.source });
       }
@@ -104,6 +116,41 @@ export function generatePuzzles(opts: GenerateOptions): GenerateResult {
     const fresh = all.filter((p) => p.newSet).slice(0, Math.round(n * newShare));
     const rest = all.filter((p) => !fresh.includes(p));
     byType.set("scenario", [...fresh, ...rest].slice(0, n));
+  }
+
+  if (types.includes("scenario_chain")) {
+    const rng = createSeededRng(hash(seed, "scenario_chain"));
+    const all = rng.shuffle(scenarioChainPuzzles(catalog));
+    const fresh = all.filter((p) => p.newSet).slice(0, Math.round(n * newShare));
+    const rest = all.filter((p) => !fresh.includes(p));
+    byType.set("scenario_chain", [...fresh, ...rest].slice(0, n));
+  }
+
+  if (types.includes("lethal")) {
+    // Boards built for the puzzle, one at a time; the first half of the tries keep to the new-set share, the rest take what fits.
+    const rng = createSeededRng(hash(seed, "lethal"));
+    const have: Puzzle[] = [];
+    const wantNew = Math.round(n * newShare);
+    for (let i = 0; i < n * LETHAL_TRIES && have.length < n; i += 1) {
+      const fresh = have.filter((p) => p.newSet).length;
+      const strict = i < (n * LETHAL_TRIES) / 2;
+      const pos = (() => {
+        try {
+          return lethalPosition(rng, catalog, fresh < wantNew && rng.next() < 0.7, `lx${seed}-${i}`);
+        } catch {
+          return undefined;
+        }
+      })();
+      if (!pos) continue;
+      const made = lethalPuzzle(pos.state, catalog, createSeededRng(hash(seed, pos.id, "lethal")));
+      if (!made) {
+        rejected.lethal = (rejected.lethal ?? 0) + 1;
+        continue;
+      }
+      if (strict && ((made.newSet && fresh >= wantNew) || (!made.newSet && have.length - fresh >= n - wantNew))) continue;
+      have.push({ ...made, id: "", source: pos.source });
+    }
+    byType.set("lethal", have);
   }
 
   const puzzles: Puzzle[] = [];

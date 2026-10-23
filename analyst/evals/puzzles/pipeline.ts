@@ -14,7 +14,7 @@ import { ModelMismatch } from "../runner";
 import { summarizeTurn } from "../trace";
 import { gradeAnswer, goldText, parseAnswer } from "./answer";
 import { nameOf } from "./describe";
-import type { Puzzle, PuzzleType } from "./types";
+import type { Gold, Puzzle, PuzzleType } from "./types";
 
 export type PuzzleRow = {
   id: string;
@@ -161,18 +161,21 @@ const hash = (s: string) => [...s].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt
 export function scriptedReply(puzzle: Puzzle, catalog: Catalog): string {
   const bucket = hash(puzzle.id) % 20;
   const { gold } = puzzle;
-  const block = (value: unknown) => `\`\`\`json\n${JSON.stringify({ [gold.key]: value })}\n\`\`\``;
-  const right = (): unknown => {
-    if (gold.mode === "number") return gold.value;
-    const ids = [...gold.value].reverse();
+  const block = (value: unknown) => `\`\`\`json\n${JSON.stringify(gold.mode === "all" ? value : { [gold.key]: value })}\n\`\`\``;
+  const right = (g: Gold): unknown => {
+    if (g.mode === "all") return Object.fromEntries(g.parts.map((p) => [p.key, right(p)]));
+    if (g.mode === "number") return g.value;
+    const ids = [...g.value].reverse();
     return bucket % 2 ? ids.map((id) => `${nameOf(catalog, id)} (${id})`) : ids;
   };
-  const wrong = (): unknown => {
-    if (gold.mode === "number") return gold.value + (bucket % 2 ? 1000 : -1000);
-    return gold.value.length ? gold.value.slice(0, -1) : ["OP01-001"];
+  const wrong = (g: Gold): unknown => {
+    // A chain is wrong in its first part only: the other parts stay right.
+    if (g.mode === "all") return Object.fromEntries(g.parts.map((p, i) => [p.key, i === 0 ? wrong(p) : right(p)]));
+    if (g.mode === "number") return g.value + (bucket % 2 ? 1000 : -1000);
+    return g.value.length ? g.value.slice(0, -1) : ["OP01-001"];
   };
-  if (bucket < 4) return `Scripted dry-run answer (deliberately wrong).\n${block(wrong())}`;
+  if (bucket < 4) return `Scripted dry-run answer (deliberately wrong).\n${block(wrong(gold))}`;
   if (bucket === 4) return "Scripted dry-run answer with no JSON block.";
-  if (bucket === 5) return `First thought:\n${block(wrong())}\nOn reflection:\n${block(right())}`;
-  return `Scripted dry-run answer.\n${block(right())}`;
+  if (bucket === 5) return `First thought:\n${block(wrong(gold))}\nOn reflection:\n${block(right(gold))}`;
+  return `Scripted dry-run answer.\n${block(right(gold))}`;
 }

@@ -22,7 +22,7 @@ export function usableRow(row: CardScenario): boolean {
   return pending === undefined || pending === "none";
 }
 
-type Ask = { seat: Seat; key: string; gold: Gold; question: (catalog: Catalog) => string; schema: string };
+type Ask = { seat: Seat; key: string; gold: Exclude<Gold, { mode: "all" }>; question: (catalog: Catalog) => string; schema: string };
 
 /** The questions a row can answer: one per statement it makes about hand, field, trash, Life, active DON!! and power. */
 export function asksOf(row: CardScenario): Ask[] {
@@ -147,6 +147,42 @@ export function scenarioPuzzles(catalog: Catalog): Puzzle[] {
       if (!text) continue;
       out.push({ id: `scenario-${n}-${ask.key}-s${ask.seat}`, type: "scenario", tags: [source], newSet: hasNewSet(ids), source: `scenario ${source}: ${row.card} ${row.name}`, position: text.position, cards: ids, question, schema: ask.schema, message: text.message, gold: ask.gold });
     }
+  });
+  return out;
+}
+
+/** The JSON field of one ask in a chain: "my_hand", "opp_trash", "my_power_<card number>". */
+export const chainKey = (ask: Pick<Ask, "seat" | "key">): string => `${ask.seat === 0 ? "my" : "opp"}_${ask.key.replace(":", "_")}`;
+
+const schemaOf = (gold: Gold): string => (gold.mode === "number" ? "<number>" : '["<card number>", ...]');
+
+/** "After these steps, which cards ..." as a list item: the shared lead-in goes once above the list. */
+const itemOf = (question: string): string => {
+  const body = question.replace(/^After these steps, /, "");
+  return body.charAt(0).toUpperCase() + body.slice(1);
+};
+
+/**
+ * One puzzle per usable row with at least two statements (#685): all of the row's questions at once, answered in one JSON object.
+ * It is right only when every part is, so a model that tracks the setup but slips on one number still misses.
+ */
+export function scenarioChainPuzzles(catalog: Catalog): Puzzle[] {
+  const out: Puzzle[] = [];
+  SCENARIO_ROWS.forEach(({ source, row }, n) => {
+    if (!usableRow(row)) return;
+    const asks = asksOf(row);
+    if (asks.length < 2) return;
+    const setup = setupLines(row, catalog);
+    const steps = stepLines(row, catalog);
+    const ids = [...new Set([...setup.ids, ...steps.ids])];
+    const head = [...setup.lines, ...(steps.lines.length ? ["Then, in order:", ...steps.lines] : ["Nothing is played or activated; answer for the position as described."])];
+    const parts: Gold[] = asks.map((a) => ({ ...a.gold, key: chainKey(a) }));
+    const keys = parts.map((p) => p.key);
+    const question = ["After these steps, answer every one of these. Put each answer in the JSON field named before it:", ...asks.map((a, i) => `- ${keys[i]}: ${itemOf(a.question(catalog))}`)].join("\n");
+    const schema = `{${parts.map((p) => `"${p.key}": ${schemaOf(p)}`).join(", ")}}`;
+    const text = assemble(catalog, head, ids, question, schema);
+    if (!text) return;
+    out.push({ id: `scenario_chain-${n}`, type: "scenario_chain", tags: [source, `${asks.length}-parts`], newSet: hasNewSet(ids), source: `scenario ${source}: ${row.card} ${row.name}`, position: text.position, cards: ids, question, schema, message: text.message, gold: { key: "all", mode: "all", parts } });
   });
   return out;
 }

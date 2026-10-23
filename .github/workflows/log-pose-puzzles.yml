@@ -1,7 +1,7 @@
 name: Log Pose puzzles
 
-# Manual only: the paid rules-puzzle eval (analyst/evals/puzzles, #677). Roughly $0.05-0.10 per puzzle, so the default 25 per
-# type (125 puzzles) can reach the $5 cap (see analyst/README.md). Never scheduled. Positions come from bot self-play (current meta decks) and Harness boards, the
+# Manual only: the paid rules-puzzle eval (analyst/evals/puzzles, #677; the defend, lethal and scenario_chain types are #685).
+# Roughly $0.05-0.10 per puzzle, so the default 25 per type (200 puzzles) can reach the $5 cap (see analyst/README.md). Never scheduled. Positions come from bot self-play (current meta decks) and Harness boards, the
 # gold answer comes from the duel engine, and Log Pose answers through the production chat path with its tools.
 # Needs the ANTHROPIC_API_KEY secret; the meta decks come from the public backend (ANALYST_API_URL), and without it
 # self-play uses random decks.
@@ -18,8 +18,8 @@ on:
         description: "Puzzle seed"
         default: "1"
       types:
-        description: "Comma list of types (power,counter_needed,playable,can_attack,scenario)"
-        default: "power,counter_needed,playable,can_attack,scenario"
+        description: "Comma list of types (power,counter_needed,playable,can_attack,scenario,defend,lethal,scenario_chain)"
+        default: "power,counter_needed,playable,can_attack,scenario,defend,lethal,scenario_chain"
       max_usd:
         description: "Stop dispatching past this spend"
         default: "5"

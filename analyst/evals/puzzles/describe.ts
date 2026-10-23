@@ -37,8 +37,11 @@ function piece(state: MatchState, seat: Seat, catalog: Catalog, c: CardInstance,
   return `${labelOf(catalog, c.defId)}, ${bits.join(", ")}`;
 }
 
-/** One seat's public side of the table. `own` also lists the hand; the other side's hand is only a count. */
-export function describeSeat(state: MatchState, seat: Seat, catalog: Catalog, label: "Your" | "Opponent's", opts: { attackerId?: string } = {}): string[] {
+/**
+ * One seat's public side of the table. `own` also lists the hand; the other side's hand is only a count, unless `showHand`
+ * says the puzzle shows it face up (#685).
+ */
+export function describeSeat(state: MatchState, seat: Seat, catalog: Catalog, label: "Your" | "Opponent's", opts: { attackerId?: string; showHand?: boolean } = {}): string[] {
   const p = state.players[seat];
   const rested = p.costArea.filter((d) => d.rested).length;
   const own = label === "Your";
@@ -49,13 +52,13 @@ export function describeSeat(state: MatchState, seat: Seat, catalog: Catalog, la
     `${label} Stage: ${p.stage ? mark(p.stage) : "none"}`,
     `${label} Life: ${p.life.length}. Deck: ${p.deck.length}. DON!!: ${p.costArea.length - rested} active, ${rested} rested in the cost area, ${p.attachedDons.length} attached, ${p.donDeck.length} in the DON!! deck.`,
     `${label} trash (${p.trash.length}): ${p.trash.length ? countedList(catalog, p.trash) : "empty"}`,
-    own ? `Your hand (${p.hand.length}): ${p.hand.length ? p.hand.map((c) => labelOf(catalog, c.defId)).join("; ") : "empty"}` : `Opponent's hand: ${p.hand.length} cards (hidden).`,
+    own || opts.showHand ? `${label} hand (${p.hand.length}): ${p.hand.length ? p.hand.map((c) => labelOf(catalog, c.defId)).join("; ") : "empty"}` : `Opponent's hand: ${p.hand.length} cards (hidden).`,
   ];
 }
 
-/** Every card id the position shows, own side first: Leaders, Characters, Stages, then the viewer's hand. */
-export function shownCardIds(state: MatchState, view: Seat, extra: readonly string[] = []): string[] {
-  const ids = [...boardCards(state, view), ...boardCards(state, (1 - view) as Seat), ...state.players[view].hand].map((c) => c.defId);
+/** Every card id the position shows, own side first: Leaders, Characters, Stages, then the viewer's hand (and the other hand when `bothHands`). */
+export function shownCardIds(state: MatchState, view: Seat, extra: readonly string[] = [], bothHands = false): string[] {
+  const ids = [...boardCards(state, view), ...boardCards(state, (1 - view) as Seat), ...state.players[view].hand, ...(bothHands ? state.players[(1 - view) as Seat].hand : [])].map((c) => c.defId);
   return [...new Set([...ids, ...extra])];
 }
 
