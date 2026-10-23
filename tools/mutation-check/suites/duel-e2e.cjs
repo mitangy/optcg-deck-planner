@@ -1036,5 +1036,7 @@ module.exports = {
     { id: "e2e-hand-room-not-measured", args: "phone-popup-off-hand --project=phone-375", file: "duel-web/src/board/useHudHeight.ts", from: "set(\"--hand-room\", top == null ? 0 : Math.max(0, Math.round(window.innerHeight - top)));", to: "set(\"--hand-room\", 0);", kills: [...POPUP_OFF_HAND_PORTRAIT_FLOAT, ...POPUP_OFF_HAND_PORTRAIT_TRIGGER] },
     { id: "e2e-life-trigger-ignores-hand-room", args: "phone-popup-off-hand --project=phone-375", file: "duel-web/src/board.css", from: "  --prompt-base-bottom: calc(var(--hand-room, 6.25rem) + 0.5rem);\n", to: "", kills: [...POPUP_OFF_HAND_PORTRAIT_TRIGGER] },
     { id: "e2e-float-hint-stays-below-cards", args: "phone-popup-off-hand --project=phone-375", file: "duel-web/src/board/FloatingPrompt.tsx", from: "  const portrait = !useMediaQuery(WIDE_BOARD_QUERY);", to: "  const portrait = false;", kills: ["phone-popup-off-hand.spec.ts > the look pop-up's hint sits under its title and Hide sits in the bar on a portrait phone (#663) [phone-375]"] },
+    // Hand cards an effect stops you playing (#671)
+    { id: "e2e-blocked-hand-caption-not-passed", args: "gameplay-toggles -g \"blocked by an effect\"", file: "duel-web/src/board/DuelBoard.tsx", from: '          blocked={yourTurn && view?.phase === "main" ? c.blocked : undefined}\n', to: "", kills: ["gameplay-toggles.spec.ts > a hand Character blocked by an effect says Can't play with the reason, an Event does not (#671)"] },
   ],
 };

@@ -315,8 +315,10 @@ export type PlayerView = {
     /**
      * Own hand only. `playCost` is the live cost on your main phase; `counter` is the
      * live Counter (printed plus "+N Counter" statics) during your counter step.
+     * `blocked` (your main phase only) is set when an effect stops you playing this card this
+     * turn: no Characters, no Events, or nothing from hand (e.g. after Alvida).
      */
-    hand: { id: string; defId: string; playCost?: number; counter?: number }[];
+    hand: { id: string; defId: string; playCost?: number; counter?: number; blocked?: "characters" | "events" | "from_hand" }[];
     handCount?: number;
     deckCount: number;
     trash: string[];
