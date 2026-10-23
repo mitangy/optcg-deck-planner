@@ -39,6 +39,8 @@ import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } fr
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
 import { UsageView } from "./UsageView";
+import { FeedbackBar, useFeedback } from "./Feedback";
+import { answerStart, targetKey } from "./feedback";
 import { ModelPicker } from "./ModelPicker";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadId, writeThreadId } from "./threadStore";
@@ -243,7 +245,10 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; plans?: TurnPlan[]; stopped?: boolean };
+type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; plans?: TurnPlan[]; stopped?: boolean;
+  /** The answer is stored in the thread (it finished, or it came from the saved thread), so it can be rated (#679). */
+  saved?: boolean;
+};
 
 /** How an answer changes the player's credit: its done event carries the new figures; a refusal switches the input for a notice. */
 type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode) => void; refresh: () => void };
@@ -277,7 +282,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
         if (!t) {
           writeThreadId(null);
           setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [], proposals: m.proposals ?? [] }))));
+        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [], proposals: m.proposals ?? [], saved: true }))));
       })
       .catch(() => setError("Could not load your last chat."))
       .finally(() => setHistory("done"));
@@ -318,6 +323,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onPlan: (plan) => patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), stampPlan(plan, context)] })),
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
+              patchLast((m) => ({ ...m, saved: true }));
               if (!isOpen()) onUnread();
               credit.apply(d);
               credit.refresh();
@@ -924,8 +930,11 @@ function LogPosePanel({
     inputRef.current?.focus({ preventScroll: true });
   };
 
+  const feedback = useFeedback(apiBase, showChat && chat.threadId !== null ? { threadId: chat.threadId } : null);
+  /** Where an answer stands among the thread's stored answers: only saved answers with text count, as the server counts them. */
+  const answerNumber = (i: number) => chat.messages.slice(0, i).filter((x) => x.role === "assistant" && x.saved && x.text.trim()).length;
   const starters = game?.starters ?? page?.starters ?? [];
-  const empty = chat.messages.length === 0 && chat.history !== "loading";
+  const empty =chat.messages.length === 0 && chat.history !== "loading";
   const chipLabel = game?.label ?? page?.label;
   const showChip = Boolean(chipLabel) && !dropped;
   const aboutHint = extra?.hint;
@@ -1050,6 +1059,12 @@ function LogPosePanel({
             <div key={i} className="lp-msg lp-msg-assistant">
               {m.text ? <CitedAnswer text={m.text} citations={m.citations} done={!(chat.busy && i === chat.messages.length - 1)} /> : null}
               {m.stopped ? <p className="lp-stopped">Stopped.</p> : null}
+              {m.saved && m.text.trim() && chat.threadId !== null && !(chat.busy && i === chat.messages.length - 1)
+                ? (() => {
+                    const target = { kind: "chat" as const, threadId: chat.threadId, index: answerNumber(i), startsWith: answerStart(m.text) };
+                    return <FeedbackBar key={targetKey(target)} what="this answer" vote={feedback.votes.get(targetKey(target))} onSend={(rating, note) => feedback.rate(target, rating, note)} />;
+                  })()
+                : null}
               {(m.proposals ?? []).map((p) => (
                 <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} onAskAgain={() => submit(ASK_AGAIN)} />
               ))}

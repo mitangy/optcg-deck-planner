@@ -102,3 +102,5 @@ export { RequestAccessView, RequestsList } from "./AccessViews";
 export { UsageView } from "./UsageView";
 export { getModelSetting, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 export { ModelPicker } from "./ModelPicker";
+export { FeedbackBar, useFeedback } from "./Feedback";
+export { answerStart, fetchVotes, postFeedback, targetKey, type FeedbackTarget, type Rating, type Vote } from "./feedback";

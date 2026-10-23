@@ -90,33 +90,50 @@ export function BarChart({
   );
 }
 
-/** Score % over time: one point per run on a time axis, with an optional vertical marker at `markerAt`. */
-export function ScoreChart({ points, markerAt, markerLabel }: { points: { at: number; pct: number; label: string }[]; markerAt: number | null; markerLabel: string }) {
+/**
+ * One value per run over time on a time axis, with an optional vertical marker at `markerAt`. `scale` is the Y range
+ * and `format` writes a value for the axis, the dots and the tooltips (a score is "87.0%", a metric "0.85").
+ */
+export function TrendChart({
+  points,
+  scale,
+  format,
+  name,
+  markerAt,
+  markerLabel,
+  hint,
+}: {
+  points: { at: number; value: number; label: string }[];
+  scale: { min: number; max: number };
+  format: (value: number) => string;
+  name: string;
+  markerAt: number | null;
+  markerLabel: string;
+  hint?: string;
+}) {
   if (points.length === 0) return <p className="panel-copy adm-muted">No eval runs recorded yet.</p>;
   const times = [...points.map((p) => p.at), ...(markerAt != null ? [markerAt] : [])];
   const lo = Math.min(...times);
   const span = Math.max(Math.max(...times) - lo, 1);
   const pad = 6;
   const x = (t: number) => pad + ((t - lo) / span) * (100 - 2 * pad);
-  const floor = Math.min(...points.map((p) => p.pct));
-  // Zoom the Y axis to the data, 10-point steps, so a few points of change are visible.
-  const yMin = Math.max(0, Math.floor((floor - 5) / 10) * 10);
-  const yScale = (p: number) => ((p - yMin) / (100 - yMin)) * 88 + 6;
-  const poly = points.map((p) => `${x(p.at)},${100 - yScale(p.pct)}`).join(" ");
+  const yMin = scale.min;
+  const yScale = (p: number) => ((Math.min(Math.max(p, yMin), scale.max) - yMin) / Math.max(scale.max - yMin, 1e-9)) * 88 + 6;
+  const poly = points.map((p) => `${x(p.at)},${100 - yScale(p.value)}`).join(" ");
   return (
-    <figure className="adm-chart" aria-label="Eval score over time">
+    <figure className="adm-chart" aria-label={`${name} over time`}>
       <div className="adm-chart-plot adm-score-plot" style={{ height: 150 }}>
-        <span className="adm-chart-max">100%</span>
-        <span className="adm-chart-min">{yMin}%</span>
+        <span className="adm-chart-max">{format(scale.max)}</span>
+        <span className="adm-chart-min">{format(yMin)}</span>
         <div className="adm-chart-area">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Eval score over time">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`${name} over time`}>
           <line x1="0" y1="99.5" x2="100" y2="99.5" className="adm-axis" vectorEffect="non-scaling-stroke" />
           {markerAt != null ? <line x1={x(markerAt)} x2={x(markerAt)} y1="0" y2="100" className="adm-marker" vectorEffect="non-scaling-stroke" /> : null}
           {points.length > 1 ? <polyline points={poly} className="adm-line" vectorEffect="non-scaling-stroke" /> : null}
         </svg>
         {points.map((p) => (
-          <span key={p.at} className={`adm-dot${x(p.at) > 70 ? " flip" : ""}`} style={{ left: `${x(p.at)}%`, bottom: `${yScale(p.pct)}%` }} title={`${p.label}: ${p.pct.toFixed(1)}%`}>
-            <b>{p.pct.toFixed(1)}%</b>
+          <span key={p.at} className={`adm-dot${x(p.at) > 70 ? " flip" : ""}`} style={{ left: `${x(p.at)}%`, bottom: `${yScale(p.value)}%` }} title={`${p.label}: ${format(p.value)}`}>
+            <b>{format(p.value)}</b>
           </span>
         ))}
         </div>
@@ -124,7 +141,8 @@ export function ScoreChart({ points, markerAt, markerLabel }: { points: { at: nu
       <figcaption className="adm-legend">
         <span className="adm-legend-item">
           <i style={{ background: "var(--chrome)" }} />
-          Eval score
+          {name}
+          {hint ? ` (${hint})` : ""}
         </span>
         {markerAt != null ? (
           <span className="adm-legend-item">

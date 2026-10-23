@@ -1026,11 +1026,45 @@ class AnalystEvalRun(Base):
     run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     label: Mapped[str] = mapped_column(String(120), default="")
     model: Mapped[str] = mapped_column(String(64), default="")
-    # Score in cases (a case's mean over its reps), out of total.
+    # Which eval: main | review_facts | puzzles | deck_advice (EVAL_SUITES in routers/admin.py). Older rows are main.
+    suite: Mapped[str] = mapped_column(String(16), default="main", server_default="main", index=True)
+    # Score in cases (a case's mean over its reps), out of total. 0 of 0 for a run that only has a headline metric.
     correct: Mapped[float] = mapped_column(Float)
     total: Mapped[int] = mapped_column(Integer)
+    # The headline for suites that are not a score, e.g. "Wrong claims per review" 0.8, lower is better (#679).
+    metric_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    metric_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lower_is_better: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # JSON: {"A": {"correct": 15, "total": 15}, ...}
     groups: Mapped[str] = mapped_column(Text, default="{}")
     spend_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AnalystFeedback(Base):
+    """A player's 👍 / 👎 / "This is wrong" on one Log Pose chat answer or match review (#679).
+
+    One row per player per answer: voting again replaces the rating and note. The excerpt is the start of the answer
+    as stored, so the admin can read what was rated without opening the player's thread.
+    """
+
+    __tablename__ = "analyst_feedback"
+    __table_args__ = (UniqueConstraint("user_id", "target", name="uq_analyst_feedback_user_target"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(8))  # chat | review
+    # "chat:<thread_id>:<answer index>" or "review:<match_id>": what was rated, unique per player.
+    target: Mapped[str] = mapped_column(String(80))
+    thread_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    message_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    match_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    rating: Mapped[str] = mapped_column(String(8))  # up | down | wrong
+    note: Mapped[str] = mapped_column(Text, default="")
+    answer_excerpt: Mapped[str] = mapped_column(Text, default="")
+    # The player's question that the chat answer replied to (empty for a review); turns a "wrong" into an eval case.
+    question_excerpt: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str] = mapped_column(String(64), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

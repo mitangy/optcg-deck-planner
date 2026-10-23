@@ -10,6 +10,7 @@
  *   --model <id>             review model, default CHAT_MODEL        --extractor-model <id>   default claude-haiku-5-5
  *   --max-usd <n>            stop dispatching past this measured spend (default 5)      --concurrency <n>   default 3
  *   --model-api anthropic|scripted
+ *   --post                   send the run to the admin page as the review_facts suite (needs ANALYST_API_URL + ANALYST_SERVICE_SECRET; not in a dry run)
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -25,7 +26,8 @@ import { scriptedModel, textReply } from "../scripted";
 import { EXTRACTOR_MODEL, anthropicExtractor, scriptedExtractor } from "./extract";
 import { gameFacts } from "./facts";
 import { evaluateReview, scriptedReview, type ClaimRow, type ReviewRow } from "./pipeline";
-import { renderReport } from "./report";
+import { postEvalRun } from "../post";
+import { renderReport, reviewFactsRunPayload } from "./report";
 
 const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
 const META_DECKS = "/mnt/project-files/self-play-bots/meta-decks-2026-10-18.json";
@@ -44,6 +46,7 @@ const { values: f } = parseArgs({
     "max-usd": { type: "string", default: "5" },
     concurrency: { type: "string", default: "3" },
     "model-api": { type: "string", default: "anthropic" },
+    post: { type: "boolean", default: false },
   },
 });
 
@@ -137,4 +140,9 @@ rows.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 const report = renderReport({ variant, mode: scripted ? "scripted" : "anthropic", model, extractorModel: scripted ? "scripted-extractor" : extractorModel, source, rows, claims, errors, stoppedAtCap, maxUsd });
 writeFileSync(join(dir, "report.md"), report);
 console.log(`report: ${join(dir, "report.md")}`);
+if (f.post) {
+  if (scripted) console.error("--post skipped: a --model-api scripted run says nothing about Log Pose.");
+  else if (!rows.length) console.error("--post skipped: no review finished.");
+  else console.log((await postEvalRun(reviewFactsRunPayload({ variant, model, rows }))).message);
+}
 process.exit(errors.length ? 1 : 0);

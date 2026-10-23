@@ -146,3 +146,28 @@ ANTHROPIC_API_KEY=... npm run eval:review-facts -- --n 20 --max-usd 5   # paid, 
 Flags: `--seed`, `--levels normal,normal`, `--decks <json>` (default: the meta decks file when present), `--games <jsonl>` (replays from a file, such as the bot corpus; games that no longer replay are skipped), `--seat 0|1|both` (default alternates), `--model`, `--extractor-model`, `--concurrency`, `--variant`. Output is `evals/out/review-facts/<variant>/`: `reviews.jsonl`, `claims.jsonl` (each claim with its verdict and reason) and `report.md`.
 
 Verdicts: `supported`; `contradicted` (it did not happen, or the card is in neither deck); `wrong_turn` (it happened, but on another turn than the review says); `unverifiable` (the checker cannot decide: opinions, an ambiguous or unknown card name, a game that stopped replaying). Claims whose quote is not in the review are dropped and counted. The headline numbers are wrong claims per review (contradicted plus wrong turn) and the wrong share of checkable claims (supported plus wrong) with a 95% Wilson interval; claims in one review are not independent, so the interval is optimistic. Unverifiable claims are never counted as wrong, so the share is a floor on the true error rate. The checker's rules are in the header of `check.ts`.
+
+`--post` saves the run to the admin page's Bots & Log Pose tab as the `review_facts` suite (headline: wrong claims per review, lower is better). A `--model-api scripted` run is never posted.
+
+### Posting a run to the admin page (#679)
+
+Every eval's `--post` goes through `evals/post.ts`, so each suite gets its own trend line on the admin page:
+
+```ts
+import { postEvalRun } from "../post"; // from analyst/evals/<suite>/run.ts
+const res = await postEvalRun({
+  suite: "puzzles",            // main | review_facts | puzzles | deck_advice (anything else is a 422)
+  label: variant, model,       // shown in the history table
+  correct: 41, total: 50,      // a score, when the suite has one (leave both out for metric-only runs)
+  groups: { A: { correct: 10, total: 12 } }, // optional breakdown
+  metric_name: "Wrong claims per review", metric_value: 0.85, lower_is_better: true, // optional headline
+  spend_usd: 3.2, notes: "20 games",
+});
+console.log(res.message); // never throws; { ok, message }
+```
+
+It needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`. The rules puzzles eval posts `suite: "puzzles"` with correct/total; the deck advice eval posts `suite: "deck_advice"` with its score (or a metric). In the workflow, add a `post` boolean input and the two env vars as `log-pose-eval.yml` does. Put the same string in your suite's `--post` help.
+
+### Draft cases from player feedback (#679)
+
+Players can rate Log Pose answers (thumbs up, thumbs down, "This is wrong"). `npm run feedback-cases -w @optcg/analyst` (needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`) writes the "wrong" ones to `evals/out/feedback-cases.jsonl` as stubs: the question, the stored answer, the player's note and a todo. A person decides whether the answer really was wrong and writes the gold before anything goes in `cases.ts`.
