@@ -203,7 +203,7 @@ const res = await postEvalRun({
 console.log(res.message); // never throws; { ok, message }
 ```
 
-It needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`. The rules puzzles eval posts `suite: "puzzles"` with correct/total; the deck advice eval posts `suite: "deck_advice"` with its score (or a metric). In the workflow, add a `post` boolean input and the two env vars as `log-pose-eval.yml` does. Put the same string in your suite's `--post` help.
+It needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`. All four suites post with `--post` (never from a `--model-api scripted` run): the main eval as `main`, review facts as `review_facts` (wrong claims per review, lower is better), the rules puzzles as `puzzles` (correct out of answered, by type), and deck advice as `deck_advice` (mean sabotage recall as the metric; the score is simulated cases whose edit did not lose win rate significantly, left out with `--no-sim`). Each `log-pose-*.yml` workflow has a `post` input (default true) that adds `--post` and checks the two env vars; a new suite's workflow should do the same. Put the same string in your suite's `--post` help.
 
 ### Draft cases from player feedback (#679)
 

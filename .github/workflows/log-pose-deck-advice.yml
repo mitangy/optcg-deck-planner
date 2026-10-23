@@ -37,6 +37,10 @@ on:
       max_usd:
         description: "Stop dispatching past this spend"
         default: "5"
+      post:
+        description: "Save the result to the admin page (needs ANALYST_API_URL and ANALYST_SERVICE_SECRET)"
+        type: boolean
+        default: true
       compare_run_id:
         description: "Optional: run id of an earlier run to compare against (side-by-side judge)"
         default: ""
@@ -59,6 +63,9 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      # For --post: the same URL and secret the main Log Pose eval and the bot self-play job use.
+      ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:
       - name: Check configuration
         run: |
@@ -68,6 +75,10 @@ jobs:
           fi
           if [ -z "$META_API_URL" ]; then
             echo "Set the META_API_URL (or ANALYST_API_URL) repository variable: the eval needs the current meta decks." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${{ inputs.post }}" = "true" ] && { [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; }; then
+            echo "post=true needs ANALYST_API_URL and ANALYST_SERVICE_SECRET." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
       - uses: actions/checkout@v7
@@ -89,8 +100,10 @@ jobs:
           NO_SIM: ${{ inputs.no_sim }}
           LEVELS: ${{ inputs.levels }}
           MAX_USD: ${{ inputs.max_usd }}
+          POST: ${{ inputs.post }}
         run: |
           ARGS=(--variant "$VARIANT" --cases "$CASES" --seed "$SEED" --levels "$LEVELS" --max-usd "$MAX_USD" --decks "$PWD/meta-decks.json")
+          if [ "$POST" = "true" ]; then ARGS+=(--post); fi
           if [ -n "$N" ]; then ARGS+=(--n "$N"); fi
           if [ -n "$SIM_GAMES" ]; then ARGS+=(--sim-games "$SIM_GAMES"); fi
           if [ "$NO_SIM" = "true" ]; then ARGS+=(--no-sim); fi

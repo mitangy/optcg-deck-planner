@@ -1,4 +1,5 @@
 /** report.md for the rules-puzzle eval (#677). */
+import type { EvalRunPost } from "../post";
 import { wilson } from "../stats";
 import type { PuzzleError, PuzzleRow } from "./pipeline";
 import { PUZZLE_TYPES, type Puzzle } from "./types";
@@ -19,6 +20,27 @@ const scoreText = (s: Score) => `${pct(s.accuracy)} (${s.correct}/${s.n}, 95% Wi
 /** The run's headline number: the share of puzzles answered exactly right. */
 export function headline(rows: readonly PuzzleRow[], errors: readonly PuzzleError[], spent: number): string {
   return `puzzles: ${scoreText(scoreOf(rows))}, ${errors.length} errors, ${usd(spent)}`;
+}
+
+/** The run as POST /admin/evals takes it (#679): puzzles answered exactly right out of puzzles answered (as the headline counts them, no answer is wrong), by type. */
+export function puzzlesRunPayload(i: { variant: string; model: string; rows: readonly PuzzleRow[]; errors?: readonly PuzzleError[]; notes?: string }): EvalRunPost {
+  const score = scoreOf(i.rows);
+  const groups: NonNullable<EvalRunPost["groups"]> = {};
+  for (const type of PUZZLE_TYPES) {
+    const s = scoreOf(i.rows.filter((r) => r.type === type));
+    if (s.n) groups[type] = { correct: s.correct, total: s.n };
+  }
+  return {
+    suite: "puzzles",
+    run_at: new Date().toISOString(),
+    label: i.variant,
+    model: i.model,
+    correct: score.correct,
+    total: score.n,
+    groups,
+    spend_usd: Math.round(i.rows.reduce((s, r) => s + r.cost_usd, 0) * 100) / 100,
+    notes: i.notes ?? `${score.n} puzzles answered, ${i.rows.filter((r) => !r.parsed).length} without a usable answer, ${i.errors?.length ?? 0} errors`,
+  };
 }
 
 /** Wrong answers worth reading first: no usable answer, then the rest in puzzle order. */

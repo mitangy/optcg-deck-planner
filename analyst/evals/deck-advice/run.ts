@@ -14,6 +14,7 @@
  *   --model <id>                 chat model, default CHAT_MODEL      --library live|none   ban list and rulings (default live; none when scripted)
  *   --max-usd <n>                stop dispatching past this measured spend (default 5)    --concurrency <n>   default 3
  *   --model-api anthropic|scripted      --timeout-s <n>   per-case ceiling, default 240
+ *   --post                       send the run to the admin page as the deck_advice suite (needs ANALYST_API_URL + ANALYST_SERVICE_SECRET; not in a dry run)
  *
  *   --compare <variantA> <variantB>   side-by-side judge on two runs' answers (paid):
  *       --both-orders <share>    share of cases also judged in the other order (default 0.25)
@@ -32,12 +33,13 @@ import { anthropicModel, CHAT_MODEL } from "../../src/chat";
 import { banListProblems, type BanList } from "../../src/official/banlist";
 import { OfficialLibrary, within } from "../../src/official/library";
 import { loadPlaybook } from "../../src/playbook";
+import { postEvalRun } from "../post";
 import { RUBRIC_MODEL } from "../grade/judge";
 import type { PlannerOptions, StatsFixtures, TournamentFixtures } from "../planner";
 import { anthropicPairLlm, judgeCase, judgedBothWays, judgmentCost, positionBias, preference, scriptedPairLlm, type CaseComparison } from "./compare";
 import { buildCases, type AdviceCase, type CaseMode } from "./cases";
 import { evaluateCase, type AnswerRow, type SimConfig } from "./pipeline";
-import { renderCompareReport, renderReport } from "./report";
+import { deckAdviceRunPayload, renderCompareReport, renderReport } from "./report";
 import { metaFrequency, type MetaDeck } from "./sabotage";
 import { scriptedAdviceModel } from "./scriptedAdvice";
 import { inProcess } from "./sim";
@@ -67,6 +69,7 @@ const { values: f, positionals } = parseArgs({
     concurrency: { type: "string", default: "3" },
     "timeout-s": { type: "string", default: "240" },
     "model-api": { type: "string", default: "anthropic" },
+    post: { type: "boolean", default: false },
     compare: { type: "boolean", default: false },
     "both-orders": { type: "string", default: "0.25" },
     "judge-model": { type: "string" },
@@ -268,5 +271,10 @@ async function generate() {
   });
   writeFileSync(join(dir, "report.md"), report);
   console.log(`report: ${join(dir, "report.md")}`);
+  if (f.post) {
+    if (scripted) console.error("--post skipped: a --model-api scripted run says nothing about Log Pose.");
+    else if (!rows.length) console.error("--post skipped: no case finished.");
+    else console.log((await postEvalRun(deckAdviceRunPayload({ variant, model, rows }))).message);
+  }
   process.exit(errors.length ? 1 : 0);
 }

@@ -1,4 +1,5 @@
 /** report.md for the deck-advice eval (#678), and for a side-by-side comparison. */
+import type { EvalRunPost } from "../post";
 import { mean } from "../stats";
 import { lostSignificantly } from "./sim";
 import type { Preference, PositionBias, CaseComparison } from "./compare";
@@ -44,6 +45,32 @@ export function totals(rows: readonly AnswerRow[]): Totals {
     notLost,
     gained: played.filter((r) => r.sim!.change!.lo > 0).length,
     meanChange: played.length ? mean(played.map((r) => r.sim!.change!.diff)) : null,
+  };
+}
+
+/**
+ * The run as POST /admin/evals takes it (#679): mean sabotage recall (as a percent, higher is better) is the headline; the score is
+ * the simulated cases whose edit did not lose win rate significantly out of the simulated cases, so it is left out with --no-sim.
+ */
+export function deckAdviceRunPayload(i: { variant: string; model: string; rows: readonly AnswerRow[]; notes?: string }): EvalRunPost {
+  const t = totals(i.rows);
+  const groups: NonNullable<EvalRunPost["groups"]> = {};
+  for (const kind of ["meta", "sabotaged"] as const) {
+    const played = i.rows.filter((r) => r.kind === kind && r.sim?.change);
+    if (played.length) groups[kind] = { correct: played.filter((r) => !lostSignificantly(r.sim!.change!)).length, total: played.length };
+  }
+  const round1 = (x: number) => Math.round(x * 1000) / 10;
+  return {
+    suite: "deck_advice",
+    run_at: new Date().toISOString(),
+    label: i.variant,
+    model: i.model,
+    ...(t.meanRecall === null ? {} : { metric_name: "Mean sabotage recall (%)", metric_value: round1(t.meanRecall), lower_is_better: false }),
+    ...(t.simulated ? { correct: t.notLost, total: t.simulated, groups } : {}),
+    spend_usd: Math.round(i.rows.reduce((s, r) => s + r.cost_usd, 0) * 100) / 100,
+    notes:
+      i.notes ??
+      `${t.cases} cases, ${t.sabotaged} sabotaged; recall ${t.meanRecall === null ? "n/a" : pct1(t.meanRecall)}, precision ${t.meanPrecision === null ? "n/a" : pct1(t.meanPrecision)}; edits ${t.withEdits}/${t.cases}, legal ${t.legal}/${t.withEdits}; score = edit did not lose win rate significantly, of ${t.simulated} simulated`,
   };
 }
 

@@ -12,6 +12,7 @@
  *   --model-api anthropic|scripted      --model <id>       default CHAT_MODEL        --library live|none
  *   --max-usd <n>            stop dispatching past this measured spend (default 5)    --concurrency <n>   default 3
  *   --timeout-s <n>          per-puzzle ceiling, default 180       --variant <name>  output folder under evals/out/puzzles
+ *   --post                   send the run to the admin page as the puzzles suite (needs ANALYST_API_URL + ANALYST_SERVICE_SECRET; not in a dry run)
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,9 +25,10 @@ import { OfficialLibrary } from "../../src/official/library";
 import { loadPlaybook } from "../../src/playbook";
 import type { PlannerOptions, StatsFixtures, TournamentFixtures } from "../planner";
 import { scriptedModel, textReply } from "../scripted";
+import { postEvalRun } from "../post";
 import { generatePuzzles } from "./generate";
 import { askAll, scriptedReply } from "./pipeline";
-import { headline, renderReport } from "./report";
+import { headline, puzzlesRunPayload, renderReport } from "./report";
 import { PUZZLE_TYPES, type PuzzleType } from "./types";
 
 const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
@@ -48,6 +50,7 @@ const { values: f } = parseArgs({
     concurrency: { type: "string", default: "3" },
     "timeout-s": { type: "string", default: "180" },
     "model-api": { type: "string", default: "anthropic" },
+    post: { type: "boolean", default: false },
   },
 });
 
@@ -111,4 +114,9 @@ const report = renderReport({ variant, mode: scripted ? "scripted" : "anthropic"
 writeFileSync(join(dir, "report.md"), report);
 console.log(headline(result.rows, result.errors, result.spent) + `, ${((Date.now() - started) / 1000).toFixed(0)}s`);
 console.log(`report: ${join(dir, "report.md")}`);
+if (f.post) {
+  if (scripted) console.error("--post skipped: a --model-api scripted run says nothing about Log Pose.");
+  else if (!result.rows.length) console.error("--post skipped: no puzzle was answered.");
+  else console.log((await postEvalRun(puzzlesRunPayload({ variant, model, rows: result.rows, errors: result.errors }))).message);
+}
 process.exit(result.errors.length ? 1 : 0);
