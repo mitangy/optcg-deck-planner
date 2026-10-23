@@ -41,6 +41,13 @@ class User(Base):
     sum_across_leaders: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false()
     )
+    # "user" | "moderator" | "admin" (see app/roles.py). Only ADMIN_EMAIL is ever admin.
+    role: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
+    # Set while the account is banned (#667); the ban also bumps session_version.
+    banned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ban_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The staff user who banned it. No foreign key: deleting that staff account keeps the ban.
+    banned_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1008,3 +1015,22 @@ class DuelCosmetic(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class AnalystEvalRun(Base):
+    """One run of the Log Pose eval (analyst/evals), shown on the admin page to track accuracy over time."""
+
+    __tablename__ = "analyst_eval_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    model: Mapped[str] = mapped_column(String(64), default="")
+    # Score in cases (a case's mean over its reps), out of total.
+    correct: Mapped[float] = mapped_column(Float)
+    total: Mapped[int] = mapped_column(Integer)
+    # JSON: {"A": {"correct": 15, "total": 15}, ...}
+    groups: Mapped[str] = mapped_column(Text, default="{}")
+    spend_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { startAccountSync } from "../account/accountSync";
 import { claimLoginTicket, googleLoginUrl, mintSessionGameToken } from "../net/api";
-import { MissingTicketError, signInErrorMessage } from "../auth/signInError";
+import { BannedError, MissingTicketError, signInErrorMessage } from "../auth/signInError";
 import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "../auth/username";
 
@@ -22,6 +22,7 @@ export function AuthCompletePage() {
       try {
         const hash = window.location.hash.replace(/^#/, "");
         const params = new URLSearchParams(hash);
+        if (params.get("error") === "banned") throw new BannedError();
         const ticket = params.get("ticket");
         if (!ticket) throw new MissingTicketError();
         const user = await claimLoginTicket(ticket);

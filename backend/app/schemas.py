@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     # Public duel handle; None until the user picks one (duel-web prompts after sign-in).
     username: str | None = None
     sum_across_leaders: bool = False
+    role: str = "user"
 
     model_config = {"from_attributes": True}
 

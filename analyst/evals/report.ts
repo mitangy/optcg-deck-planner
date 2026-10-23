@@ -125,6 +125,33 @@ export function stateFile(rows: readonly Row[], meta: RunMeta) {
   };
 }
 
+/** The run as POST /admin/evals takes it: score in cases (a case's mean over its reps), per group, and the spend. */
+export function evalRunPayload(rows: readonly Row[], meta: RunMeta) {
+  const all = scored(rows);
+  const groups: Record<string, { correct: number; total: number }> = {};
+  let correct = 0;
+  let total = 0;
+  for (const [id, v] of caseMeans(all, "correct")) {
+    const g = all.find((r) => r.case === id)!.group;
+    groups[g] ??= { correct: 0, total: 0 };
+    groups[g].correct += v;
+    groups[g].total += 1;
+    correct += v;
+    total += 1;
+  }
+  for (const g of Object.values(groups)) g.correct = Math.round(g.correct * 100) / 100;
+  return {
+    run_at: new Date().toISOString(),
+    label: meta.variant,
+    model: meta.model,
+    correct: Math.round(correct * 100) / 100,
+    total,
+    groups,
+    spend_usd: Math.round(totalCost(rows) * 100) / 100,
+    notes: `git ${meta.git_sha.slice(0, 8)}, ${meta.reps} reps`,
+  };
+}
+
 export function baselineFrom(rows: readonly Row[], meta: RunMeta, wallS: number, effort = "medium"): Baseline {
   const all = scored(rows);
   const groups: Baseline["groups"] = {};

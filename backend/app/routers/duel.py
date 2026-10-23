@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app import duel_live, redis_client
 from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
+from app.roles import is_banned
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
@@ -284,6 +285,8 @@ def mint_guest_token(
                     status_code=503,
                     detail="Guest mint race; retry",
                 ) from None
+    if is_banned(user):
+        raise HTTPException(status_code=403, detail="Account banned")
     return _token_out(db, user, settings)
 
 

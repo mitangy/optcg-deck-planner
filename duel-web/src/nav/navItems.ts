@@ -11,6 +11,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/settings", label: "Settings" },
 ];
 
+const ADMIN_ITEM: NavItem = { href: "/admin", label: "Admin" };
+
+/** The menu for a signed-in role: staff also get the Admin page. */
+export function navItemsFor(role: string | null | undefined): readonly NavItem[] {
+  return role === "admin" || role === "moderator" ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+}
+
 /** Meta decks owns exactly `/decks/meta`; every other `/decks/...` page belongs to Decks. */
 const EXACT_ONLY = new Set(["/", "/decks/meta"]);
 
@@ -24,5 +31,6 @@ export function activeNavHref(pathname: string): string | null {
     if (EXACT_ONLY.has(href)) continue;
     if (path.startsWith(`${href}/`)) return href;
   }
+  if (path === ADMIN_ITEM.href) return ADMIN_ITEM.href;
   return null;
 }
