@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../net/api";
-import { MissingTicketError, signInErrorMessage } from "./signInError";
+import { BannedError, MissingTicketError, signInErrorMessage } from "./signInError";
 
 describe("signInErrorMessage", () => {
   it("never shows the raw API error text (#262)", () => {
@@ -15,5 +15,10 @@ describe("signInErrorMessage", () => {
     expect(signInErrorMessage(new ApiError(410, "gone"))).toMatch(/expired or was already used/);
     expect(signInErrorMessage(new ApiError(503, "busy"))).toMatch(/try again in a moment/);
     expect(signInErrorMessage(new MissingTicketError())).toMatch(/incomplete/);
+  });
+
+  it("tells a banned account it has been banned instead of asking it to sign in again (#667)", () => {
+    expect(signInErrorMessage(new BannedError())).toBe("This account has been banned.");
+    expect(signInErrorMessage(new ApiError(403, "Account banned"))).toBe("This account has been banned.");
   });
 });

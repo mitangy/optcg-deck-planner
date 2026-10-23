@@ -9,6 +9,7 @@
  *   --max-usd <n>           stop dispatching past this measured spend (default 15)
  *   --planner fake|live     live forwards stats/corpus/tournament reads to PLANNER_API_URL (chat/usage stay local)
  *   --model-api anthropic|scripted      --library live|none     --resume     --selftest     --write-baseline
+ *   --post                  send the run's score to the admin page (POST /admin/evals; needs ANALYST_API_URL + ANALYST_SERVICE_SECRET)
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { execSync } from "node:child_process";
@@ -25,7 +26,7 @@ import { CASES } from "./cases";
 import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "./grade/judge";
 import { loadCases } from "./load";
 import { evalPlanner, type PlannerOptions, type StatsFixtures, type TournamentFixtures } from "./planner";
-import { baselineFrom, renderReport, stateFile, summaryLine } from "./report";
+import { baselineFrom, evalRunPayload, renderReport, stateFile, summaryLine } from "./report";
 import { runEval } from "./runner";
 import { oracleScript, scriptedModel } from "./scripted";
 import { selftest } from "./selftest";
@@ -49,6 +50,7 @@ const { values: f } = parseArgs({
     resume: { type: "boolean", default: false },
     selftest: { type: "boolean", default: false },
     "write-baseline": { type: "boolean", default: false },
+    post: { type: "boolean", default: false },
   },
 });
 
@@ -143,5 +145,23 @@ console.log(`report: ${result.dir}/report.md`);
 if (f["write-baseline"]) {
   writeFileSync(here("baseline.json"), `${JSON.stringify(baselineFrom(result.rows, meta, wallS), null, 2)}\n`);
   console.log("wrote evals/baseline.json (commit it with the change it measured)");
+}
+if (f.post) {
+  const url = process.env.ANALYST_API_URL;
+  const secret = process.env.ANALYST_SERVICE_SECRET;
+  if (!url || !secret) {
+    console.error("--post needs ANALYST_API_URL and ANALYST_SERVICE_SECRET; not posted.");
+  } else {
+    try {
+      const res = await fetch(`${url.replace(/\/$/, "")}/admin/evals`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-analyst-service": secret },
+        body: JSON.stringify(evalRunPayload(result.rows, meta)),
+      });
+      console.log(res.ok ? "posted the run to /admin/evals" : `post to /admin/evals failed: HTTP ${res.status}`);
+    } catch (e) {
+      console.error(`post to /admin/evals failed: ${e instanceof Error ? e.message : e}`);
+    }
+  }
 }
 process.exit(result.errors.length ? 1 : 0);

@@ -1,0 +1,772 @@
+/* Admin page (#667). Uses the shared palette tokens, so every theme and light mode follow. */
+
+.adm-page {
+  max-width: 1100px;
+}
+
+.adm-role {
+  margin-left: auto;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.adm-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.adm-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+}
+
+.adm-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.adm-tab {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adm-tab[aria-selected="true"] {
+  background: rgb(var(--chrome-rgb) / 0.16);
+  border-color: var(--chrome);
+  color: var(--ink);
+}
+
+.adm-refresh {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+}
+
+.adm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  /* Loading, error and data share a floor, so the footer does not jump. */
+  min-height: 16rem;
+}
+
+.adm-muted {
+  color: var(--muted);
+}
+
+.adm-error {
+  margin: 0;
+  color: var(--crimson-bright);
+  font-size: 0.85rem;
+}
+
+.adm-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.adm-sub {
+  margin: 0.4rem 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+/* —— Tiles —— */
+
+.adm-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.adm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--arena-panel);
+}
+
+.adm-tiles-inner .adm-tile {
+  background: var(--arena-mid);
+}
+
+.adm-tile-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.adm-tile-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* —— Charts —— */
+
+.adm-chart {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.adm-chart-plot {
+  position: relative;
+  min-width: 0;
+}
+
+.adm-chart-area {
+  position: absolute;
+  inset: 0 0 0 2.1rem;
+}
+
+.adm-chart-area svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.adm-chart-max,
+.adm-chart-min {
+  position: absolute;
+  left: 0;
+  font-size: 0.6rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-chart-max {
+  top: -0.15rem;
+}
+
+.adm-chart-min {
+  bottom: -0.15rem;
+}
+
+.adm-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.adm-marker {
+  stroke: var(--crimson-bright);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.adm-line {
+  fill: none;
+  stroke: var(--chrome);
+  stroke-width: 2;
+}
+
+.adm-score-plot {
+  margin: 1.2rem 0.75rem 0.2rem 0;
+}
+
+.adm-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: 0 0 -5px -5px;
+  border-radius: 50%;
+  background: var(--chrome);
+  border: 2px solid var(--arena-panel);
+}
+
+.adm-dot.flip b {
+  left: auto;
+  right: 14px;
+}
+
+.adm-run-date {
+  display: none;
+}
+
+.adm-sticky {
+  position: sticky;
+  left: 0;
+  background: var(--arena-panel);
+  z-index: 1;
+}
+
+.adm-dot b {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-chart-days {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-left: 2.1rem;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.adm-chart-flag {
+  color: var(--crimson-bright);
+}
+
+.adm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.adm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.adm-legend-item i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+}
+
+.adm-legend-item i.adm-legend-line {
+  height: 0;
+  width: 0.9rem;
+  border-radius: 0;
+  border-top: 2px dashed var(--crimson-bright);
+}
+
+/* —— Top leaders —— */
+
+.adm-leaders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.adm-leader {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 2rem 3.2rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.adm-leader-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-leader-name small,
+.adm-uname small,
+.adm-run small,
+.adm-rows small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.adm-leader-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgb(var(--chrome-rgb) / 0.1);
+  overflow: hidden;
+}
+
+.adm-leader-bar i {
+  display: block;
+  height: 100%;
+  background: var(--chrome);
+}
+
+.adm-leader-num,
+.adm-leader-win {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-leader-win {
+  color: var(--muted);
+}
+
+/* —— Verdict + eval table —— */
+
+.adm-verdict-compared {
+  border-color: var(--line-strong);
+}
+
+.adm-verdict-text {
+  font-size: 1rem;
+}
+
+.adm-groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.4rem 1rem;
+  font-size: 0.82rem;
+}
+
+.adm-groups li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.adm-groups b.up {
+  color: var(--ok);
+}
+
+.adm-groups b.down {
+  color: var(--crimson-bright);
+}
+
+.adm-table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.adm-table th {
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.adm-table td {
+  padding: 0.55rem 0.6rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.adm-table .num,
+.adm-uhead .num,
+.adm-urow .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-table td.num small {
+  display: block;
+}
+
+.adm-run {
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  white-space: normal;
+  max-width: 24rem;
+}
+
+.adm-run-notes {
+  max-width: 22rem;
+}
+
+/* —— Hosting —— */
+
+.adm-placeholder {
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+}
+
+.adm-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-rows li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 3.6rem;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+
+.adm-rows li:last-child {
+  border-bottom: 0;
+}
+
+.adm-rows-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.adm-rows-main b,
+.adm-rows-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-rows-when {
+  text-align: right;
+}
+
+.adm-inline-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.adm-inline-stats b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-pill {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.adm-pill-ok {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.adm-pill-bad {
+  border-color: var(--crimson-bright);
+  color: var(--crimson-bright);
+}
+
+.adm-pill-mid {
+  color: var(--muted);
+}
+
+/* —— Users —— */
+
+.adm-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  min-width: 0;
+}
+
+.adm-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.adm-search input {
+  width: 100%;
+  min-height: 44px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.adm-search input:focus-visible,
+.adm-urole select:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.adm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--chrome);
+}
+
+.adm-count {
+  min-width: 5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-urows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 12rem;
+}
+
+.adm-urows-note {
+  margin: 0.75rem 0;
+}
+
+.adm-urow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem 4.5rem 6.5rem 11.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.adm-uhead {
+  padding-block: 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-ucell {
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.adm-uname {
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-uname b,
+.adm-uname > small:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-banned {
+  margin-top: 0.15rem;
+  overflow-wrap: anywhere;
+}
+
+.adm-urow.banned {
+  background: rgb(var(--sea-rgb) / 0);
+  box-shadow: inset 3px 0 0 var(--crimson-bright);
+  padding-left: 0.6rem;
+}
+
+.adm-urole select {
+  width: 100%;
+  min-height: 36px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.adm-uact {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.adm-uact .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.adm-more {
+  align-self: center;
+  min-width: 8rem;
+}
+
+@media (max-width: 760px) {
+  .adm-grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-uhead {
+    display: none;
+  }
+
+  .adm-col-date {
+    display: none;
+  }
+
+  .adm-run-date {
+    display: block;
+  }
+
+  .adm-run {
+    min-width: 8rem;
+    max-width: 11rem;
+  }
+
+  /* Phone list: name and role on top, then matches / joined, then the buttons. */
+  .adm-urow {
+    grid-template-columns: minmax(0, 1fr) 8rem;
+    grid-template-areas:
+      "name role"
+      "matches joined"
+      "act act";
+    row-gap: 0.4rem;
+    padding: 0.7rem 0.25rem;
+  }
+
+  .adm-uname {
+    grid-area: name;
+  }
+
+  .adm-urole {
+    grid-area: role;
+    justify-self: end;
+  }
+
+  .adm-urow > .num,
+  .adm-urow > [data-label="Joined"] {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .adm-urow > .num {
+    grid-area: matches;
+    text-align: left;
+  }
+
+  .adm-urow > [data-label="Joined"] {
+    grid-area: joined;
+    text-align: right;
+  }
+
+  .adm-urow > .num::before {
+    content: "Matches ";
+  }
+
+  .adm-urow > [data-label="Joined"]::before {
+    content: "Joined ";
+  }
+
+  .adm-uact {
+    grid-area: act;
+    justify-content: stretch;
+  }
+
+  .adm-uact .btn {
+    min-height: 44px;
+  }
+
+  .adm-tile-value {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-height: 480px) {
+  .adm-body {
+    min-height: 0;
+  }
+}
+
+/* Delete is quiet until hovered or focused; same box as Ban, so nothing shifts. */
+.adm-uact .adm-delete {
+  background: transparent;
+  color: var(--crimson-bright);
+  border-color: var(--crimson-bright);
+}
+
+.adm-uact .adm-delete:not(:disabled):hover,
+.adm-uact .adm-delete:not(:disabled):focus-visible {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff6f2;
+}

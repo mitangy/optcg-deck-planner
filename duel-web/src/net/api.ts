@@ -25,6 +25,8 @@ export type AuthUser = {
   name: string;
   /** Public duel handle; null until chosen (see UsernameSetupPage). */
   username?: string | null;
+  /** Account role; staff are "moderator" and "admin". Missing on older API builds. */
+  role?: "user" | "moderator" | "admin";
 };
 
 /** API error with HTTP status (409 = taken, 422 = invalid) and a friendly detail. */
@@ -38,7 +40,7 @@ export class ApiError extends Error {
   }
 }
 
-async function apiError(res: Response, fallback: string): Promise<ApiError> {
+export async function apiError(res: Response, fallback: string): Promise<ApiError> {
   let detail = fallback;
   try {
     const body = (await res.json()) as { detail?: unknown };

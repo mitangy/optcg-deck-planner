@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import LoginTicket, User
+from app.roles import is_banned
 
 SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
@@ -212,6 +213,8 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    if is_banned(user):
+        raise HTTPException(status_code=403, detail="Account banned")
     if int(user.session_version or 0) != session_version:
         raise HTTPException(status_code=401, detail="Invalid session")
     return user
@@ -230,7 +233,7 @@ def get_optional_user(
         return None
     user_id, session_version = parsed
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or is_banned(user):
         return None
     if int(user.session_version or 0) != session_version:
         return None

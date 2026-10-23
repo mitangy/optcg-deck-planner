@@ -123,12 +123,13 @@ test("an unplayable hand card is grayed out at full opacity (#356)", async ({ pa
   await openDemo(page, "?unaffordable", {});
   const card = page.locator(`${HAND_CARD}.hand-unaffordable`).first();
   await expect(card).toBeAttached();
-  const style = await card.evaluate((el) => {
-    const s = getComputedStyle(el);
-    return { opacity: s.opacity, filter: s.filter };
-  });
+  const style = await card.evaluate((el) => ({
+    opacity: getComputedStyle(el).opacity,
+    // The gray sits on the tile's children (not the caption), see #673.
+    filters: [...el.children].filter((c) => !c.classList.contains("card-caption")).map((c) => getComputedStyle(c).filter),
+  }));
   expect(style.opacity).toBe("1");
-  expect(style.filter).toContain("grayscale");
+  expect(style.filters.some((f) => f.includes("grayscale"))).toBe(true);
 });
 
 test("a hand Character blocked by an effect says Can't play with the reason, an Event does not (#671)", async ({ page }) => {
@@ -143,3 +144,27 @@ test("a hand Character blocked by an effect says Can't play with the reason, an 
   expect(await blocked.count()).toBe(4);
   expect(await page.locator(`${HAND_CARD}`).count()).toBe(6);
 });
+
+for (const dim of [true, false]) {
+  test(`Can't play is red with Gray out unplayable cards ${dim ? "on" : "off"} (#673)`, async ({ page }) => {
+    await openDemo(page, "?blocked", { dimUnplayable: dim });
+    const tile = page.locator(`${HAND_CARD}:has(.meta-blocked)`).first();
+    await expect(tile).toBeAttached();
+    const meta = tile.locator(".meta");
+    await expect(meta).toHaveText("Can't play");
+    await expect(meta).toHaveCSS("color", "rgb(255, 107, 107)");
+    // No ancestor up to the tile may gray the caption.
+    const filters = await meta.evaluate((el) => {
+      const out: string[] = [];
+      for (let n: Element | null = el; n; n = n.parentElement) {
+        out.push(getComputedStyle(n).filter);
+        if (n.classList.contains("card-tile")) break;
+      }
+      return out;
+    });
+    for (const f of filters) expect(f).not.toContain("grayscale");
+    // The art still grays when the setting is on.
+    const art = await tile.evaluate((el) => [...el.children].filter((c) => !c.classList.contains("card-caption")).map((c) => getComputedStyle(c).filter));
+    expect(art.some((f) => f.includes("grayscale"))).toBe(dim);
+  });
+}
