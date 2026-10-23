@@ -37,6 +37,8 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   const discard = page.getByRole("button", { name: "Discard", exact: true });
   await expect(save).toHaveText("Saved");
   await expect(save).toBeDisabled();
+  // A web font that swaps in between the two measurements moves the button, so measure after fonts load.
+  await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo(0, 0));
   const clean = await save.boundingBox();
   await shot("clean");
