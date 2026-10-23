@@ -121,6 +121,8 @@ module.exports = {
     // scaling (#389): a pool of processes
     { id: "ranked-queue-splits-at-64", file: queue, from: "  maxClients = 5000;", to: "  maxClients = 64;", kills: ["ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#389)"] },
     { id: "ws-compression-off", file: "game-server/src/cluster.ts", from: "  if (env.WS_COMPRESSION === \"off\") return false as const;", to: "  return false as const;", kills: ["negotiates permessage-deflate with clients that offer it (#389)"] },
+    { id: "room-cap-per-process", file: guard, from: "const roomCountKey = (uid: number) => `duel:rooms:${uid}`;", to: "const roomCountKey = (uid: number) => `duel:rooms:${uid}:${process.hrtime.bigint()}`;", kills: ["counts an account's open rooms across processes, not per process (#682)"] },
+    { id: "room-cap-count-never-expires", file: guard, from: "    await store.expire(key, ROOM_COUNT_TTL_S);\n", to: "", kills: ["a crashed process's count expires instead of pinning the cap (#682)"] },
     { id: "cluster-no-redis", file: "game-server/src/cluster.ts", from: "  out.presence = new RedisPresence(redisUrl);\n  out.driver = new RedisDriver(redisUrl);\n", to: "", kills: ["a game created on one process can be joined through another (#389)", "players queued on different processes are paired with each other (#389)"] },
     { id: "skin-cosmetic-link-rejected", file: proto, from: "  if (typeof raw === \"string\" && SKIN_PUBLIC_PATH.test(raw)) return raw;\n", to: "", kills: ["accepts a cosmetic link as a playmat, so seats relay a short path instead of the image (#389)"] },
     { id: "skin-any-link-accepted", file: proto, from: "  if (typeof raw === \"string\" && SKIN_PUBLIC_PATH.test(raw)) return raw;", to: "  if (typeof raw === \"string\" && !raw.startsWith(\"data:\")) return raw;", kills: ["rejects links that aren't our signed cosmetic paths (#389)"] },
@@ -175,7 +177,7 @@ module.exports = {
     // matchmake guards (security review)
     { id: "matchmake-no-token-check", file: guard, from: "  if (!token || !verifyGameToken(token)) {\n    throw Object.assign(new Error(\"gameToken required\"), { code: \"unauthorized\" as const });\n  }\n  return true;", to: "  return true;", kills: ["refuses to create a room without a game token"] },
     { id: "duel-room-public", file: room, from: "    void this.setPrivate(true);\n", to: "", kills: ["duel rooms can only be joined by id"] },
-    { id: "creator-room-cap-off", file: guard, from: "  if (live >= MAX_ROOMS_PER_CREATOR) {", to: "  if (false) {", kills: ["caps how many open rooms one account can create"] },
+    { id: "creator-room-cap-off", file: guard, from: "  if (live >= MAX_ROOMS_PER_CREATOR) throw tooManyRooms();", to: "  if (false) throw tooManyRooms();", kills: ["caps how many open rooms one account can create"] },
     { id: "creator-room-kept-on-failed-create", file: room, from: "      releaseCreatorRoom(this.creatorUid);\n      this.creatorUid = null;\n      throw e;", to: "      throw e;", kills: ["a rejected room create doesn't use up one of the account's room slots (#318)"] },
     { id: "room-message-flood-allowed", file: room, from: "  maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;\n", to: "", kills: ["drops a client that floods the room with messages"] },
     { id: "seed-client-chosen", file: guard, from: "  if (clientSeed !== undefined && !requireGameToken()) return clientSeed;", to: "  if (clientSeed !== undefined) return clientSeed;", kills: ["ignores a client-chosen seed when tokens are required"] },

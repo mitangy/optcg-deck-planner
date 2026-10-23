@@ -10,6 +10,7 @@ import { getDefsHealthSnapshot } from "@optcg/rules";
 import { clusterOptions, wsCompression } from "./cluster.js";
 import { getSeatReservationSeconds, requireGameToken } from "./env.js";
 import { verifyGameToken } from "./gameToken.js";
+import { useSharedRoomCounts } from "./matchmakeGuard.js";
 import {
   PROTOCOL_VERSION,
   SKIN_MAX_CARD_BACK_CHARS,
@@ -39,9 +40,13 @@ function activeMatchesCaller(authorization: string | undefined, devUserId: unkno
   return null;
 }
 
+const cluster = clusterOptions();
+// A pool shares each account's open-room count through Redis; one process keeps it in memory.
+if (cluster.presence) useSharedRoomCounts(cluster.presence);
+
 const server = defineServer({
   transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES, perMessageDeflate: wsCompression() }),
-  ...clusterOptions(),
+  ...cluster,
 
   rooms: {
     duel: defineRoom(DuelRoom),
