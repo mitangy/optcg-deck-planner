@@ -52,6 +52,20 @@ const rfReport = rfDir("report.ts");
 // Review-facts eval (#675): each mutation runs only the test file it claims to break.
 const rf = (id, file, from, to, kills, test) => ({ id: `rf-${id}`, file, from, to, kills, args: `evals/review-facts/${test}.test.ts` });
 
+// Rules-puzzle eval (#677): each mutation runs only the test file it claims to break.
+const pzDir = (f) => `analyst/evals/puzzles/${f}`;
+const pzAnswer = pzDir("answer.ts");
+const pzGenerators = pzDir("generators.ts");
+const pzDescribe = pzDir("describe.ts");
+const pzPositions = pzDir("positions.ts");
+const pzGenerate = pzDir("generate.ts");
+const pzScenario = pzDir("scenario.ts");
+const pzPipeline = pzDir("pipeline.ts");
+const pzReport = pzDir("report.ts");
+const pzRun = pzDir("run.ts");
+const pz = (id, file, from, to, kills, test) => ({ id: `pz-${id}`, file, from, to, kills, args: `evals/puzzles/${test}.test.ts` });
+const pzEdits = (id, edits, kills, test) => ({ id: `pz-${id}`, edits, kills, args: `evals/puzzles/${test}.test.ts` });
+
 const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
@@ -656,5 +670,100 @@ module.exports = {
     rf("pipeline-keeps-unquoted", rfPipeline, "guardQuotes(review, extracted.claims)", "({ kept: extracted.claims, dropped: [] as typeof extracted.claims })", ["scores the extracted claims of a review against the game"], "request"),
     rf("wrong-turn-not-wrong", rfReport, "const wrong = contradicted + wrong_turn;", "const wrong = contradicted;", ["scores the extracted claims of a review against the game"], "request"),
     rf("unverifiable-checkable", rfReport, "const checkable = supported + wrong;", "const checkable = supported + wrong + sum(\"unverifiable\");", ["scores the extracted claims of a review against the game"], "request"),
+    // rules-puzzle eval (#677): answer parsing and grading
+    pz("parse-first-block", pzAnswer, "const raw = candidates[candidates.length - 1];", "const raw = candidates[0];", ["takes the last JSON block when the reply has several"], "answer"),
+    pz("parse-no-bare-object", pzAnswer, "const candidates = fenced.length ? fenced : braceSpans(text);", "const candidates = fenced;", ["reads a bare JSON object when the reply has no fence"], "answer"),
+    pz("parse-bad-json-ok", pzAnswer, "return { ok: false, reason: \"the JSON block does not parse\" };", "return { ok: true, value: {}, raw };", ["counts a reply with no parseable JSON as no answer"], "answer"),
+    pz("grade-set-length-only", pzAnswer, "a.length === b.length && a.every((x, i) => x === b[i])", "a.length === b.length", ["marks a list that differs from the gold wrong even when it is as long"], "answer"),
+    pz("grade-unsorted", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs).sort();", "(gold.mode === \"set\" ? [...new Set(xs)] : xs);", ["marks the right list right in any order, with a repeated card, or written as names"], "answer"),
+    pz("grade-set-keeps-repeats", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs)", "xs", ["marks the right list right in any order, with a repeated card, or written as names"], "answer"),
+    pz("grade-multiset-collapsed", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs)", "[...new Set(xs)]", ["counts the copies of a card when the gold is a multiset"], "answer"),
+    pz("grade-number-near", pzAnswer, "correct: n === gold.value,", "correct: Math.abs(n - gold.value) <= 1000,", ["grades a number exactly, not near"], "answer"),
+    pz("grade-names-not-read", pzAnswer, "const id = item.match(CARD_ID)?.[1];", "const id = undefined as string | undefined;", ["marks the right list right in any order, with a repeated card, or written as names", "turns a card name into the card number only when one card of the puzzle has it"], "answer"),
+    pz("grade-name-ambiguous-first", pzAnswer, "return named.length === 1 ? named[0]!.id", "return named.length >= 1 ? named[0]!.id", ["turns a card name into the card number only when one card of the puzzle has it"], "answer"),
+    pz("grade-unparsed-correct", pzAnswer, "if (!parsed.ok) return { correct: false,", "if (!parsed.ok) return { correct: true,", ["marks an unparseable reply wrong"], "answer"),
+    // generators: gold from the engine
+    pz("power-gold-printed", pzGenerators, "value: powerOf(state, target.seat, target.card) }", "value: catalog.cards.get(target.card.defId)?.power ?? 0 }", ["differs from the printed power when DON!! is attached to a card on its owner's turn", "includes a Leader's static on a Character"], "generators"),
+    pz("engine-don-counts-on-opponents-turn", "packages/rules/src/engine/queries.ts", "if (state.activeSeat === seat) p += card.attachedDonIds.length * 1000;", "p += card.attachedDonIds.length * 1000;", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing", "is the printed power for DON!! on the opponent's card during your turn"], "generators"),
+    pz("engine-ties-lose", "packages/rules/src/engine/procedure.ts", "const won = atk >= def;", "const won = atk > def;", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing"], "generators"),
+    pz("counter-modifier-too-big", pzGenerators, "{ type: \"power\", amount: counter }", "{ type: \"power\", amount: counter + COUNTER_STEP }", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing"], "generators"),
+    pz("counter-stops-at-first-hit", pzGenerators, "if (!through) return { counterStep", "if (through) return { counterStep", ["is the Counter at which the attack fails"], "generators"),
+    pz("counter-described-from-attacker", pzGenerators, "headOf(s, view, catalog, turn, { attackerId: atk.id })", "headOf(s, attacker, catalog, turn, { attackerId: atk.id })", ["builds a puzzle from the counter step whose gold is one of the position's battles"], "generators"),
+    pz("playable-all-hand", pzGenerators, "const yes = playableIds(state, view);", "const yes = hand.map((c) => c.defId);", ["leaves out a card that costs more than the active DON!!"], "generators"),
+    pz("engine-rested-don-pays", "packages/rules/src/engine/state.ts", "return p.costArea.filter((d) => !d.rested);", "return p.costArea;", ["does not count rested DON!! toward the cost"], "generators"),
+    pz("attackers-all", pzGenerators, "idsOf(state.players[seat].characters, attackerCards(state, seat));", "idsOf(state.players[seat].characters, new Set(state.players[seat].characters.map((c) => c.id)));", ["leaves out a Character played this turn that has no Rush, and keeps one with Rush", "leaves out a rested Character"], "generators"),
+    pz("attack-copies-inconsistent", pzGenerators, "if (!consistent(p.characters, attackerCards(state, view))) return null;", "", ["makes no puzzle when two copies of a card differ in whether they can attack"], "generators"),
+    pz("power-ambiguous-name-asked", pzGenerators, "const unique = targets.filter((t) => targets.filter((u) => u.card.defId === t.card.defId).length === 1);", "const unique = targets;", ["does not ask about a card whose name is on the table twice"], "generators"),
+    // position text
+    pz("text-no-hand", pzDescribe, "own ? `Your hand (${p.hand.length})", "false ? `Your hand (${p.hand.length})", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-no-opponent", pzGenerators, ", ...describeSeat(state, (1 - view) as Seat, catalog, \"Opponent's\", opts)]", "]", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-no-just-played", pzDescribe, "c.summoningSick && state.activeSeat === seat ? \"played this turn\" : \"\",", "\"\",", ["leaves out a Character played this turn that has no Rush, and keeps one with Rush", "names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-board-leaks-power", pzDescribe, "const bits = [\n    c.rested ? \"rested\" : \"active\",", "const bits = [\n    \"1234 power\",\n    c.rested ? \"rested\" : \"active\",", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("reference-truncated", pzDescribe, "...referenceLines(catalog, cardIds, cap)]", "...referenceLines(catalog, cardIds, cap).slice(0, 3)]", ["have a different id each, and a card in every puzzle's reference"], "scenario"),
+    pz("message-unbounded", pzDescribe, "if (message.length <= MESSAGE_LIMIT) return { position, message };", "return { position, message };", ["cuts card text shorter to fit the size bound, and gives up when even that is too long"], "describe"),
+    // positions
+    pz("sample-not-idle", pzPositions, "return isIdleMain(state) && plainState(state) && state.turnNumber >= 2;", "return plainState(state) && state.turnNumber >= 2;", ["are idle Main Phases of different turns, in game order"], "positions"),
+    pz("idle-any-phase", pzPositions, "state.winner === null && state.phase === \"main\" && !state.battle", "state.winner === null && !state.battle", ["is not one while a choice is pending or a battle is on"], "positions"),
+    pz("plain-ignores-buffs", pzPositions, "if (state.modifiers.some((m) => m.effect.type !== \"flag\")) return false;", "", ["is not one while a buff the text could not show is in play"], "positions"),
+    pz("plain-ignores-turn-log", pzPositions, "(!p.turnLog.events.length && !p.turnLog.koed.length && !p.turnLog.handTrashed)", "true", ["is not one when this turn's record"], "positions"),
+    pz("sample-same-turn-twice", pzPositions, "if (turns.has(c.turn)) continue;", "", ["are idle Main Phases of different turns, in game order"], "positions"),
+    pz("sample-unseeded", pzPositions, "for (const c of rng.shuffle([...candidates])) {", "for (const c of [...candidates].sort(() => Math.random() - 0.5)) {", ["are the same for the same seed (#677)"], "positions"),
+    pz("selfplay-ignores-seed", pzPositions, "const gameSeed = opts.seed * 100000 + g + 1;", "const gameSeed = g + 1;", ["are the same games every time and other games for another seed"], "positions"),
+    pz("selfplay-unseeded", pzPositions, "const gameSeed = opts.seed * 100000 + g + 1;", "const gameSeed = opts.seed * 100000 + g + 1 + Math.floor(Math.random() * 1000);", ["are the same games every time and other games for another seed"], "positions"),
+    pz("synth-unseeded", pzPositions, "const rng = createSeededRng(opts.seed * 7919 + 13);", "const rng = createSeededRng(opts.seed * 7919 + 13 + Math.floor(Math.random() * 1e9));", ["are the same for the same seed and different for another"], "positions"),
+    pz("synth-ignores-seed", pzPositions, "const rng = createSeededRng(opts.seed * 7919 + 13);", "const rng = createSeededRng(13);", ["are the same for the same seed and different for another"], "positions"),
+    pzEdits("synth-new-sets-ignored", [
+      { file: pzPositions, from: "const leaderOf = () => (wantNew && newLeaders.length && rng.next() < 0.5 ? pickOf(rng, newLeaders) : pickOf(rng, leaders));", to: "const leaderOf = () => pickOf(rng, leaders);" },
+      { file: pzPositions, from: "(wantNew && fresh.length && rng.next() < 0.6 ? pickOf(rng, fresh) : pickOf(rng, all))", to: "pickOf(rng, all)" },
+    ], ["lean on OP18 and EB05 cards when asked for the newest sets"], "positions"),
+    pzEdits("synth-no-don", [
+      { file: pzPositions, from: "if (rng.next() < 0.5 && budget() > 0) h.attach(seat, p.leader, Math.min(budget(), 1 + rng.nextInt(3)));", to: "" },
+      { file: pzPositions, from: "for (const c of placed) if (rng.next() < 0.3 && budget() > 0) h.attach(seat, c, Math.min(budget(), 1 + rng.nextInt(2)));", to: "" },
+    ], ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-rested", pzPositions, "c.rested = rng.next() < 0.3;", "c.rested = false;", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-just-played", pzPositions, "if (seat === 0 && rng.next() < 0.3) {", "if (false) {", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-hand", pzPositions, "const handSize = seat === 0 ? 3 + rng.nextInt(5) : 2 + rng.nextInt(5);", "const handSize = seat === 0 ? 0 : 2 + rng.nextInt(5);", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("new-set-deck-empty", pzPositions, "const focus = rng.shuffle([...pool]).slice(0, 4).map((d) => d.id);", "const focus = rng.shuffle([...pool]).slice(0, 0).map((d) => d.id);", ["hold four copies of several OP18 or EB05 cards"], "positions"),
+    // the set
+    pz("quota-synth-share-flipped", pzGenerate, "const synth = Math.round(n * synthShare);", "const synth = Math.round(n * (1 - synthShare));", ["splits the puzzles between Harness boards and self-play"], "generate"),
+    pz("generate-order-unseeded", pzGenerate, "const order = createSeededRng(hash(seed, round, type)).shuffle([...batch]);", "const order = [...batch].sort(() => Math.random() - 0.5);", ["is the same for the same seed and different for another"], "generate"),
+    pzEdits("generate-ignores-seed", [
+      { file: pzGenerate, from: "const roundSeed = seed * 1000 + round;", to: "const roundSeed = round;" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, round, type)).shuffle([...batch])", to: "createSeededRng(hash(0, round, type)).shuffle([...batch])" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, pos.id, type))", to: "createSeededRng(hash(0, pos.id, type))" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, \"scenario\"))", to: "createSeededRng(hash(0, \"scenario\"))" },
+    ], ["is the same for the same seed and different for another"], "generate"),
+    pzEdits("generate-new-share-ignored", [
+      { file: pzGenerate, from: "perGame: 3, newShare, decks: opts.decks, catalog }),", to: "perGame: 3, newShare: 0, decks: opts.decks, catalog })," },
+      { file: pzGenerate, from: "count: Math.max(10, Math.ceil(n * synthShare * 3)), newShare, catalog }),", to: "count: Math.max(10, Math.ceil(n * synthShare * 3)), newShare: 0, catalog })," },
+    ], ["is the same for the same seed and different for another"], "generate"),
+    // scenarios
+    pz("scenario-row-drifts-from-engine", pzDir("scenarioRows.ts"), "expect: { me: { hand: [KAROO], trash: [KOMACHIYO], don: { active: 2, rested: 1 } } },", "expect: { me: { hand: [KAROO], trash: [KOMACHIYO], don: { active: 3, rested: 0 } } },", ["only use rows the engine runs to the state the row states"], "scenario"),
+    pz("scenario-seat-swapped", pzScenario, "const e: SeatExpect | undefined = seat === 0 ? row.expect.me : row.expect.opp;", "const e: SeatExpect | undefined = seat === 0 ? row.expect.opp : row.expect.me;", ["take the gold from the seat the question is about"], "scenario"),
+    pz("scenario-power-off", pzScenario, "gold: { key: \"power\", mode: \"number\", value: power }", "gold: { key: \"power\", mode: \"number\", value: power + 1000 }", ["ask for the power the row states, for the Character it names"], "scenario"),
+    pz("scenario-refused-step-kept", pzScenario, "if ((row.steps ?? []).some((s) => \"rejects\" in s && s.rejects)) return false;", "", ["leave out rows with a step the engine refuses and rows that end in a prompt"], "scenario"),
+    pz("scenario-pending-kept", pzScenario, "return pending === undefined || pending === \"none\";", "return true;", ["leave out rows with a step the engine refuses and rows that end in a prompt"], "scenario"),
+    pz("scenario-steps-reversed", pzScenario, "return { lines: lines.map((l, i) => `${i + 1}. ${l}`), ids };", "return { lines: lines.reverse().map((l, i) => `${i + 1}. ${l}`), ids };", ["number the steps in the order the row plays them"], "scenario"),
+    pz("scenario-hand-hidden", pzScenario, "`${own} hand: ${s?.hand?.length ?", "`${own} hand: ${false ?", ["describe the setup and the steps in order, naming each card with its card number"], "scenario"),
+    // asking and grading through the chat
+    pz("ask-question-only", pzPipeline, "{ message: puzzle.message }", "{ message: puzzle.question }", ["sends the puzzle as the player's message with the app's system prompt and tools"], "pipeline"),
+    pz("ask-model-mismatch-ignored", pzPipeline, "if (reply.model !== deps.model) throw", "if (false) throw", ["records an error, not a wrong answer, when a call is served by another model"], "pipeline"),
+    pz("ask-cost-zero", pzPipeline, "cost_usd: calls.reduce((s, k) => s + costUsd(k.usage, k.model), 0),", "cost_usd: 0,", ["charges the calls it made and counts the lookups", "stops dispatching once the spend passes the cap, and says so"], "pipeline"),
+    pz("ask-cap-ignored", pzPipeline, "if (spent >= opts.maxUsd) {", "if (false) {", ["stops dispatching once the spend passes the cap, and says so"], "pipeline"),
+    pz("ask-one-user-for-all", pzPipeline, "`chat.eval-${puzzle.id}`", "\"chat.eval\"", ["runs more puzzles at once than the chat allows streams for one player"], "pipeline"),
+    pz("ask-unparsed-counts-as-parsed", pzPipeline, "parsed: parsed.ok && !ranOut,", "parsed: true,", ["grades the reply's last JSON block against the gold, exactly"], "pipeline"),
+    pz("scripted-never-wrong", pzPipeline, "if (bucket < 4) return", "if (false) return", ["answer most puzzles right, some wrong and some with no JSON, the same way every time"], "pipeline"),
+    // report
+    pz("report-counts-parsed", pzReport, "const correct = rows.filter((r) => r.correct).length;", "const correct = rows.filter((r) => r.parsed).length;", ["scores the share of puzzles answered exactly right, with a Wilson interval"], "report"),
+    pz("report-no-interval", pzReport, "interval: wilson(correct, rows.length)", "interval: [0, 1] as [number, number]", ["scores the share of puzzles answered exactly right, with a Wilson interval"], "report"),
+    pz("report-worst-unsorted", pzReport, ".sort((a, b) => Number(a.parsed) - Number(b.parsed))", "", ["shows the worst misses with the question, what was given and the gold, unanswered ones first"], "report"),
+    pz("report-new-set-flipped", pzReport, "i.rows.filter((r) => r.newSet)", "i.rows.filter((r) => !r.newSet)", ["lists accuracy per type and for new sets against older cards"], "report"),
+    pz("report-errors-in-accuracy", pzReport, "const all = scoreOf(i.rows);", "const all = scoreOf([...i.rows, ...i.errors.map((e) => ({ ...i.rows[0]!, id: e.id, correct: false }))]);", ["keeps errors out of the accuracy and lists them"], "report"),
+    pz("report-gold-shows-given", pzReport, "; gold ${cell(r.gold)}.`", "; gold ${cell(r.given)}.`", ["shows the worst misses with the question, what was given and the gold, unanswered ones first"], "report"),
+    // CLI
+    pz("cli-no-key-exits-1", pzRun, "  process.exit(2);", "  process.exit(1);", ["exits 2 and says why when the real API is asked for without a key"], "run"),
+    pz("cli-dump-needs-key", pzRun, "if (!scripted && !f.dump && !process.env.ANTHROPIC_API_KEY) {", "if (!scripted && !process.env.ANTHROPIC_API_KEY) {", ["writes the puzzles with --dump and needs no key"], "run"),
+    pz("cli-dump-goes-on", pzRun, "if (f.dump) process.exit(0);", "", ["writes the puzzles with --dump and needs no key"], "run"),
+    pz("cli-no-report", pzRun, "writeFileSync(join(dir, \"report.md\"), report);", "", ["runs the whole pipeline with --model-api scripted and writes puzzles, answers and a report"], "run"),
   ],
 };
