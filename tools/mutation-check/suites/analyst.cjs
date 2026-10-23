@@ -52,6 +52,18 @@ const rfReport = rfDir("report.ts");
 // Review-facts eval (#675): each mutation runs only the test file it claims to break.
 const rf = (id, file, from, to, kills, test) => ({ id: `rf-${id}`, file, from, to, kills, args: `evals/review-facts/${test}.test.ts` });
 
+const daDir = (f) => `analyst/evals/deck-advice/${f}`;
+const daSab = daDir("sabotage.ts");
+const daCases = daDir("cases.ts");
+const daEdits = daDir("edits.ts");
+const daSim = daDir("sim.ts");
+const daCompare = daDir("compare.ts");
+const daPipeline = daDir("pipeline.ts");
+const daReport = daDir("report.ts");
+const daAsk = daDir("ask.ts");
+// Deck-advice eval (#678): each mutation runs only the test file it claims to break.
+const da = (id, file, from, to, kills, test) => ({ id: `da-${id}`, file, from, to, kills, args: `evals/deck-advice/${test}.test.ts` });
+
 const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
@@ -656,5 +668,66 @@ module.exports = {
     rf("pipeline-keeps-unquoted", rfPipeline, "guardQuotes(review, extracted.claims)", "({ kept: extracted.claims, dropped: [] as typeof extracted.claims })", ["scores the extracted claims of a review against the game"], "request"),
     rf("wrong-turn-not-wrong", rfReport, "const wrong = contradicted + wrong_turn;", "const wrong = contradicted;", ["scores the extracted claims of a review against the game"], "request"),
     rf("unverifiable-checkable", rfReport, "const checkable = supported + wrong;", "const checkable = supported + wrong + sum(\"unverifiable\");", ["scores the extracted claims of a review against the game"], "request"),
+    // deck-advice eval (#678)
+    da("seed-ignored", daSab, "const next = rng(seedOf(opts.seed, source.leaderId));", "const next = rng(seedOf(0, source.leaderId));", ["gives the same sabotage for the same seed and another for a different seed"], "sabotage"),
+    da("k-range", daSab, "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 1))", "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 4))", ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"], "sabotage"),
+    da("planted-not-recorded", daSab, "return { cards, k, planted: planted.sort((a, b) => a.id.localeCompare(b.id)), removed };", "return { cards, k, planted: [], removed };", ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"], "sabotage"),
+    da("removal-cap", daSab, "const take = Math.min(2, c.copies - (removedBy.get(c.id) ?? 0), left);", "const take = Math.min(4, c.copies - (removedBy.get(c.id) ?? 0), left);", ["takes at most 2 copies out of any one card"], "sabotage"),
+    da("removal-any-card", daSab, "for (const minCopies of [3, 2, 1]) {", "for (const minCopies of [1]) {", ["takes at most 2 copies out of any one card, from cards the deck plays in numbers"], "sabotage"),
+    da("banned-planted", daSab, "!banned.has(c.id) && !exclude.has(c.id)", "!exclude.has(c.id)", ["never plants a banned or restricted card"], "sabotage"),
+    da("restricted-planted", daSab, "const exclude = new Set([...original.map((c) => c.id), ...(opts.restricted ?? [])]);", "const exclude = new Set([...original.map((c) => c.id)]);", ["never plants a banned or restricted card"], "sabotage"),
+    da("rank-ignores-meta", daSab, "(freq.get(a.id) ?? 0) - (freq.get(b.id) ?? 0) || (a.counter ?? 0)", "0 || (a.counter ?? 0)", ["ranks cards the meta plays last"], "sabotage"),
+    da("plant-not-vanilla", daSab, "c.type === \"character\" && c.support === \"vanilla\" && (c.cost ?? 0) >= 5", "c.type === \"character\" && (c.cost ?? 0) >= 5", ["plants off-plan cards: vanilla characters that no meta deck plays"], "sabotage"),
+    {
+      id: "da-sabotage-legality-unchecked",
+      file: daSab,
+      edits: [
+        { file: daSab, from: "const inColors = (c: CardRow) => c.colors.length > 0 && c.colors.every((col) => leader.colors.includes(col));", to: "const inColors = (c: CardRow) => c.colors.length > 0;" },
+        { file: daSab, from: "    if (analyzeDeck(catalog, deckFromLines(catalog, trial, source.leaderId)).hints.some((h) => h.tier === \"rule\" && h.id !== \"count\")) continue;\n", to: "" },
+        { file: daSab, from: " || !analyzeDeck(catalog, deckFromLines(catalog, cards, source.leaderId)).legal) return null;", to: ") return null;" },
+      ],
+      kills: ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"],
+      args: "evals/deck-advice/sabotage.test.ts",
+    },
+    da("mode-ignored", daCases, "if (opts.mode !== \"sabotaged\") {", "if (true) {", ["builds only the kind asked for"], "sabotage"),
+    da("n-ignored", daCases, ".slice(0, Math.max(0, opts.n))", ".slice(0, Math.max(0, opts.n) + 1)", ["builds only the kind asked for and a seeded, repeatable pick of n"], "sabotage"),
+    da("message-without-deck", daCases, "message: `${question}\\n\\n${text}` };", "message: question };", ["builds each meta deck as is and a sabotaged copy"], "sabotage"),
+    da("proposal-first-wins", daEdits, "const last = proposals[proposals.length - 1];", "const last = proposals[0];", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("proposal-ignored", daEdits, "if (deltas.length) return { source: \"proposal\", deltas };", "if (false) return { source: \"proposal\", deltas };", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("proposal-delta-flipped", daEdits, "delta: l.after - l.before", "delta: l.before - l.after", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("text-sign-flipped", daEdits, "delta: e.sign === \"+\" ? e.copies : -e.copies", "delta: e.sign === \"+\" ? -e.copies : e.copies", ["falls back to the +N / -N lines of the answer when there is no proposal"], "edits"),
+    da("deltas-not-summed", daEdits, "m.set(d.id, (m.get(d.id) ?? 0) + d.delta);", "m.set(d.id, d.delta);", ["falls back to the +N / -N lines of the answer when there is no proposal"], "edits"),
+    da("no-edits-legal", daEdits, "legal: edits.deltas.length > 0 && r.legal,", "legal: r.legal,", ["does not call an answer with no edits legal"], "edits"),
+    da("recall-denominator", daEdits, "recall: plantedCopies ? plantedRemoved / plantedCopies : null,", "recall: plantedCopies && removed ? plantedRemoved / removed : null,", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("precision-denominator", daEdits, "precision: plantedCopies && removed ? plantedRemoved / removed : null,", "precision: plantedCopies && removed ? plantedRemoved / plantedCopies : null,", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("partial-removal-ignored", daEdits, "const gone = (id: string, copies: number) => Math.max(0, copies - (a.get(id) ?? 0));", "const gone = (id: string, copies: number) => ((a.get(id) ?? 0) === 0 ? copies : 0);", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("sim-seed-per-opponent", daSim, "seed: opts.seed + o * 100_003 + g,", "seed: opts.seed + g,", ["uses a different seed for every game"], "sim"),
+    da("sim-seat-fixed", daSim, "mySeat: (g % 2) as Seat,", "mySeat: 0 as Seat,", ["plays every seat and first player combination"], "sim"),
+    da("sim-seed-per-deck", daSim, "seed: opts.seed + o * 100_003 + g,", "seed: opts.seed + o * 100_003 + g + mine.deck.length,", ["give every version of a deck the same seeds, seats and first player"], "sim"),
+    da("sim-result-seat", daSim, "return r.winner === job.mySeat ? \"win\" : \"loss\";", "return r.winner === 0 ? \"win\" : \"loss\";", ["finds a deck of vanilla cards clearly worse than the meta deck"], "sim"),
+    da("sim-unfinished-counted", daSim, "winRate: finished ? wins / finished : null,", "winRate: outcomes.length ? wins / outcomes.length : null,", ["ignores games that did not finish when it takes a win rate"], "sim"),
+    da("sim-change-reversed", daSim, "diffOfProportions({ k: before.wins, n: before.wins + before.losses }, { k: after.wins, n: after.wins + after.losses })", "diffOfProportions({ k: after.wins, n: after.wins + after.losses }, { k: before.wins, n: before.wins + before.losses })", ["measures after minus before and calls a change lost only when the whole interval is below zero"], "sim"),
+    da("sim-lost-on-lower-bound", daSim, "c.hi < 0;", "c.lo < 0;", ["measures after minus before and calls a change lost only when the whole interval is below zero"], "sim"),
+    { id: "da-newcombe-upper", file: "analyst/evals/stats.ts", from: "diff + Math.sqrt((ub - pb) ** 2 + (pa - la) ** 2)", to: "diff + Math.sqrt((ub - pb) ** 2 + (ua - pa) ** 2)", kills: ["gives Newcombe's interval for 30/100 against 10/100"], args: "evals/stats.test.ts" },
+    { id: "da-newcombe-lower", file: "analyst/evals/stats.ts", from: "diff - Math.sqrt((pb - lb) ** 2 + (ua - pa) ** 2)", to: "diff - Math.sqrt((pb - lb) ** 2 + (pa - la) ** 2)", kills: ["gives Newcombe's interval for 30/100 against 10/100"], args: "evals/stats.test.ts" },
+    da("verdict-slot-flipped", daCompare, "return (better === \"first\") === (order === \"AB\") ? \"A\" : \"B\";", "return (better === \"first\") !== (order === \"AB\") ? \"A\" : \"B\";", ["maps the picked slot back to the variant that was in it"], "compare"),
+    da("order-never-random", daCompare, "return seedOf(seed, `order:${caseId}`) % 2 === 0 ? \"AB\" : \"BA\";", "return seedOf(seed, `order:${caseId}`) % 2 === 0 ? \"AB\" : \"AB\";", ["randomizes the order per case, repeatably, and about half the cases each way"], "compare"),
+    da("both-ways-share-ignored", daCompare, "return seedOf(seed, `both:${caseId}`) / 4294967296 < share;", "return seedOf(seed, `both:${caseId}`) / 4294967296 < 1;", ["judges a seeded share of the cases in both orders"], "compare"),
+    da("disagreement-not-tie", daCompare, "return one.verdict === two.verdict ? one.verdict : \"tie\";", "return one.verdict === two.verdict ? one.verdict : one.verdict;", ["calls a verdict that changes with the order a tie"], "compare"),
+    da("prompt-slots-swapped", daCompare, "<first_answer>${i.first}</first_answer>\\n<second_answer>${i.second}</second_answer>", "<first_answer>${i.second}</first_answer>\\n<second_answer>${i.first}</second_answer>", ["shows the answers in the order given"], "compare"),
+    da("judge-order-ignored", daCompare, "const [first, second] = order === \"AB\" ? [input.a, input.b] : [input.b, input.a];", "const [first, second] = [input.a, input.b];", ["puts the answers in the opposite slots for the other order"], "compare"),
+    da("planted-always-told", daCompare, "const known = i.planted?.length ? ", "const known = true ? ", ["shows the answers in the order given and says nothing about which variant is which"], "compare"),
+    da("ties-in-rate", daCompare, "bRate: a + b ? b / (a + b) : null,", "bRate: a + b ? b / (a + b + ties) : null,", ["is the share of decisive cases that preferred B"], "compare"),
+    da("slot-bias-one-sided", daCompare, "slotBias: picks.length ? (first - (picks.length - first)) / picks.length : null,", "slotBias: picks.length ? first / picks.length : null,", ["finds a judge that always picks the first slot fully biased"], "compare"),
+    da("sim-cache-off", daPipeline, "    cfg.cache.set(key, hit);\n", "", ["scores an answer that puts the original deck back as full recall"], "pipeline"),
+    da("field-includes-own-deck", daPipeline, "cfg.field.filter((_, i) => i !== c.source)", "cfg.field.filter(() => true)", ["leaves the case's own deck out of its opposing field"], "pipeline"),
+    da("illegal-edit-played", daPipeline, "const usable = edits.deltas.length > 0 && applied.legal;", "const usable = edits.deltas.length > 0;", ["does not play an illegal edit"], "pipeline"),
+    da("no-ceiling", daPipeline, "c.kind === \"sabotaged\" ? simDeck(cfg, c, c.original) : Promise.resolve(null)", "Promise.resolve(null)", ["scores an answer that puts the original deck back as full recall"], "pipeline"),
+    da("deck-not-open-in-app", daAsk, "      deck: { name: c.name, leaderId: c.leaderId, cards: c.cards.map((x) => ({ id: x.id, copies: x.copies })), ref: \"planner:eval\" },\n", "", ["sends the production system prompt and tools, with the deck pasted under the question and open in the app"], "pipeline"),
+    da("deck-not-pasted", daAsk, "    message: c.message,\n", "    message: c.question,\n", ["sends the production system prompt and tools, with the deck pasted under the question and open in the app"], "pipeline"),
+    da("recall-skips-no-edit-cases", daReport, "r.kind === \"sabotaged\" && r.recall !== null);", "r.kind === \"sabotaged\" && r.recall !== null && r.edit_source !== \"none\");", ["averages recall over the sabotaged cases (no edits counts zero)"], "report"),
+    da("precision-null-as-zero", daReport, "const prec = sab.filter((r) => r.precision !== null);", "const prec = sab;", ["averages recall over the sabotaged cases (no edits counts zero) and precision"], "report"),
+    da("not-lost-on-point-estimate", daReport, "const notLost = played.filter((r) => !lostSignificantly(r.sim!.change!)).length;", "const notLost = played.filter((r) => r.sim!.change!.diff >= 0).length;", ["counts an edit as not losing win rate unless its whole interval is below zero"], "report"),
+    da("headline-all-cases", daReport, "${t.notLost}/${t.cases} counting a case", "${t.notLost}/${t.simulated} counting a case", ["states the headline with a case with no edits counted against the edits"], "report"),
   ],
 };

@@ -1,0 +1,120 @@
+name: Log Pose deck advice
+
+# Manual only: the paid deck-advice eval (analyst/evals/deck-advice, #678). Never scheduled.
+# Every current meta deck, as it is and with 4 to 8 on-plan cards swapped for off-plan ones, goes to Log Pose through the
+# production chat ("tune this list"). The edits are scored by how much of the sabotage they undo and by bot simulation
+# against the meta field (compute only). The chat costs about $0.15 to $0.30 a case (32 cases for the default run); the
+# simulation is free but slow (about 10 to 40 minutes). Needs the ANTHROPIC_API_KEY secret; the meta decks come from the
+# public backend (META_API_URL / ANALYST_API_URL).
+#
+# To compare two runs side by side with the judge (about $1 for 30 cases), run this once as the baseline, then again with
+# the same cases, seed and n and with "compare_run_id" set to the baseline's run id and "compare_variant" to its variant.
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Output folder / run label"
+        default: "baseline"
+      cases:
+        description: "Which cases: all, meta or sabotaged"
+        default: "all"
+      n:
+        description: "Run a seeded pick of n cases (blank: all of them)"
+        default: ""
+      seed:
+        description: "Seed for the sabotage, the case pick and the simulation"
+        default: "1"
+      sim_games:
+        description: "Simulated games per opponent per version (blank: about 300 per version)"
+        default: ""
+      no_sim:
+        description: "Skip the simulation (recall and legality only)"
+        type: boolean
+        default: false
+      levels:
+        description: "Bot levels, yours then the opponent's"
+        default: "normal,normal"
+      max_usd:
+        description: "Stop dispatching past this spend"
+        default: "5"
+      compare_run_id:
+        description: "Optional: run id of an earlier run to compare against (side-by-side judge)"
+        default: ""
+      compare_variant:
+        description: "Optional: the earlier run's variant name (its artifact is log-pose-deck-advice-<variant>)"
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: log-pose-deck-advice
+  cancel-in-progress: false
+
+jobs:
+  deck-advice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Add the ANTHROPIC_API_KEY repository secret to run the deck advice eval." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ -z "$META_API_URL" ]; then
+            echo "Set the META_API_URL (or ANALYST_API_URL) repository variable: the eval needs the current meta decks." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Fetch the current meta decks
+        run: npm run meta-decks -w @optcg/analyst -- --api "$META_API_URL" --out "$PWD/meta-decks.json" --leaders 16 --days 30
+      - name: Run the eval
+        env:
+          VARIANT: ${{ inputs.variant }}
+          CASES: ${{ inputs.cases }}
+          N: ${{ inputs.n }}
+          SEED: ${{ inputs.seed }}
+          SIM_GAMES: ${{ inputs.sim_games }}
+          NO_SIM: ${{ inputs.no_sim }}
+          LEVELS: ${{ inputs.levels }}
+          MAX_USD: ${{ inputs.max_usd }}
+        run: |
+          ARGS=(--variant "$VARIANT" --cases "$CASES" --seed "$SEED" --levels "$LEVELS" --max-usd "$MAX_USD" --decks "$PWD/meta-decks.json")
+          if [ -n "$N" ]; then ARGS+=(--n "$N"); fi
+          if [ -n "$SIM_GAMES" ]; then ARGS+=(--sim-games "$SIM_GAMES"); fi
+          if [ "$NO_SIM" = "true" ]; then ARGS+=(--no-sim); fi
+          npm run eval:deck-advice -w @optcg/analyst -- "${ARGS[@]}"
+      - name: Compare with the earlier run
+        if: ${{ inputs.compare_run_id != '' && inputs.compare_variant != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VARIANT: ${{ inputs.variant }}
+          SEED: ${{ inputs.seed }}
+          BASE_RUN: ${{ inputs.compare_run_id }}
+          BASE_VARIANT: ${{ inputs.compare_variant }}
+        run: |
+          gh run download "$BASE_RUN" --repo "$GITHUB_REPOSITORY" -n "log-pose-deck-advice-$BASE_VARIANT" -D analyst/evals/out/deck-advice
+          npm run eval:deck-advice -w @optcg/analyst -- --compare "$BASE_VARIANT" "$VARIANT" --seed "$SEED" --max-usd 5
+      - name: Summary
+        if: always()
+        run: |
+          for f in "analyst/evals/out/deck-advice/${{ inputs.variant }}/report.md" analyst/evals/out/deck-advice/compare-*/report.md; do
+            if [ -f "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; echo >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: log-pose-deck-advice-${{ inputs.variant }}
+          path: analyst/evals/out/deck-advice
+          if-no-files-found: ignore
