@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CardView, ChatLine, PlayerView, RematchState, Seat, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import { lookupCard } from "../cards/atlas";
 import type { RematchDeckOption } from "../decks/rematchDecks";
 import { motionDemoSteps } from "./motionDemo";
 import type { MatchHistoryEntry } from "../history/historyApi";
@@ -863,6 +864,17 @@ function withWaiting(base: PlayerView, kind: string | null): PlayerView {
   };
 }
 
+/** `?blocked`: Character cards in hand cannot be played (e.g. after Alvida); Events still can. */
+function withBlockedCharacters(you: PlayerView["you"]): PlayerView["you"] {
+  return {
+    ...you,
+    hand: you.hand.map((c) => {
+      const cost = lookupCard(c.defId).cost;
+      return lookupCard(c.defId).type === "character" ? { ...c, playCost: cost, blocked: "characters" as const } : { ...c, playCost: cost };
+    }),
+  };
+}
+
 /** Your side with a single active DON!! (the rest rested). */
 function withOneActiveDon(base: PlayerView): PlayerView {
   return {
@@ -922,7 +934,7 @@ export function demoUndoState(kind: string | null): UndoState {
  * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
  * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen,
- * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?clock` per-player clocks, `?away` a
+ * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?blocked` your main phase after an effect stopped you playing Characters (Character hand cards say "Can't play"), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
  * `?oppfull` rested cards (see withRestedField), `?green` a Green Leader and Character (attack-ready glow colour), `?statuses` stacked status
@@ -981,9 +993,10 @@ export function DemoPage() {
   // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
   // cards are grayed out (#356). Add `&attackready` to let y-c3 attack too,
   // so the attack-ready glow shows on a Character as well (#412).
-  const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable")
+  const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable") || params.has("blocked")
     ? {
         ...(params.has("unaffordable") ? withOneActiveDon(colored) : colored),
+        ...(params.has("blocked") ? { you: withBlockedCharacters(colored.you) } : {}),
         phase: "main",
         battle: null,
         legalIntents: [
