@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session
 
@@ -57,6 +57,20 @@ def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
 Staff = Annotated[User, Depends(require_staff)]
 Admin = Annotated[User, Depends(require_admin)]
 
+# The windows the admin charts offer (#691); anything else is a 422.
+RANGE_DAYS = (7, 14, 30, 90)
+
+
+def _range_days(v: int) -> int:
+    if v not in RANGE_DAYS:
+        raise ValueError(f"days must be one of {', '.join(map(str, RANGE_DAYS))}")
+    return v
+
+
+RangeDays = Annotated[int, AfterValidator(_range_days)]
+MATCHES_DAY_LIMIT = 200
+TOP_LEADERS_LIMIT = 25
+
 
 def _utc(dt: datetime | None) -> datetime | None:
     """SQLite hands back naive datetimes; they are UTC."""
@@ -101,7 +115,7 @@ def admin_me(user: Staff) -> dict:
 # ---------------------------------------------------------------- players
 
 @router.get("/overview")
-def overview(_: Admin, db: DB) -> dict:
+def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
     now = datetime.now(timezone.utc)
     d1, d7, d30 = now - timedelta(days=1), now - timedelta(days=7), now - timedelta(days=30)
     guest = _is_guest()
@@ -121,11 +135,11 @@ def overview(_: Admin, db: DB) -> dict:
         "new_30d": users(User.created_at >= d30),
     }
 
-    days30 = _days(now, 30)
-    window_start = datetime.combine(days30[0], datetime.min.time(), tzinfo=timezone.utc)
+    window = _days(now, days)
+    window_start = datetime.combine(window[0], datetime.min.time(), tzinfo=timezone.utc)
     signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start)).all()
-    real_by_day = _bucket([c for c, g in signups if not g], days30)
-    guest_by_day = _bucket([c for c, g in signups if g], days30)
+    real_by_day = _bucket([c for c, g in signups if not g], window)
+    guest_by_day = _bucket([c for c, g in signups if g], window)
 
     def active(since: datetime, real_only: bool = False) -> int:
         ids: set[int] = set()
@@ -146,8 +160,8 @@ def overview(_: Admin, db: DB) -> dict:
     }
 
     matches30 = db.execute(select(DuelMatch.created_at, DuelMatch.ranked).where(DuelMatch.created_at >= window_start)).all()
-    ranked_by_day = _bucket([t for t, r in matches30 if r], days30)
-    casual_by_day = _bucket([t for t, r in matches30 if not r], days30)
+    ranked_by_day = _bucket([t for t, r in matches30 if r], window)
+    casual_by_day = _bucket([t for t, r in matches30 if not r], window)
     avg_turns = db.scalar(select(func.avg(DuelMatch.turns)).where(DuelMatch.created_at >= d30, DuelMatch.turns.is_not(None)))
     matches = {
         "total": int(db.scalar(select(func.count()).select_from(DuelMatch)) or 0),
@@ -160,23 +174,32 @@ def overview(_: Admin, db: DB) -> dict:
 
     games = func.count()
     wins = func.sum(case((DuelMatchSeat.won.is_(True), 1), else_=0))
-    leaders = db.execute(
-        select(DuelMatchSeat.leader_id, games, wins)
-        .where(DuelMatchSeat.created_at >= d30)
-        .group_by(DuelMatchSeat.leader_id)
-        .order_by(games.desc(), DuelMatchSeat.leader_id)
-        .limit(10)
-    ).all()
+
+    def top_leaders(since: datetime) -> list[dict]:
+        rows = db.execute(
+            select(DuelMatchSeat.leader_id, games, wins)
+            .where(DuelMatchSeat.created_at >= since)
+            .group_by(DuelMatchSeat.leader_id)
+            .order_by(games.desc(), DuelMatchSeat.leader_id)
+            .limit(TOP_LEADERS_LIMIT)
+        ).all()
+        return [{"leader_id": lid, "games": int(g), "wins": int(w or 0)} for lid, g, w in rows]
+
+    leaders_window = top_leaders(window_start)
+    # Kept under its old name for older clients: always the last 30 days, whatever the window.
+    leaders_30d = leaders_window if days == 30 else top_leaders(d30)
 
     month = month_start(now)
     return {
         "generated_at": now.isoformat(),
+        "days": days,
         "accounts": accounts,
-        "signups_by_day": [{"day": d.isoformat(), "real": real_by_day[d], "guests": guest_by_day[d]} for d in days30],
+        "signups_by_day": [{"day": d.isoformat(), "real": real_by_day[d], "guests": guest_by_day[d]} for d in window],
         "active": active_out,
-        "matches_by_day": [{"day": d.isoformat(), "ranked": ranked_by_day[d], "casual": casual_by_day[d]} for d in days30],
+        "matches_by_day": [{"day": d.isoformat(), "ranked": ranked_by_day[d], "casual": casual_by_day[d]} for d in window],
         "matches": matches,
-        "top_leaders_30d": [{"leader_id": lid, "games": int(g), "wins": int(w or 0)} for lid, g, w in leaders],
+        "top_leaders": leaders_window,
+        "top_leaders_30d": leaders_30d,
         "planner": {
             "decks": int(db.scalar(select(func.count()).select_from(Deck)) or 0),
             "users_with_decks": int(db.scalar(select(func.count(func.distinct(Deck.user_id)))) or 0),
@@ -190,6 +213,51 @@ def overview(_: Admin, db: DB) -> dict:
                 db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == "approved")) or 0
             ),
         },
+    }
+
+
+@router.get("/matches")
+def matches_on_day(_: Admin, db: DB, day: Annotated[date, Query()]) -> dict:
+    """Every duel finished on one UTC day (oldest first, at most 200), for the drill-down under the matches chart (#691).
+
+    ``id`` is the match id the replay page takes (/replay/:matchId).
+    """
+    start = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc)
+    rows = db.scalars(
+        select(DuelMatch)
+        .where(DuelMatch.created_at >= start, DuelMatch.created_at < start + timedelta(days=1))
+        .order_by(DuelMatch.created_at, DuelMatch.id)
+        .limit(MATCHES_DAY_LIMIT)
+    ).all()
+    ids = [m.match_id for m in rows]
+    seat_leaders = (
+        {(r.match_id, r.seat): r.leader_id for r in db.scalars(select(DuelMatchSeat).where(DuelMatchSeat.match_id.in_(ids)))}
+        if ids
+        else {}
+    )
+    user_ids = {uid for m in rows for uid in (m.seat0_user_id, m.seat1_user_id)}
+    names = {u.id: duel_display_name(u) for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    return {
+        "day": day.isoformat(),
+        "matches": [
+            {
+                "id": m.match_id,
+                "created_at": _iso(m.created_at),
+                "ranked": bool(m.ranked),
+                "turns": m.turns,
+                "winner_seat": m.winner_seat,
+                "seats": [
+                    {
+                        "user_id": uid,
+                        "name": names.get(uid),
+                        "leader_id": leader or seat_leaders.get((m.match_id, n)),
+                        "won": m.winner_seat == n,
+                    }
+                    for n, (uid, leader) in enumerate(((m.seat0_user_id, m.seat0_leader_id), (m.seat1_user_id, m.seat1_leader_id)))
+                ],
+            }
+            for m in rows
+        ],
     }
 
 
@@ -219,7 +287,7 @@ def _eval_out(run: AnalystEvalRun) -> dict:
 
 
 @router.get("/bots")
-def bots(_: Admin, db: DB) -> dict:
+def bots(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 14) -> dict:
     now = datetime.now(timezone.utc)
     rows = db.execute(
         select(BotMatch.created_at, BotMatch.batch_id, BotMatch.leader_a, BotMatch.leader_b, BotMatch.winner, BotMatch.turns, BotMatch.first_seat)
@@ -228,9 +296,9 @@ def bots(_: Admin, db: DB) -> dict:
     finished = [r for r in rows if r.winner is not None]
     turns = [r.turns for r in finished if r.turns is not None]
     seated = [r for r in finished if r.first_seat is not None]
-    days14 = _days(now, 14)
-    games_by_day = _bucket([r.created_at for r in rows], days14)
-    finished_by_day = _bucket([r.created_at for r in finished], days14)
+    window = _days(now, days)
+    games_by_day = _bucket([r.created_at for r in rows], window)
+    finished_by_day = _bucket([r.created_at for r in finished], window)
     evals = db.scalars(select(AnalystEvalRun).order_by(AnalystEvalRun.run_at, AnalystEvalRun.id)).all()
     return {
         "bot_games": {
@@ -244,8 +312,9 @@ def bots(_: Admin, db: DB) -> dict:
             "avg_turns": round(sum(turns) / len(turns), 1) if turns else None,
             "first_seat_win_rate": round(sum(1 for r in seated if r.winner == r.first_seat) / len(seated), 4) if seated else None,
             "last_batch_id": rows[-1].batch_id if rows else None,
-            "by_day": [{"day": d.isoformat(), "games": games_by_day[d], "finished": finished_by_day[d]} for d in days14],
+            "by_day": [{"day": d.isoformat(), "games": games_by_day[d], "finished": finished_by_day[d]} for d in window],
         },
+        "days": days,
         "evals": [_eval_out(e) for e in evals],
     }
 
