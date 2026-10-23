@@ -801,6 +801,140 @@
   color: var(--lp-muted-d);
 }
 
+/* ——— Rating an answer: thumbs up / down and "This is wrong" (#679) ———
+   The row is always 36px tall (44px on touch) and the status has a slot of its own, so saving a vote moves nothing.
+   Only the note form opens, directly below the buttons. */
+.lp-fb {
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.lp-fb-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 36px;
+}
+
+.lp-fb-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--lp-muted-d);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lp-fb-btn:hover {
+  background: color-mix(in srgb, var(--lp-ink-d) 8%, transparent);
+  color: var(--lp-ink-d);
+}
+
+.lp-fb-btn:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 1px;
+}
+
+/* Pressed is a tint and a border; the thumb also fills, so it is not told by colour alone. */
+.lp-fb-btn[aria-pressed="true"] {
+  border-color: var(--lp-accent-d);
+  background: color-mix(in srgb, var(--lp-accent-d) 14%, transparent);
+  color: var(--lp-ink-d);
+}
+
+.lp-fb-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lp-fb-icon[data-filled] {
+  fill: currentColor;
+}
+
+.lp-fb-status {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-fb-status[data-error] {
+  color: var(--lp-danger-d);
+}
+
+.lp-fb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.lp-fb-label {
+  font-size: 0.8125rem;
+  color: var(--lp-muted-d);
+}
+
+.lp-fb-note {
+  flex: none;
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+}
+
+.lp-fb-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-fb-count {
+  margin-right: auto;
+  font-size: 0.75rem;
+  color: var(--lp-muted-d);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-fb-action {
+  min-width: 72px;
+}
+
+@media (pointer: coarse) {
+  .lp-fb-row,
+  .lp-fb-btn {
+    min-height: 44px;
+  }
+
+  .lp-fb-icon-btn {
+    min-width: 44px;
+  }
+
+  .lp-fb-action {
+    min-height: 44px;
+  }
+}
+
 .lp-status {
   margin: 0;
   display: flex;

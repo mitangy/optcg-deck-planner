@@ -26,6 +26,7 @@ import { CASES } from "./cases";
 import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "./grade/judge";
 import { loadCases } from "./load";
 import { evalPlanner, type PlannerOptions, type StatsFixtures, type TournamentFixtures } from "./planner";
+import { postEvalRun } from "./post";
 import { baselineFrom, evalRunPayload, renderReport, stateFile, summaryLine } from "./report";
 import { runEval } from "./runner";
 import { oracleScript, scriptedModel } from "./scripted";
@@ -146,22 +147,5 @@ if (f["write-baseline"]) {
   writeFileSync(here("baseline.json"), `${JSON.stringify(baselineFrom(result.rows, meta, wallS), null, 2)}\n`);
   console.log("wrote evals/baseline.json (commit it with the change it measured)");
 }
-if (f.post) {
-  const url = process.env.ANALYST_API_URL;
-  const secret = process.env.ANALYST_SERVICE_SECRET;
-  if (!url || !secret) {
-    console.error("--post needs ANALYST_API_URL and ANALYST_SERVICE_SECRET; not posted.");
-  } else {
-    try {
-      const res = await fetch(`${url.replace(/\/$/, "")}/admin/evals`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-analyst-service": secret },
-        body: JSON.stringify(evalRunPayload(result.rows, meta)),
-      });
-      console.log(res.ok ? "posted the run to /admin/evals" : `post to /admin/evals failed: HTTP ${res.status}`);
-    } catch (e) {
-      console.error(`post to /admin/evals failed: ${e instanceof Error ? e.message : e}`);
-    }
-  }
-}
+if (f.post) console.log((await postEvalRun(evalRunPayload(result.rows, meta))).message);
 process.exit(result.errors.length ? 1 : 0);

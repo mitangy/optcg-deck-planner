@@ -1,0 +1,92 @@
+name: Log Pose puzzles
+
+# Manual only: the paid rules-puzzle eval (analyst/evals/puzzles, #677). Roughly $0.05-0.10 per puzzle, so the default 25 per
+# type (125 puzzles) can reach the $5 cap (see analyst/README.md). Never scheduled. Positions come from bot self-play (current meta decks) and Harness boards, the
+# gold answer comes from the duel engine, and Log Pose answers through the production chat path with its tools.
+# Needs the ANTHROPIC_API_KEY secret; the meta decks come from the public backend (ANALYST_API_URL), and without it
+# self-play uses random decks.
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Output folder / run label"
+        default: "baseline"
+      n:
+        description: "Puzzles per type"
+        default: "25"
+      seed:
+        description: "Puzzle seed"
+        default: "1"
+      types:
+        description: "Comma list of types (power,counter_needed,playable,can_attack,scenario)"
+        default: "power,counter_needed,playable,can_attack,scenario"
+      max_usd:
+        description: "Stop dispatching past this spend"
+        default: "5"
+      post:
+        description: "Save the result to the admin page (needs ANALYST_API_URL and ANALYST_SERVICE_SECRET)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: log-pose-puzzles
+  cancel-in-progress: false
+
+jobs:
+  puzzles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      # For --post: the same URL and secret the main Log Pose eval and the bot self-play job use.
+      ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
+    steps:
+      - name: Check configuration
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Add the ANTHROPIC_API_KEY repository secret to run the rules puzzles." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${{ inputs.post }}" = "true" ] && { [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; }; then
+            echo "post=true needs ANALYST_API_URL and ANALYST_SERVICE_SECRET." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Fetch the current meta decks
+        if: ${{ env.META_API_URL != '' }}
+        run: npm run meta-decks -w @optcg/analyst -- --api "$META_API_URL" --out "$PWD/meta-decks.json" --leaders 16 --days 30
+      - name: Run the puzzles
+        env:
+          VARIANT: ${{ inputs.variant }}
+          N: ${{ inputs.n }}
+          SEED: ${{ inputs.seed }}
+          TYPES: ${{ inputs.types }}
+          MAX_USD: ${{ inputs.max_usd }}
+          POST: ${{ inputs.post }}
+        run: |
+          ARGS=(--variant "$VARIANT" --n "$N" --seed "$SEED" --types "$TYPES" --max-usd "$MAX_USD")
+          if [ "$POST" = "true" ]; then ARGS+=(--post); fi
+          if [ -f "$PWD/meta-decks.json" ]; then ARGS+=(--decks "$PWD/meta-decks.json"); fi
+          npm run eval:puzzles -w @optcg/analyst -- "${ARGS[@]}"
+      - name: Summary
+        if: always()
+        run: |
+          f="analyst/evals/out/puzzles/${{ inputs.variant }}/report.md"
+          if [ -f "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: log-pose-puzzles-${{ inputs.variant }}
+          path: analyst/evals/out/puzzles/${{ inputs.variant }}
+          if-no-files-found: ignore

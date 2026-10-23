@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { caseMeans, flipped, pairedDelta, score } from "./stats";
+import { caseMeans, diffOfProportions, flipped, pairedDelta, score } from "./stats";
 import type { Row } from "./types";
 
 const row = (c: string, rep: number, correct: 0 | 1, status: Row["status"] = "ok"): Row => ({
@@ -33,5 +33,15 @@ describe("eval statistics", () => {
     const next = new Map([["A01", 0], ["A02", 1], ["A03", 1], ["NEW", 0]]);
     expect(flipped(base, next)).toEqual([{ id: "A01", from: 1, to: 0 }, { id: "A02", from: 0.5, to: 1 }]);
     expect(pairedDelta(base, next)).toMatchObject({ n: 3, mean: (-1 + 0.5 + 0) / 3 });
+  });
+});
+
+describe("difference of two proportions", () => {
+  it("gives Newcombe's interval for 30/100 against 10/100, and the whole range when a side has no games (#678)", () => {
+    const d = diffOfProportions({ k: 10, n: 100 }, { k: 30, n: 100 });
+    expect(d.diff).toBeCloseTo(0.2, 6);
+    expect(d.lo).toBeCloseTo(0.09, 3);
+    expect(d.hi).toBeCloseTo(0.3058, 3);
+    expect(diffOfProportions({ k: 0, n: 0 }, { k: 3, n: 5 })).toEqual({ diff: 0, lo: -1, hi: 1 });
   });
 });

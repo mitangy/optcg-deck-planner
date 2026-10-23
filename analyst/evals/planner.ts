@@ -67,6 +67,7 @@ export function evalPlanner(opts: PlannerOptions): { api: PlannerApi; captured: 
       captured.turn = (JSON.parse(String(init?.body)) as { messages: Message[] }).messages;
       return json({ ok: true });
     }
+    if (method === "POST" && /^\/analyst\/chat\/threads\/\d+\/proposals$/.test(path)) return json({ ok: true });
     if (method === "POST" && path === "/analyst/chat/usage") {
       const b = JSON.parse(String(init?.body)) as Record<string, number>;
       captured.usage.push({

@@ -43,12 +43,80 @@ const deckStats = "packages/deck-analytics/src/deckStats.ts";
 /** Eval group B: alter one card's generated abilities so the engine plays the case's board differently; `kills` are test-name fragments. */
 const evalScn = (id, card, patch, kills) => ({ id: `eval-${id}`, json: ABILITIES, patch: (a) => patch(a[card].abilities), kills });
 
+const rfDir = (f) => `analyst/evals/review-facts/${f}`;
+const rfFacts = rfDir("facts.ts");
+const rfCheck = rfDir("check.ts");
+const rfExtract = rfDir("extract.ts");
+const rfPipeline = rfDir("pipeline.ts");
+const rfReport = rfDir("report.ts");
+// Review-facts eval (#675): each mutation runs only the test file it claims to break.
+const rf = (id, file, from, to, kills, test) => ({ id: `rf-${id}`, file, from, to, kills, args: `evals/review-facts/${test}.test.ts` });
+
+const daDir = (f) => `analyst/evals/deck-advice/${f}`;
+const daSab = daDir("sabotage.ts");
+const daCases = daDir("cases.ts");
+const daEdits = daDir("edits.ts");
+const daSim = daDir("sim.ts");
+const daCompare = daDir("compare.ts");
+const daPipeline = daDir("pipeline.ts");
+const daReport = daDir("report.ts");
+const daAsk = daDir("ask.ts");
+// Deck-advice eval (#678): each mutation runs only the test file it claims to break.
+const da = (id, file, from, to, kills, test) => ({ id: `da-${id}`, file, from, to, kills, args: `evals/deck-advice/${test}.test.ts` });
+// Rules-puzzle eval (#677): each mutation runs only the test file it claims to break.
+const pzDir = (f) => `analyst/evals/puzzles/${f}`;
+const pzAnswer = pzDir("answer.ts");
+const pzGenerators = pzDir("generators.ts");
+const pzDescribe = pzDir("describe.ts");
+const pzPositions = pzDir("positions.ts");
+const pzGenerate = pzDir("generate.ts");
+const pzScenario = pzDir("scenario.ts");
+const pzPipeline = pzDir("pipeline.ts");
+const pzReport = pzDir("report.ts");
+const pzRun = pzDir("run.ts");
+const pz = (id, file, from, to, kills, test) => ({ id: `pz-${id}`, file, from, to, kills, args: `evals/puzzles/${test}.test.ts` });
+const pzEdits = (id, edits, kills, test) => ({ id: `pz-${id}`, edits, kills, args: `evals/puzzles/${test}.test.ts` });
+
 const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
   cwd: "analyst",
   runner: "vitest",
   mutations: [
+    // eval posting and draft cases from feedback (#679)
+    {"id": "ev-post-default-suite", "file": "analyst/evals/post.ts", "from": "const suite = run.suite ?? \"main\";", "to": "const suite = run.suite ?? \"puzzles\";", "kills": ["sends the run with the service secret to /admin/evals, as the main suite unless it names another (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-body-drops-suite", "file": "analyst/evals/post.ts", "from": "body: JSON.stringify({ ...run, suite }),", "to": "body: JSON.stringify(run),", "kills": ["sends the run with the service secret to /admin/evals, as the main suite unless it names another (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-no-secret-header", "file": "analyst/evals/post.ts", "from": "\"x-analyst-service\": secret }", "to": "\"x-analyst-service\": \"\" }", "kills": ["sends the run with the service secret to /admin/evals, as the main suite unless it names another (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-url-slash", "file": "analyst/evals/post.ts", "from": "url.replace(/\\/+$/, \"\")", "to": "url", "kills": ["sends the run with the service secret to /admin/evals, as the main suite unless it names another (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-without-secret", "file": "analyst/evals/post.ts", "from": "if (!url || !secret) return", "to": "if (!url && !secret) return", "kills": ["does not post, and says why, without the API url and secret (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-refusal-ok", "file": "analyst/evals/post.ts", "from": "return res.ok\n      ? ", "to": "return true\n      ? ", "kills": ["reports a refused or failed post instead of throwing (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-post-network-error-thrown", "file": "analyst/evals/post.ts", "from": "    return { ok: false, message: `post to /admin/evals failed: ${e instanceof Error ? e.message : e}` };", "to": "    throw e;", "kills": ["reports a refused or failed post instead of throwing (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-facts-higher-is-better", "file": "analyst/evals/review-facts/report.ts", "from": "    lower_is_better: true,", "to": "    lower_is_better: false,", "kills": ["headlines wrong claims per review, lower is better, with supported out of checkable as the score (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-facts-wrong-suite", "file": "analyst/evals/review-facts/report.ts", "from": "    suite: \"review_facts\",", "to": "    suite: \"main\",", "kills": ["headlines wrong claims per review, lower is better, with supported out of checkable as the score (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-facts-score-is-wrong-count", "file": "analyst/evals/review-facts/report.ts", "from": "correct: t.supported, total: t.checkable }", "to": "correct: t.wrong, total: t.checkable }", "kills": ["headlines wrong claims per review, lower is better, with supported out of checkable as the score (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-facts-metric-is-share", "file": "analyst/evals/review-facts/report.ts", "from": "metric_value: Math.round(t.wrongPerReview * 100) / 100,", "to": "metric_value: Math.round(t.wrongShare * 100) / 100,", "kills": ["headlines wrong claims per review, lower is better, with supported out of checkable as the score (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-facts-score-with-nothing-checked", "file": "analyst/evals/review-facts/report.ts", "from": "...(t.checkable ? { correct: t.supported, total: t.checkable } : {}),", "to": "correct: t.supported, total: t.checkable,", "kills": ["leaves out the score when no claim could be checked (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-puzzles-wrong-suite", "file": "analyst/evals/puzzles/report.ts", "from": "suite: \"puzzles\",", "to": "suite: \"main\",", "kills": ["scores puzzles right out of puzzles answered, by type, as the puzzles suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-puzzles-score-counts-correct-as-total", "file": "analyst/evals/puzzles/report.ts", "from": "    correct: score.correct,\n    total: score.n,", "to": "    correct: score.correct,\n    total: i.rows.length + (i.errors?.length ?? 0) + 1,", "kills": ["scores puzzles right out of puzzles answered, by type, as the puzzles suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-puzzles-score-is-wrong-count", "file": "analyst/evals/puzzles/report.ts", "from": "    correct: score.correct,\n    total: score.n,", "to": "    correct: score.n - score.correct,\n    total: score.n,", "kills": ["scores puzzles right out of puzzles answered, by type, as the puzzles suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-puzzles-no-type-breakdown", "file": "analyst/evals/puzzles/report.ts", "from": "if (s.n) groups[type] = { correct: s.correct, total: s.n };", "to": "if (s.n) groups[type] = { correct: s.n, total: s.n };", "kills": ["scores puzzles right out of puzzles answered, by type, as the puzzles suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-puzzles-spend-dropped", "file": "analyst/evals/puzzles/report.ts", "from": "spend_usd: Math.round(i.rows.reduce((s, r) => s + r.cost_usd, 0) * 100) / 100,\n    notes: i.notes ??", "to": "spend_usd: 0,\n    notes: i.notes ??", "kills": ["scores puzzles right out of puzzles answered, by type, as the puzzles suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-wrong-suite", "file": "analyst/evals/deck-advice/report.ts", "from": "suite: \"deck_advice\",", "to": "suite: \"review_facts\",", "kills": ["headlines mean sabotage recall as a percent, higher is better, as the deck_advice suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-lower-is-better", "file": "analyst/evals/deck-advice/report.ts", "from": "lower_is_better: false }", "to": "lower_is_better: true }", "kills": ["headlines mean sabotage recall as a percent, higher is better, as the deck_advice suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-metric-is-precision", "file": "analyst/evals/deck-advice/report.ts", "from": "metric_value: round1(t.meanRecall)", "to": "metric_value: round1(t.meanPrecision ?? 0)", "kills": ["headlines mean sabotage recall as a percent, higher is better, as the deck_advice suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-metric-is-share", "file": "analyst/evals/deck-advice/report.ts", "from": "metric_value: round1(t.meanRecall)", "to": "metric_value: t.meanRecall", "kills": ["headlines mean sabotage recall as a percent, higher is better, as the deck_advice suite (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-score-counts-all-cases", "file": "analyst/evals/deck-advice/report.ts", "from": "correct: t.notLost, total: t.simulated, groups", "to": "correct: t.notLost, total: t.cases, groups", "kills": ["scores the simulated cases whose edit did not lose win rate significantly, by kind (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-score-is-gained", "file": "analyst/evals/deck-advice/report.ts", "from": "correct: t.notLost, total: t.simulated, groups", "to": "correct: t.gained, total: t.simulated, groups", "kills": ["scores the simulated cases whose edit did not lose win rate significantly, by kind (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-group-counts-lost", "file": "analyst/evals/deck-advice/report.ts", "from": "correct: played.filter((r) => !lostSignificantly(r.sim!.change!)).length, total: played.length", "to": "correct: played.filter((r) => lostSignificantly(r.sim!.change!)).length, total: played.length", "kills": ["scores the simulated cases whose edit did not lose win rate significantly, by kind (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-score-without-sim", "file": "analyst/evals/deck-advice/report.ts", "from": "...(t.simulated ? { correct: t.notLost, total: t.simulated, groups } : {}),", "to": "correct: t.notLost, total: t.simulated, groups,", "kills": ["leaves out the score without a simulation and the metric without a sabotaged case (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-advice-metric-without-sabotage", "file": "analyst/evals/deck-advice/report.ts", "from": "...(t.meanRecall === null ? {} : { metric_name: \"Mean sabotage recall (%)\", metric_value: round1(t.meanRecall), lower_is_better: false }),", "to": "metric_name: \"Mean sabotage recall (%)\", metric_value: round1(t.meanRecall ?? 0), lower_is_better: false,", "kills": ["leaves out the score without a simulation and the metric without a sabotaged case (#679)"], "args": "evals/post.test.ts"},
+    {"id": "ev-cases-every-rating", "file": "analyst/evals/feedbackCases.ts", "from": ".filter((i) => i.rating === \"wrong\" && i.answer_excerpt.trim())", "to": ".filter((i) => i.answer_excerpt.trim())", "kills": ["keeps only wrong ratings whose answer was stored, oldest first, and names the game for a review (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-empty-answers", "file": "analyst/evals/feedbackCases.ts", "from": ".filter((i) => i.rating === \"wrong\" && i.answer_excerpt.trim())", "to": ".filter((i) => i.rating === \"wrong\")", "kills": ["keeps only wrong ratings whose answer was stored, oldest first, and names the game for a review (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-newest-first", "file": "analyst/evals/feedbackCases.ts", "from": ".map(caseStub)\n    .reverse();", "to": ".map(caseStub);", "kills": ["keeps only wrong ratings whose answer was stored, oldest first, and names the game for a review (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-no-game", "file": "analyst/evals/feedbackCases.ts", "from": "    match_id: item.match_id,", "to": "    match_id: null,", "kills": ["keeps only wrong ratings whose answer was stored, oldest first, and names the game for a review (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-no-question", "file": "analyst/evals/feedbackCases.ts", "from": "    question: item.question,", "to": "    question: \"\",", "kills": ["writes the question, the stored answer and the player's note for a human to finish (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-no-answer", "file": "analyst/evals/feedbackCases.ts", "from": "    bad_answer: item.answer_excerpt,", "to": "    bad_answer: \"\",", "kills": ["writes the question, the stored answer and the player's note for a human to finish (#679)"], "args": "evals/feedbackCases.test.ts"},
+    {"id": "ev-cases-no-note", "file": "analyst/evals/feedbackCases.ts", "from": "    player_note: item.note,", "to": "    player_note: \"\",", "kills": ["writes the question, the stored answer and the player's note for a human to finish (#679)"], "args": "evals/feedbackCases.test.ts"},
     // deck lists
     { id: "deck-glued-count-not-split", file: decks, from: "const line = raw.replace(/^(\\s*\\d+)x(?=[A-Z])/i, \"$1x \");", to: "const line = raw;", kills: ["reads OPTCGSim lists with the count glued"] },
     { id: "deck-trailing-count-ignored", file: decks, from: "const copies = Number(lead?.[1] ?? trail?.[1] ?? 1);", to: "const copies = Number(lead?.[1] ?? 1);", kills: ["counts written after the card number"] },
@@ -106,7 +174,7 @@ module.exports = {
       { file: sources, from: "listDeck(game.decks?.A) && `Player A deck list:", to: "false && `Player A deck list:" },
       { file: sources, from: "listDeck(game.decks?.B) && `Player B deck list:", to: "false && `Player B deck list:" },
     ], kills: ["quotes the deck lists in the overview of a review and of a corpus game"] },
-    { id: "review-card-reference-dropped", file: chat, from: "              { type: \"text\", text: reviewCardReference(deps.catalog, game) },\n", to: "", kills: ["gives the review a card reference"] },
+    { id: "review-card-reference-dropped", file: chat, from: "          { type: \"text\" as const, text: reviewCardReference(catalog, game) },\n", to: "", kills: ["gives the review a card reference"] },
     { id: "review-card-reference-skips-seen-cards", file: chat, from: ", ...g.cardsInGame]);", to: "]);", kills: ["gives the review a card reference"] },
     { id: "review-opening-hand-seat-0", file: matches, from: "    yourOpeningHand: n.openingHands[seat],", to: "    yourOpeningHand: n.openingHands[0],", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-turn-range-ignored", file: matches, from: "        if (turn < fromTurn || turn > toTurn) continue;\n", to: "", kills: ["reads only the asked turns and cuts long logs"] },
@@ -206,7 +274,7 @@ module.exports = {
     { id: "chat-cost-priced-on-turn-total", file: chat, from: "    state.cost += costUsd(reply.usage, reply.model ?? o.model);", to: "    state.cost = costUsd(state.usage, reply.model ?? o.model);", kills: ["prices a Haiku 5.5 turn call by call, so only the call over 100K pays the long tier (#430)"] },
     { id: "chat-effort-sent-to-haiku-4-5", file: chat, from: "const NO_EFFORT_MODELS = [\"claude-haiku-4-5\"];", to: "const NO_EFFORT_MODELS: string[] = [];", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
     { id: "chat-effort-dropped-for-all", file: chat, from: "(NO_EFFORT_MODELS.includes(model) ? {} :", to: "(true ? {} :", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
-    { id: "review-effort-sent-to-haiku-4-5", file: chat, from: "        ...outputConfigFor(model, \"high\"),", to: "        output_config: { effort: \"high\" },", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
+    { id: "review-effort-sent-to-haiku-4-5", file: chat, from: "    ...outputConfigFor(model, \"high\"),", to: "    output_config: { effort: \"high\" },", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
     { id: "chat-model-budget-ignored", file: chat, from: "typeof budget.model === \"string\" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL", to: "CHAT_MODEL", kills: ["runs every call on the model the planner's budget names"] },
     { id: "chat-model-unknown-passed-through", file: chat, from: "typeof budget.model === \"string\" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL", to: "typeof budget.model === \"string\" ? budget.model : CHAT_MODEL", kills: ["runs every call on the model the planner's budget names"] },
     { id: "chat-model-rounds-use-default", file: chat, from: "          model: o.model,\n          max_tokens: o.maxTokens,", to: "          model: CHAT_MODEL,\n          max_tokens: o.maxTokens,", kills: ["runs every call on the model the planner's budget names"] },
@@ -277,7 +345,7 @@ module.exports = {
     { id: "stream-claim-not-released", file: chat, from: "const left = (streaming.get(user) ?? 1) - 1;", to: "const left = (streaming.get(user) ?? 1);", kills: ["lets a user have two chat or review streams at a time"] },
     { id: "stream-limit-one-only", file: chat, from: "const MAX_STREAMS_PER_USER = 2;", to: "const MAX_STREAMS_PER_USER = 1;", kills: ["lets a user have two chat or review streams at a time"] },
     { id: "stream-claim-shared-by-all", file: chat, from: "const user = token.split(\".\")[1] ?? token;", to: "const user = \"all\";", kills: ["lets a user have two chat or review streams at a time"] },
-    { id: "review-turns-not-sources", file: chat, from: "            ...gameResults(\"match\", game.matchId, game),\n", to: "", kills: ["sends the game to the review as one search result per turn"] },
+    { id: "review-turns-not-sources", file: chat, from: "          ...gameResults(\"match\", game.matchId, game),\n", to: "", kills: ["sends the game to the review as one search result per turn"] },
     { id: "review-citations-not-saved", file: chat, from: "{ text: final, citations }", to: "{ text: final, citations: [] }", kills: ["sends the game to the review as one search result per turn"] },
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
@@ -602,5 +670,207 @@ module.exports = {
     { id: "bots-meta-leader-limit-ignored", file: metaDecks, from: "if (out.length >= (opts.leaders ?? 16)) break;", to: "if (false) break;", kills: ["builds one deck per leader for the most-played leaders"] },
     { id: "bots-meta-days-ignored", file: metaDecks, from: "const days = opts.days ?? 30;", to: "const days = 30;", kills: ["builds one deck per leader for the most-played leaders"] },
     { id: "bots-meta-http-error-ignored", file: metaDecks, from: "if (!res.ok) throw new Error(`${url} answered HTTP ${res.status}`);", to: "if (false) throw new Error(`${url} answered HTTP ${res.status}`);", kills: ["reports a failing endpoint"] },
+    // review-facts eval (#675)
+    rf("turn-count-off-by-one", rfFacts, "let turn = opening.turnNumber;", "let turn = opening.turnNumber + 1;", ["counts turns like the Turn N headers a review reads"], "facts"),
+    rf("mulligan-flipped", rfFacts, "mulligans[e.seat] = e.didMulligan;", "mulligans[e.seat] = !e.didMulligan;", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("first-seat-flipped", rfFacts, "firstSeat: replay.firstSeat,", "firstSeat: (1 - replay.firstSeat) as Seat,", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("winner-flipped", rfFacts, "const winner = replay.end?.winner ?? last.winner ?? null;", "const winner = replay.end ? ((1 - replay.end.winner) as Seat) : last.winner;", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("ko-seat-flipped", rfFacts, "current.kos.push({ seat: e.seat,", "current.kos.push({ seat: (1 - e.seat) as Seat,", ["puts each play, attack, K.O. and Life hit on the turn it happened"], "facts"),
+    rf("trigger-card-lost", rfFacts, "// An accepted Trigger that was not announced is the Life card just taken.\n        pendingTrigger[e.seat] = e.defId;", "// (mutated)", ["puts each play, attack, K.O. and Life hit on the turn it happened"], "facts"),
+    rf("block-dropped", rfFacts, "if (openAttack) openAttack.blockedBy = defOf.get(e.blockerId);", "void 0;", ["keeps a block's blocker and a counter's cards with the attack they belong to"], "facts"),
+    rf("counter-dropped", rfFacts, "openAttack?.counters.push(e.defId);", "void 0;", ["keeps a block's blocker and a counter's cards with the attack they belong to"], "facts"),
+    rf("life-end-not-updated", rfFacts, "t.lifeAtEnd = life;\n", "", ["gives the Life range of a turn, start and end"], "facts"),
+    rf("life-range-min-wrong", rfFacts, "Math.min(t.lifeRange[s][0], life[s])", "Math.max(t.lifeRange[s][0], life[s])", ["gives the Life range of a turn, start and end"], "facts"),
+    rf("divergence-hidden", rfFacts, "divergedAt = err instanceof Error ? err.message : String(err);", "divergedAt = undefined;", ["stops at the move that no longer replays and says where"], "facts"),
+    rf("seat-mapping-flipped", rfFacts, "actor === \"you\" ? seat : ((1 - seat) as Seat)", "actor === \"you\" ? ((1 - seat) as Seat) : seat", ["supports a play on the turn it happened, for either seat's view"], "check"),
+    rf("check-ignores-turn", rfCheck, "const here = claim.turn === null ? verdicts : verdicts.filter((x) => x.i.turn === claim.turn);", "const here = verdicts;", ["calls the same play on another turn wrong_turn and names the real turn"], "check"),
+    rf("absent-not-contradicted", rfCheck, "const absent = (what: string): Checked => (diverged ? unverifiable(`${what}; the replay stopped early, so later turns are unknown`) : { verdict: \"contradicted\", reason: what });", "const absent = (what: string): Checked => unverifiable(what);", ["contradicts a card that was in the decks but never played"], "check"),
+    rf("neither-deck-reason-lost", rfCheck, "if (r.status === \"not_in_game\") return { verdict: \"contradicted\", reason: `${r.name} is in neither deck` };\n    wantCard = r.name;", "wantCard = r.name;", ["contradicts a real card that is in neither deck"], "check"),
+    rf("not-in-game-unplaced", rfCheck, "for (const c of catalog.cards.values()) if (norm(c.name) === full) return { status: \"not_in_game\", name: c.name };\n", "", ["contradicts a real card that is in neither deck"], "check"),
+    rf("unknown-name-contradicted", rfCheck, "return { status: \"none\", why: `\"${written}\" matches no card in this game` };", "return { status: \"not_in_game\", name: written };", ["contradicts a real card that is in neither deck, but leaves a name it cannot place unverifiable"], "check"),
+    rf("ambiguous-takes-first", rfCheck, "if (fits.length === 1) return { status: \"ok\", name: fits[0]! };", "if (fits.length >= 1) return { status: \"ok\", name: fits[0]! };", ["leaves a partial card name that fits two cards unverifiable"], "check"),
+    rf("partial-name-never-matches", rfCheck, "return want.every((t) => have.has(t));", "return false;", ["leaves a partial card name that fits two cards unverifiable"], "check"),
+    rf("card-number-ignored", rfCheck, "const id = written.match(CARD_NUMBER)?.[1]?.toUpperCase();", "const id = undefined as string | undefined;", ["reads a card number as that card's name"], "check"),
+    rf("wrong-winner-passes", rfCheck, "if (winner !== actor) return { verdict: \"contradicted\"", "if (false) return { verdict: \"contradicted\"", ["contradicts the wrong winner and checks the way it ended"], "check"),
+    rf("end-reason-ignored", rfCheck, "if (want.includes(reason)) return", "if (true) return", ["contradicts the wrong winner and checks the way it ended"], "check"),
+    rf("life-total-wrong-turn", rfCheck, "const t = turnOf(claim.turn);", "const t = turnOf(claim.turn + 1);", ["contradicts a Life total outside what the player had that turn"], "check"),
+    rf("final-life-not-final", rfCheck, "if (/\\b(end|ended|finish|finished|final|finally|left with)\\b/i.test(claim.quote)) {", "if (false) {", ["compares a final Life total to where the game ended"], "check"),
+    rf("life-ever-seen-any", rfCheck, "return facts.lifeSeen[actor].includes(claim.number)", "return true", ["compares a final Life total to where the game ended"], "check"),
+    rf("went-first-flipped", rfCheck, "return facts.firstSeat === actor", "return facts.firstSeat !== actor", ["checks who went first and who mulliganed"], "check"),
+    rf("mulligan-flipped-check", rfCheck, "return did === (claim.number === 1)", "return did !== (claim.number === 1)", ["checks who went first and who mulliganed"], "check"),
+    rf("attack-target-ignored", rfCheck, "if (wantTarget) fold(wantTarget === \"leader\" ? i.target === \"leader\" : i.target === undefined ? \"unknown\" : i.target === \"leader\" ? false : sameCard(i.target, wantTarget));", "if (wantTarget) fold(true);", ["checks attacks by attacker and target, and the turn they happened on"], "check"),
+    rf("counter-on-attacker", rfCheck, "items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: c });", "items.push({ turn: t.turn, seat: a.seat, card: c });", ["puts a counter on the player who defended, not the attacker"], "check"),
+    rf("block-on-attacker", rfCheck, "items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: a.blockedBy });", "items.push({ turn: t.turn, seat: a.seat, card: a.blockedBy });", ["puts a block on the player who defended, not the attacker"], "check"),
+    rf("ko-on-killer", rfCheck, "items.push({ turn: t.turn, seat: k.seat, card: k.card });", "items.push({ turn: t.turn, seat: (1 - k.seat) as Seat, card: k.card });", ["puts a K.O. on the card's owner and checks a stated count"], "check"),
+    rf("stated-count-ignored", rfCheck, "&& yes.length !== claim.number) {", "&& false) {", ["puts a K.O. on the card's owner and checks a stated count", "counts the Life cards taken in a turn when the claim gives a number"], "check"),
+    rf("trigger-card-unknown", rfCheck, "items.push({ turn: t.turn, seat: x.seat, card: x.card });", "items.push({ turn: t.turn, seat: x.seat, card: undefined });", ["matches a Trigger to the Life card that was taken"], "check"),
+    rf("other-contradicted", rfCheck, "return unverifiable(\"no checkable event in this claim\");", "return { verdict: \"contradicted\", reason: \"other\" };", ["leaves a claim that names no event unverifiable"], "check"),
+    rf("stopped-replay-contradicts", rfCheck, "=> (diverged ? unverifiable(", "=> (false ? unverifiable(", ["does not call a claim contradicted when the replay stopped before it could happen"], "check"),
+    rf("quote-guard-removed", rfExtract, "(q && hay.includes(q) ? kept : dropped).push(c);", "kept.push(c);", ["drops a claim whose quote is not in the review"], "extract"),
+    rf("quote-curly-not-normalized", rfExtract, ".replace(/[\\u2018\\u2019\\u02bc]/g, \"'\")", "", ["drops a claim whose quote is not in the review, and keeps one with curly quotes or markdown changed"], "extract"),
+    rf("quote-markdown-not-stripped", rfExtract, ".replace(/[*_`]/g, \"\")", "", ["drops a claim whose quote is not in the review, and keeps one with curly quotes or markdown changed"], "extract"),
+    rf("invalid-claims-kept", rfExtract, "if (r.success) claims.push(r.data);", "if (true) claims.push(c as Claim);", ["keeps the claims that fit the schema and counts the rest as invalid"], "extract"),
+    rf("scripted-actor-flipped", rfExtract, "/^you$/i.test(w) ? \"you\" : \"opponent\"", "/^you$/i.test(w) ? \"opponent\" : \"you\"", ["reads the dry run's template sentences and nothing else"], "extract"),
+    rf("production-request-differs", "analyst/src/chat.ts", "      reviewRequest(deps.catalog, model, game),\n", "      { ...reviewRequest(deps.catalog, model, game), max_tokens: 1000 },\n", ["sends the eval the same model request the app sends for the same game"], "request"),
+    rf("eval-request-differs", rfPipeline, "reviewRequest(deps.catalog, deps.model, game)", "reviewRequest(deps.catalog, deps.model, { ...game, notes: [] })", ["sends the eval the same model request the app sends for the same game"], "request"),
+    rf("pipeline-keeps-unquoted", rfPipeline, "guardQuotes(review, extracted.claims)", "({ kept: extracted.claims, dropped: [] as typeof extracted.claims })", ["scores the extracted claims of a review against the game"], "request"),
+    rf("wrong-turn-not-wrong", rfReport, "const wrong = contradicted + wrong_turn;", "const wrong = contradicted;", ["scores the extracted claims of a review against the game"], "request"),
+    rf("unverifiable-checkable", rfReport, "const checkable = supported + wrong;", "const checkable = supported + wrong + sum(\"unverifiable\");", ["scores the extracted claims of a review against the game"], "request"),
+    // deck-advice eval (#678)
+    da("seed-ignored", daSab, "const next = rng(seedOf(opts.seed, source.leaderId));", "const next = rng(seedOf(0, source.leaderId));", ["gives the same sabotage for the same seed and another for a different seed"], "sabotage"),
+    da("k-range", daSab, "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 1))", "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 4))", ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"], "sabotage"),
+    da("planted-not-recorded", daSab, "return { cards, k, planted: planted.sort((a, b) => a.id.localeCompare(b.id)), removed };", "return { cards, k, planted: [], removed };", ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"], "sabotage"),
+    da("removal-cap", daSab, "const take = Math.min(2, c.copies - (removedBy.get(c.id) ?? 0), left);", "const take = Math.min(4, c.copies - (removedBy.get(c.id) ?? 0), left);", ["takes at most 2 copies out of any one card"], "sabotage"),
+    da("removal-any-card", daSab, "for (const minCopies of [3, 2, 1]) {", "for (const minCopies of [1]) {", ["takes at most 2 copies out of any one card, from cards the deck plays in numbers"], "sabotage"),
+    da("banned-planted", daSab, "!banned.has(c.id) && !exclude.has(c.id)", "!exclude.has(c.id)", ["never plants a banned or restricted card"], "sabotage"),
+    da("restricted-planted", daSab, "const exclude = new Set([...original.map((c) => c.id), ...(opts.restricted ?? [])]);", "const exclude = new Set([...original.map((c) => c.id)]);", ["never plants a banned or restricted card"], "sabotage"),
+    da("rank-ignores-meta", daSab, "(freq.get(a.id) ?? 0) - (freq.get(b.id) ?? 0) || (a.counter ?? 0)", "0 || (a.counter ?? 0)", ["ranks cards the meta plays last"], "sabotage"),
+    da("plant-not-vanilla", daSab, "c.type === \"character\" && c.support === \"vanilla\" && (c.cost ?? 0) >= 5", "c.type === \"character\" && (c.cost ?? 0) >= 5", ["plants off-plan cards: vanilla characters that no meta deck plays"], "sabotage"),
+    {
+      id: "da-sabotage-legality-unchecked",
+      file: daSab,
+      edits: [
+        { file: daSab, from: "const inColors = (c: CardRow) => c.colors.length > 0 && c.colors.every((col) => leader.colors.includes(col));", to: "const inColors = (c: CardRow) => c.colors.length > 0;" },
+        { file: daSab, from: "    if (analyzeDeck(catalog, deckFromLines(catalog, trial, source.leaderId)).hints.some((h) => h.tier === \"rule\" && h.id !== \"count\")) continue;\n", to: "" },
+        { file: daSab, from: " || !analyzeDeck(catalog, deckFromLines(catalog, cards, source.leaderId)).legal) return null;", to: ") return null;" },
+      ],
+      kills: ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"],
+      args: "evals/deck-advice/sabotage.test.ts",
+    },
+    da("mode-ignored", daCases, "if (opts.mode !== \"sabotaged\") {", "if (true) {", ["builds only the kind asked for"], "sabotage"),
+    da("n-ignored", daCases, ".slice(0, Math.max(0, opts.n))", ".slice(0, Math.max(0, opts.n) + 1)", ["builds only the kind asked for and a seeded, repeatable pick of n"], "sabotage"),
+    da("message-without-deck", daCases, "message: `${question}\\n\\n${text}` };", "message: question };", ["builds each meta deck as is and a sabotaged copy"], "sabotage"),
+    da("proposal-first-wins", daEdits, "const last = proposals[proposals.length - 1];", "const last = proposals[0];", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("proposal-ignored", daEdits, "if (deltas.length) return { source: \"proposal\", deltas };", "if (false) return { source: \"proposal\", deltas };", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("proposal-delta-flipped", daEdits, "delta: l.after - l.before", "delta: l.before - l.after", ["reads the Apply card proposal as card count changes, and the last proposal wins"], "edits"),
+    da("text-sign-flipped", daEdits, "delta: e.sign === \"+\" ? e.copies : -e.copies", "delta: e.sign === \"+\" ? -e.copies : e.copies", ["falls back to the +N / -N lines of the answer when there is no proposal"], "edits"),
+    da("deltas-not-summed", daEdits, "m.set(d.id, (m.get(d.id) ?? 0) + d.delta);", "m.set(d.id, d.delta);", ["falls back to the +N / -N lines of the answer when there is no proposal"], "edits"),
+    da("no-edits-legal", daEdits, "legal: edits.deltas.length > 0 && r.legal,", "legal: r.legal,", ["does not call an answer with no edits legal"], "edits"),
+    da("recall-denominator", daEdits, "recall: plantedCopies ? plantedRemoved / plantedCopies : null,", "recall: plantedCopies && removed ? plantedRemoved / removed : null,", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("precision-denominator", daEdits, "precision: plantedCopies && removed ? plantedRemoved / removed : null,", "precision: plantedCopies && removed ? plantedRemoved / plantedCopies : null,", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("partial-removal-ignored", daEdits, "const gone = (id: string, copies: number) => Math.max(0, copies - (a.get(id) ?? 0));", "const gone = (id: string, copies: number) => ((a.get(id) ?? 0) === 0 ? copies : 0);", ["counts the planted copies the edits remove over the planted copies"], "edits"),
+    da("sim-seed-per-opponent", daSim, "seed: opts.seed + o * 100_003 + g,", "seed: opts.seed + g,", ["uses a different seed for every game"], "sim"),
+    da("sim-seat-fixed", daSim, "mySeat: (g % 2) as Seat,", "mySeat: 0 as Seat,", ["plays every seat and first player combination"], "sim"),
+    da("sim-seed-per-deck", daSim, "seed: opts.seed + o * 100_003 + g,", "seed: opts.seed + o * 100_003 + g + mine.deck.length,", ["give every version of a deck the same seeds, seats and first player"], "sim"),
+    da("sim-result-seat", daSim, "return r.winner === job.mySeat ? \"win\" : \"loss\";", "return r.winner === 0 ? \"win\" : \"loss\";", ["finds a deck of vanilla cards clearly worse than the meta deck"], "sim"),
+    da("sim-unfinished-counted", daSim, "winRate: finished ? wins / finished : null,", "winRate: outcomes.length ? wins / outcomes.length : null,", ["ignores games that did not finish when it takes a win rate"], "sim"),
+    da("sim-change-reversed", daSim, "diffOfProportions({ k: before.wins, n: before.wins + before.losses }, { k: after.wins, n: after.wins + after.losses })", "diffOfProportions({ k: after.wins, n: after.wins + after.losses }, { k: before.wins, n: before.wins + before.losses })", ["measures after minus before and calls a change lost only when the whole interval is below zero"], "sim"),
+    da("sim-lost-on-lower-bound", daSim, "c.hi < 0;", "c.lo < 0;", ["measures after minus before and calls a change lost only when the whole interval is below zero"], "sim"),
+    { id: "da-newcombe-upper", file: "analyst/evals/stats.ts", from: "diff + Math.sqrt((ub - pb) ** 2 + (pa - la) ** 2)", to: "diff + Math.sqrt((ub - pb) ** 2 + (ua - pa) ** 2)", kills: ["gives Newcombe's interval for 30/100 against 10/100"], args: "evals/stats.test.ts" },
+    { id: "da-newcombe-lower", file: "analyst/evals/stats.ts", from: "diff - Math.sqrt((pb - lb) ** 2 + (ua - pa) ** 2)", to: "diff - Math.sqrt((pb - lb) ** 2 + (pa - la) ** 2)", kills: ["gives Newcombe's interval for 30/100 against 10/100"], args: "evals/stats.test.ts" },
+    da("verdict-slot-flipped", daCompare, "return (better === \"first\") === (order === \"AB\") ? \"A\" : \"B\";", "return (better === \"first\") !== (order === \"AB\") ? \"A\" : \"B\";", ["maps the picked slot back to the variant that was in it"], "compare"),
+    da("order-never-random", daCompare, "return seedOf(seed, `order:${caseId}`) % 2 === 0 ? \"AB\" : \"BA\";", "return seedOf(seed, `order:${caseId}`) % 2 === 0 ? \"AB\" : \"AB\";", ["randomizes the order per case, repeatably, and about half the cases each way"], "compare"),
+    da("both-ways-share-ignored", daCompare, "return seedOf(seed, `both:${caseId}`) / 4294967296 < share;", "return seedOf(seed, `both:${caseId}`) / 4294967296 < 1;", ["judges a seeded share of the cases in both orders"], "compare"),
+    da("disagreement-not-tie", daCompare, "return one.verdict === two.verdict ? one.verdict : \"tie\";", "return one.verdict === two.verdict ? one.verdict : one.verdict;", ["calls a verdict that changes with the order a tie"], "compare"),
+    da("prompt-slots-swapped", daCompare, "<first_answer>${i.first}</first_answer>\\n<second_answer>${i.second}</second_answer>", "<first_answer>${i.second}</first_answer>\\n<second_answer>${i.first}</second_answer>", ["shows the answers in the order given"], "compare"),
+    da("judge-order-ignored", daCompare, "const [first, second] = order === \"AB\" ? [input.a, input.b] : [input.b, input.a];", "const [first, second] = [input.a, input.b];", ["puts the answers in the opposite slots for the other order"], "compare"),
+    da("planted-always-told", daCompare, "const known = i.planted?.length ? ", "const known = true ? ", ["shows the answers in the order given and says nothing about which variant is which"], "compare"),
+    da("ties-in-rate", daCompare, "bRate: a + b ? b / (a + b) : null,", "bRate: a + b ? b / (a + b + ties) : null,", ["is the share of decisive cases that preferred B"], "compare"),
+    da("slot-bias-one-sided", daCompare, "slotBias: picks.length ? (first - (picks.length - first)) / picks.length : null,", "slotBias: picks.length ? first / picks.length : null,", ["finds a judge that always picks the first slot fully biased"], "compare"),
+    da("sim-cache-off", daPipeline, "    cfg.cache.set(key, hit);\n", "", ["scores an answer that puts the original deck back as full recall"], "pipeline"),
+    da("field-includes-own-deck", daPipeline, "cfg.field.filter((_, i) => i !== c.source)", "cfg.field.filter(() => true)", ["leaves the case's own deck out of its opposing field"], "pipeline"),
+    da("illegal-edit-played", daPipeline, "const usable = edits.deltas.length > 0 && applied.legal;", "const usable = edits.deltas.length > 0;", ["does not play an illegal edit"], "pipeline"),
+    da("no-ceiling", daPipeline, "c.kind === \"sabotaged\" ? simDeck(cfg, c, c.original) : Promise.resolve(null)", "Promise.resolve(null)", ["scores an answer that puts the original deck back as full recall"], "pipeline"),
+    da("deck-not-open-in-app", daAsk, "      deck: { name: c.name, leaderId: c.leaderId, cards: c.cards.map((x) => ({ id: x.id, copies: x.copies })), ref: \"planner:eval\" },\n", "", ["sends the production system prompt and tools, with the deck pasted under the question and open in the app"], "pipeline"),
+    da("deck-not-pasted", daAsk, "    message: c.message,\n", "    message: c.question,\n", ["sends the production system prompt and tools, with the deck pasted under the question and open in the app"], "pipeline"),
+    da("recall-skips-no-edit-cases", daReport, "r.kind === \"sabotaged\" && r.recall !== null);", "r.kind === \"sabotaged\" && r.recall !== null && r.edit_source !== \"none\");", ["averages recall over the sabotaged cases (no edits counts zero)"], "report"),
+    da("precision-null-as-zero", daReport, "const prec = sab.filter((r) => r.precision !== null);", "const prec = sab;", ["averages recall over the sabotaged cases (no edits counts zero) and precision"], "report"),
+    da("not-lost-on-point-estimate", daReport, "const notLost = played.filter((r) => !lostSignificantly(r.sim!.change!)).length;", "const notLost = played.filter((r) => r.sim!.change!.diff >= 0).length;", ["counts an edit as not losing win rate unless its whole interval is below zero"], "report"),
+    da("headline-all-cases", daReport, "${t.notLost}/${t.cases} counting a case", "${t.notLost}/${t.simulated} counting a case", ["states the headline with a case with no edits counted against the edits"], "report"),
+    // rules-puzzle eval (#677): answer parsing and grading
+    pz("parse-first-block", pzAnswer, "const raw = candidates[candidates.length - 1];", "const raw = candidates[0];", ["takes the last JSON block when the reply has several"], "answer"),
+    pz("parse-no-bare-object", pzAnswer, "const candidates = fenced.length ? fenced : braceSpans(text);", "const candidates = fenced;", ["reads a bare JSON object when the reply has no fence"], "answer"),
+    pz("parse-bad-json-ok", pzAnswer, "return { ok: false, reason: \"the JSON block does not parse\" };", "return { ok: true, value: {}, raw };", ["counts a reply with no parseable JSON as no answer"], "answer"),
+    pz("grade-set-length-only", pzAnswer, "a.length === b.length && a.every((x, i) => x === b[i])", "a.length === b.length", ["marks a list that differs from the gold wrong even when it is as long"], "answer"),
+    pz("grade-unsorted", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs).sort();", "(gold.mode === \"set\" ? [...new Set(xs)] : xs);", ["marks the right list right in any order, with a repeated card, or written as names"], "answer"),
+    pz("grade-set-keeps-repeats", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs)", "xs", ["marks the right list right in any order, with a repeated card, or written as names"], "answer"),
+    pz("grade-multiset-collapsed", pzAnswer, "(gold.mode === \"set\" ? [...new Set(xs)] : xs)", "[...new Set(xs)]", ["counts the copies of a card when the gold is a multiset"], "answer"),
+    pz("grade-number-near", pzAnswer, "correct: n === gold.value,", "correct: Math.abs(n - gold.value) <= 1000,", ["grades a number exactly, not near"], "answer"),
+    pz("grade-names-not-read", pzAnswer, "const id = item.match(CARD_ID)?.[1];", "const id = undefined as string | undefined;", ["marks the right list right in any order, with a repeated card, or written as names", "turns a card name into the card number only when one card of the puzzle has it"], "answer"),
+    pz("grade-name-ambiguous-first", pzAnswer, "return named.length === 1 ? named[0]!.id", "return named.length >= 1 ? named[0]!.id", ["turns a card name into the card number only when one card of the puzzle has it"], "answer"),
+    pz("grade-unparsed-correct", pzAnswer, "if (!parsed.ok) return { correct: false,", "if (!parsed.ok) return { correct: true,", ["marks an unparseable reply wrong"], "answer"),
+    // generators: gold from the engine
+    pz("power-gold-printed", pzGenerators, "value: powerOf(state, target.seat, target.card) }", "value: catalog.cards.get(target.card.defId)?.power ?? 0 }", ["differs from the printed power when DON!! is attached to a card on its owner's turn", "includes a Leader's static on a Character"], "generators"),
+    pz("engine-don-counts-on-opponents-turn", "packages/rules/src/engine/queries.ts", "if (state.activeSeat === seat) p += card.attachedDonIds.length * 1000;", "p += card.attachedDonIds.length * 1000;", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing", "is the printed power for DON!! on the opponent's card during your turn"], "generators"),
+    pz("engine-ties-lose", "packages/rules/src/engine/procedure.ts", "const won = atk >= def;", "const won = atk > def;", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing"], "generators"),
+    pz("counter-modifier-too-big", pzGenerators, "{ type: \"power\", amount: counter }", "{ type: \"power\", amount: counter + COUNTER_STEP }", ["is the Counter at which the attack fails", "asks for a Character target with the same rule, and DON!! on a defending Character adds nothing"], "generators"),
+    pz("counter-stops-at-first-hit", pzGenerators, "if (!through) return { counterStep", "if (through) return { counterStep", ["is the Counter at which the attack fails"], "generators"),
+    pz("counter-described-from-attacker", pzGenerators, "headOf(s, view, catalog, turn, { attackerId: atk.id })", "headOf(s, attacker, catalog, turn, { attackerId: atk.id })", ["builds a puzzle from the counter step whose gold is one of the position's battles"], "generators"),
+    pz("playable-all-hand", pzGenerators, "const yes = playableIds(state, view);", "const yes = hand.map((c) => c.defId);", ["leaves out a card that costs more than the active DON!!"], "generators"),
+    pz("engine-rested-don-pays", "packages/rules/src/engine/state.ts", "return p.costArea.filter((d) => !d.rested);", "return p.costArea;", ["does not count rested DON!! toward the cost"], "generators"),
+    pz("attackers-all", pzGenerators, "idsOf(state.players[seat].characters, attackerCards(state, seat));", "idsOf(state.players[seat].characters, new Set(state.players[seat].characters.map((c) => c.id)));", ["leaves out a Character played this turn that has no Rush, and keeps one with Rush", "leaves out a rested Character"], "generators"),
+    pz("attack-copies-inconsistent", pzGenerators, "if (!consistent(p.characters, attackerCards(state, view))) return null;", "", ["makes no puzzle when two copies of a card differ in whether they can attack"], "generators"),
+    pz("power-ambiguous-name-asked", pzGenerators, "const unique = targets.filter((t) => targets.filter((u) => u.card.defId === t.card.defId).length === 1);", "const unique = targets;", ["does not ask about a card whose name is on the table twice"], "generators"),
+    // position text
+    pz("text-no-hand", pzDescribe, "own ? `Your hand (${p.hand.length})", "false ? `Your hand (${p.hand.length})", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-no-opponent", pzGenerators, ", ...describeSeat(state, (1 - view) as Seat, catalog, \"Opponent's\", opts)]", "]", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-no-just-played", pzDescribe, "c.summoningSick && state.activeSeat === seat ? \"played this turn\" : \"\",", "\"\",", ["leaves out a Character played this turn that has no Rush, and keeps one with Rush", "names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("text-board-leaks-power", pzDescribe, "const bits = [\n    c.rested ? \"rested\" : \"active\",", "const bits = [\n    \"1234 power\",\n    c.rested ? \"rested\" : \"active\",", ["names the acting player's hand, both boards, DON!!, Life and the cards' reference lines"], "generators"),
+    pz("reference-truncated", pzDescribe, "...referenceLines(catalog, cardIds, cap)]", "...referenceLines(catalog, cardIds, cap).slice(0, 3)]", ["have a different id each, and a card in every puzzle's reference"], "scenario"),
+    pz("message-unbounded", pzDescribe, "if (message.length <= MESSAGE_LIMIT) return { position, message };", "return { position, message };", ["cuts card text shorter to fit the size bound, and gives up when even that is too long"], "describe"),
+    // positions
+    pz("sample-not-idle", pzPositions, "return isIdleMain(state) && plainState(state) && state.turnNumber >= 2;", "return plainState(state) && state.turnNumber >= 2;", ["are idle Main Phases of different turns, in game order"], "positions"),
+    pz("idle-any-phase", pzPositions, "state.winner === null && state.phase === \"main\" && !state.battle", "state.winner === null && !state.battle", ["is not one while a choice is pending or a battle is on"], "positions"),
+    pz("plain-ignores-buffs", pzPositions, "if (state.modifiers.some((m) => m.effect.type !== \"flag\")) return false;", "", ["is not one while a buff the text could not show is in play"], "positions"),
+    pz("plain-ignores-turn-log", pzPositions, "(!p.turnLog.events.length && !p.turnLog.koed.length && !p.turnLog.handTrashed)", "true", ["is not one when this turn's record"], "positions"),
+    pz("sample-same-turn-twice", pzPositions, "if (turns.has(c.turn)) continue;", "", ["are idle Main Phases of different turns, in game order"], "positions"),
+    pz("sample-unseeded", pzPositions, "for (const c of rng.shuffle([...candidates])) {", "for (const c of [...candidates].sort(() => Math.random() - 0.5)) {", ["are the same for the same seed (#677)"], "positions"),
+    pz("selfplay-ignores-seed", pzPositions, "const gameSeed = opts.seed * 100000 + g + 1;", "const gameSeed = g + 1;", ["are the same games every time and other games for another seed"], "positions"),
+    pz("selfplay-unseeded", pzPositions, "const gameSeed = opts.seed * 100000 + g + 1;", "const gameSeed = opts.seed * 100000 + g + 1 + Math.floor(Math.random() * 1000);", ["are the same games every time and other games for another seed"], "positions"),
+    pz("synth-unseeded", pzPositions, "const rng = createSeededRng(opts.seed * 7919 + 13);", "const rng = createSeededRng(opts.seed * 7919 + 13 + Math.floor(Math.random() * 1e9));", ["are the same for the same seed and different for another"], "positions"),
+    pz("synth-ignores-seed", pzPositions, "const rng = createSeededRng(opts.seed * 7919 + 13);", "const rng = createSeededRng(13);", ["are the same for the same seed and different for another"], "positions"),
+    pzEdits("synth-new-sets-ignored", [
+      { file: pzPositions, from: "const leaderOf = () => (wantNew && newLeaders.length && rng.next() < 0.5 ? pickOf(rng, newLeaders) : pickOf(rng, leaders));", to: "const leaderOf = () => pickOf(rng, leaders);" },
+      { file: pzPositions, from: "(wantNew && fresh.length && rng.next() < 0.6 ? pickOf(rng, fresh) : pickOf(rng, all))", to: "pickOf(rng, all)" },
+    ], ["lean on OP18 and EB05 cards when asked for the newest sets"], "positions"),
+    pzEdits("synth-no-don", [
+      { file: pzPositions, from: "if (rng.next() < 0.5 && budget() > 0) h.attach(seat, p.leader, Math.min(budget(), 1 + rng.nextInt(3)));", to: "" },
+      { file: pzPositions, from: "for (const c of placed) if (rng.next() < 0.3 && budget() > 0) h.attach(seat, c, Math.min(budget(), 1 + rng.nextInt(2)));", to: "" },
+    ], ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-rested", pzPositions, "c.rested = rng.next() < 0.3;", "c.rested = false;", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-just-played", pzPositions, "if (seat === 0 && rng.next() < 0.3) {", "if (false) {", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("synth-no-hand", pzPositions, "const handSize = seat === 0 ? 3 + rng.nextInt(5) : 2 + rng.nextInt(5);", "const handSize = seat === 0 ? 0 : 2 + rng.nextInt(5);", ["have attached DON!!, rested and just-played Characters, and a hand"], "positions"),
+    pz("new-set-deck-empty", pzPositions, "const focus = rng.shuffle([...pool]).slice(0, 4).map((d) => d.id);", "const focus = rng.shuffle([...pool]).slice(0, 0).map((d) => d.id);", ["hold four copies of several OP18 or EB05 cards"], "positions"),
+    // the set
+    pz("quota-synth-share-flipped", pzGenerate, "const synth = Math.round(n * synthShare);", "const synth = Math.round(n * (1 - synthShare));", ["splits the puzzles between Harness boards and self-play"], "generate"),
+    pz("generate-order-unseeded", pzGenerate, "const order = createSeededRng(hash(seed, round, type)).shuffle([...batch]);", "const order = [...batch].sort(() => Math.random() - 0.5);", ["is the same for the same seed and different for another"], "generate"),
+    pzEdits("generate-ignores-seed", [
+      { file: pzGenerate, from: "const roundSeed = seed * 1000 + round;", to: "const roundSeed = round;" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, round, type)).shuffle([...batch])", to: "createSeededRng(hash(0, round, type)).shuffle([...batch])" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, pos.id, type))", to: "createSeededRng(hash(0, pos.id, type))" },
+      { file: pzGenerate, from: "createSeededRng(hash(seed, \"scenario\"))", to: "createSeededRng(hash(0, \"scenario\"))" },
+    ], ["is the same for the same seed and different for another"], "generate"),
+    pzEdits("generate-new-share-ignored", [
+      { file: pzGenerate, from: "perGame: 3, newShare, decks: opts.decks, catalog }),", to: "perGame: 3, newShare: 0, decks: opts.decks, catalog })," },
+      { file: pzGenerate, from: "count: Math.max(10, Math.ceil(n * synthShare * 3)), newShare, catalog }),", to: "count: Math.max(10, Math.ceil(n * synthShare * 3)), newShare: 0, catalog })," },
+    ], ["is the same for the same seed and different for another"], "generate"),
+    // scenarios
+    pz("scenario-row-drifts-from-engine", pzDir("scenarioRows.ts"), "expect: { me: { hand: [KAROO], trash: [KOMACHIYO], don: { active: 2, rested: 1 } } },", "expect: { me: { hand: [KAROO], trash: [KOMACHIYO], don: { active: 3, rested: 0 } } },", ["only use rows the engine runs to the state the row states"], "scenario"),
+    pz("scenario-seat-swapped", pzScenario, "const e: SeatExpect | undefined = seat === 0 ? row.expect.me : row.expect.opp;", "const e: SeatExpect | undefined = seat === 0 ? row.expect.opp : row.expect.me;", ["take the gold from the seat the question is about"], "scenario"),
+    pz("scenario-power-off", pzScenario, "gold: { key: \"power\", mode: \"number\", value: power }", "gold: { key: \"power\", mode: \"number\", value: power + 1000 }", ["ask for the power the row states, for the Character it names"], "scenario"),
+    pz("scenario-refused-step-kept", pzScenario, "if ((row.steps ?? []).some((s) => \"rejects\" in s && s.rejects)) return false;", "", ["leave out rows with a step the engine refuses and rows that end in a prompt"], "scenario"),
+    pz("scenario-pending-kept", pzScenario, "return pending === undefined || pending === \"none\";", "return true;", ["leave out rows with a step the engine refuses and rows that end in a prompt"], "scenario"),
+    pz("scenario-steps-reversed", pzScenario, "return { lines: lines.map((l, i) => `${i + 1}. ${l}`), ids };", "return { lines: lines.reverse().map((l, i) => `${i + 1}. ${l}`), ids };", ["number the steps in the order the row plays them"], "scenario"),
+    pz("scenario-hand-hidden", pzScenario, "`${own} hand: ${s?.hand?.length ?", "`${own} hand: ${false ?", ["describe the setup and the steps in order, naming each card with its card number"], "scenario"),
+    // asking and grading through the chat
+    pz("ask-question-only", pzPipeline, "{ message: puzzle.message }", "{ message: puzzle.question }", ["sends the puzzle as the player's message with the app's system prompt and tools"], "pipeline"),
+    pz("ask-model-mismatch-ignored", pzPipeline, "if (reply.model !== deps.model) throw", "if (false) throw", ["records an error, not a wrong answer, when a call is served by another model"], "pipeline"),
+    pz("ask-cost-zero", pzPipeline, "cost_usd: calls.reduce((s, k) => s + costUsd(k.usage, k.model), 0),", "cost_usd: 0,", ["charges the calls it made and counts the lookups", "stops dispatching once the spend passes the cap, and says so"], "pipeline"),
+    pz("ask-cap-ignored", pzPipeline, "if (spent >= opts.maxUsd) {", "if (false) {", ["stops dispatching once the spend passes the cap, and says so"], "pipeline"),
+    pz("ask-one-user-for-all", pzPipeline, "`chat.eval-${puzzle.id}`", "\"chat.eval\"", ["runs more puzzles at once than the chat allows streams for one player"], "pipeline"),
+    pz("ask-unparsed-counts-as-parsed", pzPipeline, "parsed: parsed.ok && !ranOut,", "parsed: true,", ["grades the reply's last JSON block against the gold, exactly"], "pipeline"),
+    pz("scripted-never-wrong", pzPipeline, "if (bucket < 4) return", "if (false) return", ["answer most puzzles right, some wrong and some with no JSON, the same way every time"], "pipeline"),
+    // report
+    pz("report-counts-parsed", pzReport, "const correct = rows.filter((r) => r.correct).length;", "const correct = rows.filter((r) => r.parsed).length;", ["scores the share of puzzles answered exactly right, with a Wilson interval"], "report"),
+    pz("report-no-interval", pzReport, "interval: wilson(correct, rows.length)", "interval: [0, 1] as [number, number]", ["scores the share of puzzles answered exactly right, with a Wilson interval"], "report"),
+    pz("report-worst-unsorted", pzReport, ".sort((a, b) => Number(a.parsed) - Number(b.parsed))", "", ["shows the worst misses with the question, what was given and the gold, unanswered ones first"], "report"),
+    pz("report-new-set-flipped", pzReport, "i.rows.filter((r) => r.newSet)", "i.rows.filter((r) => !r.newSet)", ["lists accuracy per type and for new sets against older cards"], "report"),
+    pz("report-errors-in-accuracy", pzReport, "const all = scoreOf(i.rows);", "const all = scoreOf([...i.rows, ...i.errors.map((e) => ({ ...i.rows[0]!, id: e.id, correct: false }))]);", ["keeps errors out of the accuracy and lists them"], "report"),
+    pz("report-gold-shows-given", pzReport, "; gold ${cell(r.gold)}.`", "; gold ${cell(r.given)}.`", ["shows the worst misses with the question, what was given and the gold, unanswered ones first"], "report"),
+    // CLI
+    pz("cli-no-key-exits-1", pzRun, "  process.exit(2);", "  process.exit(1);", ["exits 2 and says why when the real API is asked for without a key"], "run"),
+    pz("cli-dump-needs-key", pzRun, "if (!scripted && !f.dump && !process.env.ANTHROPIC_API_KEY) {", "if (!scripted && !process.env.ANTHROPIC_API_KEY) {", ["writes the puzzles with --dump and needs no key"], "run"),
+    pz("cli-dump-goes-on", pzRun, "if (f.dump) process.exit(0);", "", ["writes the puzzles with --dump and needs no key"], "run"),
+    pz("cli-no-report", pzRun, "writeFileSync(join(dir, \"report.md\"), report);", "", ["runs the whole pipeline with --model-api scripted and writes puzzles, answers and a report"], "run"),
   ],
 };
