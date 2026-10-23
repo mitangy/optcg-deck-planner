@@ -58,21 +58,34 @@ const numberOf = (v: unknown): number | undefined => {
   return undefined;
 };
 
-/** The field the gold names; a bare value or a one-field object is read as that field. */
-function fieldOf(value: unknown, key: string): unknown {
+/** The field the gold names; a bare value or a one-field object is read as that field (unless `strict`, for one part of several). */
+function fieldOf(value: unknown, key: string, strict = false): unknown {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const o = value as Record<string, unknown>;
     if (key in o) return o[key];
     const keys = Object.keys(o);
-    return keys.length === 1 ? o[keys[0]!] : undefined;
+    return !strict && keys.length === 1 ? o[keys[0]!] : undefined;
   }
-  return value;
+  return strict ? undefined : value;
+}
+
+/** An "all" gold: every part is graded on its own field of the answer object, and the reason names the parts that failed. */
+function gradeAll(gold: Extract<Gold, { mode: "all" }>, value: unknown, known: readonly { id: string; name: string }[]): Graded {
+  const results = gold.parts.map((part) => ({ part, graded: gradeField(part, fieldOf(value, part.key, true), known) }));
+  const failed = results.filter((r) => !r.graded.correct).map((r) => r.part.key);
+  const given = `{${results.map((r) => `${JSON.stringify(r.part.key)}:${r.graded.given}`).join(",")}}`;
+  return failed.length ? { correct: false, given, reason: `wrong: ${failed.join(", ")}` } : { correct: true, given };
 }
 
 /** Exact grading: numbers must be equal; lists are equal as sets (or as multisets) of normalized card ids. */
 export function gradeAnswer(gold: Gold, parsed: ParsedAnswer, known: readonly { id: string; name: string }[] = []): Graded {
   if (!parsed.ok) return { correct: false, given: "(no answer)", reason: parsed.reason };
-  const field = fieldOf(parsed.value, gold.key);
+  return gold.mode === "all" ? gradeAll(gold, parsed.value, known) : gradeField(gold, fieldOf(parsed.value, gold.key), known);
+}
+
+/** One gold against the value found in its field. */
+function gradeField(gold: Gold, field: unknown, known: readonly { id: string; name: string }[]): Graded {
+  if (gold.mode === "all") return gradeAll(gold, field, known);
   if (gold.mode === "number") {
     const n = numberOf(field);
     return n === undefined ? { correct: false, given: JSON.stringify(field ?? null), reason: "not a number" } : { correct: n === gold.value, given: String(n) };
@@ -85,4 +98,5 @@ export function gradeAnswer(gold: Gold, parsed: ParsedAnswer, known: readonly { 
   return { correct: a.length === b.length && a.every((x, i) => x === b[i]), given: JSON.stringify(a) };
 }
 
-export const goldText = (gold: Gold): string => (gold.mode === "number" ? String(gold.value) : JSON.stringify([...gold.value].sort()));
+export const goldText = (gold: Gold): string =>
+  gold.mode === "all" ? `{${gold.parts.map((p) => `${JSON.stringify(p.key)}:${goldText(p)}`).join(",")}}` : gold.mode === "number" ? String(gold.value) : JSON.stringify([...gold.value].sort());

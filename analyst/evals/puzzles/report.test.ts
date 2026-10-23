@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { wilson } from "../stats";
 import type { PuzzleRow } from "./pipeline";
-import { headline, renderReport, scoreOf, worstMisses } from "./report";
+import { headline, puzzlesRunPayload, renderReport, scoreOf, worstMisses } from "./report";
 
 const row = (id: string, type: PuzzleRow["type"], correct: boolean, over: Partial<PuzzleRow> = {}): PuzzleRow => ({
   id,
@@ -65,5 +65,15 @@ describe("the report", () => {
     expect(md).toContain("- e1: timeout: no answer within 30s");
     expect(md).toContain("Dry run:");
     expect(md).toContain("Stopped at the spend cap.");
+  });
+
+  it("lists the harder types by name, in the table and in the posted groups (#685)", () => {
+    const more = [row("d1", "defend", true), row("d2", "defend", false), row("l1", "lethal", true), row("c1", "scenario_chain", false, { reason: "wrong: my_hand" })];
+    const md = renderReport({ variant: "v", mode: "anthropic", model: "m", source: "s", puzzles: [], rows: more, errors: [], stoppedAtCap: false, maxUsd: 5 });
+    expect(md).toContain("| defend | 2 | 1 | 50.0% |");
+    expect(md).toContain("| lethal | 1 | 1 | 100.0% |");
+    expect(md).toContain("| scenario_chain | 1 | 0 | 0.0% |");
+    expect(md).toContain("(wrong: my_hand)");
+    expect(puzzlesRunPayload({ variant: "v", model: "m", rows: more }).groups).toEqual({ defend: { correct: 1, total: 2 }, lethal: { correct: 1, total: 1 }, scenario_chain: { correct: 0, total: 1 } });
   });
 });

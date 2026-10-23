@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
 import { fixtureReplay } from "../review-facts/game";
 import { shownCardIds } from "./describe";
-import { isIdleMain, newSetDeck, plainState, samplableState, samplePositions, selfPlayPositions, syntheticPositions } from "./positions";
+import { applyIntent, listLegalIntents } from "@optcg/rules";
+import { Harness } from "@optcg/rules/src/testing/harness";
+import { isIdleMain, lethalPool, lethalPosition, newSetDeck, plainState, samplableState, samplePositions, selfPlayPositions, syntheticPositions } from "./positions";
 import { NEW_SET } from "./types";
 import { board, KAROO, rng } from "./testkit";
 
@@ -99,5 +101,93 @@ describe("decks for the newest sets", () => {
     expect(a).toEqual(b);
     expect(a.deck.filter((id) => NEW_SET.test(id)).length).toBeGreaterThanOrEqual(8);
     expect(a.deck).toHaveLength(50);
+  });
+});
+
+describe("the cards of a lethal board", () => {
+  const pool = lethalPool(catalog);
+  const row = (id: string) => catalog.cards.get(id)!;
+
+  it("are Characters with no text but keywords, Leaders with only static text and Counter Events that only add power (#685)", () => {
+    expect(pool.chars.length).toBeGreaterThan(100);
+    for (const id of pool.chars) {
+      const c = row(id);
+      expect(c.text.replace(/\([^)]*\)/g, "").replace(/\[(Blocker|Rush|Double Attack|Banish)\]/g, "").trim(), id).toBe("");
+      expect(c.trigger, id).toBe("");
+      expect(c.keywords.every((k) => ["Blocker", "Rush", "Double Attack", "Banish"].includes(k)), id).toBe(true);
+    }
+    for (const id of pool.leaders) expect(row(id).timings, id).toEqual([]);
+    expect(pool.events.length).toBeGreaterThan(0);
+    for (const id of pool.events) expect(row(id).effects, id).toEqual(["power"]);
+    expect(row(pool.lifeFiller).counter ?? 0).toBe(0);
+    expect(row(pool.lifeFiller).trigger).toBe("");
+  });
+
+  it("run through the engine with no question but which card gets the power (#685)", () => {
+    expect(pool.events.length).toBeGreaterThan(0);
+    for (const id of pool.events) {
+      const h = new Harness({ leaders: [pool.attackLeaders[0]!, pool.leaders[0]!], deckSize: 20 });
+      h.don(0, 1);
+      h.don(1, 3);
+      h.field(0, pool.chars[0]!);
+      h.field(1, pool.chars[1]!, pool.chars[2]!);
+      h.hand(1, id);
+      h.act(0, { type: "declare_attack", attackerId: h.state.players[0].leader.id, target: { kind: "leader" } });
+      h.act(1, { type: "pass_block" });
+      const play = listLegalIntents(h.state, 1).find((i) => i.type === "counter_event");
+      expect(play, id).toBeDefined();
+      const r = applyIntent(h.state, play!, { seat: 1, rng: h.rng });
+      expect(r.ok, id).toBe(true);
+      const asks = r.state.pendingChoices.map((c) => c.request?.type);
+      expect(asks.every((t) => t === "select"), id).toBe(true);
+      expect(asks.length, id).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("leave out a Leader whose DON!! changes other cards' power, which giving DON!! just before an attack relies on (#685)", () => {
+    expect(row("OP01-001").text).toContain("All of your Characters gain +1000 power");
+    expect(pool.leaders).toContain("OP01-001");
+    expect(pool.attackLeaders).not.toContain("OP01-001");
+    expect(pool.attackLeaders).toContain("OP17-079");
+  });
+});
+
+describe("lethal boards", () => {
+  it("hold a Leader and 1 to 3 Characters able to attack, 1 to 5 active DON!!, and a short face-up defence (#685)", () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const { state } = lethalPosition(rng(seed), catalog, seed % 2 === 0, `l${seed}`);
+      const [me, opp] = state.players;
+      expect(me.characters.length, `seed ${seed}`).toBeGreaterThanOrEqual(1);
+      expect(me.characters.length, `seed ${seed}`).toBeLessThanOrEqual(3);
+      const active = me.costArea.filter((d) => !d.rested).length;
+      expect(active).toBeGreaterThanOrEqual(1);
+      expect(active).toBeLessThanOrEqual(5);
+      expect(me.hand).toHaveLength(0);
+      expect(opp.life.length).toBeLessThanOrEqual(2);
+      expect(opp.characters.length).toBeLessThanOrEqual(2);
+      expect(opp.hand.length).toBeLessThanOrEqual(3);
+      expect(opp.life.every((id) => id === lethalPool(catalog).lifeFiller)).toBe(true);
+      expect(listLegalIntents(state, 0).some((i) => i.type === "declare_attack" && i.target.kind === "leader")).toBe(true);
+    }
+  });
+
+  it("are the same for the same seed, and use only cards of the pool (#685)", () => {
+    const pool = lethalPool(catalog);
+    const sig = (seed: number) => {
+      const s = lethalPosition(rng(seed), catalog, false, "x").state;
+      return JSON.stringify([s.players.map((p) => [p.leader.defId, p.characters.map((c) => c.defId), p.hand.map((c) => c.defId)])]);
+    };
+    expect(sig(3)).toEqual(sig(3));
+    expect(sig(3)).not.toEqual(sig(4));
+    const s = lethalPosition(rng(9), catalog, false, "x").state;
+    for (const c of [...s.players[0].characters, ...s.players[1].characters]) expect(pool.chars).toContain(c.defId);
+    for (const c of s.players[1].hand) expect([...pool.counterChars, ...pool.events]).toContain(c.defId);
+    expect(pool.attackLeaders).toContain(s.players[0].leader.defId);
+  });
+
+  it("lean on OP18 and EB05 cards when asked for the newest sets (#685)", () => {
+    const withNew = (want: boolean) =>
+      Array.from({ length: 30 }, (_, i) => lethalPosition(rng(i + 1), catalog, want, `n${i}`).state).filter((s) => [0, 1].flatMap((seat) => shownCardIds(s, seat as 0 | 1, [], true)).some((id) => NEW_SET.test(id))).length;
+    expect(withNew(true)).toBeGreaterThan(withNew(false) + 5);
   });
 });

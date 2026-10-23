@@ -12,16 +12,16 @@ export type Made = Omit<Puzzle, "id" | "source">;
 
 const side = (seat: Seat, view: Seat) => (seat === view ? "your" : "your opponent's");
 const sorted = (xs: readonly string[]) => [...xs].sort();
-const pickOf = <T>(rng: Rng, xs: readonly T[]): T => xs[rng.nextInt(xs.length)]!;
+export const pickOf = <T>(rng: Rng, xs: readonly T[]): T => xs[rng.nextInt(xs.length)]!;
 
 /** Both sides from `view`'s seat, the acting player's hand, and a turn line. */
-function headOf(state: MatchState, view: Seat, catalog: Catalog, turnLine: string, opts: { attackerId?: string } = {}): string[] {
+export function headOf(state: MatchState, view: Seat, catalog: Catalog, turnLine: string, opts: { attackerId?: string; showHand?: boolean } = {}): string[] {
   return [turnLine, ...describeSeat(state, view, catalog, "Your", opts), ...describeSeat(state, (1 - view) as Seat, catalog, "Opponent's", opts)];
 }
 
 const mainLine = (state: MatchState) => `Turn ${state.turnNumber}. It is your turn and you are in your Main Phase; no effect is waiting to resolve.`;
 
-function finish(type: PuzzleType, catalog: Catalog, head: string[], ids: string[], question: string, schema: string, gold: Gold, tags: string[]): Made | null {
+export function finish(type: PuzzleType, catalog: Catalog, head: string[], ids: string[], question: string, schema: string, gold: Gold, tags: string[]): Made | null {
   const text = assemble(catalog, head, ids, question, schema);
   if (!text) return null;
   return { type, tags, newSet: hasNewSet(ids), position: text.position, cards: ids, question, schema, message: text.message, gold };

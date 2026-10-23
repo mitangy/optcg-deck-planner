@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
 import { CHAT_INSTRUCTIONS, CHAT_MODEL, type CallModel, type ModelReply } from "../../src/chat";
 import { scriptedModel, textReply, usage } from "../scripted";
+import { gradeAnswer, parseAnswer } from "./answer";
 import { askAll, askPuzzle, scriptedReply, type AskDeps, type PuzzleError, type PuzzleRow } from "./pipeline";
 import type { Puzzle } from "./types";
 
@@ -106,5 +107,23 @@ describe("the dry run's scripted replies", () => {
     expect(noJson).toBeGreaterThan(0);
     expect(wrongFirst).toBeGreaterThan(5);
     expect(wrongFirst).toBeLessThan(25);
+  });
+
+  it("answer a chain with one object: right when it should be, wrong in its first part when it should not (#685)", () => {
+    const chain = (id: string): Puzzle => ({
+      ...puzzle(id),
+      type: "scenario_chain",
+      gold: { key: "all", mode: "all", parts: [{ key: "my_life", mode: "number", value: 4 }, { key: "opp_hand", mode: "multiset", value: ["ST01-003", "ST01-009"] }] },
+    });
+    const graded = Array.from({ length: 40 }, (_, i) => chain(`ch${i}`)).map((p) => ({ p, reply: scriptedReply(p, catalog) }));
+    const wrong = graded.filter(({ reply }) => reply.includes("deliberately wrong"));
+    expect(wrong.length).toBeGreaterThan(3);
+    for (const { p, reply } of wrong) {
+      const parsed = parseAnswer(reply);
+      expect(gradeAnswer(p.gold, parsed), p.id).toMatchObject({ correct: false, reason: "wrong: my_life" });
+    }
+    const right = graded.filter(({ reply }) => reply.includes("```json") && !reply.includes("deliberately wrong") && !reply.includes("First thought"));
+    expect(right.length).toBeGreaterThan(10);
+    for (const { p, reply } of right) expect(gradeAnswer(p.gold, parseAnswer(reply), [{ id: "ST01-003", name: "Karoo" }, { id: "ST01-009", name: "Nefeltari Vivi" }]).correct, p.id).toBe(true);
   });
 });

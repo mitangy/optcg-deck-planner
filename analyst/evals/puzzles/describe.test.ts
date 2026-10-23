@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
-import { assemble, countedList, fullySupported } from "./describe";
+import { board, KAROO } from "./testkit";
+import { assemble, countedList, describeSeat, fullySupported } from "./describe";
 import { MESSAGE_LIMIT } from "./types";
 
 const catalog = loadCatalog();
@@ -45,5 +46,15 @@ describe("assembling a puzzle message", () => {
     expect(fullySupported(catalog, ["ST01-003", "OP18-001"])).toBe(true);
     expect(fullySupported(catalog, ["ST01-003", partial])).toBe(false);
     expect(fullySupported(catalog, ["ZZ99-999"])).toBe(false);
+  });
+
+  it("lists the other side's hand only when the puzzle shows it face up (#685)", () => {
+    const h = board();
+    h.hand(1, KAROO, KAROO);
+    const hidden = describeSeat(h.state, 1, catalog, "Opponent's");
+    expect(hidden).toContain("Opponent's hand: 2 cards (hidden).");
+    const shown = describeSeat(h.state, 1, catalog, "Opponent's", { showHand: true });
+    expect(shown).toContain("Opponent's hand (2): Karoo (ST01-003); Karoo (ST01-003)");
+    expect(shown.join("\n")).not.toContain("hidden");
   });
 });
