@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-23
+  { date: "2026-10-23", app: "both", title: "Log Pose turns deck suggestions into an Apply card", text: "When you ask Log Pose to tune a deck, it now gives exact swaps, card by card, and always puts them on a card you can apply: 50 cards and no card over its copy limit. If it writes changes in its answer without a card, the app has it check them and make one." },
   { date: "2026-10-23", app: "both", pr: 679, title: "Rate Log Pose answers", text: "Under each Log Pose answer and each game review there are now a thumbs up, a thumbs down and a \"This is wrong\" button. Press \"This is wrong\" to say what it got wrong, and it goes straight to the people who improve Log Pose. You can change your rating any time." },
   // 2026-10-22
   { date: "2026-10-22", app: "duel", title: "Hand cards say when an effect stops you playing them", text: "If an effect such as Alvida's stops you playing Characters (or Events, or any card from your hand) this turn, those cards now read \"Can't play\" in red instead of their cost, and selecting one explains why. They gray out too when you have \"Gray out unplayable cards\" on." },
