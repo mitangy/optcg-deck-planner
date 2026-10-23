@@ -208,3 +208,15 @@ def test_deleted_image_public_link_is_gone_389(client):
     mat = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]
     assert c.delete(f"/duel/cosmetics/{mat['id']}").status_code == 200
     assert c.get(mat["public_path"]).status_code == 404
+
+
+def test_public_playmat_link_is_rate_limited_per_ip_682(client, monkeypatch: pytest.MonkeyPatch):
+    c, S = client
+    luffy = _user(S, "luffy")
+    mat = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]
+    c.cookies.clear()
+    monkeypatch.setattr(duel_prefs._public_image_rate, "max_calls", 2)
+    scraper = {"x-forwarded-for": "203.0.113.7"}
+    assert [c.get(mat["public_path"], headers=scraper).status_code for _ in range(3)] == [200, 200, 429]
+    # Another viewer is not held up by the scraper.
+    assert c.get(mat["public_path"], headers={"x-forwarded-for": "203.0.113.8"}).status_code == 200

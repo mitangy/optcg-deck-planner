@@ -11,6 +11,8 @@ export type Friend = {
   status: FriendStatus;
   /** Room the friend is playing or watching; only set when it can be spectated. */
   room_id: string | null;
+  /** Game server that room is on, when the API knows it (a pool flip can leave it off the current one). */
+  server_url?: string | null;
   ranked: boolean;
 };
 
@@ -21,6 +23,8 @@ export type FriendInvite = {
   from_user_id: number;
   from_username: string;
   room_id: string;
+  /** Game server the room was opened on; absent on older invites. */
+  server_url?: string | null;
   /** Epoch seconds. */
   expires_at: number;
 };
@@ -74,10 +78,10 @@ export function removeFriend(userId: number): Promise<unknown> {
   return call(`/friends/${userId}`, { method: "DELETE" }, "Could not remove");
 }
 
-export function inviteFriend(userId: number, roomId: string): Promise<FriendInvite> {
+export function inviteFriend(userId: number, roomId: string, serverUrl?: string | null): Promise<FriendInvite> {
   return call<FriendInvite>(
     `/friends/${userId}/invite`,
-    { method: "POST", body: JSON.stringify({ room_id: roomId }) },
+    { method: "POST", body: JSON.stringify({ room_id: roomId, server_url: serverUrl ?? null }) },
     "Could not send invite",
   );
 }

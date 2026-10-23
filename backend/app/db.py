@@ -203,6 +203,55 @@ def startup_lock(bind: Engine | None = None) -> Iterator[None]:
             conn.commit()
 
 
+# Background jobs that must run in one API worker at a time (try_advisory_lock).
+CATALOG_SYNC_LOCK_KEY = 0x6F707463675F6373  # "optcg_cs"
+TOURNAMENT_SYNC_LOCK_KEY = 0x6F707463675F7473  # "optcg_ts"
+PROGRESS_SWEEP_LOCK_KEY = 0x6F707463675F7073  # "optcg_ps"
+
+
+class AdvisoryLock:
+    """A held Postgres session-level advisory lock; release() is safe from any thread."""
+
+    def __init__(self, conn, key: int) -> None:
+        self._conn = conn
+        self._key = key
+
+    def release(self) -> None:
+        conn, self._conn = self._conn, None
+        if conn is None:
+            return
+        try:
+            conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": self._key})
+            conn.commit()
+        finally:
+            # Closing the connection drops the lock even if the unlock failed.
+            conn.close()
+
+
+def try_advisory_lock(key: int, bind: Engine | None = None) -> AdvisoryLock | None:
+    """Take ``key`` without waiting: the lock, or None when another worker holds it.
+
+    The lock lives on a connection of its own until release(), so it spans a
+    whole job and goes away with the process if the worker dies. SQLite (local,
+    one process) has no other worker to exclude: it always gets a no-op lock,
+    and each job's in-process guard still applies.
+    """
+    bind = bind or engine
+    if bind.dialect.name != "postgresql":
+        return AdvisoryLock(None, key)
+    conn = bind.connect()
+    try:
+        got = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": key}).scalar()
+        conn.commit()
+    except BaseException:
+        conn.close()
+        raise
+    if not got:
+        conn.close()
+        return None
+    return AdvisoryLock(conn, key)
+
+
 def _ensure_analyst_review_citations() -> None:
     """Add analyst_match_reviews.citations (the sources a post-game analysis cites) on existing DBs."""
     inspector = inspect(engine)
@@ -263,6 +312,12 @@ def _ensure_duel_progress_closed() -> None:
     """Add duel_match_progress.closed (room closed; its recording can be watched) on existing DBs (#476)."""
     false = "FALSE" if engine.dialect.name == "postgresql" else "0"
     _add_columns("duel_match_progress", [("closed", f"BOOLEAN DEFAULT {false}")])
+
+
+def _ensure_duel_server_urls() -> None:
+    """Add the game-server address columns to duel_presence and duel_invites on existing DBs (#682)."""
+    _add_columns("duel_presence", [("server_url", "VARCHAR(200)")])
+    _add_columns("duel_invites", [("server_url", "VARCHAR(200)")])
 
 
 def _ensure_user_role_columns() -> None:
@@ -354,6 +409,7 @@ def init_db() -> None:
     _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
     _ensure_duel_progress_closed()
+    _ensure_duel_server_urls()
     _ensure_analyst_review_citations()
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()

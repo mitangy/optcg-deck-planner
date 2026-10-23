@@ -5,7 +5,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from sqlalchemy import text
+
 from app import catalog_sync
+from app import db as app_db
+from tests.db_support import make_bare_engine, requires_postgres
 
 
 @pytest.fixture(autouse=True)
@@ -112,3 +116,25 @@ def test_try_claim_marks_running_before_job_body(monkeypatch):
     assert result == {"card_count": 1, "printing_count": 1}
     assert not catalog_sync.sync_in_progress()
     assert catalog_sync.sync_status()["finished_at"] is not None
+
+
+@requires_postgres
+def test_catalog_sync_waits_out_another_workers_run_682(monkeypatch):
+    """With several API workers, the thread lock is per worker: Postgres decides who syncs."""
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    with engine.connect() as other_worker:
+        other_worker.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.CATALOG_SYNC_LOCK_KEY})
+        assert not catalog_sync.try_claim_sync_slot()
+        assert not catalog_sync._sync_lock.locked()  # a refused claim leaves this worker free to try again
+        assert not catalog_sync.sync_in_progress()
+        other_worker.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": app_db.CATALOG_SYNC_LOCK_KEY})
+        other_worker.commit()
+
+    monkeypatch.setattr(catalog_sync, "sync_catalog", lambda db: {"card_count": 1, "printing_count": 1})
+    assert catalog_sync.run_catalog_sync_job(session_factory=MagicMock()) == {"card_count": 1, "printing_count": 1}
+    # The job gave the lock back when it finished.
+    again = app_db.try_advisory_lock(app_db.CATALOG_SYNC_LOCK_KEY, engine)
+    assert again is not None
+    again.release()
+    engine.dispose()
