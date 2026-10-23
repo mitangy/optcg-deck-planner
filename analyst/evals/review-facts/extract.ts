@@ -44,10 +44,10 @@ Kinds, and how to fill the fields:
 - mulligan: actor = who mulliganed or kept. number = 1 if they mulliganed, 0 if they kept.
 - other: any other checkable game event.
 turn = the game turn number if the review gives one for this claim (a "Turn 4" header or "on turn 4"); null otherwise. Do not guess a turn from "your second turn".
-Use null for any field the review does not state. Never invent a card name.
+Use null for any field the review does not state, except actor: use "none" when the claim names no player. Never invent a card name.
 Return {"claims": [...]} only.`;
 
-const CLAIMS_JSON_SCHEMA = {
+export const CLAIMS_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["claims"],
@@ -61,7 +61,8 @@ const CLAIMS_JSON_SCHEMA = {
         properties: {
           quote: { type: "string" },
           kind: { type: "string", enum: [...CLAIM_KINDS] },
-          actor: { type: ["string", "null"], enum: ["you", "opponent", null] },
+          // The API rejects an enum with a list of types (#683), so "no actor" is sent as "none" and read back as null.
+          actor: { type: "string", enum: ["you", "opponent", "none"] },
           turn: { type: ["integer", "null"] },
           card: { type: ["string", "null"] },
           target: { type: ["string", "null"] },
@@ -86,7 +87,7 @@ export function parseClaims(text: string): { claims: Claim[]; invalid: number } 
   const claims: Claim[] = [];
   let invalid = 0;
   for (const c of list) {
-    const r = claimSchema.safeParse(c);
+    const r = claimSchema.safeParse(c && typeof c === "object" && (c as { actor?: unknown }).actor === "none" ? { ...c, actor: null } : c);
     if (r.success) claims.push(r.data);
     else invalid += 1;
   }
