@@ -119,4 +119,20 @@ describe("eval runner", () => {
     expect(calls).toBe(0);
     expect(r.rows).toHaveLength(1);
   });
+
+  it("eval cases running in parallel are not refused as busy (#680)", async () => {
+    // Every attempt shares one runChat; the model yields so the four chats overlap and hold streams at once.
+    const t = setup((c, gold) => oracleScript(c, gold, catalog, CHAT_MODEL));
+    const slow = t.deps.callModel;
+    t.deps.callModel = (c, gold) => {
+      const model = slow(c, gold);
+      return async (...args) => {
+        await new Promise((r) => setTimeout(r, 20));
+        return model(...args);
+      };
+    };
+    const r = await runEval(t.deps, { ...t.opts, reps: 4, concurrency: 4 });
+    expect(r.errors).toEqual([]);
+    expect(r.rows).toHaveLength(4);
+  });
 });
