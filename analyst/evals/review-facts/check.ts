@@ -12,7 +12,7 @@
  * - A stated count of Life cards taken or K.O.s is "at least": only a count below the claim's number contradicts it.
  * - Life lost to an effect counts as Life taken (a turn's count is the larger of the Life hits and the Life lost), and
  *   a Life claim may name the card that caused the loss (one the other player played or attacked with that turn).
- * - A K.O. or Trigger claim that fails for the named player but would hold for the other one is unverifiable: the
+ * - An event claim (any kind) that fails for the named player but would hold for the other one is unverifiable (#695): the
  *   extractor often mixes up who owned a card or whose Life it was.
  * - A card name counts only as far as the quote states it. A name the quote does not contain was inferred by the
  *   extractor: if it makes the claim wrong but dropping it makes the claim hold, the claim is unverifiable. When the
@@ -129,10 +129,10 @@ export function checkClaim(claim: Claim, facts: GameFacts, seat: Seat, catalog: 
   return first;
 }
 
-/** Seat mix-ups: a K.O. or Trigger that fails for the named player but holds for the other one cannot be called wrong. */
+/** Seat mix-ups: any event that fails for the named player but holds for the other one cannot be called wrong (#695). */
 function checkReadings(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog): Checked {
   const r = checkAmbiguous(claim, facts, seat, catalog);
-  if ((claim.kind === "ko" || claim.kind === "trigger") && claim.actor && (r.verdict === "contradicted" || r.verdict === "wrong_turn")) {
+  if (claim.actor && (r.verdict === "contradicted" || r.verdict === "wrong_turn")) {
     const other = checkAmbiguous({ ...claim, actor: claim.actor === "you" ? "opponent" : "you" }, facts, seat, catalog);
     if (other.verdict === "supported") return { verdict: "unverifiable", reason: `${r.reason}; but it matched the other player (${other.reason}), so the owner or the cause may be mixed up` };
   }
@@ -216,8 +216,9 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
           ? { verdict: "supported", reason: `${label(actor)} had ${lo}-${hi} Life during turn ${claim.turn} (start ${t.lifeAtStart[actor]}, end ${t.lifeAtEnd[actor]})` }
           : { verdict: "contradicted", reason: `${label(actor)} had ${lo}-${hi} Life during turn ${claim.turn} (start ${t.lifeAtStart[actor]}, end ${t.lifeAtEnd[actor]}), not ${claim.number}` };
       }
-      // No turn: a claim about how the game ended is compared to the final Life; any other to every total the player had.
-      if (/\b(end|ended|finish|finished|final|finally|left with)\b/i.test(claim.quote)) {
+      // No turn: a claim about how the game ended is compared to the final Life; any other to every total the player had (#695).
+      const q = claim.quote;
+      if ((/\b(game|match)\b/i.test(q) && /\b(end|ends|ended|ending|finish|finished|final)\b/i.test(q)) || /\b(final|finally)\b|\bat the end\b/i.test(q)) {
         return facts.finalLife[actor] === claim.number
           ? { verdict: "supported", reason: `${label(actor)} finished on ${claim.number} Life` }
           : { verdict: "contradicted", reason: `${label(actor)} finished on ${facts.finalLife[actor]} Life, not ${claim.number}` };
@@ -256,7 +257,11 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
   // Event kinds: build the items of this kind, then look for the claim among them.
   const items: Item[] = [];
   for (const t of facts.turns) {
-    if (claim.kind === "played") for (const p of t.plays) items.push({ turn: t.turn, seat: p.seat, card: p.card });
+    if (claim.kind === "played") {
+      for (const p of t.plays) items.push({ turn: t.turn, seat: p.seat, card: p.card });
+      // A counter is played from hand by the defender too (#695).
+      for (const a of t.attacks) for (const c of a.counters) items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: c });
+    }
     if (claim.kind === "attacked") for (const a of t.attacks) items.push({ turn: t.turn, seat: a.seat, card: a.attacker === "unknown" ? undefined : a.attacker, target: a.target === "unknown" ? undefined : a.target });
     if (claim.kind === "ko") for (const k of t.kos) items.push({ turn: t.turn, seat: k.seat, card: k.card });
     if (claim.kind === "life_taken") {
@@ -265,10 +270,11 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
         const hits = t.lifeTaken.filter((l) => l.seat === s).length;
         // Life an effect removed has no life_taken event. With no card named, the loss itself is the item.
         if (!claim.card) for (let k = hits; k < t.lifeLost[s]; k++) items.push({ turn: t.turn, seat: s, card: undefined });
-        // A named card may be the cause: one the other player played or attacked with on a turn this seat lost Life.
+        // A named card may be the cause: one either player played or attacked with, or one on this seat's own field (its effect), on a turn this seat lost Life (#695).
         else if (t.lifeLost[s] > 0) {
-          for (const p of t.plays) if (p.seat !== s) items.push({ turn: t.turn, seat: s, card: p.card });
-          for (const a of t.attacks) if (a.seat !== s && a.attacker !== "unknown") items.push({ turn: t.turn, seat: s, card: a.attacker });
+          for (const p of t.plays) items.push({ turn: t.turn, seat: s, card: p.card });
+          for (const a of t.attacks) if (a.attacker !== "unknown") items.push({ turn: t.turn, seat: s, card: a.attacker });
+          for (const id of t.onBoard[s]) items.push({ turn: t.turn, seat: s, card: id });
         }
       }
     }

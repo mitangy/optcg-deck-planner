@@ -33,22 +33,22 @@ card and target: copy the name exactly as the review writes it. Never expand a p
 
 Kinds, and how to fill the fields:
 - played: a player played a card (Character, Event or Stage) from hand. actor = who played it. card = its name as written.
-- attacked: a player attacked. actor = the attacker's player. card = the attacking card (the Leader's name if the Leader attacked), only if the sentence names it. target = "leader" if a Leader was attacked, "character" when the review says a Character was attacked without naming it, else the attacked card's name. Never put a card that is not the attacked card in target (a card that got -2000 power is not the target).
+- attacked: a player attacked. actor = the attacker's player. card = the attacking card (the Leader's name if the Leader attacked), only if the review says that card attacked ("You played Yamato and attacked the Leader" does not say Yamato attacked: card null). target = "leader" if a Leader was attacked, "character" when the review says a Character was attacked without naming it, else the attacked card's name. Never put a card that is not the attacked card in target (a card that got -2000 power is not the target).
 - ko: a Character was K.O.'d. actor = the player who OWNED the K.O.'d card, not the attacker or the effect's user ("your attacks K.O.'d their Alvida" is actor = opponent). card = its name. number = how many, only if stated exactly.
-- life_taken: a player lost Life, from a battle or an effect. actor = the player who lost it. number = how many, only if stated exactly. card = the card named as taking the Life or as the Life card taken, if any.
-- countered: a player used a Counter. actor = who used it. card = the counter card, if named.
+- life_taken: a player lost Life, from a battle or an effect. actor = the player who lost it. number = how many, only if stated exactly, never 0. card = the card named as taking the Life or as the Life card taken, if any.
+- countered: a player used a Counter. actor = who used it. card = the counter card, if named. Cards used to stop an attack ("spent X to stop", "used X as a counter", "countered with X") are countered claims, one per card, actor = the player who used them (the defender), not "played".
 - blocked: a player blocked. actor = the blocker's player. card = the blocker, if named.
 - trigger: a Life card's [Trigger] was activated. actor = the player whose Life card it was (the defender), not the attacker. card if named.
 - life_total: a player's Life total at a point. actor, number = the Life count.
 - don: a count of a player's DON!! at a point in the game. actor = whose. number = the count. target = "active", "rested", "attached" or "total" (all DON!! on the field), as the review says; null if it only says "DON!!". turn if given.
-- hand_size: how many cards a player held in hand ("an empty hand" is 0). actor, number, turn if given.
+- hand_size: how many cards a player held in hand ("an empty hand" is 0). Only a stated number of cards in hand, counting every copy ("three Sakazuki, Law and Sweet 3 Generals" is 5). "drew 3" is not a hand size: skip it. actor, number, turn if given.
 - on_board: a named Character or Stage was on a player's field (on the board). actor = whose field. card = its name. turn if given.
 - trashed: a named card went to a player's trash (discarded, used as a cost, or K.O.'d). actor = whose trash. card = its name. turn if given.
 - result: who won. actor = the winner. target = how, one of "life" (Life reduced to zero), "deck_out", "effect", "concede", "timeout", or null if the review does not say.
 - went_first: actor = the player who went first.
 - mulligan: actor = who mulliganed or kept. number = 1 if they mulliganed, 0 if they kept.
 - other: any other checkable game event.
-turn = the game turn number if the review gives one for this claim (a "Turn 4" header or "on turn 4"); null otherwise. Do not guess a turn from "your second turn".
+turn = the turn the event happened, if the review gives or implies one. A "Turn N" header is only a default: "the opponent had just played X" under a Turn 3 header happened on turn 2; "had already played on turn 8" is turn 8; "your turn-1 Nami died" means Nami was played on turn 1 and the K.O. turn is unknown (null). Null if no turn is stated. Do not guess a turn from "your second turn".
 Use null for any field the review does not state, except actor: use "none" when the claim names no player. Never invent a card name.
 Return {"claims": [...]} only.`;
 
