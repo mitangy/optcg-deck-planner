@@ -4,7 +4,7 @@ import { loadCatalog } from "./catalog";
 import { deckFromLines } from "./decks";
 import type { BanList } from "./official/banlist";
 import type { OfficialLibrary } from "./official/library";
-import { deckEditTool, NO_DECK_ERROR, proposeDeckEdit, TOO_MANY_ERROR, type ContextDeck } from "./proposals";
+import { checkTextEdits, deckEditTool, NO_DECK_ERROR, proposeDeckEdit, TOO_MANY_ERROR, type ContextDeck } from "./proposals";
 
 const catalog = loadCatalog();
 
@@ -128,5 +128,47 @@ describe("propose_deck_edit (#400)", () => {
     for (let i = 0; i < 4; i++) expect((await tool.run(args)).isError).toBeUndefined();
     const fifth = await tool.run(args);
     expect(fifth).toMatchObject({ isError: true, content: [{ text: TOO_MANY_ERROR }] });
+  });
+});
+
+describe("checkTextEdits (#686)", () => {
+  const edit = (sign: "+" | "-", copies: number, id: string) => ({ sign, copies, id });
+  const check = (edits: ReturnType<typeof edit>[], lib?: OfficialLibrary) => checkTextEdits(catalog, lib, open(), edits);
+
+  it("finds a swap that keeps 50 cards legal (#686)", async () => {
+    expect(await check([edit("+", 2, "ST01-016"), edit("-", 2, "ST01-015")])).toEqual({ count: 50, problems: [] });
+  });
+
+  it("reports lines that leave the deck over 50 cards (#686)", async () => {
+    const r = await check([edit("+", 1, "ST01-016")]);
+    expect(r.count).toBe(51);
+    expect(r.problems).toContain("51 of 50 cards");
+  });
+
+  it("reports a deck still short of 50 after lines that move it closer (#686)", async () => {
+    const short = open([...MAIN.slice(0, 11), { id: "ST01-015", copies: 2 }]);
+    const r = await checkTextEdits(catalog, undefined, short, [edit("+", 1, "ST01-016")]);
+    expect(r).toEqual({ count: 47, problems: ["47 of 50 cards"] });
+  });
+
+  it("reports a 5th copy even when the count stays at 50 (#686)", async () => {
+    const r = await check([edit("+", 1, "ST01-014"), edit("-", 1, "ST01-015")]);
+    expect(r.count).toBe(50);
+    expect(r.problems.length).toBeGreaterThan(0);
+  });
+
+  it("reports a card number that is not in the catalog (#686)", async () => {
+    const r = await check([edit("+", 2, "ZZ99-999"), edit("-", 2, "ST01-015")]);
+    expect(r.problems).toContain("ZZ99-999 is not a card number");
+  });
+
+  it("reports taking out more copies than the deck has (#686)", async () => {
+    const r = await check([edit("-", 3, "ST01-015"), edit("+", 3, "ST01-016")]);
+    expect(r.problems.join(" ")).toMatch(/ST01-015 has 2 copies in the deck, not 3 to remove/);
+  });
+
+  it("reports a banned card with the ban list (#686)", async () => {
+    const r = await check([edit("+", 2, "ST01-016"), edit("-", 2, "ST01-015")], library({ banned: ["ST01-016"] }));
+    expect(r.problems.join(" ")).toMatch(/ST01-016 is banned/);
   });
 });

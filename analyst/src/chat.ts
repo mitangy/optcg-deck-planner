@@ -9,7 +9,8 @@ import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerAp
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
 import { cardReferenceLine, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
-import { deckEditTool, PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
+import { parseEditLines } from "./editLines";
+import { checkTextEdits, deckEditTool, PROPOSE_TOOL, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-sonnet-5-5";
@@ -200,7 +201,34 @@ You're answering in the Log Pose panel inside the player's app, often on a phone
 A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
 Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself. Bring in only the facts the answer needs: no stats, odds or rulings they didn't ask about.
 Numbers from sim_stats, bot games and analyze_position are bot simulations: say "in bot simulations" each time, keep them in their own sentence apart from matchup_stats and tournament_stats numbers (never add or average them), and when real games or tournaments disagree with them, say so and trust the real ones. For "what should I have done" on a finished game, call analyze_position on that turn and report the top options, what was actually played and the estimated win chances as estimates.
-When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.`;
+When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.
+When the player asks you to tune, fix or change a deck, commit to exact changes: every change names a card by number with a copy count, and as many copies come out as go in so the deck stays at 50 (never "cut 3 of your weakest 2-drops": pick the cards). With an open deck, call propose_deck_edit right away; don't ask whether to propose it. Missing playbook notes or tournament data are not a reason to hold back: give your read and say it is your read. If you'd keep the list as it is, say so in the first sentence.`;
+
+/** What the model wrote in the turn so far, as text. */
+function textWritten(turn: Message[]): string {
+  return turn
+    .filter((m) => m.role === "assistant")
+    .flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+    .flatMap((b) => (b.type === "text" ? [String(b.text)] : []))
+    .join("\n");
+}
+
+/**
+ * The app check after an answer (#686): with a deck open and no Apply card made, +N / -N lines in the answer are checked
+ * like a proposal would be, and the model is asked to send them through propose_deck_edit. Starts with <context>, so the thread hides it.
+ */
+async function textEditsCheck(deps: ChatDeps, deck: ContextDeck, turn: Message[]): Promise<Message | null> {
+  const edits = parseEditLines(textWritten(turn));
+  if (!edits.length) return null;
+  const { count, problems } = await checkTextEdits(deps.catalog, deps.knowledge.library, deck, edits);
+  const verdict = problems.length || count !== 50 ? `leave the deck at ${count} of 50 cards (problems: ${problems.join("; ") || "none"})` : "keep the deck legal";
+  const text =
+    "<context>\napp check: your answer lists deck changes but made no Apply card. " +
+    `As written they ${verdict}. ` +
+    "Call propose_deck_edit with exact changes (every card by number, as many copies out as in) so the player gets a card, " +
+    "then add at most one short sentence if the changes differ from what you wrote. Don't mention this check.\n</context>";
+  return { role: "user", content: [{ type: "text", text }] };
+}
 
 const REVIEW_INSTRUCTIONS = `
 
@@ -491,6 +519,11 @@ type RoundsOptions = {
   onPlan?: (p: TurnPlan) => void;
   /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
   recheck?: (cost: number) => Promise<Refusal | null>;
+  /**
+   * Called when a reply has no tool calls and at least one more round fits: a message it returns is added to the turn
+   * and the loop goes on instead of finishing (chat only).
+   */
+  afterAnswer?: (state: RoundsState) => Promise<Message | null>;
 };
 
 /**
@@ -545,6 +578,11 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     state.turn.push({ role: "assistant", content: reply.content });
     const calls = reply.content.filter((b) => b.type === "tool_use");
     if (reply.stop_reason !== "tool_use" || calls.length === 0) {
+      const next = o.afterAnswer && round + 1 < o.maxRounds ? await o.afterAnswer(state) : null;
+      if (next) {
+        state.turn.push(next);
+        continue;
+      }
       state.finished = true;
       break;
     }
@@ -618,10 +656,18 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const turn = state.turn;
   const started = Date.now();
   let failed = false;
+  let checked = false;
   try {
     await runToolRounds(state, {
       deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan,
       recheck: (cost) => refusalNow(api, token, cost),
+      afterAnswer: async (st) => {
+        const deck = body.context?.deck;
+        if (checked || proposals.length || !deck?.ref || !deck.leaderId) return null;
+        const message = await textEditsCheck(deps, deck, st.turn);
+        if (message) checked = true;
+        return message;
+      },
     });
   } catch (err) {
     failed = true;

@@ -15,6 +15,7 @@ const playbook = "analyst/src/playbook.ts";
 const chat = "analyst/src/chat.ts";
 const sources = "analyst/src/sources.ts";
 const proposals = "analyst/src/proposals.ts";
+const editLines = "analyst/src/editLines.ts";
 const copilot = "analyst/src/copilot.ts";
 const position = "analyst/src/position.ts";
 const botGames = "analyst/src/botGames.ts";
@@ -384,6 +385,20 @@ module.exports = {
     { id: "proposal-repeat-allowed", file: proposals, from: "if (seen.has(id)) return", to: "if (false) return", kills: ["rejects unknown cards, leaders and a card listed twice (#400)"] },
     { id: "proposal-turn-cap-ignored", file: proposals, from: "if (made >= MAX_PROPOSALS_PER_TURN) return refusal(TOO_MANY_ERROR);", to: "", kills: ["makes at most 4 proposals in one turn (#400)"] },
     { id: "chat-proposal-not-emitted", file: chat, from: "    emit({ event: \"proposal\", data: p });", to: "", kills: ["streams a deck edit as a proposal event and saves it after the turn (#400)"] },
+    { id: "chat-check-not-hidden", file: chat, from: '"<context>\\napp check: your answer lists', to: '"app check: your answer lists', kills: ["checks +N / -N lines in an answer with an open deck and asks for a legal Apply card (#686)"] },
+    { id: "chat-check-lines-unread", file: chat, from: "const edits = parseEditLines(textWritten(turn));", to: "const edits = parseEditLines(\"\");", kills: ["checks +N / -N lines in an answer with an open deck and asks for a legal Apply card (#686)", "tells the model lines that keep the deck legal do (#686)"] },
+    { id: "chat-check-without-lines", file: chat, from: "  if (!edits.length) return null;\n  const { count, problems } = await checkTextEdits", to: "  const { count, problems } = await checkTextEdits", kills: ["sends no check when the answer has no +N / -N lines (#686)"] },
+    { id: "chat-check-after-proposal", file: chat, from: "if (checked || proposals.length || !deck?.ref", to: "if (checked || !deck?.ref", kills: ["sends no check after a proposal was made this turn (#686)"] },
+    { id: "chat-check-without-deck", file: chat, from: "        const deck = body.context?.deck;\n        if (checked", to: "        const deck = body.context?.deck ?? { ref: \"none\", leaderId: \"ST01-001\", cards: [] };\n        if (checked", kills: ["sends no check when no deck is open (#686)"] },
+    { id: "chat-check-repeats", file: chat, from: "        if (message) checked = true;\n", to: "", kills: ["checks only once per turn (#686)"] },
+    { id: "chat-check-past-round-limit", file: chat, from: "o.afterAnswer && round + 1 < o.maxRounds ?", to: "o.afterAnswer ?", kills: ["sends no check when it would take the turn past the round limit (#686)"] },
+    { id: "chat-check-says-legal-when-not", file: chat, from: "const verdict = problems.length || count !== 50 ?", to: "const verdict = false ?", kills: ["checks +N / -N lines in an answer with an open deck and asks for a legal Apply card (#686)"] },
+    { id: "chat-check-always-illegal", file: chat, from: "const verdict = problems.length || count !== 50 ?", to: "const verdict = true ?", kills: ["tells the model lines that keep the deck legal do (#686)"] },
+    { id: "text-edits-sign-flipped", file: proposals, from: "const delta = e.sign === \"+\" ? e.copies : -e.copies;", to: "const delta = e.sign === \"+\" ? -e.copies : e.copies;", kills: ["reports lines that leave the deck over 50 cards (#686)", "reports taking out more copies than the deck has (#686)"] },
+    { id: "text-edits-new-problems-ignored", file: proposals, from: "  const introduced = introducedProblems(was.problems, was.count, now.problems, now.count);\n  const countText", to: "  const introduced: string[] = [];\n  const countText", kills: ["reports a 5th copy even when the count stays at 50 (#686)", "reports a banned card with the ban list (#686)"] },
+    { id: "text-edits-count-not-reported", file: proposals, from: "  if (now.count !== DECK_SIZE && !introduced.includes(countText)) introduced.push(countText);\n", to: "", kills: ["reports a deck still short of 50 after lines that move it closer (#686)"] },
+    { id: "text-edits-unknown-card-ignored", file: proposals, from: "      own.push(`${id} is not a card number`);\n", to: "", kills: ["reports a card number that is not in the catalog (#686)"] },
+    { id: "text-edits-overremoval-ignored", file: proposals, from: "    if (before + delta < 0) own.push(", to: "    if (false) own.push(", kills: ["reports taking out more copies than the deck has (#686)"] },
     { id: "chat-proposal-not-saved", file: chat, from: "        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/proposals`, true, { proposals }).catch(", to: "        await Promise.resolve(undefined).catch(", kills: ["streams a deck edit as a proposal event and saves it after the turn (#400)"] },
     { id: "chat-proposal-save-failure-loses-turn", file: chat, from: "{ proposals }).catch((err) =>\n          console.error(\"saving deck edit proposals failed\", err instanceof Error ? err.message : err),\n        );", to: "{ proposals });", kills: ["still finishes the turn when saving the proposal fails (#400)"] },
     { id: "chat-refused-edit-emitted", file: chat, from: "if (tool.name === PROPOSE_TOOL && !result.isError && onProposal)", to: "if (tool.name === PROPOSE_TOOL && onProposal)", kills: ["gives a refused edit no card and tells the model why (#400)"] },
@@ -455,13 +470,13 @@ module.exports = {
     { id: "eval-exact-no-ruling-claim", file: evExact, from: "if (said !== \"no\" || !v.says_no_official_ruling) return no(", to: "if (said !== \"no\") return no(", kills: ["needs an A15 answer to say no official ruling covers it"] },
     { id: "eval-extract-card-digits-counted", file: evExtract, from: "const bare = answer.replace(CARD_ID, \" \");", to: "const bare = answer;", kills: ["needs the gold number among the answer's numbers, ignoring the digits in card numbers"] },
     { id: "eval-extract-card-after-quantity", file: evExtract, from: "/(?<![A-Z0-9])(P-", to: "/\\b(P-", kills: ["counts the player's own message as a source"] },
-    { id: "eval-extract-ignores-minus-lines", file: evExtract, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+]\";", kills: ["reads +N/-N edit lines with card numbers"] },
-    { id: "eval-extract-bullet-not-stripped", file: evExtract, from: ".replace(new RegExp(`^(?:[-*\\u2022]|\\\\d+[.)])\\\\s+(?=${SIGN}\\\\s*\\\\d)`), \"\")", to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
-    { id: "eval-extract-bold-not-stripped", file: evExtract, from: '.replace(/(\\*\\*|__|`)/g, "")', to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
-    { id: "eval-extract-unicode-minus-ignored", file: evExtract, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+\\\\-]\";", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
-    { id: "eval-extract-name-before-id-ignored", file: evExtract, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(\\\\s*(${ID})\\\\s*\\\\))", to: ")", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
-    { id: "eval-extract-only-first-edit-on-line", file: evExtract, from: "    if (!next) break;\n", to: "    break;\n", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
-    { id: "eval-extract-lowercase-prose-is-edit", file: evExtract, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(", to: "|[^()\\\\n/,;]{1,50}?\\\\(", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-ignores-minus-lines", file: editLines, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+]\";", kills: ["reads +N/-N edit lines with card numbers"] },
+    { id: "eval-extract-bullet-not-stripped", file: editLines, from: ".replace(new RegExp(`^(?:[-*\\u2022]|\\\\d+[.)])\\\\s+(?=${SIGN}\\\\s*\\\\d)`), \"\")", to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-bold-not-stripped", file: editLines, from: '.replace(/(\\*\\*|__|`)/g, "")', to: "", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-unicode-minus-ignored", file: editLines, from: "const SIGN = \"[+\\\\-\\\\u2212\\\\u2013]\";", to: "const SIGN = \"[+\\\\-]\";", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-name-before-id-ignored", file: editLines, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(\\\\s*(${ID})\\\\s*\\\\))", to: ")", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-only-first-edit-on-line", file: editLines, from: "    if (!next) break;\n", to: "    break;\n", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
+    { id: "eval-extract-lowercase-prose-is-edit", file: editLines, from: "|[A-Z][^()\\\\n/,;]{0,49}?\\\\(", to: "|[^()\\\\n/,;]{1,50}?\\\\(", kills: ["reads edit lines written with markdown, a real minus sign, card names and paired swaps"] },
     { id: "eval-grounding-no-whole-rounding", file: evGrounding, from: " ||\n        (p.whole && p.value === Math.round(c.value)),", to: ",", kills: ["accepts a whole-number rounding of a tool's percentage"] },
     { id: "eval-grounding-rounds-any-percent", file: evGrounding, from: "p.value === Math.round(c.value)", to: "Math.abs(p.value - c.value) < 1", kills: ["accepts a whole-number rounding of a tool's percentage"] },
     { id: "eval-judge-rubric-on-sonnet", file: evJudge, from: "(RUBRIC_MODEL, RUBRIC_SYSTEM", to: "(JUDGE_MODEL, RUBRIC_SYSTEM", kills: ["judges D rubrics on Opus"] },

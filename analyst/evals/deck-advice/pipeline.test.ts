@@ -70,7 +70,7 @@ describe("a case through the pipeline", () => {
 
   it("scores an answer that puts the original deck back as full recall, and plays that deck once for the edit and the ceiling (#678)", async () => {
     const { jobs, cfg } = counting();
-    const undo = scriptedModel(() => textReply(`Put these back:\n${textLines(sabotaged)}`, CHAT_MODEL));
+    const undo = scriptedModel(({ call }) => textReply(call === 0 ? `Put these back:\n${textLines(sabotaged)}` : "Done.", CHAT_MODEL));
     const r = await evaluateCase(deps(undo, cfg), sabotaged);
     expect(r).toMatchObject({ edit_source: "text", legal: true, recall: 1, precision: 1 });
     expect(r.sim!.after).toEqual(r.sim!.ceiling);
