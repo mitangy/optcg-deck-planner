@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guardQuotes, parseClaims, scriptedExtractor, type Claim } from "./extract";
+import { CLAIMS_JSON_SCHEMA, guardQuotes, parseClaims, scriptedExtractor, type Claim } from "./extract";
 
 const claim = (quote: string): Claim => ({ quote, kind: "played", actor: "you", turn: 1, card: "Pearl", target: null, number: null });
 
@@ -24,5 +24,23 @@ describe("claim extraction", () => {
       { kind: "played", actor: "opponent", turn: 4, card: "Smoker" },
       { kind: "result", actor: "opponent" },
     ]);
+  });
+
+  it("sends no enum with a list of types, which the API rejects (#683)", () => {
+    const bad: string[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (!node || typeof node !== "object") return;
+      const n = node as Record<string, unknown>;
+      if (Array.isArray(n.enum) && Array.isArray(n.type)) bad.push(path);
+      for (const [k, v] of Object.entries(n)) walk(v, `${path}.${k}`);
+    };
+    walk(CLAIMS_JSON_SCHEMA, "schema");
+    expect(bad).toEqual([]);
+  });
+
+  it("reads the actor \"none\" the API sends back as a claim with no actor (#683)", () => {
+    const { claims, invalid } = parseClaims(JSON.stringify({ claims: [{ ...claim("a"), actor: "none" }] }));
+    expect(invalid).toBe(0);
+    expect(claims[0]!.actor).toBeNull();
   });
 });

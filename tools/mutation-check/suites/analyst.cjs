@@ -716,6 +716,9 @@ module.exports = {
     rf("pipeline-keeps-unquoted", rfPipeline, "guardQuotes(review, extracted.claims)", "({ kept: extracted.claims, dropped: [] as typeof extracted.claims })", ["scores the extracted claims of a review against the game"], "request"),
     rf("wrong-turn-not-wrong", rfReport, "const wrong = contradicted + wrong_turn;", "const wrong = contradicted;", ["scores the extracted claims of a review against the game"], "request"),
     rf("unverifiable-checkable", rfReport, "const checkable = supported + wrong;", "const checkable = supported + wrong + sum(\"unverifiable\");", ["scores the extracted claims of a review against the game"], "request"),
+    // #683: the API rejected the nullable actor enum; "none" is sent instead and read back as null.
+    rf("actor-enum-type-list", rfExtract, 'actor: { type: "string", enum: ["you", "opponent", "none"] },', 'actor: { type: ["string", "null"], enum: ["you", "opponent", null] },', ["sends no enum with a list of types, which the API rejects"], "extract"),
+    rf("actor-none-not-read", rfExtract, '(c as { actor?: unknown }).actor === "none" ? { ...c, actor: null } : c', 'c', ["the API sends back as a claim with no actor"], "extract"),
     // deck-advice eval (#678)
     da("seed-ignored", daSab, "const next = rng(seedOf(opts.seed, source.leaderId));", "const next = rng(seedOf(0, source.leaderId));", ["gives the same sabotage for the same seed and another for a different seed"], "sabotage"),
     da("k-range", daSab, "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 1))", "SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 4))", ["keeps the deck a legal 50 cards, plants k copies of k from 4 to 8"], "sabotage"),
