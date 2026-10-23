@@ -31,7 +31,7 @@ import {
   type AuthUser,
   type RatingMe,
 } from "../net/api";
-import { gameServerUrlFor, rememberedGameServerUrl } from "../net/gameServer";
+import { gameServerUrlFor, rememberedGameServerUrl, roomServerUrl } from "../net/gameServer";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import {
   activeMatchModeLabel,
@@ -458,10 +458,13 @@ export function LobbyPage() {
   }
 
   /** Join a room as a spectator; a room that is gone reads as a bad / finished link. */
-  async function connectSpectator(room: string, gen: number, preferredSeat?: 0 | 1) {
+  async function connectSpectator(room: string, gen: number, preferredSeat?: 0 | 1, serverHint?: string | null) {
     const opts = await authOpts();
     try {
-      await connect({ ...opts, roomId: room, role: "spectator", preferredSeat }, gen);
+      await connect(
+        { ...opts, serverUrl: roomServerUrl(opts.serverUrl, serverHint), roomId: room, role: "spectator", preferredSeat },
+        gen,
+      );
     } catch (e) {
       if (e instanceof Error && SPECTATE_GONE.test(e.message)) throw new Error(SPECTATE_GONE_MESSAGE);
       throw e;
@@ -507,7 +510,7 @@ export function LobbyPage() {
       const roomId = client.roomId;
       // The room is open either way; a failed invite must not strand the host
       // in the lobby while their room sits connected in the background.
-      if (roomId) await inviteFriend(friend.user_id, roomId).catch(() => undefined);
+      if (roomId) await inviteFriend(friend.user_id, roomId, client.serverUrl).catch(() => undefined);
     });
   }
 
@@ -522,6 +525,7 @@ export function LobbyPage() {
       try {
         await connect({
           ...opts,
+          serverUrl: roomServerUrl(opts.serverUrl, invite.server_url),
           roomId: invite.room_id,
           deck: deckToWire(await freshDeck(selectedDeck)),
         }, gen);
@@ -539,7 +543,7 @@ export function LobbyPage() {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
     runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, (gen) =>
-      connectSpectator(roomId, gen),
+      connectSpectator(roomId, gen, undefined, friend.server_url),
     );
   }
 

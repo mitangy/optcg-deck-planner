@@ -1744,5 +1744,10 @@ module.exports = {
     { id: "blocked-hand-card-not-grayed", file: `${src}/board/handAffordance.ts`, from: "(!!c.blocked || donShortfall(c.cost, c.activeDon) > 0)", to: "donShortfall(c.cost, c.activeDon) > 0", kills: ["a blocked card is grayed out even with plenty of DON!! (#671)"] },
     { id: "blocked-hand-caption-missing", file: `${src}/board/handAffordance.ts`, from: "return blocked ? \"Can't play\" : `Cost ${cost}`;", to: "return `Cost ${cost}`;", kills: ["the caption says Can't play only for a blocked card, with the cost in its tooltip (#671)"] },
     { id: "blocked-hint-shows-don-shortfall", file: `${src}/board/handAffordance.ts`, from: "  if (blocked) return blockedReason(blocked);\n", to: "", kills: ["each block names its own reason, and the selected-card hint prefers it over a DON!! shortfall (#671)"] },
+    // #682: friend rooms are dialled on the server they were opened on
+    { id: "room-server-hint-ignored", file: `${src}/net/gameServer.ts`, from: "  return validServerUrl(hint) ?? assigned;", to: "  return assigned;", kills: ["dials the server a friend's room lives on, not the pool the API names now (#682)"] },
+    { id: "room-server-accepts-insecure-http", file: `${src}/net/gameServer.ts`, from: "  if (u.protocol !== \"https:\" && !(u.protocol === \"http:\" && local)) return null;", to: "  if (u.protocol !== \"https:\" && u.protocol !== \"http:\") return null;", kills: ["ignores a hinted server that is not https, or carries credentials or a query (#682)"] },
+    { id: "room-server-accepts-credentials", file: `${src}/net/gameServer.ts`, from: "  if (u.username || u.password || u.search || u.hash) return null;", to: "  if (u.search || u.hash) return null;", kills: ["ignores a hinted server that is not https, or carries credentials or a query (#682)"] },
+    { id: "room-server-accepts-query", file: `${src}/net/gameServer.ts`, from: "  if (u.username || u.password || u.search || u.hash) return null;", to: "  if (u.username || u.password || u.hash) return null;", kills: ["ignores a hinted server that is not https, or carries credentials or a query (#682)"] },
   ],
 };

@@ -89,3 +89,31 @@ describe("PresenceReporter heartbeat", () => {
     assert.ok(bodies.length - idle >= 3, `sent ${bodies.length - idle} after the room filled`);
   });
 });
+
+describe("PresenceReporter server url", () => {
+  const entry: PresenceEntry = { user_id: 5, room_id: "r1", role: "player", phase: "waiting", ranked: false };
+  const reportedWith = async (poolUrl: string | undefined) => {
+    const prev = process.env.POOL_URL;
+    if (poolUrl === undefined) delete process.env.POOL_URL;
+    else process.env.POOL_URL = poolUrl;
+    try {
+      const reporter = new PresenceReporter(undefined, "gs-test");
+      reporter.register({ presenceEntries: () => [entry] });
+      return reporter.snapshot();
+    } finally {
+      if (prev === undefined) delete process.env.POOL_URL;
+      else process.env.POOL_URL = prev;
+    }
+  };
+
+  it("tells the API which pool URL a room's clients use, so a friend can find it after a pool flip (#682)", async () => {
+    assert.deepEqual(await reportedWith("https://gs-blue.example.com/"), [{ ...entry, server_url: "https://gs-blue.example.com" }]);
+  });
+
+  it("sends no URL when POOL_URL is unset or not a safe address (#682)", async () => {
+    for (const bad of [undefined, "", "http://gs.example.com", "https://user:pw@gs.example.com", "https://gs.example.com?x=1", "gs.example.com"]) {
+      assert.deepEqual(await reportedWith(bad), [entry], String(bad));
+    }
+    assert.deepEqual(await reportedWith("http://localhost:2567"), [{ ...entry, server_url: "http://localhost:2567" }]);
+  });
+});
