@@ -43,4 +43,11 @@ describe("claim extraction", () => {
     expect(invalid).toBe(0);
     expect(claims[0]!.actor).toBeNull();
   });
+
+  it("keeps a claim about DON!!, hand size, the board or the trash (#687)", () => {
+    const kinds = ["don", "hand_size", "on_board", "trashed"] as const;
+    const { claims, invalid } = parseClaims(JSON.stringify({ claims: kinds.map((kind) => ({ ...claim("a"), kind })) }));
+    expect(invalid).toBe(0);
+    expect(claims.map((c) => c.kind)).toEqual([...kinds]);
+  });
 });

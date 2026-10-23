@@ -51,4 +51,21 @@ describe("review facts from a replay", () => {
     expect(f.divergedAt).toMatch(/diverged at intent 50/);
     expect(f.turns.length).toBeLessThan(facts.turns.length);
   });
+
+  it("totals the Life each seat lost in a turn, from battles and from effects (#687)", () => {
+    expect(turn(3).lifeLost).toEqual([0, 1]);
+    expect(turn(8).lifeLost).toEqual([2, 0]);
+    expect(turn(9).lifeLost).toEqual([0, 0]);
+  });
+
+  it("records the DON!!, hand, field and trash each seat had during a turn (#687)", () => {
+    // Turn 8: you spent all 7 DON!! on the opponent's turn; the opponent went from 3 to 7 and spent them.
+    expect(turn(8).don[0]).toEqual({ active: [0, 0], rested: [7, 7], attached: [0, 0], area: [7, 7], field: [7, 7] });
+    expect(turn(8).don[1]).toMatchObject({ active: [0, 7], rested: [0, 7], area: [3, 7] });
+    expect(turn(10).don[1].attached).toEqual([0, 1]);
+    expect(turn(8).handRange).toEqual([[3, 5], [5, 7]]);
+    expect(turn(8).onBoard[0].sort()).toEqual(["EB04-011", "OP02-016", "OP03-031", "OP04-028", "OP11-004"]);
+    expect(turn(8).trashed[0].sort()).toEqual(["OP02-016", "OP03-031"]);
+    expect(turn(10).trashed[1]).toEqual(["OP03-095"]);
+  });
 });

@@ -23,6 +23,11 @@ export type Ko = { seat: Seat; card: string; name: string };
 export type LifeTaken = { seat: Seat; card: string; name: string };
 export type TriggerAccepted = { seat: Seat; card?: string; name?: string };
 
+/** Lowest and highest value seen. */
+export type Range = [number, number];
+/** DON!! counts of one seat. active/rested are the cost area (as the review's board line counts them), attached are DON!! given to cards. */
+export type DonRanges = { active: Range; rested: Range; attached: Range; area: Range; field: Range };
+
 export type TurnFacts = {
   turn: number;
   activeSeat: Seat;
@@ -35,6 +40,16 @@ export type TurnFacts = {
   lifeAtEnd: [number, number];
   /** Lowest and highest Life each seat had at any point of the turn. */
   lifeRange: [[number, number], [number, number]];
+  /** Total Life each seat lost during the turn: every step-to-step decrease, from battles and from effects (#687). */
+  lifeLost: [number, number];
+  /** DON!! each seat had at any point of the turn (#687). */
+  don: [DonRanges, DonRanges];
+  /** Cards in each seat's hand: lowest and highest at any point of the turn (#687). */
+  handRange: [Range, Range];
+  /** defIds of the Characters and Stage each seat had on the field at any point of the turn (#687). */
+  onBoard: [string[], string[]];
+  /** defIds that went into each seat's trash during the turn (#687). */
+  trashed: [string[], string[]];
 };
 
 export type GameFacts = {
@@ -62,6 +77,14 @@ export const nameOfCard = (id: string): string => {
 
 const lifeOf = (s: MatchState): [number, number] => [s.players[0].life.length, s.players[1].life.length];
 
+const donOf = (s: MatchState, seat: Seat): Record<keyof DonRanges, number> => {
+  const p = s.players[seat];
+  const rested = p.costArea.filter((d) => d.rested).length;
+  return { active: p.costArea.length - rested, rested, attached: p.attachedDons.length, area: p.costArea.length, field: p.costArea.length + p.attachedDons.length };
+};
+const DON_KEYS = ["active", "rested", "attached", "area", "field"] as const;
+const stretch = (r: Range, v: number): Range => [Math.min(r[0], v), Math.max(r[1], v)];
+
 export function gameFacts(replay: MatchReplay): GameFacts {
   const opening = replayMatch({ ...replay, intents: [] });
   const defOf = new Map<string, string>();
@@ -76,7 +99,12 @@ export function gameFacts(replay: MatchReplay): GameFacts {
     lifeSeen[1].add(l[1]);
     return l;
   };
-  const open = (turn: number, activeSeat: Seat, life: [number, number]) => {
+  const open = (turn: number, activeSeat: Seat, state: MatchState) => {
+    const life = lifeOf(state);
+    const donRanges = (seat: Seat): DonRanges => {
+      const d = donOf(state, seat);
+      return Object.fromEntries(DON_KEYS.map((k) => [k, [d[k], d[k]]])) as DonRanges;
+    };
     const t: TurnFacts = {
       turn,
       activeSeat,
@@ -88,13 +116,40 @@ export function gameFacts(replay: MatchReplay): GameFacts {
       lifeAtStart: life,
       lifeAtEnd: life,
       lifeRange: [[life[0], life[0]], [life[1], life[1]]],
+      lifeLost: [0, 0],
+      don: [donRanges(0), donRanges(1)],
+      handRange: [[state.players[0].hand.length, state.players[0].hand.length], [state.players[1].hand.length, state.players[1].hand.length]],
+      onBoard: [[], []],
+      trashed: [[], []],
     };
     turns.set(turn, t);
+    widen(t, state);
     return t;
   };
-  const widen = (t: TurnFacts, life: [number, number]) => {
+  /** Folds one state into the turn: Life range and loss, DON!! and hand ranges, what stood on the field. */
+  const widen = (t: TurnFacts, state: MatchState) => {
+    const life = lifeOf(state);
+    for (const s of [0, 1] as const) {
+      t.lifeLost[s] += Math.max(0, t.lifeAtEnd[s] - life[s]);
+      t.lifeRange[s] = [Math.min(t.lifeRange[s][0], life[s]), Math.max(t.lifeRange[s][1], life[s])];
+      const d = donOf(state, s);
+      for (const k of DON_KEYS) t.don[s][k] = stretch(t.don[s][k], d[k]);
+      t.handRange[s] = stretch(t.handRange[s], state.players[s].hand.length);
+      const p = state.players[s];
+      for (const c of [...p.characters, ...(p.stage ? [p.stage] : [])]) if (!t.onBoard[s].includes(c.defId)) t.onBoard[s].push(c.defId);
+    }
     t.lifeAtEnd = life;
-    for (const s of [0, 1] as const) t.lifeRange[s] = [Math.min(t.lifeRange[s][0], life[s]), Math.max(t.lifeRange[s][1], life[s])];
+  };
+  /** Cards that entered a seat's trash between two states. */
+  const noteTrash = (t: TurnFacts, from: MatchState, to: MatchState) => {
+    for (const s of [0, 1] as const) {
+      const left = [...from.players[s].trash];
+      for (const id of to.players[s].trash) {
+        const i = left.indexOf(id);
+        if (i >= 0) left.splice(i, 1);
+        else if (!t.trashed[s].includes(id)) t.trashed[s].push(id);
+      }
+    }
   };
 
   const mulligans: [boolean | null, boolean | null] = [null, null];
@@ -103,7 +158,7 @@ export function gameFacts(replay: MatchReplay): GameFacts {
   learn(opening);
   let prev = opening;
   seeLife(opening);
-  if (opening.phase !== "mulligan") current = open(turn, opening.activeSeat, lifeOf(opening));
+  if (opening.phase !== "mulligan") current = open(turn, opening.activeSeat, opening);
   let divergedAt: string | undefined;
   let last = opening;
   const pendingTrigger: Record<number, string | undefined> = {};
@@ -117,9 +172,9 @@ export function gameFacts(replay: MatchReplay): GameFacts {
       case "phase_changed":
         // The engine starts every turn (extra turns included) with a refresh phase and counts it.
         if (e.phase === "refresh") {
-          if (current) widen(current, lifeOf(before));
+          if (current) widen(current, before);
           turn += 1;
-          current = open(turn, e.activeSeat, lifeOf(step.state));
+          current = open(turn, e.activeSeat, step.state);
           openAttack = null;
         }
         return;
@@ -185,8 +240,11 @@ export function gameFacts(replay: MatchReplay): GameFacts {
     replayMatch(replay, (step) => {
       learn(step.state);
       for (const e of step.events) handle(e, step, prev);
-      const life = seeLife(step.state);
-      if (current) widen(current, life);
+      seeLife(step.state);
+      if (current) {
+        widen(current, step.state);
+        noteTrash(current, prev, step.state);
+      }
       prev = step.state;
       last = step.state;
     });
