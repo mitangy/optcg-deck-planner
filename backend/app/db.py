@@ -279,6 +279,20 @@ def _ensure_user_role_columns() -> None:
     )
 
 
+def _ensure_eval_run_columns() -> None:
+    """Add the suite and headline-metric columns to analyst_eval_runs on existing DBs; older runs are the main suite (#679)."""
+    false = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    _add_columns(
+        "analyst_eval_runs",
+        [
+            ("suite", "VARCHAR(16) NOT NULL DEFAULT 'main'"),
+            ("metric_name", "VARCHAR(60)"),
+            ("metric_value", "FLOAT"),
+            ("lower_is_better", f"BOOLEAN NOT NULL DEFAULT {false}"),
+        ],
+    )
+
+
 def _ensure_admin_role(bind: Engine | None = None) -> None:
     """Exactly one admin: settings.admin_email. Any other admin row goes back to user (#667)."""
     bind = bind or engine
@@ -344,6 +358,7 @@ def init_db() -> None:
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()
     _ensure_user_role_columns()
+    _ensure_eval_run_columns()
     _ensure_admin_role()
     _seed_eval_runs()
 

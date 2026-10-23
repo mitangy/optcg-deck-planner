@@ -26,12 +26,21 @@ export type AdminOverview = {
 
 export type EvalGroups = Record<string, { correct: number; total: number }>;
 
+export type EvalSuite = "main" | "review_facts" | "puzzles" | "deck_advice";
+
 export type EvalRun = {
+  /** Which eval. Runs recorded before suites existed are "main". */
+  suite: EvalSuite;
   run_at: string;
   label: string;
   model: string;
-  correct: number;
-  total: number;
+  /** The score, null for a run that only has a headline metric. */
+  correct: number | null;
+  total: number | null;
+  /** The headline when a suite is not a score, e.g. "Wrong claims per review". */
+  metric_name: string | null;
+  metric_value: number | null;
+  lower_is_better: boolean;
   groups: EvalGroups;
   spend_usd: number | null;
   notes: string;
@@ -53,6 +62,27 @@ export type AdminBots = {
   };
   evals: EvalRun[];
 };
+
+export type FeedbackRating = "up" | "down" | "wrong";
+
+export type FeedbackItem = {
+  id: number;
+  created_at: string | null;
+  updated_at: string | null;
+  kind: "chat" | "review";
+  rating: FeedbackRating;
+  note: string;
+  answer_excerpt: string;
+  question: string;
+  model: string;
+  user_id: number;
+  user_name: string | null;
+  thread_id: number | null;
+  message_index: number | null;
+  match_id: string | null;
+};
+
+export type AdminFeedback = { days: number; counts: Record<FeedbackRating, number>; items: FeedbackItem[] };
 
 export type ProviderResult<T> = { configured: false } | { configured: true; error: string } | ({ configured: true; error?: undefined } & T);
 
@@ -106,6 +136,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export const fetchAdminMe = () => call<AdminMe>("/admin/me");
 export const fetchAdminOverview = () => call<AdminOverview>("/admin/overview");
 export const fetchAdminBots = () => call<AdminBots>("/admin/bots");
+export function fetchAdminFeedback(rating: FeedbackRating | null, limit: number, offset: number): Promise<AdminFeedback> {
+  const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (rating) p.set("rating", rating);
+  return call<AdminFeedback>(`/admin/feedback?${p}`);
+}
 export const fetchAdminHosting = (refresh = false) => call<AdminHosting>(`/admin/hosting${refresh ? "?refresh=1" : ""}`);
 
 export function fetchAdminUsers(q: string, includeGuests: boolean, limit: number, offset: number): Promise<AdminUsers> {

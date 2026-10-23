@@ -183,3 +183,28 @@ ANTHROPIC_API_KEY=... npm run eval:puzzles -- --n 25 --max-usd 5   # paid
 ```
 
 Flags: `--n` (per type, default 25), `--seed`, `--types power,playable,...`, `--model-api anthropic|scripted`, `--max-usd` (default 5), `--concurrency`, `--variant`, `--new-share`, `--synth-share`, `--decks <json>`. Without a key the paid mode exits with code 2. Output is `evals/out/puzzles/<variant>/`: `puzzles.jsonl`, `answers.jsonl` and `report.md` (accuracy per type and overall with 95% Wilson intervals, new sets against older ones, spend, the worst misses). Each message is about 5k characters, and a puzzle may take a few tool rounds, so expect very roughly $0.05 to $0.10 per puzzle on the chat model (an estimate, not yet measured with a real key): the default 125 puzzles may reach the $5 cap, and `--n 10` (50 puzzles) should fit well under it. The `--max-usd` cap stops dispatching past the limit and the report says how many puzzles went unanswered. The board text shows printed power, so the model must work out modifiers itself; the gold uses the engine's computed values. The manual workflow `Log Pose puzzles` runs it in CI.
+
+`--post` saves the run to the admin page's Bots & Log Pose tab as the `review_facts` suite (headline: wrong claims per review, lower is better). A `--model-api scripted` run is never posted.
+
+### Posting a run to the admin page (#679)
+
+Every eval's `--post` goes through `evals/post.ts`, so each suite gets its own trend line on the admin page:
+
+```ts
+import { postEvalRun } from "../post"; // from analyst/evals/<suite>/run.ts
+const res = await postEvalRun({
+  suite: "puzzles",            // main | review_facts | puzzles | deck_advice (anything else is a 422)
+  label: variant, model,       // shown in the history table
+  correct: 41, total: 50,      // a score, when the suite has one (leave both out for metric-only runs)
+  groups: { A: { correct: 10, total: 12 } }, // optional breakdown
+  metric_name: "Wrong claims per review", metric_value: 0.85, lower_is_better: true, // optional headline
+  spend_usd: 3.2, notes: "20 games",
+});
+console.log(res.message); // never throws; { ok, message }
+```
+
+It needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`. The rules puzzles eval posts `suite: "puzzles"` with correct/total; the deck advice eval posts `suite: "deck_advice"` with its score (or a metric). In the workflow, add a `post` boolean input and the two env vars as `log-pose-eval.yml` does. Put the same string in your suite's `--post` help.
+
+### Draft cases from player feedback (#679)
+
+Players can rate Log Pose answers (thumbs up, thumbs down, "This is wrong"). `npm run feedback-cases -w @optcg/analyst` (needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`) writes the "wrong" ones to `evals/out/feedback-cases.jsonl` as stubs: the question, the stored answer, the player's note and a todo. A person decides whether the answer really was wrong and writes the gold before anything goes in `cases.ts`.

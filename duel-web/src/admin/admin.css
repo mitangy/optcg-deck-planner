@@ -436,6 +436,163 @@
   max-width: 22rem;
 }
 
+.adm-suite-summary {
+  margin: 0.2rem 0 0.4rem;
+  min-height: 1.4em;
+  font-size: 0.9rem;
+}
+
+/* Better / worse is told by the word and arrow as well as the colour. */
+.adm-change {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.adm-change-better {
+  color: var(--ok);
+}
+
+.adm-change-worse {
+  color: var(--crimson-bright);
+}
+
+/* —— Log Pose feedback (#679) —— */
+
+.adm-fb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.8rem 0 0.6rem;
+}
+
+.adm-fb-filter {
+  min-height: 36px;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.adm-fb-filter[aria-pressed="true"] {
+  background: rgb(var(--chrome-rgb) / 0.16);
+  border-color: var(--chrome);
+  color: var(--ink);
+}
+
+.adm-fb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+  min-height: 6rem;
+}
+
+.adm-fb-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.adm-fb-item {
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--arena-mid);
+}
+
+.adm-fb-item[data-rating="wrong"] {
+  border-left-color: var(--crimson-bright);
+}
+
+.adm-fb-item[data-rating="up"] {
+  border-left-color: var(--ok);
+}
+
+.adm-fb-item[data-rating="down"] {
+  border-left-color: var(--muted);
+}
+
+.adm-fb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.adm-fb-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.adm-fb-badge[data-rating="wrong"] {
+  color: var(--crimson-bright);
+}
+
+.adm-fb-who {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adm-fb-meta {
+  color: var(--muted);
+  min-width: 0;
+}
+
+.adm-fb-link {
+  margin-left: auto;
+  color: var(--chrome);
+}
+
+.adm-fb-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.adm-fb-question {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The whole excerpt is readable inside a fixed-height box, so nothing opens or shoves the rows below. */
+.adm-fb-excerpt {
+  margin-top: 0.4rem;
+  max-height: 7.5rem;
+  overflow: auto;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  background: var(--arena-panel);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.adm-fb-excerpt:focus-visible {
+  outline: 2px solid var(--chrome);
+  outline-offset: 1px;
+}
+
 /* —— Hosting —— */
 
 .adm-placeholder {

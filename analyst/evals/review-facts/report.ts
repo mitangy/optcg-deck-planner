@@ -1,4 +1,5 @@
 /** report.md for the review-facts eval (#675). */
+import type { EvalRunPost } from "../post";
 import { wilson } from "../stats";
 import type { ClaimRow, ReviewRow } from "./pipeline";
 
@@ -42,6 +43,24 @@ export function totals(rows: readonly ReviewRow[]): Totals {
     wrongPerReview: rows.length ? wrong / rows.length : 0,
     wrongShare: checkable ? wrong / checkable : 0,
     interval: wilson(wrong, checkable),
+  };
+}
+
+/** The run as POST /admin/evals takes it (#679): wrong claims per review is the headline, lower is better; supported out of checkable is the score. */
+export function reviewFactsRunPayload(i: { variant: string; model: string; rows: readonly ReviewRow[]; notes?: string }): EvalRunPost {
+  const t = totals(i.rows);
+  const cost = i.rows.reduce((s, r) => s + r.review_cost_usd + r.extract_cost_usd, 0);
+  return {
+    suite: "review_facts",
+    run_at: new Date().toISOString(),
+    label: i.variant,
+    model: i.model,
+    ...(t.checkable ? { correct: t.supported, total: t.checkable } : {}),
+    metric_name: "Wrong claims per review",
+    metric_value: Math.round(t.wrongPerReview * 100) / 100,
+    lower_is_better: true,
+    spend_usd: Math.round(cost * 100) / 100,
+    notes: i.notes ?? `${t.reviews} reviews, ${t.claims} claims, ${t.wrong} wrong of ${t.checkable} checkable, ${t.unverifiable} unverifiable`,
   };
 }
 

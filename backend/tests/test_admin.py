@@ -518,6 +518,57 @@ def test_eval_upload_needs_the_service_secret_and_lands_in_the_history_667(api):
     assert evals[-1]["label"] == "nightly" and evals[-1]["groups"] == {"D": {"correct": 8.5, "total": 10}}
 
 
+def _post_eval(c, **over):
+    return c.post("/admin/evals", json={"label": "x", "correct": 40, "total": 50, **over}, headers=SERVICE)
+
+
+def test_an_eval_run_without_a_suite_is_the_main_suite_679(api):
+    c, S = api
+    assert _post_eval(c).json()["suite"] == "main"
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    run = c.get("/admin/bots").json()["evals"][-1]
+    assert (run["suite"], run["lower_is_better"], run["metric_name"], run["metric_value"]) == ("main", False, None, None)
+
+
+def test_an_eval_suite_must_be_one_we_know_679(api):
+    c, S = api
+    for suite in ("review_facts", "puzzles", "deck_advice", "main"):
+        assert _post_eval(c, suite=suite).status_code == 201, suite
+    for bad in ("", "Main", "review-facts", "other"):
+        assert _post_eval(c, suite=bad).status_code == 422, bad
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    assert [e["suite"] for e in c.get("/admin/bots").json()["evals"] if e["label"] == "x"] == ["review_facts", "puzzles", "deck_advice", "main"]
+
+
+def test_a_headline_metric_and_lower_is_better_round_trip_679(api):
+    c, S = api
+    r = _post_eval(c, suite="review_facts", metric_name="Wrong claims per review", metric_value=0.85, lower_is_better=True)
+    assert r.status_code == 201
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    run = c.get("/admin/bots").json()["evals"][-1]
+    assert (run["suite"], run["metric_name"], run["metric_value"], run["lower_is_better"]) == ("review_facts", "Wrong claims per review", 0.85, True)
+    assert (run["correct"], run["total"]) == (40, 50)
+
+
+def test_a_run_can_have_only_a_metric_and_then_has_no_score_679(api):
+    c, S = api
+    body = {"suite": "review_facts", "metric_name": "Wrong per review", "metric_value": 0.0, "lower_is_better": True}
+    assert c.post("/admin/evals", json=body, headers=SERVICE).status_code == 201
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    run = c.get("/admin/bots").json()["evals"][-1]
+    assert (run["correct"], run["total"], run["metric_value"]) == (None, None, 0.0)
+
+
+def test_an_eval_run_needs_a_score_or_a_whole_metric_679(api):
+    c, _ = api
+    assert c.post("/admin/evals", json={"label": "empty"}, headers=SERVICE).status_code == 422
+    assert c.post("/admin/evals", json={"metric_name": "m"}, headers=SERVICE).status_code == 422
+    assert c.post("/admin/evals", json={"metric_value": 1.0}, headers=SERVICE).status_code == 422
+    assert c.post("/admin/evals", json={"correct": 3}, headers=SERVICE).status_code == 422
+    assert c.post("/admin/evals", json={"correct": 3, "metric_name": "m", "metric_value": 1.0}, headers=SERVICE).status_code == 422
+    assert c.post("/admin/evals", json={"total": 3, "metric_name": "m", "metric_value": 1.0}, headers=SERVICE).status_code == 422
+
+
 # ------------------------------------------------------------------ hosting
 
 def _mock(monkeypatch: pytest.MonkeyPatch, handler) -> list[httpx.Request]:

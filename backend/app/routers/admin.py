@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from app.db import get_db
 from app.models import (
     AnalystAccess,
     AnalystEvalRun,
+    AnalystFeedback,
     AnalystUsage,
     Base,
     BotMatch,
@@ -31,6 +32,7 @@ from app.models import (
     DuelMatchSeat,
     User,
 )
+from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
 from app.routers.analyst import require_service
 
@@ -198,12 +200,18 @@ def _eval_out(run: AnalystEvalRun) -> dict:
         groups = json.loads(run.groups or "{}")
     except ValueError:
         groups = {}
+    scored = bool(run.total)
     return {
+        "suite": run.suite or "main",
         "run_at": _iso(run.run_at),
         "label": run.label,
         "model": run.model,
-        "correct": run.correct,
-        "total": run.total,
+        # A run that only has a headline metric has no score.
+        "correct": run.correct if scored else None,
+        "total": run.total if scored else None,
+        "metric_name": run.metric_name,
+        "metric_value": run.metric_value,
+        "lower_is_better": bool(run.lower_is_better),
         "groups": groups,
         "spend_usd": run.spend_usd,
         "notes": run.notes,
@@ -247,15 +255,35 @@ class EvalGroupIn(BaseModel):
     total: int = Field(ge=0, le=10_000)
 
 
+# The evals that post here (analyst/evals/post.ts); each gets its own trend on the admin page (#679).
+EvalSuite = Literal["main", "review_facts", "puzzles", "deck_advice"]
+
+
 class EvalRunIn(BaseModel):
     run_at: datetime | None = None
+    suite: EvalSuite = "main"
     label: str = Field(default="", max_length=120)
     model: str = Field(default="", max_length=64)
-    correct: float = Field(ge=0, le=10_000)
-    total: int = Field(ge=1, le=10_000)
+    # A score in cases out of total, for suites that have one. Leave both out for a run that only has a metric.
+    correct: float | None = Field(default=None, ge=0, le=10_000)
+    total: int | None = Field(default=None, ge=1, le=10_000)
+    # The headline when the suite is not a score, e.g. "Wrong claims per review" 0.8 with lower_is_better.
+    metric_name: str | None = Field(default=None, min_length=1, max_length=60)
+    metric_value: float | None = Field(default=None, allow_inf_nan=False, ge=-1e9, le=1e9)
+    lower_is_better: bool = False
     groups: dict[str, EvalGroupIn] = Field(default_factory=dict, max_length=12)
     spend_usd: float | None = Field(default=None, ge=0, le=100_000)
     notes: str = Field(default="", max_length=2000)
+
+    @model_validator(mode="after")
+    def _headline(self) -> "EvalRunIn":
+        if (self.correct is None) != (self.total is None):
+            raise ValueError("correct and total go together")
+        if (self.metric_name is None) != (self.metric_value is None):
+            raise ValueError("metric_name and metric_value go together")
+        if self.total is None and self.metric_value is None:
+            raise ValueError("Give correct and total, or a metric")
+        return self
 
 
 @router.post("/evals", status_code=201)
@@ -267,14 +295,18 @@ def record_eval(
 ) -> dict:
     """Lets the eval runner (npm run eval -- --post) record a run. Needs the analyst service secret."""
     require_service(settings, x_analyst_service)
-    if body.correct > body.total:
+    if body.correct is not None and body.total is not None and body.correct > body.total:
         raise HTTPException(status_code=422, detail="correct cannot exceed total")
     run = AnalystEvalRun(
         run_at=_utc(body.run_at) or datetime.now(timezone.utc),
+        suite=body.suite,
         label=body.label,
         model=body.model,
-        correct=body.correct,
-        total=body.total,
+        correct=body.correct or 0.0,
+        total=body.total or 0,
+        metric_name=body.metric_name,
+        metric_value=body.metric_value,
+        lower_is_better=body.lower_is_better,
         groups=json.dumps({k: v.model_dump() for k, v in body.groups.items()}),
         spend_usd=body.spend_usd,
         notes=body.notes,
@@ -283,6 +315,74 @@ def record_eval(
     db.commit()
     db.refresh(run)
     return _eval_out(run)
+
+
+# ---------------------------------------------------------------- Log Pose feedback
+
+FEEDBACK_DAYS = 30
+
+
+def _feedback_out(f: AnalystFeedback, name: str | None) -> dict:
+    return {
+        "id": f.id,
+        "created_at": _iso(f.created_at),
+        "updated_at": _iso(f.updated_at),
+        "kind": f.kind,
+        "rating": f.rating,
+        "note": f.note,
+        "answer_excerpt": f.answer_excerpt,
+        "question": f.question_excerpt,
+        "model": f.model,
+        "user_id": f.user_id,
+        "user_name": name,
+        "thread_id": f.thread_id,
+        "message_index": f.message_index,
+        "match_id": f.match_id,
+    }
+
+
+@router.get("/feedback")
+def list_feedback(
+    _: Admin,
+    db: DB,
+    rating: Annotated[Literal["up", "down", "wrong"] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0, le=100_000)] = 0,
+) -> dict:
+    """What players rated Log Pose answers: counts over the last 30 days and the newest ratings first."""
+    since = datetime.now(timezone.utc) - timedelta(days=FEEDBACK_DAYS)
+    counts = {r: 0 for r in ("up", "down", "wrong")}
+    for r, n in db.execute(
+        select(AnalystFeedback.rating, func.count()).where(AnalystFeedback.updated_at >= since).group_by(AnalystFeedback.rating)
+    ).all():
+        if r in counts:
+            counts[r] = int(n)
+    q = select(AnalystFeedback, User).join(User, User.id == AnalystFeedback.user_id)
+    if rating:
+        q = q.where(AnalystFeedback.rating == rating)
+    rows = db.execute(q.order_by(AnalystFeedback.updated_at.desc(), AnalystFeedback.id.desc()).limit(limit).offset(offset)).all()
+    return {"days": FEEDBACK_DAYS, "counts": counts, "items": [_feedback_out(f, duel_display_name(u)) for f, u in rows]}
+
+
+@router.get("/feedback/export")
+def feedback_export(
+    db: DB,
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_analyst_service: Annotated[str | None, Header()] = None,
+    rating: Annotated[Literal["up", "down", "wrong"], Query()] = "wrong",
+    days: Annotated[int, Query(ge=1, le=3650)] = 90,
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+) -> dict:
+    """Ratings for the analyst service (npm run feedback-cases): no player names, newest first. Needs the service secret."""
+    require_service(settings, x_analyst_service)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = db.scalars(
+        select(AnalystFeedback)
+        .where(AnalystFeedback.rating == rating, AnalystFeedback.updated_at >= since)
+        .order_by(AnalystFeedback.updated_at.desc(), AnalystFeedback.id.desc())
+        .limit(limit)
+    ).all()
+    return {"items": [{k: v for k, v in _feedback_out(f, None).items() if k not in ("user_id", "user_name")} for f in rows]}
 
 
 # ---------------------------------------------------------------- hosting
