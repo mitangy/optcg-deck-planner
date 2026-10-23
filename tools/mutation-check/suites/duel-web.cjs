@@ -5,6 +5,8 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Hosting tab reads the field names the API sends (#688)
+    {"id": "hosting-old-github-fields", "file": "duel-web/src/admin/HostingTab.tsx", "from": "d.ci_runs.map(", "to": "(d as any).main_ci.map(", "kills": ["shows the GitHub card from the data the API sends instead of blanking the page (#688)"], "args": "src/admin"},
     // eval suites and Log Pose feedback on the admin page (#679)
     {"id": "fb-suite-missing-not-main", "file": "duel-web/src/admin/adminLogic.ts", "from": "evals.filter((e) => (e.suite ?? \"main\") === suite.id)", "to": "evals.filter((e) => e.suite === suite.id)", "kills": ["groups runs by suite in a fixed order, oldest first, and treats a run with no suite as the main one (#679)"], "args": "src/admin"},
     {"id": "fb-suite-runs-unsorted", "file": "duel-web/src/admin/adminLogic.ts", "from": ".sort((a, b) => Date.parse(a.run_at) - Date.parse(b.run_at));\n    if (runs.length)", "to": ";\n    if (runs.length)", "kills": ["groups runs by suite in a fixed order, oldest first, and treats a run with no suite as the main one (#679)"], "args": "src/admin"},
