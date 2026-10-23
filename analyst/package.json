@@ -15,6 +15,7 @@
     "check-official": "tsx scripts/check-official.ts",
     "eval": "tsx evals/run.ts",
     "eval:compare": "tsx evals/compare.ts",
+    "eval:review-facts": "tsx evals/review-facts/run.ts",
     "eval:check-live": "tsx evals/check-live.ts",
     "eval:grade": "tsx evals/grade-human.ts",
     "eval:validate": "tsx evals/validate.ts",

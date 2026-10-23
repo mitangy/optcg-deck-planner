@@ -43,6 +43,15 @@ const deckStats = "packages/deck-analytics/src/deckStats.ts";
 /** Eval group B: alter one card's generated abilities so the engine plays the case's board differently; `kills` are test-name fragments. */
 const evalScn = (id, card, patch, kills) => ({ id: `eval-${id}`, json: ABILITIES, patch: (a) => patch(a[card].abilities), kills });
 
+const rfDir = (f) => `analyst/evals/review-facts/${f}`;
+const rfFacts = rfDir("facts.ts");
+const rfCheck = rfDir("check.ts");
+const rfExtract = rfDir("extract.ts");
+const rfPipeline = rfDir("pipeline.ts");
+const rfReport = rfDir("report.ts");
+// Review-facts eval (#675): each mutation runs only the test file it claims to break.
+const rf = (id, file, from, to, kills, test) => ({ id: `rf-${id}`, file, from, to, kills, args: `evals/review-facts/${test}.test.ts` });
+
 const sim = "analyst/src/simulate.ts";
 const server = "analyst/src/server.ts";
 module.exports = {
@@ -106,7 +115,7 @@ module.exports = {
       { file: sources, from: "listDeck(game.decks?.A) && `Player A deck list:", to: "false && `Player A deck list:" },
       { file: sources, from: "listDeck(game.decks?.B) && `Player B deck list:", to: "false && `Player B deck list:" },
     ], kills: ["quotes the deck lists in the overview of a review and of a corpus game"] },
-    { id: "review-card-reference-dropped", file: chat, from: "              { type: \"text\", text: reviewCardReference(deps.catalog, game) },\n", to: "", kills: ["gives the review a card reference"] },
+    { id: "review-card-reference-dropped", file: chat, from: "          { type: \"text\" as const, text: reviewCardReference(catalog, game) },\n", to: "", kills: ["gives the review a card reference"] },
     { id: "review-card-reference-skips-seen-cards", file: chat, from: ", ...g.cardsInGame]);", to: "]);", kills: ["gives the review a card reference"] },
     { id: "review-opening-hand-seat-0", file: matches, from: "    yourOpeningHand: n.openingHands[seat],", to: "    yourOpeningHand: n.openingHands[0],", kills: ["tells the game from the reviewing player's seat"] },
     { id: "review-turn-range-ignored", file: matches, from: "        if (turn < fromTurn || turn > toTurn) continue;\n", to: "", kills: ["reads only the asked turns and cuts long logs"] },
@@ -206,7 +215,7 @@ module.exports = {
     { id: "chat-cost-priced-on-turn-total", file: chat, from: "    state.cost += costUsd(reply.usage, reply.model ?? o.model);", to: "    state.cost = costUsd(state.usage, reply.model ?? o.model);", kills: ["prices a Haiku 5.5 turn call by call, so only the call over 100K pays the long tier (#430)"] },
     { id: "chat-effort-sent-to-haiku-4-5", file: chat, from: "const NO_EFFORT_MODELS = [\"claude-haiku-4-5\"];", to: "const NO_EFFORT_MODELS: string[] = [];", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
     { id: "chat-effort-dropped-for-all", file: chat, from: "(NO_EFFORT_MODELS.includes(model) ? {} :", to: "(true ? {} :", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
-    { id: "review-effort-sent-to-haiku-4-5", file: chat, from: "        ...outputConfigFor(model, \"high\"),", to: "        output_config: { effort: \"high\" },", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
+    { id: "review-effort-sent-to-haiku-4-5", file: chat, from: "    ...outputConfigFor(model, \"high\"),", to: "    output_config: { effort: \"high\" },", kills: ["sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)"] },
     { id: "chat-model-budget-ignored", file: chat, from: "typeof budget.model === \"string\" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL", to: "CHAT_MODEL", kills: ["runs every call on the model the planner's budget names"] },
     { id: "chat-model-unknown-passed-through", file: chat, from: "typeof budget.model === \"string\" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL", to: "typeof budget.model === \"string\" ? budget.model : CHAT_MODEL", kills: ["runs every call on the model the planner's budget names"] },
     { id: "chat-model-rounds-use-default", file: chat, from: "          model: o.model,\n          max_tokens: o.maxTokens,", to: "          model: CHAT_MODEL,\n          max_tokens: o.maxTokens,", kills: ["runs every call on the model the planner's budget names"] },
@@ -277,7 +286,7 @@ module.exports = {
     { id: "stream-claim-not-released", file: chat, from: "const left = (streaming.get(user) ?? 1) - 1;", to: "const left = (streaming.get(user) ?? 1);", kills: ["lets a user have two chat or review streams at a time"] },
     { id: "stream-limit-one-only", file: chat, from: "const MAX_STREAMS_PER_USER = 2;", to: "const MAX_STREAMS_PER_USER = 1;", kills: ["lets a user have two chat or review streams at a time"] },
     { id: "stream-claim-shared-by-all", file: chat, from: "const user = token.split(\".\")[1] ?? token;", to: "const user = \"all\";", kills: ["lets a user have two chat or review streams at a time"] },
-    { id: "review-turns-not-sources", file: chat, from: "            ...gameResults(\"match\", game.matchId, game),\n", to: "", kills: ["sends the game to the review as one search result per turn"] },
+    { id: "review-turns-not-sources", file: chat, from: "          ...gameResults(\"match\", game.matchId, game),\n", to: "", kills: ["sends the game to the review as one search result per turn"] },
     { id: "review-citations-not-saved", file: chat, from: "{ text: final, citations }", to: "{ text: final, citations: [] }", kills: ["sends the game to the review as one search result per turn"] },
     { id: "playbook-stale-never", file: playbook, from: "    stale: Number.isFinite(written) && Number.isFinite(current) && written < current,", to: "    stale: false,", kills: ["flags notes older than the current set"] },
     { id: "playbook-newest-counts-previews", file: playbook, from: "  const newest = Math.max(0, ...[...counts].filter(([, c]) => c >= minCards).map(([n]) => n));", to: "  const newest = Math.max(0, ...[...counts].map(([n]) => n));", kills: ["takes the newest booster with a full card list"] },
@@ -601,5 +610,51 @@ module.exports = {
     { id: "bots-meta-leader-limit-ignored", file: metaDecks, from: "if (out.length >= (opts.leaders ?? 16)) break;", to: "if (false) break;", kills: ["builds one deck per leader for the most-played leaders"] },
     { id: "bots-meta-days-ignored", file: metaDecks, from: "const days = opts.days ?? 30;", to: "const days = 30;", kills: ["builds one deck per leader for the most-played leaders"] },
     { id: "bots-meta-http-error-ignored", file: metaDecks, from: "if (!res.ok) throw new Error(`${url} answered HTTP ${res.status}`);", to: "if (false) throw new Error(`${url} answered HTTP ${res.status}`);", kills: ["reports a failing endpoint"] },
+    // review-facts eval (#675)
+    rf("turn-count-off-by-one", rfFacts, "let turn = opening.turnNumber;", "let turn = opening.turnNumber + 1;", ["counts turns like the Turn N headers a review reads"], "facts"),
+    rf("mulligan-flipped", rfFacts, "mulligans[e.seat] = e.didMulligan;", "mulligans[e.seat] = !e.didMulligan;", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("first-seat-flipped", rfFacts, "firstSeat: replay.firstSeat,", "firstSeat: (1 - replay.firstSeat) as Seat,", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("winner-flipped", rfFacts, "const winner = replay.end?.winner ?? last.winner ?? null;", "const winner = replay.end ? ((1 - replay.end.winner) as Seat) : last.winner;", ["records who went first, the mulligans and how the game ended"], "facts"),
+    rf("ko-seat-flipped", rfFacts, "current.kos.push({ seat: e.seat,", "current.kos.push({ seat: (1 - e.seat) as Seat,", ["puts each play, attack, K.O. and Life hit on the turn it happened"], "facts"),
+    rf("trigger-card-lost", rfFacts, "// An accepted Trigger that was not announced is the Life card just taken.\n        pendingTrigger[e.seat] = e.defId;", "// (mutated)", ["puts each play, attack, K.O. and Life hit on the turn it happened"], "facts"),
+    rf("block-dropped", rfFacts, "if (openAttack) openAttack.blockedBy = defOf.get(e.blockerId);", "void 0;", ["keeps a block's blocker and a counter's cards with the attack they belong to"], "facts"),
+    rf("counter-dropped", rfFacts, "openAttack?.counters.push(e.defId);", "void 0;", ["keeps a block's blocker and a counter's cards with the attack they belong to"], "facts"),
+    rf("life-end-not-updated", rfFacts, "t.lifeAtEnd = life;\n", "", ["gives the Life range of a turn, start and end"], "facts"),
+    rf("life-range-min-wrong", rfFacts, "Math.min(t.lifeRange[s][0], life[s])", "Math.max(t.lifeRange[s][0], life[s])", ["gives the Life range of a turn, start and end"], "facts"),
+    rf("divergence-hidden", rfFacts, "divergedAt = err instanceof Error ? err.message : String(err);", "divergedAt = undefined;", ["stops at the move that no longer replays and says where"], "facts"),
+    rf("seat-mapping-flipped", rfFacts, "actor === \"you\" ? seat : ((1 - seat) as Seat)", "actor === \"you\" ? ((1 - seat) as Seat) : seat", ["supports a play on the turn it happened, for either seat's view"], "check"),
+    rf("check-ignores-turn", rfCheck, "const here = claim.turn === null ? verdicts : verdicts.filter((x) => x.i.turn === claim.turn);", "const here = verdicts;", ["calls the same play on another turn wrong_turn and names the real turn"], "check"),
+    rf("absent-not-contradicted", rfCheck, "const absent = (what: string): Checked => (diverged ? unverifiable(`${what}; the replay stopped early, so later turns are unknown`) : { verdict: \"contradicted\", reason: what });", "const absent = (what: string): Checked => unverifiable(what);", ["contradicts a card that was in the decks but never played"], "check"),
+    rf("neither-deck-reason-lost", rfCheck, "if (r.status === \"not_in_game\") return { verdict: \"contradicted\", reason: `${r.name} is in neither deck` };\n    wantCard = r.name;", "wantCard = r.name;", ["contradicts a real card that is in neither deck"], "check"),
+    rf("not-in-game-unplaced", rfCheck, "for (const c of catalog.cards.values()) if (norm(c.name) === full) return { status: \"not_in_game\", name: c.name };\n", "", ["contradicts a real card that is in neither deck"], "check"),
+    rf("unknown-name-contradicted", rfCheck, "return { status: \"none\", why: `\"${written}\" matches no card in this game` };", "return { status: \"not_in_game\", name: written };", ["contradicts a real card that is in neither deck, but leaves a name it cannot place unverifiable"], "check"),
+    rf("ambiguous-takes-first", rfCheck, "if (fits.length === 1) return { status: \"ok\", name: fits[0]! };", "if (fits.length >= 1) return { status: \"ok\", name: fits[0]! };", ["leaves a partial card name that fits two cards unverifiable"], "check"),
+    rf("partial-name-never-matches", rfCheck, "return want.every((t) => have.has(t));", "return false;", ["leaves a partial card name that fits two cards unverifiable"], "check"),
+    rf("card-number-ignored", rfCheck, "const id = written.match(CARD_NUMBER)?.[1]?.toUpperCase();", "const id = undefined as string | undefined;", ["reads a card number as that card's name"], "check"),
+    rf("wrong-winner-passes", rfCheck, "if (winner !== actor) return { verdict: \"contradicted\"", "if (false) return { verdict: \"contradicted\"", ["contradicts the wrong winner and checks the way it ended"], "check"),
+    rf("end-reason-ignored", rfCheck, "if (want.includes(reason)) return", "if (true) return", ["contradicts the wrong winner and checks the way it ended"], "check"),
+    rf("life-total-wrong-turn", rfCheck, "const t = turnOf(claim.turn);", "const t = turnOf(claim.turn + 1);", ["contradicts a Life total outside what the player had that turn"], "check"),
+    rf("final-life-not-final", rfCheck, "if (/\\b(end|ended|finish|finished|final|finally|left with)\\b/i.test(claim.quote)) {", "if (false) {", ["compares a final Life total to where the game ended"], "check"),
+    rf("life-ever-seen-any", rfCheck, "return facts.lifeSeen[actor].includes(claim.number)", "return true", ["compares a final Life total to where the game ended"], "check"),
+    rf("went-first-flipped", rfCheck, "return facts.firstSeat === actor", "return facts.firstSeat !== actor", ["checks who went first and who mulliganed"], "check"),
+    rf("mulligan-flipped-check", rfCheck, "return did === (claim.number === 1)", "return did !== (claim.number === 1)", ["checks who went first and who mulliganed"], "check"),
+    rf("attack-target-ignored", rfCheck, "if (wantTarget) fold(wantTarget === \"leader\" ? i.target === \"leader\" : i.target === undefined ? \"unknown\" : i.target === \"leader\" ? false : sameCard(i.target, wantTarget));", "if (wantTarget) fold(true);", ["checks attacks by attacker and target, and the turn they happened on"], "check"),
+    rf("counter-on-attacker", rfCheck, "items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: c });", "items.push({ turn: t.turn, seat: a.seat, card: c });", ["puts a counter on the player who defended, not the attacker"], "check"),
+    rf("block-on-attacker", rfCheck, "items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: a.blockedBy });", "items.push({ turn: t.turn, seat: a.seat, card: a.blockedBy });", ["puts a block on the player who defended, not the attacker"], "check"),
+    rf("ko-on-killer", rfCheck, "items.push({ turn: t.turn, seat: k.seat, card: k.card });", "items.push({ turn: t.turn, seat: (1 - k.seat) as Seat, card: k.card });", ["puts a K.O. on the card's owner and checks a stated count"], "check"),
+    rf("stated-count-ignored", rfCheck, "&& yes.length !== claim.number) {", "&& false) {", ["puts a K.O. on the card's owner and checks a stated count", "counts the Life cards taken in a turn when the claim gives a number"], "check"),
+    rf("trigger-card-unknown", rfCheck, "items.push({ turn: t.turn, seat: x.seat, card: x.card });", "items.push({ turn: t.turn, seat: x.seat, card: undefined });", ["matches a Trigger to the Life card that was taken"], "check"),
+    rf("other-contradicted", rfCheck, "return unverifiable(\"no checkable event in this claim\");", "return { verdict: \"contradicted\", reason: \"other\" };", ["leaves a claim that names no event unverifiable"], "check"),
+    rf("stopped-replay-contradicts", rfCheck, "=> (diverged ? unverifiable(", "=> (false ? unverifiable(", ["does not call a claim contradicted when the replay stopped before it could happen"], "check"),
+    rf("quote-guard-removed", rfExtract, "(q && hay.includes(q) ? kept : dropped).push(c);", "kept.push(c);", ["drops a claim whose quote is not in the review"], "extract"),
+    rf("quote-curly-not-normalized", rfExtract, ".replace(/[\\u2018\\u2019\\u02bc]/g, \"'\")", "", ["drops a claim whose quote is not in the review, and keeps one with curly quotes or markdown changed"], "extract"),
+    rf("quote-markdown-not-stripped", rfExtract, ".replace(/[*_`]/g, \"\")", "", ["drops a claim whose quote is not in the review, and keeps one with curly quotes or markdown changed"], "extract"),
+    rf("invalid-claims-kept", rfExtract, "if (r.success) claims.push(r.data);", "if (true) claims.push(c as Claim);", ["keeps the claims that fit the schema and counts the rest as invalid"], "extract"),
+    rf("scripted-actor-flipped", rfExtract, "/^you$/i.test(w) ? \"you\" : \"opponent\"", "/^you$/i.test(w) ? \"opponent\" : \"you\"", ["reads the dry run's template sentences and nothing else"], "extract"),
+    rf("production-request-differs", "analyst/src/chat.ts", "      reviewRequest(deps.catalog, model, game),\n", "      { ...reviewRequest(deps.catalog, model, game), max_tokens: 1000 },\n", ["sends the eval the same model request the app sends for the same game"], "request"),
+    rf("eval-request-differs", rfPipeline, "reviewRequest(deps.catalog, deps.model, game)", "reviewRequest(deps.catalog, deps.model, { ...game, notes: [] })", ["sends the eval the same model request the app sends for the same game"], "request"),
+    rf("pipeline-keeps-unquoted", rfPipeline, "guardQuotes(review, extracted.claims)", "({ kept: extracted.claims, dropped: [] as typeof extracted.claims })", ["scores the extracted claims of a review against the game"], "request"),
+    rf("wrong-turn-not-wrong", rfReport, "const wrong = contradicted + wrong_turn;", "const wrong = contradicted;", ["scores the extracted claims of a review against the game"], "request"),
+    rf("unverifiable-checkable", rfReport, "const checkable = supported + wrong;", "const checkable = supported + wrong + sum(\"unverifiable\");", ["scores the extracted claims of a review against the game"], "request"),
   ],
 };

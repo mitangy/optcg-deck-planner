@@ -133,3 +133,16 @@ npm run eval:compare -- evals/out/<variant>
 `--planner live` needs `PLANNER_API_URL` and `ANALYST_SERVICE_SECRET`. The paid run is manual; run it after a change to the prompt, tools or model, never in CI. Output goes to `evals/out/` (git-ignored).
 
 Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jsonl`. Cases hold only the card id and a question hash.
+
+### Review facts eval (#675)
+
+`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/chat.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
+
+```bash
+npm run eval:review-facts -- --model-api scripted --n 3   # free dry run: scripted review and extractor
+ANTHROPIC_API_KEY=... npm run eval:review-facts -- --n 20 --max-usd 5   # paid, about $2 for 20 reviews
+```
+
+Flags: `--seed`, `--levels normal,normal`, `--decks <json>` (default: the meta decks file when present), `--games <jsonl>` (replays from a file, such as the bot corpus; games that no longer replay are skipped), `--seat 0|1|both` (default alternates), `--model`, `--extractor-model`, `--concurrency`, `--variant`. Output is `evals/out/review-facts/<variant>/`: `reviews.jsonl`, `claims.jsonl` (each claim with its verdict and reason) and `report.md`.
+
+Verdicts: `supported`; `contradicted` (it did not happen, or the card is in neither deck); `wrong_turn` (it happened, but on another turn than the review says); `unverifiable` (the checker cannot decide: opinions, an ambiguous or unknown card name, a game that stopped replaying). Claims whose quote is not in the review are dropped and counted. The headline numbers are wrong claims per review (contradicted plus wrong turn) and the wrong share of checkable claims (supported plus wrong) with a 95% Wilson interval; claims in one review are not independent, so the interval is optimistic. Unverifiable claims are never counted as wrong, so the share is a floor on the true error rate. The checker's rules are in the header of `check.ts`.

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import type { Catalog } from "./catalog";
-import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi } from "./matches";
+import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi, type ReviewGame } from "./matches";
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
 import { cardReferenceLine, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
@@ -675,10 +675,10 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
 }
 
 /** Lines of a game a review reads: whole games, including the board lines each turn adds. */
-const REVIEW_MAX_LINES = 1500;
+export const REVIEW_MAX_LINES = 1500;
 
 /** Every card of the game with its printed stats and text: both decks and leaders (the opponent's only once revealed) and each card seen in the log. */
-export function reviewCardReference(catalog: Catalog, game: Awaited<ReturnType<typeof reviewMatch>>): string {
+export function reviewCardReference(catalog: Catalog, game: ReviewGame): string {
   const g = game as { yourLeaderId: string; opponentLeaderId: string; yourDeck: { id: string }[]; opponentDeck?: { id: string }[]; cardsInGame: string[] };
   const ids = new Set<string>([g.yourLeaderId, g.opponentLeaderId, ...g.yourDeck.map((d) => d.id), ...(g.opponentDeck ?? []).map((d) => d.id), ...g.cardsInGame]);
   const lines = [...ids].flatMap((id) => {
@@ -688,9 +688,31 @@ export function reviewCardReference(catalog: Catalog, game: Awaited<ReturnType<t
   return ["Card reference:", ...lines].join("\n");
 }
 
+/** The model request for a post-game review. The eval sends this same request, so the prompt it measures is the one players get. */
+export function reviewRequest(catalog: Catalog, model: string, game: ReviewGame) {
+  return {
+    model,
+    max_tokens: 6000,
+    system: [{ type: "text" as const, text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" as const } }],
+    // One source per turn, so the review can cite the turns it talks about.
+    messages: [
+      {
+        role: "user" as const,
+        content: [
+          { type: "text" as const, text: "Here is the game, from my seat: an overview, then each turn as its own source." },
+          ...gameResults("match", game.matchId, game),
+          { type: "text" as const, text: reviewCardReference(catalog, game) },
+          { type: "text" as const, text: [...game.notes, "Write the post-game analysis."].join(" ") },
+        ],
+      },
+    ],
+    ...outputConfigFor(model, "high"),
+  };
+}
+
 async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
-  let game: Awaited<ReturnType<typeof reviewMatch>>;
+  let game: ReviewGame;
   try {
     game = await reviewMatch(api, token, body.match_id, { maxLines: REVIEW_MAX_LINES });
   } catch (err) {
@@ -707,24 +729,7 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   let reply: ModelReply;
   try {
     reply = await deps.callModel(
-      {
-        model,
-        max_tokens: 6000,
-        system: [{ type: "text", text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
-        // One source per turn, so the review can cite the turns it talks about.
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Here is the game, from my seat: an overview, then each turn as its own source." },
-              ...gameResults("match", game.matchId, game),
-              { type: "text", text: reviewCardReference(deps.catalog, game) },
-              { type: "text", text: [...game.notes, "Write the post-game analysis."].join(" ") },
-            ],
-          },
-        ],
-        ...outputConfigFor(model, "high"),
-      },
+      reviewRequest(deps.catalog, model, game),
       out.onText,
       signal,
       out.onCite,
