@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
 vi.mock("./cardMatch", () => ({ getCv: async () => ({}) }));
 vi.mock("./cardDetect", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./cardDetect")>()),
-  detectCards: () => state.cards,
+  detectCardsAsync: async () => state.cards,
 }));
 vi.mock("./cardScanMatch", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./cardScanMatch")>()),

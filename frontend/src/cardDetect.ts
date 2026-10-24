@@ -668,3 +668,29 @@ export function detectCards(cv: Cv, image: ImageData, opts: DetectOptions = {}):
 export function findCardQuads(cv: Cv, image: ImageData, opts: DetectOptions = {}): Quad[] {
   return detectCards(cv, image, opts).map((c) => c.quad);
 }
+
+/** A learned detector (see `cardDetectModel.ts`): null result = could not run. */
+export type CardModelDetector = (image: ImageData, opts?: DetectOptions) => Promise<DetectedCard[] | null>;
+
+let modelDetector: CardModelDetector | null = null;
+
+/** Registered by `cardDetectModel.ts` once the model is loaded; null unregisters. */
+export function setCardModelDetector(fn: CardModelDetector | null): void {
+  modelDetector = fn;
+}
+
+/**
+ * `detectCards` with the learned detector first. The model sees only the
+ * card face (not its sleeve or case) and copes with piles and glare; when it is
+ * not loaded, fails, or finds nothing, the OpenCV detector runs as before,
+ * including its single-card and whole-frame fallbacks.
+ */
+export async function detectCardsAsync(cv: Cv, image: ImageData, opts: DetectOptions = {}): Promise<DetectedCard[]> {
+  const learned = modelDetector ? await modelDetector(image, opts) : null;
+  return preferLearned(learned, () => detectCards(cv, image, opts));
+}
+
+/** The learned detector's cards when it found any, otherwise the classical detector's. */
+export function preferLearned(learned: DetectedCard[] | null, classical: () => DetectedCard[]): DetectedCard[] {
+  return learned && learned.length > 0 ? learned : classical();
+}

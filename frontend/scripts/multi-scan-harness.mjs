@@ -19,11 +19,10 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
-import { decodeRecord } from "../src/descriptorCache.ts";
-import { buildCandidates } from "../src/cardScanMatch.ts";
 import { getCv } from "../src/cardMatch.ts";
 import { findCardQuads, quadIoU } from "../src/cardDetect.ts";
 import { matchAllCardsWith } from "../src/cardScanMulti.ts";
+import { loadMatchAssets } from "./eval-shared.mjs";
 import { applyHomography, computeHomography } from "../src/cardRectify.ts";
 
 const REFS = process.env.REFS || ".scan-build/refs";
@@ -410,14 +409,7 @@ function assign(gt, det) {
 // ---------------------------------------------------------------------- main
 
 async function loadCandidates() {
-  const manifest = JSON.parse(readFileSync(join(DESC, "descriptors.manifest.json"), "utf8"));
-  const records = [];
-  for (const chunk of manifest.chunks) {
-    const file = readFileSync(join(DESC, chunk.file));
-    const buf = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
-    for (const rec of chunk.records) records.push(decodeRecord(buf, rec.offset, rec.cardId));
-  }
-  return buildCandidates(records);
+  return loadMatchAssets(DESC);
 }
 
 function loadCards(r) {
@@ -465,6 +457,7 @@ async function main() {
   const cards = loadCards();
   const specs = plan().map((x, idx) => ({ ...x, idx })).slice(0, SCENES).filter((s) => !ONLY || ONLY.some((o) => s.name.includes(o)));
 
+  const cardRows = [];
   const tot = { gt: 0, det: 0, tp: 0, idOk: 0, sure: 0, sureWrong: 0, check: 0, none: 0, ms: 0, detMs: 0, iou: 0 };
   console.log("scene                 size       gt det  recall prec  idOK  sure/check/none sureWrong  detMs  totalMs");
   for (let si = 0; si < specs.length; si += 1) {
@@ -496,7 +489,8 @@ async function main() {
       iouSum += p.iou;
       const ok = d.cardId === gt[p.gi].cardId;
       if (ok) idOk += 1;
-      else console.log(`    wrong: truth ${gt[p.gi].cardId}, read ${d.cardId} (${d.confidence}, inliers ${d.inliers}, runner-up ${d.runnerUp}, iou ${p.iou.toFixed(2)})`);
+      cardRows.push({ scene: spec.name, truth: gt[p.gi].cardId, read: d.cardId, ok, conf: d.confidence, inliers: d.inliers, runnerUp: d.runnerUp, embedRank: d.embedRank });
+      if (!ok) console.log(`    wrong: truth ${gt[p.gi].cardId}, read ${d.cardId} (${d.confidence}, inliers ${d.inliers}, runner-up ${d.runnerUp}, iou ${p.iou.toFixed(2)})`);
       if (d.confidence === "sure") { sure += 1; if (!ok) sureWrong += 1; }
       else if (d.confidence === "check") check += 1;
       else none += 1;
@@ -517,6 +511,7 @@ async function main() {
     writeFileSync(join(OUT, `${spec.name}.overlay.jpg`), overlay(shot.image, gt, det));
   }
   const n = specs.length;
+  if (process.env.ROWS) writeFileSync(process.env.ROWS, JSON.stringify(cardRows));
   console.log("\nTOTAL");
   console.log(`  detection recall    ${(tot.tp / tot.gt * 100).toFixed(1)}%  (${tot.tp}/${tot.gt})`);
   console.log(`  detection precision ${(tot.tp / tot.det * 100).toFixed(1)}%  (${tot.tp}/${tot.det})`);

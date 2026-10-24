@@ -1,13 +1,15 @@
 # Card scanning
 
 The scanner identifies a card by matching ORB features against precomputed
-descriptors for every catalog printing, entirely on the device.
+descriptors for every catalog printing, entirely on the device. A small learned
+embedding of the card's art decides which printings to check first.
 
 ## How it works
 
 ```
-rectify -> extract query features -> order candidates by a cheap hash ->
-ORB-verify in that order, stopping at the first confident match
+rectify -> resample to the references' scale -> CLAHE + ORB query features ->
+order candidates (order hash fused with art embedding) ->
+ORB-verify in that order until sure, tied, or out of time
 ```
 
 A match is only believed when one homography explains it: Lowe ratio test,
@@ -16,10 +18,91 @@ corners, scored by inlier count. Descriptor matches lie constantly on cards —
 yellow borders match yellow borders — and requiring a single consistent
 perspective transform is what separates a real match from coincidence.
 
-**Order, never truncate.** The hash sorts the whole catalog; it never cuts it.
-That distinction is the design: a shortlist would drop the answer, whereas a
-poor ordering only costs time, because the walk can still reach every
-candidate. Correctness rests on the verifier alone.
+**Order, never truncate, but bound the time.** The ordering is a permutation of
+the whole catalog; it never cuts it. A poor ordering only costs time, because
+the walk can still reach every candidate, and correctness rests on the verifier
+alone. What changed in #701 is that the walk is now bounded by the clock: it
+verifies at least 8 candidates (`minExamined`, so the runner-up has seen real
+rivals), stops as soon as one is confident with a lead, stops at 48 if a
+confident match never separates from its rival (reprints of one illustration
+tie), and after `maxMs` (1.5 s) returns whatever it has as "check" instead of
+reading the other 6,000 printings. Before, a card that never reached 10 inliers
+walked the whole catalog: ~14 s on a desktop, far worse on a phone, and the
+weak winner it finally reported was often wrong.
+
+### Query scale and contrast (the biggest single fix)
+
+Measured on 19 hand-labelled cards in four real phone photos (sleeves,
+toploaders, a PSA slab, acrylic cases, a binder), identification with *perfect*
+quads reached the confident threshold on 13/19 cards before and 19/19 after:
+
+- **Resample to the references' scale.** The multi-card path rectifies to 1120 px
+  tall, but a card in a phone photo is 250-450 px tall and the references are
+  ~560 px: upsampling puts the same information on 4x the pixels, so ORB's 31 px
+  patch sees mush. Matching at 560 px roughly doubled inliers on every card
+  (`MATCH_HEIGHT`, `resizeToHeight`).
+- **CLAHE on the query.** A card behind a sleeve is hazy, and the corner detector
+  fires on local contrast. Contrast-limited equalisation (clip 3, 8x8 tiles)
+  lifted weak cards from 9-13 inliers to 10-30 and, unexpectedly, *cut false
+  positives*: on the synthetic harness without it, noisy scenes made hub
+  references (cards with lots of fine detail) score 10-17 inliers on the wrong
+  card (9 sure-but-wrong of 214 without CLAHE, 2 with).
+- **500 query features, 250 reference features.** The query is extracted once per
+  scan, so it can afford more; the references were extracted once for the
+  catalog and stay at 250 (no bundle regeneration for this). 500 beat 350 and
+  250 on real photos (19/19 sure vs 18 and 16).
+
+The "wrong cards never score above zero" claim below no longer holds at this
+operating point: at 500 features about 0.15% of wrong-card comparisons verify at
+10+ inliers, and a reprint sharing its illustration with another card number
+(Luffy leaders, character alternate arts) can score 35+ because it *is* the same
+picture. That is why "sure" now needs the art embedding to agree (see below).
+
+## Art embedding
+
+`cardEmbed.ts`, trained by `scripts/train-embedder/`. A MobileNetV3-Small
+(ImageNet-pretrained, torchvision) takes the rectified card at 160x224 and
+produces a 128-d unit vector. It is fine-tuned contrastively (InfoNCE, in-batch
+negatives) so that a degraded view of a printing is near its clean scan: the
+augmentations imitate a sleeved phone photo (corner jitter of the quad,
+downscaling to 45-100%, blur, spatially varying haze toward a tint, glare blobs,
+overlapping neighbours, colour casts, noise, 180 degree rotation).
+
+Why train rather than use a pretrained model as-is: ImageNet MobileNetV3-Large
+on the same quads put the right printing in the top 5 for 13/19 cards and failed
+completely on sleeved cards (rank 51-405 of 6,859 for five of them); art-only
+crops, CLAHE, and three other backbones (MobileNetV3-Small, MobileNetV4-Small,
+MobileCLIP-S0 sized) did not change that. After 6 epochs of fine-tuning
+(~85 min on 3 shared CPU threads) the right printing is rank 0 for 18/19 and rank
+1 for the other, among all 6,859.
+
+It orders, it does not decide:
+
+- **Fused order.** `fuseOrder` merges the hash order and the embedding order by
+  reciprocal-rank fusion (k = 10): the top few of *either* list are verified
+  first, then the rest of both. The two fail on different cards (the hash on a
+  gold-foil alt art at rank ~830, the embedding on washed-out sleeves in the
+  generic model), and the fusion is a permutation, so nothing is dropped.
+- **Confidence veto.** `classifyMatch` calls a match "sure" only if the matched
+  card is in the embedding's top 10 (`SURE_EMBED_RANK`). Every correct read in
+  both test sets had rank 0-7; every wrong "sure" had rank 19 or worse.
+  Without an embedder nothing changes.
+- **Graceful absence.** No model, no embeddings (a printing newer than the
+  embeddings file), or a runtime failure: `matchRectified` uses the hash order
+  and the old rule.
+
+Shipping: `scripts/pack-embedder.mjs` embeds every reference with the same
+preprocessing the browser uses (`embedderInput`, shared by construction) and
+writes `card-embedder-<hash>.onnx` (3.8 MB, fp32; int8 dynamic quantisation was
+7x *slower* on the CPUs measured and no more accurate), `embeddings-<hash>.bin`
+(6,859 x 128 int8 = 0.95 MB), and the pointer `card-embedder.json`, next to the
+descriptor chunks. `cardEmbedCache.ts` keeps them in their own IndexedDB
+database, offline after one download, and `useScanData` loads them in the
+background like the detector. Retraining replaces the model file only; adding a
+set re-embeds in the same workflow run as the descriptors.
+
+onnxruntime-web is loaded lazily (WASM backend, single thread unless the page is
+cross-origin isolated), the same way as the detector.
 
 ## Why not perceptual hashing
 
@@ -45,9 +128,10 @@ keypoint orientation, so rotation costs nothing.
 
 Two measured properties carry the design:
 
-- **Precision.** Across 3,690 wrong-card comparisons, no wrong card ever
-  scored above zero. Separation is 12-18 versus nothing, which is what makes
-  an early-exit threshold safe.
+- **Precision.** Across 3,690 wrong-card comparisons (250 features, no CLAHE,
+  1120 px queries), no wrong card ever scored above zero. Separation was 12-18
+  versus nothing. That held for that operating point and a small pool; see
+  "Query scale and contrast" for what changed.
 - **Scale-invariance.** Correct matches held rank 1 with margins intact as the
   pool grew 12.8x, because the score is geometric agreement between two
   specific images rather than a position in a distribution.
@@ -66,7 +150,8 @@ The exception is printings sharing near-identical art, which tie closely.
 
 `matchAllCards` (`cardScanMulti.ts`) finds every card in a photo, then
 identifies each one with the same matcher as a single scan. Detection
-(`cardDetect.ts`) is classical OpenCV, no model:
+(`cardDetect.ts`) uses the learned detector described below when its model
+is downloaded, and otherwise this classical OpenCV pipeline, no model:
 
 1. Downscale to ~1000 px, grayscale, blur.
 2. Binary maps, each contoured with `findContours`: Canny at three
@@ -92,10 +177,145 @@ identifies each one with the same matcher as a single scan. Detection
    detection copy. No card found falls back to the single-card path, then the
    whole frame.
 
-"Sure" means 10+ inliers and a 5+ lead over the runner-up; anything else with
+"Sure" means 10+ inliers, a 5+ lead over the runner-up and (when an embedder ran) the card in the embedding's top 10; anything else with
 inliers is "check"; no match is "none". The multi-card path loads photos at a
 3000 px long edge (`MULTI_MAX_WORK_EDGE`) rather than 2000, since each card
 gets a fraction of the frame.
+
+### Learned detector (#701)
+
+The OpenCV detector above works on flat, high-contrast scenes and fails on real
+phone photos: it finds the *sleeve*, the toploader or the PSA slab instead of
+the card, merges fanned piles, and loses cards on glass tables to reflections.
+`cardDetectModel.ts` runs a small learned detector instead, and the OpenCV
+detector stays as the fallback.
+
+- **Model.** YOLO11n-pose fine-tuned to output one object per visible card
+  *face* with four corner keypoints (the printed card's own TL, TR, BR, BL),
+  so it returns a perspective quad directly. ~2.6 M parameters, 5.8 MB
+  as ONNX with float16-stored weights (cast back to float32 at load).
+- **Run.** onnxruntime-web, WASM backend, loaded with a dynamic `import()` the
+  first time the scanner needs it (same idea as OpenCV). The photo is
+  letterboxed to a long side of 640 at its own aspect (a 9:16 phone photo is
+  384x640, not a padded square), area-averaged down, run, decoded
+  (`decodeDetections`), filtered to plausible card shapes
+  (`isPlausibleCard`) and de-duplicated by quad IoU (`suppressDuplicates`).
+  Quads come back in source pixels, in the card's printed orientation, in
+  reading order.
+- **Fallback.** `detectCardsAsync` (`cardDetect.ts`, called by
+  `matchAllCardsWith`) uses the model's cards when it found any, and
+  otherwise runs the OpenCV detector exactly as before, including its
+  single-card and whole-frame fallbacks. No model file, an unsupported
+  browser or a failed inference all land there silently.
+- **Distribution.** The model is not committed. It is a build artifact served
+  from the same `scan-data/` store as the descriptors: `card-detector-<hash>.onnx`
+  (immutable) plus a tiny `card-detector.json` pointer. `cardDetectorCache.ts`
+  keeps it in its own IndexedDB database, so scanning works offline after the
+  first download; `useScanData.ts` loads it from the cache in the background
+  and fetches it if missing. `scripts/pack-detector.mjs` produces the two
+  files, `upload-descriptors.mjs` uploads them when they sit next to the
+  descriptor chunks. The trained model is committed at
+  `frontend/scan-models/card-detector.onnx` and the *Scan descriptors* workflow
+  packs it (an optional `detector_url` input overrides it). Locally, put the
+  packed files in `frontend/public/scan-data/`.
+- **Labelling rule.** What the model is trained to find is exactly what the
+  tray needs: the printed card, and for a pile the top card (a card is labelled
+  when at least 85% of it is visible). Cards further back in a fan, face-down
+  cards, non-One-Piece cards in a binder and cards printed on boxes are not.
+
+#### Training it
+
+Everything needed to rebuild the model is in `frontend/scripts/train-detector/`
+(Python; use a venv outside the repo, CPU torch is enough):
+
+```bash
+cd frontend
+LIMIT=1500 node scripts/fetch-reference-images.mjs .scan-build/refs-train
+for i in 1 2 3 4; do python scripts/train-detector/gen_scenes.py --cards .scan-build/refs-train \
+    --textures <dir of CC0 colour textures, e.g. ambientCG 1K-JPG> \
+    --out /tmp/det-r$i --n 2500 --val 200 --seed 2$i; done      # ~25 min each on 4 cores
+# rounds chain: each starts from the previous round's weights (the first from COCO).
+# The shipped model was ~10 epochs at 512 px over three rounds, then 5 at 640 px.
+python scripts/train-detector/train.py --rounds /tmp/det-r1 /tmp/det-r2 /tmp/det-r3 --epochs 4 --out /tmp/det-runs
+python scripts/train-detector/train.py --rounds /tmp/det-r4 --epochs 5 --imgsz 640 \
+    --resume-from /tmp/det-runs/round3.pt --out /tmp/det-runs-hi
+python scripts/train-detector/export_onnx.py /tmp/det-runs-hi/round1.pt /tmp/card-detector.onnx
+node scripts/pack-detector.mjs /tmp/card-detector.onnx public/scan-data
+MODEL=public/scan-data/card-detector-<hash>.onnx npx tsx scripts/detect-eval.mjs
+```
+
+`gen_scenes.py` composites real card art onto wood, glass-with-reflections,
+playmat, fabric, concrete and shelf backgrounds, inside coloured sleeves, clear
+toploaders, PSA-style slabs, acrylic cases and binder pockets, as fanned,
+stacked and side-by-side piles, rotated (including quarter turns) and
+perspective-warped, with glare, hands, blur, noise and JPEG, plus unlabelled
+distractors (boxes with printed card art, fake non-One-Piece cards, card backs,
+paper). The labels are the printed card's corners. CPU training is slow, so
+`train.py` trains in *rounds*, each on a freshly generated dataset, instead of
+many epochs over one. The owner's real photos are the test set and are never
+trained on.
+
+`scripts/detect-eval.mjs` scores the detector (and, with the descriptor bundle,
+the whole pipeline) on the real photos in `.scan-build/real-photos/`.
+
+#### How well it works
+
+Scored on four of the owner's phone photos (binder, store shelf, pink sleeves,
+toploaders and a PSA slab; 19 hand-labelled top cards in `quads.json`, none
+of them trained on). A card is found when a detected quad overlaps the
+labelled printed card by IoU >= 0.5; the pipeline column runs detection plus
+identification against all 6,774 printings.
+
+| photo | OpenCV found | model found | model false pos. | model mean IoU | piles identified, OpenCV -> model |
+|---|---|---|---|---|---|
+| binder (2 cards, non-One-Piece pockets around them) | 1/2 | 2/2 | 0 | 0.95 | 1/2 -> 2/2 |
+| store shelf (acrylic cases in front of printed boxes) | 1/2 | 2/2 | 0 | 0.91 | 1/2 -> 2/2 |
+| pink sleeves, fanned piles on a glass table | 2/5 | 5/5 | 1 | 0.86 | 2/5 -> 4/5 |
+| toploaders, PSA slab, stacks | 1/10 | 10/10 | 1 | 0.79 | 1/10 -> 8/10 |
+| **total** | **5/19** | **19/19** | **2** | **0.84** | **5/19 -> 16/19** |
+
+Both false positives are real cards in a fan behind the top card, which the
+tray would show as a second copy rather than as junk. The score threshold
+(0.25) was chosen on these photos (0.30 finds 17/19), so treat the numbers as
+tuned, not blind. Mean IoU is looser than on the synthetic scenes because a
+few quads are rotated a few degrees; identification tolerates that.
+
+On the 30 synthetic harness scenes (flat, high contrast: the OpenCV
+detector's best case) the model reaches 96.8% recall (211/218), 100%
+precision and 0.89 mean IoU, against OpenCV's 98.2%, 100% and 0.94. Its misses
+are binder pockets and dim cards on busy backgrounds. The reference art is
+shared with the training set, though the scenes are not.
+
+Speed: 0.2-0.35 s per photo in headless Chromium on a 4-core server CPU with
+the single-threaded WASM backend (preprocessing included; Node is similar), so
+roughly 0.5-1.5 s on a phone, against ~0.2 s for the OpenCV detector. The page
+is not cross-origin isolated, so ORT runs on one thread. The ONNX is 5.8 MB, plus
+the ~14 MB onnxruntime-web WASM asset, fetched only when the scanner opens.
+Training took about 2.5 hours of CPU in total (5 rounds of 2,500 scenes,
+~5 min/epoch at 512 px, ~9 at 640), plus ~25 min of scene generation per round.
+
+Open problems: a stack of toploaders where only the front card is fully
+visible is the weakest case, and recall there varied between training rounds
+(0.30 vs 0.25 threshold decided 2 of the 19); a non-One-Piece card in a
+binder sometimes comes out as a card and is left to identification to reject;
+corners of small cards are good to a few pixels at 640 px but a quad can be
+rotated a few degrees.
+
+### Real-photo evaluation (#701)
+
+`frontend/.scan-build/real-photos/` (gitignored) holds the owner's phone photos,
+`truth.json` (which cards are visible) and `quads.json` (hand-verified corner
+quads, `{photo:[{id,quad:[TL,TR,BR,BL]}]}`). `scripts/real-photo-eval.mjs`
+rectifies each quad and calls `matchRectified`, so it measures identification
+alone with perfect detection (`NOEMBED=1` turns the embedder off, `OUT=` writes json).
+
+| 19 cards, perfect quads | Before | After |
+|---|---|---|
+| Correct | 16 (strict id 15) | 19 (strict 19) |
+| Sure but wrong | 1 | 0 |
+| Sure / check / none | - | 19 / 0 / 0 |
+| Median ms per card | 159 | 173 |
+| Worst ms per card | 14,507 | 292 |
 
 ### Harness
 
@@ -110,6 +330,8 @@ cd frontend
 LIMIT=240 node scripts/fetch-reference-images.mjs .scan-build/refs
 npx tsx scripts/extract-descriptors.mjs .scan-build/refs .scan-build/desc
 npx tsx scripts/multi-scan-harness.mjs              # full pipeline
+NOEMBED=1 npx tsx scripts/multi-scan-harness.mjs    # without the embedder
+REFS=.scan-build/refs-full DESC=.scan-build/full-desc2 npx tsx scripts/multi-scan-harness.mjs # full catalog
 DETECT_ONLY=1 npx tsx scripts/multi-scan-harness.mjs # detection only, fast
 ```
 
@@ -144,7 +366,7 @@ Known weaknesses:
 
 ## The descriptor bundle
 
-The descriptors are a **build artifact**, not source: ~55 MB, regenerated when
+The descriptors are a **build artifact**, not source: ~60 MB (+4.8 MB for the art embedder: `card-embedder-<hash>.onnx` 3.8 MB, `embeddings-<hash>.bin` 0.95 MB, pointer `card-embedder.json`), regenerated when
 a set releases.
 
 They are neither committed nor served by the API. Committing would grow the
@@ -156,8 +378,8 @@ which also means the bundle can be refreshed without redeploying.
 ## One-time setup
 
 1. **Create a Vercel Blob store** for the project. Hobby includes 5 GB of
-   storage and 100 GB of transfer per month; the bundle is ~55 MB and a
-   full download is ~55 MB per user, so the headroom is roughly 1,800
+   storage and 100 GB of transfer per month; the bundle is ~60 MB and a
+   full download is ~65 MB per user, so the headroom is roughly 1,800
    first-time downloads a month.
 2. **Add `BLOB_READ_WRITE_TOKEN`** to the repository's GitHub Actions
    secrets. Without it the workflow still runs and publishes the bundle as a
@@ -197,6 +419,20 @@ picked up by `npm run dev` with no further configuration.
 Node 20+ is required: `@vercel/blob` declares it, and on Node 18 the upload
 fails inside undici with a message that points at Node internals rather than
 the version.
+
+### Regenerating the embedder (#701)
+
+```bash
+cd frontend/scripts/train-embedder
+python train.py --refs ../../.scan-build/refs-full --out embedder.pt   # ~85 min on 3 CPU threads
+python export_onnx.py embedder.pt card-embedder.onnx
+cd ../.. && npx tsx scripts/pack-embedder.mjs .scan-build/refs-full card-embedder.onnx .scan-build/desc
+```
+
+The trained embedder is committed at `frontend/scan-models/card-embedder.onnx`.
+The Scan descriptors workflow runs `pack-embedder` with it on every run (an
+optional `embedder_url` input overrides it), so new sets get embeddings. Without
+an embedder in the bundle the scanner falls back to hash order.
 
 ## Why chunks are content-addressed
 

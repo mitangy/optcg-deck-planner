@@ -8,9 +8,9 @@
 
 import type { Quad } from "./cardRectify";
 import { rectifyToImageData, RECTIFIED_HEIGHT, RECTIFIED_WIDTH } from "./cardRectify";
-import { detectCards, isCardShaped, type DetectOptions } from "./cardDetect";
+import { detectCardsAsync, isCardShaped, type DetectOptions } from "./cardDetect";
 import { getCv } from "./cardMatch";
-import { CONFIDENT_INLIERS, matchRectified, type ScanCandidate, type ScanMatch } from "./cardScanMatch";
+import { CONFIDENT_INLIERS, SURE_LEAD, matchRectified, type ScanCandidate, type ScanMatch } from "./cardScanMatch";
 import { scanLog } from "./scanLog";
 
 export type MultiScanConfidence = "sure" | "check" | "none";
@@ -26,6 +26,8 @@ export type MultiScanItem = {
   runnerUp: number;
   /** "sure": confident match; "check": weak or close call; "none": no match. */
   confidence: MultiScanConfidence;
+  /** Rank of the matched card by art-embedding similarity, when an embedder ran (diagnostics). */
+  embedRank?: number;
 };
 
 export type MultiScanProgress = {
@@ -45,11 +47,26 @@ export type MatchAllCards = (
 ) => Promise<MultiScanItem[]>;
 
 /** A match needs a clear lead over the next-best card to be trusted unseen. */
-const SURE_MARGIN = 5;
+const SURE_MARGIN = SURE_LEAD;
 
-export function classifyMatch(match: Pick<ScanMatch, "inliers" | "runnerUp"> | null): MultiScanConfidence {
+/**
+ * With an embedder, "sure" also needs the art embedding to place the matched
+ * card this high. ORB inliers alone are a geometric coincidence test; a wrong
+ * card that scored 17-35 inliers (a reprint sharing an illustration, a
+ * template-heavy card) was always far down the embedding's list, while every
+ * correct read was in its top few. A card that fails this is "check", so the
+ * tray never offers it as ready to add.
+ */
+export const SURE_EMBED_RANK = 10;
+
+export function classifyMatch(
+  match: Pick<ScanMatch, "inliers" | "runnerUp" | "embedRank"> | null,
+): MultiScanConfidence {
   if (!match || match.inliers <= 0) return "none";
-  if (match.inliers >= CONFIDENT_INLIERS && match.inliers - match.runnerUp >= SURE_MARGIN) return "sure";
+  const embedderAgrees = match.embedRank === undefined || match.embedRank < SURE_EMBED_RANK;
+  if (match.inliers >= CONFIDENT_INLIERS && match.inliers - match.runnerUp >= SURE_MARGIN && embedderAgrees) {
+    return "sure";
+  }
   return "check";
 }
 
@@ -82,7 +99,7 @@ export async function matchAllCardsWith(
   onProgress?: (p: MultiScanProgress) => void,
 ): Promise<MultiScanItem[]> {
   const cv = await getCv();
-  const cards = detectCards(cv, photo, hooks.detect);
+  const cards = await detectCardsAsync(cv, photo, hooks.detect);
   scanLog("scan:multi", `${cards.length} card outline(s)`);
   const thumbnail = hooks.thumbnail ?? thumbnailUrl;
 
@@ -96,6 +113,7 @@ export async function matchAllCardsWith(
       cardId: match?.cardId ?? null,
       inliers: match?.inliers ?? 0,
       runnerUp: match?.runnerUp ?? 0,
+      embedRank: match?.embedRank,
       confidence: classifyMatch(match),
     };
   };
