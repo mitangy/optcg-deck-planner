@@ -1,6 +1,5 @@
 import { lookupCard } from "../cards/atlas";
-import { previewArtPath } from "../cards/previewArt";
-import { cardImageUrl, type CardImageSize } from "../cards/cardImage";
+import { cardImageUrl, previewArtPath, type CardImageSize } from "@optcg/ui/cardArt";
 import {
   getSeatArtPref,
   isSeatArtPrefsLive,
