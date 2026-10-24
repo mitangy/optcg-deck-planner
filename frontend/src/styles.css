@@ -232,6 +232,12 @@ a:hover {
   color: var(--accent-ink);
 }
 
+/* Headless UI focuses a Popover or Menu button from script after a click, which Chrome counts as keyboard
+   focus; its own data-focus is set for the keyboard only, so a mouse click leaves no ring (as before). */
+button[data-headlessui-state]:focus-visible:not([data-focus]) {
+  outline: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
@@ -601,8 +607,8 @@ h1 {
 }
 
 .market-sales {
-  position: fixed;
   width: 14rem;
+  max-width: calc(100vw - 16px);
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1510,10 +1516,6 @@ tr.selected-row td,
   z-index: 1;
 }
 
-.sort-menu:has(.sort-menu-panel) {
-  z-index: 50;
-}
-
 .sort-menu-btn {
   min-height: 2.5rem;
   padding: 0.35rem 0.75rem;
@@ -1537,13 +1539,11 @@ tr.selected-row td,
 }
 
 .sort-menu-panel {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  right: auto;
   z-index: 60;
+  /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
+  color: var(--muted);
   width: min(20rem, calc(100vw - 2rem));
-  max-height: min(24rem, calc(100vh - 6rem));
+  max-height: min(24rem, calc(100dvh - 6rem));
   overflow: auto;
   padding: 0.75rem;
   background: var(--card);
@@ -1584,6 +1584,7 @@ tr.selected-row td,
   min-height: auto;
   flex: 1;
   cursor: pointer;
+  user-select: none;
 }
 
 .sort-menu-item.disabled {
@@ -2838,9 +2839,12 @@ tr.done td {
   }
 
   .sort-menu-panel {
-    left: 0;
-    right: auto;
-    width: 100%;
+    width: var(--button-width, 100%);
+  }
+
+  .sort-menu-item label {
+    font-size: 0.9rem;
+    min-height: 2.75rem;
   }
 
   .mobile-card-name {
@@ -5050,6 +5054,32 @@ button.ghost.scan-open:hover {
 .head-popover-panel .share-panel-actions .btn.secondary {
   width: auto;
   margin-top: 0;
+}
+
+.head-popover-panel .share-panel-note {
+  margin: 0.35rem 0 0;
+}
+
+/* The panel floats in a portal, outside .page-head, so it repeats the .page-head .muted spacing and, below, the phone sizing that used to cascade into it. */
+@media (max-width: 800px) {
+  .head-popover-panel .share-panel-actions .btn,
+  .head-popover-panel .share-panel-actions .ghost {
+    flex: 1 1 auto;
+    text-align: center;
+    min-height: 2.75rem;
+  }
+
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    justify-content: center;
+  }
 }
 
 .head-popover-sections {

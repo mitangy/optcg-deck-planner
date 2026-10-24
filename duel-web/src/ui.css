@@ -838,6 +838,12 @@ html {
   box-shadow: var(--focus);
 }
 
+/* Headless UI focuses the trigger from script after a click, which Chrome counts as keyboard focus;
+   its own data-focus is set for the keyboard only. */
+.home-deck[data-headlessui-state]:focus-visible:not([data-focus]) {
+  box-shadow: none;
+}
+
 .home-deck-art,
 .deck-menu-art {
   flex: 0 0 auto;
@@ -982,13 +988,11 @@ html {
   transform: rotate(180deg);
 }
 
-/* Absolutely positioned under the trigger — opening never moves the page. */
+/* A Headless UI Listbox floating under the trigger in a portal — opening never moves the page. */
 .deck-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  width: var(--button-width);
   z-index: 60;
+  padding: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line-strong);
@@ -996,10 +1000,18 @@ html {
   background: var(--arena-panel);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-  animation: sheet-in 140ms ease-out;
+  /* Opacity only: a transform animation would fight the floating position. */
+  animation: deck-menu-in 140ms ease-out;
+}
+
+@keyframes deck-menu-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .deck-menu-list {
+  min-height: 0;
   list-style: none;
   margin: 0;
   padding: 0.3rem;
@@ -1018,6 +1030,19 @@ html {
 .deck-menu-row:hover,
 .deck-menu-row.active {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* Headless UI keeps focus on the list and marks the active row (arrow keys and the pointer alike). */
+.deck-menu-row[data-focus] {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.deck-menu-foot .btn {
+  text-align: center;
+}
+
+.deck-menu-foot [data-focus] {
+  border-color: var(--chrome-bright);
 }
 
 .deck-menu-pick {
