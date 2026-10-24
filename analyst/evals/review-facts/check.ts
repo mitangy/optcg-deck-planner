@@ -328,8 +328,11 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
   const here = claim.turn === null ? verdicts : verdicts.filter((x) => x.i.turn === claim.turn);
   const yes = here.filter((x) => x.m === true);
   if (yes.length) {
-    if ((claim.kind === "life_taken" || claim.kind === "ko") && claim.number !== null && claim.turn !== null && yes.length < claim.number) {
-      return { verdict: "contradicted", reason: `${who2} had ${yes.length} ${claim.kind} on turn ${claim.turn}, fewer than the ${claim.number} claimed` };
+    if ((claim.kind === "life_taken" || claim.kind === "ko") && claim.number !== null && claim.turn !== null) {
+      // With a card named, each play or attack is its own item, so the item count is not the Life lost: compare the real loss (#692).
+      const t = facts.turns.find((x) => x.turn === claim.turn);
+      const lost = claim.kind === "life_taken" && t ? ([0, 1] as const).filter((s) => actor === null || s === actor).reduce<number>((n, s) => n + Math.max(t.lifeTaken.filter((l) => l.seat === s).length, t.lifeLost[s]), 0) : yes.length;
+      if (lost < claim.number) return { verdict: "contradicted", reason: `${who2} had ${lost} ${claim.kind} on turn ${claim.turn}, fewer than the ${claim.number} claimed` };
     }
     return { verdict: "supported", reason: `${desc} by ${who2}${claim.turn !== null ? ` on turn ${claim.turn}` : ""}` };
   }

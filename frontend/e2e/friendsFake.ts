@@ -66,7 +66,7 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
 
   const spareItem = (card_id: string, spare: number, want: number, printings: unknown[] = []) => {
     const c = byId(card_id);
-    return { card_id, name: c.name, rarity: c.rarity, color: c.color, card_type: c.card_type, cost: c.cost, image_url: img(c.product_id), market_price: c.market_price, spare, want, printings };
+    return { card_id, name: c.name, rarity: c.rarity, color: c.color, card_type: c.card_type, cost: c.cost, image_url: img(c.product_id), market_price: c.market_price, spare, base_owned: spare, want, printings };
   };
   const myWant = (id: string) => Math.max(0, byId(id).needed - (owned.get(id) ?? 0));
   const kaiSpares = () => {

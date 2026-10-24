@@ -24,3 +24,11 @@ export function nextExtraTarget(input: ExtraStepInput, delta: 1 | -1): number {
   if (next <= Math.max(owned, deckNeed)) return 0;
   return next;
 }
+
+/**
+ * Copies owned across base and alt printings. The backend subtracts both from
+ * need when it computes still_need, so the stepper must start from the same total.
+ */
+export function totalOwnedCopies(item: { owned: number; alts_owned?: number }): number {
+  return item.owned + (item.alts_owned ?? 0);
+}

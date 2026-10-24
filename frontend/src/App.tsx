@@ -55,7 +55,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
-import { nextExtraTarget } from "./shoppingExtras";
+import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import { collectionTotals, holdsCopies, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
@@ -2396,10 +2396,14 @@ function ShoppingAddPanel({ defaultOpen }: { defaultOpen: boolean }) {
   const shoppingById = useFullShoppingById();
   const ownedQ = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
   const ownedById = useMemo(
-    () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, i.owned])),
+    () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, totalOwnedCopies(i)])),
     [ownedQ.data],
   );
-  const ownedOf = (cardId: string) => shoppingById.get(cardId)?.owned ?? ownedById.get(cardId) ?? 0;
+  // Base plus alt-art copies, matching how the backend computes still_need (#626).
+  const ownedOf = (cardId: string) => {
+    const item = shoppingById.get(cardId);
+    return item ? totalOwnedCopies(item) : (ownedById.get(cardId) ?? 0);
+  };
   return (
     <CatalogAddDrawer
       className="shopping-add"

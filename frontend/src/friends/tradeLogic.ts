@@ -18,17 +18,17 @@ export type TrayLine = {
 };
 export type TrayCard = Omit<TrayLine, "qty">;
 
-/** What one party can put on the table for a card: spare copies in total, and copies of each owned alt printing. */
-export type CardCap = { spare: number; printings: Record<number, number> };
+/** What one party can put on the table for a card: spare copies in total, copies of the standard printing, and copies of each owned alt printing. */
+export type CardCap = { spare: number; base: number; printings: Record<number, number> };
 
 export const lineKey = (l: { side: TradeSide; cardId: string; productId: number | null }) => `${l.side}:${l.cardId}:${l.productId ?? "base"}`;
 
-/** Most copies this line can hold: spare is shared by every printing of the card; an alt printing is limited by the copies owned of it. */
+/** Most copies this line can hold: spare is shared by every printing of the card; each printing is limited by the copies owned of it (base copies for the standard printing, #705). */
 export function lineCap(lines: TrayLine[], card: TrayCard, cap: CardCap): number {
   const key = lineKey(card);
   const others = lines.filter((l) => l.side === card.side && l.cardId === card.cardId && lineKey(l) !== key).reduce((n, l) => n + l.qty, 0);
   const byCard = cap.spare - others;
-  const byPrinting = card.productId == null ? Infinity : (cap.printings[card.productId] ?? 0);
+  const byPrinting = card.productId == null ? cap.base : (cap.printings[card.productId] ?? 0);
   return Math.max(0, Math.min(MAX_LINE_QTY, byCard, byPrinting));
 }
 

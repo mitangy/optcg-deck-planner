@@ -13,7 +13,7 @@ const card = (over: Partial<TrayCard> = {}): TrayCard => ({
   printingLabel: null,
   ...over,
 });
-const cap = (spare: number, printings: Record<number, number> = {}): CardCap => ({ spare, printings });
+const cap = (spare: number, printings: Record<number, number> = {}, base: number = spare): CardCap => ({ spare, base, printings });
 
 describe("trade tray caps (#703)", () => {
   it("never holds more copies of a card than the other side has spare (#703)", () => {
@@ -34,6 +34,14 @@ describe("trade tray caps (#703)", () => {
     const alt = card({ productId: 201 });
     const lines = setLineQty([], alt, 4, cap(5, { 201: 2 }));
     expect(lineQty(lines, alt)).toBe(2);
+  });
+
+  it("limits the standard printing to base copies owned, even when alt copies make the spare bigger (#705)", () => {
+    const c = cap(4, { 201: 3 }, 1);
+    expect(lineCap([], card(), c)).toBe(1);
+    expect(lineQty(setLineQty([], card(), 4, c), card())).toBe(1);
+    expect(lineCap([], card({ productId: 201 }), c)).toBe(3);
+    expect(lineCap([], card(), cap(2, { 201: 2 }, 0))).toBe(0);
   });
 
   it("does not let the give side use the get side's spare (#703)", () => {
