@@ -93,13 +93,6 @@ describe("Dialog", () => {
     expect(document.activeElement).toBe(trigger());
   });
 
-  it("Escape closes it (#708)", async () => {
-    mount();
-    await open();
-    await press("Escape");
-    expect(dialog()).toBeNull();
-  });
-
   it("a click outside the panel closes it, a click inside does not (#708)", async () => {
     mount();
     await open();

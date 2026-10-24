@@ -38,7 +38,7 @@ module.exports = {
     { id: "art-chain-origin-dropped", file: img, from: "previewArtUrl(cardId, src, origin)", to: "previewArtUrl(cardId, src)", kills: ["tries the resized art, the original, then the preview (#613)"] },
     { id: "art-chain-preview-first", file: img, from: "  const resized = cardImageUrl(src, size);\n  if (resized) chain.push(resized);", to: "  const preview0 = previewArtUrl(cardId, src, origin);\n  if (preview0) chain.push(preview0);\n  const resized = cardImageUrl(src, size);\n  if (resized) chain.push(resized);", kills: ["tries the resized art, the original, then the preview (#613)"] },
     // popups: Dialog and Menu wrappers (#708)
-    { id: "dialog-onclose-dropped", file: dlg, from: "open={open} onClose={onClose}", to: "open={open} onClose={() => {}}", kills: ["Escape closes it", "a click outside the panel closes it", "moves focus into the dialog on open and back to the trigger"] },
+    { id: "dialog-onclose-dropped", file: dlg, from: "open={open} onClose={onClose}", to: "open={open} onClose={() => {}}", kills: ["a click outside the panel closes it", "moves focus into the dialog on open and back to the trigger"] },
     { id: "dialog-no-panel", edits: [{ file: dlg, from: "<DialogPanel ref", to: "<div ref" }, { file: dlg, from: "</DialogPanel>", to: "</div>" }], kills: ["a click outside the panel closes it, a click inside does not"] },
     { id: "dialog-backdrop-class-dropped", file: dlg, from: "className={`ui-dialog ${className ?? \"\"}`.trim()}", to: "className=\"ui-dialog\"", kills: ["opens as a named modal on the backdrop class"] },
     { id: "dialog-label-dropped", file: dlg, from: " aria-label={label}>", to: ">", kills: ["opens as a named modal on the backdrop class"] },

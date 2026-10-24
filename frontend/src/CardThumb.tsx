@@ -82,20 +82,22 @@ export function CardThumb({
           onError={thumb.fail}
         />
       </button>
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        className="lightbox"
-        panelClassName="lightbox-panel"
-        label="Expanded card art"
-      >
-        {large.src && (
-          <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
-        )}
-        <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
-          Close
-        </button>
-      </Dialog>
+      {open ? (
+        <Dialog
+          open
+          onClose={() => setOpen(false)}
+          className="lightbox"
+          panelClassName="lightbox-panel"
+          label="Expanded card art"
+        >
+          {large.src && (
+            <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
+          )}
+          <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
+            Close
+          </button>
+        </Dialog>
+      ) : null}
     </>
   );
 }
