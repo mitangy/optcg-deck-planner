@@ -2312,6 +2312,8 @@ tr.done td {
 
 .import-form {
   display: grid;
+  /* minmax(0, 1fr): a bare auto track grows to the widest child's min-content (the file input's intrinsic width), pushing the form past a phone's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   max-width: 720px;
   background: var(--card);
@@ -2323,12 +2325,16 @@ tr.done td {
 
 .import-form label {
   display: grid;
+  min-width: 0;
   gap: 0.4rem;
   font-weight: 600;
 }
 
 .import-form input,
 .import-form textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   font: inherit;
   font-size: 1rem;
   padding: 0.7rem 0.8rem;

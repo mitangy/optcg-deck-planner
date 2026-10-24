@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-24
+  { date: "2026-10-24", app: "both", pr: 724, title: "Import fits phones, and the menu slides away", text: "The planner's Import page no longer runs off the right edge of a phone screen, and the duel site menu slides out again when you close it instead of vanishing." },
   { date: "2026-10-24", app: "both", pr: 721, title: "Tab rows work with the arrow keys", text: "The planner's Import deck options, the duel lobby's Create / Join room, the Admin sections and Log Pose's Requests / Usage now move with the left and right arrow keys, Home and End. Tab goes into the row once and then straight on to the page." },
   { date: "2026-10-24", app: "both", pr: 720, title: "Panels close with Esc and keep your place", text: "The Share panel, the recent sales under a price, the Sort panel, build hints, Log Pose's source pop-ups and the lobby's deck list now close with Esc, which puts you back on the button you used. The deck list also works with the arrow keys, Enter and typing a deck's name." },
   { date: "2026-10-24", app: "both", pr: 717, title: "Menus work with the arrow keys", text: "The match menu and Undo in duels, and the deck's More menu in the planner, now open with Enter or the arrow keys, move with the arrow keys, pick with Enter and close with Esc, which puts you back on the button. Board shortcuts stay quiet while a menu is open." },
