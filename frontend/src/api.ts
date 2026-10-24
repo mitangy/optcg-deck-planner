@@ -564,6 +564,12 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
+  /** Add copies on top of the current Owned counts, one request for many cards. */
+  addOwned: (items: { card_id: string; add: number }[]) =>
+    request<{ items: { card_id: string; owned: number }[] }>("/owned/add", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),

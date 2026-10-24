@@ -45,6 +45,9 @@ from app.schemas import (
     OwnedCollectionResponse,
     OwnedPrintingResult,
     OwnedPrintingUpdate,
+    OwnedAddRequest,
+    OwnedAddResponse,
+    OwnedAddResult,
     OwnedUpdate,
     ShoppingExtraUpdate,
     PrintingView,
@@ -322,6 +325,20 @@ def get_owned(
 ):
     """Cards the user owns, with estimated market value."""
     return services.owned_collection(db, user)
+
+
+@router.post("/owned/add", response_model=OwnedAddResponse)
+def post_owned_add(
+    body: OwnedAddRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Add copies to several cards at once (the Collection photo scan)."""
+    try:
+        rows = services.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return OwnedAddResponse(items=[OwnedAddResult(card_id=c, owned=n) for c, n in rows])
 
 
 @router.put("/owned/{card_id}")

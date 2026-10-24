@@ -13,7 +13,18 @@ import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { matchCard } from "./cardScanMatch";
-import { loadImageForScan, readDroppedImage } from "./cardScanImage";
+import { matchAllCards as defaultMatchAll, type MatchAllCards } from "./cardScanMulti";
+import { ScanAdded, ScanTray } from "./ScanTray";
+import {
+  buildTrayRows,
+  dropUnknownCards,
+  fixRow,
+  setRowQty,
+  trayAddPayload,
+  trayReadyCount,
+  type TrayRow,
+} from "./scanTray";
+import { MULTI_MAX_WORK_EDGE, loadImageForScan, readDroppedImage } from "./cardScanImage";
 import { useScanData, type ScanDataState } from "./useScanData";
 import {
   clearScanLog,
@@ -30,6 +41,26 @@ type Phase =
   | { kind: "hit"; card: CatalogCardResult; note: string | null }
   | { kind: "miss"; message: string; candidate?: string };
 
+export type ScanMulti = {
+  /** Called after the scanned cards were added, so the page can refresh. */
+  onAdded?: () => void;
+  /** Replaces the detector (tests). */
+  matcher?: MatchAllCards;
+};
+
+/** Test-only: e2e sets this before load to stand in for the detector and the scan data. */
+function testMatcher(): MatchAllCards | undefined {
+  return (window as unknown as { __optcgTestMatchAll?: MatchAllCards }).__optcgTestMatchAll;
+}
+
+type Tray = { rows: TrayRow[]; found: number };
+
+/** The catalog row whose card number is exactly `cardId`, or null. */
+async function lookupExact(cardId: string, limit = 5): Promise<CatalogCardResult | null> {
+  const rows = await api.searchCatalog({ q: cardId, limit });
+  return rows.find((r) => r.card_id.toUpperCase() === cardId.toUpperCase()) ?? null;
+}
+
 function formatMb(bytes: number): string {
   return `${(bytes / 1048576).toFixed(0)} MB`;
 }
@@ -43,13 +74,7 @@ function formatMb(bytes: number): string {
  * beats either surprising the user with a large download or discovering the
  * data is missing mid-scan at the booth.
  */
-function ScanDataGate({
-  state,
-  onDownload,
-}: {
-  state: ScanDataState;
-  onDownload: () => void;
-}) {
+function ScanDataGate({ state, onDownload }: { state: ScanDataState; onDownload: () => void }) {
   if (state.kind === "ready") return null;
   if (state.kind === "checking") return <p className="scan-note">Checking scan data…</p>;
   if (state.kind === "unavailable") {
@@ -183,6 +208,7 @@ export function CardScanner({
   initialImage = null,
   showNeed = true,
   renderHitAction,
+  multi,
 }: {
   /** Current shopping rows, used to answer "do I still need this?". */
   items: ShoppingItem[];
@@ -193,6 +219,8 @@ export function CardScanner({
   showNeed?: boolean;
   /** Extra control under a hit, e.g. the Collection page's Add / Owned stepper. */
   renderHitAction?: (card: CatalogCardResult) => ReactNode;
+  /** Collection page: scan every card in a photo and review them before adding. */
+  multi?: ScanMulti;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [manual, setManual] = useState("");
@@ -205,6 +233,13 @@ export function CardScanner({
   // Computed once: getUserMedia support doesn't change mid-session.
   const [liveSupported] = useState(isLiveCaptureSupported);
   const scanData = useScanData(true);
+  const [tray, setTray] = useState<Tray | null>(null);
+  const [cards, setCards] = useState<ReadonlyMap<string, CatalogCardResult>>(new Map());
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [added, setAdded] = useState<number | null>(null);
+  const injected = multi ? (multi.matcher ?? testMatcher()) : undefined;
+  const scanReady = scanData.state.kind === "ready" || !!injected;
 
   useEffect(() => {
     liveRef.current = true;
@@ -226,32 +261,90 @@ export function CardScanner({
   }, [onClose, cameraOpen]);
 
   const lookupCard = useCallback(async (cardId: string) => {
-    const rows = await api.searchCatalog({ q: cardId, limit: 1 });
-    const exact = rows.find((r) => r.card_id.toUpperCase() === cardId.toUpperCase());
+    const exact = await lookupExact(cardId, 1);
     if (exact) setPhase({ kind: "hit", card: exact, note: null });
     else setPhase({ kind: "miss", message: `No catalog card matches ${cardId}.` });
   }, []);
 
   const runScan = useCallback(
     async (file: Blob) => {
-      if (scanData.state.kind !== "ready") {
+      if (!scanReady) {
         setPhase({ kind: "miss", message: "Scan data isn't ready yet." });
         return;
       }
-      const candidates = scanData.state.candidates;
+      const candidates = scanData.state.kind === "ready" ? scanData.state.candidates : [];
+      if (multi) {
+        setTray(null);
+        setAdded(null);
+        setAddError(null);
+        setPhase({ kind: "working", label: "Finding cards…", progress: 0 });
+        scanLog("scan-multi:start", `type=${file.type || "?"} size=${file.size}`);
+        try {
+          const photo = await loadImageForScan(file, MULTI_MAX_WORK_EDGE);
+          const matchAll = injected ?? defaultMatchAll;
+          const items = await matchAll(photo, candidates, (p) => {
+            if (!liveRef.current) return;
+            setPhase({
+              kind: "working",
+              label: `Identifying card ${Math.min(p.index + 1, p.total)} of ${p.total}…`,
+              progress: p.total ? p.index / p.total : 0,
+            });
+          });
+          if (!liveRef.current) return;
+          if (items.length === 0) {
+            setPhase({
+              kind: "miss",
+              message:
+                "No cards found. Lay the cards flat on a plain background with good light, then try again.",
+            });
+            return;
+          }
+          setPhase({
+            kind: "working",
+            label: "Looking up prices…",
+            progress: 1,
+          });
+          const ids = [
+            ...new Set(buildTrayRows(items).flatMap((r) => (r.cardId ? [r.cardId] : []))),
+          ];
+          const found = await Promise.all(ids.map((id) => lookupExact(id).catch(() => null)));
+          if (!liveRef.current) return;
+          const known = new Map<string, CatalogCardResult>();
+          found.forEach((c, i) => c && known.set(ids[i]!, c));
+          setCards(known);
+          setTray({
+            rows: dropUnknownCards(buildTrayRows(items), new Set(known.keys())),
+            found: items.length,
+          });
+          setPhase({ kind: "idle" });
+        } catch (err) {
+          scanLog("scan-multi:error", err);
+          if (!liveRef.current) return;
+          setPhase({
+            kind: "miss",
+            message: (err as Error).message || "Scan failed.",
+          });
+        }
+        return;
+      }
       setPhase({ kind: "working", label: "Matching card…", progress: 0 });
       scanLog("scan:start", `type=${file.type || "?"} size=${file.size}`);
       try {
         const photo = await loadImageForScan(file);
         const match = await matchCard(photo, candidates, (examined, total) => {
           if (!liveRef.current) return;
-          setPhase({ kind: "working", label: "Matching card…", progress: examined / total });
+          setPhase({
+            kind: "working",
+            label: "Matching card…",
+            progress: examined / total,
+          });
         });
         if (!liveRef.current) return;
         if (!match) {
           setPhase({
             kind: "miss",
-            message: "No match. Fill the frame with the card and avoid glare, or type the number below.",
+            message:
+              "No match. Fill the frame with the card and avoid glare, or type the number below.",
           });
           return;
         }
@@ -259,7 +352,10 @@ export function CardScanner({
         if (!liveRef.current) return;
         const card = rows.find((r) => r.card_id.toUpperCase() === match.cardId.toUpperCase());
         if (!card) {
-          setPhase({ kind: "miss", message: `Matched ${match.cardId}, which isn't in the catalog.` });
+          setPhase({
+            kind: "miss",
+            message: `Matched ${match.cardId}, which isn't in the catalog.`,
+          });
           return;
         }
         // A real match scores far above everything else, so a thin margin is
@@ -273,10 +369,13 @@ export function CardScanner({
       } catch (err) {
         scanLog("scan:error", err);
         if (!liveRef.current) return;
-        setPhase({ kind: "miss", message: (err as Error).message || "Scan failed." });
+        setPhase({
+          kind: "miss",
+          message: (err as Error).message || "Scan failed.",
+        });
       }
     },
-    [scanData.state],
+    [scanData.state, scanReady, multi, injected],
   );
 
   const onPick = (file: File | undefined) => {
@@ -312,7 +411,49 @@ export function CardScanner({
     void runScan(initialImage);
   }, [initialImage, runScan]);
 
-  const need = phase.kind === "hit" ? items.find((i) => i.card_id === phase.card.card_id) : undefined;
+  const resetScan = () => {
+    setTray(null);
+    setAdded(null);
+    setAddError(null);
+    setPhase({ kind: "idle" });
+  };
+
+  const fixTrayRow = async (key: string, cardId: string): Promise<string | null> => {
+    try {
+      const card = await lookupExact(cardId.trim().toUpperCase());
+      if (!card) return `No catalog card matches ${cardId.trim().toUpperCase()}.`;
+      setCards((prev) => new Map(prev).set(card.card_id.toUpperCase(), card));
+      setTray((t) => (t ? { ...t, rows: fixRow(t.rows, key, card.card_id) } : t));
+      return null;
+    } catch {
+      return "Couldn't look that up. Try again.";
+    }
+  };
+
+  const addTray = async () => {
+    if (!tray || adding) return;
+    const payload = trayAddPayload(tray.rows);
+    if (payload.length === 0) return;
+    const count = trayReadyCount(tray.rows);
+    setAdding(true);
+    setAddError(null);
+    try {
+      await api.addOwned(payload);
+      if (!liveRef.current) return;
+      setAdded(count);
+      setTray(null);
+      multi?.onAdded?.();
+    } catch (err) {
+      if (liveRef.current) setAddError((err as Error).message || "Couldn't add these cards.");
+    } finally {
+      if (liveRef.current) setAdding(false);
+    }
+  };
+
+  const reviewing = !!multi && (tray !== null || added !== null);
+
+  const need =
+    phase.kind === "hit" ? items.find((i) => i.card_id === phase.card.card_id) : undefined;
 
   // Full-screen rather than embedded in the dialog card: a camera preview
   // cramped into a small padded box gives a much worse view of the card than
@@ -332,144 +473,171 @@ export function CardScanner({
   return (
     <div className="scan-backdrop" role="presentation" onClick={onClose}>
       <div
-        className="scan-dialog"
+        className={`scan-dialog${multi ? " multi" : ""}${reviewing ? " reviewing" : ""}`}
         role="dialog"
         aria-modal="true"
-        aria-label="Scan a card"
+        aria-label={multi ? "Scan cards" : "Scan a card"}
         tabIndex={-1}
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="scan-head">
-          <h2>Scan a card</h2>
+          <h2>{multi ? "Scan cards" : "Scan a card"}</h2>
           <button type="button" className="ghost" onClick={onClose} aria-label="Close scanner">
             Close
           </button>
         </div>
 
-        <ScanDataGate state={scanData.state} onDownload={scanData.download} />
+        {!injected && <ScanDataGate state={scanData.state} onDownload={scanData.download} />}
 
-        <div className={`scan-drop${dragging ? " dragging" : ""}`}>
-          <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
-          <div className="scan-actions">
-            {liveSupported ? (
-              <button
-                type="button"
-                onClick={() => setCameraOpen(true)}
-                disabled={scanData.state.kind !== "ready"}
-              >
-                Scan with camera
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                disabled={scanData.state.kind !== "ready"}
-              >
-                Take a photo
-              </button>
-            )}
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => fileRef.current?.click()}
-              disabled={scanData.state.kind !== "ready"}
-            >
-              Choose image
-            </button>
-          </div>
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
+        {reviewing && tray && (
+          <ScanTray
+            rows={tray.rows}
+            found={tray.found}
+            cards={cards}
+            adding={adding}
+            addError={addError}
+            onQty={(key, qty) =>
+              setTray((t) => (t ? { ...t, rows: setRowQty(t.rows, key, qty) } : t))
+            }
+            onFix={fixTrayRow}
+            onAdd={() => void addTray()}
+            onRescan={resetScan}
           />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-        </div>
+        )}
+        {reviewing && added !== null && (
+          <ScanAdded count={added} onMore={resetScan} onClose={onClose} />
+        )}
 
-        {/* Fixed-height status region so the dialog never resizes mid-scan. */}
-        <div className="scan-status" aria-live="polite">
-          {phase.kind === "working" && (
-            <>
-              <p className="scan-status-label">{phase.label}</p>
-              <div className="scan-bar">
-                <div
-                  className="scan-bar-fill"
-                  style={{ width: `${Math.round(phase.progress * 100)}%` }}
-                />
-              </div>
-            </>
-          )}
-          {phase.kind === "miss" && <p className="scan-miss">{phase.message}</p>}
-          {phase.kind === "hit" && (
-            <div className="scan-hit">
-              <CardThumb src={phase.card.image_url} cardId={phase.card.card_id} alt={phase.card.name} />
-              <div className="scan-hit-body">
-                <p className="scan-hit-name">{phase.card.name}</p>
-                <p className="scan-hit-meta">
-                  {phase.card.card_id} · {phase.card.group_name}
-                </p>
-                <div className="scan-hit-price">
-                  <MarketPrice price={phase.card.market_price} />
-                </div>
-                {showNeed && (
-                  <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
-                    {need
-                      ? need.still_need > 0
-                        ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
-                        : `Covered — you own ${need.owned} of ${need.need}`
-                      : "Not in any of your decks"}
-                  </p>
+        {!reviewing && (
+          <>
+            <div className={`scan-drop${dragging ? " dragging" : ""}`}>
+              <p className="scan-drop-hint">
+                {multi
+                  ? "Photograph one card, several cards or a whole binder page. Drop a photo anywhere in this box, or"
+                  : "Drop a photo anywhere in this box, or"}
+              </p>
+              <div className="scan-actions">
+                {liveSupported ? (
+                  <button type="button" onClick={() => setCameraOpen(true)} disabled={!scanReady}>
+                    Scan with camera
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => cameraRef.current?.click()}
+                    disabled={!scanReady}
+                  >
+                    Take a photo
+                  </button>
                 )}
-                {renderHitAction?.(phase.card)}
-                {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
-                <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
-                  View on TCGPlayer
-                </a>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={!scanReady}
+                >
+                  Choose image
+                </button>
               </div>
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                onChange={(e) => {
+                  onPick(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => {
+                  onPick(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
             </div>
-          )}
-        </div>
 
-        <ScanDiagnostics />
+            {/* Fixed-height status region so the dialog never resizes mid-scan. */}
+            <div className="scan-status" aria-live="polite">
+              {phase.kind === "working" && (
+                <>
+                  <p className="scan-status-label">{phase.label}</p>
+                  <div className="scan-bar">
+                    <div
+                      className="scan-bar-fill"
+                      style={{ width: `${Math.round(phase.progress * 100)}%` }}
+                    />
+                  </div>
+                </>
+              )}
+              {phase.kind === "miss" && <p className="scan-miss">{phase.message}</p>}
+              {phase.kind === "hit" && (
+                <div className="scan-hit">
+                  <CardThumb
+                    src={phase.card.image_url}
+                    cardId={phase.card.card_id}
+                    alt={phase.card.name}
+                  />
+                  <div className="scan-hit-body">
+                    <p className="scan-hit-name">{phase.card.name}</p>
+                    <p className="scan-hit-meta">
+                      {phase.card.card_id} · {phase.card.group_name}
+                    </p>
+                    <div className="scan-hit-price">
+                      <MarketPrice price={phase.card.market_price} />
+                    </div>
+                    {showNeed && (
+                      <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
+                        {need
+                          ? need.still_need > 0
+                            ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
+                            : `Covered — you own ${need.owned} of ${need.need}`
+                          : "Not in any of your decks"}
+                      </p>
+                    )}
+                    {renderHitAction?.(phase.card)}
+                    {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
+                    <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
+                      View on TCGPlayer
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
 
-        <form
-          className="scan-manual"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const id = manual.trim().toUpperCase();
-            if (id) void lookupCard(id);
-          }}
-        >
-          <label htmlFor="scan-manual-input">Or type the card number</label>
-          <div className="scan-manual-row">
-            <input
-              id="scan-manual-input"
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              placeholder="OP15-053"
-              autoComplete="off"
-              autoCapitalize="characters"
-            />
-            <button type="submit" disabled={!manual.trim()}>
-              Look up
-            </button>
-          </div>
-        </form>
+            <ScanDiagnostics />
+
+            <form
+              className="scan-manual"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const id = manual.trim().toUpperCase();
+                if (id) void lookupCard(id);
+              }}
+            >
+              <label htmlFor="scan-manual-input">Or type the card number</label>
+              <div className="scan-manual-row">
+                <input
+                  id="scan-manual-input"
+                  value={manual}
+                  onChange={(e) => setManual(e.target.value)}
+                  placeholder="OP15-053"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                />
+                <button type="submit" disabled={!manual.trim()}>
+                  Look up
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );

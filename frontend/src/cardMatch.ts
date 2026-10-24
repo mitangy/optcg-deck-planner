@@ -18,7 +18,7 @@
 import { quadArea, type Pt, type Quad } from "./cardRectify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Cv = any;
+export type Cv = any;
 
 let cvPromise: Promise<Cv> | null = null;
 
@@ -31,7 +31,7 @@ let cvPromise: Promise<Cv> | null = null;
  * use. The module also initialises asynchronously, so callers must await
  * this rather than touching `cv` directly.
  */
-async function getCv(): Promise<Cv> {
+export async function getCv(): Promise<Cv> {
   if (!cvPromise) {
     cvPromise = (async () => {
       const mod = ((await import("@techstark/opencv-js")).default ?? {}) as Cv;

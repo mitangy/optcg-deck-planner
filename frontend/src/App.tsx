@@ -2538,6 +2538,7 @@ function CollectionPage() {
           items={[]}
           showNeed={false}
           initialImage={droppedImage}
+          multi={{ onAdded: () => invalidateOwnedViews(qc) }}
           renderHitAction={(card) => (
             <div className="scan-hit-owned">
               <span className="muted">In collection</span>

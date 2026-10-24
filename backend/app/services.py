@@ -1333,6 +1333,38 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
     return row.qty
 
 
+def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    """Add copies to Owned for several cards in one commit.
+
+    Repeated ids are summed. Unknown card ids reject the whole batch (LookupError)
+    so a typo never leaves a partial add.
+    """
+    wanted: dict[str, int] = {}
+    for card_id, add in items:
+        key = card_id.upper().strip()
+        wanted[key] = wanted.get(key, 0) + add
+    for key in wanted:
+        if db.get(CatalogCard, key) is None:
+            raise LookupError(f"Card not found in catalog: {key}")
+    rows = {
+        r.card_id: r
+        for r in db.scalars(
+            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(wanted))
+        )
+    }
+    out: list[tuple[str, int]] = []
+    for key, add in wanted.items():
+        row = rows.get(key)
+        if row is None:
+            row = Owned(user_id=user.id, card_id=key, qty=add)
+            db.add(row)
+        else:
+            row.qty += add
+        out.append((key, row.qty))
+    db.commit()
+    return out
+
+
 def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
     """Set the target copies to own for a card added directly to Master Shopping.
 

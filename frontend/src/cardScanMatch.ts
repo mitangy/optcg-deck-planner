@@ -29,7 +29,7 @@ import { scanLog } from "./scanLog";
  * Correct matches scored 12-18 while every wrong card scored 0, so this sits
  * in an empty gap rather than on a contested boundary.
  */
-const CONFIDENT_INLIERS = 10;
+export const CONFIDENT_INLIERS = 10;
 
 export type ScanCandidate = {
   cardId: string;
@@ -102,7 +102,15 @@ export async function matchCard(
 ): Promise<ScanMatch | null> {
   const { pixels, rectified } = rectifyForScan(photo);
   scanLog("scan:rectify", rectified ? "card outline found" : "no outline, using full frame");
+  return matchRectified(pixels, candidates, onProgress);
+}
 
+/** Match pixels that are already a flattened card (no outline search). */
+export async function matchRectified(
+  pixels: ImageData,
+  candidates: ScanCandidate[],
+  onProgress?: (examined: number, total: number) => void,
+): Promise<ScanMatch | null> {
   const extracted = await extractFeatures(pixels, ORB_FEATURES);
   const query = toFeatures(extracted, pixels.width, pixels.height);
 

@@ -215,6 +215,24 @@ export function rectifyToCanvas(
   outWidth = RECTIFIED_WIDTH,
   outHeight = RECTIFIED_HEIGHT,
 ): HTMLCanvasElement | null {
+  const target = rectifyToImageData(source, quad, outWidth, outHeight);
+  if (!target) return null;
+  const out = document.createElement("canvas");
+  out.width = outWidth;
+  out.height = outHeight;
+  const ctx = out.getContext("2d");
+  if (!ctx) return null;
+  ctx.putImageData(new ImageData(target.data, outWidth, outHeight), 0, 0);
+  return out;
+}
+
+/** The warp behind `rectifyToCanvas`, with no canvas needed (works in Node). */
+export function rectifyToImageData(
+  source: ImageData,
+  quad: Quad,
+  outWidth = RECTIFIED_WIDTH,
+  outHeight = RECTIFIED_HEIGHT,
+): ImageData | null {
   const dst: Quad = [
     { x: 0, y: 0 },
     { x: outWidth, y: 0 },
@@ -225,16 +243,10 @@ export function rectifyToCanvas(
   const h = computeHomography(dst, quad);
   if (!h) return null;
 
-  const out = document.createElement("canvas");
-  out.width = outWidth;
-  out.height = outHeight;
-  const ctx = out.getContext("2d");
-  if (!ctx) return null;
-  const target = ctx.createImageData(outWidth, outHeight);
+  const tp = new Uint8ClampedArray(outWidth * outHeight * 4);
   const sw = source.width;
   const sh = source.height;
   const sp = source.data;
-  const tp = target.data;
 
   for (let y = 0; y < outHeight; y += 1) {
     for (let x = 0; x < outWidth; x += 1) {
@@ -260,8 +272,7 @@ export function rectifyToCanvas(
       tp[o + 3] = 255;
     }
   }
-  ctx.putImageData(target, 0, 0);
-  return out;
+  return { data: tp, width: outWidth, height: outHeight, colorSpace: "srgb" } as ImageData;
 }
 
 /**

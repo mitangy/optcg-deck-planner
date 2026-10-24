@@ -62,6 +62,86 @@ photos every other printing of the same card scored zero rather than merely
 ranking lower, and for one it correctly chose the Alternate Art over the base.
 The exception is printings sharing near-identical art, which tie closely.
 
+## Many cards in one photo
+
+`matchAllCards` (`cardScanMulti.ts`) finds every card in a photo, then
+identifies each one with the same matcher as a single scan. Detection
+(`cardDetect.ts`) is classical OpenCV, no model:
+
+1. Downscale to ~1000 px, grayscale, blur.
+2. Binary maps, each contoured with `findContours`: Canny at three
+   sensitivities (a busy table needs strong edges only, a dim card weak
+   ones), Canny per colour channel (a yellow border on a pink table has no
+   luminance step), adaptive threshold, and Otsu in both polarities.
+3. Each contour becomes a quad: `approxPolyDP` on its convex hull, falling
+   back to `minAreaRect` for near-rectangular blobs. Quads must be card-shaped
+   (63:88 in either orientation, with perspective tolerance) and 1-90% of the
+   frame.
+4. Suppression: duplicates from different maps merge; a card's inner art box
+   is dropped; a binder page that merely *contains* two or more cards is
+   dropped; interiors that are flat (an empty pocket) are dropped.
+5. Touching cards form one outline, and two portrait cards side by side are as
+   wide as one sideways card. A block is cut along a line only where every
+   interior line is a straight run of edge pixels and the lines either side
+   are not. If the cells then identify as nothing, `matchAllCards` tries the
+   block as one card.
+6. A regular grid with missing cells (a binder pocket the contours missed)
+   gets them filled in, unless the cell is blank or runs into a real card.
+7. Quads return in source pixels, long side top to bottom, in reading order.
+   Each card is rectified from the **full-resolution** photo, not the
+   detection copy. No card found falls back to the single-card path, then the
+   whole frame.
+
+"Sure" means 10+ inliers and a 5+ lead over the runner-up; anything else with
+inliers is "check"; no match is "none". The multi-card path loads photos at a
+3000 px long edge (`MULTI_MAX_WORK_EDGE`) rather than 2000, since each card
+gets a fraction of the frame.
+
+### Harness
+
+`scripts/multi-scan-harness.mjs` builds 30 synthetic scenes from reference art
+(3x3 and 4x3 binder pages on dark and coloured sheets, table spreads of 2-12
+cards with rotation, sideways cards, perspective, noise/gradient/solid
+backgrounds, touching pairs, JPEG, blur, brightness) and runs the real
+pipeline in Node:
+
+```bash
+cd frontend
+LIMIT=240 node scripts/fetch-reference-images.mjs .scan-build/refs
+npx tsx scripts/extract-descriptors.mjs .scan-build/refs .scan-build/desc
+npx tsx scripts/multi-scan-harness.mjs              # full pipeline
+DETECT_ONLY=1 npx tsx scripts/multi-scan-harness.mjs # detection only, fast
+```
+
+Scenes, ground truth and detection overlays land in `.scan-build/scenes/`.
+Detection is scored by IoU >= 0.5 against the true quads.
+
+Last run (219 reference printings, 30 scenes, 218 cards, Node/WASM):
+
+| | |
+|---|---|
+| Detection recall | 98.2% (214/218) |
+| Detection precision | 99.1% (214/216) |
+| Mean IoU of matched quads | 0.94 |
+| Identified correctly | 96.3% of all cards, 98.1% of detected |
+| Confidence | 213 sure, 1 check, 0 none; 3 sure-but-wrong |
+| Time per scene | detection ~200 ms; detection + identification ~1.4 s (219 candidates) |
+
+Known weaknesses:
+
+- **Low-contrast tables.** Misses were gold or yellow-bordered cards on
+  busy or similarly bright backgrounds, and one card on a blocky, high-contrast
+  noise texture.
+- **A card with a long straight line through its middle** (a manga-panel
+  layout) can be cut in two; the halves then identify as the same card, so it
+  shows up twice. A block whose cells identify as nothing is retried whole.
+- **Touching cards** are only cut where the seam is a straight edge. Two cards
+  with identical borders and no gap read as one block.
+- **Look-alike cards.** The 3 sure-but-wrong reads are reprints of the same
+  character sharing rule text and, in the harness, the "SAMPLE" watermark that
+  unreleased reference art carries. The matcher stops at the first 10+ inlier
+  match, so the runner-up it reports is only what it had seen by then.
+
 ## The descriptor bundle
 
 The descriptors are a **build artifact**, not source: ~55 MB, regenerated when

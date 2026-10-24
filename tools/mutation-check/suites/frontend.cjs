@@ -5,6 +5,8 @@ const sim = "frontend/src/optcgsimExport.ts";
 const mass = "frontend/src/tcgplayerMassEntry.ts";
 const login = "frontend/src/GroupBuys.tsx";
 const cs = "frontend/src/columnSort.tsx";
+const detect = "frontend/src/cardDetect.ts";
+const multi = "frontend/src/cardScanMulti.ts";
 module.exports = {
   cwd: "frontend",
   runner: "vitest",
@@ -185,5 +187,56 @@ module.exports = {
     { id: "meta-create-edits-text", file: "frontend/src/meta.ts", from: "deck.text);\n  await deps.onCreated", to: "deck.text.trim());\n  await deps.onCreated", kills: ["posts the deck's text and generated name"] },
     { id: "meta-create-no-refresh", file: "frontend/src/meta.ts", from: "  await deps.onCreated();\n", to: "", kills: ["posts the deck's text and generated name"] },
     { id: "meta-create-wrong-destination", file: "frontend/src/meta.ts", from: "`/decks/${created.id}`", to: "`/decks`", kills: ["posts the deck's text and generated name"] },
+    // Photo scan review tray (#701)
+    {"id": "scan-tray-merge-no-sum", "file": "frontend/src/scanTray.ts", "from": "row.qty = clampQty(row.qty + 1);", "to": "row.qty = clampQty(row.qty + 0);", "kills": ["merges crops of the same card into one row with the summed quantity and the weakest confidence (#701)", "adds only rows that have a card and a quantity above zero (#701)"]},
+    {"id": "scan-tray-merge-keeps-strongest", "file": "frontend/src/scanTray.ts", "from": "if (RANK[item.confidence] > RANK[row.confidence])", "to": "if (RANK[item.confidence] < RANK[row.confidence])", "kills": ["merges crops of the same card into one row with the summed quantity and the weakest confidence (#701)"]},
+    {"id": "scan-tray-no-match-merged-by-id", "file": "frontend/src/scanTray.ts", "from": "item.confidence === \"none\" ? null : item.cardId?.trim().toUpperCase() || null", "to": "item.cardId?.trim().toUpperCase() || null", "kills": ["adds only rows that have a card and a quantity above zero (#701)"]},
+    {"id": "scan-tray-zero-qty-added", "file": "frontend/src/scanTray.ts", "from": "r.cardId && r.qty > 0", "to": "r.cardId && r.qty >= 0", "kills": ["adds only rows that have a card and a quantity above zero (#701)"]},
+    {"id": "scan-tray-qty-set-on-unmatched", "file": "frontend/src/scanTray.ts", "from": "(r) => (r.key === key && r.cardId ? { ...r, qty: clampQty(qty) } : r)", "to": "(r) => (r.key === key ? { ...r, qty: clampQty(qty) } : r)", "kills": ["adds only rows that have a card and a quantity above zero (#701)"]},
+    {"id": "scan-tray-fix-stays-skipped", "file": "frontend/src/scanTray.ts", "from": "qty: clampQty(copies),", "to": "qty: 0,", "kills": ["Fix includes an unmatched row, and joins a row already holding that card (#701)"]},
+    {"id": "scan-tray-fix-join-overwrites", "file": "frontend/src/scanTray.ts", "from": "qty: clampQty(r.qty + copies),", "to": "qty: clampQty(copies),", "kills": ["Fix includes an unmatched row, and joins a row already holding that card (#701)"]},
+    {"id": "scan-tray-unknown-card-kept", "file": "frontend/src/scanTray.ts", "from": "r.cardId && !known.has(r.cardId)", "to": "r.cardId && !known.has(r.cardId) && false", "kills": ["a matched id the catalog doesn't know is not sent (#701)"]},
+    // Every card in one photo (#701)
+    { id: "detect-aspect-unchecked", file: detect, from: "  if (Math.abs(ratio - CARD_ASPECT) > CARD_ASPECT * tolerance) return false;\n", to: "", kills: ["accepts a card in either orientation and rejects other boxes (#701)"] },
+    { id: "detect-portrait-only", file: detect, from: "const ratio = Math.min(across, down) / Math.max(across, down);", to: "const ratio = across / down;", kills: ["accepts a card in either orientation and rejects other boxes (#701)", "finds tilted and sideways cards on a table, in portrait corner order (#701)"] },
+    { id: "detect-opposite-sides-ignored", file: detect, from: "  return (\n    pairRatio(dist(q[0], q[1]), dist(q[3], q[2])) > 0.6 && pairRatio(dist(q[0], q[3]), dist(q[1], q[2])) > 0.6\n  );", to: "  return true;", kills: ["rejects a quad whose opposite sides disagree (#701)"] },
+    { id: "detect-sideways-not-turned", file: detect, from: "return across > down ? [q[3], q[0], q[1], q[2]] : q;", to: "return q;", kills: ["turns a sideways card so its long side runs top to bottom (#701)", "finds tilted and sideways cards on a table, in portrait corner order (#701)"] },
+    { id: "detect-page-kept", file: detect, from: "    if (separate) dropped.add(p);\n", to: "", kills: ["drops a binder page that merely contains its cards (#701)", "drops the page even when a detected row sits between it and the cards (#701)"] },
+    { id: "detect-inner-box-kept", file: detect, from: "    for (const c of children[p]) dropped.add(c);\n", to: "", kills: ["keeps a card and drops the art box inside it (#701)"] },
+    { id: "detect-everything-nested", file: detect, from: "intersectionArea(sorted[child], sorted[parent]) > 0.8 * areas[child]", to: "intersectionArea(sorted[child], sorted[parent]) >= 0", kills: ["keeps two adjacent cards (#701)"] },
+    { id: "detect-duplicates-kept", file: detect, from: "    if (kept.some((k) => quadIoU(sorted[k], sorted[i]) > 0.5)) continue;\n", to: "", kills: ["merges the same card found by two maps (#701)"] },
+    { id: "detect-rows-right-to-left", file: detect, from: "r.sort((a, b) => a.c.x - b.c.x)", to: "r.sort((a, b) => b.c.x - a.c.x)", kills: ["orders rows top to bottom, then left to right, despite jitter (#701)"] },
+    { id: "detect-one-big-row", file: detect, from: "heights[Math.floor(heights.length / 2)] * 0.5;", to: "heights[Math.floor(heights.length / 2)] * 50;", kills: ["orders rows top to bottom, then left to right, despite jitter (#701)"] },
+    { id: "detect-grid-sparse-accepted", file: detect, from: "  if (regular.length < 0.6 * rowY.length * colX.length) return [];\n", to: "", kills: ["invents nothing when cards sit on a lattice but fill few of its crossings (#701)"] },
+    { id: "detect-grid-scattered-accepted", edits: [
+      { file: detect, from: "  if (regular.length < 0.6 * rowY.length * colX.length) return [];\n", to: "" },
+      { file: detect, from: "> w * 0.15 || Math.abs(nearest(rowY, c.y) - c.y) > h * 0.15) return [];", to: "> w * 9 || Math.abs(nearest(rowY, c.y) - c.y) > h * 9) return [];" },
+      { file: detect, from: "      if (quads.some((q) => intersectionArea(q, cell) > 0.1 * quadArea(cell))) continue;\n", to: "" },
+    ], kills: ["invents nothing for cards scattered off any grid (#701)"] },
+    { id: "detect-grid-refills-covered", edits: [
+      { file: detect, from: "      if (covered) continue;\n", to: "" },
+      { file: detect, from: "      if (quads.some((q) => intersectionArea(q, cell) > 0.1 * quadArea(cell))) continue;\n", to: "" },
+    ], kills: ["invents nothing when the page is complete (#701)"] },
+    { id: "detect-grid-never-fills", file: detect, from: "      out.push(cell);\n", to: "", kills: ["fills a missing pocket of a 3x3 page (#701)", "fills two missing pockets of a 4x3 page (#701)"] },
+    { id: "detect-grid-from-three", edits: [
+      { file: detect, from: "  if (quads.length < 4) return [];", to: "  if (quads.length < 3) return [];" },
+      { file: detect, from: "  if (regular.length < 4) return [];", to: "  if (regular.length < 3) return [];" },
+    ], kills: ["needs four cards to call it a grid (#701)"] },
+    { id: "detect-blank-inverted", file: detect, from: "  return sd < minStd;", to: "  return sd > minStd;", kills: ["sees an empty pocket as blank and a printed card as not (#701)"] },
+    { id: "detect-no-fallback", file: detect, from: "  if (!out.length && o.fallback) {", to: "  if (false) {", kills: ["falls back to the whole frame when nothing card-like is there (#701)"] },
+    { id: "detect-min-area-too-big", file: detect, from: "  minAreaFraction: 0.01,", to: "  minAreaFraction: 0.5,", kills: ["finds all nine cards on a binder page (#701)", "finds tilted and sideways cards on a table, in portrait corner order (#701)"] },
+    { id: "detect-seam-edge-not-needed", file: detect, from: "  if (on < SEAM_HIT) return false;\n", to: "", kills: ["leaves one sideways card whole, though it is as wide as two cards (#701)"] },
+    { id: "detect-block-cell-too-wide", file: detect, from: "          lerpQuad(q, (i + 1) / n, j / m),\n", to: "          lerpQuad(q, 1, j / m),\n", kills: ["cuts two touching cards apart along the line between them (#701)"] },
+    { id: "detect-seam-controls-ignored", file: detect, from: "  return (\n    seamStrength(edges, ...line(at - control)) <= SEAM_CONTROL_MAX &&\n    seamStrength(edges, ...line(at + control)) <= SEAM_CONTROL_MAX\n  );", to: "  return true;", kills: ["does not split on a middle line when the artwork beside it is just as busy (#701)"] },
+    { id: "detect-block-pairs-only", file: detect, from: "const MAX_BLOCK = 4;", to: "const MAX_BLOCK = 2;", kills: ["cuts a row of three touching cards (#701)"] },
+    { id: "detect-blocks-never-split", file: detect, from: "const cells = seamEdges ? splitBlock(seamEdges, q) : null;", to: "const cells = null;", kills: ["cuts two touching cards apart and remembers the block they came from (#701)"] },
+    { id: "detect-block-not-shared", file: detect, from: "      if (!wholes.has(c.whole)) wholes.set(c.whole, back(uprightQuad(c.whole)));", to: "      wholes.set(c.whole, back(uprightQuad(c.whole)));", kills: ["cuts two touching cards apart and remembers the block they came from (#701)"] },
+    { id: "multi-block-never-whole", file: multi, from: "if (isCardShaped(whole) && cells.every((c) => c.confidence === \"none\")) {", to: "if (false) {", kills: ["reads a block as one card when none of its cells identify (#701)"] },
+    { id: "multi-block-always-whole", file: multi, from: "if (isCardShaped(whole) && cells.every((c) => c.confidence === \"none\")) {", to: "if (isCardShaped(whole)) {", kills: ["keeps the cells when they identify (#701)"] },
+    { id: "multi-block-any-shape-whole", file: multi, from: "if (isCardShaped(whole) && cells.every((c) => c.confidence === \"none\")) {", to: "if (cells.every((c) => c.confidence === \"none\")) {", kills: ["does not try a block that is not card-shaped as one card (#701)"] },
+    { id: "multi-block-unmatched-whole-wins", file: multi, from: "      if (single.confidence !== \"none\") {", to: "      if (true) {", kills: ["keeps the cells when the whole block does not identify either (#701)"] },
+    { id: "multi-sure-ignores-runner-up", file: multi, from: "match.inliers - match.runnerUp >= SURE_MARGIN", to: "match.inliers - match.runnerUp >= 0", kills: ["is sure only with enough inliers and a clear lead over the runner-up (#701)"] },
+    { id: "multi-sure-below-confident", file: multi, from: "match.inliers >= CONFIDENT_INLIERS &&", to: "match.inliers > 0 &&", kills: ["is sure only with enough inliers and a clear lead over the runner-up (#701)"] },
+    { id: "multi-zero-inliers-is-check", file: multi, from: "if (!match || match.inliers <= 0) return \"none\";", to: "if (!match) return \"none\";", kills: ["is none when nothing verified (#701)"] },
   ],
 };
