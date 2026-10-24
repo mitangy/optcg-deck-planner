@@ -70,3 +70,21 @@ test("a failed send keeps the text and Escape closes the dialog (#371)", async (
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
 });
+
+test("Tab stays inside the feedback dialog over a match, and Escape closes only it (#714)", async ({ page }) => {
+  await page.goto("/demo");
+  await page.locator(".board-root").waitFor();
+  await openReport(page);
+  const dialog = page.getByRole("dialog", { name: "Report a problem" });
+  await expect(dialog.getByRole("textbox", { name: "Message" })).toBeFocused();
+  // More presses than the dialog has controls: a leak would land on the board behind it.
+  for (const key of ["Tab", "Shift+Tab"]) {
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press(key);
+      expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    }
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".board-root")).toBeVisible();
+});

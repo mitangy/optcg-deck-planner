@@ -7,6 +7,7 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import { api } from "./api";
 import type { CatalogCardResult, ShoppingItem } from "./api";
 import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
@@ -200,7 +201,6 @@ export function CardScanner({
   const [cameraOpen, setCameraOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef(true);
   // Computed once: getUserMedia support doesn't change mid-session.
   const [liveSupported] = useState(isLiveCaptureSupported);
@@ -212,18 +212,6 @@ export function CardScanner({
       liveRef.current = false;
     };
   }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // Step back out of the camera first; Escape again closes the dialog.
-      if (cameraOpen) setCameraOpen(false);
-      else onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    dialogRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, cameraOpen]);
 
   const lookupCard = useCallback(async (cardId: string) => {
     const rows = await api.searchCatalog({ q: cardId, limit: 1 });
@@ -314,164 +302,153 @@ export function CardScanner({
 
   const need = phase.kind === "hit" ? items.find((i) => i.card_id === phase.card.card_id) : undefined;
 
-  // Full-screen rather than embedded in the dialog card: a camera preview
-  // cramped into a small padded box gives a much worse view of the card than
-  // the device's own screen can offer, and doesn't read as a viewfinder.
-  if (cameraOpen) {
-    return (
-      <CardCaptureLive
-        onCapture={(blob) => {
-          setCameraOpen(false);
-          void runScan(blob);
-        }}
-        onCancel={() => setCameraOpen(false)}
-      />
-    );
-  }
-
   return (
-    <div className="scan-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="scan-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Scan a card"
-        tabIndex={-1}
-        ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="scan-head">
-          <h2>Scan a card</h2>
-          <button type="button" className="ghost" onClick={onClose} aria-label="Close scanner">
-            Close
-          </button>
-        </div>
+    <Dialog open onClose={onClose} className="scan-backdrop" panelClassName="scan-dialog" label="Scan a card">
+      {/* Full-screen rather than embedded in the dialog card: a camera preview
+          cramped into a small padded box gives a much worse view of the card than
+          the device's own screen can offer, and doesn't read as a viewfinder. It is a
+          dialog of its own on top of this one, so Escape steps back out of the camera
+          first and a second Escape closes the scanner. */}
+      {cameraOpen ? (
+        <CardCaptureLive
+          onCapture={(blob) => {
+            setCameraOpen(false);
+            void runScan(blob);
+          }}
+          onCancel={() => setCameraOpen(false)}
+        />
+      ) : null}
+      <div className="scan-head">
+        <h2>Scan a card</h2>
+        <button type="button" className="ghost" onClick={onClose} aria-label="Close scanner">
+          Close
+        </button>
+      </div>
 
-        <ScanDataGate state={scanData.state} onDownload={scanData.download} />
+      <ScanDataGate state={scanData.state} onDownload={scanData.download} />
 
-        <div className={`scan-drop${dragging ? " dragging" : ""}`}>
-          <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
-          <div className="scan-actions">
-            {liveSupported ? (
-              <button
-                type="button"
-                onClick={() => setCameraOpen(true)}
-                disabled={scanData.state.kind !== "ready"}
-              >
-                Scan with camera
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                disabled={scanData.state.kind !== "ready"}
-              >
-                Take a photo
-              </button>
-            )}
+      <div className={`scan-drop${dragging ? " dragging" : ""}`}>
+        <p className="scan-drop-hint">Drop a photo anywhere in this box, or</p>
+        <div className="scan-actions">
+          {liveSupported ? (
             <button
               type="button"
-              className="ghost"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => setCameraOpen(true)}
               disabled={scanData.state.kind !== "ready"}
             >
-              Choose image
+              Scan with camera
             </button>
-          </div>
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => {
-              onPick(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-        </div>
-
-        {/* Fixed-height status region so the dialog never resizes mid-scan. */}
-        <div className="scan-status" aria-live="polite">
-          {phase.kind === "working" && (
-            <>
-              <p className="scan-status-label">{phase.label}</p>
-              <div className="scan-bar">
-                <div
-                  className="scan-bar-fill"
-                  style={{ width: `${Math.round(phase.progress * 100)}%` }}
-                />
-              </div>
-            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={scanData.state.kind !== "ready"}
+            >
+              Take a photo
+            </button>
           )}
-          {phase.kind === "miss" && <p className="scan-miss">{phase.message}</p>}
-          {phase.kind === "hit" && (
-            <div className="scan-hit">
-              <CardThumb src={phase.card.image_url} cardId={phase.card.card_id} alt={phase.card.name} />
-              <div className="scan-hit-body">
-                <p className="scan-hit-name">{phase.card.name}</p>
-                <p className="scan-hit-meta">
-                  {phase.card.card_id} · {phase.card.group_name}
-                </p>
-                <div className="scan-hit-price">
-                  <MarketPrice price={phase.card.market_price} />
-                </div>
-                {showNeed && (
-                  <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
-                    {need
-                      ? need.still_need > 0
-                        ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
-                        : `Covered — you own ${need.owned} of ${need.need}`
-                      : "Not in any of your decks"}
-                  </p>
-                )}
-                {renderHitAction?.(phase.card)}
-                {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
-                <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
-                  View on TCGPlayer
-                </a>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => fileRef.current?.click()}
+            disabled={scanData.state.kind !== "ready"}
+          >
+            Choose image
+          </button>
         </div>
-
-        <ScanDiagnostics />
-
-        <form
-          className="scan-manual"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const id = manual.trim().toUpperCase();
-            if (id) void lookupCard(id);
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => {
+            onPick(e.target.files?.[0]);
+            e.target.value = "";
           }}
-        >
-          <label htmlFor="scan-manual-input">Or type the card number</label>
-          <div className="scan-manual-row">
-            <input
-              id="scan-manual-input"
-              value={manual}
-              onChange={(e) => setManual(e.target.value)}
-              placeholder="OP15-053"
-              autoComplete="off"
-              autoCapitalize="characters"
-            />
-            <button type="submit" disabled={!manual.trim()}>
-              Look up
-            </button>
-          </div>
-        </form>
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            onPick(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
       </div>
-    </div>
+
+      {/* Fixed-height status region so the dialog never resizes mid-scan. */}
+      <div className="scan-status" aria-live="polite">
+        {phase.kind === "working" && (
+          <>
+            <p className="scan-status-label">{phase.label}</p>
+            <div className="scan-bar">
+              <div
+                className="scan-bar-fill"
+                style={{ width: `${Math.round(phase.progress * 100)}%` }}
+              />
+            </div>
+          </>
+        )}
+        {phase.kind === "miss" && <p className="scan-miss">{phase.message}</p>}
+        {phase.kind === "hit" && (
+          <div className="scan-hit">
+            <CardThumb src={phase.card.image_url} cardId={phase.card.card_id} alt={phase.card.name} />
+            <div className="scan-hit-body">
+              <p className="scan-hit-name">{phase.card.name}</p>
+              <p className="scan-hit-meta">
+                {phase.card.card_id} · {phase.card.group_name}
+              </p>
+              <div className="scan-hit-price">
+                <MarketPrice price={phase.card.market_price} />
+              </div>
+              {showNeed && (
+                <p className={`scan-hit-need${need && need.still_need > 0 ? " wanted" : ""}`}>
+                  {need
+                    ? need.still_need > 0
+                      ? `You still need ${need.still_need} — ${need.used_in.join(", ")}`
+                      : `Covered — you own ${need.owned} of ${need.need}`
+                    : "Not in any of your decks"}
+                </p>
+              )}
+              {renderHitAction?.(phase.card)}
+              {phase.note && <p className="scan-hit-warn">{phase.note}</p>}
+              <a href={phase.card.tcgplayer_url} target="_blank" rel="noreferrer">
+                View on TCGPlayer
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <ScanDiagnostics />
+
+      <form
+        className="scan-manual"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const id = manual.trim().toUpperCase();
+          if (id) void lookupCard(id);
+        }}
+      >
+        <label htmlFor="scan-manual-input">Or type the card number</label>
+        <div className="scan-manual-row">
+          <input
+            id="scan-manual-input"
+            value={manual}
+            onChange={(e) => setManual(e.target.value)}
+            placeholder="OP15-053"
+            autoComplete="off"
+            autoCapitalize="characters"
+          />
+          <button type="submit" disabled={!manual.trim()}>
+            Look up
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

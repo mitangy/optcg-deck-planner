@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import type { DeckStatsCard } from "@optcg/deck-analytics";
 import { DeckStatsPanel, type HintsState } from "@optcg/deck-analytics/ui";
 
@@ -63,9 +64,6 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
   const wide = useMediaQuery(DOCK_QUERY) && !compact;
   const [collapsed, setCollapsed] = useStatsCollapsed();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const pillRef = useRef<HTMLButtonElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
   const collapseRef = useRef<HTMLButtonElement>(null);
   const railRef = useRef<HTMLButtonElement>(null);
   const toggled = useRef(false);
@@ -101,30 +99,6 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [wide]);
-  const trapTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "Tab") return;
-    const items = Array.from(sheetRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])") ?? []);
-    if (!items.length) return;
-    const first = items[0], last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  };
-  useEffect(() => {
-    if (!sheetShown) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSheetOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    const pill = pillRef.current;
-    return () => {
-      document.body.style.overflow = prev;
-      document.removeEventListener("keydown", onKey);
-      pill?.focus();
-    };
-  }, [sheetShown]);
 
   if (wide) {
     if (collapsed) {
@@ -156,27 +130,38 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
     );
   }
 
+  // Log Pose opens outside the sheet, and the modal sheet keeps the page behind it inert: step the sheet aside first.
+  const sheetHints: HintsState | undefined = hints?.onAsk
+    ? {
+        ...hints,
+        onAsk: (h) => {
+          setSheetOpen(false);
+          hints.onAsk!(h);
+        },
+      }
+    : hints;
+
   return (
     <>
-      <button ref={pillRef} type="button" className={`stats-pill${pillHidden ? " stats-pill-hidden" : ""}`} aria-haspopup="dialog" aria-expanded={sheetShown} onClick={() => setSheetOpen(true)}>
+      <button type="button" className={`stats-pill${pillHidden ? " stats-pill-hidden" : ""}`} aria-haspopup="dialog" aria-expanded={sheetShown} onClick={() => setSheetOpen(true)}>
         <StatsIcon />
         Stats
         {badgeEl}
       </button>
+      {/* Mounts only while open. Headless UI traps Tab, closes on Escape / outside click, locks page scroll and
+          hands focus back to the pill. */}
       {sheetShown ? (
-        <div className="stats-sheet-backdrop" onClick={() => setSheetOpen(false)}>
-          <div ref={sheetRef} className="stats-sheet deck-stats" role="dialog" aria-modal="true" aria-label="Deck stats" onKeyDown={trapTab} onClick={(e) => e.stopPropagation()}>
-            <div className="stats-dock-head">
-              <h2>Deck stats</h2>
-              <button ref={closeRef} type="button" className="ghost stats-dock-collapse" onClick={() => setSheetOpen(false)}>
-                Close
-              </button>
-            </div>
-            <div className="stats-dock-scroll">
-              <DeckStatsPanel cards={cards} leaderId={leaderId} hints={hints} />
-            </div>
+        <Dialog open onClose={() => setSheetOpen(false)} className="stats-sheet-backdrop" panelClassName="stats-sheet deck-stats" label="Deck stats">
+          <div className="stats-dock-head">
+            <h2>Deck stats</h2>
+            <button type="button" className="ghost stats-dock-collapse" onClick={() => setSheetOpen(false)}>
+              Close
+            </button>
           </div>
-        </div>
+          <div className="stats-dock-scroll">
+            <DeckStatsPanel cards={cards} leaderId={leaderId} hints={sheetHints} />
+          </div>
+        </Dialog>
       ) : null}
     </>
   );
