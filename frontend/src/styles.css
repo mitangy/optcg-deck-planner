@@ -6395,3 +6395,45 @@ html[data-lp-dock] .topbar {
   font-weight: 700;
   color: var(--muted);
 }
+
+/* Show / Shown control under each alt-art tile (#702). Same box for both so
+   switching the displayed art never moves neighbouring controls. */
+.alt-show-btn,
+.alt-shown-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.6rem;
+  min-height: 1.75rem;
+  margin-top: 0.1rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.alt-show-btn {
+  cursor: pointer;
+  color: var(--accent-ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+
+.alt-show-btn:hover {
+  background: var(--card-sunk);
+  border-color: var(--accent);
+}
+
+.alt-show-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.alt-shown-chip {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-line);
+  cursor: default;
+}

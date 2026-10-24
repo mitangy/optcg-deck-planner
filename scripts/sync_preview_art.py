@@ -6,7 +6,7 @@ Usage: python3 scripts/sync_preview_art.py [--dry-run]
 Cards that are not on Bandai's list yet (cardData source "tcgplayer" /
 "bundled") often have no TCGPlayer image for a while. For those, this script
 downloads a preview image into `duel-web/public/cards/preview/<ID>.webp` and
-lists the id in `duel-web/src/cards/previewArt.json`. duel-web only falls back
+lists the id in `packages/ui/src/cardArt/previewArt.json`. duel-web only falls back
 to a preview when the real art fails to load, so real art wins as soon as it
 is posted.
 
@@ -53,8 +53,8 @@ ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
 CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 TCG_PRODUCTS = ROOT / "duel-web/src/assets/tcgProducts.json"
 CARD_DATA = ROOT / "packages/rules/src/cards/cardData.json"
-MANIFEST = ROOT / "duel-web/src/cards/previewArt.json"
-ALT_MANIFEST = ROOT / "duel-web/src/cards/previewArtAlts.json"
+MANIFEST = ROOT / "packages/ui/src/cardArt/previewArt.json"
+ALT_MANIFEST = ROOT / "packages/ui/src/cardArt/previewArtAlts.json"
 PREVIEW_DIR = ROOT / "duel-web/public/cards/preview"
 PUBLIC_DIR = ROOT / "duel-web/public"
 

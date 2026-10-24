@@ -135,3 +135,92 @@ def test_reset_deck_owned_also_clears_alt_copies_625(db):
 
     assert detail.cards[0].still_need == 4
     assert detail.cards[0].alts_owned == 0
+
+
+def test_display_art_unowned_alt_shows_on_shopping_and_deck_702(db):
+    user = _seed(db)
+    deck = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    assert services.shopping_list(db, user).items[0].display_art is None
+
+    services.set_display_art(db, user, "op01-016", 100)
+
+    assert services.shopping_list(db, user).items[0].display_art == 100
+    assert services.get_deck_detail(db, user, deck.id).cards[0].display_art == 100
+    # Display choice never changes owned counts or still-needed.
+    item = services.shopping_list(db, user).items[0]
+    assert item.alts_owned == 0
+    assert item.still_need == 4
+
+
+def test_display_art_base_is_kept_while_owning_alts_702(db):
+    user = _seed(db)
+    add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    services.set_alt_owned(db, user, "OP01-016", 100, 2)
+
+    services.set_display_art(db, user, "OP01-016", 0)
+
+    item = services.shopping_list(db, user).items[0]
+    assert item.display_art == 0
+    assert item.alts_owned == 2
+
+
+def test_display_art_null_resets_to_automatic_702(db):
+    user = _seed(db)
+    add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    services.set_display_art(db, user, "OP01-016", 100)
+
+    assert services.set_display_art(db, user, "OP01-016", None) is None
+
+    assert services.shopping_list(db, user).items[0].display_art is None
+
+
+def test_display_art_rejects_unknown_printing_702(db):
+    user = _seed(db)
+    add_catalog(db, "OP02-001", name="Other", product_id=900, market=5.0, special=True)
+
+    with pytest.raises(ValueError):
+        services.set_display_art(db, user, "OP01-016", 900)
+    with pytest.raises(ValueError):
+        services.set_display_art(db, user, "OP01-016", 424242)
+
+
+def test_display_art_is_per_user_702(db):
+    user = _seed(db)
+    other = make_user(db, email="other@example.com", name="Other", sub="sub-other")
+    add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    add_deck_with_cards(db, other, "B", {"OP01-016": 4})
+
+    services.set_display_art(db, user, "OP01-016", 100)
+
+    assert services.shopping_list(db, user).items[0].display_art == 100
+    assert services.shopping_list(db, other).items[0].display_art is None
+
+
+def test_display_art_endpoint_sets_clears_and_rejects_702(db):
+    user = _seed(db)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        client = TestClient(app)
+        ok = client.put("/owned/op01-016/display", json={"product_id": 100})
+        assert ok.status_code == 200
+        assert ok.json() == {"card_id": "OP01-016", "product_id": 100}
+        base = client.put("/owned/OP01-016/display", json={"product_id": 0})
+        assert base.json()["product_id"] == 0
+        bad = client.put("/owned/OP01-016/display", json={"product_id": 999})
+        assert bad.status_code == 400
+        cleared = client.put("/owned/OP01-016/display", json={"product_id": None})
+        assert cleared.json() == {"card_id": "OP01-016", "product_id": None}
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_display_art_on_share_uses_owner_choice_702(db):
+    user = _seed(db)
+    deck = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+    services.set_display_art(db, user, "OP01-016", 100)
+    link = services.create_or_update_share(db, user, "deck", deck.id)
+
+    view = services.public_share_view(db, link.token)
+
+    assert view.items[0].display_art == 100

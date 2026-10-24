@@ -1,5 +1,6 @@
 import { useEffect, useState, type ImgHTMLAttributes, type ReactNode } from "react";
-import { cardArtChain, type CardImageSize } from "./cardImage";
+import { cardArtChain, type CardImageSize } from "@optcg/ui/cardArt";
+import { DUEL_URL } from "./duelLink";
 
 /**
  * Walks `cardArtChain` as images fail: `src` is the URL to show now, `fail`
@@ -10,7 +11,7 @@ export function useCardArt(
   cardId: string | undefined | null,
   size: CardImageSize,
 ) {
-  const chain = cardArtChain(src, cardId, size);
+  const chain = cardArtChain(src, cardId, size, DUEL_URL);
   const key = chain.join("|");
   const [state, setState] = useState({ key, failed: 0 });
   const idx = state.key === key ? state.failed : 0;

@@ -11,7 +11,7 @@ import {
   type SavedDeck,
 } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
-import { isPlaceholderArt } from "../cards/cardImage";
+import { isPlaceholderArt } from "@optcg/ui/cardArt";
 import { useArtFallback } from "../cards/useArtFallback";
 import {
   abilitySupportNote,

@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import { CardArt } from "../cards/CardArt";
-import { artAfterError } from "../cards/cardImage";
-import { isPreviewArtPath } from "../cards/previewArt";
+import { artAfterError, isPreviewArtPath } from "@optcg/ui/cardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { LifeFan } from "../settings";

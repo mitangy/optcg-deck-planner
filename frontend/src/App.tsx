@@ -72,7 +72,7 @@ import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
-import { baseTileFor, mainImageUrl } from "./altArt";
+import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   AltsOwnedNote,
@@ -306,6 +306,43 @@ function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["decks"] });
   void qc.invalidateQueries({ queryKey: ["group-buy"] });
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+/** Display art is a view choice only: refresh the views that show it. */
+function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["group-buy"] });
+  void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+/** Patch the chosen art (null = automatic, 0 = base) onto every cached view of a card. */
+function applyDisplayArtOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  cardId: string,
+  productId: number | null,
+) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
+    old
+      ? {
+          ...old,
+          items: old.items.map((item) =>
+            item.card_id.toUpperCase() === id ? { ...item, display_art: productId } : item,
+          ),
+        }
+      : old,
+  );
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+    old
+      ? {
+          ...old,
+          cards: old.cards.map((card) =>
+            card.card_id.toUpperCase() === id ? { ...card, display_art: productId } : card,
+          ),
+        }
+      : old,
+  );
 }
 
 function sumAltOwned(alts: { owned?: number }[]): number {
@@ -1251,6 +1288,18 @@ function ShoppingPage() {
     }
   };
 
+  const changeShoppingDisplayArt = async (cardId: string, productId: number) => {
+    setAltOwnedErr(null);
+    applyDisplayArtOptimistic(qc, cardId, productId);
+    try {
+      await api.setDisplayArt(cardId, productId);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateDisplayArtViews(qc);
+    }
+  };
+
   const shoppingAltRow = (item: ShoppingItem) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
@@ -1267,6 +1316,8 @@ function ShoppingPage() {
         />
       }
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
+      shownProductId={shownProductId(item)}
+      onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
       busyProductId={
         altOwnedBusyKey?.startsWith(`${item.card_id}:`)
           ? Number(altOwnedBusyKey.slice(item.card_id.length + 1))
@@ -2976,6 +3027,7 @@ function CardTable({
   neededBusyId = null,
   onAltOwnedChange,
   altOwnedBusyKey = null,
+  onDisplayArtChange,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -2987,6 +3039,8 @@ function CardTable({
   onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
   /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
+  /** Owner pages only: pick which art the card shows (0 = base). */
+  onDisplayArtChange?: (cardId: string, productId: number) => void;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
@@ -3013,6 +3067,12 @@ function CardTable({
       onOwnedChange={
         onAltOwnedChange
           ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
+          : undefined
+      }
+      shownProductId={shownProductId(c)}
+      onShow={
+        onDisplayArtChange
+          ? (productId) => onDisplayArtChange(c.card_id, productId)
           : undefined
       }
       busyProductId={
@@ -3806,6 +3866,18 @@ function DeckDetailPage() {
     }
   };
 
+  const changeDisplayArt = async (cardId: string, productId: number) => {
+    setAltOwnedErr(null);
+    applyDisplayArtOptimistic(qc, cardId, productId);
+    try {
+      await api.setDisplayArt(cardId, productId);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateDisplayArtViews(qc);
+    }
+  };
+
   const resetOwned = useMutation({
     mutationFn: () => api.resetDeckOwned(deckId),
     onSuccess: (res) => {
@@ -4203,6 +4275,7 @@ function DeckDetailPage() {
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
         onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+        onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
       />
       {additional.length > 0 && (
@@ -4219,6 +4292,7 @@ function DeckDetailPage() {
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
             onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+            onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
           />
         </>
@@ -4245,6 +4319,7 @@ function DeckDetailPage() {
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
           onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+          onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
         />
       )}
