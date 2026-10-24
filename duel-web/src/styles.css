@@ -2774,8 +2774,11 @@ img.zone-pile-face {
   overflow-wrap: anywhere;
 }
 
-.card-caption .meta-blocked {
-  color: #ffab91;
+/* Two classes so it beats the later `.card-caption .meta` gray. #ff6b6b on the
+   near-black caption is about 7.5:1. */
+.card-caption .meta.meta-blocked {
+  color: #ff6b6b;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

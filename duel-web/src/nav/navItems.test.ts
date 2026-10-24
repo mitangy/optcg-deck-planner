@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeNavHref, NAV_ITEMS } from "./navItems";
+import { activeNavHref, NAV_ITEMS, navItemsFor } from "./navItems";
 
 describe("menu: which item is the current page (#460)", () => {
   it("marks Home only on the home page, not on every page (#460)", () => {
@@ -43,5 +43,15 @@ describe("menu: which item is the current page (#460)", () => {
 
   it("lists Home, Leaderboard, Decks, Meta decks, Match history, What's new, Settings in that order (#460)", () => {
     expect(NAV_ITEMS.map((i) => i.href)).toEqual(["/", "/leaderboard", "/decks", "/decks/meta", "/history", "/whats-new", "/settings"]);
+  });
+});
+
+describe("menu: Admin is for staff only (#667)", () => {
+  it("adds Admin for the admin and moderators and for nobody else (#667)", () => {
+    expect(navItemsFor("admin").map((i) => i.href)).toContain("/admin");
+    expect(navItemsFor("moderator").map((i) => i.href)).toContain("/admin");
+    expect(navItemsFor("user").map((i) => i.href)).not.toContain("/admin");
+    expect(navItemsFor(null).map((i) => i.href)).not.toContain("/admin");
+    expect(activeNavHref("/admin")).toBe("/admin");
   });
 });

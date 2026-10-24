@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { getPlannerUrl } from "../config";
-import { activeNavHref, NAV_ITEMS } from "./navItems";
+import { activeNavHref, navItemsFor } from "./navItems";
+import { useAccountRole } from "./useAccountRole";
 import { useStickyHeadHeight } from "./useStickyHeadHeight";
 
 const FOCUSABLE = "a[href], button:not([disabled])";
@@ -19,6 +20,7 @@ export function NavMenu() {
   const wasOpen = useRef(false);
   const drawerId = useId();
   const active = activeNavHref(pathname);
+  const items = navItemsFor(useAccountRole());
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -82,7 +84,7 @@ export function NavMenu() {
           <div className="nav-backdrop" onClick={close} aria-hidden />
           <nav ref={drawerRef} id={drawerId} className="nav-drawer" aria-label="Site menu">
             <ul className="nav-list">
-              {NAV_ITEMS.map((item) => (
+              {items.map((item) => (
                 <li key={item.href}>
                   <Link
                     to={item.href}

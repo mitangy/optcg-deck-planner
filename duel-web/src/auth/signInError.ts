@@ -8,11 +8,22 @@ export class MissingTicketError extends Error {
   }
 }
 
+/** The OAuth return carried `#error=banned`: the account may not sign in. */
+export class BannedError extends Error {
+  constructor() {
+    super("Account banned");
+    this.name = "BannedError";
+  }
+}
+
+export const BANNED_MESSAGE = "This account has been banned.";
+
 /**
  * What the sign-in landing page says when signing in fails: a plain sentence
  * for players, never the raw API text.
  */
 export function signInErrorMessage(e: unknown): string {
+  if (e instanceof BannedError || (e instanceof ApiError && e.status === 403)) return BANNED_MESSAGE;
   if (e instanceof MissingTicketError) {
     return "This sign-in link is incomplete. Please sign in again.";
   }

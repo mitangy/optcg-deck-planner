@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
-from sqlalchemy import Engine, create_engine, inspect, text
+from sqlalchemy import Engine, create_engine, func, inspect, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from app.models import Base
+from app.models import AnalystEvalRun, Base
 
 settings = get_settings()
 
@@ -263,6 +265,85 @@ def _ensure_duel_progress_closed() -> None:
     _add_columns("duel_match_progress", [("closed", f"BOOLEAN DEFAULT {false}")])
 
 
+def _ensure_user_role_columns() -> None:
+    """Add the role and ban columns to users on existing DBs (#667)."""
+    ts = "TIMESTAMP" if engine.dialect.name == "sqlite" else "TIMESTAMP WITH TIME ZONE"
+    _add_columns(
+        "users",
+        [
+            ("role", "VARCHAR(16) NOT NULL DEFAULT 'user'"),
+            ("banned_at", ts),
+            ("ban_reason", "VARCHAR(200)"),
+            ("banned_by", "INTEGER"),
+        ],
+    )
+
+
+def _ensure_eval_run_columns() -> None:
+    """Add the suite and headline-metric columns to analyst_eval_runs on existing DBs; older runs are the main suite (#679)."""
+    false = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    _add_columns(
+        "analyst_eval_runs",
+        [
+            ("suite", "VARCHAR(16) NOT NULL DEFAULT 'main'"),
+            ("metric_name", "VARCHAR(60)"),
+            ("metric_value", "FLOAT"),
+            ("lower_is_better", f"BOOLEAN NOT NULL DEFAULT {false}"),
+        ],
+    )
+
+
+def _ensure_admin_role(bind: Engine | None = None) -> None:
+    """Exactly one admin: settings.admin_email. Any other admin row goes back to user (#667)."""
+    bind = bind or engine
+    admin = get_settings().admin_email.strip().lower()
+    with bind.begin() as conn:
+        conn.execute(
+            text("UPDATE users SET role = 'user' WHERE role = 'admin' AND lower(email) <> :email"),
+            {"email": admin},
+        )
+        conn.execute(
+            text("UPDATE users SET role = 'admin' WHERE lower(email) = :email AND role <> 'admin'"),
+            {"email": admin},
+        )
+
+
+# The eval runs from before the admin page, so the accuracy chart starts with history (#667).
+_HISTORIC_EVAL_RUNS = (
+    {
+        "run_at": datetime(2026, 10, 8, 0, 45, tzinfo=timezone.utc),
+        "label": "Baseline",
+        "model": "claude-opus-5-5",
+        "correct": 43.5,
+        "total": 50,
+        "groups": {"A": {"correct": 15, "total": 15}, "B": {"correct": 11.5, "total": 12}, "C": {"correct": 13, "total": 13}, "D": {"correct": 4, "total": 10}},
+        "spend_usd": 5.97,
+        "notes": "Paid eval, 50 cases x 2 reps",
+    },
+    {
+        "run_at": datetime(2026, 10, 8, 1, 30, tzinfo=timezone.utc),
+        "label": "PR #415 prompt + grader",
+        "model": "claude-opus-5-5",
+        "correct": 48.5,
+        "total": 50,
+        "groups": {"A": {"correct": 15, "total": 15}, "B": {"correct": 11.5, "total": 12}, "C": {"correct": 13, "total": 13}, "D": {"correct": 9, "total": 10}},
+        "spend_usd": 7.14,
+        "notes": "Grader, D judge and prompt all changed; D jump not split between Log Pose and grading",
+    },
+)
+
+
+def _seed_eval_runs(bind: Engine | None = None) -> None:
+    """Insert the two historic eval runs when the table is empty."""
+    bind = bind or engine
+    with Session(bind) as session:
+        if session.scalar(select(func.count()).select_from(AnalystEvalRun)):
+            return
+        for run in _HISTORIC_EVAL_RUNS:
+            session.add(AnalystEvalRun(**{**run, "groups": json.dumps(run["groups"])}))
+        session.commit()
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -276,6 +357,10 @@ def init_db() -> None:
     _ensure_analyst_review_citations()
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()
+    _ensure_user_role_columns()
+    _ensure_eval_run_columns()
+    _ensure_admin_role()
+    _seed_eval_runs()
 
 
 def get_db() -> Generator[Session, None, None]:

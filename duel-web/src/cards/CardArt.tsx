@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { artAfterError, isPlaceholderArt } from "./cardImage";
+import { artAfterError, isPlaceholderArt } from "@optcg/ui/cardArt";
 
 /**
  * Card art with the same fallbacks as board tiles: the local mirror when the

@@ -388,9 +388,15 @@ export async function reviewMatch(api: PlannerApi, token: string, matchId: strin
     `/analyst/matches/${encodeURIComponent(matchId)}/replay`,
     true,
   );
-  // Reviews carry the estimated win chance per turn and mark the biggest swings (#635).
-  return { matchId: body.match_id, ...narrateReplay(body.replay, body.your_seat as Seat, { winChance: true, ...opts }) };
+  return reviewGame(body.match_id, body.replay, body.your_seat as Seat, opts);
 }
+
+/** The game a review reads, from a raw replay and the reviewed seat (no planner API). Carries the win chance per turn and marks the biggest swings (#635). */
+export function reviewGame(matchId: string, replay: MatchReplay, seat: Seat, opts: NarrateOptions = {}) {
+  return { matchId, ...narrateReplay(replay, seat, { winChance: true, ...opts }) };
+}
+
+export type ReviewGame = ReturnType<typeof reviewGame>;
 
 export type StatsQuery = { leader?: string; opponent?: string; days?: number; rankedOnly?: boolean };
 

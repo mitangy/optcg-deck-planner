@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     # Public duel handle; None until the user picks one (duel-web prompts after sign-in).
     username: str | None = None
     sum_across_leaders: bool = False
+    role: str = "user"
 
     model_config = {"from_attributes": True}
 
@@ -103,6 +104,16 @@ class PrintingView(BaseModel):
     owned: int = 0
 
 
+class DisplayArtUpdate(BaseModel):
+    # None = automatic, 0 = base art, >0 = a special printing's product id.
+    product_id: int | None = Field(default=None, ge=0)
+
+
+class DisplayArtResult(BaseModel):
+    card_id: str
+    product_id: int | None = None
+
+
 class OwnedPrintingUpdate(BaseModel):
     """Set how many copies of an alt printing the user owns."""
 
@@ -176,6 +187,8 @@ class CardView(BaseModel):
     product_id: int | None = None
     section: str = "main"  # main | additional | don
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
 
 
 class DeckDetail(BaseModel):
@@ -216,6 +229,8 @@ class ShoppingItem(BaseModel):
     product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
     # Multi-leader cards use the earliest deck's leader as primary.
     deck_sort_key: str = ""
@@ -390,6 +405,8 @@ class GroupBuyLineOut(BaseModel):
     image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Viewer (current user) contribution on this line — for qty editors.
     my_qty: int = 0
     my_suggested_qty: int = 0

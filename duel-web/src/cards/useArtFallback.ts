@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { artAfterError } from "./cardImage";
+import { artAfterError } from "@optcg/ui/cardArt";
 
 /**
  * Card art with the `artAfterError` chain (TCGplayer, then preview / local

@@ -1,6 +1,6 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { lookupCard } from "../cards/atlas";
-import { isPlaceholderArt } from "../cards/cardImage";
+import { isPlaceholderArt } from "@optcg/ui/cardArt";
 import { useArtFallback } from "../cards/useArtFallback";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { usePreviewCard, type PreviewCard } from "./cardPreview";

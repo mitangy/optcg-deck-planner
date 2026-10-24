@@ -31,6 +31,7 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import User
 from app.rate_limit import RateLimiter
+from app.roles import is_banned
 from app.schemas import UsernameSuggestionOut, UsernameUpdate, UserOut
 from app.usernames import (
     UsernameError,
@@ -230,11 +231,15 @@ async def google_callback(
     # cookie is set on a fetch response (works on mobile Safari; proxy redirects often drop Set-Cookie).
     # Put the ticket in the URL fragment (not the query string) so it is not
     # sent to servers, proxies, or Referer headers.
-    ticket = create_login_ticket(db, user.id, settings)
     dest_origin = return_to or settings.frontend_origin.rstrip("/")
     # Duel-web claims at /auth/complete; planner SPA still uses /login.
     dest_path = "/auth/complete" if return_to else "/login"
-    redirect = RedirectResponse(f"{dest_origin}{dest_path}#ticket={ticket}")
+    if is_banned(user):
+        # No ticket for a banned account; the SPA shows "This account has been banned." (#667).
+        redirect = RedirectResponse(f"{dest_origin}{dest_path}#error=banned")
+    else:
+        ticket = create_login_ticket(db, user.id, settings)
+        redirect = RedirectResponse(f"{dest_origin}{dest_path}#ticket={ticket}")
     secure = settings.backend_public_url.startswith("https") or settings.frontend_origin.startswith(
         "https"
     )
@@ -266,6 +271,8 @@ def claim_login(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=400, detail="User not found")
+    if is_banned(user):
+        raise HTTPException(status_code=403, detail="Account banned")
     _set_session_cookie(response, user, settings)
     return user
 

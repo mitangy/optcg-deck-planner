@@ -10,10 +10,16 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-24
+  { date: "2026-10-24", app: "planner", pr: 704, title: "Pick which art a card shows", text: "With alt arts showing, press Show under any art, base or alt, owned or not, to make it the card's picture. It is saved to your account and doesn't change your owned counts." },
+  // 2026-10-23
+  { date: "2026-10-23", app: "both", title: "Log Pose turns deck suggestions into an Apply card", text: "When you ask Log Pose to tune a deck, it now gives exact swaps, card by card, and always puts them on a card you can apply: 50 cards and no card over its copy limit. If it writes changes in its answer without a card, the app has it check them and make one." },
+  { date: "2026-10-23", app: "both", pr: 679, title: "Rate Log Pose answers", text: "Under each Log Pose answer and each game review there are now a thumbs up, a thumbs down and a \"This is wrong\" button. Press \"This is wrong\" to say what it got wrong, and it goes straight to the people who improve Log Pose. You can change your rating any time." },
   // 2026-10-22
   { date: "2026-10-22", app: "duel", pr: 670, title: "Funkfreed is playable", text: "Funkfreed (OP18-108) is now in the duel app: when played you may trash a card with a type including \"CP\" to draw 2, and you can rest it to give your Spandam +1000 power this turn. Funkfreed and Roronoa Zoro (OP18-092) show preview art until their official images are out, and White Hobby Horse 1 (OP18-077) now has a sharp English preview." },
-  { date: "2026-10-22", app: "duel", title: "Hand cards say when an effect stops you playing them", text: "If an effect such as Alvida's stops you playing Characters (or Events, or any card from your hand) this turn, those cards now read \"Can't play\" instead of their cost, and selecting one explains why. They gray out too when you have \"Gray out unplayable cards\" on." },
+  { date: "2026-10-22", app: "duel", title: "Hand cards say when an effect stops you playing them", text: "If an effect such as Alvida's stops you playing Characters (or Events, or any card from your hand) this turn, those cards now read \"Can't play\" in red instead of their cost, and selecting one explains why. They gray out too when you have \"Gray out unplayable cards\" on." },
   // 2026-10-21
+  { date: "2026-10-21", app: "duel", pr: 667, title: "Staff can ban accounts that break the rules", text: "Moderators can now ban accounts that cheat or abuse other players. A banned account is signed out everywhere and sees \"This account has been banned.\" if it tries to sign in again." },
   { date: "2026-10-21", app: "duel", pr: 666, title: "4 new OP18 cards", text: "Monkey.D.Luffy (OP18-036), Mr.1 (Daz.Bonez) (OP18-047), White Hobby Horse 1 (OP18-077) and Roronoa Zoro (OP18-092) are now in the duel app with their effects. Mr.1 makes a {Cross Guild} or Baroque Works Leader unblockable for the turn. The new alt art of the Nami Leader (OP11-041) can be picked too, and these cards show preview art until their official images are out." },
   { date: "2026-10-21", app: "duel", pr: 664, title: "Phones: pop-ups no longer cover your hand", text: "On a portrait phone, Look and Search pop-ups, effect ordering and the Life card now stay above your hand. Their hint sits under the title, and their buttons (Hide, Top / Bottom, Confirm, Activate Trigger) sit in the bottom bar where End turn is." },
   // 2026-10-20

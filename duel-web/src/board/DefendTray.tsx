@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
 import type { DefendModel } from "./defendModel";

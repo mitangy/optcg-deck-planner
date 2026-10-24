@@ -161,7 +161,7 @@ async function attempt(deps: RunnerDeps, opts: RunOptions, c: EvalCase, gold: Go
   const fault = (failure: ErrorRow["failure"], message: string): ErrorRow => ({ case: c.id, rep, failure, message, retries });
   let graded: Row["meta"];
   try {
-    await runChat(chatDeps, "chat.eval", { message: messageOf(c), context: c.context }, () => undefined, ceiling);
+    await runChat(chatDeps, `chat.eval-${c.id}-${rep}`, { message: messageOf(c), context: c.context }, () => undefined, ceiling);
   } catch (err) {
     if (err instanceof ModelMismatch) return fault("model_mismatch", err.message);
     if (ceiling.aborted) return fault("timeout", `no answer within ${opts.timeoutS}s`);
