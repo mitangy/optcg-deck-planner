@@ -26,6 +26,12 @@ const busy = (() => {
   throw new Error("no busy turn");
 })();
 
+/** A turn where side B decided at least twice and side A at least once, for the tests that ask for a side by letter. */
+const shared = (() => {
+  for (let turn = 1; turn <= before[before.length - 1]!.turnNumber; turn += 1) if (decisionsOf(1, turn).length >= 2 && decisionsOf(0, turn).length >= 1) return { turn };
+  throw new Error("no turn where both sides decided");
+})();
+
 const decoy = { type: "__decoy" } as unknown as Intent;
 const option = (intent: Intent, label: string, winChance: number, isBotPick = false) => ({ intent, label, winChance, samples: 12, isBotPick });
 
@@ -100,13 +106,13 @@ describe("the analyze_position tool (#635)", () => {
   it("reads a bot game from the bot endpoint and an archive game from the player corpus, as the side asked for (#635)", async () => {
     vi.mocked(rankOptions).mockReturnValue([option(decoy, "Decoy", 0.6, true)]);
     const bot = serve(replay);
-    const b = await run(bot.api, { gameId: "b_xyz", side: "B", turn: busy.turn, step: 1 });
+    const b = await run(bot.api, { gameId: "b_xyz", side: "B", turn: shared.turn, step: 1 });
     expect(bot.calls).toEqual([{ url: "https://api.test/analyst/bot-games/b_xyz/replay", headers: { "X-Analyst-Service": "svc" } }]);
     const out = JSON.parse(b.body);
-    expect(out).toMatchObject({ sourceId: `position:x_1#t${busy.turn}s1`, game: { kind: "botgame", seat: "Player B", leader: replay.players[1].leaderId } });
+    expect(out).toMatchObject({ sourceId: `position:x_1#t${shared.turn}s1`, game: { kind: "botgame", seat: "Player B", leader: replay.players[1].leaderId } });
     expect(vi.mocked(rankOptions).mock.calls[0]![1]).toBe(1);
     const archive = serve(replay);
-    await run(archive.api, { gameId: "g_abc", turn: busy.turn });
+    await run(archive.api, { gameId: "g_abc", turn: shared.turn });
     expect(archive.calls[0]!.url).toBe("https://api.test/analyst/corpus/games/g_abc/replay");
     expect(vi.mocked(rankOptions).mock.calls[1]![1]).toBe(0);
   });

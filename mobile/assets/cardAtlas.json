@@ -4415,8 +4415,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718686_400w.jpg",
     "effectText": "[On Play] If your Leader has the {Supernovas} type, draw 2 cards and play up to 2 Character cards with 2000 power or less from your hand. [Activate: Main] [Once Per Turn] Give up to 1 of your opponent's Leader or Characters with 6000 power or more −1000 power until the end of your opponent's next End Phase.",
     "traits": [
-      "Bonney Pirates",
-      "Supernovas"
+      "Supernovas",
+      "Bonney Pirates"
     ],
     "attribute": "Special",
     "abilitySupport": "ok"
@@ -4439,6 +4439,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "EB05-003": {
+    "id": "EB05-003",
+    "name": "Pasia",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725853_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "Sabaody Archipelago"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "none"
+  },
   "EB05-004": {
     "id": "EB05-004",
     "name": "Baby 5",
@@ -4451,8 +4469,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721358_400w.jpg",
     "effectText": "[On Play] You may reveal 2 Event cards from your hand: Draw 2 cards. [On K.O.] Play up to 1 Character card with 6000 power or less from your hand rested.",
     "traits": [
-      "Donquixote Pirates",
-      "Punk Hazard"
+      "Punk Hazard",
+      "Donquixote Pirates"
     ],
     "attribute": "Special",
     "abilitySupport": "ok"
@@ -4513,8 +4531,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/714391_400w.jpg",
     "effectText": "[On Play] You may reveal a total of 3 Event or {Punk Hazard} type cards from your hand: Draw 1 card. [End of Your Turn] This Character gains +5000 power until the end of your opponent's next End Phase.",
     "traits": [
-      "Donquixote Pirates",
-      "Punk Hazard"
+      "Punk Hazard",
+      "Donquixote Pirates"
     ],
     "attribute": "Special",
     "abilitySupport": "ok"
@@ -4530,8 +4548,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722776_400w.jpg",
     "effectText": "[Main] You may give 1 active DON!! card to 1 of your Leader and reveal 2 red Event cards from your hand: Give up to 1 of your opponent's rested Characters −7000 power during this turn. [Counter] If you have no Characters with a cost of 5 or more, up to 1 of your Leader or up to 1 of your Characters gains +4000 power during this battle.",
     "traits": [
-      "Kuja Pirates",
-      "The Seven Warlords of the Sea"
+      "The Seven Warlords of the Sea",
+      "Kuja Pirates"
     ],
     "abilitySupport": "ok"
   },
@@ -4546,8 +4564,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718687_400w.jpg",
     "effectText": "[Main] All of your Characters with 4000 base power or less gain +1000 power until the end of your opponent's next End Phase. [Counter] Your Leader gains +3000 power during this battle.",
     "traits": [
-      "Straw Hat Crew",
-      "East Blue"
+      "East Blue",
+      "Straw Hat Crew"
     ],
     "abilitySupport": "ok"
   },
@@ -4563,7 +4581,7 @@
     "power": 5000,
     "life": 4,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712886_400w.jpg",
-    "effectText": "[Once Per Turn] When one of your Characters with the \"Wisdom\" attribute and without [Blocker] is K.O.'d, add up to 1 card from the top of your deck to the top of your Life cards. [Activate: Main] [Once Per Turn] Set up to 1 of your Characters with the \"Wisdom\" attribute and 6000 power or less as active.",
+    "effectText": "[Once Per Turn] When one of your Characters with the <Wisdom> attribute and without [Blocker] is K.O.'d, add up to 1 card from the top of your deck to the top of your Life cards. [Activate: Main] [Once Per Turn] Set up to 1 of your Characters with the <Wisdom> attribute and 6000 power or less as active.",
     "altArts": [
       {
         "id": "p1",
@@ -4585,7 +4603,6 @@
       "green"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/715605_400w.jpg",
     "effectText": "[On Play] If your Leader is [Shirahoshi], you may turn 1 card from the top of your Life cards face-down: Rest up to 1 of your opponent's Characters with a cost of 5 or less.",
@@ -4604,7 +4621,6 @@
       "green"
     ],
     "cost": 3,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/716976_400w.jpg",
     "effectText": "[On Play] Rest up to 1 of your opponent's Characters with a cost of 6 or less.",
@@ -4642,7 +4658,6 @@
       "green"
     ],
     "cost": 1,
-    "power": 0,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718678_400w.jpg",
     "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal up to a total of 2 [Megalo] or {Neptunian} type cards and add them to your hand. Then, trash the rest. [Activate: Main] You may rest this Character: Up to 1 of your {Neptunian} type Characters with 6000 power or less gains [Rush] during this turn.",
     "altArts": [
@@ -4659,6 +4674,25 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "EB05-015": {
+    "id": "EB05-015",
+    "name": "Tashigi",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "power": 7000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725854_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "East Blue",
+      "Navy"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "none"
+  },
   "EB05-016": {
     "id": "EB05-016",
     "name": "Nico Robin",
@@ -4670,7 +4704,7 @@
     "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718684_400w.jpg",
-    "effectText": "[Your Turn] [On Play] Play up to 1 Character card with a cost of 5 or less and the \"Wisdom\" attribute from your hand.\n\n[Trigger] Rest up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "effectText": "[Your Turn] [On Play] Play up to 1 Character card with a cost of 5 or less and the <Wisdom> attribute from your hand.\n\n[Trigger] Rest up to 1 of your opponent's Characters with a cost of 6 or less.",
     "altArts": [
       {
         "id": "p1",
@@ -4693,7 +4727,6 @@
       "green"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/715825_400w.jpg",
     "effectText": "[On Your Opponent's Attack] You may rest 1 of your DON!! cards and trash this Character: Your {Fish-Man} or {Merfolk} type Leader gains +4000 power during this battle.",
@@ -4799,7 +4832,6 @@
       "blue"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/714389_400w.jpg",
     "effectText": "[On Play] You may trash 2 Events from your hand: Draw 3 cards.",
@@ -4817,7 +4849,6 @@
       "blue"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721369_400w.jpg",
     "effectText": "If your Leader has the {Impel Down} type, this Character gains [Blocker] and +2 cost. (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
@@ -4845,6 +4876,24 @@
     "hasTrigger": true,
     "attribute": "Wisdom",
     "abilitySupport": "ok"
+  },
+  "EB05-026": {
+    "id": "EB05-026",
+    "name": "Hina",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "power": 8000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725855_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "Navy"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "none"
   },
   "EB05-027": {
     "id": "EB05-027",
@@ -4878,16 +4927,32 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/717813_400w.jpg",
     "effectText": "[On Play] If your opponent has 9 or more cards in their hand, they trash 4 cards from their hand.",
     "traits": [
-      "Kuja Pirates",
+      "Impel Down",
       "The Seven Warlords of the Sea",
-      "Impel Down"
+      "Kuja Pirates"
     ],
     "attribute": "Special",
     "abilitySupport": "ok"
   },
+  "EB05-029": {
+    "id": "EB05-029",
+    "name": "Kimono Sleeve Cage",
+    "type": "event",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725856_400w.jpg",
+    "effectText": "[Main] You may trash 1 card from your hand: Negate the effect of up to 1 of your opponent's Characters with a cost of 6 or less during this turn, and return it to the owner's hand.\n\n[Trigger] Draw 2 cards and trash 1 card from your hand.",
+    "traits": [
+      "Navy"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "EB05-030": {
     "id": "EB05-030",
-    "name": "Take Care, Everybody.",
+    "name": "Take Care, Everybody. ♡",
     "type": "event",
     "colors": [
       "blue"
@@ -4896,8 +4961,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722646_400w.jpg",
     "effectText": "[Main] If your Leader is [Nami], return up to 1 Character with a cost of 5 or less to the owner's hand. [Counter] Draw 1 card, and up to 1 of your Leader or Characters gains +1000 power during this turn.",
     "traits": [
-      "Straw Hat Crew",
-      "East Blue"
+      "East Blue",
+      "Straw Hat Crew"
     ],
     "abilitySupport": "ok"
   },
@@ -4908,7 +4973,7 @@
     "colors": [
       "purple"
     ],
-    "cost": 5,
+    "cost": 4,
     "power": 5000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721353_400w.jpg",
@@ -4927,6 +4992,42 @@
     "attribute": "Special",
     "abilitySupport": "ok"
   },
+  "EB05-032": {
+    "id": "EB05-032",
+    "name": "Ulti",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725857_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "Animal Kingdom Pirates"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "none"
+  },
+  "EB05-033": {
+    "id": "EB05-033",
+    "name": "Nico Robin",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725858_400w.jpg",
+    "effectText": "[On Play] If your Leader has the {Straw Hat Crew} type and the number of DON!! cards on your field is at least 6 less than the number on your opponent's field, draw 3 cards and trash 2 cards from your hand. Then, add up to 4 DON!! cards as rested from your DON!! deck.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "EB05-034": {
     "id": "EB05-034",
     "name": "Sugar",
@@ -4935,7 +5036,6 @@
       "purple"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718685_400w.jpg",
     "effectText": "[On Play] DON!! −2: If you have 7 or more DON!! cards on your field, give up to 1 of your opponent's Characters −4000 power during this turn.",
@@ -4958,8 +5058,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/714558_400w.jpg",
     "effectText": "[On Play] DON!! −1: Look at 5 cards from the top of your deck; reveal up to 2 {SMILE} type cards and add them to your hand, then place the rest at the bottom of your deck in any order. Then, play up to 2 {SMILE} type Character cards with 5000 power or less from your hand.",
     "traits": [
-      "Animal Kingdom Pirates",
-      "SMILE"
+      "SMILE",
+      "Animal Kingdom Pirates"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -4972,7 +5072,6 @@
       "purple"
     ],
     "cost": 4,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/713242_400w.jpg",
     "effectText": "[On Play] If your Leader has the {Navy} type, draw 1 card, and add up to 1 DON!! card as rested from your DON!! deck.",
@@ -5008,7 +5107,6 @@
       "purple"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/715823_400w.jpg",
     "effectText": "[On Play] Up to 1 of your [Senor Pink] cards gains +3000 power during this turn.",
@@ -5018,9 +5116,25 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "EB05-039": {
+    "id": "EB05-039",
+    "name": "Pink Hornet",
+    "type": "event",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725859_400w.jpg",
+    "effectText": "[Main] DON!! −1: If your Leader has the {The Vinsmoke Family} type, give up to 1 of your opponent's Characters −4000 power during this turn. [Counter] DON!! −1: Your Leader gains +4000 power during this battle.",
+    "traits": [
+      "The Vinsmoke Family",
+      "GERMA 66"
+    ],
+    "abilitySupport": "ok"
+  },
   "EB05-040": {
     "id": "EB05-040",
-    "name": "You Need Me, Don't You?!!",
+    "name": "You Need Me, Don't You?!!♡",
     "type": "event",
     "colors": [
       "purple"
@@ -5032,6 +5146,25 @@
       "Donquixote Pirates"
     ],
     "abilitySupport": "ok"
+  },
+  "EB05-041": {
+    "id": "EB05-041",
+    "name": "Koala",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 2,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725860_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "Dressrosa",
+      "Revolutionary Army"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "none"
   },
   "EB05-042": {
     "id": "EB05-042",
@@ -5183,10 +5316,10 @@
     "power": 2000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721378_400w.jpg",
-    "effectText": "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 card with the \"Wisdom\" attribute and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Activate this card's [On Play] effect.",
+    "effectText": "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 card with the <Wisdom> attribute and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Activate this card's [On Play] effect.",
     "traits": [
-      "Scientist",
-      "Egghead"
+      "Egghead",
+      "Scientist"
     ],
     "hasTrigger": true,
     "attribute": "Wisdom",
@@ -5237,6 +5370,27 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "EB05-053": {
+    "id": "EB05-053",
+    "name": "Charlotte Praline",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725861_400w.jpg",
+    "effectText": "[When Attacking] [Once Per Turn] If your opponent has 9 or more cards in their hand, add up to 1 card from your hand to the top of your Life cards.\n\n[Trigger] You may trash 1 card from your hand: If you have 2 or less Life cards, play this card.",
+    "traits": [
+      "Merfolk",
+      "Fish-Man Island",
+      "The Sun Pirates"
+    ],
+    "hasTrigger": true,
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
   "EB05-054": {
     "id": "EB05-054",
     "name": "Charlotte Brulee",
@@ -5266,7 +5420,7 @@
     "cost": 5,
     "power": 6000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718681_400w.jpg",
-    "effectText": "[Your Turn] [On Play] If your Leader has the \"Wisdom\" attribute, add up to 1 card from the top of your deck to the top of your Life cards.\n\n[Trigger] You may trash 1 card from your hand: If you have 2 or less Life cards, play this card.",
+    "effectText": "[Your Turn] [On Play] If your Leader has the <Wisdom> attribute, add up to 1 card from the top of your deck to the top of your Life cards.\n\n[Trigger] You may trash 1 card from your hand: If you have 2 or less Life cards, play this card.",
     "altArts": [
       {
         "id": "p1",
@@ -5275,8 +5429,8 @@
       }
     ],
     "traits": [
-      "Straw Hat Crew",
-      "East Blue"
+      "East Blue",
+      "Straw Hat Crew"
     ],
     "hasTrigger": true,
     "attribute": "Wisdom",
@@ -5290,10 +5444,9 @@
       "yellow"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712887_400w.jpg",
-    "effectText": "[On Play] You may trash 1 card with a Trigger from your hand: If your Leader is [Nico Robin], draw 2 cards.\n\n[Trigger] Play this card.",
+    "effectText": "[On Play] You may trash 1 card with a [Trigger] from your hand: If your Leader is [Nico Robin], draw 2 cards.\n\n[Trigger] Play this card.",
     "traits": [
       "Ohara"
     ],
@@ -5309,16 +5462,34 @@
       "yellow"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/716522_400w.jpg",
-    "effectText": "[Activate: Main] [Once Per Turn] Give up to 1 rested DON!! card to 1 of your Leader or Character cards with the \"Special\" or \"Wisdom\" Attribute.\n\n[Trigger] If your have 2 or less Life cards, play up to 1 Character card with 6000 power or less and a [Trigger] from your hand.",
+    "effectText": "[Activate: Main] [Once Per Turn] Give up to 1 rested DON!! card to 1 of your Leader or Character cards with the <Special> or <Wisdom> attribute.\n\n[Trigger] If you have 2 or less Life cards, play up to 1 Character card with 6000 power or less and a [Trigger] from your hand.",
     "traits": [
       "East Blue"
     ],
     "hasTrigger": true,
     "attribute": "Wisdom",
     "abilitySupport": "ok"
+  },
+  "EB05-058": {
+    "id": "EB05-058",
+    "name": "Bell-mère",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725862_400w.jpg",
+    "effectText": "—",
+    "traits": [
+      "East Blue",
+      "Former Navy"
+    ],
+    "attribute": "Ranged",
+    "abilitySupport": "none"
   },
   "EB05-059": {
     "id": "EB05-059",
@@ -5328,8 +5499,8 @@
       "yellow"
     ],
     "cost": 1,
-    "imageUrl": "/cards/EB05-059.png",
-    "effectText": "[Main] Draw 1 card, and all of your Characters with 4000 base power and the {Big Mom Pirates} type cannot be K.O.'d in battle until the end of your opponent's next End Phase.\n\n[Trigger] Draw 1 card and play up to 1 Character card with 4000 power and a [Trigger] from your hand.",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723136_400w.jpg",
+    "effectText": "[Main] Draw 1 card, and all of your Characters with 4000 base power and the {Big Mom Pirates} type cannot be K.O.'d in battle until the end of your opponent's next End Phase.\n\n[Trigger] Draw 1 card, and play up to 1 Character card with 4000 power and a [Trigger] from your hand.",
     "traits": [
       "Big Mom Pirates"
     ],
@@ -5347,8 +5518,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/719549_400w.jpg",
     "effectText": "[Main] You may trash 1 of your {Egghead} type Characters with a cost of 5 or more: Add up to 1 card from the top of your deck to the top of your Life cards. [Counter] You may turn 1 card from the top of your Life cards face-up: Up to 1 of your Leader or Characters gains +4000 power during this battle.",
     "traits": [
-      "Scientist",
-      "Egghead"
+      "Egghead",
+      "Scientist"
     ],
     "abilitySupport": "ok"
   },
@@ -5362,8 +5533,15 @@
     "cost": 3,
     "power": 4000,
     "counter": 2000,
-    "imageUrl": "/cards/EB05-061.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725863_400w.jpg",
     "effectText": "[Once Per Turn] If one of your Characters with 6000 base power or less would be removed from the field by your opponent, you may add 1 card from the top of your Life cards to your hand instead. [On Play] Play up to 1 red Character card with a cost of 2 or less from your hand.",
+    "altArts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723148_400w.jpg"
+      }
+    ],
     "traits": [
       "Straw Hat Crew"
     ],
@@ -42485,6 +42663,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-013": {
+    "id": "OP18-013",
+    "name": "Pell",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725442_400w.jpg",
+    "effectText": "If your Leader has the {Alabasta} type, this Character gains [Rush]. [On Play] You may trash 1 Character card with 5000 power or less from your hand: Draw 2 cards and trash up to 1 of your opponent's Characters with 3000 base power or less.",
+    "traits": [
+      "Alabasta"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
   "OP18-015": {
     "id": "OP18-015",
     "name": "Eyelashes",
@@ -42495,7 +42691,7 @@
     "cost": 1,
     "power": 0,
     "counter": 2000,
-    "imageUrl": "/cards/OP18-015.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724463_400w.jpg",
     "effectText": "[On your Opponent's Attack] You may trash this Character: If your Leader has the {Alabasta} type, give up to 1 of your opponent's Leader or Characters −3000 power during this turn.",
     "traits": [
       "Animal",
@@ -42694,7 +42890,7 @@
     "cost": 2,
     "power": 0,
     "counter": 2000,
-    "imageUrl": "/cards/OP18-036.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724624_400w.jpg",
     "effectText": "[End of Your Turn] You may trash this Character: Draw 1 card and set your Leader as active.",
     "traits": [
       "Straw Hat Crew",
@@ -42749,7 +42945,7 @@
     "cost": 2,
     "power": 3000,
     "counter": 2000,
-    "imageUrl": "/cards/OP18-047.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724625_400w.jpg",
     "effectText": "[On Play] Your Leader with the {Cross Guild} type or a type including \"Baroque Works\" gains [Unblockable] during this turn. (This card cannot be blocked.)",
     "traits": [
       "Former Baroque Works",
@@ -42843,7 +43039,7 @@
     "cost": 3,
     "power": 1000,
     "counter": 2000,
-    "imageUrl": "/cards/OP18-063.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723309_400w.jpg",
     "effectText": "[On Play] You may K.O. 1 of your Stages with a cost of 5 or less: Add up to 1 DON!! card as rested from your DON!! deck.",
     "traits": [
       "Water Seven",
@@ -42914,7 +43110,7 @@
       "purple"
     ],
     "cost": 5,
-    "imageUrl": "/cards/OP18-077.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724626_400w.jpg",
     "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate:Main] You may rest this Stage: Up to 1 of your {Straw Hat Crew} type Characters gains [Rush: Character] during this turn.",
     "traits": [
       "Straw Hat Crew"
@@ -42950,7 +43146,7 @@
     "cost": 1,
     "power": 0,
     "counter": 2000,
-    "imageUrl": "/cards/OP18-085.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723378_400w.jpg",
     "effectText": "[Activate: Main] You may return this Character to the owner's hand: Up to 1 of your [Saint Shamrock] Characters gains [Rush], [Banish], or [Unblockable] during this turn.",
     "traits": [
       "Holy Knights of God"
@@ -43028,7 +43224,7 @@
     "cost": 2,
     "power": 2000,
     "counter": 1000,
-    "imageUrl": "/cards/OP18-092.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724684_400w.jpg",
     "effectText": "If there is a Character with a cost of 12 or more, this Character gains +3000 power. If you have 10 or more cards in your trash, this Character gains [Rush]. (This card can attack on the turn in which it is played.)",
     "traits": [
       "Straw Hat Crew",
@@ -43046,7 +43242,7 @@
     ],
     "cost": 4,
     "power": 6000,
-    "imageUrl": "/cards/OP18-101.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723531_400w.jpg",
     "effectText": "[On K.O.] Add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", K.O. or rest up to 1 of your opponent's Characters with a cost of 6 or less.",
     "traits": [
       "CP9"
@@ -43073,6 +43269,24 @@
     ],
     "attribute": "Slash",
     "abilitySupport": "keywords"
+  },
+  "OP18-108": {
+    "id": "OP18-108",
+    "name": "Funkfreed",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725207_400w.jpg",
+    "effectText": "[On Play] You may trash 1 card with a type including \"CP\" from your hand: Draw 2 cards. [Activate: Main] You may rest this Character: Up to 1 of your [Spandam] gains +1000 power during this turn.",
+    "traits": [
+      "CP9"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
   },
   "OP18-111": {
     "id": "OP18-111",
@@ -45516,7 +45730,7 @@
     ],
     "cost": 10,
     "power": 12000,
-    "imageUrl": "/cards/P-152.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/717032_400w.jpg",
     "effectText": "[On Play] Your Leader and all of your Characters gain +2000 power during this turn. Then, K.O. up to 1 of your opponent's Characters with 3000 power or less.",
     "traits": [
       "The Four Emperors",
@@ -45534,7 +45748,7 @@
     ],
     "cost": 6,
     "power": 8000,
-    "imageUrl": "/cards/P-153.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/717033_400w.jpg",
     "effectText": "[On Play] Give up to 2 of your opponent's Characters −3000 power during this turn.",
     "traits": [
       "Whitebeard Pirates"
@@ -45551,7 +45765,7 @@
     ],
     "cost": 6,
     "power": 8000,
-    "imageUrl": "/cards/P-154.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/717034_400w.jpg",
     "effectText": "[On Play] You may rest 3 of your DON!! cards: If your Leader is [Portgas.D.Ace], play up to 1 [Portgas.D.Ace] with 8000 power or less from your hand.",
     "traits": [
       "Straw Hat Crew"
@@ -45589,12 +45803,12 @@
     "cost": 7,
     "power": 6000,
     "counter": 1000,
-    "imageUrl": "/cards/P-157.png",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/717555_400w.jpg",
     "effectText": "[On Play] You may trash 1 card from your hand: Play up to 1 {Elbaph} type Character card with a cost of 4 or less from your trash.",
     "traits": [
-      "Straw Hat Crew",
+      "Elbaph",
       "The Four Emperors",
-      "Elbaph"
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
