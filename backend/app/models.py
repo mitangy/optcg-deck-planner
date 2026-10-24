@@ -87,6 +87,10 @@ class Deck(Base):
     # Baseline for Additional Cards among decks that share leader_card_id.
     # At most one True per (user, leader); unset falls back to earliest sort_order.
     is_main: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Owner opts this deck out of what friends can browse (#703).
+    hidden_from_friends: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -1086,3 +1090,110 @@ class AnalystFeedback(Base):
     model: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserSharing(Base):
+    """What a user lets accepted friends see (#703). No row means the defaults."""
+
+    __tablename__ = "user_sharing"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    decks: Mapped[str] = mapped_column(String(16), default="friends", server_default="friends")
+    collection: Mapped[str] = mapped_column(String(16), default="off", server_default="off")
+    trades_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    show_values: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Set the first time the user saves their sharing choices.
+    prompted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TradeKeep(Base):
+    """Extra copies a user holds back from their spares (#703)."""
+
+    __tablename__ = "trade_keep"
+    __table_args__ = (UniqueConstraint("user_id", "card_id", name="uq_trade_keep"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32))
+    keep_qty: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class TradeOffer(Base):
+    """A trade proposed from one friend to another (#703)."""
+
+    __tablename__ = "trade_offers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    from_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # pending | countered | accepted | declined | cancelled | completed | expired
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    message: Mapped[str] = mapped_column(String(500), default="")
+    parent_offer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("trade_offers.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    lines: Mapped[list[TradeOfferLine]] = relationship(
+        cascade="all, delete-orphan", order_by="TradeOfferLine.id"
+    )
+
+
+class TradeOfferLine(Base):
+    __tablename__ = "trade_offer_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(
+        ForeignKey("trade_offers.id", ondelete="CASCADE"), index=True
+    )
+    # From the sender's point of view: give = sender to recipient, get = recipient to sender.
+    side: Mapped[str] = mapped_column(String(8))
+    card_id: Mapped[str] = mapped_column(String(32))
+    # None is the base printing.
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty: Mapped[int] = mapped_column(Integer)
+    market_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class TradeApply(Base):
+    """One user folding a completed trade into their own collection (undoable)."""
+
+    __tablename__ = "trade_applies"
+    __table_args__ = (UniqueConstraint("offer_id", "user_id", name="uq_trade_apply"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(
+        ForeignKey("trade_offers.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    lines: Mapped[list[TradeApplyLine]] = relationship(
+        cascade="all, delete-orphan", order_by="TradeApplyLine.id"
+    )
+
+
+class TradeApplyLine(Base):
+    __tablename__ = "trade_apply_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    apply_id: Mapped[int] = mapped_column(
+        ForeignKey("trade_applies.id", ondelete="CASCADE"), index=True
+    )
+    card_id: Mapped[str] = mapped_column(String(32))
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Negative = copies removed from the collection.
+    delta: Mapped[int] = mapped_column(Integer)
+    qty_before: Mapped[int] = mapped_column(Integer)

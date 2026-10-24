@@ -14,6 +14,7 @@
     "e2e:visual": "playwright test --grep @visual"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "@tanstack/react-query": "^5.66.0",
     "@techstark/opencv-js": "^5.0.0-release.1",
     "@vercel/analytics": "^2.0.1",

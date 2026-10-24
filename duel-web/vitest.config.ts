@@ -12,7 +12,7 @@ export default defineConfig({
       { find: /^@optcg\/rules/, replacement: fileURLToPath(new URL("../packages/rules/src", import.meta.url)) },
       { find: /^@optcg\/analyst-client/, replacement: fileURLToPath(new URL("../packages/analyst-client/src", import.meta.url)) },
     ],
-    dedupe: ["react", "react-dom"],
+    dedupe: ["react", "react-dom", "@headlessui/react"],
   },
   // Package sources (no tsconfig of their own) use the same automatic JSX runtime as this app.
   esbuild: { jsx: "automatic" },
