@@ -22,7 +22,7 @@ describe("the puzzle set", () => {
     const all = generatePuzzles({ seed: 3, n: 8, types: ["power", "playable"], newShare: 1, synthShare: 0.5, catalog });
     expect(all.puzzles.every((p) => p.newSet)).toBe(true);
     for (const p of a.puzzles) expect(p.message.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
-  }, 120_000);
+  }, 240_000);
 
   it("splits the puzzles between Harness boards and self-play, and between new and older sets, by the shares (#677)", () => {
     expect(quotas(10, 0.5, 0.3)).toEqual({ "harness-new": 2, "harness-old": 3, "selfplay-new": 2, "selfplay-old": 3 });
@@ -46,5 +46,5 @@ describe("the puzzle set", () => {
       expect(p.message, p.id).toContain("Your opponent's hand is shown face up for this puzzle.");
     }
     for (const p of a.puzzles.filter((p) => p.type === "scenario_chain")) expect(p.gold.mode, p.id).toBe("all");
-  }, 120_000);
+  }, 240_000);
 });

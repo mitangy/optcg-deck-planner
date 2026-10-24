@@ -4,7 +4,7 @@ import { fixtureReplay } from "../review-facts/game";
 import { shownCardIds } from "./describe";
 import { applyIntent, listLegalIntents } from "@optcg/rules";
 import { Harness } from "@optcg/rules/src/testing/harness";
-import { isIdleMain, lethalPool, lethalPosition, newSetDeck, plainState, samplableState, samplePositions, selfPlayPositions, syntheticPositions } from "./positions";
+import { hasOnPlay, isIdleMain, lethalPool, lethalPosition, newSetDeck, plainState, samplableState, samplePositions, selfPlayPositions, syntheticPositions } from "./positions";
 import { NEW_SET } from "./types";
 import { board, KAROO, rng } from "./testkit";
 
@@ -94,6 +94,23 @@ describe("Harness boards", () => {
   });
 });
 
+describe("Harness boards and [On Play] (#697)", () => {
+  it("never mark a Character with an [On Play] as played this turn, since that effect never resolved (#697)", () => {
+    const positions = syntheticPositions({ seed: 3, count: 120, newShare: 0.3, catalog });
+    const chars = positions.flatMap((p) => p.state.players[0].characters);
+    const withOnPlay = chars.filter((c) => hasOnPlay(catalog, c.defId));
+    // The seeds must put [On Play] Characters on the board, or "never" proves nothing; some without one are still marked.
+    expect(withOnPlay.length).toBeGreaterThan(10);
+    expect(withOnPlay.filter((c) => c.summoningSick)).toEqual([]);
+    expect(chars.filter((c) => c.summoningSick && !hasOnPlay(catalog, c.defId)).length).toBeGreaterThan(3);
+  });
+
+  it("reads [On Play] from the card text, so Shanks (OP13-028) has one and a vanilla Character does not (#697)", () => {
+    expect(hasOnPlay(catalog, "OP13-028")).toBe(true);
+    expect(hasOnPlay(catalog, KAROO)).toBe(false);
+  });
+});
+
 describe("decks for the newest sets", () => {
   it("hold four copies of several OP18 or EB05 cards, the same every time for a seed (#677)", () => {
     const a = newSetDeck(rng(4), catalog);
@@ -153,19 +170,22 @@ describe("the cards of a lethal board", () => {
 });
 
 describe("lethal boards", () => {
-  it("hold a Leader and 1 to 3 Characters able to attack, 1 to 5 active DON!!, and a short face-up defence (#685)", () => {
+  it("hold a Leader and 2 to 4 Characters able to attack, 3 to 8 active DON!!, 1 to 4 Life and a face-up defence of 1 to 3 Characters and 1 to 4 Counter cards (#697)", () => {
     for (let seed = 1; seed <= 40; seed += 1) {
       const { state } = lethalPosition(rng(seed), catalog, seed % 2 === 0, `l${seed}`);
       const [me, opp] = state.players;
-      expect(me.characters.length, `seed ${seed}`).toBeGreaterThanOrEqual(1);
-      expect(me.characters.length, `seed ${seed}`).toBeLessThanOrEqual(3);
+      expect(me.characters.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
+      expect(me.characters.length, `seed ${seed}`).toBeLessThanOrEqual(4);
       const active = me.costArea.filter((d) => !d.rested).length;
-      expect(active).toBeGreaterThanOrEqual(1);
-      expect(active).toBeLessThanOrEqual(5);
+      expect(active).toBeGreaterThanOrEqual(3);
+      expect(active).toBeLessThanOrEqual(8);
       expect(me.hand).toHaveLength(0);
-      expect(opp.life.length).toBeLessThanOrEqual(2);
-      expect(opp.characters.length).toBeLessThanOrEqual(2);
-      expect(opp.hand.length).toBeLessThanOrEqual(3);
+      expect(opp.life.length).toBeGreaterThanOrEqual(1);
+      expect(opp.life.length).toBeLessThanOrEqual(4);
+      expect(opp.characters.length).toBeGreaterThanOrEqual(1);
+      expect(opp.characters.length).toBeLessThanOrEqual(3);
+      expect(opp.hand.length).toBeGreaterThanOrEqual(1);
+      expect(opp.hand.length).toBeLessThanOrEqual(4);
       expect(opp.life.every((id) => id === lethalPool(catalog).lifeFiller)).toBe(true);
       expect(listLegalIntents(state, 0).some((i) => i.type === "declare_attack" && i.target.kind === "leader")).toBe(true);
     }

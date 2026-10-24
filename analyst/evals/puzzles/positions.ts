@@ -94,6 +94,12 @@ const cardPool = (catalog: Catalog, wantNew: boolean, types: string[]): Def[] =>
   listCardDefs().filter((d) => usable(d) && types.includes(d.type) && (!wantNew || NEW_SET.test(d.id)) && ["supported", "vanilla"].includes(catalog.cards.get(d.id)?.support ?? ""));
 
 
+/** The card has an [On Play]: put on the field by the Harness it never resolved, so the board must not say it was just played. */
+export const hasOnPlay = (catalog: Catalog, defId: string): boolean => {
+  const row = catalog.cards.get(defId);
+  return !row || row.text.includes("[On Play]") || row.timings.includes("on_play") || (catalog.abilities.get(defId) ?? []).some((a) => a.trigger === "on_play");
+};
+
 /**
  * A Harness board: Leaders, up to 5 Characters and maybe a Stage per side, DON!! attached to Leaders and Characters, a hand,
  * a trash, rested and just-played Characters. Seat 0 is in its Main Phase. With `wantNew`, most cards come from OP18 / EB05.
@@ -125,7 +131,8 @@ export function syntheticPosition(rng: Rng, catalog: Catalog, wantNew: boolean, 
     const placed = onField.length ? h.field(seat, ...onField) : [];
     for (const c of placed) {
       c.rested = rng.next() < 0.3;
-      if (seat === 0 && rng.next() < 0.3) {
+      // "Played this turn" says its [On Play] has resolved, which a card set down by the Harness never did.
+      if (seat === 0 && rng.next() < 0.3 && !hasOnPlay(catalog, c.defId)) {
         c.summoningSick = true;
         c.playedTurn = h.state.turnNumber;
       }
@@ -174,6 +181,8 @@ export type LethalPool = {
   /** Characters with no text but keywords ([Blocker], [Rush], [Double Attack], [Banish]). */
   chars: string[];
   blockers: string[];
+  /** Characters with [Double Attack] or [Banish]. */
+  heavy: string[];
   /** Characters that can be trashed for a Counter. */
   counterChars: string[];
   /** Counter Events that only add power during the battle. */
@@ -200,6 +209,7 @@ export function lethalPool(catalog: Catalog): LethalPool {
     attackLeaders: rows.filter((r) => r.type === "leader" && !r.timings.length && r.life != null && !SHARES_DON.test(r.text)).map((r) => r.id),
     chars: chars.map((r) => r.id),
     blockers: chars.filter((r) => r.keywords.includes("Blocker")).map((r) => r.id),
+    heavy: chars.filter((r) => r.keywords.includes("Double Attack") || r.keywords.includes("Banish")).map((r) => r.id),
     counterChars: chars.filter((r) => (r.counter ?? 0) > 0).map((r) => r.id),
     events: rows.filter((r) => r.type === "event" && r.timings.includes("counter") && r.effects.join() === "power" && (r.cost ?? 9) <= 2 && SIMPLE_COUNTER.test(r.text)).map((r) => r.id),
     lifeFiller: filler.id,
@@ -209,9 +219,10 @@ export function lethalPool(catalog: Catalog): LethalPool {
 }
 
 /**
- * A small Harness board built for the lethal puzzle: seat 0 (empty hand, 1 to 5 active DON!!, a Leader and 1 to 3 Characters
- * that can all attack) in its Main Phase against 0 to 2 Life cards that have no [Trigger], 0 to 2 Characters (about half
- * [Blocker]) and a hand of 0 to 3 Counter cards. Only cards the engine runs with no choices to make are used.
+ * A Harness board built for the lethal puzzle: seat 0 (empty hand, 3 to 8 active DON!!, a Leader and 2 to 4 Characters that can
+ * all attack, many with [Double Attack] or [Banish]) in its Main Phase against 1 to 4 Life cards that have no [Trigger], 1 to 3
+ * Characters (most [Blocker], some rested) and a hand of 1 to 4 Counter cards. Only cards the engine runs with no choices to
+ * make are used.
  */
 export function lethalPosition(rng: Rng, catalog: Catalog, wantNew: boolean, label: string): Position {
   const pool = lethalPool(catalog);
@@ -222,20 +233,21 @@ export function lethalPosition(rng: Rng, catalog: Catalog, wantNew: boolean, lab
   };
   const power = (id: string) => catalog.cards.get(id)?.power ?? 0;
   const striker = pool.chars.filter((id) => power(id) >= 3000 && power(id) <= 8000);
+  const heavy = pool.heavy.filter((id) => power(id) >= 3000 && power(id) <= 8000);
   const h = new Harness({ leaders: [pick(pool.attackLeaders), pick(pool.leaders)], seed: 1 + rng.nextInt(1_000_000), deckSize: 20 });
   // How many of something: the index of the share the roll lands in.
   const count = (shares: number[]) => {
     let roll = rng.next();
     return shares.findIndex((s) => (roll -= s) < 0);
   };
-  h.don(0, 1 + count([0.15, 0.25, 0.3, 0.2, 0.1]));
+  h.don(0, 3 + count([0.05, 0.1, 0.15, 0.2, 0.2, 0.3]));
   h.don(1, rng.nextInt(4));
-  h.field(0, ...Array.from({ length: 1 + count([0.3, 0.45, 0.25]) }, () => pick(striker)));
-  // Mostly 1 or 2 Life and 1 or 2 Characters on the far side: no Life, or nobody to block, leaves little to work out.
-  const defenders = h.field(1, ...Array.from({ length: count([0.15, 0.4, 0.45]) }, () => pick(rng.next() < 0.55 ? pool.blockers : pool.chars)));
-  for (const c of defenders) if (rng.next() < 0.3) c.rested = true;
+  h.field(0, ...Array.from({ length: 2 + count([0.2, 0.4, 0.4]) }, () => pick(heavy.length && rng.next() < 0.4 ? heavy : striker)));
+  // Plenty of Life and of Blockers to get past: the order of the attacks and who takes the Blocker's block is what decides it.
+  const defenders = h.field(1, ...Array.from({ length: 1 + count([0.3, 0.45, 0.25]) }, () => pick(rng.next() < 0.7 ? pool.blockers : pool.chars)));
+  for (const c of defenders) if (rng.next() < 0.2) c.rested = true;
   h.life(0, ...Array.from({ length: 3 }, () => pool.lifeFiller));
-  h.life(1, ...Array.from({ length: count([0.1, 0.4, 0.5]) }, () => pool.lifeFiller));
-  h.hand(1, ...Array.from({ length: count([0.15, 0.4, 0.3, 0.15]) }, () => (pool.events.length && rng.next() < 0.35 ? pick(pool.events) : pick(pool.counterChars))));
+  h.life(1, ...Array.from({ length: 1 + count([0.1, 0.25, 0.35, 0.3]) }, () => pool.lifeFiller));
+  h.hand(1, ...Array.from({ length: 1 + count([0.3, 0.35, 0.25, 0.1]) }, () => (pool.events.length && rng.next() < 0.35 ? pick(pool.events) : pick(pool.counterChars))));
   return { id: label, state: h.state, source: "harness lethal", synthetic: true };
 }
