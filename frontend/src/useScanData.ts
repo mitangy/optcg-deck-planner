@@ -15,6 +15,8 @@ import {
   type DescriptorManifest,
   type DownloadProgress,
 } from "./descriptorCache";
+import { activateCardDetector, ensureCardDetector } from "./cardDetectorCache";
+import { activateCardEmbedder, ensureCardEmbedder, releaseCardEmbedder } from "./cardEmbedCache";
 import {
   loadCandidates,
   releaseCandidates,
@@ -67,6 +69,7 @@ export function useScanData(active: boolean) {
   useEffect(() => {
     return () => {
       if (candidatesRef.current) {
+        void releaseCardEmbedder();
         void releaseCandidates(candidatesRef.current);
         candidatesRef.current = null;
       }
@@ -77,6 +80,21 @@ export function useScanData(active: boolean) {
     setState({ kind: "preparing" });
     const candidates = await loadCandidates(manifest);
     candidatesRef.current = candidates;
+    // The art embedder orders the search (see cardEmbed.ts); same pattern as the
+    // detector below: stored copy first, fetch if missing, never block on it.
+    void (async () => {
+      const had = await activateCardEmbedder(candidates);
+      await ensureCardEmbedder(SCAN_DATA_BASE);
+      if (!had) await activateCardEmbedder(candidates);
+    })();
+    // The learned card detector is an optional upgrade over the OpenCV one:
+    // load it in the background (offline copy first, then fetch it for people
+    // who downloaded the descriptors before it existed); never block on it.
+    void (async () => {
+      const had = await activateCardDetector();
+      await ensureCardDetector(SCAN_DATA_BASE);
+      if (!had) await activateCardDetector();
+    })();
     setState({ kind: "ready", candidates, totalBytes: manifest.totalBytes });
   }, []);
 
