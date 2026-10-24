@@ -110,6 +110,7 @@ def test_old_rows_get_defaults_for_every_added_column(legacy_engine):
         assert user.username is None
         deck = db.query(Deck).one()
         assert deck.is_main is False
+        assert deck.hidden_from_friends is False
         assert deck.leader_card_id == "OP01-001"
         gb = db.query(GroupBuy).one()
         assert gb.is_public is False

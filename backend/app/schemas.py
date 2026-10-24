@@ -38,11 +38,16 @@ class DeckCreate(BaseModel):
 
 
 class DeckRename(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    """PATCH /decks/{id}: rename, hide from friends, or both (#703)."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    hidden_from_friends: bool | None = None
 
     @field_validator("name")
     @classmethod
-    def _strip_name(cls, value: str) -> str:
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip()
         if not value:
             raise ValueError("Deck name cannot be blank")
@@ -73,6 +78,7 @@ class DeckSummary(BaseModel):
     sort_order: int
     # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False
+    hidden_from_friends: bool = False
 
 
 class CatalogCardResult(BaseModel):
@@ -199,6 +205,7 @@ class DeckDetail(BaseModel):
     # Name of the Main deck this list is compared against (empty when this is Main).
     prior_decks: list[str] = []
     is_main: bool = False
+    hidden_from_friends: bool = False
     cards: list[CardView]
     main_cards: int = 0
     don_cards: int = 0

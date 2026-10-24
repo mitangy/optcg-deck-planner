@@ -397,6 +397,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 owned_copies=owned_copies,
                 sort_order=deck.sort_order,
                 is_main=is_main,
+                hidden_from_friends=bool(deck.hidden_from_friends),
             )
         )
     # Group by leader (no-leader last). Within a group: Main first, then sort_order.
@@ -475,6 +476,43 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     return deck
 
 
+def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
+    """Copy another deck's list (card rows only, not printings) into ``user``'s decks (#703)."""
+    deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
+    if deck_count + 1 > MAX_DECKS_PER_USER:
+        raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
+    max_order = db.scalar(
+        select(Deck.sort_order).where(Deck.user_id == user.id).order_by(Deck.sort_order.desc())
+    )
+    is_main = False
+    if source.leader_card_id:
+        is_main = (
+            db.scalar(
+                select(Deck.id).where(
+                    Deck.user_id == user.id, Deck.leader_card_id == source.leader_card_id
+                )
+            )
+            is None
+        )
+    deck = Deck(
+        user_id=user.id,
+        name=name[:200],
+        leader_card_id=source.leader_card_id,
+        is_main=is_main,
+        sort_order=(max_order or 0) + 1,
+    )
+    db.add(deck)
+    db.flush()
+    for card in source.cards:
+        db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
+    db.commit()
+    db.refresh(deck)
+    from app import group_buy
+
+    group_buy.include_deck_in_open_group_buys(db, user, deck.id)
+    return deck
+
+
 def delete_deck(db: Session, user: User, deck_id: int) -> None:
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
@@ -505,6 +543,30 @@ def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
     deck.name = name
     db.commit()
     return get_deck_detail(db, user, deck_id)
+
+
+def update_deck(
+    db: Session,
+    user: User,
+    deck_id: int,
+    name: str | None,
+    hidden_from_friends: bool | None = None,
+) -> DeckDetail:
+    """PATCH /decks/{id}: rename and/or hide the deck from friends (#703)."""
+    if name is None and hidden_from_friends is None:
+        raise ValueError("Nothing to update")
+    detail: DeckDetail | None = None
+    if name is not None:
+        detail = rename_deck(db, user, deck_id, name)
+    if hidden_from_friends is not None:
+        deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
+        if deck is None:
+            raise LookupError("Deck not found")
+        deck.hidden_from_friends = hidden_from_friends
+        db.commit()
+        detail = get_deck_detail(db, user, deck_id)
+    assert detail is not None
+    return detail
 
 
 def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
@@ -616,6 +678,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
         leader_name=leader_name,
         prior_decks=prior_names,
         is_main=is_main,
+        hidden_from_friends=bool(target.hidden_from_friends),
         cards=cards,
         main_cards=main_cards,
         don_cards=don_cards,
