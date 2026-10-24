@@ -136,6 +136,43 @@ def test_you_can_ask_while_your_own_trades_are_closed_703(client):
     assert _send(c, me, kai, [_line("give", "OP01-001"), _line("get", "OP01-002")]).status_code == 201
 
 
+def test_standard_printing_trade_line_cannot_exceed_base_copies_705(client):
+    c, S = client
+    me, kai = _setup(S, client[0])
+    own(S, me, "OP01-001", 1)  # 1 base copy ...
+    add_alt(S, "OP01-001", 101, "Zoro (Alt Art)", 20.0)
+    own_alt(S, me, "OP01-001", 101, 3)  # ... and 3 alts: 4 spare in total, only 1 standard
+    take = _line("get", "OP01-002")
+    # The spares list tells the tray how many standard copies are really there.
+    seen = as_user(c, kai).get(f"/friends/{me}/spares").json()["their_spares"]
+    zoro = next(i for i in seen if i["card_id"] == "OP01-001")
+    assert (zoro["spare"], zoro["base_owned"]) == (4, 1)
+    r = _send(c, me, kai, [_line("give", "OP01-001", 4), take])
+    assert r.status_code == 409
+    assert "own 4 of the standard printing of OP01-001" in r.json()["detail"]
+    assert _send(c, me, kai, [_line("give", "OP01-001", 1), take]).status_code == 201
+    # Standard lines still count against the shared spare with an alt line.
+    assert _send(c, me, kai, [_line("give", "OP01-001", 1), _line("give", "OP01-001", 3, 101), take]).status_code == 201
+
+
+def test_standard_printing_with_no_base_copies_cannot_be_traded_even_with_alts_705(client):
+    c, S = client
+    me, kai = _setup(S, client[0])
+    add_alt(S, "OP01-001", 101, "Zoro (Alt Art)", 20.0)
+    own(S, me, "OP01-001", 0)
+    own_alt(S, me, "OP01-001", 101, 2)
+    r = _send(c, me, kai, [_line("give", "OP01-001", 2), _line("get", "OP01-002")])
+    assert r.status_code == 409
+    # Their side too: asking for standard copies of a card they only own as alts.
+    add_alt(S, "OP01-002", 201, "Nami (Alt Art)", 9.0)
+    own(S, kai, "OP01-002", 0)
+    own_alt(S, kai, "OP01-002", 201, 2)
+    r = _send(c, me, kai, [_line("give", "OP01-001", 1, 101), _line("get", "OP01-002", 2)])
+    assert r.status_code == 409
+    assert "Kai doesn't own 2 of the standard printing of OP01-002" in r.json()["detail"]
+    assert _send(c, me, kai, [_line("give", "OP01-001", 1, 101), _line("get", "OP01-002", 2, 201)]).status_code == 201
+
+
 def test_an_alt_printing_must_be_owned_to_be_offered_703(client):
     c, S = client
     me, kai = _setup(S, client[0])
