@@ -71,7 +71,7 @@ async function press(key: string) {
 const sheet = () => document.querySelector<HTMLElement>(".sheet-backdrop");
 
 describe("HotkeyHelpSheet", () => {
-  it("? opens it as a modal named Keyboard shortcuts (#700-2)", async () => {
+  it("? opens it as a modal named Keyboard shortcuts (#708)", async () => {
     await mount();
     await press("?");
     expect(onHelp).toHaveBeenCalledTimes(1);
@@ -80,7 +80,7 @@ describe("HotkeyHelpSheet", () => {
     expect(sheet()!.querySelector(".sheet .hotkey-row")).not.toBeNull();
   });
 
-  it("Escape closes the sheet and the board's own Escape does not also run (#700-2)", async () => {
+  it("Escape closes the sheet and the board's own Escape does not also run (#708)", async () => {
     await mount();
     await press("?");
     await press("Escape");
@@ -88,7 +88,7 @@ describe("HotkeyHelpSheet", () => {
     expect(onEscape).not.toHaveBeenCalled();
   });
 
-  it("Escape reaches the board again once the sheet is closed (#700-2)", async () => {
+  it("Escape reaches the board again once the sheet is closed (#708)", async () => {
     await mount();
     await press("?");
     await press("Escape");
@@ -96,7 +96,7 @@ describe("HotkeyHelpSheet", () => {
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
-  it("a board key typed inside the open sheet does nothing (#700-2)", async () => {
+  it("a board key typed inside the open sheet does nothing (#708)", async () => {
     await mount();
     await press("?");
     await press("?");
@@ -104,7 +104,7 @@ describe("HotkeyHelpSheet", () => {
     expect(sheet()).not.toBeNull();
   });
 
-  it("focus moves into the sheet and returns to the control that opened it (#700-2)", async () => {
+  it("focus moves into the sheet and returns to the control that opened it (#708)", async () => {
     await mount();
     const settings = document.getElementById("settings") as HTMLButtonElement;
     settings.focus();
@@ -118,7 +118,7 @@ describe("HotkeyHelpSheet", () => {
     expect(document.activeElement).toBe(settings);
   });
 
-  it("a click on the backdrop closes it, a click on the list does not (#700-2)", async () => {
+  it("a click on the backdrop closes it, a click on the list does not (#708)", async () => {
     await mount();
     await press("?");
     const click = async (el: Element) =>

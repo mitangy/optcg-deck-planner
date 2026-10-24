@@ -70,13 +70,13 @@ async function mountOpen() {
 }
 
 describe("Menu", () => {
-  it("opens from the keyboard in a portal, so opening cannot move the trigger or its neighbours (#700-2)", async () => {
+  it("opens from the keyboard in a portal, so opening cannot move the trigger or its neighbours (#708)", async () => {
     await mountOpen();
     expect(list()).not.toBeNull();
     expect(document.getElementById("host")!.contains(list())).toBe(false);
   });
 
-  it("arrow keys move through the items and Enter picks one (#700-2)", async () => {
+  it("arrow keys move through the items and Enter picks one (#708)", async () => {
     await mountOpen();
     await key("ArrowDown");
     await key("Enter");
@@ -84,7 +84,7 @@ describe("Menu", () => {
     expect(list()).toBeNull();
   });
 
-  it("Escape closes it and focus returns to the button (#700-2)", async () => {
+  it("Escape closes it and focus returns to the button (#708)", async () => {
     await mountOpen();
     await key("Escape");
     expect(list()).toBeNull();

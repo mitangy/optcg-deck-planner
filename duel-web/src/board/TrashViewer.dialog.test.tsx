@@ -68,7 +68,7 @@ async function openCard() {
 }
 
 describe("TrashViewer as a dialog", () => {
-  it("opens as a modal named by its title, focus moves in, and Escape closes it and gives focus back (#700-2)", async () => {
+  it("opens as a modal named by its title, focus moves in, and Escape closes it and gives focus back (#708)", async () => {
     await mountOpen();
     expect(viewer()!.getAttribute("role")).toBe("dialog");
     expect(viewer()!.getAttribute("aria-label")).toBe("Your trash");
@@ -78,7 +78,7 @@ describe("TrashViewer as a dialog", () => {
     expect(document.activeElement).toBe(document.getElementById("pile"));
   });
 
-  it("a click outside the pile closes it, a click on the pile does not (#700-2)", async () => {
+  it("a click outside the pile closes it, a click on the pile does not (#708)", async () => {
     await mountOpen();
     await click(document.querySelector(".trash-viewer-grid")!);
     expect(viewer()).not.toBeNull();
@@ -86,7 +86,7 @@ describe("TrashViewer as a dialog", () => {
     expect(viewer()).toBeNull();
   });
 
-  it("a card opened from the pile does not close the pile when clicked, and Escape closes only the card first (#700-2)", async () => {
+  it("a card opened from the pile does not close the pile when clicked, and Escape closes only the card first (#708)", async () => {
     await mountOpen();
     await openCard();
     expect(inspect()).not.toBeNull();

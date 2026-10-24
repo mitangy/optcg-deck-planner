@@ -72,7 +72,7 @@ async function click(el: Element) {
 }
 
 describe("Dialog", () => {
-  it("opens as a named modal on the backdrop class, outside the host tree (#700-2)", async () => {
+  it("opens as a named modal on the backdrop class, outside the host tree (#708)", async () => {
     mount();
     expect(dialog()).toBeNull();
     await open();
@@ -84,7 +84,7 @@ describe("Dialog", () => {
     expect(host!.contains(d)).toBe(false);
   });
 
-  it("moves focus into the dialog on open and back to the trigger on close (#700-2)", async () => {
+  it("moves focus into the dialog on open and back to the trigger on close (#708)", async () => {
     mount();
     await open();
     expect(dialog()!.contains(document.activeElement)).toBe(true);
@@ -93,14 +93,14 @@ describe("Dialog", () => {
     expect(document.activeElement).toBe(trigger());
   });
 
-  it("Escape closes it (#700-2)", async () => {
+  it("Escape closes it (#708)", async () => {
     mount();
     await open();
     await press("Escape");
     expect(dialog()).toBeNull();
   });
 
-  it("a click outside the panel closes it, a click inside does not (#700-2)", async () => {
+  it("a click outside the panel closes it, a click inside does not (#708)", async () => {
     mount();
     await open();
     await click(document.getElementById("inside")!);

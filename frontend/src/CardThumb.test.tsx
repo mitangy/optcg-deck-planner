@@ -53,7 +53,7 @@ async function click(el: Element) {
 }
 
 describe("CardThumb lightbox", () => {
-  it("opens as a named modal with the large art and focus inside (#700-2)", async () => {
+  it("opens as a named modal with the large art and focus inside (#708)", async () => {
     await mountOpen();
     expect(lightbox()!.getAttribute("role")).toBe("dialog");
     expect(lightbox()!.getAttribute("aria-label")).toBe("Expanded card art");
@@ -61,14 +61,14 @@ describe("CardThumb lightbox", () => {
     expect(lightbox()!.contains(document.activeElement)).toBe(true);
   });
 
-  it("Escape closes it and focus returns to the thumbnail (#700-2)", async () => {
+  it("Escape closes it and focus returns to the thumbnail (#708)", async () => {
     await mountOpen();
     await press("Escape");
     expect(lightbox()).toBeNull();
     expect(document.activeElement).toBe(thumbBtn());
   });
 
-  it("a click on the art keeps it open, a click beside it closes it (#700-2)", async () => {
+  it("a click on the art keeps it open, a click beside it closes it (#708)", async () => {
     await mountOpen();
     await click(lightbox()!.querySelector("img.lightbox-img")!);
     expect(lightbox()).not.toBeNull();
@@ -76,7 +76,7 @@ describe("CardThumb lightbox", () => {
     expect(lightbox()).toBeNull();
   });
 
-  it("the Close button closes it (#700-2)", async () => {
+  it("the Close button closes it (#708)", async () => {
     await mountOpen();
     await click(lightbox()!.querySelector(".lightbox-close")!);
     expect(lightbox()).toBeNull();
