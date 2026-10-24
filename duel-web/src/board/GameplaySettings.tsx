@@ -1,6 +1,6 @@
-import { Fragment, useEffect, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { OppHandSpot } from "./panelLayout";
-import { createPortal } from "react-dom";
+import { Dialog } from "@optcg/ui/popups";
 import {
   updateSettings,
   useDuelSettings,
@@ -630,33 +630,16 @@ export function GameplaySettingsFields() {
 
 /** In-match sheet so settings change without leaving the game. */
 export function GameplaySettingsSheet({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return createPortal(
-    <div
-      className="sheet-backdrop"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Gameplay settings">
-        <div className="sheet-head">
-          <span className="icon-btn-spacer" aria-hidden />
-          <h2 className="sheet-title">Gameplay</h2>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        <GameplaySettingsFields />
+  return (
+    <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Gameplay settings">
+      <div className="sheet-head">
+        <span className="icon-btn-spacer" aria-hidden />
+        <h2 className="sheet-title">Gameplay</h2>
+        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+          ✕
+        </button>
       </div>
-    </div>,
-    document.body,
+      <GameplaySettingsFields />
+    </Dialog>
   );
 }
