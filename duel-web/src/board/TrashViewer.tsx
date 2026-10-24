@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import type { Seat } from "../net/protocol";
 import { CardTile } from "./CardTile";
 
@@ -54,31 +54,30 @@ export function groupTrashByCard(newestFirst: readonly string[]): { defId: strin
 
 /** Public trash browser — both seats can open either pile. */
 export function TrashViewer(props: Props) {
-  const { onClose, title } = props;
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return createPortal(
-    <div
+  const { onClose, title, sortable } = props;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
       className="trash-viewer-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onClose}
+      panelClassName={`trash-viewer${sortable ? " is-sortable" : ""}`}
+      label={title}
     >
-      <TrashViewerPanel {...props} />
-    </div>,
-    document.body,
+      <TrashViewerContent {...props} />
+    </Dialog>
   );
 }
 
-/** The panel itself (exported so it can be rendered without a portal in tests). */
-export function TrashViewerPanel({
+/** The panel itself (exported so it can be rendered without a dialog in tests). */
+export function TrashViewerPanel(props: Props) {
+  return (
+    <div className={`trash-viewer${props.sortable ? " is-sortable" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <TrashViewerContent {...props} />
+    </div>
+  );
+}
+
+function TrashViewerContent({
   cards,
   title,
   onClose,
@@ -97,7 +96,7 @@ export function TrashViewerPanel({
   };
 
   return (
-    <div className={`trash-viewer${sortable ? " is-sortable" : ""}`} onClick={(e) => e.stopPropagation()}>
+    <>
       <div className="trash-viewer-toolbar">
         <div className="trash-viewer-heading">
           <h2 className="trash-viewer-title">{title}</h2>
@@ -161,7 +160,7 @@ export function TrashViewerPanel({
               ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 

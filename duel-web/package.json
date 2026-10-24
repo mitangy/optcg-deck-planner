@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.2",
+    "@headlessui/react": "^2.2.10",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "react": "^19.0.0",
