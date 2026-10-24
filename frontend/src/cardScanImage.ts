@@ -15,6 +15,9 @@ import { scanLog } from "./scanLog";
  */
 const MAX_WORK_EDGE = 2000;
 
+/** Many cards in one frame: each gets fewer pixels, so keep more of them. */
+export const MULTI_MAX_WORK_EDGE = 3000;
+
 /** Decode a file into something drawable, honouring EXIF orientation. */
 export async function loadImage(file: Blob): Promise<ImageBitmap> {
   try {
@@ -63,11 +66,11 @@ export async function readDroppedImage(dt: DataTransfer): Promise<DropResult> {
 }
 
 /** Decode a capture and return pixels, downscaled if oversized. */
-export async function loadImageForScan(file: Blob): Promise<ImageData> {
+export async function loadImageForScan(file: Blob, maxEdge = MAX_WORK_EDGE): Promise<ImageData> {
   const bitmap = await loadImage(file);
   try {
     const longest = Math.max(bitmap.width, bitmap.height);
-    const scale = longest > MAX_WORK_EDGE ? MAX_WORK_EDGE / longest : 1;
+    const scale = longest > maxEdge ? maxEdge / longest : 1;
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
     if (scale < 1) scanLog("scan:downscale", `${bitmap.width}x${bitmap.height} -> ${width}x${height}`);
