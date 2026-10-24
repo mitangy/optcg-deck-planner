@@ -69,3 +69,56 @@ describe("AltArtsRow preview fallback", () => {
     expect(exhaust(tile)).toBe(PREVIEW);
   });
 });
+
+describe("AltArtsRow Show control (#702)", () => {
+  function renderShow(shown: number | null, onShow: (id: number) => void) {
+    const host = document.createElement("div");
+    document.body.append(host);
+    act(() => {
+      createRoot(host).render(
+        <QueryClientProvider client={new QueryClient()}>
+          <AltArtsRow
+            alts={[alt]}
+            cardId={CARD_ID}
+            base={{ name: "Base", image_url: "b.jpg", market_price: null, product_id: 999999 }}
+            shownProductId={shown}
+            onShow={onShow}
+          />
+        </QueryClientProvider>,
+      );
+    });
+    return host;
+  }
+
+  it("clicking Show on an alt calls onShow with its product id (#702)", () => {
+    const calls: number[] = [];
+    const host = renderShow(null, (id) => calls.push(id));
+    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Show Alt art as the card's art"]`)!;
+    act(() => btn.click());
+    expect(calls).toEqual([alt.product_id]);
+  });
+
+  it("the shown tile has a Shown chip and no Show button (#702)", () => {
+    const calls: number[] = [];
+    const host = renderShow(alt.product_id, (id) => calls.push(id));
+    const altTile = host.querySelector(".alt-art:not(.alt-art-base)")!;
+    expect(altTile.querySelector(".alt-shown-chip")?.textContent).toBe("Shown");
+    expect(altTile.querySelector("button.alt-show-btn")).toBeNull();
+    const baseBtn = host.querySelector<HTMLButtonElement>(".alt-art-base button.alt-show-btn")!;
+    act(() => baseBtn.click());
+    expect(calls).toEqual([0]);
+  });
+
+  it("shows no Show controls without onShow, as on share pages (#702)", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    act(() => {
+      createRoot(host).render(
+        <QueryClientProvider client={new QueryClient()}>
+          <AltArtsRow alts={[alt]} cardId={CARD_ID} shownProductId={alt.product_id} />
+        </QueryClientProvider>,
+      );
+    });
+    expect(host.querySelector(".alt-show-btn, .alt-shown-chip")).toBeNull();
+  });
+});

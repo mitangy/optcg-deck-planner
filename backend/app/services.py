@@ -27,6 +27,7 @@ from app.models import (
     DeckCard,
     DeckCardPrinting,
     Owned,
+    CardDisplayChoice,
     OwnedPrinting,
     ShareLink,
     ShoppingExtra,
@@ -248,6 +249,14 @@ def _alt_owned_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
     return dict(out)
 
 
+def _display_choice_map(db: Session, user_id: int) -> dict[str, int]:
+    """card_id -> chosen display art (0 = base, >0 = product id)."""
+    rows = db.scalars(
+        select(CardDisplayChoice).where(CardDisplayChoice.user_id == user_id)
+    ).all()
+    return {r.card_id: r.product_id for r in rows}
+
+
 def _alts_owned_total(alt_owned: dict[str, dict[int, int]], card_id: str) -> int:
     return sum(alt_owned.get(card_id, {}).values())
 
@@ -282,6 +291,7 @@ def _card_view(
     earlier_leaders_need: int = 0,
     earlier_leaders: list[str] | None = None,
     alts_owned: int = 0,
+    display_art: int | None = None,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
     # Alt copies count as owned for what is still needed.
@@ -306,6 +316,7 @@ def _card_view(
         product_id=product_id,
         section=section,
         alt_arts=alt_arts or [],
+        display_art=display_art,
     )
 
 
@@ -522,6 +533,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
 
     owned = _owned_map(db, user.id)
     alt_owned = _alt_owned_map(db, user.id)
+    display_choices = _display_choice_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, all_ids | leader_ids)
@@ -587,6 +599,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
                 earlier_leaders_need=earlier_need.get(card.card_id, 0),
                 earlier_leaders=earlier_labels.get(card.card_id, []),
                 alts_owned=_alts_owned_total(alt_owned, card.card_id),
+                display_art=display_choices.get(card.card_id),
             )
         )
 
@@ -1078,6 +1091,7 @@ def shopping_list(
 
     owned = _owned_map(db, user.id)
     alt_owned = _alt_owned_map(db, user.id)
+    display_choices = _display_choice_map(db, user.id)
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, set(need) | leader_ids)
     product_ids = _primary_product_ids(db, set(need))
@@ -1181,6 +1195,7 @@ def shopping_list(
                 product_id=product_ids.get(card_id),
                 used_in=used_in[card_id],
                 alt_arts=card_alts,
+                display_art=display_choices.get(card_id),
                 deck_sort_key=deck_sort_key,
                 primary_leader_card_id=primary_leader_card_id,
                 primary_leader_name=primary_leader_name,
@@ -1317,6 +1332,41 @@ def set_alt_owned(db: Session, user: User, card_id: str, product_id: int, qty: i
         row.qty = qty
     db.commit()
     return qty
+
+
+def set_display_art(
+    db: Session, user: User, card_id: str, product_id: int | None
+) -> int | None:
+    """Choose which art a card shows (None = automatic, 0 = base, >0 = printing)."""
+    card_id = card_id.upper().strip()
+    row = db.scalar(
+        select(CardDisplayChoice).where(
+            CardDisplayChoice.user_id == user.id,
+            CardDisplayChoice.card_id == card_id,
+        )
+    )
+    if product_id is None:
+        if row is not None:
+            db.delete(row)
+            db.commit()
+        return None
+    if product_id < 0:
+        raise ValueError("Invalid display art")
+    if product_id > 0:
+        printing = db.scalar(
+            select(CatalogPrinting).where(
+                CatalogPrinting.card_id == card_id,
+                CatalogPrinting.product_id == product_id,
+            )
+        )
+        if printing is None:
+            raise ValueError("Unknown printing for this card")
+    if row is None:
+        db.add(CardDisplayChoice(user_id=user.id, card_id=card_id, product_id=product_id))
+    else:
+        row.product_id = product_id
+    db.commit()
+    return product_id
 
 
 def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
@@ -1567,6 +1617,7 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
                     product_id=card.product_id,
                     used_in=[detail.name],
                     alt_arts=card.alt_arts,
+                    display_art=card.display_art,
                     primary_leader_card_id=detail.leader_card_id,
                     primary_leader_name=detail.leader_name,
                     leader_count=1,
