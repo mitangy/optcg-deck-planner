@@ -116,7 +116,9 @@ def rename_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.rename_deck(db, user, deck_id, body.name)
+        return services.update_deck(
+            db, user, deck_id, body.name, body.hidden_from_friends
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

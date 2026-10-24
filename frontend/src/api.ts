@@ -25,7 +25,7 @@ export function getApiBaseUrl(): string {
   return API_URL;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     ...(init?.headers || {}),
   };
@@ -62,6 +62,8 @@ export type User = {
   name: string;
   /** Shopping Need sums copies across distinct leaders instead of max across decks. */
   sum_across_leaders?: boolean;
+  /** Public handle shared with duel-web; null until picked. */
+  username?: string | null;
 };
 
 export type DeckSummary = {
@@ -79,6 +81,8 @@ export type DeckSummary = {
   sort_order: number;
   /** Effective Main for this leader (explicit or earliest same-leader fallback). */
   is_main?: boolean;
+  /** Friends can't see this deck. */
+  hidden_from_friends?: boolean;
 };
 
 export type PrintingView = {
@@ -146,6 +150,7 @@ export type DeckDetail = {
   cards: CardView[];
   main_cards?: number;
   don_cards?: number;
+  hidden_from_friends?: boolean;
 };
 
 export type ShoppingItem = {

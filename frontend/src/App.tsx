@@ -64,6 +64,11 @@ import { CompassIcon } from "./ThemeIcons";
 import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
+import { FriendsNavLink } from "./friends/FriendsNavLink";
+import { FriendsPage } from "./friends/FriendsPage";
+import { FriendPage } from "./friends/FriendPage";
+import { FriendDeckPage } from "./friends/FriendDeckPage";
+import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
@@ -541,6 +546,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
             <NavLink to="/decks">Decks</NavLink>
             <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
+            <FriendsNavLink />
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
           </nav>
@@ -4087,6 +4093,7 @@ function DeckDetailPage() {
           >
             {(close) => (
               <div className="head-popover-menu" role="menu">
+                <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} close={close} />
                 {data.leader_card_id && !data.is_main && (
                   <button
                     type="button"
@@ -4699,6 +4706,30 @@ export default function App() {
           element={
             <RequireAuth>
               <CollectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <RequireAuth>
+              <FriendsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends/:username"
+          element={
+            <RequireAuth>
+              <FriendPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends/:username/decks/:deckId"
+          element={
+            <RequireAuth>
+              <FriendDeckPage />
             </RequireAuth>
           }
         />

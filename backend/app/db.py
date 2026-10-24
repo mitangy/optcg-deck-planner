@@ -154,6 +154,12 @@ def _ensure_user_username(bind: Engine | None = None) -> None:
         )
 
 
+def _ensure_deck_hidden_from_friends() -> None:
+    """Add decks.hidden_from_friends on existing DBs; old decks stay visible to friends (#703)."""
+    false = "FALSE" if engine.dialect.name == "postgresql" else "0"
+    _add_columns("decks", [("hidden_from_friends", f"BOOLEAN NOT NULL DEFAULT {false}")])
+
+
 def _ensure_duel_match_replay_columns() -> None:
     """Add leader ids and turn count to duel_matches on existing DBs."""
     inspector = inspect(engine)
@@ -350,6 +356,7 @@ def init_db() -> None:
     _ensure_user_session_version()
     _ensure_deck_is_main()
     _ensure_user_sum_across_leaders()
+    _ensure_deck_hidden_from_friends()
     _ensure_user_username()
     _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
