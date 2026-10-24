@@ -27,6 +27,13 @@ export type SourceHooks = {
   card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
   /** Where a deck ("planner:<id>" or "duel:<id>") can be opened in the app, for an edit that belongs to another page. */
   deckHref?: (ref: string) => string | null;
+  /** Opens that deck inside the app without a page reload, so the answer stays on screen; false when the app can't (the link then loads the page). */
+  openDeck?: (ref: string) => boolean;
+  /**
+   * Opens the app's create-deck page with the name and list filled in, for a deck Log Pose built (#726). `auto` is the card opening it by
+   * itself: the app may refuse (a live game), and returns false when it did not navigate.
+   */
+  openNewDeck?: (draft: { name: string; list: string }, how: { auto: boolean }) => boolean;
 };
 
 export const SourceHooksContext = createContext<SourceHooks>({});
