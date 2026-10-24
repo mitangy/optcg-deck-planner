@@ -579,7 +579,7 @@ function proposalAdapter(v: Rec): ToolContent[] {
   for (const l of lines) after.set(String(l.id), Number(l.after));
   const afterCards = [...after].filter(([, n]) => n > 0).map(([id, copies]) => ({ id, copies }));
   const facts: Fact[] = [
-    "Shown to the player as an Apply card; nothing has changed yet.",
+    v.apply === true ? "The app is making this change to the player's open deck now; the card has Undo." : "Shown to the player as an Apply card; nothing has changed yet.",
     ...lines.map((l) => {
       const delta = Number(l.after) - Number(l.before);
       return `${delta > 0 ? "+" : "-"}${Math.abs(delta)} ${l.name} (${l.id}): ${l.reason}`;
@@ -589,6 +589,21 @@ function proposalAdapter(v: Rec): ToolContent[] {
     legality.ban_list_checked === false && "The ban list couldn't be checked.",
   ];
   const result = searchResult(deckSourceId(v.target?.leader_id ?? undefined, afterCards), `Suggested edit: ${v.target?.name ?? "deck"}`, facts);
+  return result ? [result] : [];
+}
+
+/** A new deck Log Pose built as one source: the app opens its create-deck page with the list filled in. */
+function newDeckAdapter(v: Rec): ToolContent[] {
+  const cards: Rec[] = Array.isArray(v.cards) ? v.cards : [];
+  const legality: Rec = v.legality ?? {};
+  const facts: Fact[] = [
+    "Shown to the player as a New deck card and the app opens its create-deck page with this list filled in; nothing is saved until the player presses Create.",
+    `Leader: ${v.leader_name ?? v.leader_id} (${v.leader_id})`,
+    `${v.count} cards, ${legality.legal ? "legal" : "not legal"}.`,
+    ...(Array.isArray(legality.upcoming) ? legality.upcoming : []).map((u: string) => `Ban list: ${u}`),
+    legality.ban_list_checked === false && "The ban list couldn't be checked.",
+  ];
+  const result = searchResult(deckSourceId(v.leader_id, cards.map((c) => ({ id: String(c.id), copies: Number(c.copies) }))), `New deck: ${v.name ?? "deck"}`, facts);
   return result ? [result] : [];
 }
 
@@ -691,6 +706,7 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   analyze_deck: analyzeDeckAdapter,
   draw_odds: oddsAdapter,
   propose_deck_edit: proposalAdapter,
+  propose_new_deck: newDeckAdapter,
   simulate: simulateAdapter,
 };
 
