@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { computeDeckHints, splitDismissed, type DeckHint } from "../deckHints";
 import { computeDeckStats, type DeckStatsCard, type StatsAtlas } from "../deckStats";
 import { useStatsAtlas } from "./useStatsAtlas";
@@ -57,22 +58,72 @@ export function useDeckHints(deckId: number | string, cards: DeckStatsCard[], le
 const POP_WIDTH = 320;
 const MAX_LISTED = 12;
 
-type Open = { id: string; left: number; top: number; width: number };
+/** One chip and its popover: a Headless UI Popover, floating under the chip so opening it never moves the tray. */
+function HintChip({ hint: h, dismissed, hints }: { hint: DeckHint; dismissed: boolean; hints: HintsState }) {
+  const listed = h.cardIds ?? [];
+  return (
+    <Popover as="li">
+      {({ close }: { close: () => void }) => (
+        <>
+          <PopoverButton
+            type="button"
+            className={`dh-chip dh-${h.tier}${dismissed ? " dh-off" : ""}`}
+            data-hint-id={h.id}
+            title={h.title}
+          >
+            <span className="dh-dot" aria-hidden="true" />
+            <span className="dh-chip-text">{h.title}</span>
+          </PopoverButton>
+          <PopoverPanel
+            anchor={{ to: "bottom start", gap: 6, padding: 12 }}
+            role="dialog"
+            aria-label={h.title}
+            className={`dh-pop dh-${h.tier}`}
+            style={{ width: `min(${POP_WIDTH}px, calc(100vw - 24px))` }}
+          >
+            <strong className="dh-pop-title">{h.title}</strong>
+            <p className="dh-pop-detail">{h.detail}</p>
+            {listed.length > 0 ? (
+              <ul className="dh-pop-cards">
+                {listed.slice(0, MAX_LISTED).map((id) => (
+                  <li key={id}>
+                    <span className="card-id">{id}</span>
+                    <span className="dh-pop-name">
+                      {hints.atlas?.[id]?.n ?? ""}
+                      {typeof hints.atlas?.[id]?.cost === "number" ? <span className="muted"> · Cost {hints.atlas[id]!.cost}</span> : null}
+                    </span>
+                  </li>
+                ))}
+                {listed.length > MAX_LISTED ? <li className="muted">+{listed.length - MAX_LISTED} more</li> : null}
+              </ul>
+            ) : null}
+            <HintActions
+              dismissed={dismissed}
+              onDismiss={() => hints.dismiss(h.id)}
+              onRestore={() => hints.restore(h.id)}
+              onAsk={
+                hints.onAsk
+                  ? () => {
+                      close();
+                      hints.onAsk!(h);
+                    }
+                  : undefined
+              }
+            />
+          </PopoverPanel>
+        </>
+      )}
+    </Popover>
+  );
+}
 
 export function DeckHintsTray({ hints }: { hints: HintsState }) {
-  const [open, setOpen] = useState<Open | null>(null);
   const [showDismissed, setShowDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(0);
   const trayRef = useRef<HTMLDivElement>(null);
   const chipsRef = useRef<HTMLUListElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
   const shown = showDismissed ? [...hints.visible, ...hints.dismissed] : hints.visible;
-  const openHint = open ? shown.find((h) => h.id === open.id) : undefined;
-
-  useEffect(() => {
-    if (open && !openHint) setOpen(null);
-  }, [open, openHint]);
 
   // The tray reserves two rows. Chips that do not fit are clipped and counted; "+N" overlays the rest.
   useLayoutEffect(() => {
@@ -98,52 +149,7 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [expanded]);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(null);
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Element | null;
-      if (t?.closest(".dh-pop") || t?.closest(".dh-chip")) return;
-      close();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    const onScroll = (e: Event) => {
-      if (e.target instanceof Node && (popRef.current?.contains(e.target) || trayRef.current?.contains(e.target))) return;
-      close();
-    };
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", close);
-    window.addEventListener("scroll", onScroll, true);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", onScroll, true);
-    };
-  }, [open]);
-
-  // Keep the popover on screen: flip above the chip when there is no room below.
-  useLayoutEffect(() => {
-    const el = popRef.current;
-    if (!open || !el) return;
-    const h = el.offsetHeight;
-    if (open.top + h > window.innerHeight - 8) {
-      const chip = document.querySelector<HTMLElement>(`[data-hint-id="${CSS.escape(open.id)}"]`);
-      const top = Math.max(8, (chip ? chip.getBoundingClientRect().top - 6 : open.top) - h);
-      el.style.top = `${top}px`;
-    }
-  }, [open]);
-
-  function toggle(h: DeckHint, el: HTMLElement) {
-    if (open?.id === h.id) return setOpen(null);
-    const r = el.getBoundingClientRect();
-    const width = Math.min(POP_WIDTH, window.innerWidth - 24);
-    setOpen({ id: h.id, width, left: Math.min(Math.max(12, r.left), window.innerWidth - width - 12), top: r.bottom + 6 });
-  }
-
   const dismissedIds = new Set(hints.dismissed.map((h) => h.id));
-  const listed = openHint?.cardIds ?? [];
 
   return (
     <div ref={trayRef} className="dh-tray" role="group" aria-label="Build hints">
@@ -152,19 +158,7 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
           <li className="dh-empty muted">{hints.loading ? "Checking deck…" : hints.atlas ? "No build hints" : "Hints unavailable"}</li>
         ) : (
           shown.map((h) => (
-            <li key={h.id}>
-              <button
-                type="button"
-                className={`dh-chip dh-${h.tier}${dismissedIds.has(h.id) ? " dh-off" : ""}`}
-                data-hint-id={h.id}
-                aria-expanded={open?.id === h.id}
-                title={h.title}
-                onClick={(e) => toggle(h, e.currentTarget)}
-              >
-                <span className="dh-dot" aria-hidden="true" />
-                <span className="dh-chip-text">{h.title}</span>
-              </button>
-            </li>
+            <HintChip key={h.id} hint={h} dismissed={dismissedIds.has(h.id)} hints={hints} />
           ))
         )}
       </ul>
@@ -180,39 +174,6 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
               {showDismissed ? "Hide dismissed" : `Show ${hints.dismissed.length} dismissed`}
             </button>
           ) : null}
-        </div>
-      ) : null}
-      {open && openHint ? (
-        <div ref={popRef} className={`dh-pop dh-${openHint.tier}`} role="dialog" aria-label={openHint.title} style={{ left: open.left, top: open.top, width: open.width }}>
-          <strong className="dh-pop-title">{openHint.title}</strong>
-          <p className="dh-pop-detail">{openHint.detail}</p>
-          {listed.length > 0 ? (
-            <ul className="dh-pop-cards">
-              {listed.slice(0, MAX_LISTED).map((id) => (
-                <li key={id}>
-                  <span className="card-id">{id}</span>
-                  <span className="dh-pop-name">
-                    {hints.atlas?.[id]?.n ?? ""}
-                    {typeof hints.atlas?.[id]?.cost === "number" ? <span className="muted"> · Cost {hints.atlas[id]!.cost}</span> : null}
-                  </span>
-                </li>
-              ))}
-              {listed.length > MAX_LISTED ? <li className="muted">+{listed.length - MAX_LISTED} more</li> : null}
-            </ul>
-          ) : null}
-          <HintActions
-            dismissed={dismissedIds.has(openHint.id)}
-            onDismiss={() => hints.dismiss(openHint.id)}
-            onRestore={() => hints.restore(openHint.id)}
-            onAsk={
-              hints.onAsk
-                ? () => {
-                    setOpen(null);
-                    hints.onAsk!(openHint);
-                  }
-                : undefined
-            }
-          />
         </div>
       ) : null}
     </div>

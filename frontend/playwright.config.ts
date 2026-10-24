@@ -14,7 +14,8 @@
  */
 import { defineConfig } from "@playwright/test";
 
-const PORT = 5180;
+// Overridable so two checkouts (git worktrees) can run e2e side by side, like duel-web/playwright.config.ts.
+const PORT = Number(process.env.E2E_WEB_PORT ?? 5180);
 
 export default defineConfig({
   testDir: "e2e",
