@@ -1,4 +1,4 @@
-/** ui mutations (packages/ui/src, vitest): card art urls and preview art shared by the planner and duel-web (#UI1). */
+/** ui mutations (packages/ui/src, vitest): card art urls and preview art shared by the planner and duel-web (#700). */
 const img = "packages/ui/src/cardArt/cardImage.ts";
 const prev = "packages/ui/src/cardArt/previewArt.ts";
 module.exports = {
@@ -31,7 +31,7 @@ module.exports = {
     { id: "preview-card-id-not-normalized", file: prev, from: "const id = defId.trim().toUpperCase();", to: "const id = defId;", kills: ["uses the card-id preview for a new card (#613)"] },
     { id: "preview-origin-dropped-alt", file: prev, from: "`${origin}/cards/preview/p${pid}.webp`", to: "`/cards/preview/p${pid}.webp`", kills: ["prefers the alt-printing preview over the card-id preview (#613)"] },
     { id: "preview-origin-dropped-card", file: prev, from: "`${origin}/cards/preview/${id}.webp`", to: "`/cards/preview/${id}.webp`", kills: ["uses the card-id preview for a new card (#613)"] },
-    { id: "preview-url-default-origin-absolute", file: prev, from: "  imageUrl?: string | null,\n  origin = \"\",", to: "  imageUrl?: string | null,\n  origin = \"https://duel.example.test\",", kills: ["builds relative paths when no origin is given (#UI1)"] },
+    { id: "preview-url-default-origin-absolute", file: prev, from: "  imageUrl?: string | null,\n  origin = \"\",", to: "  imageUrl?: string | null,\n  origin = \"https://duel.example.test\",", kills: ["builds relative paths when no origin is given (#700)"] },
     { id: "preview-path-default-origin-absolute", file: prev, from: "export function previewArtPath(defId: string, origin = \"\")", to: "export function previewArtPath(defId: string, origin = \"https://duel.example.test\")", kills: ["EB05 cards fall back to preview art when TCGPlayer art fails (#575)"] },
     { id: "art-chain-origin-dropped", file: img, from: "previewArtUrl(cardId, src, origin)", to: "previewArtUrl(cardId, src)", kills: ["tries the resized art, the original, then the preview (#613)"] },
     { id: "art-chain-preview-first", file: img, from: "  const resized = cardImageUrl(src, size);\n  if (resized) chain.push(resized);", to: "  const preview0 = previewArtUrl(cardId, src, origin);\n  if (preview0) chain.push(preview0);\n  const resized = cardImageUrl(src, size);\n  if (resized) chain.push(resized);", kills: ["tries the resized art, the original, then the preview (#613)"] },

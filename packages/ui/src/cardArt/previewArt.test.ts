@@ -22,7 +22,7 @@ describe("previewArtUrl", () => {
     expect(previewArtUrl("OP01-001", altUrl, ORIGIN)).toBe(`${PREVIEW}/p712884.webp`);
   });
 
-  it("builds relative paths when no origin is given (#UI1)", () => {
+  it("builds relative paths when no origin is given (#700)", () => {
     expect(previewArtUrl("EB05-001")).toBe("/cards/preview/EB05-001.webp");
     expect(previewArtUrl("OP01-001", altUrl)).toBe("/cards/preview/p712884.webp");
   });
