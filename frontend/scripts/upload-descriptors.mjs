@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { put } from "@vercel/blob";
+import { descriptorChunkFiles } from "../src/descriptorCache.ts";
 
 /** Everything lives under one prefix so a stale bundle can be identified. */
 const PREFIX = "scan-data";
@@ -54,11 +55,9 @@ async function main() {
 
   const manifestName = "descriptors.manifest.json";
   const manifest = JSON.parse(readFileSync(join(dir, manifestName), "utf8"));
-  const chunkFiles = readdirSync(dir).filter((f) => f.endsWith(".bin"));
-  if (chunkFiles.length !== manifest.chunks.length) {
-    console.error(
-      `manifest lists ${manifest.chunks.length} chunks but ${chunkFiles.length} .bin files are present`,
-    );
+  const { files: chunkFiles, missing } = descriptorChunkFiles(manifest, readdirSync(dir));
+  if (missing.length) {
+    console.error(`manifest lists ${missing.length} chunk(s) that are not present: ${missing.join(", ")}`);
     process.exit(1);
   }
 

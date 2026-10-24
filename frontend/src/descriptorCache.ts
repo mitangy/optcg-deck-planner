@@ -191,6 +191,19 @@ export async function ensureDescriptors(
 }
 
 /** Decode one record from a chunk's bytes at `offset`. */
+/**
+ * Which files to upload as descriptor chunks: exactly the manifest's, never
+ * "every .bin in the folder" (the art embedder's embeddings .bin sits there too).
+ */
+export function descriptorChunkFiles(
+  manifest: DescriptorManifest,
+  present: readonly string[],
+): { files: string[]; missing: string[] } {
+  const have = new Set(present);
+  const files = manifest.chunks.map((c) => c.file);
+  return { files, missing: files.filter((f) => !have.has(f)) };
+}
+
 export function decodeRecord(buf: ArrayBuffer, offset: number, cardId: string): DescriptorRecord {
   const view = new DataView(buf);
   const bytes = new Uint8Array(buf);
