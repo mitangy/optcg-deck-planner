@@ -25,7 +25,7 @@ import {
   useSyncExternalStore,
   type PointerEvent,
 } from "react";
-import { createPortal } from "react-dom";
+import { Dialog } from "@optcg/ui/popups";
 import type { PreviewLive } from "./cardPreview";
 import { LiveCardStatus } from "./LiveCardStatus";
 import { CardReportForm } from "./CardReportForm";
@@ -89,15 +89,6 @@ export function CardInspect({
   const swipeDeltaY = useRef(0);
 
   useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
     if (!open) {
       swipeStartY.current = null;
       swipeDeltaY.current = 0;
@@ -153,108 +144,104 @@ export function CardInspect({
     if (dy >= SWIPE_DISMISS_PX) onClose();
   }
 
-  return createPortal(
-    <div
+  return (
+    <Dialog
+      open
+      onClose={onClose}
       className="card-inspect-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${entry.name} details`}
-      onClick={onClose}
+      panelClassName="card-inspect"
+      label={`${entry.name} details`}
+      panelRef={sheetRef}
+      panelProps={{
+        onPointerDown: onSheetPointerDown,
+        onPointerMove: onSheetPointerMove,
+        onPointerUp: onSheetPointerUp,
+        onPointerCancel: onSheetPointerUp,
+      }}
     >
-      <div
-        ref={sheetRef}
-        className="card-inspect"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={onSheetPointerDown}
-        onPointerMove={onSheetPointerMove}
-        onPointerUp={onSheetPointerUp}
-        onPointerCancel={onSheetPointerUp}
-      >
-        <div className="card-inspect-handle" aria-hidden />
-        <div className="card-inspect-toolbar">
-          <h2 className="card-inspect-name">{entry.name}</h2>
-          <button type="button" className="btn btn-primary card-inspect-done" onClick={onClose}>
-            Done
-          </button>
+      <div className="card-inspect-handle" aria-hidden />
+      <div className="card-inspect-toolbar">
+        <h2 className="card-inspect-name">{entry.name}</h2>
+        <button type="button" className="btn btn-primary card-inspect-done" onClick={onClose}>
+          Done
+        </button>
+      </div>
+      <div className="card-inspect-scroll">
+        <div className="card-inspect-art">
+          {artSrc ? (
+            <img
+              src={artSrc}
+              alt={entry.name}
+              className="card-inspect-img"
+              draggable={false}
+              onError={failArt}
+              onLoad={(e) => {
+                if (isPlaceholderArt(artSrc, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) failArt();
+              }}
+            />
+          ) : (
+            <div className="card-inspect-fallback">{entry.id}</div>
+          )}
         </div>
-        <div className="card-inspect-scroll">
-          <div className="card-inspect-art">
-            {artSrc ? (
-              <img
-                src={artSrc}
-                alt={entry.name}
-                className="card-inspect-img"
-                draggable={false}
-                onError={failArt}
-                onLoad={(e) => {
-                  if (isPlaceholderArt(artSrc, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) failArt();
-                }}
-              />
-            ) : (
-              <div className="card-inspect-fallback">{entry.id}</div>
-            )}
-          </div>
-          <div className="card-inspect-meta">
-            <p className="card-inspect-id">
-              {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
-              {entry.power != null ? ` · ${entry.power} power` : ""}
-              {(() => {
-                const cv = counterValueFor(entry);
-                return cv ? ` · ${formatCounter(cv)} counter` : "";
-              })()}
-              {entry.life != null ? ` · ${entry.life} life` : ""}
-              {entry.blocker ? " · Blocker" : ""}
-            </p>
-            {live ? (
-              <div className="card-inspect-effect">
-                <div className="card-inspect-effect-label">In play</div>
-                <LiveCardStatus live={live} atlasPower={entry.power} atlasCost={entry.cost} describe />
-              </div>
-            ) : null}
+        <div className="card-inspect-meta">
+          <p className="card-inspect-id">
+            {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
+            {entry.power != null ? ` · ${entry.power} power` : ""}
+            {(() => {
+              const cv = counterValueFor(entry);
+              return cv ? ` · ${formatCounter(cv)} counter` : "";
+            })()}
+            {entry.life != null ? ` · ${entry.life} life` : ""}
+            {entry.blocker ? " · Blocker" : ""}
+          </p>
+          {live ? (
             <div className="card-inspect-effect">
-              <div className="card-inspect-effect-label">Ability</div>
-              <p>
-                {(() => {
-                  const t = entry.effectText?.trim() ?? "";
-                  if (!t || t === "—" || t === "-") return "No printed ability.";
-                  return t;
-                })()}
-              </p>
-              {(() => {
-                const note = abilitySupportNote(resolveAbilitySupport(entry));
-                if (!note) return null;
-                return <p className="card-inspect-ability-note">{note}</p>;
-              })()}
+              <div className="card-inspect-effect-label">In play</div>
+              <LiveCardStatus live={live} atlasPower={entry.power} atlasCost={entry.cost} describe />
             </div>
-            {alts.length > 0 && canEditArt ? (
-              <div className="card-inspect-alts">
-                <div className="card-inspect-effect-label">Artwork</div>
-                <div className="card-inspect-alt-row">
+          ) : null}
+          <div className="card-inspect-effect">
+            <div className="card-inspect-effect-label">Ability</div>
+            <p>
+              {(() => {
+                const t = entry.effectText?.trim() ?? "";
+                if (!t || t === "—" || t === "-") return "No printed ability.";
+                return t;
+              })()}
+            </p>
+            {(() => {
+              const note = abilitySupportNote(resolveAbilitySupport(entry));
+              if (!note) return null;
+              return <p className="card-inspect-ability-note">{note}</p>;
+            })()}
+          </div>
+          {alts.length > 0 && canEditArt ? (
+            <div className="card-inspect-alts">
+              <div className="card-inspect-effect-label">Artwork</div>
+              <div className="card-inspect-alt-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary card-inspect-alt-btn"
+                  onClick={() => applyAlt(null)}
+                >
+                  Standard
+                </button>
+                {alts.map((a) => (
                   <button
+                    key={a.id}
                     type="button"
                     className="btn btn-secondary card-inspect-alt-btn"
-                    onClick={() => applyAlt(null)}
+                    onClick={() => applyAlt(a.id)}
                   >
-                    Standard
+                    {a.label}
                   </button>
-                  {alts.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="btn btn-secondary card-inspect-alt-btn"
-                      onClick={() => applyAlt(a.id)}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
-            ) : null}
-            <CardReportForm key={defId} cardId={entry.id} />
-          </div>
+            </div>
+          ) : null}
+          <CardReportForm key={defId} cardId={entry.id} />
         </div>
       </div>
-    </div>,
-    document.body,
+    </Dialog>
   );
 }

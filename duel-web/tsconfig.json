@@ -28,6 +28,7 @@
       "@optcg/rules/*": ["../packages/rules/src/*"],
       "@optcg/analyst-client": ["../packages/analyst-client/src/index.ts"],
       "@optcg/analyst-client/*": ["../packages/analyst-client/src/*"],
+      "@headlessui/react": ["./node_modules/@headlessui/react"],
       "react": ["./node_modules/@types/react"],
       "react/*": ["./node_modules/@types/react/*"],
       "react-dom": ["./node_modules/@types/react-dom"],

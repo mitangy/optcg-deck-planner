@@ -2137,6 +2137,15 @@ label.btn.is-busy {
   font-family: var(--font-body);
 }
 
+/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the arena palette (follows crew themes and light mode). */
+:root {
+  --ui-backdrop: rgb(var(--abyss-rgb) / 0.72);
+  --ui-panel-bg: var(--arena-panel);
+  --ui-ink: var(--ink);
+  --ui-border: 1px solid var(--line-strong);
+  --ui-hover: rgb(var(--chrome-bright-rgb) / 0.14);
+}
+
 /* What's new card (packages/patch-notes): map its tokens to the arena palette (follows crew themes and light mode). */
 .wn-card {
   --wn-bg: var(--arena-panel);
