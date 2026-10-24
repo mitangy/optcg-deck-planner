@@ -1,9 +1,9 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
-import { defaultLogPosePage, logPoseChromeFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
+import { defaultLogPosePage, logPoseChromeFor, openDeckFor, openNewDeckFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
@@ -42,6 +42,10 @@ export function App() {
   const navigate = useNavigate();
   // A player out of Log Pose credit can use it on their own Claude plan: that link is made in Settings.
   const ownClaude = useMemo(() => ({ onSelect: () => navigate("/settings#log-pose") }), [navigate]);
+  // A deck Log Pose builds opens the create-deck page; it never takes the player off a live board by itself (#726).
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
+  const sources = useMemo(() => ({ ...SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current) }), [navigate]);
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
@@ -57,7 +61,7 @@ export function App() {
   const chrome = logPoseChromeFor(pathname, useBoardBrief());
 
   return (
-    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={SOURCE_HOOKS} ownClaude={ownClaude}>
+    <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={sources} ownClaude={ownClaude}>
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />

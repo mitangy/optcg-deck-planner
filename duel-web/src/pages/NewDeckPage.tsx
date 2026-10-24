@@ -1,16 +1,30 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { createDeckFromInput, setSelectedDeckId } from "../decks/storage";
+import { readLogPoseDraft } from "../logPose";
 import { NavMenu } from "../nav/NavMenu";
 
 export function NewDeckPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [name, setName] = useState("");
   const [initialList, setInitialList] = useState("");
+  const [fromLogPose, setFromLogPose] = useState(false);
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // A deck Log Pose built arrives in the router state (#726), on arrival or while this page is already open:
+  // fill the form in, then forget the state so a refresh does not refill it.
+  useEffect(() => {
+    const draft = readLogPoseDraft(location.state);
+    if (!draft) return;
+    setName(draft.name);
+    setInitialList(draft.list);
+    setFromLogPose(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
 
   function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -48,6 +62,11 @@ export function NewDeckPage() {
         </header>
 
         <form className="deck-new-form" onSubmit={onCreate}>
+          {fromLogPose ? (
+            <p className="deck-new-note" role="status">
+              Filled in by Log Pose. Check it, then press Create.
+            </p>
+          ) : null}
           <div className="field">
             <label htmlFor="new-deck-name">Deck name</label>
             <input
