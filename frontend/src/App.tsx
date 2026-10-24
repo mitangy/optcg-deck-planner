@@ -62,6 +62,7 @@ import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analyt
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
 import { MenuItem } from "@optcg/ui/popups";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
@@ -4386,61 +4387,52 @@ function ImportPage() {
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
 
-        <div className="import-modes" role="tablist" aria-label="Import method">
-          <button
-            type="button"
-            className={mode === "paste" ? "mode active" : "mode"}
-            onClick={() => setMode("paste")}
-          >
-            Paste deck code
-          </button>
-          <button
-            type="button"
-            className={mode === "file" ? "mode active" : "mode"}
-            onClick={() => setMode("file")}
-          >
-            Upload file
-          </button>
-        </div>
+        <TabGroup selectedIndex={mode === "paste" ? 0 : 1} onChange={(i) => setMode(i === 0 ? "paste" : "file")}>
+          <TabList className="import-modes" aria-label="Import method">
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Paste deck code</Tab>
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Upload file</Tab>
+          </TabList>
 
-        {mode === "paste" ? (
-          <div className="paste-block">
-            <div className="paste-actions">
-              <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
-                Paste from clipboard
-              </button>
-            </div>
-            <label>
-              Deck code
-              <textarea
-                value={decklist}
-                onChange={(e) => setDecklist(e.target.value)}
-                rows={16}
-                placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
-                required
-              />
-            </label>
-            <p className="hint">
-              Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
-              <code>4xOP15-053</code>.
-            </p>
-          </div>
-        ) : (
-          <label>
-            Decklist file (.txt / .deck)
-            <input
-              type="file"
-              accept=".txt,.deck,text/plain"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-            {decklist && (
+          <TabPanels>
+            <TabPanel className="paste-block">
+              <div className="paste-actions">
+                <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
+                  Paste from clipboard
+                </button>
+              </div>
+              <label>
+                Deck code
+                <textarea
+                  value={decklist}
+                  onChange={(e) => setDecklist(e.target.value)}
+                  rows={16}
+                  placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
+                  required
+                />
+              </label>
               <p className="hint">
-                Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
-                “Paste deck code” to review before creating.
+                Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
+                <code>4xOP15-053</code>.
               </p>
-            )}
-          </label>
-        )}
+            </TabPanel>
+            <TabPanel>
+              <label>
+                Decklist file (.txt / .deck)
+                <input
+                  type="file"
+                  accept=".txt,.deck,text/plain"
+                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                />
+                {decklist && (
+                  <p className="hint">
+                    Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
+                    “Paste deck code” to review before creating.
+                  </p>
+                )}
+              </label>
+            </TabPanel>
+          </TabPanels>
+        </TabGroup>
 
         {err && <p className="error">{err}</p>}
         <button className="btn primary" type="submit" disabled={create.isPending}>

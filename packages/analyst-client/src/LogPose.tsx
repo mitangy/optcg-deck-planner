@@ -38,6 +38,7 @@ import { clampDockW, DOCK_W_DEFAULT, fitDock, readDock, readDockW, writeDock, wr
 import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
 import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
+import { OwnerTabs } from "./OwnerTabs";
 import { UsageView } from "./UsageView";
 import { FeedbackBar, useFeedback } from "./Feedback";
 import { answerStart, targetKey } from "./feedback";
@@ -1006,15 +1007,7 @@ function LogPosePanel({
         </button>
       </header>
       {owner && view !== "chat" ? (
-        <div className="lp-tabs" role="tablist" aria-label="Owner tools">
-          <button type="button" role="tab" className="lp-tab" aria-selected={view === "requests"} onClick={() => setView("requests")}>
-            Requests
-            {waiting > 0 ? <span className="lp-count">{waiting > 99 ? "99+" : waiting}</span> : null}
-          </button>
-          <button type="button" role="tab" className="lp-tab" aria-selected={view === "usage"} onClick={() => setView("usage")}>
-            Usage
-          </button>
-        </div>
+        <OwnerTabs view={view} waiting={waiting} onView={setView} />
       ) : null}
       {showChat && !owner ? <CreditMeter credit={credit} /> : null}
       {showChat ? <ModelPicker apiBase={apiBase} /> : null}

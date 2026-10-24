@@ -321,5 +321,9 @@ module.exports = {
     { id: "citations-botgame-turn-unparsed", file: cit, from: "head === \"game\" || head === \"botgame\" || head === \"position\") && part", to: "head === \"game\") && part", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
     { id: "citations-botsim-record-line-hidden", file: cit, from: "p.kind === \"tourney\" || p.kind === \"botsim\";", to: "p.kind === \"tourney\";", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
     { id: "citations-botsim-badged-as-win-rate", file: cit, from: "    case \"botsim\":\n      return \"Bot simulation\";", to: "    case \"botsim\":\n      return \"Win rate\";", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
+    // owner Requests / Usage tabs on the shared Headless UI Tabs (#719)
+    {"id": "owner-tabs-selected-swapped", "file": "packages/analyst-client/src/OwnerTabs.tsx", "from": "selectedIndex={view === \"usage\" ? 1 : 0}", "to": "selectedIndex={view === \"usage\" ? 0 : 1}", "kills": ["marks the tab of the caller's view and reports a click on the other one (#719)"]},
+    {"id": "owner-tabs-always-requests", "file": "packages/analyst-client/src/OwnerTabs.tsx", "from": "onView(i === 1 ? \"usage\" : \"requests\")", "to": "onView(\"requests\")", "kills": ["arrow keys switch between Requests and Usage and report the new view (#719)"]},
+    {"id": "owner-tabs-count-uncapped", "file": "packages/analyst-client/src/OwnerTabs.tsx", "from": "{waiting > 99 ? \"99+\" : waiting}", "to": "{waiting}", "kills": ["shows the waiting count on Requests, capped at 99+ (#719)"]},
   ],
 };

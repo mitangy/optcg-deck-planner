@@ -68,3 +68,40 @@ dialog's React tree nest: Escape closes only the top one and focus stays in it.
 - Headless UI leaves the focus on the list and marks the active row `[data-focus]` (and a disabled one `[data-disabled]`), so style those instead of `:focus-visible` / `:hover` / `:disabled`. A `MenuItem` that wraps your own element gives it `role="menuitem"`, replacing any role you set (no `menuitemcheckbox`: say the state in the label).
 - `MenuItem` is Headless UI's, plus `keepOpen`: the item does not close the menu when picked, by click, Enter or Space (a two-step Concede, a "Copied" flash). Close the menu yourself when it is done, with `close` from the `Menu` render prop: `<Menu>{({ close }) => ...}</Menu>`. Plain Headless UI closes after Enter / Space whatever the item does; `MenuList` intercepts those keys for `keepOpen` items.
 - Not a fit: a panel of mixed controls (checkboxes, steppers, text) that must stay open and reachable by Tab, like the planner's Sort panel. Tab closes a Menu and its rows are single actions. That wants a Popover.
+
+## tabs (Headless UI)
+
+`import { TabGroup, TabList, Tab, TabPanels, TabPanel } from "@optcg/ui/tabs"`. Same approach as popups:
+behaviour from Headless UI, the look from each app's classes.
+
+```tsx
+<TabGroup selectedIndex={index} onChange={setIndex}>
+  <TabList className="my-tabs" aria-label="Sections">
+    <Tab className="my-tab">Players</Tab>
+    <Tab className="my-tab">Users</Tab>
+  </TabList>
+  <TabPanels>
+    <TabPanel>...</TabPanel>
+    <TabPanel>...</TabPanel>
+  </TabPanels>
+</TabGroup>
+```
+
+You get `role="tablist"` / `tab` / `tabpanel` with `aria-selected`, `aria-controls` and `aria-labelledby`, Left / Right
+(Up / Down with `vertical`), Home and End between tabs, and a roving tab stop: only the selected tab is in the Tab
+order, and the panel is not a tab stop (`tabIndex={-1}`; pass `tabIndex={0}` for a panel with nothing focusable in it). Only the
+selected `TabPanel` is rendered (the others are empty hidden placeholders). `ui.css` hides the browser focus ring on a
+mouse-clicked tab (Headless UI focuses it from script) and keeps it for keyboard focus, which Headless marks `[data-focus]`.
+
+- **Controlled**: pass `selectedIndex` and `onChange(index)` and keep the selection wherever it lives (component state,
+  a URL param, localStorage). Leave both out and the group keeps it itself (`defaultIndex` sets the first one).
+- **`manual`** on `TabGroup`: the arrow keys only move focus and Enter / Space picks the tab. Default is automatic
+  (focus selects), the right choice when the panel is cheap; use `manual` when picking a tab fetches or is costly.
+- `className` on any part is kept next to `ui-tabs`, `ui-tab-list`, `ui-tab-panels`, `ui-tab-panel`. `TabGroup` and
+  `TabPanels` are `display: contents` (`ui.css`, zero specificity), so they never take part in your layout; put your
+  row's class on `TabList` and your panel's on `TabPanel`. `Tab` accepts a `className` function: `({ selected }) => ...`.
+  Style the selected tab with `[aria-selected="true"]` or `[data-selected]`.
+- `TabPanels` is optional. A row whose content is shared (the lobby's Create / Join, Log Pose's Requests / Usage, where
+  the view below is driven by the same state) can use `TabGroup` + `TabList` alone, at the cost of no `aria-controls`.
+- Not a fit: show / hide toggles (`aria-expanded`), radio-like pickers (`role="radiogroup"`, as the lobby's Bot level),
+  a native `<select>`, `<details>`.

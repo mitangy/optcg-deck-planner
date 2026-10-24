@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Tab, TabGroup, TabList } from "@optcg/ui/tabs";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
@@ -1154,26 +1155,12 @@ export function LobbyPage() {
           ) : (
             <div className="sheet-body">
               {mode === "create" || mode === "join" ? (
-                <div className="segmented" role="tablist" aria-label="Private room">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === "create"}
-                    className={mode === "create" ? "active" : ""}
-                    onClick={() => pickMode("create")}
-                  >
-                    Create
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === "join"}
-                    className={mode === "join" ? "active" : ""}
-                    onClick={() => pickMode("join")}
-                  >
-                    Join
-                  </button>
-                </div>
+                <TabGroup selectedIndex={mode === "join" ? 1 : 0} onChange={(i) => pickMode(i === 1 ? "join" : "create")}>
+                  <TabList className="segmented" aria-label="Private room">
+                    <Tab className={({ selected }) => (selected ? "active" : "")}>Create</Tab>
+                    <Tab className={({ selected }) => (selected ? "active" : "")}>Join</Tab>
+                  </TabList>
+                </TabGroup>
               ) : null}
 
               {mode !== "spectate" ? (
