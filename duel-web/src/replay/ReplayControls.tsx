@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { isTyping } from "../board/useBoardHotkeys";
 import { PLAY_SPEEDS, type PlaySpeed } from "./replayCursor";
@@ -77,10 +78,6 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setMoreOpen(false);
-        return;
-      }
       const action = replayKeyAction(e);
       if (!action) return;
       const active = document.activeElement;
@@ -221,17 +218,21 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
       </div>
 
       {compact && moreOpen ? (
-        <>
-          <div className="replay-more-backdrop" onClick={() => setMoreOpen(false)} aria-hidden />
-          <div id="replay-more-sheet" className="replay-more-sheet" role="dialog" aria-label="More replay options">
-            {turnSelect}
-            {speedSelect}
-            {flipButton}
-            <button type="button" className="replay-seg-btn replay-more-done" onClick={() => setMoreOpen(false)}>
-              Done
-            </button>
-          </div>
-        </>
+        <Dialog
+          open
+          onClose={() => setMoreOpen(false)}
+          className="replay-more-backdrop"
+          panelClassName="replay-more-sheet"
+          label="More replay options"
+          panelProps={{ id: "replay-more-sheet" }}
+        >
+          {turnSelect}
+          {speedSelect}
+          {flipButton}
+          <button type="button" className="replay-seg-btn replay-more-done" onClick={() => setMoreOpen(false)}>
+            Done
+          </button>
+        </Dialog>
       ) : null}
     </div>
   );

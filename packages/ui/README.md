@@ -45,6 +45,7 @@ dialog's React tree nest: Escape closes only the top one and focus stays in it.
 
 - `className` goes on the full-screen backdrop, which is also the `role="dialog"` element; `panelClassName` on the panel. A click outside the panel closes it, so put everything clickable (a Close button, the art) inside the panel. An absolutely positioned child still positions against the backdrop when the panel has no `position`.
 - `label` names the dialog; use `DialogTitle` instead when it has a visible heading.
+- `role="alertdialog"` marks a notice that needs an answer. `closeOnOutsideClick={false}` makes only Escape close it (an editor where a stray click must not throw work away); for a blocking notice pass a no-op `onClose`.
 - `panelRef` / `panelProps` reach the panel element (CardInspect's swipe-to-dismiss).
 - `ui.css` only places the backdrop (`position: fixed; inset: 0`, flex centred, `--ui-z`, `--ui-pad`, `--ui-backdrop`). Its selectors use `:where()`, so your class wins. `panelClassName="ui-surface"` opts a bare panel into `--ui-ink`, `--ui-panel-bg`, `--ui-border`, `--ui-radius`.
 - Map the `--ui-*` variables to the app's theme tokens in its CSS (see `frontend/src/styles.css` and `duel-web/src/ui.css`), like `--fb-*` and `--wn-*`.

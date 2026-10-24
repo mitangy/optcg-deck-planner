@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-24
+  { date: "2026-10-24", app: "duel", title: "More pop-ups keep Tab inside", text: "Gameplay settings, the Play sheet, the match result, the deck editor's Save changes question, the playmat and card back editor, the replay More menu and the \"Continued on another device\" notice now keep Tab inside them, and closing one puts you back where you were. Esc closes them too, except the match result and that notice, which stay until you choose." },
   { date: "2026-10-24", app: "planner", pr: 705, title: "Friends, spares and trades", text: "The new Friends page lets you add friends by username, browse their decks and copy one to your own, and see what you'd still need for it. Share your collection and spares if you like, keep some copies back, and send a friend a trade offer built from your spares. Hide any deck from friends in its More menu." },
   { date: "2026-10-24", app: "both", pr: 708, title: "Pop-ups behave on the keyboard", text: "Pop-ups like the trash viewer, the shortcuts list and the planner's card picture now keep Tab inside them, Esc closes only the top one (a card opened from the trash no longer closes the trash too), and closing one puts you back where you were." },
   { date: "2026-10-24", app: "planner", pr: 704, title: "Pick which art a card shows", text: "With alt arts showing, press Show under any art, base or alt, owned or not, to make it the card's picture. It is saved to your account and doesn't change your owned counts." },

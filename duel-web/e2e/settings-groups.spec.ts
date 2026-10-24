@@ -62,7 +62,8 @@ for (const size of SIZES) {
       // Smooth scrolling settles on its own. Wait for where it should end up, not just for a pause:
       // on a busy runner two samples can match mid-scroll.
       const boxes = async () => ({
-        sheetBox: (await sheet.boundingBox())!,
+        // The dialog role sits on the full-screen backdrop; the sheet is its panel.
+        sheetBox: (await sheet.locator(".sheet").boundingBox())!,
         navBox: (await nav.boundingBox())!,
         headBox: (await heading.boundingBox())!,
       });
