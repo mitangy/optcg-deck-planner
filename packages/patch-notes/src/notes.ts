@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-24
+  { date: "2026-10-24", app: "planner", pr: 704, title: "Pick which art a card shows", text: "With alt arts showing, press Show under any art, base or alt, owned or not, to make it the card's picture. It is saved to your account and doesn't change your owned counts." },
   // 2026-10-23
   { date: "2026-10-23", app: "both", title: "Log Pose turns deck suggestions into an Apply card", text: "When you ask Log Pose to tune a deck, it now gives exact swaps, card by card, and always puts them on a card you can apply: 50 cards and no card over its copy limit. If it writes changes in its answer without a card, the app has it check them and make one." },
   { date: "2026-10-23", app: "both", pr: 679, title: "Rate Log Pose answers", text: "Under each Log Pose answer and each game review there are now a thumbs up, a thumbs down and a \"This is wrong\" button. Press \"This is wrong\" to say what it got wrong, and it goes straight to the people who improve Log Pose. You can change your rating any time." },

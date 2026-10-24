@@ -152,6 +152,24 @@ class OwnedPrinting(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class CardDisplayChoice(Base):
+    """Which art a user wants shown for a card in the planner.
+
+    ``product_id`` 0 means the base art; a positive value is a special
+    printing's product id. No row means automatic (most-owned alt).
+    """
+
+    __tablename__ = "card_display_choices"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", name="uq_user_card_display_choice"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class ShoppingExtra(Base):
     """Card added straight to Master Shopping without a deck.
 

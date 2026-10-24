@@ -169,6 +169,14 @@ module.exports = {
     { id: "featured-alt-picks-least-owned", file: "frontend/src/altArt.ts", from: "n > (best.owned ?? 0)", to: "n < (best.owned ?? 0)", kills: ["picks the alt with the most owned copies (#625)"] },
     { id: "featured-alt-needs-owned", file: "frontend/src/altArt.ts", from: "if (n > 0 && (best", to: "if ((best", kills: ["is null when no alt is owned (#625)"] },
     { id: "main-image-ignores-owned-alt", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return card.image_url || undefined;", kills: ["shows the owned alt art, else the base art (#625)"] },
+    // Choose which art a card shows (#702)
+    { id: "display-art-base-ignored", file: "frontend/src/altArt.ts", from: "  if (chosen === 0) return null;\n", to: "", kills: ["0 shows the base art even while an alt is owned (#702)"] },
+    { id: "display-art-unowned-alt-ignored", file: "frontend/src/altArt.ts", from: "    if (picked) return picked;", to: "    if (picked && (picked.owned ?? 0) > 0) return picked;", kills: ["a chosen alt is shown even when unowned and others are owned (#702)"] },
+    { id: "display-art-unknown-no-fallback", file: "frontend/src/altArt.ts", from: "    if (picked) return picked;", to: "    return picked ?? null;", kills: ["an unknown or null choice falls back to the most-owned alt (#702)"] },
+    { id: "display-art-shown-id-base-wrong", file: "frontend/src/altArt.ts", from: "featuredAlt(card)?.product_id ?? 0;", to: "featuredAlt(card)?.product_id ?? -1;", kills: ["0 shows the base art even while an alt is owned (#702)"] },
+    { id: "display-art-show-click-wrong-id", file: "frontend/src/MarketPrice.tsx", from: "onClick={() => onShow(productId)}", to: "onClick={() => onShow(0)}", kills: ["clicking Show on an alt calls onShow with its product id (#702)"] },
+    { id: "display-art-shown-tile-keeps-button", file: "frontend/src/MarketPrice.tsx", from: "      productId === shown ? (", to: "      productId === -1 ? (", kills: ["the shown tile has a Shown chip and no Show button (#702)"] },
+    { id: "display-art-show-without-handler", file: "frontend/src/MarketPrice.tsx", from: "    onShow ? (\n      productId === shown", to: "    true ? (\n      productId === shown", kills: ["shows no Show controls without onShow, as on share pages (#702)"] },
     { id: "main-image-owned-alt-without-image", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return featuredAlt(card) ? featuredAlt(card)?.image_url : card.image_url || undefined;", kills: ["falls back to base when the owned alt has no image (#625)"] },
     // Meta deck browser (#443)
     { id: "meta-ordinal-teens", file: "frontend/src/meta.ts", from: "  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;\n", to: "", kills: ["ordinals use th for 11-13"] },
