@@ -357,6 +357,7 @@ h1 {
   font-weight: 500;
   padding: 0.4rem 0.6rem;
   border-radius: 8px;
+  white-space: nowrap;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -384,8 +385,8 @@ h1 {
 }
 
 /* Tablet widths: brand and account on the first row, the nav on its own row below, so nothing is pushed off the right edge
-   (seven links plus the account buttons need about 1180px in one row). */
-@media (min-width: 761px) and (max-width: 1179px) {
+   (seven links plus the account buttons need about 1180px in one row, more with wider system fonts). */
+@media (min-width: 761px) and (max-width: 1279px) {
   .topbar-inner {
     flex-wrap: wrap;
     row-gap: 0.1rem;
