@@ -63,3 +63,8 @@ dialog's React tree nest: Escape closes only the top one and focus stays in it.
 ```
 
 `MenuList` is anchored to the button and rendered in a portal with floating positioning, so opening it never moves the trigger or its neighbours. Arrow keys, Home / End, type-ahead, Escape (focus returns to the button) and outside click come from Headless UI. Items show `[data-focus]` while active (`ui.css` styles it from `--ui-hover`).
+
+- `anchor` on `MenuList` is a placement (`"bottom end"`, default `"bottom start"`) or `{ to, gap, padding }`. The list flips and shifts to stay inside the window, so a menu never overflows a phone; `--anchor-max-height` is the room left, so cap `max-height` with it (`ui.css` also caps at 60dvh, with zero specificity, so your class wins).
+- Headless UI leaves the focus on the list and marks the active row `[data-focus]` (and a disabled one `[data-disabled]`), so style those instead of `:focus-visible` / `:hover` / `:disabled`. A `MenuItem` that wraps your own element gives it `role="menuitem"`, replacing any role you set (no `menuitemcheckbox`: say the state in the label).
+- `MenuItem` is Headless UI's, plus `keepOpen`: the item does not close the menu when picked, by click, Enter or Space (a two-step Concede, a "Copied" flash). Close the menu yourself when it is done, with `close` from the `Menu` render prop: `<Menu>{({ close }) => ...}</Menu>`. Plain Headless UI closes after Enter / Space whatever the item does; `MenuList` intercepts those keys for `keepOpen` items.
+- Not a fit: a panel of mixed controls (checkboxes, steppers, text) that must stay open and reachable by Tab, like the planner's Sort panel. Tab closes a Menu and its rows are single actions. That wants a Popover.

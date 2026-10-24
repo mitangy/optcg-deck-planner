@@ -42,7 +42,10 @@ module.exports = {
     { id: "dialog-no-panel", edits: [{ file: dlg, from: "<DialogPanel ref", to: "<div ref" }, { file: dlg, from: "</DialogPanel>", to: "</div>" }], kills: ["a click outside the panel closes it, a click inside does not"] },
     { id: "dialog-backdrop-class-dropped", file: dlg, from: "className={`ui-dialog ${className ?? \"\"}`.trim()}", to: "className=\"ui-dialog\"", kills: ["opens as a named modal on the backdrop class"] },
     { id: "dialog-label-dropped", file: dlg, from: " aria-label={label}>", to: ">", kills: ["opens as a named modal on the backdrop class"] },
-    { id: "menu-list-in-flow", file: menu, from: "<MenuItems anchor={anchor} ", to: "<MenuItems ", kills: ["opens from the keyboard in a portal"] },
-    { id: "menu-list-always-open", file: menu, from: "<MenuItems anchor", to: "<MenuItems static anchor", kills: ["Escape closes it and focus returns to the button", "arrow keys move through the items and Enter picks one"] },
+    { id: "menu-list-in-flow", file: menu, from: "      anchor={anchor}\n", to: "", kills: ["opens from the keyboard in a portal"] },
+    { id: "menu-list-always-open", file: menu, from: "<MenuItems\n      anchor={anchor}", to: "<MenuItems\n      static\n      anchor={anchor}", kills: ["Escape closes it and focus returns to the button", "arrow keys move through the items and Enter picks one"] },
+    // MenuItem keepOpen and the Enter / Space capture in MenuList (#715)
+    {"id": "menu-keep-open-click-closes", "file": "packages/ui/src/popups/Menu.tsx", "from": "          onClick?.(e);\n          e.preventDefault();\n", "to": "          onClick?.(e);\n", "kills": ["a click picks a keepOpen item and leaves the menu open; a plain item closes it (#715)", "Enter on a keepOpen item picks it once and leaves the menu open (#715)"]},
+    {"id": "menu-keep-open-enter-closes", "file": "packages/ui/src/popups/Menu.tsx", "from": "if (item?.hasAttribute(\"data-keep-open\") && !item.hasAttribute(\"data-disabled\")) {", "to": "if (false as boolean) {", "kills": ["Enter on a keepOpen item picks it once and leaves the menu open (#715)"]},
   ],
 };

@@ -2285,32 +2285,13 @@ label.btn.is-busy {
   height: 44px;
 }
 
+/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left. */
 .nav-drawer-root {
-  position: fixed;
-  inset: 0;
   z-index: 120;
-  visibility: hidden;
-  pointer-events: none;
-  /* Stay visible until the slide-out finishes. */
-  transition: visibility 0s linear 200ms;
-}
-
-.nav-drawer-root[data-open="true"] {
-  visibility: visible;
-  pointer-events: auto;
-  transition-delay: 0s;
-}
-
-.nav-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgb(var(--abyss-rgb) / 0.72);
-  opacity: 0;
-  transition: opacity 180ms ease-out;
-}
-
-.nav-drawer-root[data-open="true"] .nav-backdrop {
-  opacity: 1;
+  display: block;
+  padding: 0;
+  /* background: the dialog's own --ui-backdrop (abyss at 72%). */
+  animation: nav-backdrop-in 180ms ease-out;
 }
 
 .nav-drawer {
@@ -2319,21 +2300,33 @@ label.btn.is-busy {
   bottom: 0;
   left: 0;
   width: min(280px, 85vw);
+  max-width: none;
   height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
   border-right: 1px solid var(--line-strong);
   background:
     linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
     var(--arena-panel);
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-  transform: translateX(-100%);
-  transition: transform 200ms ease-out;
+  animation: nav-drawer-in 200ms ease-out;
 }
 
-.nav-drawer-root[data-open="true"] .nav-drawer {
-  transform: none;
+/* The padding sits on the nav, so its box is the drawer's full width. */
+.nav-drawer-nav {
+  padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
+}
+
+@keyframes nav-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes nav-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
 }
 
 .nav-list {
@@ -2382,16 +2375,14 @@ label.btn.is-busy {
 
 @media (prefers-reduced-motion: reduce) {
   .nav-drawer-root,
-  .nav-backdrop,
   .nav-drawer {
-    transition: none;
+    animation: none;
   }
 }
 
 :root[data-motion="reduce"] .nav-drawer-root,
-:root[data-motion="reduce"] .nav-backdrop,
 :root[data-motion="reduce"] .nav-drawer {
-  transition: none;
+  animation: none;
 }
 
 /* —— Top bounties link to the full leaderboard —— */
@@ -2504,7 +2495,7 @@ label.btn.is-busy {
     min-height: 36px;
   }
 
-  .nav-drawer {
+  .nav-drawer-nav {
     padding-top: max(0.5rem, var(--safe-t));
     padding-bottom: max(0.5rem, var(--safe-b));
   }

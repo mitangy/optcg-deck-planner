@@ -26,6 +26,7 @@ afterEach(() => {
 
 function Harness() {
   const [picked, setPicked] = useState("none");
+  const [copies, setCopies] = useState(0);
   return (
     <div id="host">
       <Menu>
@@ -41,9 +42,15 @@ function Harness() {
               Delete
             </button>
           </MenuItem>
+          <MenuItem keepOpen>
+            <button type="button" onClick={() => setCopies((n) => n + 1)}>
+              Copy link
+            </button>
+          </MenuItem>
         </MenuList>
       </Menu>
       <output id="picked">{picked}</output>
+      <output id="copies">{copies}</output>
     </div>
   );
 }
@@ -86,6 +93,36 @@ describe("Menu", () => {
 
   it("Escape closes it and focus returns to the button (#708)", async () => {
     await mountOpen();
+    await key("Escape");
+    expect(list()).toBeNull();
+    expect(document.activeElement).toBe(btn());
+  });
+});
+
+describe("MenuItem keepOpen (#715)", () => {
+  const copies = () => document.getElementById("copies")!.textContent;
+
+  it("a click picks a keepOpen item and leaves the menu open; a plain item closes it (#715)", async () => {
+    await mountOpen();
+    await act(async () => {
+      document.querySelector<HTMLElement>("[data-keep-open]")!.click();
+      await wait();
+    });
+    expect(copies()).toBe("1");
+    expect(list()).not.toBeNull();
+    await act(async () => {
+      [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')][0]!.click();
+      await wait();
+    });
+    expect(list()).toBeNull();
+  });
+
+  it("Enter on a keepOpen item picks it once and leaves the menu open (#715)", async () => {
+    await mountOpen();
+    await key("End");
+    await key("Enter");
+    expect(copies()).toBe("1");
+    expect(list()).not.toBeNull();
     await key("Escape");
     expect(list()).toBeNull();
     expect(document.activeElement).toBe(btn());

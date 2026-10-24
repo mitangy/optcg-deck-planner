@@ -61,7 +61,8 @@ import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
-import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
+import { MenuItem } from "@optcg/ui/popups";
+import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
 import { FriendsNavLink } from "./friends/FriendsNavLink";
@@ -4156,52 +4157,35 @@ function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
-          <HeadPopover
-            label="More"
-            icon={<MoreIcon />}
-            className="btn quiet"
-            panelLabel="More deck actions"
-            width={260}
-          >
-            {(close) => (
-              <div className="head-popover-menu" role="menu">
-                <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} close={close} />
-                {data.leader_card_id && !data.is_main && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={setMain.isPending}
-                    onClick={() => {
-                      setMain.mutate();
-                      close();
-                    }}
-                  >
-                    {setMain.isPending ? "Setting…" : "Set as Main deck"}
-                    <span className="muted">Other decks for this leader compare against it</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="danger"
-                  disabled={resetOwned.isPending || data.cards.length === 0}
-                  onClick={() => {
-                    close();
-                    const ok = window.confirm(
-                      "Reset owned counts to 0 for every card in this deck?\n\n" +
-                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
-                    );
-                    if (!ok) return;
-                    setResetMsg(null);
-                    resetOwned.mutate();
-                  }}
-                >
-                  {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
-                  <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+          <HeadMenu label="More" icon={<MoreIcon />} className="btn quiet" width={260}>
+            <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} />
+            {data.leader_card_id && !data.is_main && (
+              <MenuItem disabled={setMain.isPending}>
+                <button type="button" onClick={() => setMain.mutate()}>
+                  {setMain.isPending ? "Setting…" : "Set as Main deck"}
+                  <span className="muted">Other decks for this leader compare against it</span>
                 </button>
-              </div>
+              </MenuItem>
             )}
-          </HeadPopover>
+            <MenuItem disabled={resetOwned.isPending || data.cards.length === 0}>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Reset owned counts to 0 for every card in this deck?\n\n" +
+                      "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
+                  );
+                  if (!ok) return;
+                  setResetMsg(null);
+                  resetOwned.mutate();
+                }}
+              >
+                {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
+                <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+              </button>
+            </MenuItem>
+          </HeadMenu>
         </div>
       </div>
 
