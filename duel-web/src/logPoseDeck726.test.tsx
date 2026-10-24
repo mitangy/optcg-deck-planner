@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { deckListText, parseDraft } from "@optcg/analyst-client";
 import { validateImportedList } from "./decks/storage";
 import { DRAFT_STATE_KEY, openDeckFor, openNewDeckFor, readLogPoseDraft } from "./logPose";
+import { LeaveGameDialog } from "./LeaveGameDialog";
 import { NewDeckPage } from "./pages/NewDeckPage";
 
 let root: Root | null = null;
@@ -31,21 +32,42 @@ afterEach(() => {
 const DRAFT = { name: "Red Luffy", list: "1xST01-001\n4xST01-003\n4xST01-006" };
 
 describe("Log Pose opens the create-deck page (#726)", () => {
-  it("never opens by itself over a board, a watched game or a replay, but the button always goes (#726)", () => {
+  it("never opens by itself over a board, a watched game or a replay (#726)", () => {
     for (const path of ["/duel", "/hotseat", "/watch/abc123", "/replay/m1", "/demo"]) {
       const navigate = vi.fn();
-      const open = openNewDeckFor(navigate, () => path);
-      expect(open(DRAFT, { auto: true }), path).toBe(false);
+      const ask = vi.fn();
+      expect(openNewDeckFor(navigate, () => path, ask)(DRAFT, { auto: true }), path).toBe(false);
       expect(navigate, path).not.toHaveBeenCalled();
-      expect(open(DRAFT, { auto: false }), path).toBe(true);
+      expect(ask, path).not.toHaveBeenCalled();
+    }
+  });
+
+  it("asks before the button takes the player off a game page, and goes only on Leave (#728)", () => {
+    for (const path of ["/duel", "/hotseat", "/watch/abc123", "/replay/m1", "/demo"]) {
+      const navigate = vi.fn();
+      const ask = vi.fn();
+      expect(openNewDeckFor(navigate, () => path, ask)(DRAFT, { auto: false }), path).toBe(true);
+      expect(navigate, path).not.toHaveBeenCalled();
+      expect(ask, path).toHaveBeenCalledTimes(1);
+      ask.mock.calls[0]![0]();
       expect(navigate, path).toHaveBeenCalledWith("/decks/new", { state: { [DRAFT_STATE_KEY]: DRAFT } });
+    }
+  });
+
+  it("goes straight away from pages that are not a game (#728)", () => {
+    for (const path of ["/", "/decks", "/settings", "/history/m1"]) {
+      const navigate = vi.fn();
+      const ask = vi.fn();
+      openNewDeckFor(navigate, () => path, ask)(DRAFT, { auto: false });
+      expect(ask, path).not.toHaveBeenCalled();
+      expect(navigate, path).toHaveBeenCalledTimes(1);
     }
   });
 
   it("opens by itself from the lobby, decks and deck editor pages (#726)", () => {
     for (const path of ["/", "/decks", "/decks/d1/configure", "/history"]) {
       const navigate = vi.fn();
-      expect(openNewDeckFor(navigate, () => path)(DRAFT, { auto: true }), path).toBe(true);
+      expect(openNewDeckFor(navigate, () => path, vi.fn())(DRAFT, { auto: true }), path).toBe(true);
       expect(navigate, path).toHaveBeenCalledWith("/decks/new", { state: { [DRAFT_STATE_KEY]: DRAFT } });
     }
   });
@@ -134,5 +156,23 @@ describe("NewDeckPage filled in by Log Pose (#726)", () => {
     expect((host!.querySelector("#new-deck-name") as HTMLInputElement).value).toBe("");
     expect((host!.querySelector("#deck-import-text") as HTMLTextAreaElement).value).toBe("");
     expect(host!.textContent).not.toContain("Filled in by Log Pose");
+  });
+});
+
+describe("LeaveGameDialog (#728)", () => {
+  it("offers Leave and Stay, and Esc stays (#728)", async () => {
+    const onLeave = vi.fn();
+    const onStay = vi.fn();
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => root!.render(<LeaveGameDialog open onLeave={onLeave} onStay={onStay} />));
+    const btn = (n: string) => [...document.querySelectorAll("button")].find((b) => b.textContent === n)!;
+    expect(document.body.textContent).toContain("Leave this game to open the deck builder?");
+    await act(async () => btn("Stay").click());
+    expect(onStay).toHaveBeenCalledTimes(1);
+    expect(onLeave).not.toHaveBeenCalled();
+    await act(async () => btn("Leave").click());
+    expect(onLeave).toHaveBeenCalledTimes(1);
   });
 });

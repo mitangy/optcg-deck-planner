@@ -997,5 +997,6 @@ module.exports = {
     {"id": "unfriend-keeps-offers", "file": "backend/app/routers/friends.py", "from": "    trades.cancel_between(db, user.id, other_id)\n", "to": "", "kills": ["test_unfriending_cancels_open_and_accepted_offers_but_keeps_finished_ones_703"], "args": "tests/test_trades.py"},
     {"id": "unfriend-cancels-finished-trades", "file": "backend/app/trades.py", "from": "TradeOffer.status.in_((\"pending\", \"accepted\")),", "to": "TradeOffer.status.in_((\"pending\", \"accepted\", \"completed\")),", "kills": ["test_unfriending_cancels_open_and_accepted_offers_but_keeps_finished_ones_703"], "args": "tests/test_trades.py"},
     {"id": "unfriend-cancels-offers-with-others", "file": "backend/app/trades.py", "from": "and_(TradeOffer.from_user_id == b, TradeOffer.to_user_id == a),", "to": "TradeOffer.from_user_id == b,", "kills": ["test_unfriending_cancels_open_and_accepted_offers_but_keeps_finished_ones_703"], "args": "tests/test_trades.py"},
+    {"id": "decklist-leading-qty-ignored", "file": "backend/app/domain.py", "from": "qty = int(leading_qty or \"1\")", "to": "qty = 1", "kills": ["test_parse_decklist_reads_the_log_pose_deck_list_text_728"], "args": "tests/test_shopping_need.py"},
   ],
 };

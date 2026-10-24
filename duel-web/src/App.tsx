@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
+import { LeaveGameDialog } from "./LeaveGameDialog";
 import { defaultLogPosePage, logPoseChromeFor, openDeckFor, openNewDeckFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
@@ -45,7 +46,11 @@ export function App() {
   // A deck Log Pose builds opens the create-deck page; it never takes the player off a live board by itself (#726).
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
-  const sources = useMemo(() => ({ ...SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current) }), [navigate]);
+  const [leaving, setLeaving] = useState<(() => void) | null>(null);
+  const sources = useMemo(
+    () => ({ ...SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current, (go) => setLeaving(() => go)) }),
+    [navigate],
+  );
   // Before paint, so switching theme (or loading it from the account) never
   // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
@@ -89,6 +94,15 @@ export function App() {
       </Routes>
       {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" onFeedback={() => openFeedback("Send feedback")} />}
       <FeedbackHost />
+      <LeaveGameDialog
+        open={leaving !== null}
+        onStay={() => setLeaving(null)}
+        onLeave={() => {
+          const go = leaving;
+          setLeaving(null);
+          go?.();
+        }}
+      />
     </LogPoseProvider>
   );
 }

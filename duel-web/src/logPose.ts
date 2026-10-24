@@ -138,14 +138,26 @@ export function readLogPoseDraft(state: unknown): { name: string; list: string }
   return typeof name === "string" && typeof list === "string" && list.trim() ? { name, list } : null;
 }
 
+/** Routes that render a game: a board, a watched game, a replay or the demo. */
+export function inGameRoute(pathname: string): boolean {
+  return ["/duel", "/hotseat", "/watch", "/replay", "/demo"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 /**
  * Opens /decks/new with Log Pose's deck filled in. The card opening it by itself (`auto`) never takes the player away from a
- * board, a watched game or a replay: it returns false there. The button the player presses always goes.
+ * board, a watched game or a replay: it returns false there. The button the player presses goes too, but from a game route it
+ * first asks (`askLeave` gets the move to run on Leave).
  */
-export function openNewDeckFor(navigate: (to: string, options: { state: unknown }) => void, pathname: () => string): NonNullable<SourceHooks["openNewDeck"]> {
+export function openNewDeckFor(
+  navigate: (to: string, options: { state: unknown }) => void,
+  pathname: () => string,
+  askLeave: (leave: () => void) => void,
+): NonNullable<SourceHooks["openNewDeck"]> {
   return (draft, how) => {
     if (how.auto && !showsLogPose(pathname())) return false;
-    navigate("/decks/new", { state: { [DRAFT_STATE_KEY]: draft } });
+    const go = () => navigate("/decks/new", { state: { [DRAFT_STATE_KEY]: draft } });
+    if (!how.auto && inGameRoute(pathname())) askLeave(go);
+    else go();
     return true;
   };
 }
