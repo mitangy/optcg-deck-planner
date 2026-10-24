@@ -10,7 +10,7 @@ import {
 } from "react";
 import { blockedTitle, handCostCaption, type HandBlock } from "./handAffordance";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,

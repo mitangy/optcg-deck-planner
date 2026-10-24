@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { lookupCard } from "./atlas";
-import { isTcgplayerCdnUrl } from "./cardImage";
+import { isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import { productIdFromImageUrl } from "./productId";
 
+describe("OP16-080 Teach art", () => {
+  it("atlas imageUrl is a tcgplayer-cdn URL", () => {
+    const teach = lookupCard("OP16-080");
+    expect(teach.imageUrl).toBe("https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg");
+    expect(isTcgplayerCdnUrl(teach.imageUrl)).toBe(true);
+  });
+});
+
 describe("atlas art resolution", () => {
+
   it("resolves Rocks OP17-039 to TCGPlayer CDN (not missing /cards mirror)", () => {
     const rocks = lookupCard("OP17-039");
     expect(rocks.imageUrl).toBe(

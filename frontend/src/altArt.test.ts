@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrintingView } from "./api";
-import { featuredAlt, mainImageUrl } from "./altArt";
+import { baseTileFor, featuredAlt, mainImageUrl, shownProductId } from "./altArt";
 
 const alt = (product_id: number, owned: number, image_url = `alt${product_id}.jpg`): PrintingView => ({
   product_id,
@@ -37,5 +37,39 @@ describe("mainImageUrl", () => {
 
   it("falls back to base when the owned alt has no image (#625)", () => {
     expect(mainImageUrl({ image_url: "base.jpg", alt_arts: [alt(1, 1, "")] })).toBe("base.jpg");
+  });
+});
+
+describe("display_art choice (#702)", () => {
+  it("0 shows the base art even while an alt is owned (#702)", () => {
+    const card = { image_url: "base.jpg", alt_arts: [alt(1, 3)], display_art: 0 };
+    expect(featuredAlt(card)).toBeNull();
+    expect(mainImageUrl(card)).toBe("base.jpg");
+    expect(shownProductId(card)).toBe(0);
+  });
+
+  it("a chosen alt is shown even when unowned and others are owned (#702)", () => {
+    const card = { image_url: "base.jpg", alt_arts: [alt(1, 3), alt(2, 0)], display_art: 2 };
+    expect(featuredAlt(card)?.product_id).toBe(2);
+    expect(mainImageUrl(card)).toBe("alt2.jpg");
+    expect(shownProductId(card)).toBe(2);
+  });
+
+  it("an unknown or null choice falls back to the most-owned alt (#702)", () => {
+    const alts = [alt(1, 1), alt(2, 3)];
+    expect(featuredAlt({ alt_arts: alts, display_art: 99 })?.product_id).toBe(2);
+    expect(featuredAlt({ alt_arts: alts, display_art: null })?.product_id).toBe(2);
+    expect(featuredAlt({ alt_arts: alts })?.product_id).toBe(2);
+  });
+
+  it("the Base tile appears when an unowned alt is the chosen art (#702)", () => {
+    const card = {
+      name: "Nami",
+      market_price: 1,
+      alt_arts: [alt(1, 0)],
+      display_art: 1,
+    };
+    expect(baseTileFor(card)).not.toBeNull();
+    expect(baseTileFor({ ...card, display_art: 0 })).toBeNull();
   });
 });

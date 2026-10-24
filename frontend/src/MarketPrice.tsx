@@ -208,6 +208,8 @@ export function AltArtsRow({
   base = null,
   baseOwnedControl,
   cardId,
+  shownProductId = null,
+  onShow,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -221,11 +223,31 @@ export function AltArtsRow({
   baseOwnedControl?: ReactNode;
   /** Falls back to the card's preview art when an alt (or the base) has none of its own. */
   cardId?: string | null;
+  /** Product id of the art currently shown as the card's picture (0/null = base). */
+  shownProductId?: number | null;
+  /** Makes a tile the card's picture (0 = base). Adds a Show control to every tile. */
+  onShow?: (productId: number) => void;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
   const wantSum = list.reduce((s, a) => s + (a.wanted ?? 0), 0);
   const atCap = cardNeeded != null && wantSum >= cardNeeded;
+  const shown = shownProductId ?? 0;
+  const showControl = (productId: number, name: string) =>
+    onShow ? (
+      productId === shown ? (
+        <span className="alt-shown-chip">Shown</span>
+      ) : (
+        <button
+          type="button"
+          className="alt-show-btn"
+          aria-label={`Show ${name} as the card's art`}
+          onClick={() => onShow(productId)}
+        >
+          Show
+        </button>
+      )
+    ) : null;
 
   return (
     <div className="alt-arts">
@@ -236,6 +258,7 @@ export function AltArtsRow({
             <MarketPrice price={base.market_price} productId={base.product_id} />
             {baseOwnedControl}
             <span className="alt-base-label">Base</span>
+            {showControl(0, `${base.name} base art`)}
           </div>
         </div>
       )}
@@ -288,6 +311,7 @@ export function AltArtsRow({
                   Alt
                 </span>
               )}
+              {showControl(alt.product_id, alt.name)}
             </div>
           </div>
         );
