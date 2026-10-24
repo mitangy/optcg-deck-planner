@@ -46,7 +46,7 @@ When a change affects layout, card arts, lightbox, list/grid/mobile, or other in
    - Opening lightbox (click `.thumb-btn`, wait for `.lightbox-img`)
    - List / Grid toggles
    - Measuring CSS box size (`getBoundingClientRect`) and proving image sources (`img.src`, `naturalWidth` / `naturalHeight`)
-4. Card arts: catalog rows stay `_200w`; the client rewrites thumbs to `_400w` and lightbox to `_in_1000x1000` via `frontend/src/cardImage.ts`. A successful art review asserts those URLs and that the lightbox is hundreds of CSS pixels tall (typical native scan ~600×838), not that SAMPLE watermarks disappear (many TCGplayer/Bandai assets include SAMPLE).
+4. Card arts: catalog rows stay `_200w`; the client rewrites thumbs to `_400w` and lightbox to `_in_1000x1000` via `packages/ui/src/cardArt/cardImage.ts`. A successful art review asserts those URLs and that the lightbox is hundreds of CSS pixels tall (typical native scan ~600×838), not that SAMPLE watermarks disappear (many TCGplayer/Bandai assets include SAMPLE).
 5. Save screenshots under `/opt/cursor/artifacts/` with short snake_case names.
 
 #### Demo videos (`RecordScreen`) need headed Chrome

@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { isPreviewArtPath } from "../cards/previewArt";
+import { isPreviewArtPath } from "@optcg/ui/cardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import { lifeFaceArt, ZonePile } from "./ZonePile";
 

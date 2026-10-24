@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { CardArt } from "../cards/CardArt";
-import { cardImageUrl } from "../cards/cardImage";
+import { cardImageUrl } from "@optcg/ui/cardArt";
 import { listSavedDecks, setSelectedDeckId } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import {

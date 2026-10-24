@@ -1,30 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { artAfterError, cardImageUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "./cardImage";
-import { lookupCard } from "./atlas";
+import { artAfterError, cardImageUrl, isPlaceholderArt } from "./cardImage";
+
+const catalog = "https://tcgplayer-cdn.tcgplayer.com/product/453505_200w.jpg";
 
 describe("cardImageUrl", () => {
-  it("rewrites TCGplayer thumbs to _400w / _in_1000x1000", () => {
-    const base = "https://tcgplayer-cdn.tcgplayer.com/product/694627_200w.jpg";
-    expect(cardImageUrl(base, "thumb")).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
+  it("rewrites TCGCSV _200w thumbs to 400w and the 1000-box large variant", () => {
+    expect(cardImageUrl(catalog, "thumb")).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/453505_400w.jpg",
     );
-    expect(cardImageUrl(base, "large")).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/694627_in_1000x1000.jpg",
+    expect(cardImageUrl(catalog, "large")).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/453505_in_1000x1000.jpg",
     );
   });
 
-  it("leaves local /cards paths unchanged", () => {
+  it("converts already-sized CDN URLs between thumb and large", () => {
+    const large = "https://tcgplayer-cdn.tcgplayer.com/product/453505_in_1000x1000.jpg";
+    expect(cardImageUrl(large, "thumb")).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/453505_400w.jpg",
+    );
+    expect(cardImageUrl("https://tcgplayer-cdn.tcgplayer.com/product/9_400w.jpg", "large")).toBe(
+      "https://tcgplayer-cdn.tcgplayer.com/product/9_in_1000x1000.jpg",
+    );
+  });
+
+  it("leaves non-TCGplayer URLs and empty values alone", () => {
+    expect(cardImageUrl("", "large")).toBe("");
+    expect(cardImageUrl(undefined, "thumb")).toBe("");
+    expect(cardImageUrl("https://example.test/OP01-002.png", "large")).toBe(
+      "https://example.test/OP01-002.png",
+    );
     expect(cardImageUrl("/cards/ST01-001.png", "large")).toBe("/cards/ST01-001.png");
-  });
-});
-
-describe("OP16-080 Teach art", () => {
-  it("atlas imageUrl is a tcgplayer-cdn URL", () => {
-    const teach = lookupCard("OP16-080");
-    expect(teach.imageUrl).toBe(
-      "https://tcgplayer-cdn.tcgplayer.com/product/694627_400w.jpg",
-    );
-    expect(isTcgplayerCdnUrl(teach.imageUrl)).toBe(true);
   });
 });
 
@@ -35,9 +40,7 @@ describe("artAfterError", () => {
     expect(local).toBe("/cards/OP01-001.png");
     expect(artAfterError(local!, "op01-001")).toBeNull();
   });
-});
 
-describe("EB05 preview art", () => {
   it("EB05 cards fall back to preview art when TCGPlayer art fails (#575)", () => {
     const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
     const preview = artAfterError(cdn, "EB05-001");
@@ -54,9 +57,7 @@ describe("EB05 preview art", () => {
     expect(artAfterError("/cards/OP01-016.png", "OP01-016")).toBeNull();
     expect(artAfterError("https://example.com/a.jpg", "OP18-021")).toBeNull();
   });
-});
 
-describe("alt art preview fallback (#581)", () => {
   it("a failed alt printing shows its own preview, not the card's (#581)", () => {
     // 722644 is EB05-010's alt; EB05-010 has no card-level preview, EB05-001 does.
     const alt = "https://tcgplayer-cdn.tcgplayer.com/product/722644_400w.jpg";
