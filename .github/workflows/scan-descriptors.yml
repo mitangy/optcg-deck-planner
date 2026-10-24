@@ -11,6 +11,14 @@ on:
         description: "Max printings to process (blank = all)"
         required: false
         default: ""
+      detector_url:
+        description: "URL of a card-detector .onnx to publish instead of frontend/scan-models/card-detector.onnx (blank = the committed one)"
+        required: false
+        default: ""
+      embedder_url:
+        description: "URL of a card-art embedder .onnx to use instead of frontend/scan-models/card-embedder.onnx (blank = the committed one)"
+        required: false
+        default: ""
   schedule:
     # Monthly, well after a set release would have landed in the catalog.
     - cron: "0 5 1 * *"
@@ -47,6 +55,28 @@ jobs:
         run: |
           mkdir -p .scan-build/desc
           npm run extract-descriptors -- .scan-build/refs .scan-build/desc
+
+      # The learned card detector is trained offline (scripts/train-detector,
+      # hours on CPU); the trained model is committed in frontend/scan-models.
+      - name: Pack card detector
+        working-directory: frontend
+        env:
+          DETECTOR_URL: ${{ inputs.detector_url }}
+        run: |
+          MODEL=scan-models/card-detector.onnx
+          if [ -n "$DETECTOR_URL" ]; then curl -fsSL "$DETECTOR_URL" -o .scan-build/card-detector.onnx; MODEL=.scan-build/card-detector.onnx; fi
+          node scripts/pack-detector.mjs "$MODEL" .scan-build/desc
+
+      # The art embedder (scripts/train-embedder) orders the search. The model is
+      # trained offline and committed; every printing is re-embedded here so new sets are covered.
+      - name: Embed printings
+        working-directory: frontend
+        env:
+          EMBEDDER_URL: ${{ inputs.embedder_url }}
+        run: |
+          MODEL=scan-models/card-embedder.onnx
+          if [ -n "$EMBEDDER_URL" ]; then curl -fsSL "$EMBEDDER_URL" -o .scan-build/card-embedder-model.onnx; MODEL=.scan-build/card-embedder-model.onnx; fi
+          npx tsx scripts/pack-embedder.mjs .scan-build/refs "$MODEL" .scan-build/desc
 
       - name: Summarise
         working-directory: frontend
