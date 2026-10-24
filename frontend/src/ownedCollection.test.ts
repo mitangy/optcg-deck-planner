@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { OwnedCard, OwnedCollectionResponse } from "./api";
+import type { OwnedCard, OwnedCollectionResponse, PrintingView } from "./api";
 import { compareCardOrder } from "./cardListControls";
-import { collectionTotals, patchOwnedCollection } from "./ownedCollection";
+import { collectionTotals, patchOwnedCollection, patchOwnedCollectionAlt, patchOwnedCollectionDisplayArt } from "./ownedCollection";
 
 const card = (card_id: string, owned: number, market_price: number | null): OwnedCard => ({
   card_id,
@@ -102,5 +102,41 @@ describe("owned collection", () => {
     const unpriced = card("OP01-003", 4, null);
     const sorted = [unpriced, single, playset].sort((a, b) => compareCardOrder(a, b, ["value"]));
     expect(sorted.map((c) => c.card_id)).toEqual(["OP01-001", "OP01-002", "OP01-003"]);
+  });
+  it("stepping an alt's Owned reprices the card at the alt's own price and moves the totals (#723)", () => {
+    const alt = (product_id: number, price: number, owned: number): PrintingView =>
+      ({ product_id, name: `alt ${product_id}`, market_price: price, owned }) as PrintingView;
+    // 2 base at $1 + 1 of alt 100 at $20; alt 101 ($5) is unowned.
+    const a: OwnedCard = { ...card("A", 2, 1), alts_owned: 1, value: 22, alt_arts: [alt(100, 20, 1), alt(101, 5, 0)] };
+    const old: OwnedCollectionResponse = {
+      items: [a, card("B", 1, 10)],
+      unique_cards: 2,
+      total_copies: 4,
+      total_value: 32,
+      unpriced_cards: 0,
+    };
+    const next = patchOwnedCollectionAlt(old, "a", 101, 2);
+    expect(next.items[0].alt_arts?.map((x) => [x.product_id, x.owned])).toEqual([[100, 1], [101, 2]]);
+    expect(next.items[0]).toMatchObject({ owned: 2, alts_owned: 3, value: 32 });
+    expect(next.items[1]).toBe(old.items[1]);
+    expect(next.total_copies).toBe(6);
+    expect(next.total_value).toBe(42);
+    // Back to 0 on every alt: the card stays listed (base copies remain) at its base value.
+    const cleared = patchOwnedCollectionAlt(patchOwnedCollectionAlt(next, "A", 101, 0), "A", 100, 0);
+    expect(cleared.items[0]).toMatchObject({ alts_owned: 0, value: 2 });
+    expect(cleared.total_value).toBe(12);
+  });
+
+  it("choosing the art sets display_art on that card only (#723)", () => {
+    const old: OwnedCollectionResponse = {
+      items: [card("A", 1, 1), card("B", 1, 1)],
+      unique_cards: 2,
+      total_copies: 2,
+      total_value: 2,
+      unpriced_cards: 0,
+    };
+    const next = patchOwnedCollectionDisplayArt(old, "a", 201);
+    expect(next.items.map((i) => i.display_art)).toEqual([201, undefined]);
+    expect(patchOwnedCollectionDisplayArt(next, "A", null).items[0].display_art).toBeNull();
   });
 });
