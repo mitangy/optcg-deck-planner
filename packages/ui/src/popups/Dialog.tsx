@@ -23,6 +23,14 @@ export type DialogProps = {
   panelRef?: Ref<HTMLDivElement>;
   /** Extra attributes and handlers for the panel element. */
   panelProps?: Omit<ComponentPropsWithoutRef<"div">, "className" | "children">;
+  /**
+   * Opt in to enter and leave transitions (default false: the dialog unmounts the moment `open` turns false).
+   * The backdrop and the panel then stay mounted until their CSS transition ends and carry `data-closed`
+   * (hidden state), `data-enter` and `data-leave`, e.g. `.my-panel { transition: transform 200ms }`
+   * `.my-panel[data-closed] { transform: translateX(-100%) }`. With no transition in CSS (reduced motion)
+   * it unmounts at once. Focus return, Escape and outside click behave the same.
+   */
+  transition?: boolean;
   children: ReactNode;
 };
 
@@ -42,6 +50,7 @@ export function Dialog({
   closeOnOutsideClick = true,
   panelRef,
   panelProps,
+  transition = false,
   children,
 }: DialogProps) {
   // Headless UI calls onClose for Escape and for an outside click alike. When only Escape may close,
@@ -64,8 +73,8 @@ export function Dialog({
   }, [closeOnOutsideClick, onClose]);
 
   return (
-    <HeadlessDialog open={open} onClose={close} role={role} className={`ui-dialog ${className ?? ""}`.trim()} aria-label={label}>
-      <DialogPanel ref={panelRef} className={`ui-dialog-panel ${panelClassName ?? ""}`.trim()} {...panelProps}>
+    <HeadlessDialog open={open} onClose={close} role={role} transition={transition} className={`ui-dialog ${className ?? ""}`.trim()} aria-label={label}>
+      <DialogPanel ref={panelRef} transition={transition} className={`ui-dialog-panel ${panelClassName ?? ""}`.trim()} {...panelProps}>
         {children}
       </DialogPanel>
     </HeadlessDialog>

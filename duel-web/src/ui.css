@@ -2311,13 +2311,19 @@ label.btn.is-busy {
   height: 44px;
 }
 
-/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left. */
+/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left and back out on close.
+   The Dialog's `transition` keeps both mounted until these CSS transitions end and sets data-closed / data-enter / data-leave;
+   with no transition (reduced motion) it unmounts at once. */
 .nav-drawer-root {
   z-index: 120;
   display: block;
   padding: 0;
   /* background: the dialog's own --ui-backdrop (abyss at 72%). */
-  animation: nav-backdrop-in 180ms ease-out;
+  transition: opacity 180ms ease-out;
+}
+
+.nav-drawer-root[data-closed] {
+  opacity: 0;
 }
 
 .nav-drawer {
@@ -2335,24 +2341,16 @@ label.btn.is-busy {
     linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
     var(--arena-panel);
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-  animation: nav-drawer-in 200ms ease-out;
+  transition: transform 200ms ease-out;
+}
+
+.nav-drawer[data-closed] {
+  transform: translateX(-100%);
 }
 
 /* The padding sits on the nav, so its box is the drawer's full width. */
 .nav-drawer-nav {
   padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
-}
-
-@keyframes nav-backdrop-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes nav-drawer-in {
-  from {
-    transform: translateX(-100%);
-  }
 }
 
 .nav-list {
@@ -2402,13 +2400,13 @@ label.btn.is-busy {
 @media (prefers-reduced-motion: reduce) {
   .nav-drawer-root,
   .nav-drawer {
-    animation: none;
+    transition: none;
   }
 }
 
 :root[data-motion="reduce"] .nav-drawer-root,
 :root[data-motion="reduce"] .nav-drawer {
-  animation: none;
+  transition: none;
 }
 
 /* —— Top bounties link to the full leaderboard —— */

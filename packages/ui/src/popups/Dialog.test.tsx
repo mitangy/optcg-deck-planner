@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { Dialog } from "./Dialog";
 
 let root: Root | null = null;
@@ -18,14 +18,14 @@ afterEach(() => {
   host = null;
 });
 
-function Harness() {
+function Harness({ transition }: { transition?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <div>
       <button type="button" id="trigger" onClick={() => setOpen(true)}>
         Open
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)} className="my-backdrop" panelClassName="my-panel" label="Example">
+      <Dialog open={open} onClose={() => setOpen(false)} className="my-backdrop" panelClassName="my-panel" label="Example" transition={transition}>
         <p id="inside">Inside</p>
         <button type="button" id="first">
           First
@@ -35,11 +35,11 @@ function Harness() {
   );
 }
 
-function mount() {
+function mount(transition?: boolean) {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  act(() => root!.render(<Harness />));
+  act(() => root!.render(<Harness transition={transition} />));
 }
 
 const trigger = () => document.getElementById("trigger") as HTMLButtonElement;
@@ -100,5 +100,73 @@ describe("Dialog", () => {
     expect(dialog()).not.toBeNull();
     await click(dialog()!);
     expect(dialog()).toBeNull();
+  });
+
+  describe("transition (#722)", () => {
+    // jsdom runs no CSS transitions, so stand in for one: every element reports a running CSSTransition
+    // that settles when the test says so, like the end of `transition: transform 200ms`.
+    let finish: () => void;
+    const g = globalThis as { CSSTransition?: unknown };
+    const proto = Element.prototype as { getAnimations?: () => unknown[] };
+    let savedGetAnimations: (() => unknown[]) | undefined;
+    beforeEach(() => {
+      class FakeTransition {
+        finished: Promise<unknown>;
+        constructor(settle: Promise<unknown>) {
+          this.finished = settle;
+        }
+      }
+      let pending: Array<() => void> = [];
+      finish = () => {
+        pending.forEach((release) => release());
+        pending = [];
+      };
+      g.CSSTransition = FakeTransition;
+      savedGetAnimations = proto.getAnimations;
+      proto.getAnimations = () => [new FakeTransition(new Promise<void>((r) => pending.push(r)))];
+    });
+    afterEach(() => {
+      delete g.CSSTransition;
+      proto.getAnimations = savedGetAnimations;
+    });
+
+    const panel = () => document.querySelector<HTMLElement>(".my-panel");
+    const settle = () =>
+      act(async () => {
+        // The transition is read a couple of frames after the state flips, so settle on every tick for a while.
+        for (let i = 0; i < 8; i++) {
+          finish();
+          await new Promise((r) => setTimeout(r, 20));
+        }
+      });
+
+    it("keeps the panel mounted, marked data-closed, while it leaves, then unmounts (#722)", async () => {
+      mount(true);
+      await open();
+      await settle();
+      expect(panel()).not.toBeNull();
+      expect(panel()!.hasAttribute("data-closed")).toBe(false);
+
+      await press("Escape");
+      expect(dialog()).not.toBeNull();
+      expect(panel()!.hasAttribute("data-leave")).toBe(true);
+      // The hidden state lands a frame after the leave starts; the CSS transition runs between the two.
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 60));
+      });
+      expect(dialog()).not.toBeNull();
+      expect(panel()!.hasAttribute("data-closed")).toBe(true);
+
+      await settle();
+      expect(dialog()).toBeNull();
+      expect(document.activeElement).toBe(trigger());
+    });
+
+    it("without transition the panel unmounts at once (#722)", async () => {
+      mount();
+      await open();
+      await press("Escape");
+      expect(dialog()).toBeNull();
+    });
   });
 });

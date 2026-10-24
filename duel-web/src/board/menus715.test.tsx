@@ -313,6 +313,9 @@ describe("Site menu drawer on the shared Dialog (#715)", () => {
     </MemoryRouter>
   );
 
+  // The drawer slides out (#722), so it leaves the page a couple of frames after it closes.
+  const gone = () => act(() => wait(120));
+
   it("opens as a named modal with focus on its first link and Escape returns focus to the hamburger (#715)", async () => {
     await mount(ui);
     hamburger().focus();
@@ -325,6 +328,7 @@ describe("Site menu drawer on the shared Dialog (#715)", () => {
     expect(hamburger().getAttribute("aria-expanded")).toBe("true");
     expect(drawer()!.contains(document.activeElement)).toBe(true);
     await press("Escape");
+    await gone();
     expect(drawer()).toBeNull();
     expect(document.activeElement).toBe(hamburger());
   });
@@ -355,6 +359,7 @@ describe("Site menu drawer on the shared Dialog (#715)", () => {
       }
       await wait();
     });
+    await gone();
     expect(drawer()).toBeNull();
   });
 });
