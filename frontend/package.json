@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "extract-descriptors": "tsx scripts/extract-descriptors.mjs",
-    "upload-descriptors": "node scripts/upload-descriptors.mjs",
+    "upload-descriptors": "tsx scripts/upload-descriptors.mjs",
     "pack-detector": "node scripts/pack-detector.mjs",
     "e2e": "playwright test",
     "e2e:visual": "playwright test --grep @visual"
