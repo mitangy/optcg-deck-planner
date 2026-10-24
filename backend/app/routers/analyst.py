@@ -19,6 +19,7 @@ from app.tournament_sync import sync_status
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.roles import is_banned
 from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
 from app.routers.duel import match_history
 from app.schemas import (
@@ -166,11 +167,15 @@ def analyst_user(
         user = _chat_token_user(db, settings, x_analyst_token)
         if user is None:
             raise HTTPException(status_code=401, detail="Expired or invalid chat token")
+        if is_banned(user):
+            raise HTTPException(status_code=403, detail="Account banned")
         return user
     row = db.scalar(select(AnalystToken).where(AnalystToken.token_hash == _hash(x_analyst_token)))
     user = db.get(User, row.user_id) if row else None
     if user is None:
         raise HTTPException(status_code=401, detail="Unknown or revoked analyst token")
+    if is_banned(user):
+        raise HTTPException(status_code=403, detail="Account banned")
     return user
 
 
