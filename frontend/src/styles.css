@@ -4811,6 +4811,7 @@ button.ghost.scan-open:hover {
   position: fixed;
   inset: 0;
   z-index: 200;
+  padding: 0;
   background: #000;
   overflow: hidden;
 }
@@ -5451,6 +5452,7 @@ button.ghost.scan-open:hover {
   position: fixed;
   inset: 0;
   z-index: 60;
+  padding: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;

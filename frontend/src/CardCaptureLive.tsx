@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import { CARD_ASPECT } from "./cardRectify";
 import { scanLog } from "./scanLog";
 
@@ -94,7 +95,20 @@ export function guideCropInVideoSpace(
   };
 }
 
+/**
+ * The full-screen viewfinder, a dialog of its own: it mounts only while open, so closing it (cancel,
+ * Escape, capture, or the scanner under it going away) unmounts `LiveCapture` and stops the camera.
+ * Escape closes just this one; a stray tap on the picture must not, so only Escape does.
+ */
 export function CardCaptureLive({ onCapture, onCancel }: Props) {
+  return (
+    <Dialog open onClose={onCancel} className="live-capture-overlay" label="Scan with camera" closeOnOutsideClick={false}>
+      <LiveCapture onCapture={onCapture} onCancel={onCancel} />
+    </Dialog>
+  );
+}
+
+function LiveCapture({ onCapture, onCancel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -207,7 +221,7 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
   }, [onCapture]);
 
   return (
-    <div className="live-capture-overlay" role="dialog" aria-modal="true" aria-label="Scan a card">
+    <>
       <video ref={videoRef} className="live-video" playsInline muted autoPlay />
 
       {ready && (
@@ -244,6 +258,6 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
           aria-label="Capture"
         />
       </div>
-    </div>
+    </>
   );
 }

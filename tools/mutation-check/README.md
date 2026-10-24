@@ -38,6 +38,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |
+| `site-legal` | `packages/site-legal/src` | vitest |
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
