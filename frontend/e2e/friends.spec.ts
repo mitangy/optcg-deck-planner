@@ -299,11 +299,11 @@ test("Keep holds copies back from trades and gives them back (#703)", async ({ p
 test("a deck can be hidden from friends in the deck editor menu (#703)", async ({ page, planner }) => {
   await planner.open("/decks/1");
   await page.getByRole("button", { name: "More" }).click();
-  await page.getByRole("menuitemcheckbox", { name: /Hide from friends/ }).click();
+  await page.getByRole("menuitem", { name: /Hide from friends/ }).click();
   await expect.poll(() => planner.deckHidden).toBe(true);
   await page.getByRole("button", { name: "More" }).click();
-  await expect(page.getByRole("menuitemcheckbox", { name: /Hidden from friends/ })).toBeChecked();
+  await expect(page.getByRole("menuitem", { name: /Hidden from friends/ })).toBeVisible();
   // Choosing it again shows the deck to friends again.
-  await page.getByRole("menuitemcheckbox", { name: /Hidden from friends/ }).click();
+  await page.getByRole("menuitem", { name: /Hidden from friends/ }).click();
   await expect.poll(() => planner.deckHidden).toBe(false);
 });

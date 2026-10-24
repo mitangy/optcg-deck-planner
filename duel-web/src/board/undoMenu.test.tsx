@@ -1,7 +1,9 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { UndoPending, UndoState } from "../net/protocol";
-import { UndoMenuList } from "./UndoControl";
+import { UndoControl } from "./UndoControl";
 import { undoBlocked, undoButtonTitle, undoMenuModel, undoRequestText } from "./undoMenu";
 
 const free = { available: true, forceable: false } as const;
@@ -92,18 +94,48 @@ describe("undo button hover (#536)", () => {
 });
 
 describe("undo menu markup (#536)", () => {
-  const html = (s: UndoState) => renderToStaticMarkup(<UndoMenuList model={undoMenuModel(s)} onPick={() => {}} onClose={() => {}} />);
+  beforeAll(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  });
+  let unmount: (() => void) | null = null;
+  afterEach(() => {
+    unmount?.();
+    unmount = null;
+  });
 
-  it("shows a blocked row's reason as text and styles Force as a warning (#536)", () => {
-    const h = html(revealed);
+  /** The open menu's markup: the list is in a portal, so read the whole body. */
+  async function html(s: UndoState): Promise<string> {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    unmount = () => {
+      act(() => root.unmount());
+      host.remove();
+    };
+    await act(async () => root.render(<UndoControl state={s} autoAccept={false} className="hud-undo-btn" label="Undo" onAction={() => {}} />));
+    host.querySelector("button")!.focus();
+    await act(async () => {
+      host.querySelector("button")!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 40));
+    });
+    return document.body.innerHTML;
+  }
+
+  it("shows a blocked row's reason as text and styles Force as a warning (#536)", async () => {
+    const h = await html(revealed);
     expect(h).toContain(REASON);
     expect(h).toMatch(/class="undo-menu-item is-disabled"[^>]*aria-disabled="true"/);
     expect(h).toMatch(/class="undo-menu-item is-warn"/);
     expect(h).toContain("Force undo whole turn");
   });
 
-  it("shows the reason alone when there is nothing to choose (#536)", () => {
-    const h = html({ ...base, targetTurn: null, action: null, options: null, blockedReason: "Nothing to undo yet" });
+  it("shows the reason alone when there is nothing to choose (#536)", async () => {
+    const h = await html({ ...base, targetTurn: null, action: null, options: null, blockedReason: "Nothing to undo yet" });
     expect(h).toContain("Nothing to undo yet");
     expect(h).not.toContain("undo-menu-item");
   });

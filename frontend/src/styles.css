@@ -5062,8 +5062,10 @@ button.ghost.scan-open:hover {
   border-top: 1px solid var(--line);
 }
 
-.head-popover-panel:has(.head-popover-menu) {
+.head-popover-panel.head-popover-menu {
   padding: 0.35rem;
+  /* Headless UI keeps focus on the list itself and marks the active row, so no ring around the whole panel. */
+  outline: none;
 }
 
 .head-popover-menu {
@@ -5089,7 +5091,8 @@ button.ghost.scan-open:hover {
   font-weight: 400;
 }
 
-.head-popover-menu button:not(:disabled):hover,
+.head-popover-menu button:not(:disabled, [data-disabled]):hover,
+.head-popover-menu button[data-focus]:not([data-disabled]),
 .head-popover-menu button:focus-visible {
   background: var(--card-sunk);
 }
@@ -5098,7 +5101,8 @@ button.ghost.scan-open:hover {
   color: var(--danger);
 }
 
-.head-popover-menu button:disabled {
+.head-popover-menu button:disabled,
+.head-popover-menu button[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
 }

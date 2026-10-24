@@ -4098,26 +4098,13 @@ body.is-panel-resize-row .col-cut {
   .arena .hud-bar.hud-compact {
     min-height: calc(40px + var(--safe-t));
   }
-
-  .match-menu {
-    top: calc(var(--safe-t) + 42px);
-    max-height: calc(100dvh - var(--safe-t) - 50px);
-  }
 }
 
-.match-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
-
+/* A Headless UI Menu list (@optcg/ui/popups): floats under its button in a portal, flipped and shifted to stay
+   on screen, so --anchor-max-height (the room left in the window) caps it. */
 .match-menu {
-  position: fixed;
-  z-index: 61;
-  top: calc(var(--safe-t) + 46px);
-  right: max(8px, var(--safe-r));
   width: min(280px, calc(100vw - 16px));
-  max-height: calc(100dvh - var(--safe-t) - 56px);
+  max-height: var(--anchor-max-height, calc(100dvh - 16px));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -4158,13 +4145,19 @@ body.is-panel-resize-row .col-cut {
   cursor: pointer;
 }
 
-.match-menu-item:not(:disabled):hover {
+.match-menu-item:not(:disabled, [data-disabled]):hover {
   border-color: var(--chrome);
 }
 
+/* Headless UI keeps focus on the list and marks the active row [data-focus]. */
+.match-menu-item[data-focus],
 .match-menu-item:focus-visible {
   outline: none;
   box-shadow: var(--focus);
+}
+
+.match-menu-item[data-disabled] {
+  cursor: default;
 }
 
 .match-menu-item.match-menu-danger {
@@ -4484,13 +4477,6 @@ body.is-panel-resize-row .col-cut {
     font-size: 1.2rem;
     line-height: 1;
     border-radius: 10px;
-  }
-
-  .match-menu.match-menu-left {
-    left: var(--lp-rail-w);
-    right: auto;
-    top: calc(var(--safe-t) + 4px);
-    max-height: calc(100dvh - var(--safe-t) - 8px);
   }
 
   .lp-actions {
@@ -7099,23 +7085,19 @@ body.is-panel-resize-row .col-cut {
   cursor: help;
 }
 
+/* A Headless UI Menu list (@optcg/ui/popups), floated under (or, with no room, above) its button in a portal. */
 .undo-menu {
-  position: fixed;
-  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   width: min(300px, calc(100vw - 16px));
-  max-height: calc(100dvh - 16px);
+  max-height: var(--anchor-max-height, calc(100dvh - 16px));
   overflow-y: auto;
   padding: 0.35rem;
   border: 1px solid var(--chrome);
   border-radius: 12px;
   background: rgb(var(--deep-rgb) / 0.98);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-}
-
-.undo-menu-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
 }
 
 .undo-menu-item {
@@ -7135,7 +7117,9 @@ body.is-panel-resize-row .col-cut {
   cursor: pointer;
 }
 
+/* Headless UI keeps focus on the list and marks the active row [data-focus]. */
 .undo-menu-item:hover,
+.undo-menu-item[data-focus],
 .undo-menu-item:focus-visible {
   border-color: var(--chrome);
   background: rgb(var(--chrome-rgb) / 0.16);
@@ -7175,6 +7159,7 @@ body.is-panel-resize-row .col-cut {
 }
 
 .undo-menu-item.is-warn:hover,
+.undo-menu-item.is-warn[data-focus],
 .undo-menu-item.is-warn:focus-visible {
   border-color: #e6a03c;
   background: rgba(230, 160, 60, 0.24);

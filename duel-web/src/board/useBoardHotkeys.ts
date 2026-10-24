@@ -21,11 +21,12 @@ type Options = {
   onToggleFullscreen: () => void;
 };
 
+/** An open Headless UI menu (match menu, Undo) is `[role="menu"]`: it owns the keys, so the board shortcuts stay quiet. */
 const MODAL_SELECTOR =
-  '[aria-modal="true"], .sheet-backdrop, .card-inspect-backdrop, .trash-viewer-backdrop';
+  '[aria-modal="true"], [role="menu"], .sheet-backdrop, .card-inspect-backdrop, .trash-viewer-backdrop';
 
 /** Popovers that close themselves on Esc; the board must not also drop the selection. */
-const ESC_OWNER_SELECTOR = ".lp-overlay, .match-menu";
+const ESC_OWNER_SELECTOR = ".lp-overlay";
 
 /** Dialogs, prompts and sheets keep Tab for their own controls (a hidden prompt does not count). */
 const DIALOG_SELECTOR =

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Menu, MenuButton, MenuList } from "@optcg/ui/popups";
 
 /**
  * Compact page-head action that opens a fixed-position panel under its
@@ -103,6 +104,50 @@ export function HeadPopover({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * A page-head action that opens a list of choices (the deck's "More"): a Headless UI Menu, so arrow
+ * keys, Home / End, type-ahead and Escape (focus back on the button) come with it. The list floats
+ * under the trigger in a portal, kept on screen, so opening it never shifts the header or the list
+ * below (CLAUDE.md "No layout shift on expand/toggle"). Fill it with `MenuItem`s.
+ */
+export function HeadMenu({
+  label,
+  icon,
+  className = "btn secondary",
+  width = 260,
+  children,
+}: {
+  label: string;
+  /** Decorative glyph shown instead of the text label on very narrow screens (the label stays as the accessible name). */
+  icon?: ReactNode;
+  className?: string;
+  width?: number;
+  children: ReactNode;
+}) {
+  return (
+    <Menu as="div" className={({ open }: { open: boolean }) => `head-popover${open ? " open" : ""}`}>
+      <MenuButton className={`${className} head-popover-btn`} title={label}>
+        {icon ? (
+          <span className="head-popover-icon" aria-hidden="true">
+            {icon}
+          </span>
+        ) : null}
+        <span className="head-popover-label">{label}</span>
+        <span className="head-popover-chevron" aria-hidden="true">
+          ▾
+        </span>
+      </MenuButton>
+      <MenuList
+        anchor={{ to: "bottom end", gap: 6, padding: 8 }}
+        className="head-popover-panel head-popover-menu"
+        style={{ width: `min(${width}px, calc(100vw - 16px))` }}
+      >
+        {children}
+      </MenuList>
+    </Menu>
   );
 }
 

@@ -53,7 +53,8 @@ async function noSidewaysScroll(page: Page): Promise<void> {
 async function menuWorks(page: Page): Promise<void> {
   await fakeApi(page);
   await page.goto("/settings");
-  const button = page.getByRole("button", { name: "Menu" });
+  // includeHidden: the open drawer is a modal, so the page behind it (and this button) leaves the accessibility tree.
+  const button = page.getByRole("button", { name: "Menu", includeHidden: true });
   await expect(button).toBeVisible();
   await expect(button).toHaveAttribute("aria-expanded", "false");
   const before = (await button.boundingBox())!;
@@ -78,7 +79,8 @@ async function menuWorks(page: Page): Promise<void> {
   // Opening the drawer moves nothing in the header.
   expect(await button.boundingBox()).toEqual(before);
   expect(await page.locator(".page-title").boundingBox()).toEqual(title);
-  await expect(drawer.getByRole("link").first()).toBeFocused();
+  // Focus moves into the drawer: onto its first link, or (Headless UI, on a touch screen) the drawer itself.
+  await expect.poll(() => page.evaluate(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement) ?? false)).toBe(true);
 
   // Esc closes it and hands focus back to the button.
   await page.keyboard.press("Escape");

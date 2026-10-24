@@ -34,7 +34,7 @@
 
 /* An open menu, landscape panel or (phones) the floating battle log covers the board, and
    the arrow would paint over its text: hide it until they close. */
-body:has(.match-menu-backdrop, .lp-overlay) .attack-overlay:not(.attack-aim) {
+body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   display: none;
 }
 
