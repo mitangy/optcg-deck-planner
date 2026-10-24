@@ -18,7 +18,7 @@
 import { quadArea, type Pt, type Quad } from "./cardRectify";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Cv = any;
+export type Cv = any;
 
 let cvPromise: Promise<Cv> | null = null;
 
@@ -31,7 +31,7 @@ let cvPromise: Promise<Cv> | null = null;
  * use. The module also initialises asynchronously, so callers must await
  * this rather than touching `cv` directly.
  */
-async function getCv(): Promise<Cv> {
+export async function getCv(): Promise<Cv> {
   if (!cvPromise) {
     cvPromise = (async () => {
       const mod = ((await import("@techstark/opencv-js")).default ?? {}) as Cv;
@@ -58,6 +58,11 @@ async function getCv(): Promise<Cv> {
  */
 export const ORB_FEATURES = 250;
 
+/** Query-side budget (see `extractQueryFeatures`). Reference descriptors stay at `ORB_FEATURES`. */
+export const QUERY_ORB_FEATURES = 500;
+/** Experiment knobs for the lab scripts; production uses the defaults. */
+export const queryTuning = { claheClip: 3, features: QUERY_ORB_FEATURES };
+
 /** Lowe's ratio: keep a match only if it clearly beats the runner-up. */
 const LOWE_RATIO = 0.8;
 /** Reprojection tolerance in pixels for homography inliers. */
@@ -83,15 +88,64 @@ export async function extractFeatures(image: ImageData, nFeatures = ORB_FEATURES
   return extract(cv, image, nFeatures);
 }
 
+/**
+ * Query-side extraction for a rectified phone photo.
+ *
+ * Differs from the reference side in two measured ways: contrast-limited
+ * adaptive histogram equalisation, because a card behind a sleeve or
+ * toploader is hazy and ORB's corner detector fires on local contrast, and a
+ * larger feature budget, because the query is extracted once per scan while
+ * the references were extracted once per catalog. Real photos of sleeved
+ * cards went from 13/19 to 19/19 reaching the confident threshold.
+ */
+export async function extractQueryFeatures(
+  image: ImageData,
+  nFeatures = queryTuning.features,
+): Promise<Extracted> {
+  const cv = await getCv();
+  return extract(cv, image, nFeatures, queryTuning.claheClip);
+}
+
+/**
+ * Resample a rectified card to a given height (width follows the card aspect
+ * of the input), area-averaged when shrinking.
+ *
+ * ORB is scale-sensitive in practice: the references are ~560 px tall, and a
+ * 300 px phone crop blown up to 1120 px has the same information spread over
+ * 4x the pixels, so its keypoints sit at the wrong scale and a 31 px patch
+ * sees mush. Matching at the references' scale nearly doubled inliers on
+ * every real photo.
+ */
+export async function resizeToHeight(image: ImageData, height: number): Promise<ImageData> {
+  if (image.height === height) return image;
+  const cv = await getCv();
+  const width = Math.max(1, Math.round((image.width * height) / image.height));
+  const src = cv.matFromImageData(image);
+  const dst = new cv.Mat();
+  cv.resize(src, dst, new cv.Size(width, height), 0, 0, height < image.height ? cv.INTER_AREA : cv.INTER_CUBIC);
+  const out = { data: new Uint8ClampedArray(dst.data), width, height, colorSpace: "srgb" } as ImageData;
+  src.delete();
+  dst.delete();
+  return out;
+}
+
 export async function releaseFeatures(f: Extracted): Promise<void> {
   release(await getCv(), f);
 }
 
-function extract(cv: Cv, image: ImageData, nFeatures = ORB_FEATURES): Extracted {
+function extract(cv: Cv, image: ImageData, nFeatures = ORB_FEATURES, claheClip = 0): Extracted {
   const mat = cv.matFromImageData(image);
-  const gray = new cv.Mat();
+  let gray = new cv.Mat();
   cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
   mat.delete();
+  if (claheClip > 0) {
+    const clahe = new cv.CLAHE(claheClip, new cv.Size(8, 8));
+    const equalised = new cv.Mat();
+    clahe.apply(gray, equalised);
+    gray.delete();
+    gray = equalised;
+    clahe.delete?.();
+  }
   const orb = new cv.ORB(nFeatures);
   const kp = new cv.KeyPointVector();
   const desc = new cv.Mat();
@@ -278,9 +332,9 @@ export async function featuresFromBytes(
 }
 
 /** Same verification as `verifyFeatures`, over the storable `Features` shape. */
-export async function verifyPair(q: Features, c: Features): Promise<OrbVerifyResult> {
+export async function verifyPair(q: Features, c: Features, reprojPx = RANSAC_REPROJ_PX): Promise<OrbVerifyResult> {
   const cv = await getCv();
-  return verifyCore(cv, q.desc, q.pts, c.desc, c.pts, q.width, q.height, c.width, c.height);
+  return verifyCore(cv, q.desc, q.pts, c.desc, c.pts, q.width, q.height, c.width, c.height, reprojPx);
 }
 
 /**
@@ -320,6 +374,7 @@ async function verifyCore(
   queryH: number,
   candW: number,
   candH: number,
+  reprojPx = RANSAC_REPROJ_PX,
 ): Promise<OrbVerifyResult> {
   const fail = (rejected: OrbVerifyResult["rejected"], good = 0): OrbVerifyResult => ({
     good,
@@ -362,7 +417,7 @@ async function verifyCore(
   const inlierMask = new cv.Mat();
   let h: Cv | null = null;
   try {
-    h = cv.findHomography(srcMat, dstMat, cv.USAC_MAGSAC, RANSAC_REPROJ_PX, inlierMask);
+    h = cv.findHomography(srcMat, dstMat, cv.USAC_MAGSAC, reprojPx, inlierMask);
   } catch {
     h = null;
   }

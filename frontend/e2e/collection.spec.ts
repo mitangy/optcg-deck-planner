@@ -67,7 +67,7 @@ test("Add cards finds an unowned card and adds it to the collection (#268)", asy
 test("a scanned or looked-up card can be added from the scanner (#268)", async ({ page, planner }) => {
   await page.getByRole("button", { name: /Add cards/ }).click();
   await page.locator(".collection-add").getByRole("button", { name: "Scan", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Scan a card" });
+  const dialog = page.getByRole("dialog", { name: "Scan cards" });
   await dialog.getByLabel("Or type the card number").fill("EB01-009");
   await dialog.getByRole("button", { name: "Look up" }).click();
   await dialog.getByRole("button", { name: "Add EB01-009 to collection" }).click();
@@ -167,6 +167,63 @@ test("clicking a table header sorts the Collection rows, again reverses, a third
   await expect(page.getByRole("columnheader", { name: /Market/ })).toHaveAttribute("aria-sort", "descending");
   expect(await order()).toEqual(["EB01-001", "EB01-002", "EB01-006"]);
 
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("scanning a photo of several cards adds them all to the collection (#701)", async ({ page, planner }) => {
+  // Stand in for the detector: 5 crops, two of them the same card, one unmatched. The test releases it
+  // after checking the progress line.
+  await page.evaluate(() => {
+    const thumb = (c: string) =>
+      `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="50" height="70"><rect width="50" height="70" fill="${c}"/></svg>`)}`;
+    const quad = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+    const item = (cardId: string | null, confidence: string, color: string) => ({ quad, thumbUrl: thumb(color), cardId, inliers: 40, runnerUp: 5, confidence });
+    const w = window as unknown as Record<string, unknown>;
+    w.__optcgTestMatchAll = async (_photo: unknown, _cands: unknown, onProgress?: (p: { index: number; total: number }) => void) => {
+      onProgress?.({ index: 2, total: 5 });
+      await new Promise<void>((resolve) => (w.__finishScan = resolve));
+      return [item("EB01-003", "sure", "#c33"), item("EB01-003", "sure", "#c33"), item("EB01-009", "check", "#3a3"), item(null, "none", "#999"), item("EB01-011", "check", "#33c")];
+    };
+  });
+  await page.getByRole("button", { name: /Add cards/ }).click();
+  await page.locator(".collection-add").getByRole("button", { name: "Scan", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Scan cards" });
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await dialog.locator('input[type="file"]').last().setInputFiles({ name: "binder.png", mimeType: "image/png", buffer: png });
+  await expect(dialog.getByText("Identifying card 3 of 5…")).toBeVisible();
+  await page.evaluate(() => (window as unknown as { __finishScan: () => void }).__finishScan());
+
+  await expect(dialog.getByRole("status")).toHaveText("5 cards found · 4 ready");
+  const rows = dialog.locator(".scan-tray-row");
+  await expect(rows).toHaveCount(4);
+  // Two crops of Kid & Killer are one row of 2.
+  await expect(rows.nth(0)).toContainText("Kid & Killer");
+  await expect(rows.nth(0).getByRole("group")).toContainText("2");
+  await expect(rows.nth(1)).toContainText("Check");
+  await expect(rows.nth(2)).toContainText("No match");
+
+  // The unmatched crop is skipped until fixed; typing its number includes it.
+  await rows.nth(2).getByLabel("Card number").fill("EB01-006");
+  await rows.nth(2).getByRole("button", { name: "Use" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("5 cards found · 5 ready");
+  // Skip Mini-Merry.
+  await dialog.getByRole("button", { name: "Fewer Mini-Merry" }).click();
+  const add = dialog.getByRole("button", { name: "Add 4 cards to collection" });
+  await expect(add).toBeVisible();
+  const box = await add.boundingBox();
+  const view = page.viewportSize()!;
+  expect(box!.y + box!.height).toBeLessThanOrEqual(view.height);
+  await add.click();
+
+  await expect(dialog.getByRole("status").filter({ hasText: "Added" })).toHaveText("Added 4 cards");
+  expect(planner.ownedAdds).toEqual([
+    { items: [{ card_id: "EB01-003", add: 2 }, { card_id: "EB01-009", add: 1 }, { card_id: "EB01-006", add: 1 }] },
+  ]);
+  await dialog.getByRole("button", { name: "Done" }).click();
+  // Kid & Killer 2 × $6.80 + Just Shut Up 1 × $3.50 + Chopper's extra copy join the $5.80 already owned.
+  await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$23.20");
+  await expect(page.locator(row("EB01-003"))).toBeVisible();
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
