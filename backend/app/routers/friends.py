@@ -10,7 +10,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_live, redis_client
+from app import duel_live, redis_client, trades
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship, User
@@ -266,6 +266,7 @@ def remove_friend(
             )
         )
     )
+    trades.cancel_between(db, user.id, other_id)
     db.commit()
 
 

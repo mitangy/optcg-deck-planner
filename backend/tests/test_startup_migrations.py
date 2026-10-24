@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import AnalystAccess, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
+from app.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -63,6 +63,12 @@ _LEGACY_DDL = [
         id {_PK} PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users (id),
         token VARCHAR(64) NOT NULL UNIQUE, kind VARCHAR(32), deck_id INTEGER,
         deck_ids_json TEXT, created_at {_TS}, revoked_at {_TS})""",
+    # analyst_eval_runs before the suite and headline-metric columns (#679)
+    f"""CREATE TABLE analyst_eval_runs (
+        id {_PK} PRIMARY KEY, run_at {_TS} NOT NULL, label VARCHAR(120), model VARCHAR(64),
+        correct FLOAT NOT NULL, total INTEGER NOT NULL, groups TEXT, spend_usd FLOAT, notes TEXT, created_at {_TS})""",
+    "INSERT INTO analyst_eval_runs (run_at, label, model, correct, total, groups) "
+    "VALUES ('2026-10-08 00:45:00', 'Old baseline', 'claude-opus-5-5', 43.5, 50, '{}')",
     "INSERT INTO users (email, name, google_sub) VALUES ('old@example.com', 'Old', 'sub-old')",
     "INSERT INTO share_links (user_id, token, kind) VALUES (1, 'old-share', 'shopping')",
     "INSERT INTO decks (user_id, name, leader_card_id, sort_order) VALUES (1, 'Red Luffy', 'OP01-001', 0)",
@@ -104,6 +110,7 @@ def test_old_rows_get_defaults_for_every_added_column(legacy_engine):
         assert user.username is None
         deck = db.query(Deck).one()
         assert deck.is_main is False
+        assert deck.hidden_from_friends is False
         assert deck.leader_card_id == "OP01-001"
         gb = db.query(GroupBuy).one()
         assert gb.is_public is False
@@ -158,6 +165,15 @@ def test_an_existing_duel_match_progress_table_gains_the_closed_column_476(legac
     with Session(legacy_engine) as db:
         row = db.query(DuelMatchProgress).one()
         assert (row.match_id, row.turns, row.closed) == ("old-cut", 4, False)
+
+
+def test_an_old_eval_run_reads_back_as_the_main_suite_with_no_headline_metric_679(legacy_engine):
+    """Runs recorded before suites existed stay on the main trend, higher is better, and keep their score."""
+    app_db.init_db()
+    with Session(legacy_engine) as db:
+        run = db.query(AnalystEvalRun).one()
+        assert (run.label, run.correct, run.total) == ("Old baseline", 43.5, 50)
+        assert (run.suite, run.metric_name, run.metric_value, run.lower_is_better) == ("main", None, None, False)
 
 
 def test_every_current_model_column_exists_after_migration(legacy_engine):

@@ -6033,9 +6033,13 @@ body.is-panel-resize-row .col-cut {
   pointer-events: none;
 }
 
-/* A hand card that costs more than your active DON!!. */
+/* A hand card that costs more than your active DON!!, or that an effect stops you playing.
+   The gray sits on everything but the caption, so "Can't play" stays red (#673). */
 .arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {
   opacity: 1;
+}
+
+.arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) > :not(.card-caption) {
   filter: grayscale(1);
 }
 

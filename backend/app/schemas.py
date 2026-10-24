@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     # Public duel handle; None until the user picks one (duel-web prompts after sign-in).
     username: str | None = None
     sum_across_leaders: bool = False
+    role: str = "user"
 
     model_config = {"from_attributes": True}
 
@@ -37,11 +38,16 @@ class DeckCreate(BaseModel):
 
 
 class DeckRename(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    """PATCH /decks/{id}: rename, hide from friends, or both (#703)."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    hidden_from_friends: bool | None = None
 
     @field_validator("name")
     @classmethod
-    def _strip_name(cls, value: str) -> str:
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip()
         if not value:
             raise ValueError("Deck name cannot be blank")
@@ -72,6 +78,7 @@ class DeckSummary(BaseModel):
     sort_order: int
     # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False
+    hidden_from_friends: bool = False
 
 
 class CatalogCardResult(BaseModel):
@@ -101,6 +108,16 @@ class PrintingView(BaseModel):
     wanted: int = 0
     # Copies of this alt the user owns (per user, not per deck).
     owned: int = 0
+
+
+class DisplayArtUpdate(BaseModel):
+    # None = automatic, 0 = base art, >0 = a special printing's product id.
+    product_id: int | None = Field(default=None, ge=0)
+
+
+class DisplayArtResult(BaseModel):
+    card_id: str
+    product_id: int | None = None
 
 
 class OwnedPrintingUpdate(BaseModel):
@@ -176,6 +193,8 @@ class CardView(BaseModel):
     product_id: int | None = None
     section: str = "main"  # main | additional | don
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
 
 
 class DeckDetail(BaseModel):
@@ -186,6 +205,7 @@ class DeckDetail(BaseModel):
     # Name of the Main deck this list is compared against (empty when this is Main).
     prior_decks: list[str] = []
     is_main: bool = False
+    hidden_from_friends: bool = False
     cards: list[CardView]
     main_cards: int = 0
     don_cards: int = 0
@@ -216,6 +236,8 @@ class ShoppingItem(BaseModel):
     product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
     # Multi-leader cards use the earliest deck's leader as primary.
     deck_sort_key: str = ""
@@ -390,6 +412,8 @@ class GroupBuyLineOut(BaseModel):
     image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Viewer (current user) contribution on this line — for qty editors.
     my_qty: int = 0
     my_suggested_qty: int = 0

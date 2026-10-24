@@ -133,3 +133,78 @@ npm run eval:compare -- evals/out/<variant>
 `--planner live` needs `PLANNER_API_URL` and `ANALYST_SERVICE_SECRET`. The paid run is manual; run it after a change to the prompt, tools or model, never in CI. Output goes to `evals/out/` (git-ignored).
 
 Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jsonl`. Cases hold only the card id and a question hash.
+
+### Review facts eval (#675)
+
+`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/chat.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
+
+```bash
+npm run eval:review-facts -- --model-api scripted --n 3   # free dry run: scripted review and extractor
+ANTHROPIC_API_KEY=... npm run eval:review-facts -- --n 20 --max-usd 5   # paid, about $2 for 20 reviews
+```
+
+Flags: `--seed`, `--levels normal,normal`, `--decks <json>` (default: the meta decks file when present), `--games <jsonl>` (replays from a file, such as the bot corpus; games that no longer replay are skipped), `--seat 0|1|both` (default alternates), `--model`, `--extractor-model`, `--concurrency`, `--variant`. Output is `evals/out/review-facts/<variant>/`: `reviews.jsonl`, `claims.jsonl` (each claim with its verdict and reason) and `report.md`.
+
+Verdicts: `supported`; `contradicted` (it did not happen, or the card is in neither deck); `wrong_turn` (it happened, but on another turn than the review says); `unverifiable` (the checker cannot decide: opinions, an ambiguous or unknown card name, a game that stopped replaying). Claims whose quote is not in the review are dropped and counted. The headline numbers are wrong claims per review (contradicted plus wrong turn) and the wrong share of checkable claims (supported plus wrong) with a 95% Wilson interval; claims in one review are not independent, so the interval is optimistic. Unverifiable claims are never counted as wrong, so the share is a floor on the true error rate. The checker's rules are in the header of `check.ts`.
+
+### Deck advice eval (#678)
+
+`evals/deck-advice/` checks Log Pose's deck advice against things with outside ground truth, instead of a 1-10 rubric score. Each current meta deck is sent as it is ("tune this list for the current meta"), and again **sabotaged**: a seeded swap takes 4 to 8 copies of on-plan cards out and puts legal but clearly off-plan cards of the leader's colors in (vanilla characters, cost 5 or more, no shared trait with the leader, played by no meta deck, never banned or restricted; the heuristic is in the header of `sabotage.ts`). The planted cards are recorded. The question goes through the production chat (same system prompt and tools, with the deck open in the app's context so `propose_deck_edit` is offered, and the deck pasted under the question).
+
+Per answer:
+
+- **Edits:** read from the Apply card proposal (the last one of the turn); an answer with no proposal falls back to its `+N / -N` lines. The edited deck is checked with `analyzeDeck` (and the ban list when it loads): 50 cards, 4 copies, colors, leader rules.
+- **Sabotage recall and precision:** recall is the share of planted copies the edits remove; precision is the share of removed copies that were planted.
+- **Bot simulation** (compute only, no API cost): the deck the player had, the edited deck and, for sabotaged cases, the original meta deck (the ceiling) each play G games against every other meta deck. Normal vs Normal by default (`--levels`). Seeds, seats and first player are the same for every version of a deck against the same opponent. The win rate change (edited minus original) comes with a 95% two-proportion interval (Newcombe, built from Wilson intervals; `diffOfProportions` in `evals/stats.ts`). Games against different opponents are not independent, so the interval is optimistic. Identical decks are simulated once (a meta deck is the ceiling of its sabotaged copy). Games run in worker threads (`--sim-threads`, default cores minus 1, at most 4, 0 = in this process); every game is a pure function of its seed, so the totals do not depend on the thread count.
+
+```bash
+npm run eval:deck-advice -- --model-api scripted --n 3 --sim-games 4    # free dry run: a fake model proposes plausible edits; simulation still runs
+npm run eval:deck-advice -- --model-api scripted --no-sim               # free, skips the simulation
+ANTHROPIC_API_KEY=... npm run eval:deck-advice -- --cases sabotaged --n 8 --max-usd 3   # paid pilot
+ANTHROPIC_API_KEY=... npm run eval:deck-advice -- --variant baseline   # paid: 32 cases (16 meta decks, as is and sabotaged), --max-usd 5
+```
+
+Flags: `--cases all|meta|sabotaged`, `--n` (a seeded pick), `--seed`, `--decks <json>` (default: the meta decks file when present; `npm run meta-decks` writes one), `--sim-games G` (per opponent per version; default aims at about 300 per version, 20 against 15 opponents), `--no-sim`, `--levels`, `--sim-threads`, `--model`, `--library live|none`, `--concurrency` (default 3), `--max-usd` (default 5), `--timeout-s`, `--variant`. Without `ANTHROPIC_API_KEY` the real mode exits with code 2. Output is `evals/out/deck-advice/<variant>/`: `cases.jsonl`, `answers.jsonl` (answer, edits, legality, recall, precision, simulation) and `report.md`. The headline is the mean sabotage recall and the share of cases whose edit did not lose win rate significantly (the interval does not lie below zero), both among simulated cases and counting a case with no edits or an illegal edit as a failure.
+
+**Side by side.** `npm run eval:deck-advice -- --compare <variantA> <variantB>` reads the two runs' answers for the cases they share (same seed, `--cases` and `--n` when you made them) and asks the judge (`RUBRIC_MODEL`, Opus) which answer gives better, more correct advice. The order of the two answers is randomized per case, `--both-orders <share>` (default 0.25) of the cases are also judged the other way round, and a verdict that changes with the order counts as a tie. The report gives B's preference rate over the decisive cases with a Wilson interval, the ties, and the position bias (how often the verdict flipped with the order, and a slot bias from -1 to +1). `--reveal-planted` tells the judge which cards were planted. Output goes to `evals/out/deck-advice/compare-<A>-vs-<B>/`.
+
+Costs: the chat is about $0.15 to $0.30 a case (a tool-using turn on Sonnet 5.5; an estimate, not measured), so the 32 default cases are roughly $5 to $10 and `--max-usd 5` may stop short (the report says so); a comparison is about $0.03 a judgment, roughly $1 for 30 cases. The simulation is free: about 65 ms a game per thread, so the default 300 games a version take about 30 seconds and a sabotaged case (three decks) about 20 seconds on 3 threads. A full 32-case run is about 10 minutes on 4 cores. The manual workflow `.github/workflows/log-pose-deck-advice.yml` runs it with the secret and can compare against an earlier run's artifact.
+
+What this does not measure: how the advice reads, or whether a player would take it. A bot is a poor stand-in for a person, Normal bots miss lines, and a sabotaged deck is an unnatural way to be wrong; a meta deck that Log Pose leaves alone scores as "did not lose", which is the right call and also what no advice at all would get.
+
+### Rules puzzles eval (#677)
+
+`evals/puzzles/` asks Log Pose rules questions whose single right answer comes from the duel engine, and grades them exactly. Eight types. The first five scored 48/50 on the first paid run, so #685 added three harder ones. `power` (a card's power right now), `counter_needed` (the least Counter power the defender must add to stop an attack), `playable` (which hand cards can be played), `can_attack` (which cards can attack) `scenario` (what an effect leaves behind, from the engine's own rules scenarios), `defend` (the opponent's attack is declared and it is your block step: the fewest hand cards, Counter Characters and Counter Events, that save all your Life and Characters, a block allowed, -1 if none can; the gold tries every block with every set of Counter cards in the engine and skips positions where a card asks a question or the hand holds more than 6 Counter cards), `lethal` (a small Harness board built for the puzzle with the opponent's hand face up: the most damage you can be sure to deal this turn, found by an exact minimax over the engine's legal intents with a budget of 40,000 engine steps; a board over the budget is dropped, and boards where the defender cannot change the outcome are mostly dropped too) and `scenario_chain` (every question of a scenario row asked at once in one JSON object; right only if every part is, and the report names the parts that failed). Positions come from bot self-play (meta decks when present, else random decks) and from Harness-built boards; `--new-share` (default 0.3) of the puzzles hold an OP18 or EB05 card. Everything is seeded: the same `--seed` gives the same puzzles. Each puzzle goes through the production `runChat` (same system prompt and tools) as its own chat user, and the last fenced JSON block of the reply is the answer.
+
+```
+npm run eval:puzzles -- --dump --n 5                      # free: write puzzles.jsonl only
+npm run eval:puzzles -- --model-api scripted --n 5        # free dry run with a scripted model
+ANTHROPIC_API_KEY=... npm run eval:puzzles -- --n 25 --max-usd 5   # paid
+```
+
+Flags: `--n` (per type, default 25), `--seed`, `--types power,playable,defend,lethal,...`, `--model-api anthropic|scripted`, `--max-usd` (default 5), `--concurrency`, `--variant`, `--new-share`, `--synth-share`, `--decks <json>`. Without a key the paid mode exits with code 2. Output is `evals/out/puzzles/<variant>/`: `puzzles.jsonl`, `answers.jsonl` and `report.md` (accuracy per type and overall with 95% Wilson intervals, new sets against older ones, spend, the worst misses). Each message is about 5k characters, and a puzzle may take a few tool rounds, so expect very roughly $0.05 to $0.10 per puzzle on the chat model (an estimate, not yet measured with a real key): the default 200 puzzles (8 types) may reach the $5 cap, and `--n 10` (80 puzzles) should fit well under it; generating the lethal boards takes about half a minute for 25. The `--max-usd` cap stops dispatching past the limit and the report says how many puzzles went unanswered. The board text shows printed power, so the model must work out modifiers itself; the gold uses the engine's computed values. The manual workflow `Log Pose puzzles` runs it in CI.
+
+`--post` saves the run to the admin page's Bots & Log Pose tab as the `review_facts` suite (headline: wrong claims per review, lower is better). A `--model-api scripted` run is never posted.
+
+### Posting a run to the admin page (#679)
+
+Every eval's `--post` goes through `evals/post.ts`, so each suite gets its own trend line on the admin page:
+
+```ts
+import { postEvalRun } from "../post"; // from analyst/evals/<suite>/run.ts
+const res = await postEvalRun({
+  suite: "puzzles",            // main | review_facts | puzzles | deck_advice (anything else is a 422)
+  label: variant, model,       // shown in the history table
+  correct: 41, total: 50,      // a score, when the suite has one (leave both out for metric-only runs)
+  groups: { A: { correct: 10, total: 12 } }, // optional breakdown
+  metric_name: "Wrong claims per review", metric_value: 0.85, lower_is_better: true, // optional headline
+  spend_usd: 3.2, notes: "20 games",
+});
+console.log(res.message); // never throws; { ok, message }
+```
+
+It needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`. All four suites post with `--post` (never from a `--model-api scripted` run): the main eval as `main`, review facts as `review_facts` (wrong claims per review, lower is better), the rules puzzles as `puzzles` (correct out of answered, by type), and deck advice as `deck_advice` (mean sabotage recall as the metric; the score is simulated cases whose edit did not lose win rate significantly, left out with `--no-sim`). Each `log-pose-*.yml` workflow has a `post` input (default true) that adds `--post` and checks the two env vars; a new suite's workflow should do the same. Put the same string in your suite's `--post` help.
+
+### Draft cases from player feedback (#679)
+
+Players can rate Log Pose answers (thumbs up, thumbs down, "This is wrong"). `npm run feedback-cases -w @optcg/analyst` (needs `ANALYST_API_URL` and `ANALYST_SERVICE_SECRET`) writes the "wrong" ones to `evals/out/feedback-cases.jsonl` as stubs: the question, the stored answer, the player's note and a todo. A person decides whether the answer really was wrong and writes the gold before anything goes in `cases.ts`.

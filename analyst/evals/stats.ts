@@ -11,7 +11,21 @@ export function wilson(k: number, n: number, z = 1.96): [number, number] {
   return [Math.max(0, c - h), Math.min(1, c + h)];
 }
 
-export type Metric = "correct" | "cited" | "grounded" | "rubric";
+/**
+ * Difference of two proportions, b minus a, with Newcombe's hybrid score interval (built from the two Wilson
+ * intervals, so it behaves with small samples and rates near 0 or 1). Fewer games give a wider interval.
+ */
+export function diffOfProportions(a: { k: number; n: number }, b: { k: number; n: number }, z = 1.96): { diff: number; lo: number; hi: number } {
+  if (a.n === 0 || b.n === 0) return { diff: 0, lo: -1, hi: 1 };
+  const pa = a.k / a.n;
+  const pb = b.k / b.n;
+  const [la, ua] = wilson(a.k, a.n, z);
+  const [lb, ub] = wilson(b.k, b.n, z);
+  const diff = pb - pa;
+  return { diff, lo: Math.max(-1, diff - Math.sqrt((pb - lb) ** 2 + (ua - pa) ** 2)), hi: Math.min(1, diff + Math.sqrt((ub - pb) ** 2 + (pa - la) ** 2)) };
+}
+
+export type Metric ="correct" | "cited" | "grounded" | "rubric";
 
 /** Each case's mean over its scored reps (status ok); cases with no scored rep are left out. */
 export function caseMeans(rows: readonly Row[], metric: Metric): Map<string, number> {

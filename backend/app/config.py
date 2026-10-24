@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     analyst_free_spots: int = 50
     # Who may change the model Log Pose runs on (comma-separated emails); everyone with the chat sees the choice.
     analyst_model_admin_emails: str = "gamefreakmichaeltang@gmail.com"
+    # The one admin account (#667): made admin on startup; any other admin row is demoted.
+    admin_email: str = "gamefreakmichaeltang@gmail.com"
+    # Admin page Hosting tab: read-only tokens, each tab card shows "not connected" while unset.
+    vercel_token: str = ""
+    vercel_team_id: str = ""
+    render_api_key: str = ""
+    github_token: str = ""
+    github_repo: str = "mitangy/optcg-deck-planner"
     # Extra CORS origins for Expo / duel-web (comma-separated).
     duel_cors_origins: str = (
         "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,"

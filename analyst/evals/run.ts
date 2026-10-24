@@ -9,6 +9,7 @@
  *   --max-usd <n>           stop dispatching past this measured spend (default 15)
  *   --planner fake|live     live forwards stats/corpus/tournament reads to PLANNER_API_URL (chat/usage stay local)
  *   --model-api anthropic|scripted      --library live|none     --resume     --selftest     --write-baseline
+ *   --post                  send the run's score to the admin page (POST /admin/evals; needs ANALYST_API_URL + ANALYST_SERVICE_SECRET)
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { execSync } from "node:child_process";
@@ -25,7 +26,8 @@ import { CASES } from "./cases";
 import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "./grade/judge";
 import { loadCases } from "./load";
 import { evalPlanner, type PlannerOptions, type StatsFixtures, type TournamentFixtures } from "./planner";
-import { baselineFrom, renderReport, stateFile, summaryLine } from "./report";
+import { postEvalRun } from "./post";
+import { baselineFrom, evalRunPayload, renderReport, stateFile, summaryLine } from "./report";
 import { runEval } from "./runner";
 import { oracleScript, scriptedModel } from "./scripted";
 import { selftest } from "./selftest";
@@ -49,6 +51,7 @@ const { values: f } = parseArgs({
     resume: { type: "boolean", default: false },
     selftest: { type: "boolean", default: false },
     "write-baseline": { type: "boolean", default: false },
+    post: { type: "boolean", default: false },
   },
 });
 
@@ -144,4 +147,5 @@ if (f["write-baseline"]) {
   writeFileSync(here("baseline.json"), `${JSON.stringify(baselineFrom(result.rows, meta, wallS), null, 2)}\n`);
   console.log("wrote evals/baseline.json (commit it with the change it measured)");
 }
+if (f.post) console.log((await postEvalRun(evalRunPayload(result.rows, meta))).message);
 process.exit(result.errors.length ? 1 : 0);

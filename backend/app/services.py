@@ -27,6 +27,7 @@ from app.models import (
     DeckCard,
     DeckCardPrinting,
     Owned,
+    CardDisplayChoice,
     OwnedPrinting,
     ShareLink,
     ShoppingExtra,
@@ -248,6 +249,14 @@ def _alt_owned_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
     return dict(out)
 
 
+def _display_choice_map(db: Session, user_id: int) -> dict[str, int]:
+    """card_id -> chosen display art (0 = base, >0 = product id)."""
+    rows = db.scalars(
+        select(CardDisplayChoice).where(CardDisplayChoice.user_id == user_id)
+    ).all()
+    return {r.card_id: r.product_id for r in rows}
+
+
 def _alts_owned_total(alt_owned: dict[str, dict[int, int]], card_id: str) -> int:
     return sum(alt_owned.get(card_id, {}).values())
 
@@ -282,6 +291,7 @@ def _card_view(
     earlier_leaders_need: int = 0,
     earlier_leaders: list[str] | None = None,
     alts_owned: int = 0,
+    display_art: int | None = None,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
     # Alt copies count as owned for what is still needed.
@@ -306,6 +316,7 @@ def _card_view(
         product_id=product_id,
         section=section,
         alt_arts=alt_arts or [],
+        display_art=display_art,
     )
 
 
@@ -386,6 +397,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
                 owned_copies=owned_copies,
                 sort_order=deck.sort_order,
                 is_main=is_main,
+                hidden_from_friends=bool(deck.hidden_from_friends),
             )
         )
     # Group by leader (no-leader last). Within a group: Main first, then sort_order.
@@ -464,6 +476,43 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     return deck
 
 
+def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
+    """Copy another deck's list (card rows only, not printings) into ``user``'s decks (#703)."""
+    deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
+    if deck_count + 1 > MAX_DECKS_PER_USER:
+        raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
+    max_order = db.scalar(
+        select(Deck.sort_order).where(Deck.user_id == user.id).order_by(Deck.sort_order.desc())
+    )
+    is_main = False
+    if source.leader_card_id:
+        is_main = (
+            db.scalar(
+                select(Deck.id).where(
+                    Deck.user_id == user.id, Deck.leader_card_id == source.leader_card_id
+                )
+            )
+            is None
+        )
+    deck = Deck(
+        user_id=user.id,
+        name=name[:200],
+        leader_card_id=source.leader_card_id,
+        is_main=is_main,
+        sort_order=(max_order or 0) + 1,
+    )
+    db.add(deck)
+    db.flush()
+    for card in source.cards:
+        db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
+    db.commit()
+    db.refresh(deck)
+    from app import group_buy
+
+    group_buy.include_deck_in_open_group_buys(db, user, deck.id)
+    return deck
+
+
 def delete_deck(db: Session, user: User, deck_id: int) -> None:
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
@@ -496,6 +545,30 @@ def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
     return get_deck_detail(db, user, deck_id)
 
 
+def update_deck(
+    db: Session,
+    user: User,
+    deck_id: int,
+    name: str | None,
+    hidden_from_friends: bool | None = None,
+) -> DeckDetail:
+    """PATCH /decks/{id}: rename and/or hide the deck from friends (#703)."""
+    if name is None and hidden_from_friends is None:
+        raise ValueError("Nothing to update")
+    detail: DeckDetail | None = None
+    if name is not None:
+        detail = rename_deck(db, user, deck_id, name)
+    if hidden_from_friends is not None:
+        deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
+        if deck is None:
+            raise LookupError("Deck not found")
+        deck.hidden_from_friends = hidden_from_friends
+        db.commit()
+        detail = get_deck_detail(db, user, deck_id)
+    assert detail is not None
+    return detail
+
+
 def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
     """Mark this deck as Main for its leader; other same-leader decks compare against it."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
@@ -522,6 +595,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
 
     owned = _owned_map(db, user.id)
     alt_owned = _alt_owned_map(db, user.id)
+    display_choices = _display_choice_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, all_ids | leader_ids)
@@ -587,6 +661,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
                 earlier_leaders_need=earlier_need.get(card.card_id, 0),
                 earlier_leaders=earlier_labels.get(card.card_id, []),
                 alts_owned=_alts_owned_total(alt_owned, card.card_id),
+                display_art=display_choices.get(card.card_id),
             )
         )
 
@@ -603,6 +678,7 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
         leader_name=leader_name,
         prior_decks=prior_names,
         is_main=is_main,
+        hidden_from_friends=bool(target.hidden_from_friends),
         cards=cards,
         main_cards=main_cards,
         don_cards=don_cards,
@@ -1078,6 +1154,7 @@ def shopping_list(
 
     owned = _owned_map(db, user.id)
     alt_owned = _alt_owned_map(db, user.id)
+    display_choices = _display_choice_map(db, user.id)
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = _catalog_map(db, set(need) | leader_ids)
     product_ids = _primary_product_ids(db, set(need))
@@ -1181,6 +1258,7 @@ def shopping_list(
                 product_id=product_ids.get(card_id),
                 used_in=used_in[card_id],
                 alt_arts=card_alts,
+                display_art=display_choices.get(card_id),
                 deck_sort_key=deck_sort_key,
                 primary_leader_card_id=primary_leader_card_id,
                 primary_leader_name=primary_leader_name,
@@ -1317,6 +1395,41 @@ def set_alt_owned(db: Session, user: User, card_id: str, product_id: int, qty: i
         row.qty = qty
     db.commit()
     return qty
+
+
+def set_display_art(
+    db: Session, user: User, card_id: str, product_id: int | None
+) -> int | None:
+    """Choose which art a card shows (None = automatic, 0 = base, >0 = printing)."""
+    card_id = card_id.upper().strip()
+    row = db.scalar(
+        select(CardDisplayChoice).where(
+            CardDisplayChoice.user_id == user.id,
+            CardDisplayChoice.card_id == card_id,
+        )
+    )
+    if product_id is None:
+        if row is not None:
+            db.delete(row)
+            db.commit()
+        return None
+    if product_id < 0:
+        raise ValueError("Invalid display art")
+    if product_id > 0:
+        printing = db.scalar(
+            select(CatalogPrinting).where(
+                CatalogPrinting.card_id == card_id,
+                CatalogPrinting.product_id == product_id,
+            )
+        )
+        if printing is None:
+            raise ValueError("Unknown printing for this card")
+    if row is None:
+        db.add(CardDisplayChoice(user_id=user.id, card_id=card_id, product_id=product_id))
+    else:
+        row.product_id = product_id
+    db.commit()
+    return product_id
 
 
 def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
@@ -1567,6 +1680,7 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
                     product_id=card.product_id,
                     used_in=[detail.name],
                     alt_arts=card.alt_arts,
+                    display_art=card.display_art,
                     primary_leader_card_id=detail.leader_card_id,
                     primary_leader_name=detail.leader_name,
                     leader_count=1,

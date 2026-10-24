@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnalystError, CitedAnswer, errorText, fetchSavedReview, streamAnalyst, useLogPose, placeAt, type PlacedCitation } from "@optcg/analyst-client";
+import { AnalystError, CitedAnswer, FeedbackBar, errorText, fetchSavedReview, streamAnalyst, useFeedback, useLogPose, placeAt, type FeedbackTarget, type PlacedCitation } from "@optcg/analyst-client";
 import { reviewMode } from "../logPose";
 
 type ReviewState =
@@ -18,6 +18,9 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
   const [state, setState] = useState<ReviewState>({ kind: "loading" });
   const [collapsed, setCollapsed] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const feedback = useFeedback(apiBase, mode === "auto" ? { matchId } : null);
+  const reviewTarget: FeedbackTarget = { kind: "review", matchId };
+  const forgetVote = feedback.forget;
 
   const generate = useCallback(
     async (regenerate: boolean) => {
@@ -57,9 +60,11 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
       }
       if (abort.current !== ctrl) return;
       abort.current = null;
+      // A review written again is a new answer: the vote on the old one doesn't carry over.
+      if (!failure && text.trim()) forgetVote({ kind: "review", matchId });
       setState(failure || !text.trim() ? { kind: "error", text, citations, message: failure ?? "Log Pose didn't write a review this time." } : { kind: "ready", text, citations });
     },
-    [matchId, session],
+    [matchId, session, forgetVote],
   );
 
   useEffect(() => {
@@ -126,6 +131,9 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
           </p>
         ) : null}
         {text ? <CitedAnswer text={text} citations={citations} done={state.kind !== "streaming"} /> : null}
+        {state.kind === "ready" ? (
+          <FeedbackBar what="this analysis" vote={feedback.votes.get(`review:${matchId}`)} onSend={(rating, note) => feedback.rate(reviewTarget, rating, note)} />
+        ) : null}
         {state.kind === "error" ? (
           <p className="panel-copy lp-review-error" role="alert">
             {state.message}

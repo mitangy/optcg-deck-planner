@@ -1,0 +1,838 @@
+/* Friends, spares and trades (#703). Theme tokens only, so light and dark both follow styles.css. */
+
+/* Nav: the count floats over the link's corner (into the gap beside it), so it never resizes the link.
+   Where the nav scrolls on its own (phones) the link reserves the room instead, because that row clips overhang. */
+.nav-badge {
+  position: absolute;
+  top: 0.1rem;
+  right: -0.45rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .topbar nav a.nav-friends {
+    padding-right: 1.15rem;
+  }
+
+  .nav-badge {
+    top: 0.3rem;
+    right: 0.05rem;
+  }
+}
+
+.friends-page {
+  min-width: 0;
+}
+
+.friends-loading {
+  min-height: 40dvh;
+}
+
+.friend-back {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.friends-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .friends-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+}
+
+.friends-col {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.friend-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.friend-card h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.1rem;
+}
+
+.friend-card > p {
+  margin: 0 0 0.6rem;
+}
+
+.friend-note {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--info-line);
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info-ink);
+}
+
+.friend-lede {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.friend-hint {
+  min-height: 1.35rem;
+  margin: 0.4rem 0 0.6rem;
+  font-size: 0.88rem;
+}
+
+.friend-error {
+  margin: 0.5rem 0;
+}
+
+/* Tabs: equal widths, so a count appearing never resizes the trigger. */
+.friend-tabs {
+  display: flex;
+  gap: 0.25rem;
+  max-width: 30rem;
+  margin: 0 0 1rem;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: var(--bg-deep);
+}
+
+.friend-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.friend-tabs button.active {
+  background: var(--card);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 2px rgba(23, 37, 46, 0.12);
+}
+
+.friend-tab-count {
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: 0.72rem;
+  line-height: 1.15rem;
+}
+
+/* Forms */
+.friend-field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.friend-field > span:first-child {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.friend-field input,
+.friend-field textarea,
+.friend-toolbar select,
+.friend-printing {
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field-bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.friend-field textarea {
+  resize: vertical;
+  min-height: 3.5rem;
+}
+
+.friend-field input:focus,
+.friend-field textarea:focus,
+.friend-toolbar select:focus,
+.friend-printing:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: var(--gold);
+}
+
+.friend-inline {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.friend-inline input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.friend-inline .btn {
+  flex: 0 0 auto;
+}
+
+.btn.compact {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.btn.secondary.compact {
+  width: auto;
+  margin-top: 0;
+}
+
+.username-picker {
+  max-width: 28rem;
+}
+
+/* Sharing */
+.sharing-loading {
+  min-height: 12rem;
+}
+
+.sharing-prompt {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-soft), var(--card) 70%);
+}
+
+.sharing-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sharing-prompt-actions .btn.secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+.sharing-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sharing-list label {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.sharing-list label.disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sharing-list input {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  accent-color: var(--gold);
+}
+
+.sharing-text {
+  display: grid;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+/* Friend list */
+.friend-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3rem;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 12px;
+}
+
+.friend-list-row:hover {
+  background: var(--card-sunk);
+}
+
+.friend-link {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.friend-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.friend-avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--sea-night);
+  color: var(--gold-bright);
+  font-weight: 700;
+}
+
+.friend-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.friend-empty {
+  padding: 1.75rem 1rem;
+}
+
+/* Card rows */
+.friend-card-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend-card-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.8rem;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.friend-card-row.in-tray {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.friend-card-row.covered {
+  background: var(--done);
+  border-color: var(--done-line);
+}
+
+.friend-card-art .thumb,
+.friend-card-art .thumb-btn .thumb {
+  width: 52px;
+  height: 73px;
+  border-radius: 6px;
+}
+
+.friend-card-info {
+  min-width: 0;
+}
+
+.friend-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.friend-card-meta {
+  font-size: 0.82rem;
+}
+
+.friend-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.friend-owned-text {
+  font-size: 0.88rem;
+  text-align: right;
+  color: var(--muted);
+}
+
+.friend-printing {
+  max-width: 11rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.friend-stepper {
+  gap: 0.35rem;
+}
+
+.friend-stepper-qty {
+  min-width: 1.75rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.keep-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keep-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.deck-need {
+  display: grid;
+  justify-items: end;
+  gap: 0.1rem;
+  text-align: right;
+}
+
+.deck-need-qty {
+  font-weight: 700;
+}
+
+.deck-need-own {
+  font-size: 0.82rem;
+}
+
+.deck-need-own.short {
+  color: var(--warn-ink);
+}
+
+.deck-need-own.ok {
+  color: var(--ok-ink);
+}
+
+@media (max-width: 560px) {
+  .friend-card-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .friend-card-actions {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+
+  .friend-owned-text {
+    text-align: left;
+  }
+
+  .deck-need {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    text-align: left;
+  }
+}
+
+/* Toolbar and grids */
+.friend-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  min-width: 0;
+}
+
+.friend-toolbar .card-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.friend-toolbar .layout-toggle {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 560px) {
+  .friend-toolbar .card-search {
+    flex-basis: 100%;
+  }
+
+  .friend-toolbar select {
+    flex: 1 1 0;
+  }
+}
+
+.friend-toolbar select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.friend-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+}
+
+.friend-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--gold);
+}
+
+.friend-grid-card {
+  background: var(--card);
+}
+
+.friend-grid-card .grid-card-meta {
+  overflow-wrap: anywhere;
+}
+
+.friend-deck-card {
+  display: flex;
+  color: inherit;
+  text-decoration: none;
+}
+
+.friend-deck-grid .deck-card-body .muted {
+  margin: 0.2rem 0 0;
+}
+
+.need-summary {
+  margin: 0 0 1rem;
+}
+
+.need-summary h2 {
+  margin-bottom: 0.3rem;
+}
+
+.need-summary p {
+  margin: 0;
+}
+
+.spares-section {
+  margin: 0 0 1.5rem;
+}
+
+.spares-section h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1.15rem;
+}
+
+/* Trades */
+.trades-panel {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.trade-section h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.15rem;
+}
+
+.trade-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trade-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.trade-head h3 {
+  flex: 1 1 12rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.trade-date {
+  font-size: 0.82rem;
+}
+
+.trade-status {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.trade-status.status-pending,
+.trade-status.status-accepted {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.trade-status.status-completed {
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+}
+
+.trade-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .trade-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.trade-side h3,
+.tray-group h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+
+.trade-side-value {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.trade-lines,
+.tray-lines {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trade-line,
+.tray-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.trade-line .thumb,
+.tray-line .thumb {
+  width: 38px;
+  height: 53px;
+  border-radius: 5px;
+}
+
+.trade-line-text {
+  display: grid;
+  min-width: 0;
+}
+
+.trade-line-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.trade-line-sub {
+  font-size: 0.78rem;
+}
+
+.trade-line-qty {
+  font-weight: 700;
+}
+
+.trade-message {
+  margin: 1rem 0 0;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.trade-hint {
+  margin: 1rem 0 0;
+  font-size: 0.88rem;
+}
+
+.trade-error {
+  margin: 0.6rem 0 0;
+}
+
+.trade-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  margin-top: 0.85rem;
+}
+
+.trade-actions:empty {
+  display: none;
+}
+
+/* Trade tray: fixed to the bottom edge. It grows upward over the page, so nothing on the page moves.
+   The room under the page (footer included) is only for scrolling to the very end. */
+body:has(.trade-tray) {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.trade-tray {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-strong);
+  background: var(--card);
+  box-shadow: 0 -10px 28px rgba(23, 37, 46, 0.16);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.trade-tray-panel,
+.trade-tray-bar {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.6rem 1.25rem;
+}
+
+.trade-tray-panel {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(62dvh, 30rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid var(--line);
+}
+
+.tray-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.tray-none {
+  margin: 0;
+}
+
+.tray-clear {
+  justify-self: start;
+}
+
+.trade-tray-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.75rem;
+}
+
+.trade-tray-toggle {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title chevron" "sums chevron";
+  column-gap: 0.5rem;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.trade-tray-title {
+  grid-area: title;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-tray-sums {
+  grid-area: sums;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.trade-tray-chevron {
+  grid-area: chevron;
+  color: var(--muted);
+}
+
+.trade-tray-bar .btn {
+  flex: 0 0 auto;
+}
+
+/* The Log Pose button sits in the same corner: lift it above the tray while an offer is being built. */
+body:has(.trade-tray) .lp-compass {
+  bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 4.25rem);
+}
+
+@media (max-width: 640px) {
+  .trade-tray-panel,
+  .trade-tray-bar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .tray-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

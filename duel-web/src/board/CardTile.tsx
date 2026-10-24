@@ -8,8 +8,9 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
+import { blockedTitle, handCostCaption, type HandBlock } from "./handAffordance";
 import { resolveCardImageUrl } from "../decks/artPrefs";
-import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "../cards/cardImage";
+import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import {
   getArtPrefsTick,
   subscribeArtPrefs,
@@ -83,6 +84,8 @@ type Props = {
   viewingSeat?: Seat;
   /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
   playCost?: number;
+  /** An effect stops you playing this hand card this turn: the caption says so. */
+  blocked?: HandBlock;
   /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
   instanceId?: string;
   /** Hand card id → `data-motion-id`, so draw / play / discard animations can find it. */
@@ -124,6 +127,7 @@ export function CardTile({
   ownerSeat,
   viewingSeat,
   playCost,
+  blocked,
   showCounter = false,
   revealed = false,
   style,
@@ -418,11 +422,14 @@ export function CardTile({
       <div className="card-caption">
         <div className="name">{entry.name}</div>
         <div
-          className={`meta${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}${
-            (cb && cb.delta !== 0) || (playCost != null && playCost !== entry.cost) ? " meta-changed" : ""
+          aria-label={blocked ? blockedTitle(playCost ?? entry.cost, blocked) : undefined}
+          className={`meta${blocked ? " meta-blocked" : ""}${!(cb && cb.delta !== 0) && playCost != null && playCost !== entry.cost ? " meta-cost-modified" : ""}${
+            blocked || (cb && cb.delta !== 0) || (playCost != null && playCost !== entry.cost) ? " meta-changed" : ""
           }`}
           title={
-            cb && cb.delta !== 0
+            blocked
+              ? blockedTitle(playCost ?? entry.cost, blocked)
+              : cb && cb.delta !== 0
               ? `Cost ${cb.current} (printed ${cb.base}, ${formatPowerDelta(cb.delta)})`
               : playCost != null && playCost !== entry.cost
                 ? `Effective cost ${playCost} (printed ${entry.cost})`
@@ -438,9 +445,7 @@ export function CardTile({
                   </span>
                 </>
               )
-            : playCost != null && playCost !== entry.cost
-              ? `Cost ${playCost}`
-              : `Cost ${entry.cost}`}
+            : handCostCaption(playCost ?? entry.cost, blocked)}
         </div>
       </div>
     </>
