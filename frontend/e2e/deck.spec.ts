@@ -121,11 +121,12 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   // The control row under the drawer shifts down (the toolbar grows); the sort trigger itself must hold still once open.
   const sort = page.getByRole("button", { name: /^Sort:/ });
   await expectStationary(sort, () => sort.click(), "Sort menu");
-  await expect(page.getByRole("menu")).toBeVisible();
+  const sortPanel = page.getByRole("dialog", { name: "Sort order" });
+  await expect(sortPanel).toBeVisible();
   let issues = await planner.audit();
   expect(issues, `sort menu open:\n${formatIssues(issues)}`).toEqual([]);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(sortPanel).toHaveCount(0);
 
   // Unticking "Still need only" brings back the fully owned card.
   await page.getByLabel("Still need only").uncheck();

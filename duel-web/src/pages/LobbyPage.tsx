@@ -54,7 +54,7 @@ import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
 import { leaderGlow } from "../home/leaderGlow";
-import { Dialog } from "@optcg/ui/popups";
+import { Dialog, Listbox, ListboxButton, ListboxList, ListboxOption } from "@optcg/ui/popups";
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
 import {
   BOT_DECK_MIRROR,
@@ -202,8 +202,17 @@ function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }
   );
 }
 
-/** "Sailing with" trigger + popover to switch, edit, or add decks. */
-function DeckSwitcher({
+/** Rows of the switcher's footer: they ride in the Listbox so the keyboard reaches them like a deck. */
+const NEW_DECK = "__new-deck__";
+const MANAGE_DECKS = "__manage-decks__";
+
+/**
+ * "Sailing with" trigger + a Headless UI Listbox to switch decks. Arrow keys, Home / End, type-ahead,
+ * Enter, Escape (focus back on the trigger) and outside click come from the Listbox; the list floats
+ * under the trigger in a portal, so opening it never moves the page. The footer's New deck and
+ * Manage decks are options too (picking one navigates), so the keyboard reaches them.
+ */
+export function DeckSwitcher({
   decks,
   selectedDeck,
   onChoose,
@@ -213,116 +222,94 @@ function DeckSwitcher({
   onChoose: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
   const glow = leaderGlow(lookupCard(selectedDeck.leaderId).colors);
-  const rootRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  function pick(value: string) {
+    if (value === NEW_DECK) navigate("/decks/new");
+    else if (value === MANAGE_DECKS) navigate("/decks");
+    else onChoose(value);
+  }
 
   return (
-    <div className="deck-switcher" ref={rootRef}>
-      <button
-        type="button"
-        className={`home-deck${open ? " open" : ""}`}
-        style={glow ? ({ "--glow": glow } as CSSProperties) : undefined}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <LeaderThumb key={selectedDeck.id} deck={selectedDeck} className="home-deck-art" />
-        <span className="home-deck-text">
-          <span className="home-deck-label">Sailing with</span>
-          <span className="home-deck-name">{selectedDeck.name}</span>
-          <span className="home-deck-leader">
-            {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
-            <IncompleteBadge deck={selectedDeck} />
-          </span>
-          <span className="home-deck-change">
-            Change deck{" "}
-            <span className="home-deck-chevron" aria-hidden>
-              ▾
+    <Listbox value={selectedDeck.id} onChange={pick}>
+      {({ open }: { open: boolean }) => (
+        <div className="deck-switcher">
+          <ListboxButton
+            className={`home-deck${open ? " open" : ""}`}
+            style={glow ? ({ "--glow": glow } as CSSProperties) : undefined}
+          >
+            <LeaderThumb key={selectedDeck.id} deck={selectedDeck} className="home-deck-art" />
+            <span className="home-deck-text">
+              <span className="home-deck-label">Sailing with</span>
+              <span className="home-deck-name">{selectedDeck.name}</span>
+              <span className="home-deck-leader">
+                {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
+                <IncompleteBadge deck={selectedDeck} />
+              </span>
+              <span className="home-deck-change">
+                Change deck{" "}
+                <span className="home-deck-chevron" aria-hidden>
+                  ▾
+                </span>
+              </span>
             </span>
-          </span>
-        </span>
-      </button>
-      <Link to={`/decks/${selectedDeck.id}/configure`} className="home-deck-edit">
-        Edit deck
-      </Link>
+          </ListboxButton>
+          <Link to={`/decks/${selectedDeck.id}/configure`} className="home-deck-edit">
+            Edit deck
+          </Link>
 
-      {open ? (
-        <div className="deck-menu" role="listbox" aria-label="Choose a deck">
-          <ul className="deck-menu-list">
-            {decks.map((d) => {
-              const active = d.id === selectedDeck.id;
-              return (
-                <li key={d.id} className={`deck-menu-row${active ? " active" : ""}`}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    className="deck-menu-pick"
-                    onClick={() => {
-                      onChoose(d.id);
-                      setOpen(false);
-                    }}
+          <ListboxList anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="deck-menu">
+            <div className="deck-menu-list">
+              {decks.map((d) => {
+                const active = d.id === selectedDeck.id;
+                return (
+                  <ListboxOption
+                    as="div"
+                    key={d.id}
+                    value={d.id}
+                    className={`deck-menu-row${active ? " active" : ""}`}
                   >
-                    <LeaderThumb deck={d} className="deck-menu-art" />
-                    <span className="deck-menu-text">
-                      <span className="deck-menu-name">{d.name}</span>
-                      <span className="deck-menu-sub">
-                        {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
+                    <div className="deck-menu-pick">
+                      <LeaderThumb deck={d} className="deck-menu-art" />
+                      <span className="deck-menu-text">
+                        <span className="deck-menu-name">{d.name}</span>
+                        <span className="deck-menu-sub">
+                          {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
+                        </span>
                       </span>
-                    </span>
-                    <span className="deck-menu-check" aria-hidden>
-                      {active ? "✓" : ""}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="deck-menu-edit"
-                    aria-label={`Edit ${d.name}`}
-                    title="Edit deck"
-                    onClick={() => navigate(`/decks/${d.id}/configure`)}
-                  >
-                    Edit
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="deck-menu-foot">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => navigate("/decks/new")}
-            >
-              + New deck
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate("/decks")}
-            >
-              Manage decks
-            </button>
-          </div>
+                      <span className="deck-menu-check" aria-hidden>
+                        {active ? "✓" : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="deck-menu-edit"
+                      aria-label={`Edit ${d.name}`}
+                      title="Edit deck"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/decks/${d.id}/configure`);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </ListboxOption>
+                );
+              })}
+            </div>
+            <div className="deck-menu-foot">
+              <ListboxOption as="div" value={NEW_DECK} className="btn btn-secondary btn-sm">
+                + New deck
+              </ListboxOption>
+              <ListboxOption as="div" value={MANAGE_DECKS} className="btn btn-ghost btn-sm">
+                Manage decks
+              </ListboxOption>
+            </div>
+          </ListboxList>
         </div>
-      ) : null}
-    </div>
+      )}
+    </Listbox>
   );
 }
 

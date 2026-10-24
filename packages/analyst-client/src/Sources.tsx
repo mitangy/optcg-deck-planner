@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import {
   buildSources,
   eventLink,
@@ -93,71 +94,39 @@ function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; 
   );
 }
 
-function CitePopover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const place = () => {
-      const r = anchor.getBoundingClientRect();
-      const p = placePopover({ left: r.left, top: r.top, width: r.width, height: r.height }, { w: el.offsetWidth, h: el.offsetHeight }, viewport());
-      setPos((cur) => (cur && cur.left === p.left && cur.top === p.top ? cur : { left: p.left, top: p.top }));
-    };
-    place();
-    // A card picture loading changes the popover's height.
-    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(place) : null;
-    ro?.observe(el);
-    return () => ro?.disconnect();
-  }, [anchor, children]);
-
-  useEffect(() => {
-    const onPointer = (e: PointerEvent) => {
-      const t = e.target as Node | null;
-      if (t && (ref.current?.contains(t) || anchor.contains(t))) return;
-      onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // Close only the popover, not the panel behind it.
-      e.preventDefault();
-      onClose();
-      anchor.focus({ preventScroll: true });
-    };
-    const onMove = (e: Event) => {
-      if (e.target instanceof Node && ref.current?.contains(e.target)) return;
-      onClose();
-    };
-    document.addEventListener("pointerdown", onPointer, true);
-    document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", onMove, true);
-    window.addEventListener("resize", onMove);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer, true);
-      document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", onMove, true);
-      window.removeEventListener("resize", onMove);
-    };
-  }, [anchor, onClose]);
-
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div
-      ref={ref}
-      className="logpose lp-pop"
-      role="dialog"
-      aria-label={label}
-      style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: "hidden" }}
-    >
-      <button type="button" className="lp-pop-x" onClick={onClose} aria-label="Close source">
-        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-          <path d="M5 5l10 10M15 5L5 15" />
-        </svg>
-      </button>
-      {children}
-    </div>,
-    document.body,
+/**
+ * A numbered marker and its source popover: a Headless UI Popover, floating (in a portal, kept on
+ * screen) next to the marker, so opening it never moves the text. Escape closes only the popover
+ * (focus returns to the marker), not the panel behind it, as does a click or tap elsewhere.
+ */
+function CiteMark({ mark, entry }: { mark: Mark; entry: SourceEntry }) {
+  return (
+    <Popover as="span">
+      {({ close }: { close: () => void }) => (
+        <>
+          <PopoverButton
+            type="button"
+            className="lp-cite"
+            aria-label={`Source ${mark.n}: ${mark.citation.title || mark.citation.source}`}
+          >
+            {mark.n}
+          </PopoverButton>
+          <PopoverPanel
+            anchor={{ to: "bottom start", gap: 8, padding: 8 }}
+            role="dialog"
+            aria-label={`Source ${mark.n}: ${entry.title}`}
+            className="logpose lp-pop"
+          >
+            <button type="button" className="lp-pop-x" onClick={() => close()} aria-label="Close source">
+              <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="M5 5l10 10M15 5L5 15" />
+              </svg>
+            </button>
+            <SourceBody parsed={entry.parsed} title={entry.title} quote={mark.citation.cited_text} showCard />
+          </PopoverPanel>
+        </>
+      )}
+    </Popover>
   );
 }
 
@@ -306,29 +275,14 @@ export function CitedAnswer({ text, citations, done = true }: { text: string; ci
   const { entries, marks } = useMemo(() => buildSources(citations), [citations]);
   const marked = useMemo(() => placeMarkers(text, marks), [text, marks]);
   const hooks = useContext(SourceHooksContext);
-  const [active, setActive] = useState<{ index: number; el: HTMLElement } | null>(null);
-  const close = useCallback(() => setActive(null), []);
 
   const renderMark = useCallback(
     (index: number) => {
       const m: Mark | undefined = marks[index];
-      if (!m) return null;
-      const open = active?.index === index;
-      return (
-        <button
-          type="button"
-          className="lp-cite"
-          data-open={open ? "true" : undefined}
-          aria-label={`Source ${m.n}: ${m.citation.title || m.citation.source}`}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={(e) => setActive(open ? null : { index, el: e.currentTarget })}
-        >
-          {m.n}
-        </button>
-      );
+      const entry = m ? entries.find((e) => e.n === m.n) : undefined;
+      return m && entry ? <CiteMark mark={m} entry={entry} /> : null;
     },
-    [marks, active],
+    [marks, entries],
   );
 
   const renderText = useMemo(() => {
@@ -343,16 +297,9 @@ export function CitedAnswer({ text, citations, done = true }: { text: string; ci
     };
   }, [entries, hooks]);
 
-  const open = active ? marks[active.index] : undefined;
-  const entry = open ? entries.find((e) => e.n === open.n) : undefined;
   return (
     <>
       <Markdown text={marked} renderMark={renderMark} renderText={renderText} />
-      {active && open && entry ? (
-        <CitePopover anchor={active.el} label={`Source ${open.n}: ${entry.title}`} onClose={close}>
-          <SourceBody parsed={entry.parsed} title={entry.title} quote={open.citation.cited_text} showCard />
-        </CitePopover>
-      ) : null}
       {entries.length ? <SourcesList entries={entries} /> : done && text.trim() ? <p className="lp-own">No sources cited: this is Log Pose's own judgement.</p> : null}
     </>
   );

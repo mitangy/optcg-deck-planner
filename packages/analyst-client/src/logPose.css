@@ -1285,6 +1285,12 @@
   outline-offset: 2px;
 }
 
+/* Headless UI focuses the marker from script after a click, which Chrome counts as keyboard focus;
+   its own data-focus is set for the keyboard only. */
+.lp-cite[data-headlessui-state]:focus-visible:not([data-focus]) {
+  outline: none;
+}
+
 .lp-pop {
   position: fixed;
   z-index: calc(var(--lp-z-panel, 85) + 10);
