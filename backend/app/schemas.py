@@ -298,6 +298,26 @@ class OwnedUpdate(BaseModel):
     qty: int = Field(ge=0, le=10_000)
 
 
+class OwnedAddItem(BaseModel):
+    card_id: str = Field(min_length=1, max_length=32)
+    add: int = Field(ge=1, le=99)
+
+
+class OwnedAddRequest(BaseModel):
+    """Copies to add on top of what the user already owns (a scanned photo's cards)."""
+
+    items: list[OwnedAddItem] = Field(min_length=1, max_length=200)
+
+
+class OwnedAddResult(BaseModel):
+    card_id: str
+    owned: int
+
+
+class OwnedAddResponse(BaseModel):
+    items: list[OwnedAddResult]
+
+
 class ShoppingExtraUpdate(BaseModel):
     """Target copies to own for a card added straight to Master Shopping."""
 
