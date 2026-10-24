@@ -1,5 +1,6 @@
-import { useEffect, useState, type ImgHTMLAttributes, type ReactNode } from "react";
+import { useState, type ImgHTMLAttributes, type ReactNode } from "react";
 import { cardArtChain, type CardImageSize } from "@optcg/ui/cardArt";
+import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "./duelLink";
 
 /**
@@ -54,15 +55,6 @@ export function CardThumb({
   const thumb = useCardArt(src, cardId, "thumb");
   const large = useCardArt(src, cardId, "large");
 
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
   function prefetchLarge() {
     if (!large.src) return;
     const img = new Image();
@@ -90,28 +82,22 @@ export function CardThumb({
           onError={thumb.fail}
         />
       </button>
-      {open && (
-        <div
+      {open ? (
+        <Dialog
+          open
+          onClose={() => setOpen(false)}
           className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Expanded card art"
-          onClick={() => setOpen(false)}
+          panelClassName="lightbox-panel"
+          label="Expanded card art"
         >
           {large.src && (
-            <img
-              src={large.src}
-              alt={alt}
-              className="lightbox-img"
-              onClick={(e) => e.stopPropagation()}
-              onError={large.fail}
-            />
+            <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
           )}
           <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
             Close
           </button>
-        </div>
-      )}
+        </Dialog>
+      ) : null}
     </>
   );
 }

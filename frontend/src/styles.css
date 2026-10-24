@@ -1787,6 +1787,13 @@ tr.done td {
   backdrop-filter: blur(4px);
 }
 
+/* Headless UI panel around the art: no box of its own (the Close button positions against .lightbox). */
+.lightbox-panel {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
 .lightbox-img {
   width: auto;
   height: auto;
@@ -5968,6 +5975,15 @@ button.remove-extra {
   --fb-accent: var(--primary-bg, var(--accent));
   --fb-on-accent: var(--primary-ink);
   --fb-danger: var(--danger);
+}
+
+/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the planner palette. */
+:root {
+  --ui-backdrop: rgba(16, 36, 45, 0.82);
+  --ui-panel-bg: var(--card);
+  --ui-ink: var(--ink);
+  --ui-border: 1px solid var(--line-strong);
+  --ui-hover: var(--field-bg);
 }
 
 /* What's new card (packages/patch-notes): map its tokens to the planner palette (light and dark). */
