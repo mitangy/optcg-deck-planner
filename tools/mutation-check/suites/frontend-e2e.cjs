@@ -20,6 +20,8 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Alt arts beside the card on wide screens (#734)
+    { id: "e2e-deck-alts-beside-card-wide-rule-removed", args: "deck --project=desktop-1200 -g \"#734\"", file: "frontend/src/styles.css", from: "@media (min-width: 1440px) {\n  /* Auto table layout", to: "@media (min-width: 99999px) {\n  /* Auto table layout", kills: [`${deck} > alt arts sit beside the card on wide screens and under it below 1440px (#734) [desktop-1200]`] },
     // Sortable table headers (#636)
     { id: "e2e-colsort-header-click-not-wired", args: "collection --project=desktop-1200 -g \"#636\"", file: "frontend/src/columnSort.tsx", from: "onClick={() => onSort(colKey, firstDir)}", to: "onClick={() => undefined}", kills: ["collection.spec.ts > clicking a table header sorts the Collection rows, again reverses, a third time restores the order (#636) [desktop-1200]"] },
     { id: "e2e-colsort-not-applied-to-collection-table", args: "collection --project=desktop-1200 -g \"#636\"", file: "frontend/src/App.tsx", from: "            {tableItems.map((item) => (\n              <tr key={item.card_id} data-card-id={item.card_id}>", to: "            {items.map((item) => (\n              <tr key={item.card_id} data-card-id={item.card_id}>", kills: ["collection.spec.ts > clicking a table header sorts the Collection rows, again reverses, a third time restores the order (#636) [desktop-1200]"] },
