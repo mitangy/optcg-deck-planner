@@ -3,8 +3,20 @@
  * the whitelisted snapshot of the game that goes to the analyst, and the executor that plays out a plan the
  * player approved, one legal intent per fresh view.
  */
-import { normalizeCardId, type GameSnapshot, type LegalAction, type PlanStep, type SnapCard, type TurnPlan } from "@optcg/analyst-client";
-import type { CardView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
+import {
+  CHOICE_OPTION_LIMIT,
+  normalizeCardId,
+  type ChoiceAnswer,
+  type ChoiceOptionSnap,
+  type GameSnapshot,
+  type LegalAction,
+  type PendingChoiceSnap,
+  type PlanStep,
+  type SnapCard,
+  type TurnPlan,
+} from "@optcg/analyst-client";
+import type { CardView, ChoiceOptionView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
+import { arrangementAnswer, groupAnswer } from "./deckOrder";
 import { briefShown } from "./matchBrief";
 
 /**
@@ -80,11 +92,64 @@ const numbers = (list: readonly unknown[] | undefined, max: number): string[] =>
 
 const faceUp = (list: ReadonlyArray<{ defId: string }> | undefined): string[] => numbers((list ?? []).map((f) => f.defId), SNAPSHOT_LIMITS.trash);
 
+function optionSnap(o: ChoiceOptionView, seat: Seat): ChoiceOptionSnap {
+  const defId = cardNumber(o.defId);
+  return {
+    id: o.id,
+    ...(defId ? { defId } : {}),
+    ...(o.label ? { label: o.label.slice(0, 120) } : {}),
+    ...(o.instanceId ? { inst: o.instanceId.slice(0, 40) } : {}),
+    ...(o.zone ? { zone: o.zone } : {}),
+    ...(o.ownerSeat != null ? { owner: o.ownerSeat === seat ? ("you" as const) : ("opponent" as const) } : {}),
+    eligible: o.eligible,
+  };
+}
+
+/** The options of a request, eligible ones first when there are too many to send; `truncated` says some were left out. */
+function optionsSnap(options: readonly ChoiceOptionView[], seat: Seat): { options: ChoiceOptionSnap[]; truncated?: true } {
+  if (options.length <= CHOICE_OPTION_LIMIT) return { options: options.map((o) => optionSnap(o, seat)) };
+  const kept = [...options.filter((o) => o.eligible), ...options.filter((o) => !o.eligible)].slice(0, CHOICE_OPTION_LIMIT);
+  return { options: kept.map((o) => optionSnap(o, seat)), truncated: true };
+}
+
+/** The request as the analyst reads it. An order_effects prompt becomes an order of its abilities, named by their cards. */
+function requestSnap(choice: PendingChoiceView, seat: Seat): PendingChoiceSnap["request"] {
+  if (choice.kind === "order_effects") {
+    const abilities = (choice.unorderedChoices ?? []).map((c): ChoiceOptionView => ({ id: c.id, defId: c.cardDefId, label: String(c.prompt ?? "").slice(0, 120), eligible: true }));
+    return { type: "order", ...optionsSnap(abilities, seat) };
+  }
+  const r = choice.request;
+  if (!r || r.type === "confirm") return { type: "confirm" };
+  switch (r.type) {
+    case "select":
+      return { type: "select", min: r.min, max: r.max, ...optionsSnap(r.options, seat), ...(r.distinctNames ? { distinctNames: true } : {}) };
+    case "mode":
+      return { type: "mode", ...optionsSnap(r.options, seat) };
+    case "order": {
+      // Every card is needed to order them: more than fit means Log Pose cannot answer.
+      const o = optionsSnap(r.options, seat);
+      return { type: "order", ...o, ...(r.allowTopOrBottom ? { allowTopOrBottom: true } : {}) };
+    }
+    case "look": {
+      const o = optionsSnap(r.options, seat);
+      return { type: "look", min: r.minSelect, max: r.maxSelect, ...o, rest: r.rest };
+    }
+  }
+}
+
 /** The front pending choice, only when it is this seat's to answer: never one addressed to or private to the other seat. */
 function choiceFor(view: PlayerView, choice: PendingChoiceView | null | undefined): GameSnapshot["choice"] {
   if (!choice || choice.seat !== view.seat) return null;
   if (choice.privateToSeat != null && choice.privateToSeat !== view.seat) return null;
-  return { prompt: String(choice.prompt ?? "").slice(0, SNAPSHOT_LIMITS.prompt), kind: choice.kind };
+  const declineOnly = (choice.kind === "life_trigger" && choice.noTrigger === true) || choice.unpayable === true;
+  return {
+    id: String(choice.id).slice(0, 80),
+    prompt: String(choice.prompt ?? "").slice(0, SNAPSHOT_LIMITS.prompt),
+    kind: choice.kind,
+    optional: choice.optional === true || choice.kind === "life_trigger" || choice.unpayable === true,
+    ...(declineOnly ? { declineOnly: true } : {}),
+    request: requestSnap(choice, view.seat),
+  };
 }
 
 /** The legal intents as the analyst reads them: instance ids instead of hand indexes, one give_don per target. */
@@ -327,13 +392,15 @@ export type PlanRun = {
   state: RunState;
   /** Why it is blocked or stopped. */
   reason?: string;
+  /** Log Pose is playing the turn: it answers the run's choices and plans on when the run ends early (#725). */
+  auto?: true;
 };
 
 /** Whether a run is still going (it holds the single plan slot). */
 export const runActive = (run: PlanRun | null | undefined): run is PlanRun =>
   run != null && (run.state === "running" || run.state === "choice" || run.state === "blocked");
 
-export const startRun = (plan: TurnPlan): PlanRun => ({ plan, cursor: startCursor, state: "running" });
+export const startRun = (plan: TurnPlan, auto = false): PlanRun => ({ plan, cursor: startCursor, state: "running", ...(auto ? { auto: true as const } : {}) });
 
 export const stopRun = (run: PlanRun, reason?: string): PlanRun => (runActive(run) ? { ...run, state: "stopped", reason } : run);
 
@@ -395,9 +462,10 @@ export function replanQuestion(plan: TurnPlan, step: number, reason: string): st
 export type PlanCardMode =
   /** Not played yet; `disabledReason` says why Play this turn can't be tapped. */
   | { kind: "idle"; disabledReason: string | null }
-  | { kind: "running"; step: number }
-  | { kind: "choice"; step: number }
-  | { kind: "blocked"; step: number; reason: string }
+  /** `auto`: Log Pose is playing the turn, so choices and a stopped step are its to handle. */
+  | { kind: "running"; step: number; auto?: true }
+  | { kind: "choice"; step: number; auto?: true }
+  | { kind: "blocked"; step: number; reason: string; auto?: true }
   | { kind: "done" }
   | { kind: "stopped"; step: number; reason?: string };
 
@@ -405,13 +473,14 @@ export type PlanCardMode =
 export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null, gameKey?: string | null): PlanCardMode {
   if (own) {
     const step = own.cursor.step;
+    const auto = own.auto ? { auto: true as const } : {};
     switch (own.state) {
       case "running":
-        return { kind: "running", step };
+        return { kind: "running", step, ...auto };
       case "choice":
-        return { kind: "choice", step };
+        return { kind: "choice", step, ...auto };
       case "blocked":
-        return { kind: "blocked", step, reason: own.reason ?? "This step can't be played." };
+        return { kind: "blocked", step, reason: own.reason ?? "This step can't be played.", ...auto };
       case "done":
         return { kind: "done" };
       case "stopped":
@@ -419,4 +488,99 @@ export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, ac
     }
   }
   return { kind: "idle", disabledReason: playBlockReason(plan, view, active, gameKey) };
+}
+
+// ——— Log Pose plays the turn (#725) ———
+
+/** Most automatic Log Pose requests one turn may make (answers to choices and plans for the rest of the turn). */
+export const AUTO_ASK_CAP = 6;
+export const AUTO_CAP_REASON = "Log Pose needs you to finish this turn.";
+export const AUTO_UNDECIDED_REASON = "Log Pose couldn't decide; it's your call.";
+export const AUTO_CONTINUE_QUESTION = "Plan and play the rest of my turn from here. End the turn when nothing useful is left.";
+
+/** Whether another automatic request fits in this turn's cap, given how many were already made. */
+export const autoAskAllowed = (asked: number): boolean => asked < AUTO_ASK_CAP;
+
+/** A request the board makes for the player while Log Pose plays the turn. `key` is asked once. */
+export type AutoAsk = { key: string; text: string; kind: "choice" | "continue" | "replan" };
+
+/**
+ * What Log Pose is asked next while it plays the turn, from the last run and the live view, or null to wait: the front
+ * choice when it is this seat's (once per choice id); the rest of the turn when the run finished without ending it, but
+ * only once nothing is going on (no battle, no choice); a new plan when a step is blocked. Only for a run Log Pose
+ * started, on the turn it was planned for.
+ */
+export function autoAsk(run: PlanRun | null | undefined, view: PlayerView, fired: ReadonlySet<string>): AutoAsk | null {
+  if (!run?.auto || view.winner != null || view.turnNumber !== run.plan.turn || view.seat == null) return null;
+  const ask = (a: AutoAsk): AutoAsk | null => (fired.has(a.key) ? null : a);
+  const front = view.pendingChoices?.[0];
+  if (front) {
+    if (front.seat !== view.seat) return null;
+    const what = front.prompt.trim().replace(/\s+/g, " ").slice(0, 120);
+    return ask({ key: `choice:${front.id}`, kind: "choice", text: `Answer my pending choice${what ? `: ${what}` : ""}` });
+  }
+  if (run.state === "blocked") {
+    return ask({ key: `replan:${run.plan.id}:${run.cursor.step}`, kind: "replan", text: replanQuestion(run.plan, run.cursor.step, run.reason ?? "it can't be played") });
+  }
+  if (run.state === "done" && view.activeSeat === view.seat && view.phase === "main" && view.battle == null) {
+    return ask({ key: `continue:${run.plan.id}`, kind: "continue", text: AUTO_CONTINUE_QUESTION });
+  }
+  return null;
+}
+
+const samePermutation = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && new Set(a).size === a.length && b.every((x) => a.includes(x));
+
+/**
+ * The intent that carries out Log Pose's answer to the front pending choice, built the way the board's own prompts
+ * build theirs, or null when the answer does not fit the prompt: another choice's id, an option that is not offered or
+ * not eligible, too many or too few picks, an order that is not a permutation, declining what cannot be declined. Only
+ * the choice named in the answer, and only this seat's own, can be answered, so a late answer never lands on the next prompt.
+ */
+export function choiceAnswerIntent(choice: PendingChoiceView, answer: ChoiceAnswer, mySeat: Seat, nameOf: (defId: string) => string = () => ""): Intent | null {
+  if (answer.choiceId !== choice.id || choice.seat !== mySeat) return null;
+  if (choice.kind === "order_effects") {
+    const ordered = answer.orderedOptionIds;
+    const ids = (choice.unorderedChoices ?? []).map((c) => c.id);
+    return answer.accept && ordered && samePermutation(ordered, ids) ? { type: "order_pending_effects", orderedIds: [...ordered] } : null;
+  }
+  if (!answer.accept) return choice.optional || choice.kind === "life_trigger" || choice.unpayable ? { type: "resolve_pending_choice", accept: false } : null;
+  // A Life card without [Trigger] and a cost that can't be paid have one answer: decline.
+  if ((choice.kind === "life_trigger" && choice.noTrigger) || choice.unpayable) return null;
+  const r = choice.request;
+  if (!r || r.type === "confirm") return { type: "resolve_pending_choice", accept: true };
+  const cardName = (o: ChoiceOptionView): string | null => (o.defId && o.defId !== "HIDDEN" ? nameOf(o.defId) : null);
+  const byId = new Map(r.options.map((o) => [o.id, o]));
+  const selected = answer.selectedOptionIds ?? [];
+  const eligiblePicks = (ids: readonly string[]) => new Set(ids).size === ids.length && ids.every((id) => byId.get(id)?.eligible === true);
+  switch (r.type) {
+    case "select": {
+      if (!eligiblePicks(selected) || selected.length < r.min || selected.length > r.max) return null;
+      if (r.distinctNames) {
+        const names = selected.map((id) => cardName(byId.get(id)!)).filter((n): n is string => n != null);
+        if (new Set(names).size !== names.length) return null;
+      }
+      return { type: "resolve_pending_choice", accept: true, selectedOptionIds: [...selected] };
+    }
+    case "mode":
+      return selected.length === 1 && eligiblePicks(selected) ? { type: "resolve_pending_choice", accept: true, selectedOptionIds: [...selected] } : null;
+    case "order": {
+      const ordered = answer.orderedOptionIds;
+      if (!ordered || !samePermutation(ordered, r.options.map((o) => o.id))) return null;
+      if (!r.allowTopOrBottom) return { type: "resolve_pending_choice", accept: true, orderedOptionIds: [...ordered] };
+      const top = (answer.topOptionIds ?? []).filter((id) => ordered.includes(id));
+      return { type: "resolve_pending_choice", accept: true, ...arrangementAnswer({ top: ordered.filter((id) => top.includes(id)), bottom: ordered.filter((id) => !top.includes(id)) }) };
+    }
+    case "look": {
+      if (!eligiblePicks(selected) || selected.length < r.minSelect || selected.length > r.maxSelect) return null;
+      const rest = r.options.map((o) => o.id).filter((id) => !selected.includes(id));
+      const ordered = answer.orderedOptionIds ?? rest;
+      if (!samePermutation(ordered, rest)) return null;
+      const top = answer.topOptionIds ?? [];
+      if (r.rest === "top_or_bottom") {
+        if (top.length && !samePermutation(top, rest)) return null;
+        return { type: "resolve_pending_choice", accept: true, selectedOptionIds: [...selected], ...groupAnswer(ordered, top.length ? "top" : "bottom") };
+      }
+      return top.length ? null : { type: "resolve_pending_choice", accept: true, selectedOptionIds: [...selected], orderedOptionIds: [...ordered] };
+    }
+  }
 }

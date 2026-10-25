@@ -12,7 +12,7 @@
  * opponent's hand; the plan card sends nothing until Play this turn; the plan then plays out (DON!!, attack, end
  * turn) with a "step N of M" pill and Stop; Stop leaves the rest unsent; and none of it moves the board.
  */
-import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands, type DeckList } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
 const PAGE_ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
@@ -34,7 +34,11 @@ type Snap = {
   legal: { type: string; target?: string; attacker?: string }[];
   revealedHands?: unknown;
 };
-type ChatBody = { message?: string; context?: { page?: string; game?: { ticket: string; snapshot: Snap } } };
+type ChoiceSnap = { id: string; prompt: string; kind: string; request?: { type: string; min?: number; max?: number; rest?: string; options?: { id: string; defId?: string; eligible: boolean }[] } };
+type ChatBody = { message?: string; context?: { page?: string; game?: { ticket: string; snapshot: Snap & { choice?: ChoiceSnap | null }; autopilot?: boolean } } };
+type SseEvents = [string, unknown][];
+/** Answers a /chat request itself, or returns null to get the default plan. `n` counts the requests so far (1 = the first). */
+type Answer = (body: ChatBody, n: number) => Promise<SseEvents | null> | SseEvents | null;
 
 /**
  * Settings stored before the app loads. The fixture's own init script wipes localStorage once per session, so this also
@@ -56,7 +60,7 @@ async function setSettings(page: Page, patch: Record<string, unknown>) {
   }, patch);
 }
 
-async function stubLogPose(page: Page) {
+async function stubLogPose(page: Page, answer?: Answer) {
   const chats: ChatBody[] = [];
   let release: () => void = () => {};
   let held = new Promise<void>((resolve) => (release = resolve));
@@ -77,6 +81,8 @@ async function stubLogPose(page: Page) {
     if (new URL(req.url()).pathname !== "/chat") return route.fulfill({ status: 200, headers, body: sse([["done", { cached: false }]]) });
     chats.push(body);
     const snap = body.context?.game?.snapshot;
+    const own = await answer?.(body, chats.length);
+    if (own) return route.fulfill({ status: 200, headers, body: sse(own) });
     await held;
     if (!snap) return route.fulfill({ status: 200, headers, body: sse([["text", { delta: "No game context." }], ["done", {}]]) });
     return route.fulfill({
@@ -518,4 +524,187 @@ test("the Settings page has the Log Pose copilot switch, off until it is turned 
   expect(stored.logPoseCopilot).toBe(true);
   await expectNoSidewaysScroll(page);
   await shot(page, info.project.name === "phone-375" ? "settings_375" : "settings_1280");
+});
+
+// ——— Log Pose plays the turn (#725) ———
+
+/** Nami (On Play: look at 5, take up to 1 Straw Hat Crew that isn't Nami) and Chopper: playing Nami raises a real choice for the player. */
+const NAMI_DECK: DeckList = { leaderId: "ST01-001", cards: [...Array(25).fill("OP01-016"), ...Array(25).fill("ST01-006")] };
+
+const PLAY_NAMI_FIRST = (snap: Snap) => {
+  const nami = snap.you.hand.find((h) => h.defId === "OP01-016");
+  if (!nami) throw new Error("no Nami in hand");
+  return nami.id;
+};
+
+/**
+ * The stubbed Log Pose for "Play my turn": the first answer plans Nami, a DON!!, and an attack, with no End turn and
+ * `autoplay` on. The look Nami raises is answered when it is asked about (after `gate`, if one is given), by taking the
+ * first card it may take; and asking for the rest of the turn gets a plan that just ends it.
+ */
+function playMyTurnAnswers(gate?: Promise<void>): Answer {
+  return async (body, n) => {
+    const snap = body.context?.game?.snapshot;
+    if (!snap) return null;
+    if (n === 1) {
+      return [
+        ["thread", { thread_id: 1 }],
+        ["text", { delta: "Playing it now; tap Stop to take over." }],
+        [
+          "plan",
+          {
+            id: "toolu_auto1",
+            turn: snap.turn,
+            summary: "Play Nami, pump the Leader and swing.",
+            autoplay: true,
+            steps: [
+              { action: "play", card: PLAY_NAMI_FIRST(snap), label: "Play Nami (cost 1)" },
+              { action: "give_don", target: snap.you.leader.id, count: 1, label: "Give 1 DON!! to your Leader" },
+              { action: "attack", attacker: snap.you.leader.id, target: snap.opponent.leader.id, label: "Attack their Leader with your Leader" },
+            ],
+          },
+        ],
+        ["done", { thread_id: 1, cost_usd: 0.01, spent_today_usd: 0.01, daily_cap_usd: 3 }],
+      ];
+    }
+    const choice = snap.choice;
+    if (choice) {
+      await gate;
+      const options = choice.request?.options ?? [];
+      const pick = options.find((o) => o.eligible);
+      const rest = options.filter((o) => o !== pick).map((o) => o.id);
+      return [
+        ["text", { delta: "Taking the Chopper." }],
+        ["choice", { id: "toolu_c1", choiceId: choice.id, accept: true, selectedOptionIds: pick ? [pick.id] : [], orderedOptionIds: rest, summary: pick ? "Took Tony Tony.Chopper" : "Took none" }],
+        ["done", { thread_id: 1, cost_usd: 0.01, spent_today_usd: 0.02, daily_cap_usd: 3 }],
+      ];
+    }
+    return [
+      ["text", { delta: "Nothing left; ending the turn." }],
+      ["plan", { id: "toolu_auto2", turn: snap.turn, summary: "End the turn.", autoplay: true, steps: [{ action: "end_turn", label: "End your turn" }] }],
+      ["done", { thread_id: 1, cost_usd: 0.01, spent_today_usd: 0.03, daily_cap_usd: 3 }],
+    ];
+  };
+}
+
+/** Type "Play my turn" in the panel, as the player would. */
+async function sayPlayMyTurn(page: Page) {
+  await panel(page).locator(".lp-input").fill("Play my turn");
+  await panel(page).locator(".lp-input").press("Enter");
+}
+
+/** The prompt the board raises for the player's own look (Nami's On Play). */
+const lookPrompt = (page: Page) => page.getByRole("button", { name: /Take none & finish|Confirm/ });
+
+async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: number; you?: DeckList }) => Promise<void>; errors: string[] }, mode: "desktop" | "portrait" | "landscape", shotName: string) {
+  await setSettings(page, { logPoseCopilot: true });
+  let releaseChoice: () => void = () => {};
+  const gate = new Promise<void>((resolve) => (releaseChoice = resolve));
+  const lp = await stubLogPose(page, playMyTurnAnswers(gate));
+  await duel.startPractice({ seed: 7, you: NAMI_DECK });
+  await reachTurnThree(page);
+  const button = logPoseButton(page);
+  await button.click();
+  await expect(panel(page)).toBeVisible();
+  await sayPlayMyTurn(page);
+
+  // No tap on Play this turn: the plan starts by itself, with Log Pose's pill up.
+  const card = panel(page).getByRole("region", { name: "Turn plan" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("button", { name: "Play this turn" })).toHaveCount(0);
+  await expect(pill(page)).toBeVisible();
+  await expect(pill(page)).toContainText(/Log Pose is playing/);
+  expect(lp.chats[0]!.message).toBe("Play my turn");
+  expect(lp.chats[0]!.context?.game?.autopilot).toBeUndefined();
+
+  // Nami's look is the player's own prompt on the board; Log Pose is asked about it, once, as the player, with autopilot on.
+  await expect.poll(() => lp.chats.length, { timeout: 20_000 }).toBe(2);
+  const asked = lp.chats[1]!;
+  expect(asked.message).toMatch(/^\(auto\) Answer my pending choice/);
+  expect(asked.context?.game?.autopilot).toBe(true);
+  expect(asked.context?.game?.snapshot.choice?.request?.type).toBe("look");
+  expect(asked.context?.game?.snapshot.choice?.id).toBeTruthy();
+  await expect(card.getByRole("status")).toContainText(/Log Pose is answering the prompt/);
+  await expect(pill(page)).toContainText(/choosing/);
+  await expect(lookPrompt(page)).toBeVisible();
+  // Its own request shows as a muted line, not a bubble of the player's.
+  await expect(panel(page).locator(".lp-auto-line")).toContainText("Answer my pending choice");
+  await expect(panel(page).locator(".lp-msg-user")).toHaveCount(1);
+  await shot(page, `${shotName}_choosing`);
+  // The pill is never cut off by the panel beside it (landscape) and stays on screen.
+  const pillBox = (await pill(page).boundingBox())!;
+  const panelBox = (await panel(page).boundingBox())!;
+  if (mode === "landscape" || mode === "desktop") expect(pillBox.x + pillBox.width, "the pill is not under the panel").toBeLessThanOrEqual(panelBox.x + 1);
+  if (mode === "landscape") await expectPillClear(page);
+
+  releaseChoice();
+  await expect(panel(page).locator(".lp-auto-choice")).toContainText("Took Tony Tony.Chopper");
+  // The answer was applied: the prompt closes and the plan goes on to the DON!! and the attack.
+  await expect(lookPrompt(page)).toHaveCount(0);
+  await expect(pill(page)).toContainText(/step 3 of 3/, { timeout: 20_000 });
+  await shot(page, `${shotName}_playing`);
+
+  // The attack lands on the defender (a phone's panel covers the board, so close it first); once the battle is over
+  // the plan had no End turn, so Log Pose is asked for the rest.
+  await shot(page, `${shotName}_playing_panel_open`);
+  await page.getByRole("button", { name: "Close Log Pose" }).click();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(pill(page)).toBeVisible();
+  await expectPillClear(page);
+  await shot(page, `${shotName}_playing_board`);
+  await expect(page.locator(".board-root")).toHaveAttribute("data-seat", "1", { timeout: 20_000 });
+  await finishOpponentDefence(page);
+  await expect.poll(() => lp.chats.length, { timeout: 30_000 }).toBe(3);
+  expect(lp.chats[2]!.message).toMatch(/^\(auto\) Plan and play the rest of my turn/);
+  expect(lp.chats[2]!.context?.game?.autopilot).toBe(true);
+  await expect(page.locator(".board-root")).toHaveAttribute("data-turn", "4", { timeout: 30_000 });
+  await expect(pill(page)).toHaveCount(0);
+  expect(lp.chats).toHaveLength(3);
+  expect(duel.errors).toEqual([]);
+}
+
+test("Log Pose plays the turn when asked to: starts the plan, answers its choice and asks for the rest (#725)", async ({ page, duel }, info) => {
+  const phone = info.project.name === "phone-375";
+  await checkAutoplay(page, duel, phone ? "portrait" : "desktop", phone ? "autoplay_phone_375x812_portrait" : "autoplay_desktop_1280x720");
+});
+
+test.describe("landscape phone autoplay", () => {
+  test.use({ viewport: { width: 812, height: 375 }, hasTouch: true });
+
+  test("Log Pose plays the turn from the landscape rail (#725)", async ({ page, duel }, info) => {
+    test.skip(info.project.name !== "desktop-1280", "one run is enough: the viewport is set here");
+    await checkAutoplay(page, duel, "landscape", "autoplay_phone_812x375_landscape");
+  });
+});
+
+test("Stop while Log Pose is deciding a choice leaves the choice to the player and asks nothing more (#725)", async ({ page, duel }) => {
+  await setSettings(page, { logPoseCopilot: true });
+  let releaseChoice: () => void = () => {};
+  const gate = new Promise<void>((resolve) => (releaseChoice = resolve));
+  const lp = await stubLogPose(page, playMyTurnAnswers(gate));
+  await duel.startPractice({ seed: 7, you: NAMI_DECK });
+  await reachTurnThree(page);
+  await logPoseButton(page).click();
+  await sayPlayMyTurn(page);
+  await expect.poll(() => lp.chats.length, { timeout: 20_000 }).toBe(2);
+  await expect(lookPrompt(page)).toBeVisible();
+
+  await page.getByRole("button", { name: "Close Log Pose" }).click();
+  await pill(page).getByRole("button", { name: "Stop" }).click();
+  await expect(pill(page)).toHaveCount(0);
+  // Even if Log Pose's answer had landed now, it is not applied: the prompt is still the player's.
+  releaseChoice();
+  await page.waitForTimeout(1500);
+  await expect(lookPrompt(page)).toBeVisible();
+  expect(lp.chats).toHaveLength(2);
+  await logPoseButton(page).click();
+  await expect(panel(page).locator(".lp-auto-choice")).toHaveCount(0);
+  await expect(panel(page).getByRole("region", { name: "Turn plan" }).getByRole("status")).toContainText(/Stopped/);
+  // The player answers it themselves and nothing else is sent for them.
+  await panel(page).getByRole("button", { name: "Close Log Pose" }).click();
+  await lookPrompt(page).click();
+  await expect(lookPrompt(page)).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  expect(lp.chats).toHaveLength(2);
+  expect(duel.errors).toEqual([]);
 });
