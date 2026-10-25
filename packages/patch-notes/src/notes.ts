@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-25
   { date: "2026-10-25", app: "duel", pr: 651, title: "Undo explains itself again", text: "When Undo is dimmed because there is nothing to undo yet, or the undo limit is reached, tapping it opens its menu again and tells you why. That is the only way to see the reason on a phone." },
+  { date: "2026-10-25", app: "both", pr: 651, title: "Log Pose can build decks with Pacifista", text: "Ask Log Pose to build a deck around a card that lets you run any number of copies, like Pacifista, and it now keeps all of them in the deck it opens for you. Before, it was held to 4 copies of every card." },
   // 2026-10-24
   { date: "2026-10-24", app: "planner", pr: 651, title: "Trades only offer copies you really own", text: "A trade can no longer ask for or give more standard copies of a card than the player owns. Cards owned only as alt arts are traded as those alt arts, and the Friends spares list now starts on an alt art when that is all the owner has." },
   { date: "2026-10-24", app: "both", pr: 651, title: "Log Pose saves long answers again", text: "When Log Pose used nearly all its lookups and then wrote +N / -N changes in its answer, the app's check could run it out of lookups and throw the whole answer away. Those answers now finish and are saved." },
