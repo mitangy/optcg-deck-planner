@@ -169,8 +169,13 @@ describe("LeaveGameDialog (#728)", () => {
     await act(async () => root!.render(<LeaveGameDialog open onLeave={onLeave} onStay={onStay} />));
     const btn = (n: string) => [...document.querySelectorAll("button")].find((b) => b.textContent === n)!;
     expect(document.body.textContent).toContain("Leave this game to open the deck builder?");
-    await act(async () => btn("Stay").click());
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
     expect(onStay).toHaveBeenCalledTimes(1);
+    expect(onLeave).not.toHaveBeenCalled();
+    await act(async () => btn("Stay").click());
+    expect(onStay).toHaveBeenCalledTimes(2);
     expect(onLeave).not.toHaveBeenCalled();
     await act(async () => btn("Leave").click());
     expect(onLeave).toHaveBeenCalledTimes(1);
