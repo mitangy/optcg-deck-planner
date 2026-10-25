@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { applyOps, isEmptyAnswer, parseProposal, proposalState, undoOps, type DeckEditProposal, type DeckEditor } from "./proposals";
+import {
+  applyOps,
+  AUTO_APPLIED_KEY,
+  isEmptyAnswer,
+  markAutoApplied,
+  parseProposal,
+  proposalState,
+  readAutoApplied,
+  shouldAutoApply,
+  undoOps,
+  type DeckEditProposal,
+  type DeckEditor,
+  type ProposalState,
+} from "./proposals";
 
 const wire = {
   id: "t1",
@@ -86,8 +99,75 @@ describe("deck edit proposals (#400)", () => {
     expect(isEmptyAnswer({ text: "Hi" })).toBe(false);
   });
 
+  it("keeps an answer that only answered a choice for the player (#725)", () => {
+    expect(isEmptyAnswer({ text: "", choices: [{ id: "c1" }] })).toBe(false);
+    expect(isEmptyAnswer({ text: "", choices: [] })).toBe(true);
+  });
+
+  it("keeps an answer that has only a new deck (#726)", () => {
+    expect(isEmptyAnswer({ text: "", drafts: [{ id: "d1" }] })).toBe(false);
+    expect(isEmptyAnswer({ text: "", drafts: [] })).toBe(true);
+  });
+
   it("keeps an answer that has only a turn plan (#416)", () => {
     expect(isEmptyAnswer({ text: "", plans: [{ id: "p1" }] })).toBe(false);
     expect(isEmptyAnswer({ text: "", plans: [] })).toBe(true);
+  });
+});
+
+describe("auto-applying the edits Log Pose was asked to make (#726)", () => {
+  const asked = (): DeckEditProposal => parseProposal({ ...wire, apply: true })!;
+  const ready: ProposalState = { kind: "ready", drifted: false, changed: [] };
+  const stateOf = (kind: ProposalState["kind"]): ProposalState => ({ ...ready, kind });
+
+  it("reads apply only when the wire says true (#726)", () => {
+    expect(asked().apply).toBe(true);
+    expect(proposal().apply).toBe(false);
+    expect(parseProposal({ ...wire, apply: "true" })!.apply).toBe(false);
+  });
+
+  it("applies a live edit that was asked for, once the deck is open and untouched (#726)", () => {
+    expect(shouldAutoApply(asked(), ready, [], true)).toBe(true);
+  });
+
+  it("does not apply a plain suggestion (#726)", () => {
+    expect(shouldAutoApply(proposal(), ready, [], true)).toBe(false);
+  });
+
+  it("does not apply an edit reloaded from the saved thread (#726)", () => {
+    expect(shouldAutoApply(asked(), ready, [], false)).toBe(false);
+  });
+
+  it("does not apply when the deck is not ready for it (#726)", () => {
+    for (const kind of ["applied", "conflict", "elsewhere", "dismissed"] as const) expect(shouldAutoApply(asked(), stateOf(kind), [], true)).toBe(false);
+  });
+
+  it("never applies the same edit twice, whether the handled ids come as a list or a set (#726)", () => {
+    expect(shouldAutoApply(asked(), ready, ["t1"], true)).toBe(false);
+    expect(shouldAutoApply(asked(), ready, new Set(["t1"]), true)).toBe(false);
+    expect(shouldAutoApply(asked(), ready, ["other"], true)).toBe(true);
+  });
+
+  it("remembers handled edits on this device, newest 200, and survives blocked storage (#726)", () => {
+    const data = new Map<string, string>();
+    const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    expect(readAutoApplied(storage)).toEqual([]);
+    markAutoApplied("t1", storage);
+    markAutoApplied("t1", storage);
+    expect(readAutoApplied(storage)).toEqual(["t1"]);
+    expect(JSON.parse(data.get(AUTO_APPLIED_KEY)!)).toEqual(["t1"]);
+    for (let i = 0; i < 205; i++) markAutoApplied(`e${i}`, storage);
+    const kept = readAutoApplied(storage);
+    expect(kept).toHaveLength(200);
+    expect(kept.at(-1)).toBe("e204");
+    expect(kept).not.toContain("t1");
+    // What is stored is capped too, and an oversized list left by an older version is still read as the newest 200.
+    expect(JSON.parse(data.get(AUTO_APPLIED_KEY)!)).toHaveLength(200);
+    data.set(AUTO_APPLIED_KEY, JSON.stringify(Array.from({ length: 250 }, (_, i) => `o${i}`)));
+    expect(readAutoApplied(storage)).toHaveLength(200);
+    expect(readAutoApplied(storage)[0]).toBe("o50");
+    const blocked = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    expect(readAutoApplied(blocked)).toEqual([]);
+    expect(() => markAutoApplied("x", blocked)).not.toThrow();
   });
 });

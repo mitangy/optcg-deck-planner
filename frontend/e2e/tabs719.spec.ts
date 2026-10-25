@@ -37,3 +37,24 @@ test("Import method: arrows and Home / End switch between pasting and uploading,
   // Only the selected tab is in the Tab order, so one Tab leaves the row.
   await expect(paste).toHaveAttribute("tabindex", "-1");
 });
+
+test("Import form fits the viewport and the page does not scroll sideways (#722)", async ({ page, planner }) => {
+  await planner.open("/import");
+  const viewport = page.viewportSize()!;
+  const fits = async (target: ReturnType<typeof page.locator>) => {
+    const box = (await target.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  };
+  await fits(page.locator(".import-form"));
+  await fits(page.getByRole("textbox", { name: "Deck code" }));
+  await fits(page.getByRole("button", { name: "Paste from clipboard" }));
+  await fits(page.getByRole("button", { name: "Create deck" }));
+  await fits(page.getByRole("textbox", { name: "Deck name" }));
+
+  await page.getByRole("tab", { name: "Upload file" }).click();
+  await fits(page.locator('input[type="file"]'));
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

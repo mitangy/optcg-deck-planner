@@ -2312,6 +2312,8 @@ tr.done td {
 
 .import-form {
   display: grid;
+  /* minmax(0, 1fr): a bare auto track grows to the widest child's min-content (the file input's intrinsic width), pushing the form past a phone's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   max-width: 720px;
   background: var(--card);
@@ -2321,14 +2323,30 @@ tr.done td {
   box-shadow: var(--shadow);
 }
 
+/* Shown when Log Pose filled in the form (#726). */
+.import-form .import-note {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--info-line);
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info-ink);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 .import-form label {
   display: grid;
+  min-width: 0;
   gap: 0.4rem;
   font-weight: 600;
 }
 
 .import-form input,
 .import-form textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   font: inherit;
   font-size: 1rem;
   padding: 0.7rem 0.8rem;

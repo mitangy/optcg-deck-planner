@@ -1,9 +1,12 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { SourceHooksContext } from "./Sources";
 import {
   applyOps,
+  markAutoApplied,
   proposalState,
+  readAutoApplied,
   readDismissed,
+  shouldAutoApply,
   undoOps,
   writeDismissed,
   type DeckEditOp,
@@ -22,6 +25,8 @@ export function DeckEditCard({
   editor,
   onAskAgain,
   busy = false,
+  live = false,
+  onNavigate,
 }: {
   proposal: DeckEditProposal;
   /** The deck the app has open (null where no deck editor is mounted). */
@@ -30,6 +35,10 @@ export function DeckEditCard({
   onAskAgain?: () => void;
   /** Log Pose is answering: Ask again waits. */
   busy?: boolean;
+  /** The edit arrived in this session's answer, not from a saved thread: only a live edit Log Pose was asked to make is applied by itself (#726). */
+  live?: boolean;
+  /** The app moved to another page from this card: the panel can get out of the way (phones). */
+  onNavigate?: () => void;
 }) {
   const hooks = useContext(SourceHooksContext);
   const [dismissed, setDismissed] = useState(() => readDismissed().includes(proposal.id));
@@ -52,6 +61,16 @@ export function DeckEditCard({
     }
   };
 
+  // An edit the player asked Log Pose to make applies once the deck is open: marked handled before saving,
+  // so a re-render, a reload or Undo never applies it again, and a failure shows the error with Apply instead of retrying.
+  const auto = shouldAutoApply(proposal, state, readAutoApplied(), live);
+  useEffect(() => {
+    if (!auto || !editor || working) return;
+    markAutoApplied(proposal.id);
+    void run(applyOps(proposal), "apply");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto]);
+
   const dismiss = (on: boolean) => {
     setDismissed(on);
     writeDismissed(proposal.id, on);
@@ -64,9 +83,11 @@ export function DeckEditCard({
   const status = error || (kind === "ready" && state.drifted ? "Your deck changed since; this check was for the earlier list." : "");
 
   return (
-    <section className="lp-edit" data-state={kind} aria-label={`Suggested edit for ${proposal.target.name}`}>
+    <section className="lp-edit" data-state={kind} data-by={proposal.apply ? "log-pose" : undefined} aria-label={`${proposal.apply ? "Edit by Log Pose" : "Suggested edit"} for ${proposal.target.name}`}>
       <h3 className="lp-edit-head">
-        <span className="lp-edit-head-text">Suggested edit · {proposal.target.name}</span>
+        <span className="lp-edit-head-text">
+          {proposal.apply ? "Edit by Log Pose" : "Suggested edit"} · {proposal.target.name}
+        </span>
       </h3>
       {proposal.summary ? <p className="lp-edit-summary">{proposal.summary}</p> : null}
       <ul className="lp-edit-rows">
@@ -137,7 +158,7 @@ export function DeckEditCard({
         ) : null}
         {kind === "applied" ? (
           <>
-            <span className="lp-edit-done">✓ Applied</span>
+            <span className="lp-edit-done">✓ Applied{proposal.apply ? " by Log Pose" : ""}</span>
             <button type="button" className="lp-btn lp-edit-btn" onClick={() => void run(undoOps(proposal), "undo")} disabled={working !== null} aria-busy={working === "undo"}>
               {working === "undo" ? "Undoing…" : "Undo"}
             </button>
@@ -156,11 +177,23 @@ export function DeckEditCard({
         {kind === "elsewhere" ? (
           <span className="lp-edit-note">
             {href ? (
-              <a className="lp-edit-link" href={href}>
-                Open {proposal.target.name} to apply
+              <a
+                className="lp-edit-link"
+                href={href}
+                onClick={(e) => {
+                  // Inside the app, so the answer (and a live edit waiting for this deck) survives the move.
+                  if (hooks.openDeck?.(proposal.target.ref)) {
+                    e.preventDefault();
+                    onNavigate?.();
+                  }
+                }}
+              >
+                Open {proposal.target.name} {proposal.apply ? "to make this change" : "to apply"}
               </a>
             ) : (
-              <>Open {proposal.target.name} to apply</>
+              <>
+                Open {proposal.target.name} {proposal.apply ? "to make this change" : "to apply"}
+              </>
             )}
           </span>
         ) : null}
