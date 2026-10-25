@@ -134,6 +134,26 @@ describe("undo menu markup (#536)", () => {
     expect(h).toContain("Force undo whole turn");
   });
 
+  it("a dimmed Undo still opens its menu with the reason (#717)", async () => {
+    const none: UndoState = { ...base, targetTurn: null, action: null, options: null, blockedReason: "Nothing to undo yet" };
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    unmount = () => {
+      act(() => root.unmount());
+      host.remove();
+    };
+    await act(async () => root.render(<UndoControl state={none} autoAccept={false} className="hud-undo-btn" label="Undo" onAction={() => {}} />));
+    const btn = host.querySelector("button")!;
+    expect(btn.className).toContain("is-blocked");
+    await act(async () => {
+      btn.click();
+      await new Promise((r) => setTimeout(r, 40));
+    });
+    expect(document.querySelector("[role=menu]")).not.toBeNull();
+    expect(document.querySelector(".undo-menu-note")?.textContent).toBe("Nothing to undo yet");
+  });
+
   it("shows the reason alone when there is nothing to choose (#536)", async () => {
     const h = await html({ ...base, targetTurn: null, action: null, options: null, blockedReason: "Nothing to undo yet" });
     expect(h).toContain("Nothing to undo yet");
