@@ -1084,3 +1084,25 @@ module.exports = {
     {"id": "choice-select-ids-dropped", "file": "analyst/src/copilot.ts", "from": "return { ok: true, answer: { ...base, accept: true, selectedOptionIds: selected, summary: selected.length ? `Chose ${names(selected)}` : \"Chose none\" } };", "to": "return { ok: true, answer: { ...base, accept: true, summary: selected.length ? `Chose ${names(selected)}` : \"Chose none\" } };", "kills": ["answers a select with the picked ids and a summary naming the cards (#725)"]},
   ],
 };
+
+// A mutation of analyst/src is caught by the src tests; the evals and puzzles
+// (most of the suite's run time) only read the card data. Running just src/
+// takes about 16 s instead of 74 s (#739). Ids in FULL_SUITE must keep the whole
+// suite because their kills need a test outside src/.
+// The evals/ tests (eval gold C02-C06 and the edit-line extractor) read these.
+const FULL_SUITE = new Set([
+  "eval-c-legal-without-hints",
+  "eval-extract-ignores-minus-lines",
+  "eval-extract-bullet-not-stripped",
+  "eval-extract-bold-not-stripped",
+  "eval-extract-unicode-minus-ignored",
+  "eval-extract-name-before-id-ignored",
+  "eval-extract-only-first-edit-on-line",
+  "eval-extract-lowercase-prose-is-edit",
+]);
+const underSrc = (file) => typeof file === "string" && file.startsWith("analyst/src/");
+for (const m of module.exports.mutations) {
+  if (m.args || m.json || FULL_SUITE.has(m.id)) continue;
+  const files = m.edits ? m.edits.map((e) => (e.json ? null : e.file)) : [m.file];
+  if (files.every(underSrc)) m.args = "src/";
+}
