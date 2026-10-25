@@ -15,12 +15,17 @@ import {
 import { createPortal } from "react-dom";
 import {
   AnalystError,
+  AUTO_PREFIX,
+  autoText,
   deleteThread,
   errorText,
   fetchThread,
+  isAutoMessage,
+  stampChoice,
   stampPlan,
   streamAnalyst,
   type ChatContext,
+  type ChoiceAnswer,
   type ChatRequest,
   type DeckContext,
   type DonePayload,
@@ -97,7 +102,22 @@ export type LogPoseGame = {
   renderPlan: (plan: TurnPlan, ctx: { busy: boolean; ask: (text: string) => void }) => ReactNode;
   /** Prompt chips offered while the thread is empty, instead of the page's. */
   starters?: string[];
+  /**
+   * A turn plan just arrived from Log Pose's live answer (never called for an answer read back from a saved
+   * chat), stamped with its game. The board starts it by itself when the player asked Log Pose to play the turn.
+   */
+  onLivePlan?: (plan: TurnPlan) => void;
+  /** Log Pose just answered a pending choice in its live answer (never for a saved chat); the board applies it. */
+  onLiveChoice?: (answer: ChoiceAnswer) => void;
 };
+
+/**
+ * How a request the board sent for the player ended. `sent` is false when it never went out (no game to read, the
+ * chat was reset); `plan` / `choice` say whether the answer carried a turn plan / an answered choice.
+ */
+export type GameAskResult = { sent: boolean; plan: boolean; choice: boolean; error: boolean; aborted: boolean };
+
+const NOT_SENT: GameAskResult = { sent: false, plan: false, choice: false, error: false, aborted: false };
 
 /**
  * Where a game board lets Log Pose dock: `columns` is false when the board has no side columns (narrow window,
@@ -129,6 +149,14 @@ type LogPoseValue = {
   available: boolean;
   /** Opens the panel and, with an ask, puts that question to Log Pose. Returns false when it isn't available. */
   openLogPose: (ask?: LogPoseAsk) => boolean;
+  /**
+   * Sends a message about the live game as the player, without opening the panel (it waits for an answer in
+   * flight first). `auto` marks it as the board's own (shown as a muted line, sent with `autopilot` so Log Pose
+   * answers choices and plans on). Resolves when the answer has finished, with how it ended.
+   */
+  askGame: (text: string, opts?: { auto?: boolean; signal?: AbortSignal }) => Promise<GameAskResult>;
+  /** Cancels the answer in flight, if any. */
+  stopGameAsk: () => void;
 };
 
 const NO_HOOKS: SourceHooks = {};
@@ -154,6 +182,8 @@ const LogPoseContext = createContext<LogPoseValue>({
   setDockHost: () => {},
   available: false,
   openLogPose: () => false,
+  askGame: async () => NOT_SENT,
+  stopGameAsk: () => {},
 });
 
 /** A function that asks Log Pose a question and opens its panel, or null while Log Pose can't answer (signed out, not enabled, hidden page). */
@@ -253,9 +283,13 @@ type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode
 
 const isLimit = (code: string | undefined): code is RefusalCode => code === "credit" || code === "daily" || code === "monthly";
 
-function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void, credit: CreditHooks) {
+function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void, credit: CreditHooks, live: { current: LogPoseGame | null }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [threadId, setThreadId] = useState<number | null>(() => readThreadId());
+  // The send in flight and the thread, read synchronously: a message sent the moment the last one ends must see both.
+  const threadRef = useRef(threadId);
+  const busyRef = useRef(false);
+  const idleWaiters = useRef<(() => void)[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -263,6 +297,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
   const abort = useRef<AbortController | null>(null);
 
   const keepThread = useCallback((id: number) => {
+    threadRef.current = id;
     setThreadId(id);
     writeThreadId(id);
   }, []);
@@ -279,6 +314,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
       .then((t) => {
         if (!t) {
           writeThreadId(null);
+          threadRef.current = null;
           setThreadId(null);
         } else setMessages((cur) => (cur.length ? cur : t.messages.map(fromHistory)));
       })
@@ -287,11 +323,13 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
   }, [apiBase, history]);
 
   const send = useCallback(
-    async (text: string, context: ChatContext | undefined) => {
+    async (text: string, context: ChatContext | undefined, opts?: { auto?: boolean }): Promise<GameAskResult> => {
       const message = text.trim();
-      if (!message || busy) return;
+      if (!message || busyRef.current) return NOT_SENT;
+      const out: GameAskResult = { sent: true, plan: false, choice: false, error: false, aborted: false };
       const ctrl = new AbortController();
       abort.current = ctrl;
+      busyRef.current = true;
       setBusy(true);
       setStatus("");
       setError(null);
@@ -302,7 +340,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
           return last?.role === "assistant" ? [...cur.slice(0, -1), fn(last)] : cur;
         });
       const body: ChatRequest = { message };
-      if (threadId) body.thread_id = threadId;
+      if (threadRef.current) body.thread_id = threadRef.current;
       if (context) body.context = context;
       try {
         await streamAnalyst(
@@ -320,15 +358,29 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             // A new deck shows as a New deck card under this answer, and the app opens its create page.
             onDraft: (d) => patchLast((m) => ({ ...m, drafts: [...(m.drafts ?? []).filter((x) => x.id !== d.id), d] })),
             // A turn plan shows as a Turn plan card under this answer.
-            onPlan: (plan) => patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), stampPlan(plan, context)] })),
+            // The board hears of it here, from the live stream only: an answer read back from a saved chat never starts a plan.
+            onPlan: (plan) => {
+              const stamped = stampPlan(plan, context);
+              out.plan = true;
+              patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), stamped] }));
+              live.current?.onLivePlan?.(stamped);
+            },
+            // A choice Log Pose answered for the player (the board is playing the turn): a line under this answer, and the board applies it.
+            onChoice: (answer) => {
+              const stamped = stampChoice(answer, context);
+              out.choice = true;
+              patchLast((m) => ({ ...m, choices: [...(m.choices ?? []).filter((x) => x.id !== stamped.id), stamped] }));
+              live.current?.onLiveChoice?.(stamped);
+            },
             onDone: (d) => {
               if (typeof d.thread_id === "number") keepThread(d.thread_id);
               patchLast((m) => ({ ...m, saved: true }));
-              if (!isOpen()) onUnread();
+              if (!isOpen() && !opts?.auto) onUnread();
               credit.apply(d);
               credit.refresh();
             },
             onError: (e) => {
+              out.error = true;
               // A limit shows as a notice in place of the input, not as an error line.
               if (isLimit(e.code)) {
                 credit.refuse(e.code);
@@ -339,42 +391,65 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
           ctrl.signal,
         );
       } catch (e) {
+        out.error = !ctrl.signal.aborted;
         if (ctrl.signal.aborted) patchLast((m) => ({ ...m, stopped: true }));
         else if (e instanceof AnalystError && isLimit(e.code)) {
           credit.refuse(e.code);
           credit.refresh();
         } else setError(e instanceof AnalystError ? errorText(e) : errorText({}));
       } finally {
+        out.aborted = ctrl.signal.aborted;
         if (abort.current === ctrl) abort.current = null;
+        // A chat reset while this ran may already have started the next message: leave its busy state alone.
+        const latest = abort.current === null;
         // Drop an empty answer bubble (error before any text), unless it was stopped on purpose.
         setMessages((cur) => {
           const last = cur[cur.length - 1];
           return last?.role === "assistant" && isEmptyAnswer(last) ? cur.slice(0, -1) : cur;
         });
-        setBusy(false);
-        setStatus("");
+        if (latest) {
+          busyRef.current = false;
+          setBusy(false);
+          setStatus("");
+        }
+        for (const wake of idleWaiters.current.splice(0)) wake();
       }
+      return out;
     },
-    [busy, threadId, session, keepThread, isOpen, onUnread, credit],
+    [session, keepThread, isOpen, onUnread, credit, live],
   );
 
   const stop = useCallback(() => abort.current?.abort(), []);
+
+  /** Resolves true once no answer is in flight, false if `signal` aborts first. */
+  const whenIdle = useCallback(
+    (signal?: AbortSignal) =>
+      new Promise<boolean>((resolve) => {
+        if (signal?.aborted) return resolve(false);
+        if (!busyRef.current) return resolve(true);
+        signal?.addEventListener("abort", () => resolve(false), { once: true });
+        idleWaiters.current.push(() => resolve(true));
+      }),
+    [],
+  );
 
   const reset = useCallback(() => {
     abort.current?.abort();
     abort.current = null;
     writeThreadId(null);
+    threadRef.current = null;
     setThreadId(null);
     setMessages([]);
     setError(null);
     setStatus("");
     setBusy(false);
+    busyRef.current = false;
     setHistory("done");
   }, []);
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  return { messages, busy, status, error, history, threadId, loadHistory, send, stop, reset };
+  return { messages, busy, status, error, history, threadId, loadHistory, send, stop, reset, whenIdle, busyNow: () => busyRef.current };
 }
 
 /**
@@ -454,7 +529,10 @@ export function LogPoseProvider({
   const markUnread = useCallback(() => setUnread(true), []);
   const creditState = useCredit(apiBase, enabled === true, account);
   const creditHooks = useMemo(() => ({ apply: creditState.apply, refuse: creditState.refuse, refresh: creditState.refresh }), [creditState.apply, creditState.refuse, creditState.refresh]);
-  const chat = useChat(apiBase, manager, isOpen, markUnread, creditHooks);
+  const gameRef = useRef<LogPoseGame | null>(null);
+  const chat = useChat(apiBase, manager, isOpen, markUnread, creditHooks, gameRef);
+  const chatRef = useRef(chat);
+  chatRef.current = chat;
 
   const available = canAsk(enabled, hidden);
   const [request, setRequest] = useState<(LogPoseAsk & { nonce: number }) | null>(null);
@@ -532,9 +610,34 @@ export function LogPoseProvider({
     }
   }, []);
 
+  gameRef.current = game;
+  const pageNow = page ?? defaultPage;
+  const pageRef = useRef(pageNow);
+  pageRef.current = pageNow;
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
+  const askGame = useCallback(async (text: string, opts?: { auto?: boolean; signal?: AbortSignal }): Promise<GameAskResult> => {
+    const auto = opts?.auto === true;
+    const signal = opts?.signal;
+    // An answer may still be streaming (the player's own request, whose plan just started): wait for it, then send.
+    for (;;) {
+      if (signal?.aborted) return { ...NOT_SENT, aborted: true };
+      if (!chatRef.current.busyNow()) break;
+      if (!(await chatRef.current.whenIdle(signal))) return { ...NOT_SENT, aborted: true };
+    }
+    if (enabledRef.current !== true) return NOT_SENT;
+    // The game as it is now, whatever the chip says: the board asked, so the chip's × doesn't apply.
+    const context = gameMessageContext(pageRef.current, gameRef.current, false);
+    if (!context?.game) return NOT_SENT;
+    const sent = auto ? { ...context, game: { ...context.game, autopilot: true } } : context;
+    return chatRef.current.send(auto ? `${AUTO_PREFIX}${text}` : text, sent, { auto });
+  }, []);
+  const stopGameAsk = useCallback(() => chatRef.current.stop(), []);
+
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose }),
-    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk }),
+    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
@@ -1044,9 +1147,16 @@ function LogPosePanel({
         ) : null}
         {(showChat ? chat.messages : []).map((m, i) =>
           m.role === "assistant" && isEmptyAnswer(m) ? null : m.role === "user" ? (
-            <div key={i} className="lp-msg lp-msg-user">
-              <p>{m.text}</p>
-            </div>
+            isAutoMessage(m.text) ? (
+              // The board asked on the player's behalf while Log Pose plays their turn: a muted line, not a message of theirs.
+              <p key={i} className="lp-auto-line">
+                {autoText(m.text)}
+              </p>
+            ) : (
+              <div key={i} className="lp-msg lp-msg-user">
+                <p>{m.text}</p>
+              </div>
+            )
           ) : (
             <div key={i} className="lp-msg lp-msg-assistant">
               {m.text ? <CitedAnswer text={m.text} citations={m.citations} done={!(chat.busy && i === chat.messages.length - 1)} /> : null}
@@ -1057,6 +1167,11 @@ function LogPosePanel({
                     return <FeedbackBar key={targetKey(target)} what="this answer" vote={feedback.votes.get(targetKey(target))} onSend={(rating, note) => feedback.rate(target, rating, note)} />;
                   })()
                 : null}
+              {(m.choices ?? []).map((c) => (
+                <p key={c.id} className="lp-auto-choice">
+                  <span className="lp-auto-tag">Log Pose</span> {c.summary}
+                </p>
+              ))}
               {(m.proposals ?? []).map((p) => (
                 <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} live={m.live === true} onNavigate={phone ? onClose : undefined} onAskAgain={() => submit(ASK_AGAIN)} />
               ))}

@@ -10,12 +10,23 @@ export {
   fetchSavedReview,
   fetchThread,
   parseTurnPlan,
+  parseChoiceAnswer,
+  stampChoice,
   stampPlan,
+  AUTO_PREFIX,
+  autoText,
+  isAutoMessage,
+  CHOICE_LIMITS,
+  CHOICE_OPTION_LIMIT,
   ticketGameKey,
   PLAN_LIMITS,
   streamAnalyst,
   type BriefRequest,
   type ChatContext,
+  type ChoiceAnswer,
+  type ChoiceOptionSnap,
+  type ChoiceRequestSnap,
+  type PendingChoiceSnap,
   type DeckContext,
   type DonePayload,
   type ErrorCode,
@@ -79,7 +90,7 @@ export { growOrigin, compassRect, type Rect } from "./panelMotion";
 export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type LogPoseGame, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export { NewDeckCard } from "./NewDeckCard";

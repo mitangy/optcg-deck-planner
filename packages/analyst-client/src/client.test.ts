@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AnalystError, BUSY_MESSAGE, CREDIT_MESSAGE, DAILY_MESSAGE, MONTHLY_MESSAGE, deleteThread, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseTurnPlan, stampPlan, streamAnalyst, ticketGameKey } from "./client";
+import { AnalystError, BUSY_MESSAGE, CREDIT_MESSAGE, DAILY_MESSAGE, MONTHLY_MESSAGE, deleteThread, GENERIC_ERROR, errorText, fetchSavedReview, fetchThread, parseChoiceAnswer, parseTurnPlan, stampChoice, stampPlan, autoText, isAutoMessage, AUTO_PREFIX, streamAnalyst, ticketGameKey } from "./client";
 import { createSessionManager, needsRefresh } from "./session";
 
 const NOW = Date.parse("2026-10-06T12:00:00Z");
@@ -333,5 +333,47 @@ describe("which game a turn plan belongs to (#419)", () => {
   it("leaves a plan unstamped when the message carried no game (#419)", () => {
     expect(stampPlan(p, undefined)).not.toHaveProperty("gameKey");
     expect(stampPlan(p, { page: "decks" })).not.toHaveProperty("gameKey");
+  });
+});
+
+describe("Log Pose plays the turn (#725)", () => {
+  const plan = { id: "toolu_1", turn: 3, summary: "Play Nami.", steps: [{ action: "end_turn", label: "End turn" }] };
+
+  it("keeps autoplay only when it is exactly true, so a plan Log Pose merely proposed never starts itself (#725)", () => {
+    expect(parseTurnPlan({ ...plan, autoplay: true })?.autoplay).toBe(true);
+    expect(parseTurnPlan(plan)).not.toHaveProperty("autoplay");
+    for (const v of ["true", 1, "yes", null, false]) expect(parseTurnPlan({ ...plan, autoplay: v })).not.toHaveProperty("autoplay");
+  });
+
+  const answer = { id: "tu1", choiceId: "pc-1", accept: true, selectedOptionIds: ["o1", "o2"], summary: "Chose Nami, Sanji" };
+
+  it("reads a choice event with its id lists and drops the whole answer when a list is malformed (#725)", () => {
+    expect(parseChoiceAnswer(answer)).toEqual(answer);
+    expect(parseChoiceAnswer({ ...answer, orderedOptionIds: ["a"], topOptionIds: [] })).toMatchObject({ orderedOptionIds: ["a"], topOptionIds: [] });
+    expect(parseChoiceAnswer({ id: "tu1", choiceId: "pc-1", accept: false })).toEqual({ id: "tu1", choiceId: "pc-1", accept: false, summary: "Declined" });
+    for (const bad of [{ ...answer, selectedOptionIds: ["o1", 7] }, { ...answer, selectedOptionIds: "o1" }, { ...answer, selectedOptionIds: Array.from({ length: 41 }, (_, i) => `o${i}`) }, { ...answer, choiceId: "" }, { ...answer, accept: "yes" }, { ...answer, id: undefined }, null, "x"]) {
+      expect(parseChoiceAnswer(bad)).toBeNull();
+    }
+  });
+
+  it("hands a choice event to onChoice and ignores a malformed one (#725)", async () => {
+    const f = fakeFetch([15 * 60_000], () => sse(`event: choice\ndata: ${JSON.stringify(answer)}\n\nevent: choice\ndata: ${JSON.stringify({ ...answer, id: "tu2", accept: "no" })}\n\n`));
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "go" }, { onChoice: (a) => seen.push(a) }, undefined, f.impl);
+    expect(seen.map((a) => (a as { id: string }).id)).toEqual(["tu1"]);
+  });
+
+  it("stamps an answer with the game its message was sent for, so a late answer can't reach a rematch (#725)", () => {
+    const ticket = `mb1.${btoa(JSON.stringify({ mid: "m1", seat: 0, exp: 1 })).replace(/=+$/, "")}.sig`;
+    expect(stampChoice(parseChoiceAnswer(answer)!, { game: { ticket, snapshot: {} as never } }).gameKey).toBe("m1");
+    expect(stampChoice(parseChoiceAnswer(answer)!, undefined)).not.toHaveProperty("gameKey");
+  });
+
+  it("tells the board's own messages from the player's by their prefix (#725)", () => {
+    expect(isAutoMessage(`${AUTO_PREFIX}Plan the rest`)).toBe(true);
+    expect(isAutoMessage("Plan my turn")).toBe(false);
+    expect(autoText(`${AUTO_PREFIX}Plan the rest`)).toBe("Plan the rest");
+    expect(autoText("Plan my turn")).toBe("Plan my turn");
   });
 });

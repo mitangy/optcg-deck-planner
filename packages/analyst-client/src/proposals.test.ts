@@ -99,6 +99,11 @@ describe("deck edit proposals (#400)", () => {
     expect(isEmptyAnswer({ text: "Hi" })).toBe(false);
   });
 
+  it("keeps an answer that only answered a choice for the player (#725)", () => {
+    expect(isEmptyAnswer({ text: "", choices: [{ id: "c1" }] })).toBe(false);
+    expect(isEmptyAnswer({ text: "", choices: [] })).toBe(true);
+  });
+
   it("keeps an answer that has only a new deck (#726)", () => {
     expect(isEmptyAnswer({ text: "", drafts: [{ id: "d1" }] })).toBe(false);
     expect(isEmptyAnswer({ text: "", drafts: [] })).toBe(true);

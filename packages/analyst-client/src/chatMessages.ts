@@ -1,5 +1,5 @@
 import type { PlacedCitation } from "./citations";
-import type { ThreadMessage, TurnPlan } from "./client";
+import type { ChoiceAnswer, ThreadMessage, TurnPlan } from "./client";
 import type { NewDeckDraft } from "./drafts";
 import type { DeckEditProposal } from "./proposals";
 
@@ -11,6 +11,8 @@ export type Msg = {
   proposals?: DeckEditProposal[];
   drafts?: NewDeckDraft[];
   plans?: TurnPlan[];
+  /** Choices Log Pose answered for the player while the board played the turn (#725). */
+  choices?: ChoiceAnswer[];
   stopped?: boolean;
   /** The answer is stored in the thread (it finished, or it came from the saved thread), so it can be rated (#679). */
   saved?: boolean;
