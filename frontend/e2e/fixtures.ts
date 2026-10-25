@@ -327,15 +327,19 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/share/shopping") return json(null);
       if (path === "/owned" && method === "GET") {
-        const items = CARDS.filter((c) => (owned.get(c.card_id) ?? 0) > 0).map((c) => {
+        // Like the backend: a card is listed once any copy is owned (base or alt), alt copies are valued at the alt's own price,
+        // and every alt printing comes with the viewer's count (0 when unowned).
+        const holds = (c: FixtureCard) => cardView(c).owned + cardView(c).alts_owned > 0;
+        const items = CARDS.filter(holds).map((c) => {
           const v = cardView(c);
           const buying = shopping().items.find((i) => i.card_id === c.card_id)?.still_need ?? 0;
-          return { ...v, value: Math.round(v.owned * v.market_price * 100) / 100, used_in: ["Oden Red/Green"], buying };
+          const altValue = v.alt_arts.reduce((n, a) => n + a.owned * a.market_price, 0);
+          return { ...v, value: Math.round((v.owned * v.market_price + altValue) * 100) / 100, used_in: ["Oden Red/Green"], buying };
         });
         return json({
           items,
           unique_cards: items.length,
-          total_copies: items.reduce((s, i) => s + i.owned, 0),
+          total_copies: items.reduce((s, i) => s + i.owned + i.alts_owned, 0),
           total_value: Math.round(items.reduce((s, i) => s + i.value, 0) * 100) / 100,
           unpriced_cards: 0,
         });

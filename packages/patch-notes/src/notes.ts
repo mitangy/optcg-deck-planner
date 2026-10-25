@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-24
+  { date: "2026-10-24", app: "planner", pr: 727, title: "Alt arts on your Collection", text: "The Collection now shows each card's alt arts with how many of each you own. Change the counts there, and press Show to pick the picture the card uses." },
   { date: "2026-10-24", app: "duel", pr: 729, title: "Log Pose can play your turn", text: "With the Log Pose copilot on in a casual or practice game, ask it to play your turn and it does: it starts its plan by itself, answers the prompts that come up and plans on if it stops early, with no taps. Tap Stop on the pill to take over. \"Plan my turn\" still waits for your Play this turn tap, and blocking and countering stay yours." },
   { date: "2026-10-24", app: "both", pr: 728, title: "Log Pose builds and edits decks for you", text: "Ask Log Pose to build you a deck and it opens the create-deck page with the name and list filled in, so you only check it and press Create. Ask it to swap cards in the deck you have open and it makes the change for you, with Undo on its card. Suggestions in a review still wait for you to press Apply." },
   { date: "2026-10-24", app: "both", pr: 724, title: "Import fits phones, and the menu slides away", text: "The planner's Import page no longer runs off the right edge of a phone screen, and the duel site menu slides out again when you close it instead of vanishing." },
