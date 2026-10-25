@@ -3255,21 +3255,23 @@ function CardTable({
             {tableCards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <div className="card-cell-inner">
-                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
-                    <div>
-                      <div className="card-id">{c.card_id}</div>
-                      <div>{nameWithBreaks(c.name)}</div>
-                      {c.tcgplayer_url && (
-                        <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      )}
+                  <div className="card-cell-row">
+                    <div className="card-cell-inner">
+                      <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
+                      <div>
+                        <div className="card-id">{c.card_id}</div>
+                        <div>{nameWithBreaks(c.name)}</div>
+                        {c.tcgplayer_url && (
+                          <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                            TCGPlayer
+                          </a>
+                        )}
+                      </div>
                     </div>
+                    {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
+                      <div className="card-cell-alts">{altRow(c)}</div>
+                    )}
                   </div>
-                  {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                    <div className="card-cell-alts">{altRow(c)}</div>
-                  )}
                 </td>
                 <td>
                   {ownedCell(c)}

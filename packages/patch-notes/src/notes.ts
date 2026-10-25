@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-25
+  { date: "2026-10-25", app: "planner", pr: 735, title: "Alt arts beside the card on wide screens", text: "On a wide screen (1440 pixels or more), a deck's List view now shows each card's alt art tiles next to the card instead of under it. Smaller screens and Edit deck keep them under the card." },
   { date: "2026-10-25", app: "planner", pr: 731, title: "Bigger card pictures in deck lists", text: "The main card picture in each row of a deck's List view is now full size instead of shrunk, so cards are easier to read. The small alt art tiles under it stay the same." },
   // 2026-10-24
   { date: "2026-10-24", app: "planner", pr: 727, title: "Alt arts on your Collection", text: "The Collection now shows each card's alt arts with how many of each you own. Change the counts there, and press Show to pick the picture the card uses." },
