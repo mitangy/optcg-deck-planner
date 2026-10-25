@@ -8,3 +8,4 @@ dist
 layout-shots
 test-results
 playwright-report
+playwright-report-json

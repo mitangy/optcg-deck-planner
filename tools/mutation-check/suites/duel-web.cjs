@@ -1890,5 +1890,8 @@ module.exports = {
     { id: "lp728-watch-not-game", file: "duel-web/src/logPose.ts", from: '["/duel", "/hotseat", "/watch", "/replay", "/demo"]', to: '["/duel", "/hotseat", "/replay", "/demo"]', kills: ["asks before the button takes the player off a game page, and goes only on Leave (#728)"], args: "src/logPoseDeck726.test.tsx" },
     { id: "lp728-subpaths-not-game", file: "duel-web/src/logPose.ts", from: "\"/demo\"].some((p) => pathname === p || pathname.startsWith(`${p}/`))", to: "\"/demo\"].some((p) => pathname === p)", kills: ["asks before the button takes the player off a game page, and goes only on Leave (#728)"], args: "src/logPoseDeck726.test.tsx" },
     { id: "lp728-esc-leaves", file: "duel-web/src/LeaveGameDialog.tsx", from: "onClose={onStay}", to: "onClose={onLeave}", kills: ["offers Leave and Stay, and Esc stays (#728)"], args: "src/logPoseDeck726.test.tsx" },
+    // Balanced e2e shards (#737)
+    { id: "e2e-shards-skip-untimed-spec", file: "duel-web/scripts/e2e-shards.mjs", from: "const order = [...specs].sort(", to: "const order = specs.filter((p) => typeof timings[name(p)] === \"number\").sort(", kills: ["runs every spec exactly once, including one with no recorded timing (#737)"], args: "scripts/e2e-shards.test.mjs" },
+    { id: "e2e-shards-round-robin", file: "duel-web/scripts/e2e-shards.mjs", from: "  for (const spec of order) {\n    let best = 0;\n    for (let i = 1; i < n; i++) if (load[i] < load[best]) best = i;", to: "  for (const [k, spec] of order.entries()) {\n    const best = k % n;", kills: ["balances by duration, not by count or order (#737)"], args: "scripts/e2e-shards.test.mjs" },
   ],
 };

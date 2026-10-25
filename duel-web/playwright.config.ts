@@ -22,7 +22,10 @@ export default defineConfig({
   timeout: 180_000,
   // One game server; matches are independent rooms, so specs can still run in parallel.
   workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  // The JSON report lives outside test-results/ (Playwright wipes that at start); it feeds scripts/e2e-shards.mjs --update.
+  reporter: process.env.CI
+    ? [["list"], ["html", { open: "never" }], ["json", { outputFile: "playwright-report-json/results.json" }]]
+    : "list",
   use: {
     baseURL: `http://127.0.0.1:${WEB_PORT}`,
     trace: "retain-on-failure",

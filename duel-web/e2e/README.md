@@ -28,6 +28,23 @@ npx playwright show-report               # traces and screenshots of failures
 
 Each runs at `desktop-1280` and `phone-375` (the rules scenario on desktop only).
 
+## Shards
+
+CI runs the specs in 4 shards balanced by duration, not by count (#737).
+`scripts/e2e-shards.mjs <index> <total>` assigns each spec, longest first, to
+the lightest shard using the seconds in `e2e/timings.json`; a spec missing from
+that file gets the median weight, so a new spec still runs.
+
+To refresh the timings, download the `duel-web-e2e-report-*` artifacts from a
+green run and, from `duel-web/`:
+
+```bash
+node scripts/e2e-shards.mjs --update path/to/report-1/playwright-report-json/results.json path/to/report-2/... 
+```
+
+Specs missing from the reports keep their old value. Commit the new `timings.json`.
+Re-plan after changing the total shard count in `ci.yml` (it appears in the matrix and in the run step).
+
 ## Pieces
 
 - `fixtures.ts`: fake API, token minting, decks seeded into localStorage, and
