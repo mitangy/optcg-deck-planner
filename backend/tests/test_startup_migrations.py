@@ -238,3 +238,50 @@ def test_startup_waits_for_another_worker_holding_the_startup_lock_389(legacy_en
         holder.commit()
     assert entered.wait(5)
     worker.join(5)
+
+
+_ADVISORY_LOCK_STATES = text(
+    "SELECT a.state FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+    "WHERE l.locktype = 'advisory' AND l.granted AND l.classid = :hi AND l.objid = :lo"
+)
+
+
+def _advisory_lock_states(conn, key: int) -> list[str]:
+    params = {"hi": key >> 32, "lo": key & 0xFFFFFFFF}
+    return [row[0] for row in conn.execute(_ADVISORY_LOCK_STATES, params)]
+
+
+@requires_postgres
+def test_startup_lock_is_held_by_an_open_transaction_so_a_pooler_cannot_strand_it_733(legacy_engine):
+    """Behind pgbouncer transaction pooling a session lock is released (or stranded) on the
+    wrong server connection; a transaction-scoped lock lives and dies with its transaction."""
+    with legacy_engine.connect() as observer:
+        with app_db.startup_lock(legacy_engine):
+            observer.rollback()  # fresh snapshot of pg_locks / pg_stat_activity
+            assert _advisory_lock_states(observer, app_db.STARTUP_LOCK_KEY) == ["idle in transaction"]
+        observer.rollback()
+        assert _advisory_lock_states(observer, app_db.STARTUP_LOCK_KEY) == []
+
+
+@requires_postgres
+def test_a_stale_lock_on_the_old_startup_key_does_not_block_startup_733(legacy_engine):
+    """The prod deploy hung on a session lock stranded under the old key; the new key must not wait on it."""
+    import threading
+
+    old_key = 0x6F707463675F7374  # "optcg_st", the key whose lock was stranded in prod
+    assert app_db.STARTUP_LOCK_KEY != old_key
+    entered = threading.Event()
+
+    def worker() -> None:
+        with app_db.startup_lock(legacy_engine):
+            entered.set()
+
+    with legacy_engine.connect() as holder:
+        holder.execute(text("SELECT pg_advisory_lock(:key)"), {"key": old_key})
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        started = entered.wait(5)
+        holder.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": old_key})
+        holder.commit()
+    assert started
+    thread.join(5)

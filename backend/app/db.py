@@ -182,8 +182,10 @@ def _ensure_duel_match_replay_columns() -> None:
             conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
 
 
-# pg_advisory_lock key for startup work (schema creation, migrations, backfills).
-STARTUP_LOCK_KEY = 0x6F707463675F7374  # "optcg_st"
+# pg_advisory_xact_lock key for startup work (schema creation, migrations, backfills).
+# "optcg_s2": the key changed after #733, when a session-level lock on the old key
+# ("optcg_st" = 0x6F707463675F7374) was stranded on a pooled Neon backend.
+STARTUP_LOCK_KEY = 0x6F707463675F7332  # "optcg_s2"
 
 
 @contextmanager
@@ -194,19 +196,20 @@ def startup_lock(bind: Engine | None = None) -> Iterator[None]:
     the lifespan at once; concurrent CREATE TABLE / ALTER TABLE race and fail.
     The others wait here and then find nothing left to do. SQLite (local, one
     process) needs no lock.
+
+    The lock is transaction-scoped and the transaction stays open for the whole
+    block. Prod goes through Neon's pgbouncer in transaction pooling mode, where
+    a session-level lock and its unlock can land on different server connections
+    and the lock is never released (#733).
     """
     bind = bind or engine
     if bind.dialect.name != "postgresql":
         yield
         return
     with bind.connect() as conn:
-        conn.execute(text("SELECT pg_advisory_lock(:key)"), {"key": STARTUP_LOCK_KEY})
-        conn.commit()
-        try:
+        with conn.begin():
+            conn.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": STARTUP_LOCK_KEY})
             yield
-        finally:
-            conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": STARTUP_LOCK_KEY})
-            conn.commit()
 
 
 def _ensure_analyst_review_citations() -> None:
