@@ -232,6 +232,12 @@ a:hover {
   color: var(--accent-ink);
 }
 
+/* Headless UI focuses a Popover or Menu button from script after a click, which Chrome counts as keyboard
+   focus; its own data-focus is set for the keyboard only, so a mouse click leaves no ring (as before). */
+button[data-headlessui-state]:focus-visible:not([data-focus]) {
+  outline: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
@@ -601,8 +607,8 @@ h1 {
 }
 
 .market-sales {
-  position: fixed;
   width: 14rem;
+  max-width: calc(100vw - 16px);
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1510,10 +1516,6 @@ tr.selected-row td,
   z-index: 1;
 }
 
-.sort-menu:has(.sort-menu-panel) {
-  z-index: 50;
-}
-
 .sort-menu-btn {
   min-height: 2.5rem;
   padding: 0.35rem 0.75rem;
@@ -1537,13 +1539,11 @@ tr.selected-row td,
 }
 
 .sort-menu-panel {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  right: auto;
   z-index: 60;
+  /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
+  color: var(--muted);
   width: min(20rem, calc(100vw - 2rem));
-  max-height: min(24rem, calc(100vh - 6rem));
+  max-height: min(24rem, calc(100dvh - 6rem));
   overflow: auto;
   padding: 0.75rem;
   background: var(--card);
@@ -1584,6 +1584,7 @@ tr.selected-row td,
   min-height: auto;
   flex: 1;
   cursor: pointer;
+  user-select: none;
 }
 
 .sort-menu-item.disabled {
@@ -2311,6 +2312,8 @@ tr.done td {
 
 .import-form {
   display: grid;
+  /* minmax(0, 1fr): a bare auto track grows to the widest child's min-content (the file input's intrinsic width), pushing the form past a phone's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   max-width: 720px;
   background: var(--card);
@@ -2320,14 +2323,30 @@ tr.done td {
   box-shadow: var(--shadow);
 }
 
+/* Shown when Log Pose filled in the form (#726). */
+.import-form .import-note {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--info-line);
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info-ink);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 .import-form label {
   display: grid;
+  min-width: 0;
   gap: 0.4rem;
   font-weight: 600;
 }
 
 .import-form input,
 .import-form textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   font: inherit;
   font-size: 1rem;
   padding: 0.7rem 0.8rem;
@@ -2838,9 +2857,12 @@ tr.done td {
   }
 
   .sort-menu-panel {
-    left: 0;
-    right: auto;
-    width: 100%;
+    width: var(--button-width, 100%);
+  }
+
+  .sort-menu-item label {
+    font-size: 0.9rem;
+    min-height: 2.75rem;
   }
 
   .mobile-card-name {
@@ -4811,6 +4833,7 @@ button.ghost.scan-open:hover {
   position: fixed;
   inset: 0;
   z-index: 200;
+  padding: 0;
   background: #000;
   overflow: hidden;
 }
@@ -5051,6 +5074,32 @@ button.ghost.scan-open:hover {
   margin-top: 0;
 }
 
+.head-popover-panel .share-panel-note {
+  margin: 0.35rem 0 0;
+}
+
+/* The panel floats in a portal, outside .page-head, so it repeats the .page-head .muted spacing and, below, the phone sizing that used to cascade into it. */
+@media (max-width: 800px) {
+  .head-popover-panel .share-panel-actions .btn,
+  .head-popover-panel .share-panel-actions .ghost {
+    flex: 1 1 auto;
+    text-align: center;
+    min-height: 2.75rem;
+  }
+
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    justify-content: center;
+  }
+}
+
 .head-popover-sections {
   display: grid;
   gap: 1rem;
@@ -5061,8 +5110,10 @@ button.ghost.scan-open:hover {
   border-top: 1px solid var(--line);
 }
 
-.head-popover-panel:has(.head-popover-menu) {
+.head-popover-panel.head-popover-menu {
   padding: 0.35rem;
+  /* Headless UI keeps focus on the list itself and marks the active row, so no ring around the whole panel. */
+  outline: none;
 }
 
 .head-popover-menu {
@@ -5088,7 +5139,8 @@ button.ghost.scan-open:hover {
   font-weight: 400;
 }
 
-.head-popover-menu button:not(:disabled):hover,
+.head-popover-menu button:not(:disabled, [data-disabled]):hover,
+.head-popover-menu button[data-focus]:not([data-disabled]),
 .head-popover-menu button:focus-visible {
   background: var(--card-sunk);
 }
@@ -5097,7 +5149,8 @@ button.ghost.scan-open:hover {
   color: var(--danger);
 }
 
-.head-popover-menu button:disabled {
+.head-popover-menu button:disabled,
+.head-popover-menu button[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -5451,6 +5504,7 @@ button.ghost.scan-open:hover {
   position: fixed;
   inset: 0;
   z-index: 60;
+  padding: 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -6411,6 +6465,287 @@ html[data-lp-dock] .topbar {
 .alt-base-label {
   font-weight: 700;
   color: var(--muted);
+}
+
+/* Photo scan review tray (Collection). The dialog keeps one fixed height while
+   reviewing, so editing rows never resizes it; only the list scrolls and the
+   footer stays pinned. */
+.scan-dialog.multi {
+  width: min(36rem, 100%);
+}
+
+.scan-dialog.reviewing {
+  display: flex;
+  flex-direction: column;
+  height: min(46rem, 100dvh - 2rem);
+  overflow: hidden;
+}
+
+.scan-dialog.reviewing .scan-head {
+  flex: none;
+}
+
+.scan-tray,
+.scan-added {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.scan-tray-summary {
+  flex: none;
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.scan-tray-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--line);
+}
+
+.scan-tray-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  padding: 0.55rem 0.15rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.scan-tray-row.check {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--warn);
+  padding-left: 0.5rem;
+}
+
+.scan-tray-row.none {
+  box-shadow: inset 3px 0 0 var(--danger);
+  padding-left: 0.5rem;
+}
+
+.scan-tray-row.skipped:not(.none) .scan-tray-media,
+.scan-tray-row.skipped:not(.none) .scan-tray-info {
+  opacity: 0.55;
+}
+
+.scan-tray-media {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.scan-tray-art {
+  position: relative;
+  display: block;
+  width: 2.1rem;
+  aspect-ratio: 5 / 7;
+  border-radius: 4px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.scan-tray-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-tray-multi {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 0 0.25rem;
+  border-top-left-radius: 4px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.scan-tray-info {
+  min-width: 0;
+}
+
+.scan-tray-name,
+.scan-tray-meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-tray-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.scan-tray-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.scan-tray-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.scan-chip {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.scan-chip.sure,
+.scan-chip.fixed {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+}
+
+.scan-chip.check {
+  border-color: var(--warn);
+  color: var(--warn-ink);
+}
+
+.scan-chip.none {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.ghost.scan-tray-fix {
+  min-height: 1.75rem;
+  padding: 0 0.6rem;
+  font-size: 0.78rem;
+}
+
+.scan-qty {
+  display: inline-flex;
+  align-items: center;
+}
+
+.scan-qty button {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.scan-qty-n {
+  display: inline-block;
+  min-width: 1.6rem;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-tray-fixform {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.scan-tray-fixform input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.scan-tray-fixerr {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.scan-tray-foot {
+  flex: none;
+  padding-top: 0.6rem;
+  background: var(--card);
+}
+
+.scan-tray-error {
+  min-height: 1.2rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.scan-tray-foot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.scan-added {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.scan-added-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.scan-added p.muted {
+  margin: 0 0 0.75rem;
+}
+
+@media (max-height: 520px) {
+  .scan-dialog.reviewing {
+    height: calc(100dvh - 1rem);
+    padding-block: 0.6rem;
+  }
+
+  .scan-dialog.reviewing .scan-head {
+    margin-bottom: 0.2rem;
+  }
+
+  .scan-tray-summary {
+    margin-bottom: 0.3rem;
+  }
+
+  .scan-tray-row {
+    padding-block: 0.3rem;
+  }
+
+  /* One line for the footer so the list keeps the height. */
+  .scan-tray-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.4rem;
+  }
+
+  .scan-tray-error {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .scan-tray-foot-actions {
+    flex: none;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+  }
 }
 
 /* Show / Shown control under each alt-art tile (#702). Same box for both so

@@ -130,6 +130,7 @@ import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
 import { useFanFit } from "./useFanFit";
 import { useFanMove } from "./useFanMove";
 import { endTurnWarning, responseStopPass, scheduleAutoPass } from "./gameplayPrefs";
+import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { GameplaySettingsSheet } from "./GameplaySettings";
 import { HotkeyHelpSheet } from "./HotkeyHelp";
 import { actionKeyTags, stepHandSelection } from "./hotkeys";
@@ -255,6 +256,8 @@ type Props = {
 };
 
 const EMPTY_IDS = new Set<string>();
+/** The match result is not dismissed by Escape or an outside click; its buttons leave it. */
+const noop = () => {};
 
 /** Your own Leader / Character / Stage by instance id (what the card popover anchors to). */
 function findOwnCard(view: PlayerView, id: string): { id: string; defId: string } | null {
@@ -3050,42 +3053,46 @@ export function DuelBoard({
       ) : null}
 
       {over && !resultHidden ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className={`modal-card match-result match-result-${result.outcome}`}>
-            <p className="match-result-kicker">Match over</p>
-            <h2>
-              {(() => {
-                // Spectators / hotseat: name the winning player instead of "Seat N".
-                const winner = (matchOver?.winner ?? view.winner) as Seat | null;
-                return spectating && players && (winner === 0 || winner === 1)
-                  ? winnerHeadline(players, winner, null, true)
-                  : result.headline;
-              })()}
-            </h2>
-            <p className="match-result-detail">{result.detail}</p>
-            <MatchOverFactsList
-              matchId={matchId}
-              turnNumber={view.turnNumber}
-              loadRecord={spectating ? undefined : loadMatchRecord}
+        // Blocking: Escape and an outside click do nothing; "View board" tucks the result away.
+        <Dialog
+          open
+          onClose={noop}
+          className="modal-backdrop"
+          panelClassName={`modal-card match-result match-result-${result.outcome}`}
+        >
+          <p className="match-result-kicker">Match over</p>
+          <DialogTitle as="h2">
+            {(() => {
+              // Spectators / hotseat: name the winning player instead of "Seat N".
+              const winner = (matchOver?.winner ?? view.winner) as Seat | null;
+              return spectating && players && (winner === 0 || winner === 1)
+                ? winnerHeadline(players, winner, null, true)
+                : result.headline;
+            })()}
+          </DialogTitle>
+          <p className="match-result-detail">{result.detail}</p>
+          <MatchOverFactsList
+            matchId={matchId}
+            turnNumber={view.turnNumber}
+            loadRecord={spectating ? undefined : loadMatchRecord}
+          />
+          <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
+            View board
+          </button>
+          {rematch && !spectating ? (
+            <RematchPanel
+              state={rematch.state}
+              mySeat={boardSeat}
+              players={players}
+              autoAccept={rematch.autoAccept}
+              deckOptions={rematch.deckOptions}
+              onAction={rematch.onAction}
             />
-            <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
-              View board
-            </button>
-            {rematch && !spectating ? (
-              <RematchPanel
-                state={rematch.state}
-                mySeat={boardSeat}
-                players={players}
-                autoAccept={rematch.autoAccept}
-                deckOptions={rematch.deckOptions}
-                onAction={rematch.onAction}
-              />
-            ) : null}
-            <button type="button" className="leave-btn" onClick={onLeave}>
-              Return home
-            </button>
-          </div>
-        </div>
+          ) : null}
+          <button type="button" className="leave-btn" onClick={onLeave}>
+            Return home
+          </button>
+        </Dialog>
       ) : null}
     </div>
     </DonArtContext.Provider>

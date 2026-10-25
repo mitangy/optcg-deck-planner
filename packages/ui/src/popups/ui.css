@@ -49,3 +49,15 @@
 :where(.ui-menu-items [data-focus]) {
   background: var(--ui-hover, rgb(128 128 128 / 0.2));
 }
+
+:where(.ui-popover-panel) {
+  z-index: var(--ui-z, 1000);
+  box-sizing: border-box;
+  max-height: min(var(--anchor-max-height, 60dvh), 60dvh);
+  overflow: auto;
+  color: var(--ui-ink, inherit);
+  background: var(--ui-panel-bg, Canvas);
+  border: var(--ui-border, 1px solid currentColor);
+  border-radius: var(--ui-radius, 8px);
+  outline: none;
+}

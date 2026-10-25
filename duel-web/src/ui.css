@@ -838,6 +838,12 @@ html {
   box-shadow: var(--focus);
 }
 
+/* Headless UI focuses the trigger from script after a click, which Chrome counts as keyboard focus;
+   its own data-focus is set for the keyboard only. */
+.home-deck[data-headlessui-state]:focus-visible:not([data-focus]) {
+  box-shadow: none;
+}
+
 .home-deck-art,
 .deck-menu-art {
   flex: 0 0 auto;
@@ -982,13 +988,11 @@ html {
   transform: rotate(180deg);
 }
 
-/* Absolutely positioned under the trigger — opening never moves the page. */
+/* A Headless UI Listbox floating under the trigger in a portal — opening never moves the page. */
 .deck-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  width: var(--button-width);
   z-index: 60;
+  padding: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line-strong);
@@ -996,10 +1000,18 @@ html {
   background: var(--arena-panel);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-  animation: sheet-in 140ms ease-out;
+  /* Opacity only: a transform animation would fight the floating position. */
+  animation: deck-menu-in 140ms ease-out;
+}
+
+@keyframes deck-menu-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .deck-menu-list {
+  min-height: 0;
   list-style: none;
   margin: 0;
   padding: 0.3rem;
@@ -1018,6 +1030,19 @@ html {
 .deck-menu-row:hover,
 .deck-menu-row.active {
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* Headless UI keeps focus on the list and marks the active row (arrow keys and the pointer alike). */
+.deck-menu-row[data-focus] {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.deck-menu-foot .btn {
+  text-align: center;
+}
+
+.deck-menu-foot [data-focus] {
+  border-color: var(--chrome-bright);
 }
 
 .deck-menu-pick {
@@ -1243,7 +1268,8 @@ html {
   box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
-.segmented button:focus-visible {
+.segmented button:focus-visible:not([role="tab"]),
+.segmented button[role="tab"][data-focus] {
   outline: none;
   box-shadow: var(--focus);
 }
@@ -2285,32 +2311,19 @@ label.btn.is-busy {
   height: 44px;
 }
 
+/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left and back out on close.
+   The Dialog's `transition` keeps both mounted until these CSS transitions end and sets data-closed / data-enter / data-leave;
+   with no transition (reduced motion) it unmounts at once. */
 .nav-drawer-root {
-  position: fixed;
-  inset: 0;
   z-index: 120;
-  visibility: hidden;
-  pointer-events: none;
-  /* Stay visible until the slide-out finishes. */
-  transition: visibility 0s linear 200ms;
-}
-
-.nav-drawer-root[data-open="true"] {
-  visibility: visible;
-  pointer-events: auto;
-  transition-delay: 0s;
-}
-
-.nav-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgb(var(--abyss-rgb) / 0.72);
-  opacity: 0;
+  display: block;
+  padding: 0;
+  /* background: the dialog's own --ui-backdrop (abyss at 72%). */
   transition: opacity 180ms ease-out;
 }
 
-.nav-drawer-root[data-open="true"] .nav-backdrop {
-  opacity: 1;
+.nav-drawer-root[data-closed] {
+  opacity: 0;
 }
 
 .nav-drawer {
@@ -2319,21 +2332,25 @@ label.btn.is-busy {
   bottom: 0;
   left: 0;
   width: min(280px, 85vw);
+  max-width: none;
   height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
   border-right: 1px solid var(--line-strong);
   background:
     linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
     var(--arena-panel);
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-  transform: translateX(-100%);
   transition: transform 200ms ease-out;
 }
 
-.nav-drawer-root[data-open="true"] .nav-drawer {
-  transform: none;
+.nav-drawer[data-closed] {
+  transform: translateX(-100%);
+}
+
+/* The padding sits on the nav, so its box is the drawer's full width. */
+.nav-drawer-nav {
+  padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
 }
 
 .nav-list {
@@ -2382,14 +2399,12 @@ label.btn.is-busy {
 
 @media (prefers-reduced-motion: reduce) {
   .nav-drawer-root,
-  .nav-backdrop,
   .nav-drawer {
     transition: none;
   }
 }
 
 :root[data-motion="reduce"] .nav-drawer-root,
-:root[data-motion="reduce"] .nav-backdrop,
 :root[data-motion="reduce"] .nav-drawer {
   transition: none;
 }
@@ -2504,7 +2519,7 @@ label.btn.is-busy {
     min-height: 36px;
   }
 
-  .nav-drawer {
+  .nav-drawer-nav {
     padding-top: max(0.5rem, var(--safe-t));
     padding-bottom: max(0.5rem, var(--safe-b));
   }

@@ -51,6 +51,8 @@ from app.schemas import (
     AnalystDeckEdit,
     AnalystDisplayMessage,
     AnalystProposalsIn,
+    AnalystDraftsIn,
+    AnalystDeckDraft,
     AnalystReviewIn,
     AnalystReviewOut,
     AnalystStoredMessage,
@@ -373,17 +375,41 @@ def append_messages(
 
 
 PROPOSE_TOOL = "propose_deck_edit"
+NEW_DECK_TOOL = "propose_new_deck"
 
 
-def _proposal_ids(content: str | list[dict]) -> list[str]:
-    """The ids of the propose_deck_edit calls in one stored message."""
+def _tool_ids(content: str | list[dict], tool: str) -> list[str]:
+    """The ids of the calls to `tool` in one stored message."""
     if not isinstance(content, list):
         return []
     return [
         b["id"]
         for b in content
-        if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == PROPOSE_TOOL and isinstance(b.get("id"), str)
+        if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == tool and isinstance(b.get("id"), str)
     ]
+
+
+def _proposal_ids(content: str | list[dict]) -> list[str]:
+    """The ids of the propose_deck_edit calls in one stored message."""
+    return _tool_ids(content, PROPOSE_TOOL)
+
+
+def _draft_ids(content: str | list[dict]) -> list[str]:
+    """The ids of the propose_new_deck calls in one stored message (#726)."""
+    return _tool_ids(content, NEW_DECK_TOOL)
+
+
+def _save_cards(db: Session, row: AnalystThread, items: list, tool: str, what: str) -> None:
+    """Keeps cards that each come from a call to `tool` stored in the thread; repeats are ignored."""
+    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in _tool_ids(json.loads(m.content), tool)}
+    if any(p.id not in made for p in items):
+        raise HTTPException(status_code=400, detail=f"A {what} must come from a {tool} call in this thread")
+    have = set(db.scalars(select(AnalystProposal.id).where(AnalystProposal.thread_id == row.id)).all())
+    for p in items:
+        if p.id not in have:
+            have.add(p.id)
+            db.add(AnalystProposal(thread_id=row.id, id=p.id, payload=p.model_dump_json()))
+    db.commit()
 
 
 @router.post("/chat/threads/{thread_id}/proposals", status_code=204)
@@ -398,26 +424,37 @@ def save_proposals(
 
     Each must come from a propose_deck_edit call stored in this thread; repeats are ignored.
     """
-    row = _own_thread(db, user, thread_id)
-    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in _proposal_ids(json.loads(m.content))}
-    if any(p.id not in made for p in body.proposals):
-        raise HTTPException(status_code=400, detail="A proposal must come from a propose_deck_edit call in this thread")
-    have = set(db.scalars(select(AnalystProposal.id).where(AnalystProposal.thread_id == row.id)).all())
-    for p in body.proposals:
-        if p.id not in have:
-            have.add(p.id)
-            db.add(AnalystProposal(thread_id=row.id, id=p.id, payload=p.model_dump_json()))
-    db.commit()
+    _save_cards(db, _own_thread(db, user, thread_id), body.proposals, PROPOSE_TOOL, "proposal")
 
 
-def _stored_proposals(db: Session, thread_id: int) -> dict[str, AnalystDeckEdit]:
-    out: dict[str, AnalystDeckEdit] = {}
+@router.post("/chat/threads/{thread_id}/drafts", status_code=204)
+def save_drafts(
+    thread_id: int,
+    body: AnalystDraftsIn,
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(analyst_user)],
+) -> None:
+    """The analyst keeps the new decks it built in a turn next to the thread, so their cards come back on reload (#726).
+
+    Each must come from a propose_new_deck call stored in this thread; repeats are ignored. They share the proposals table.
+    """
+    _save_cards(db, _own_thread(db, user, thread_id), body.drafts, NEW_DECK_TOOL, "draft")
+
+
+def _stored_cards(db: Session, thread_id: int) -> tuple[dict[str, AnalystDeckEdit], dict[str, AnalystDeckDraft]]:
+    """The thread's saved deck edits and new decks. A new deck's payload has `cards` and no `target`."""
+    edits: dict[str, AnalystDeckEdit] = {}
+    drafts: dict[str, AnalystDeckDraft] = {}
     for r in db.scalars(select(AnalystProposal).where(AnalystProposal.thread_id == thread_id).order_by(AnalystProposal.created_at)).all():
         try:
-            out[r.id] = AnalystDeckEdit.model_validate_json(r.payload)
+            if "target" in json.loads(r.payload):
+                edits[r.id] = AnalystDeckEdit.model_validate_json(r.payload)
+            else:
+                drafts[r.id] = AnalystDeckDraft.model_validate_json(r.payload)
         except ValueError:
             continue
-    return out
+    return edits, drafts
 
 
 MAX_CITED_TEXT = 800
@@ -470,40 +507,46 @@ def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[Analy
     return text, cites
 
 
-def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit]) -> None:
-    """Put the deck edits of a finished turn under the answer that ended it (an answer of its own when there is none)."""
-    if not pending:
+def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit], pending_drafts: list[AnalystDeckDraft]) -> None:
+    """Put the deck edits and new decks of a finished turn under the answer that ended it (an answer of its own when there is none)."""
+    if not pending and not pending_drafts:
         return
     if out and out[-1].role == "assistant":
         out[-1].proposals += pending
+        out[-1].drafts += pending_drafts
     else:
-        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending)))
+        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending), drafts=list(pending_drafts)))
     pending.clear()
+    pending_drafts.clear()
 
 
 def thread_view(
-    messages: list[tuple[str, str | list[dict]]], proposals: dict[str, AnalystDeckEdit] | None = None
+    messages: list[tuple[str, str | list[dict]]],
+    proposals: dict[str, AnalystDeckEdit] | None = None,
+    drafts: dict[str, AnalystDeckDraft] | None = None,
 ) -> list[AnalystDisplayMessage]:
     """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up.
 
-    A deck edit goes under the bubble that ends the turn it was suggested in (#400)."""
+    A deck edit or a new deck goes under the bubble that ends the turn it was made in (#400, #726)."""
     out: list[AnalystDisplayMessage] = []
     pending: list[AnalystDeckEdit] = []
+    pending_drafts: list[AnalystDeckDraft] = []
     for role, content in messages:
         if role == "assistant":
             pending += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
+            pending_drafts += [drafts[i] for i in _draft_ids(content) if drafts and i in drafts]
         text, cites = _display_text(role, content)
         if not text.strip():
             continue
         if role == "user":
-            _attach(out, pending)
+            _attach(out, pending, pending_drafts)
         if out and out[-1].role == role == "assistant":
             base = _utf16_len(out[-1].text) + 2
             out[-1].text += "\n\n" + text
             out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
         else:
             out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
-    _attach(out, pending)
+    _attach(out, pending, pending_drafts)
     return out
 
 
@@ -530,10 +573,11 @@ def view_thread(
 ) -> AnalystThreadView:
     """One of the signed-in player's threads as the panel shows it."""
     row = _own_thread(db, user, thread_id)
+    edits, drafts = _stored_cards(db, row.id)
     return AnalystThreadView(
         id=row.id,
         title=row.title,
-        messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)], _stored_proposals(db, row.id)),
+        messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)], edits, drafts),
     )
 
 

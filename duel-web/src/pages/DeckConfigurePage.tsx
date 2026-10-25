@@ -26,6 +26,7 @@ import {
 } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { NavMenu } from "../nav/NavMenu";
+import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
 export function DeckConfigurePage() {
   const { deckId } = useParams<{ deckId: string }>();
@@ -299,32 +300,26 @@ export function DeckConfigurePage() {
       </div>
 
       {leave.pending ? (
-        <div className="leave-dialog-backdrop" onClick={leave.clear}>
-          <div
-            className="leave-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="leave-dialog-title"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") leave.clear();
-            }}
-          >
-            <h2 id="leave-dialog-title">Save changes to {saved.name}?</h2>
-            <p className="meta">You have edits that are not saved yet.</p>
-            <div className="leave-dialog-actions">
-              <button type="button" className="btn btn-primary" autoFocus onClick={() => leaveTo(leave.pending!, true)}>
-                Save
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => leaveTo(leave.pending!, false)}>
-                Discard
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={leave.clear}>
-                Keep editing
-              </button>
-            </div>
+        <Dialog
+          open
+          onClose={leave.clear}
+          className="leave-dialog-backdrop"
+          panelClassName="leave-dialog"
+        >
+          <DialogTitle as="h2">Save changes to {saved.name}?</DialogTitle>
+          <p className="meta">You have edits that are not saved yet.</p>
+          <div className="leave-dialog-actions">
+            <button type="button" className="btn btn-primary" data-autofocus onClick={() => leaveTo(leave.pending!, true)}>
+              Save
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => leaveTo(leave.pending!, false)}>
+              Discard
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={leave.clear}>
+              Keep editing
+            </button>
           </div>
-        </div>
+        </Dialog>
       ) : null}
     </div>
   );

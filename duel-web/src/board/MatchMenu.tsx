@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef } from "react";
+import { Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
 import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
 import { spectateUrl } from "./clipboard";
@@ -20,15 +21,24 @@ type Props = {
   onLeave: () => void;
   /**
    * "left": opens beside the landscape icon rail instead of under the top bar.
-   * "anchor": opens right under the button wherever it sits (the side-column row
-   * when Bigger playing area hides the top bar), kept on screen.
+   * "top" / "anchor": opens right under the button wherever it sits (the phone bar, or the
+   * side-column row when Bigger playing area hides the top bar), kept on screen.
    */
   placement?: "top" | "left" | "anchor";
 };
 
+/** Where the list sits against its button. Headless UI flips and shifts it to stay inside the window. */
+const ANCHORS = {
+  top: { to: "bottom end", gap: 4, padding: 8 },
+  anchor: { to: "bottom end", gap: 6, padding: 8 },
+  left: { to: "right start", gap: 1, padding: 4 },
+} as const;
+
 /**
- * Phone HUD "⋯" menu: everything that no longer fits the one-row bar. The
- * panel is a fixed overlay, so opening it never moves the bar or the board.
+ * Phone HUD "⋯" menu: everything that no longer fits the one-row bar. A
+ * Headless UI Menu: the list floats in a portal, so opening it never moves the
+ * bar or the board; arrow keys, Escape (focus back on the button) and outside
+ * click come with it.
  */
 export function MatchMenu({
   items,
@@ -45,47 +55,8 @@ export function MatchMenu({
   placement = "top",
 }: Props) {
   const tapCopy = useClickCopy();
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const wasOpen = useRef(false);
   const closeTimer = useRef<number | null>(null);
   const { copied, copy } = useCopyFlash();
-  const [anchorStyle, setAnchorStyle] = useState<CSSProperties | undefined>(undefined);
-
-  useLayoutEffect(() => {
-    if (!open || placement !== "anchor") return;
-    const place = () => {
-      const r = triggerRef.current?.getBoundingClientRect();
-      if (!r) return;
-      const width = Math.min(280, window.innerWidth - 16);
-      const top = r.bottom + 6;
-      // Right edges line up, then slide back on screen (a button in the left column is nearer the edge).
-      const left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8));
-      setAnchorStyle({ top, left, right: "auto", width, maxHeight: Math.max(120, window.innerHeight - top - 8) });
-    };
-    place();
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [open, placement]);
-
-  useEffect(() => {
-    if (open) {
-      panelRef.current?.querySelector<HTMLElement>("[data-menu-item]")?.focus();
-    } else if (wasOpen.current) {
-      triggerRef.current?.focus();
-    }
-    wasOpen.current = open;
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
 
   useEffect(
     () => () => {
@@ -94,34 +65,18 @@ export function MatchMenu({
     [],
   );
 
-  const choose = (fn: () => void) => () => {
-    setOpen(false);
-    fn();
-  };
-
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="hud-undo-btn hud-icon-btn hud-menu-btn"
-        aria-label="Match menu"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        ⋯
-      </button>
-      {open ? (
+    <Menu>
+      {({ close }) => (
         <>
-          <div className="match-menu-backdrop" onPointerDown={() => setOpen(false)} />
-          <div
-            ref={panelRef}
-            className={`match-menu${placement === "left" ? " match-menu-left" : ""}`}
-            style={placement === "anchor" ? anchorStyle : undefined}
-            role="menu"
+          <MenuButton
+            type="button"
+            className="hud-undo-btn hud-icon-btn hud-menu-btn"
             aria-label="Match menu"
           >
+            ⋯
+          </MenuButton>
+          <MenuList anchor={ANCHORS[placement]} className="match-menu">
             <div className="match-menu-info">
               {info.matchup ? <strong>{info.matchup}</strong> : null}
               <span>
@@ -132,134 +87,122 @@ export function MatchMenu({
               switch (id) {
                 case "copy-room":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      disabled={!roomId}
-                      onClick={() => {
-                        if (!roomId) return;
-                        void copy(roomId, "id");
-                        // Stay just long enough to show "Copied".
-                        closeTimer.current = window.setTimeout(() => setOpen(false), 700);
-                      }}
-                    >
-                      {copied === "id"
-                        ? "Copied"
-                        : copied === "failed"
-                          ? "Copy failed"
-                          : `Copy room ID${roomId ? ` (${roomId})` : ""}`}
-                    </button>
+                    // Stays open just long enough to show "Copied".
+                    <MenuItem key={id} keepOpen disabled={!roomId}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        onClick={() => {
+                          if (!roomId) return;
+                          void copy(roomId, "id");
+                          closeTimer.current = window.setTimeout(close, 700);
+                        }}
+                      >
+                        {copied === "id"
+                          ? "Copied"
+                          : copied === "failed"
+                            ? "Copy failed"
+                            : `Copy room ID${roomId ? ` (${roomId})` : ""}`}
+                      </button>
+                    </MenuItem>
                   );
                 case "copy-spectate":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      disabled={!roomId}
-                      onClick={() => {
-                        if (!roomId) return;
-                        void copy(spectateUrl(roomId), "link");
-                        closeTimer.current = window.setTimeout(() => setOpen(false), 700);
-                      }}
-                    >
-                      {copied === "link"
-                        ? "Copied"
-                        : copied === "failed"
-                          ? "Copy failed"
-                          : "Copy spectate link"}
-                    </button>
+                    <MenuItem key={id} keepOpen disabled={!roomId}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        onClick={() => {
+                          if (!roomId) return;
+                          void copy(spectateUrl(roomId), "link");
+                          closeTimer.current = window.setTimeout(close, 700);
+                        }}
+                      >
+                        {copied === "link"
+                          ? "Copied"
+                          : copied === "failed"
+                            ? "Copy failed"
+                            : "Copy spectate link"}
+                      </button>
+                    </MenuItem>
                   );
                 case "settings":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      onClick={choose(onSettings)}
-                    >
-                      Gameplay settings
-                    </button>
+                    <MenuItem key={id}>
+                      <button type="button" className="match-menu-item" onClick={onSettings}>
+                        Gameplay settings
+                      </button>
+                    </MenuItem>
                   );
                 case "fullscreen":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      aria-pressed={isFullscreen}
-                      onClick={choose(onToggleFullscreen)}
-                    >
-                      {isFullscreen ? "Exit full screen" : "Full screen"}
-                    </button>
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        aria-pressed={isFullscreen}
+                        onClick={onToggleFullscreen}
+                      >
+                        {isFullscreen ? "Exit full screen" : "Full screen"}
+                      </button>
+                    </MenuItem>
                   );
                 case "reload":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      title="Reload the page and rejoin this match"
-                      onClick={choose(onReload)}
-                    >
-                      Reload game
-                    </button>
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        title="Reload the page and rejoin this match"
+                        onClick={onReload}
+                      >
+                        Reload game
+                      </button>
+                    </MenuItem>
                   );
                 case "report":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      title="Tell us what went wrong, without leaving the match"
-                      onClick={choose(onReport)}
-                    >
-                      Report a problem
-                    </button>
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        title="Tell us what went wrong, without leaving the match"
+                        onClick={onReport}
+                      >
+                        Report a problem
+                      </button>
+                    </MenuItem>
                   );
                 case "concede":
+                  // Two steps: the first press arms it and the menu stays open (also for Enter / Space).
                   return (
-                    <ConfirmButton
-                      key={id}
-                      className="match-menu-item match-menu-danger"
-                      label="Concede"
-                      confirmLabel={tapCopy("Tap again to concede")}
-                      reserveWidth
-                      title="Forfeit this match"
-                      onConfirm={choose(onConcede)}
-                    />
+                    <MenuItem key={id} keepOpen>
+                      <ConfirmButton
+                        className="match-menu-item match-menu-danger"
+                        label="Concede"
+                        confirmLabel={tapCopy("Tap again to concede")}
+                        reserveWidth
+                        title="Forfeit this match"
+                        onConfirm={() => {
+                          close();
+                          onConcede();
+                        }}
+                      />
+                    </MenuItem>
                   );
                 case "leave":
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      data-menu-item
-                      className="match-menu-item"
-                      onClick={choose(onLeave)}
-                    >
-                      {leaveLabel}
-                    </button>
+                    <MenuItem key={id}>
+                      <button type="button" className="match-menu-item" onClick={onLeave}>
+                        {leaveLabel}
+                      </button>
+                    </MenuItem>
                   );
               }
             })}
-          </div>
+          </MenuList>
         </>
-      ) : null}
-    </>
+      )}
+    </Menu>
   );
 }

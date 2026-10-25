@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
 export const CARD_SORTS_KEY = "optcg_card_sorts";
 export const FILTERS_OPEN_KEY = "optcg_filters_open";
@@ -170,25 +171,6 @@ export function SortMenu({
   /** Sort options this page offers (defaults to the shopping/deck set). */
   keys?: SortKey[];
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const menuKeys = useMemo(() => {
     const inactive = keys.filter((k) => !sorts.includes(k));
     return [...sorts, ...inactive];
@@ -232,72 +214,64 @@ export function SortMenu({
   }
 
   return (
-    <div className="sort-menu" ref={rootRef}>
-      <button
-        type="button"
-        className="sort-menu-btn"
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((v) => !v)}
-      >
+    <Popover as="div" className="sort-menu">
+      <PopoverButton type="button" className="sort-menu-btn">
         Sort: {summary}
-      </button>
-      {open && (
-        <div className="sort-menu-panel" role="menu">
-          <p className="sort-menu-hint">
-            Top option sorts first. Price is highest market price first.
-            {keys.includes("value") ? " Value is owned copies × market price, highest first." : ""}
-            {keys.includes("deck")
-              ? " Deck groups by leader (earliest deck first); cards used by multiple leaders stay under their earliest leader."
-              : ""}
-          </p>
-          <ul className="sort-menu-list">
-            {menuKeys.map((key) => {
-              const active = sorts.includes(key);
-              const disabledReason = keyDisabled(key);
-              const disabled = Boolean(disabledReason);
-              const activeIdx = sorts.indexOf(key);
-              return (
-                <li key={key} className={`sort-menu-item${disabled ? " disabled" : ""}`}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={active && !disabled}
-                      disabled={disabled}
-                      onChange={() => toggleKey(key)}
-                    />
-                    <span>{SORT_LABELS[key]}</span>
-                  </label>
-                  {disabledReason && <span className="sort-menu-note">{disabledReason}</span>}
-                  {active && !disabled && (
-                    <span className="sort-menu-move">
-                      <button
-                        type="button"
-                        className="ghost"
-                        aria-label={`Move ${SORT_LABELS[key]} up`}
-                        disabled={activeIdx <= 0}
-                        onClick={() => moveKey(key, -1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost"
-                        aria-label={`Move ${SORT_LABELS[key]} down`}
-                        disabled={activeIdx >= sorts.length - 1}
-                        onClick={() => moveKey(key, 1)}
-                      >
-                        ↓
-                      </button>
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
+      </PopoverButton>
+      <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
+        <p className="sort-menu-hint">
+          Top option sorts first. Price is highest market price first.
+          {keys.includes("value") ? " Value is owned copies × market price, highest first." : ""}
+          {keys.includes("deck")
+            ? " Deck groups by leader (earliest deck first); cards used by multiple leaders stay under their earliest leader."
+            : ""}
+        </p>
+        <ul className="sort-menu-list">
+          {menuKeys.map((key) => {
+            const active = sorts.includes(key);
+            const disabledReason = keyDisabled(key);
+            const disabled = Boolean(disabledReason);
+            const activeIdx = sorts.indexOf(key);
+            return (
+              <li key={key} className={`sort-menu-item${disabled ? " disabled" : ""}`}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={active && !disabled}
+                    disabled={disabled}
+                    onChange={() => toggleKey(key)}
+                  />
+                  <span>{SORT_LABELS[key]}</span>
+                </label>
+                {disabledReason && <span className="sort-menu-note">{disabledReason}</span>}
+                {active && !disabled && (
+                  <span className="sort-menu-move">
+                    <button
+                      type="button"
+                      className="ghost"
+                      aria-label={`Move ${SORT_LABELS[key]} up`}
+                      disabled={activeIdx <= 0}
+                      onClick={() => moveKey(key, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      aria-label={`Move ${SORT_LABELS[key]} down`}
+                      disabled={activeIdx >= sorts.length - 1}
+                      onClick={() => moveKey(key, 1)}
+                    >
+                      ↓
+                    </button>
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverPanel>
+    </Popover>
   );
 }
 

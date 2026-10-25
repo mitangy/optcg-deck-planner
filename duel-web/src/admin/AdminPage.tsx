@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { NavMenu } from "../nav/NavMenu";
 import { fetchAuthMe } from "../net/api";
 import { BackLink } from "../pages/BackLink";
@@ -151,24 +152,33 @@ export default function AdminPage() {
           <span className="adm-role">{who.me.role}</span>
         </header>
 
-        <div className="adm-tabbar">
-          <div className="adm-tabs" role="tablist" aria-label="Admin sections">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" role="tab" aria-selected={t.id === current} className="adm-tab" onClick={() => setTab(t.id)}>
-                {t.label}
+        <TabGroup
+          selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
+          onChange={(i) => setTab(tabs[i]!.id)}
+        >
+          <div className="adm-tabbar">
+            <TabList className="adm-tabs" aria-label="Admin sections">
+              {tabs.map((t) => (
+                <Tab key={t.id} className="adm-tab">
+                  {t.label}
+                </Tab>
+              ))}
+            </TabList>
+            {tabData ? (
+              <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
+                Refresh
               </button>
-            ))}
+            ) : null}
           </div>
-          {tabData ? (
-            <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
-              Refresh
-            </button>
-          ) : null}
-        </div>
 
-        <div className="adm-body" role="tabpanel">
-          {body()}
-        </div>
+          <TabPanels>
+            {tabs.map((t) => (
+              <TabPanel key={t.id} className="adm-body">
+                {t.id === current ? body() : null}
+              </TabPanel>
+            ))}
+          </TabPanels>
+        </TabGroup>
       </div>
     </div>
   );

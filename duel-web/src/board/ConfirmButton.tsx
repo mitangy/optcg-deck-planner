@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentPropsWithRef, type ReactNode } from "react";
 
-type Props = {
+type Props = Omit<ComponentPropsWithRef<"button">, "children" | "onClick" | "title" | "disabled" | "className"> & {
   className?: string;
   label: string;
   /** Shown after the first click; a second click within `armMs` confirms. */
@@ -29,6 +29,7 @@ export function ConfirmButton({
   armMs = 3000,
   reserveWidth = false,
   onConfirm,
+  ...rest
 }: Props) {
   const [armed, setArmed] = useState(false);
 
@@ -44,6 +45,8 @@ export function ConfirmButton({
 
   return (
     <button
+      // Extra props reach the button, so a Headless UI MenuItem can wrap it (role, ref, key handling).
+      {...rest}
       type="button"
       className={`${className}${armed ? " armed" : ""}`}
       title={title}

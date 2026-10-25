@@ -913,6 +913,17 @@ button {
   gap: 0.65rem;
 }
 
+/* Shown when Log Pose filled in the form (#726). */
+.deck-new-note {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgb(var(--chrome-rgb) / 0.08);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .deck-new-actions {
   display: flex;
   flex-wrap: wrap;

@@ -4,6 +4,7 @@
  * Blob already cropped to that aspect, so the slot's encoder is a no-op crop.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog } from "@optcg/ui/popups";
 import {
   INITIAL_EDIT,
   MAX_ZOOM,
@@ -55,7 +56,8 @@ export function ImageEditor({
   onApply,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
+  // The dialog mounts its content after this component renders, so the frame is tracked in state, not read from a ref in an effect that runs once.
+  const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [st, setSt] = useState<EditState>(INITIAL_EDIT);
@@ -84,14 +86,14 @@ export function ImageEditor({
   }, [file]);
 
   useEffect(() => {
-    const el = frameRef.current;
+    const el = frameEl;
     if (!el) return;
     const measure = () => setFrame({ w: el.clientWidth, h: el.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [frameEl]);
 
   const change = useCallback(
     (patch: Partial<EditState>) => {
@@ -153,115 +155,116 @@ export function ImageEditor({
   const cx = img ? `${img.naturalWidth}×${img.naturalHeight}` : "";
 
   return (
-    <div
+    <Dialog
+      open
+      onClose={onCancel}
+      // Only Escape cancels: a stray click beside the editor must not throw the crop away, and a drag can end outside it.
+      closeOnOutsideClick={false}
       className="img-editor-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+      panelClassName="img-editor"
+      label={title}
     >
-      <div className="img-editor">
-        <h2 className="panel-title">{title}</h2>
-        <div
-          ref={frameRef}
-          className="img-editor-frame"
-          style={{ aspectRatio: String(aspect) }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = {
-              x: e.clientX,
-              y: e.clientY,
-              panX: st.panX,
-              panY: st.panY,
-            };
-          }}
-          onPointerMove={(e) => {
-            const d = drag.current;
-            if (!d) return;
-            change({
-              panX: d.panX + e.clientX - d.x,
-              panY: d.panY + e.clientY - d.y,
-            });
-          }}
-          onPointerUp={() => (drag.current = null)}
-          onPointerCancel={() => (drag.current = null)}
-        >
-          <canvas ref={canvasRef} className="img-editor-canvas" />
-        </div>
-        <p className="field-hint">
-          Drag to reposition · zoom to crop tighter{cx ? ` · source ${cx}` : ""}
-        </p>
-        <div className="btn-row">
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={!img}
-            onClick={() => change({ rot: (st.rot + 3) % 4 })}
-          >
-            ⟲ Rotate left
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={!img}
-            onClick={() => change({ rot: (st.rot + 1) % 4 })}
-          >
-            ⟳ Rotate right
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={!img}
-            onClick={() => change({ flipH: !st.flipH })}
-          >
-            ⇋ Flip horizontal
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={!img}
-            onClick={() => change({ flipV: !st.flipV })}
-          >
-            ⇅ Flip vertical
-          </button>
-        </div>
-        <div className="field">
-          <label htmlFor="img-editor-zoom">
-            Zoom · {Math.round(st.zoom * 100)}%
-          </label>
-          <input
-            id="img-editor-zoom"
-            type="range"
-            className="range"
-            min={1}
-            max={MAX_ZOOM}
-            step={0.01}
-            disabled={!img}
-            value={st.zoom}
-            onChange={(e) => change({ zoom: Number(e.target.value) })}
-          />
-        </div>
-        {error ? <p className="error-text">{error}</p> : null}
-        <div className="btn-row img-editor-actions">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setSt(INITIAL_EDIT)}
-          >
-            Reset
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!img}
-            onClick={apply}
-          >
-            Apply
-          </button>
-        </div>
+      <h2 className="panel-title">{title}</h2>
+      <div
+        ref={setFrameEl}
+        className="img-editor-frame"
+        style={{ aspectRatio: String(aspect) }}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = {
+            x: e.clientX,
+            y: e.clientY,
+            panX: st.panX,
+            panY: st.panY,
+          };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          change({
+            panX: d.panX + e.clientX - d.x,
+            panY: d.panY + e.clientY - d.y,
+          });
+        }}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+      >
+        <canvas ref={canvasRef} className="img-editor-canvas" />
       </div>
-    </div>
+      <p className="field-hint">
+        Drag to reposition · zoom to crop tighter{cx ? ` · source ${cx}` : ""}
+      </p>
+      <div className="btn-row">
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!img}
+          onClick={() => change({ rot: (st.rot + 3) % 4 })}
+        >
+          ⟲ Rotate left
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!img}
+          onClick={() => change({ rot: (st.rot + 1) % 4 })}
+        >
+          ⟳ Rotate right
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!img}
+          onClick={() => change({ flipH: !st.flipH })}
+        >
+          ⇋ Flip horizontal
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={!img}
+          onClick={() => change({ flipV: !st.flipV })}
+        >
+          ⇅ Flip vertical
+        </button>
+      </div>
+      <div className="field">
+        <label htmlFor="img-editor-zoom">
+          Zoom · {Math.round(st.zoom * 100)}%
+        </label>
+        <input
+          id="img-editor-zoom"
+          type="range"
+          className="range"
+          min={1}
+          max={MAX_ZOOM}
+          step={0.01}
+          disabled={!img}
+          value={st.zoom}
+          onChange={(e) => change({ zoom: Number(e.target.value) })}
+        />
+      </div>
+      {error ? <p className="error-text">{error}</p> : null}
+      <div className="btn-row img-editor-actions">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setSt(INITIAL_EDIT)}
+        >
+          Reset
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!img}
+          onClick={apply}
+        >
+          Apply
+        </button>
+      </div>
+    </Dialog>
   );
 }

@@ -32,7 +32,7 @@ import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
-import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
+import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -61,7 +61,9 @@ import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
-import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
+import { MenuItem } from "@optcg/ui/popups";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
+import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
 import { FriendsNavLink } from "./friends/FriendsNavLink";
@@ -2599,6 +2601,7 @@ function CollectionPage() {
           items={[]}
           showNeed={false}
           initialImage={droppedImage}
+          multi={{ onAdded: () => invalidateOwnedViews(qc) }}
           renderHitAction={(card) => (
             <div className="scan-hit-owned">
               <span className="muted">In collection</span>
@@ -4160,52 +4163,35 @@ function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
-          <HeadPopover
-            label="More"
-            icon={<MoreIcon />}
-            className="btn quiet"
-            panelLabel="More deck actions"
-            width={260}
-          >
-            {(close) => (
-              <div className="head-popover-menu" role="menu">
-                <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} close={close} />
-                {data.leader_card_id && !data.is_main && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={setMain.isPending}
-                    onClick={() => {
-                      setMain.mutate();
-                      close();
-                    }}
-                  >
-                    {setMain.isPending ? "Setting…" : "Set as Main deck"}
-                    <span className="muted">Other decks for this leader compare against it</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="danger"
-                  disabled={resetOwned.isPending || data.cards.length === 0}
-                  onClick={() => {
-                    close();
-                    const ok = window.confirm(
-                      "Reset owned counts to 0 for every card in this deck?\n\n" +
-                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
-                    );
-                    if (!ok) return;
-                    setResetMsg(null);
-                    resetOwned.mutate();
-                  }}
-                >
-                  {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
-                  <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+          <HeadMenu label="More" icon={<MoreIcon />} className="btn quiet" width={260}>
+            <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} />
+            {data.leader_card_id && !data.is_main && (
+              <MenuItem disabled={setMain.isPending}>
+                <button type="button" onClick={() => setMain.mutate()}>
+                  {setMain.isPending ? "Setting…" : "Set as Main deck"}
+                  <span className="muted">Other decks for this leader compare against it</span>
                 </button>
-              </div>
+              </MenuItem>
             )}
-          </HeadPopover>
+            <MenuItem disabled={resetOwned.isPending || data.cards.length === 0}>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Reset owned counts to 0 for every card in this deck?\n\n" +
+                      "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
+                  );
+                  if (!ok) return;
+                  setResetMsg(null);
+                  resetOwned.mutate();
+                }}
+              >
+                {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
+                <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+              </button>
+            </MenuItem>
+          </HeadMenu>
         </div>
       </div>
 
@@ -4345,6 +4331,12 @@ function ImportPage() {
   const [decklist, setDecklist] = useState("");
   const [mode, setMode] = useState<"paste" | "file">("paste");
   const [err, setErr] = useState<string | null>(null);
+  // A deck Log Pose built arrives in the router state (#726): its name and list go straight into the form.
+  const fromLogPose = useLogPoseDraft((d) => {
+    setName(d.name);
+    setDecklist(d.list);
+    setMode("paste");
+  });
   const create = useMutation({
     mutationFn: () => api.createDeck(name.trim(), decklist),
     onSuccess: async (deck) => {
@@ -4400,66 +4392,62 @@ function ImportPage() {
         <code>.deck</code> file.
       </p>
       <form className="import-form" onSubmit={onSubmit}>
+        {fromLogPose ? (
+          <p className="import-note" role="status">
+            Filled in by Log Pose. Check it, then press Create deck.
+          </p>
+        ) : null}
         <label>
           Deck name
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
 
-        <div className="import-modes" role="tablist" aria-label="Import method">
-          <button
-            type="button"
-            className={mode === "paste" ? "mode active" : "mode"}
-            onClick={() => setMode("paste")}
-          >
-            Paste deck code
-          </button>
-          <button
-            type="button"
-            className={mode === "file" ? "mode active" : "mode"}
-            onClick={() => setMode("file")}
-          >
-            Upload file
-          </button>
-        </div>
+        <TabGroup selectedIndex={mode === "paste" ? 0 : 1} onChange={(i) => setMode(i === 0 ? "paste" : "file")}>
+          <TabList className="import-modes" aria-label="Import method">
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Paste deck code</Tab>
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Upload file</Tab>
+          </TabList>
 
-        {mode === "paste" ? (
-          <div className="paste-block">
-            <div className="paste-actions">
-              <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
-                Paste from clipboard
-              </button>
-            </div>
-            <label>
-              Deck code
-              <textarea
-                value={decklist}
-                onChange={(e) => setDecklist(e.target.value)}
-                rows={16}
-                placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
-                required
-              />
-            </label>
-            <p className="hint">
-              Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
-              <code>4xOP15-053</code>.
-            </p>
-          </div>
-        ) : (
-          <label>
-            Decklist file (.txt / .deck)
-            <input
-              type="file"
-              accept=".txt,.deck,text/plain"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-            {decklist && (
+          <TabPanels>
+            <TabPanel className="paste-block">
+              <div className="paste-actions">
+                <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
+                  Paste from clipboard
+                </button>
+              </div>
+              <label>
+                Deck code
+                <textarea
+                  value={decklist}
+                  onChange={(e) => setDecklist(e.target.value)}
+                  rows={16}
+                  placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
+                  required
+                />
+              </label>
               <p className="hint">
-                Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
-                “Paste deck code” to review before creating.
+                Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
+                <code>4xOP15-053</code>.
               </p>
-            )}
-          </label>
-        )}
+            </TabPanel>
+            <TabPanel>
+              <label>
+                Decklist file (.txt / .deck)
+                <input
+                  type="file"
+                  accept=".txt,.deck,text/plain"
+                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                />
+                {decklist && (
+                  <p className="hint">
+                    Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
+                    “Paste deck code” to review before creating.
+                  </p>
+                )}
+              </label>
+            </TabPanel>
+          </TabPanels>
+        </TabGroup>
 
         {err && <p className="error">{err}</p>}
         <button className="btn primary" type="submit" disabled={create.isPending}>
@@ -4743,8 +4731,11 @@ export default function App() {
   // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const navigate = useNavigate();
+  // A deck Log Pose builds opens the import page with the list filled in (#726).
+  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
-    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={PLANNER_SOURCE_HOOKS}>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
