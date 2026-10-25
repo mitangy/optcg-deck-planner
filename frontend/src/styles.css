@@ -491,6 +491,13 @@ h1 {
   min-width: 0;
 }
 
+/* Deck table: let the text block shrink so long dotted names wrap at the dots
+   (see nameWithBreaks); dotless words may break anywhere as a last resort. */
+.deck-main .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .data-table {
   min-width: 720px;
   /* separate + 0 spacing draws each cell's border-bottom in full so lines
