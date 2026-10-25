@@ -122,7 +122,7 @@ module.exports = {
     // Collection page (owned cards + value), #268
     { id: "collection-unpriced-not-counted", file: "frontend/src/ownedCollection.ts", from: "    if (item.value == null) unpriced += 1;", to: "    if (item.value == null) unpriced += 0;", kills: ["totals leave unpriced cards out of the value"] },
     { id: "collection-patch-value-stale", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value, buying };", to: "    return { ...item, owned: qty, buying };", kills: ["stepping Owned reprices the card"] },
-    { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "  const totals = collectionTotals(items.filter(holdsCopies));", to: "  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
+    { id: "collection-zero-kept-in-totals", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, owned: qty, value, buying };\n  });\n  const totals = collectionTotals(items.filter(holdsCopies));", to: "    return { ...item, owned: qty, value, buying };\n  });\n  const totals = collectionTotals(items);", kills: ["a card stepped to 0 stays listed but leaves the totals"] },
     { id: "value-sort-uses-price", file: "frontend/src/cardListControls.tsx", from: "  if (key === \"value\") return compareDesc(a.value, b.value);", to: "  if (key === \"value\") return compareDesc(a.market_price, b.market_price);", kills: ["Value sort puts the most valuable holding first"] },
     // Log Pose chat (#377)
     { id: "logpose-on-share-pages", file: "frontend/src/logPose.ts", from: "const NO_LOG_POSE = [\"/share\", \"/login\"];", to: "const NO_LOG_POSE = [\"/login\"];", kills: ["keeps the compass off public share pages"] },
@@ -158,6 +158,11 @@ module.exports = {
     { id: "featured-alt-picks-least-owned", file: "frontend/src/altArt.ts", from: "n > (best.owned ?? 0)", to: "n < (best.owned ?? 0)", kills: ["picks the alt with the most owned copies (#625)"] },
     { id: "featured-alt-needs-owned", file: "frontend/src/altArt.ts", from: "if (n > 0 && (best", to: "if ((best", kills: ["is null when no alt is owned (#625)"] },
     { id: "main-image-ignores-owned-alt", file: "frontend/src/altArt.ts", from: "return featuredAlt(card)?.image_url || card.image_url || undefined;", to: "return card.image_url || undefined;", kills: ["shows the owned alt art, else the base art (#625)"] },
+    // Collection alt arts (#723)
+    { id: "collection-alt-owned-priced-at-base", file: "frontend/src/ownedCollection.ts", from: "delta * before.market_price", to: "delta * (item.market_price ?? 0)", kills: ["stepping an alt's Owned reprices the card at the alt's own price and moves the totals"] },
+    { id: "collection-alt-owned-total-not-moved", file: "frontend/src/ownedCollection.ts", from: "    return { ...item, alt_arts, alts_owned, value };", to: "    return { ...item, alt_arts, value };", kills: ["stepping an alt's Owned reprices the card at the alt's own price and moves the totals"] },
+    { id: "collection-alt-owned-patches-every-printing", file: "frontend/src/ownedCollection.ts", from: "(a.product_id === productId ? { ...a, owned: qty } : a)", to: "({ ...a, owned: qty })", kills: ["stepping an alt's Owned reprices the card at the alt's own price and moves the totals"] },
+    { id: "collection-display-art-patches-every-card", file: "frontend/src/ownedCollection.ts", from: "item.card_id.toUpperCase() === id ? { ...item, display_art: productId } : item", to: "({ ...item, display_art: productId })", kills: ["choosing the art sets display_art on that card only"] },
     // Choose which art a card shows (#702)
     { id: "display-art-base-ignored", file: "frontend/src/altArt.ts", from: "  if (chosen === 0) return null;\n", to: "", kills: ["0 shows the base art even while an alt is owned (#702)"] },
     { id: "display-art-unowned-alt-ignored", file: "frontend/src/altArt.ts", from: "    if (picked) return picked;", to: "    if (picked && (picked.owned ?? 0) > 0) return picked;", kills: ["a chosen alt is shown even when unowned and others are owned (#702)"] },

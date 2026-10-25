@@ -1296,6 +1296,9 @@ def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
     base = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}
     alt_owned = _alt_owned_map(db, user.id)
     card_ids = set(base) | set(alt_owned)
+    # Every alt printing of these cards (owned or not) with the user's count, and the art they chose to show.
+    alts = _alt_arts_map(db, card_ids, owned=alt_owned)
+    display_choices = _display_choice_map(db, user.id)
     # Still-to-buy copies on the full list (all decks + directly added cards).
     buying = {
         item.card_id: item.still_need
@@ -1362,6 +1365,8 @@ def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
                 product_id=product_ids.get(card_id),
                 used_in=used_in.get(card_id, []),
                 buying=buying.get(card_id, 0),
+                alt_arts=alts.get(card_id, []),
+                display_art=display_choices.get(card_id),
             )
         )
     return OwnedCollectionResponse(

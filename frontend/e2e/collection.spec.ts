@@ -227,3 +227,102 @@ test("scanning a photo of several cards adds them all to the collection (#701)",
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
+
+test("an alt tile shows its owned count, and stepping it raises Owned, the card's value and the totals (#723)", async ({ page, planner }) => {
+  const izo = page.locator(row("EB01-002"));
+  const totals = page.getByRole("list", { name: "Collection totals" });
+  const altTile = izo.locator(".alt-art:not(.alt-art-base)");
+  // Alt arts are on by default: a Base tile with its own Owned stepper plus Izo's one alt at 0.
+  await expect(izo.locator(".alt-want-caption")).toHaveText(["Owned", "Owned"]);
+  await expect(izo.locator(".alt-art-base")).toContainText("Base");
+  await expect(altTile.locator(".alt-want-qty")).toHaveText("0");
+  // Owned becomes the read-only total once the tiles carry the per-art counts.
+  await expect(izo.locator(".owned-total-num")).toHaveText("2");
+  await expect(totals).toContainText("$5.80");
+
+  await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
+  await expect(altTile.locator(".alt-want-qty")).toHaveText("1");
+  expect(planner.altOwned.get("EB01-002:201")).toBe(1);
+  await expect(izo.locator(".owned-total-num")).toHaveText("3");
+  await expect(izo.locator(".owned-total-split")).toHaveText("2 base + 1 alt");
+  // Izo: 2 x $1.25 + 1 x $14.99 = $17.49; the collection gains the alt's $14.99 and one copy.
+  await expect(izo).toContainText("$17.49");
+  await expect(totals).toContainText("$20.79");
+  await expect(totals).toContainText("7");
+
+  // The base count is edited under the Base tile and keeps the alt copies in the value.
+  await izo.getByRole("button", { name: "Increase owned for Izo base art" }).click();
+  await expect.poll(() => planner.owned.get("EB01-002")).toBe(3);
+  await expect(izo.locator(".owned-total-split")).toHaveText("3 base + 1 alt");
+  await expect(totals).toContainText("$22.04");
+
+  // A reload shows what was saved.
+  await page.reload();
+  await expect(page.locator(row("EB01-002")).locator(".alt-art:not(.alt-art-base) .alt-want-qty")).toHaveText("1");
+  await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$22.04");
+});
+
+test("Show makes an alt the card's picture without changing counts, and the base can be picked back (#723)", async ({ page, planner }) => {
+  const izo = page.locator(row("EB01-002"));
+  const mainArt = izo.locator("img.thumb").first();
+  await expect(mainArt).toHaveAttribute("src", /101_400w/);
+
+  // Show the alt nobody owns: it becomes the picture; owned counts and the total stay put.
+  await izo.getByRole("button", { name: "Show Izo (Alternate Art) as the card's art" }).click();
+  await expect(mainArt).toHaveAttribute("src", /201_400w/);
+  await expect(izo.locator(".alt-art:not(.alt-art-base) .alt-shown-chip")).toHaveText("Shown");
+  expect(planner.displayArt.get("EB01-002")).toBe(201);
+  expect(planner.altOwned.get("EB01-002:201")).toBeUndefined();
+  await expect(izo.locator(".owned-total-num")).toHaveText("2");
+  await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$5.80");
+
+  // Own the alt, then choose the base art anyway: the base stays the picture.
+  await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
+  await izo.getByRole("button", { name: "Show Izo base art as the card's art" }).click();
+  await expect(mainArt).toHaveAttribute("src", /101_400w/);
+  expect(planner.displayArt.get("EB01-002")).toBe(0);
+
+  // The choice is saved: after a reload the base art is still the picture.
+  await page.reload();
+  await expect(page.locator(row("EB01-002")).locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("a card with no alt arts keeps the Owned stepper, and turning Show alt arts off brings it back (#723)", async ({ page }) => {
+  // Oden has no alts: the plain stepper, no tiles.
+  const oden = page.locator(row("EB01-001"));
+  await expect(oden.getByRole("textbox")).toHaveValue("1");
+  await expect(oden.locator(".alt-art")).toHaveCount(0);
+  const izo = page.locator(row("EB01-002"));
+  await expect(izo.locator(".alt-art")).toHaveCount(2);
+  await expect(izo.getByRole("textbox")).toHaveCount(0);
+
+  const toggle = page.getByRole("button", { name: /Filters/ });
+  await expectStationary(toggle, () => toggle.click(), "Filters toggle");
+  await expect(toggle).toContainText("Alt arts");
+  await page.getByRole("checkbox", { name: "Show alt arts" }).uncheck();
+  await expect(izo.locator(".alt-art")).toHaveCount(0);
+  await expect(izo.getByRole("textbox")).toHaveValue("2");
+  await expect(toggle).not.toContainText("Alt arts");
+});
+
+test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)", async ({ page, planner }) => {
+  const grid = page.getByRole("button", { name: "Grid", exact: true });
+  await expectStationary(grid, () => grid.click(), "Grid toggle");
+  const izo = page.locator(".grid-card-wrap" + row("EB01-002"));
+  await expect(izo.locator(".grid-card-alts .alt-art")).toHaveCount(2);
+  await expect(izo.locator(".owned-total-num")).toHaveText("2");
+  await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
+
+  await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
+  await expect(izo.locator(".owned-total-num")).toHaveText("3");
+  await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$20.79");
+  // The owned alt takes over as the picture (no choice made), and Show can hand it back to the base.
+  await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
+  await izo.getByRole("button", { name: "Show Izo base art as the card's art" }).click();
+  await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
+  expect(planner.displayArt.get("EB01-002")).toBe(0);
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});

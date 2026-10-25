@@ -283,6 +283,10 @@ class OwnedCardItem(BaseModel):
     used_in: list[str] = []
     # Copies still to buy for this card on the full shopping list (all decks + added directly).
     buying: int = 0
+    # Every alt printing of the card (owned or not), each with the user's owned count.
+    alt_arts: list[PrintingView] = []
+    # The user's chosen art: None = automatic, 0 = base, >0 = a printing's product id.
+    display_art: int | None = None
 
 
 class OwnedCollectionResponse(BaseModel):
