@@ -5782,13 +5782,6 @@ button.ghost.scan-open:hover {
   }
 }
 
-/* ——— Deck list density: ~96px art in the list rows (grid view and other pages keep the big thumb) ——— */
-.deck-main .card-cell .thumb,
-.deck-main .card-cell .thumb.placeholder {
-  width: 69px;
-  height: 96px;
-}
-
 .deck-main .data-table th {
   white-space: nowrap;
 }
@@ -5800,18 +5793,6 @@ button.ghost.scan-open:hover {
     min-width: 9.5rem;
     justify-content: center;
     text-align: center;
-  }
-}
-
-@media (max-width: 800px) {
-  .deck-main .mobile-card .thumb,
-  .deck-main .mobile-card .thumb.placeholder {
-    width: 72px;
-    height: 100px;
-  }
-
-  .deck-main .mobile-card .mobile-card-media {
-    width: 72px;
   }
 }
 
