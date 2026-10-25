@@ -55,6 +55,7 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import { nameWithBreaks } from "./cardName";
 import { nextExtraTarget } from "./shoppingExtras";
 import {
   collectionTotals,
@@ -3258,7 +3259,7 @@ function CardTable({
                     <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
-                      <div>{c.name}</div>
+                      <div>{nameWithBreaks(c.name)}</div>
                       {c.tcgplayer_url && (
                         <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
