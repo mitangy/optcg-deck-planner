@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -436,12 +436,32 @@ def delete_share(
 def get_public_share(
     token: str,
     db: Annotated[Session, Depends(get_db)],
+    viewer: Annotated[User | None, Depends(get_optional_user)],
 ):
-    """Unauthenticated read-only shopping/deck view for a share token."""
+    """Read-only shopping/deck view for a share token; no sign-in needed.
+
+    A deck share shows owned counts from the viewer's collection when signed in (#741).
+    """
     try:
-        return services.public_share_view(db, token)
+        return services.public_share_view(db, token, viewer)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/public/share/{token}/copy", response_model=DeckDetail)
+def post_copy_shared_deck(
+    token: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Copy a shared deck into the signed-in viewer's decks (#741)."""
+    try:
+        new = services.copy_shared_deck(db, user, token)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return services.get_deck_detail(db, user, new.id)
 
 
 @router.get("/group-buys", response_model=list[GroupBuySummary])

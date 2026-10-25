@@ -1670,31 +1670,54 @@ def get_active_shopping_share(db: Session, user: User) -> ShareInfo | None:
     return _share_info(link) if link else None
 
 
-def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
+def _active_share_link(db: Session, token: str) -> ShareLink:
     link = db.scalar(
         select(ShareLink).where(ShareLink.token == token, ShareLink.revoked_at.is_(None))
     )
     if link is None:
         raise LookupError("Share link not found")
+    return link
+
+
+def public_share_view(
+    db: Session, token: str, viewer: User | None = None
+) -> PublicShoppingResponse:
+    link = _active_share_link(db, token)
     owner = db.get(User, link.user_id)
     if owner is None:
         raise LookupError("Share link not found")
     owner_name = (owner.name or owner.email.split("@")[0] or "Collector").strip()
+    viewer_signed_in = viewer is not None
+    viewer_is_owner = viewer is not None and viewer.id == owner.id
 
     if link.kind == "deck":
         if link.deck_id is None:
             raise LookupError("Share link not found")
+        # The owner's deck gives the card list and catalog info; owned counts
+        # come from whoever opened the link (#741).
         detail = get_deck_detail(db, owner, link.deck_id)
+        if viewer is not None:
+            viewer_owned = _owned_map(db, viewer.id)
+            viewer_alt_owned = _alt_owned_map(db, viewer.id)
+            viewer_display = _display_choice_map(db, viewer.id)
+        else:
+            viewer_owned = {}
+            viewer_alt_owned = {}
+            viewer_display = {}
+        viewer_alts = _alt_arts_map(
+            db, {c.card_id for c in detail.cards}, wanted={}, owned=viewer_alt_owned
+        )
         items: list[ShoppingItem] = []
         cards_still = 0
         remaining = 0.0
         for card in detail.cards:
+            owned_n = viewer_owned.get(card.card_id, 0)
+            alts_owned_n = _alts_owned_total(viewer_alt_owned, card.card_id)
+            still_need = max(0, card.needed - (owned_n + alts_owned_n))
             line = (
-                (card.still_need * card.market_price)
-                if card.market_price is not None
-                else None
+                (still_need * card.market_price) if card.market_price is not None else None
             )
-            cards_still += card.still_need
+            cards_still += still_need
             if line is not None:
                 remaining += line
             items.append(
@@ -1706,9 +1729,9 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
                     card_type=card.card_type,
                     cost=card.cost,
                     need=card.needed,
-                    owned=card.owned,
-                    alts_owned=card.alts_owned,
-                    still_need=card.still_need,
+                    owned=owned_n,
+                    alts_owned=alts_owned_n,
+                    still_need=still_need,
                     market_price=card.market_price,
                     low_price=card.low_price,
                     remaining_cost=line,
@@ -1716,8 +1739,8 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
                     tcgplayer_url=card.tcgplayer_url,
                     product_id=card.product_id,
                     used_in=[detail.name],
-                    alt_arts=card.alt_arts,
-                    display_art=card.display_art,
+                    alt_arts=viewer_alts.get(card.card_id, []),
+                    display_art=viewer_display.get(card.card_id),
                     primary_leader_card_id=detail.leader_card_id,
                     primary_leader_name=detail.leader_name,
                     leader_count=1,
@@ -1731,6 +1754,8 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
             owner_name=owner_name,
             kind="deck",
             deck_name=detail.name,
+            viewer_signed_in=viewer_signed_in,
+            viewer_is_owner=viewer_is_owner,
         )
 
     shopping = shopping_list(
@@ -1744,4 +1769,22 @@ def public_share_view(db: Session, token: str) -> PublicShoppingResponse:
         owner_name=owner_name,
         kind="shopping",
         deck_name=None,
+        viewer_signed_in=viewer_signed_in,
+        viewer_is_owner=viewer_is_owner,
     )
+
+
+def copy_shared_deck(db: Session, viewer: User, token: str) -> Deck:
+    """Copy the deck behind a public deck share link into the viewer's decks (#741)."""
+    link = _active_share_link(db, token)
+    if link.kind != "deck":
+        raise ValueError("Only shared decks can be copied")
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == link.deck_id, Deck.user_id == link.user_id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise LookupError("Share link not found")
+    name = f"{deck.name} (copy)" if deck.user_id == viewer.id else deck.name
+    return clone_deck(db, viewer, deck, name)

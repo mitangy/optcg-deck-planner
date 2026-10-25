@@ -4608,10 +4608,24 @@ function PublicSharePage() {
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
+  const meQ = useMe();
+  const me = meQ.data ?? null;
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  // Owned counts on a deck link come from whoever is viewing, so the viewer is part of the key.
   const { data, isLoading, error } = useQuery({
-    queryKey: ["public-share", token],
+    queryKey: ["public-share", token, me?.id ?? null],
     queryFn: () => api.publicShare(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !meQ.isLoading,
+  });
+  const loginHref = `/login?next=${encodeURIComponent(`/share/${token}`)}`;
+  const copyDeck = useMutation({
+    mutationFn: () => api.copySharedDeck(token),
+    onSuccess: (created) => {
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      navigate(`/decks/${created.id}`);
+    },
   });
 
   const shareStatsCards = useMemo(
@@ -4654,27 +4668,56 @@ function PublicSharePage() {
               Play Duel
             </a>
             <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
+            {me ? (
+              <Link className="btn secondary" to="/">
+                My decks
+              </Link>
+            ) : (
+              <Link className="btn secondary" to={loginHref}>
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </header>
       <main className="app-main">
-        {isLoading && <ShoppingListSkeleton />}
+        {(isLoading || meQ.isLoading) && <ShoppingListSkeleton />}
         {error && <p className="error">{(error as Error).message}</p>}
         {data && (
           <div className={data.kind === "deck" ? "deck-layout" : undefined}>
           <section className="deck-main">
-            <div className="page-head">
+            <div className="page-head share-head">
               <div>
                 <p className="eyebrow">Public {data.kind === "deck" ? "deck" : "shopping"} list</p>
                 <h1>{data.deck_name || `${data.owner_name}'s list`}</h1>
                 <p className="muted">
-                  Shared by {data.owner_name} · {formatShoppingListStats(data)}
+                  {data.kind !== "deck"
+                    ? `Shared by ${data.owner_name} · ${formatShoppingListStats(data)}`
+                    : me
+                      ? `Shared by ${data.owner_name} · Owned counts are from your collection · ${formatShoppingListStats(data)}`
+                      : `Shared by ${data.owner_name} · ${formatShoppingListStats(data)} · Sign in to see which of these cards you own.`}
                 </p>
               </div>
+              {data.kind === "deck" && (
+                <div className="page-head-actions">
+                  {me ? (
+                    <button
+                      type="button"
+                      className="btn primary share-copy-btn"
+                      disabled={copyDeck.isPending}
+                      onClick={() => copyDeck.mutate()}
+                    >
+                      {copyDeck.isPending ? "Adding…" : "Add to my decks"}
+                    </button>
+                  ) : (
+                    <Link className="btn primary share-copy-btn" to={loginHref}>
+                      Sign in to add
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
+            {copyDeck.error && <p className="error">{(copyDeck.error as Error).message}</p>}
 
             <div className="list-toolbar">
               <div className="list-toolbar-row">
