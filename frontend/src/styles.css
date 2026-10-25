@@ -908,6 +908,26 @@ button.ghost.danger:not(:disabled):hover {
   min-width: 0;
 }
 
+/* Shared deck head: the title block takes the free width and wraps, so the button keeps its spot in both states. */
+.share-head {
+  flex-wrap: nowrap;
+}
+
+.share-head > div:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.share-head .page-head-actions {
+  flex: 0 0 auto;
+}
+
+/* Same width for "Add to my decks" / "Adding…" / "Sign in to add" so the button never resizes. */
+.page-head-actions .share-copy-btn {
+  min-width: 11rem;
+  white-space: nowrap;
+}
+
 .share-banner {
   margin: 0.5rem 0 0;
   padding: 0.65rem 0.85rem;

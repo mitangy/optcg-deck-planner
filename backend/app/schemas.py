@@ -365,6 +365,8 @@ class PublicShoppingResponse(ShoppingResponse):
     owner_name: str = ""
     kind: str = "shopping"
     deck_name: str | None = None
+    viewer_signed_in: bool = False
+    viewer_is_owner: bool = False
 
 
 class GroupBuyCreate(BaseModel):

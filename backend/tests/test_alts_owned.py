@@ -244,12 +244,12 @@ def test_display_art_endpoint_sets_clears_and_rejects_702(db):
         app.dependency_overrides.clear()
 
 
-def test_display_art_on_share_uses_owner_choice_702(db):
+def test_display_art_on_share_uses_viewer_choice_702(db):
     user = _seed(db)
     deck = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
     services.set_display_art(db, user, "OP01-016", 100)
     link = services.create_or_update_share(db, user, "deck", deck.id)
 
-    view = services.public_share_view(db, link.token)
+    view = services.public_share_view(db, link.token, user)
 
     assert view.items[0].display_art == 100
