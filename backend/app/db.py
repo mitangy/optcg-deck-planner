@@ -216,7 +216,7 @@ PROGRESS_SWEEP_LOCK_KEY = 0x6F707463675F7073  # "optcg_ps"
 
 
 class AdvisoryLock:
-    """A held Postgres session-level advisory lock; release() is safe from any thread."""
+    """A held Postgres transaction-level advisory lock; release() is safe from any thread."""
 
     def __init__(self, conn, key: int) -> None:
         self._conn = conn
@@ -227,28 +227,29 @@ class AdvisoryLock:
         if conn is None:
             return
         try:
-            conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": self._key})
-            conn.commit()
+            # Ending the transaction drops the lock; there is no separate unlock.
+            conn.rollback()
         finally:
-            # Closing the connection drops the lock even if the unlock failed.
             conn.close()
 
 
 def try_advisory_lock(key: int, bind: Engine | None = None) -> AdvisoryLock | None:
     """Take ``key`` without waiting: the lock, or None when another worker holds it.
 
-    The lock lives on a connection of its own until release(), so it spans a
-    whole job and goes away with the process if the worker dies. SQLite (local,
-    one process) has no other worker to exclude: it always gets a no-op lock,
-    and each job's in-process guard still applies.
+    The lock is transaction-scoped and the transaction stays open (never
+    committed) until release(). Behind Neon's transaction-mode pgbouncer a
+    session lock would stay on a pooled backend that the unlock may never
+    reach; an open transaction pins one backend for the whole job, and the
+    lock goes away with it, even if the worker dies. SQLite (local, one
+    process) has no other worker to exclude: it always gets a no-op lock, and
+    each job's in-process guard still applies.
     """
     bind = bind or engine
     if bind.dialect.name != "postgresql":
         return AdvisoryLock(None, key)
     conn = bind.connect()
     try:
-        got = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": key}).scalar()
-        conn.commit()
+        got = conn.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key}).scalar()
     except BaseException:
         conn.close()
         raise

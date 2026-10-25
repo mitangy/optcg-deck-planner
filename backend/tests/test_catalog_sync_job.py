@@ -138,3 +138,27 @@ def test_catalog_sync_waits_out_another_workers_run_682(monkeypatch):
     assert again is not None
     again.release()
     engine.dispose()
+
+
+@requires_postgres
+def test_job_lock_ends_with_its_transaction_behind_a_pooler_647():
+    """Behind Neon's transaction pooler a session lock outlives the transaction and leaks.
+
+    The pooler hands the server backend back after each transaction, so the lock
+    must live and die with one open transaction: once it ends, the lock is gone.
+    """
+    engine = make_bare_engine()
+    key = app_db.CATALOG_SYNC_LOCK_KEY
+    held = app_db.try_advisory_lock(key, engine)
+    assert held is not None
+    second = None
+    try:
+        assert app_db.try_advisory_lock(key, engine) is None  # still held while the job runs
+        held._conn.rollback()  # what the pooler does between transactions
+        second = app_db.try_advisory_lock(key, engine)
+        assert second is not None
+    finally:
+        held.release()
+        if second is not None:
+            second.release()
+        engine.dispose()
