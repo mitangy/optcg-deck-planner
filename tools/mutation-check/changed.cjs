@@ -119,13 +119,15 @@ const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
 /**
  * Seconds for one full run of a suite, observed in CI (#737). A mutation without
  * `args` re-runs the whole suite: duel-web about 45 s (1424 tests; run 40169242767
- * took 3.8 min for 4), analyst about 52 s (572 tests; the #729 run took 21 min per
+ * took 3.8 min for 4), analyst about 74 s (588 tests; the #729 run took 21 min per
  * part for 24). Every part also pays one baseline full run.
  */
-const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 45, frontend: 10, analyst: 50, mobile: 5, backend: 15, "analyst-client": 3, "deck-analytics": 3, "patch-notes": 3, ui: 3, "site-legal": 3 };
+const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 45, frontend: 10, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "deck-analytics": 3, "patch-notes": 3, ui: 3, "site-legal": 3 };
 const DEFAULT_SECONDS = 5;
 /** A mutation with `args` runs one test file: about 5-7 s (#729: 11 narrow duel-web mutations took about 1 min per part). */
 const NARROW_SECONDS = 6;
+/** Narrow runs that cost more than a single test file: analyst `src/` (15 test files, about 16 s, #739). */
+const NARROW_SECONDS_BY_SUITE = { analyst: 16 };
 const MAX_PARTS = 8;
 const TARGET_PART_SECONDS = 150;
 
@@ -138,7 +140,7 @@ const TARGET_PART_SECONDS = 150;
 function planMatrix(suites) {
   const plan = suites.map(({ name, ids, narrow }) => {
     const w = SECONDS_PER_MUTATION[name] ?? DEFAULT_SECONDS;
-    const weight = (id) => (narrow && narrow.has(id) ? NARROW_SECONDS : w);
+    const weight = (id) => (narrow && narrow.has(id) ? NARROW_SECONDS_BY_SUITE[name] ?? NARROW_SECONDS : w);
     return { name, ids, w, weight, parts: 1 };
   });
   const split = (s, k) => {
