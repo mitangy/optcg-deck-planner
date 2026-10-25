@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-25
-  { date: "2026-10-25", app: "planner", title: "Bigger card pictures in deck lists", text: "The main card picture in each row of a deck's List view is now full size instead of shrunk, so cards are easier to read. The small alt art tiles under it stay the same." },
+  { date: "2026-10-25", app: "planner", pr: 731, title: "Bigger card pictures in deck lists", text: "The main card picture in each row of a deck's List view is now full size instead of shrunk, so cards are easier to read. The small alt art tiles under it stay the same." },
   // 2026-10-24
   { date: "2026-10-24", app: "planner", pr: 727, title: "Alt arts on your Collection", text: "The Collection now shows each card's alt arts with how many of each you own. Change the counts there, and press Show to pick the picture the card uses." },
   { date: "2026-10-24", app: "duel", pr: 729, title: "Log Pose can play your turn", text: "With the Log Pose copilot on in a casual or practice game, ask it to play your turn and it does: it starts its plan by itself, answers the prompts that come up and plans on if it stops early, with no taps. Tap Stop on the pill to take over. \"Plan my turn\" still waits for your Play this turn tap, and blocking and countering stay yours." },
