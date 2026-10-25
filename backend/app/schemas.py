@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
+from app.server_urls import normalize_server_url
+
 
 class UserOut(BaseModel):
     id: int
@@ -785,6 +787,13 @@ class DuelPresenceEntry(BaseModel):
     role: str = Field(default="player", pattern="^(player|spectator)$")
     phase: str = Field(default="playing", pattern="^(waiting|playing|finished)$")
     ranked: bool = False
+    # Where clients reach this room's pool. An unusable value is dropped, not an error: the rest of the snapshot still counts.
+    server_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("server_url", mode="before")
+    @classmethod
+    def _safe_server_url(cls, v: object) -> str | None:
+        return normalize_server_url(v)
 
 
 class DuelPresenceSnapshot(BaseModel):
@@ -800,6 +809,8 @@ class FriendRequestIn(BaseModel):
 
 class FriendInviteIn(BaseModel):
     room_id: str = Field(min_length=1, max_length=64)
+    # Pool the inviter's room is on; the API keeps it only if it is one it has handed out.
+    server_url: str | None = Field(default=None, max_length=200)
 
 
 class FriendOut(BaseModel):
@@ -809,6 +820,8 @@ class FriendOut(BaseModel):
     status: str
     # Room a friend is playing or watching (spectatable); None otherwise.
     room_id: str | None = None
+    # Pool that room is on, when the game server reported it.
+    server_url: str | None = None
     ranked: bool = False
 
 
@@ -822,6 +835,7 @@ class DuelInviteOut(BaseModel):
     from_user_id: int
     from_username: str
     room_id: str
+    server_url: str | None = None
     expires_at: int
 
 

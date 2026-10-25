@@ -266,12 +266,12 @@ export class DuelRoom extends Room implements PresenceSource {
     () => this.log("warn", "match_progress_failed", { matchId: this.matchId }),
   );
 
-  onCreate(options: unknown) {
+  async onCreate(options: unknown) {
     // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
     this.seatReservationTimeout = getSeatReservationSeconds();
 
     const parsed = parseCreateOptions(options);
-    this.creatorUid = claimCreatorRoom(options);
+    this.creatorUid = await claimCreatorRoom(options);
     try {
       this.setUpRoom(options, parsed);
     } catch (e) {

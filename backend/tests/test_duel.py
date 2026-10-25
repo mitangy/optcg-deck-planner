@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from tests.db_support import make_test_engine
+from tests.db_support import make_bare_engine, make_test_engine, requires_postgres
 from app.config import get_settings
 from app.db import get_db
 from app.duel_ratings import apply_elo
@@ -804,3 +804,128 @@ def test_live_result_is_cached_for_30_seconds_431(client, monkeypatch: pytest.Mo
     assert c.get("/duel/live").json() == {"online": 0, "matches": 0}
     clock[0] += 2
     assert c.get("/duel/live").json() == {"online": 1, "matches": 1}
+
+
+def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client, fake_redis):
+    """A crashed game server never sends the closed log, so the sweep saves the last live one."""
+    from datetime import datetime, timedelta, timezone
+
+    from app import duel_live
+    from app.models import DuelMatchProgress
+    from app.progress_sweep import sweep_idle_progress
+
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    log = [{"seat": 0, "turns": [{"turn": 1}, {"turn": 2}]}, {"seat": 1, "turns": [{"turn": 1}, {"turn": 2}]}]
+    _progress(c, "crashed", me["id"], a["user_id"], seat_logs=log, turns=2)
+    _progress(c, "playing", me["id"], a["user_id"], seat_logs=log, turns=2)
+    now = datetime.now(timezone.utc)
+
+    with SessionLocal() as db:
+        # Both were updated a moment ago: nothing is idle yet.
+        assert sweep_idle_progress(fake_redis, db, now + timedelta(minutes=5)) == 0
+        assert db.get(DuelMatchProgress, "crashed") is None
+        assert fake_redis.exists("duel:progress:crashed")
+
+    # 40 minutes on, "playing" has just sent another snapshot; "crashed" has not.
+    later = now + timedelta(minutes=40)
+    live = duel_live.read_progress(fake_redis, "playing")
+    live.updated_at = later - timedelta(minutes=1)
+    duel_live.write_progress(fake_redis, live)
+    with SessionLocal() as db:
+        assert sweep_idle_progress(fake_redis, db, later) == 1
+        row = db.get(DuelMatchProgress, "crashed")
+        assert row is not None and row.closed is True and row.turns == 2
+        assert db.get(DuelMatchProgress, "playing") is None
+    assert not fake_redis.exists("duel:progress:crashed")
+    assert fake_redis.exists("duel:progress:playing")
+    # Now it reads like any game that closed without a result, from Postgres.
+    listed = {m["match_id"]: m for m in c.get("/duel/matches/me").json()["matches"]}
+    assert listed["crashed"]["finished"] is False and listed["crashed"]["has_log"] is True
+    assert c.get("/duel/matches/me/crashed").json()["log"] == log[0]
+
+
+def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):
+    from datetime import datetime, timedelta, timezone
+
+    from app import duel_live
+    from app.models import DuelMatchProgress
+    from app.progress_sweep import sweep_idle_progress
+
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    _ingest(c, "done", me["id"], a["user_id"], 0)
+    # A snapshot that raced past the result check.
+    stale = datetime.now(timezone.utc) - timedelta(hours=1)
+    duel_live.write_progress(
+        fake_redis,
+        DuelMatchProgress(match_id="done", seat0_user_id=me["id"], seat1_user_id=a["user_id"], ranked=False, turns=1, updated_at=stale),
+    )
+    with SessionLocal() as db:
+        assert sweep_idle_progress(fake_redis, db) == 0
+        assert db.get(DuelMatchProgress, "done") is None
+    assert not fake_redis.exists("duel:progress:done")
+    assert fake_redis.zcard("duel:progress:index") == 0
+
+
+def test_progress_sweep_only_runs_with_redis_682():
+    import asyncio
+
+    from app import progress_sweep
+    from app.config import Settings
+
+    async def go():
+        assert progress_sweep.start_background(Settings(redis_url="")) is None
+        task = progress_sweep.start_background(Settings(redis_url="redis://localhost:6379/0"))
+        assert task is not None
+        await progress_sweep.stop(task)
+
+    asyncio.run(go())
+
+
+def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis, monkeypatch):
+    """No idle snapshot, no query: a sweep every 10 minutes must not keep Neon awake."""
+    from datetime import datetime, timedelta, timezone
+
+    from app import db as app_db
+    from app import duel_live, progress_sweep
+
+    def no_db(*_a, **_k):
+        raise AssertionError("the sweep touched Postgres with nothing to save")
+
+    monkeypatch.setattr(app_db, "try_advisory_lock", no_db)
+    monkeypatch.setattr(app_db, "SessionLocal", no_db)
+    # A live game that is still sending snapshots is not idle.
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": datetime.now(timezone.utc).timestamp()})
+    assert progress_sweep.run_once() == 0
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": (datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()})
+    try:
+        progress_sweep.run_once()
+    except AssertionError as e:
+        assert "touched Postgres" in str(e)
+    else:
+        raise AssertionError("an idle snapshot should start a sweep")
+
+
+@requires_postgres
+def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypatch):
+    from sqlalchemy import text
+
+    from app import db as app_db
+    from app import duel_live, progress_sweep
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    monkeypatch.setattr(app_db, "SessionLocal", lambda: type("S", (), {"close": lambda self: None})())
+    sweeps: list[int] = []
+    monkeypatch.setattr(progress_sweep, "sweep_idle_progress", lambda r, db: sweeps.append(1) or 3)
+    fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"idle": 0})
+    with engine.connect() as other_worker:
+        other_worker.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.PROGRESS_SWEEP_LOCK_KEY})
+        assert progress_sweep.run_once() is None
+        assert sweeps == []
+        other_worker.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": app_db.PROGRESS_SWEEP_LOCK_KEY})
+        other_worker.commit()
+    assert progress_sweep.run_once() == 3
+    engine.dispose()

@@ -77,6 +77,28 @@ export function getApiBaseUrl(): string {
   return (process.env.API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 }
 
+/**
+ * The URL clients use to reach this game server's pool (the value the API
+ * hands out as `game_server_url`), so friends can find a room after the API's
+ * pointer moves to another pool. Same rules as the API's pool pointer: https
+ * (http only for localhost), no credentials, query or fragment. Unset or
+ * invalid means presence carries no URL, as before.
+ */
+export function getPoolUrl(env: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = env.POOL_URL?.trim().replace(/\/+$/, "");
+  if (!raw) return null;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  const local = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  if (u.protocol !== "https:" && !(u.protocol === "http:" && local)) return null;
+  if (u.username || u.password || u.search || u.hash) return null;
+  return raw;
+}
+
 /** Shared Postgres used for durable match-result delivery in production. */
 export function getMatchOutboxDatabaseUrl(): string | undefined {
   const value = process.env.MATCH_OUTBOX_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();

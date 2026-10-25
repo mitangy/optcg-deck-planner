@@ -253,3 +253,69 @@ def test_room_that_moved_process_stays_listed_in_redis_389(client, fake_redis):
     _snapshot(c, [], instance="gs-1")
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("in_game", "room-a")
+
+
+ADMIN = {"X-Catalog-Token": "dev-sync-token"}
+
+
+def test_friend_in_a_game_carries_the_pool_their_room_is_on_682(client):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    entry = {"user_id": zoro, "room_id": "room-a", "phase": "playing", "server_url": "https://gs-blue.example.com/"}
+    assert _snapshot(c, [entry]).status_code == 204
+    f = _as(c, luffy).get("/friends").json()["friends"][0]
+    assert (f["room_id"], f["server_url"]) == ("room-a", "https://gs-blue.example.com")
+
+    # A game server cannot point friends at an address the pool pointer would refuse; the rest of its snapshot still counts.
+    for bad in ("http://evil.example.com", "https://user:pw@evil.example.com", "https://evil.example.com/?x=1", "javascript:alert(1)"):
+        assert _snapshot(c, [{**entry, "server_url": bad}]).status_code == 204, bad
+        f = _as(c, luffy).get("/friends").json()["friends"][0]
+        assert (f["room_id"], f["server_url"]) == ("room-a", None), bad
+
+    # A game server that does not report one (older build) leaves it out.
+    _snapshot(c, [{k: v for k, v in entry.items() if k != "server_url"}])
+    assert _as(c, luffy).get("/friends").json()["friends"][0]["server_url"] is None
+
+
+def test_invite_still_names_the_pool_its_room_is_on_after_a_pool_flip_682(client, fake_redis):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    blue, green = "https://gs-blue.example.com", "https://gs-green.example.com"
+    assert c.put("/duel/admin/game-server-pool", json={"url": blue}, headers=ADMIN).status_code == 200
+
+    # Luffy opens a room on blue and invites Zoro; then the pointer flips to green.
+    sent = _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-p", "server_url": blue + "/"})
+    assert sent.json()["server_url"] == blue
+    assert c.put("/duel/admin/game-server-pool", json={"url": green}, headers=ADMIN).status_code == 200
+
+    invites = _as(c, zoro).get("/friends").json()["invites"]
+    assert [(i["room_id"], i["server_url"]) for i in invites] == [("room-p", blue)]
+
+    # A room opened just before the flip can be invited into just after it: blue is still an address the API handed out.
+    late = _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-q", "server_url": blue})
+    assert late.json()["server_url"] == blue
+
+
+def test_invite_ignores_a_server_url_the_api_never_handed_out_682(client, fake_redis):
+    """The recipient's client dials the invite's address with its game token, so a made-up one is dropped."""
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    assert c.put("/duel/admin/game-server-pool", json={"url": "https://gs-blue.example.com"}, headers=ADMIN).status_code == 200
+    for bad in ("https://evil.example.com", "http://gs-blue.example.com", "https://gs-blue.example.com?x=1", "not a url"):
+        sent = _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-p", "server_url": bad})
+        assert sent.status_code == 200 and sent.json()["server_url"] is None, bad
+    assert [i["server_url"] for i in _as(c, zoro).get("/friends").json()["invites"]] == [None]
+
+
+def test_invite_takes_the_pool_from_the_game_servers_report_when_it_has_one_682(client, fake_redis):
+    c, S = client
+    luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
+    _befriend(c, luffy, zoro, "Zoro", "Luffy")
+    # No server_url on the invite (the inviter's client did not know it), but Luffy's game server reports one.
+    assert _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-p"}).json()["server_url"] is None
+    _snapshot(c, [{"user_id": luffy, "room_id": "room-p", "phase": "waiting", "server_url": "https://gs-blue.example.com"}])
+    invites = _as(c, zoro).get("/friends").json()["invites"]
+    assert [i["server_url"] for i in invites] == ["https://gs-blue.example.com"]

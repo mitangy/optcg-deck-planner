@@ -12,7 +12,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage, Deck, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
+from app.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage, Deck, DuelInvite, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"
@@ -46,6 +46,15 @@ _LEGACY_DDL = [
         seat0_user_id INTEGER NOT NULL REFERENCES users (id), seat1_user_id INTEGER NOT NULL REFERENCES users (id),
         ranked BOOLEAN, seat0_leader_id VARCHAR(32), seat1_leader_id VARCHAR(32), turns INTEGER,
         replay TEXT, seat0_log TEXT, seat1_log TEXT, updated_at {_TS})""",
+    # duel_presence / duel_invites before the game-server address (#682)
+    f"""CREATE TABLE duel_presence (
+        user_id INTEGER NOT NULL REFERENCES users (id), room_id VARCHAR(64) NOT NULL,
+        instance_id VARCHAR(64) NOT NULL, role VARCHAR(16), phase VARCHAR(16), ranked BOOLEAN,
+        updated_at {_TS}, PRIMARY KEY (user_id, room_id))""",
+    f"""CREATE TABLE duel_invites (
+        id {_PK} PRIMARY KEY, from_user_id INTEGER NOT NULL REFERENCES users (id),
+        to_user_id INTEGER NOT NULL REFERENCES users (id), room_id VARCHAR(64) NOT NULL,
+        created_at {_TS}, expires_at {_TS})""",
     # analyst_match_reviews before citations
     f"""CREATE TABLE analyst_match_reviews (
         user_id INTEGER NOT NULL REFERENCES users (id), match_id VARCHAR(64) NOT NULL,
@@ -165,6 +174,17 @@ def test_an_existing_duel_match_progress_table_gains_the_closed_column_476(legac
     with Session(legacy_engine) as db:
         row = db.query(DuelMatchProgress).one()
         assert (row.match_id, row.turns, row.closed) == ("old-cut", 4, False)
+
+
+def test_existing_presence_and_invite_tables_gain_the_server_url_column_682(legacy_engine):
+    """Rows from before the column read back with no address, which clients treat as 'use the current pool'."""
+    with legacy_engine.begin() as conn:
+        conn.execute(text("INSERT INTO duel_invites (from_user_id, to_user_id, room_id) VALUES (1, 1, 'old-room')"))
+    app_db.init_db()
+    assert "server_url" in _columns(legacy_engine, "duel_presence")
+    assert "server_url" in _columns(legacy_engine, "duel_invites")
+    with Session(legacy_engine) as db:
+        assert db.query(DuelInvite).one().server_url is None
 
 
 def test_an_old_eval_run_reads_back_as_the_main_suite_with_no_headline_metric_679(legacy_engine):
