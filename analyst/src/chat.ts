@@ -8,7 +8,7 @@ import type { Catalog } from "./catalog";
 import { PlannerApiError, plannerCall, reviewMatch, tokenIsValid, type PlannerApi, type ReviewGame } from "./matches";
 import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
-import { cardReferenceLine, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type TurnPlan } from "./copilot";
+import { answerChoiceTool, AUTOPILOT_INSTRUCTIONS, cardReferenceLine, CHOICE_TOOL, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type ChoiceAnswer, type TurnPlan } from "./copilot";
 import { parseEditLines } from "./editLines";
 import { checkTextEdits, deckEditTool, PROPOSE_TOOL, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
@@ -77,7 +77,7 @@ export type CallModel = (
   onCite?: (citation: Citation) => void,
 ) => Promise<ModelReply>;
 
-export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "plan" | "done" | "error"; data: Record<string, unknown> };
+export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "plan" | "choice" | "done" | "error"; data: Record<string, unknown> };
 
 const MAX_CITED_TEXT = 800;
 
@@ -286,6 +286,7 @@ const STATUS: Record<string, string> = {
   my_lessons: "Reading your lessons",
   propose_deck_edit: "Checking the suggested change",
   propose_turn_plan: "Checking the turn plan",
+  answer_choice: "Answering the prompt",
 };
 
 export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string | null {
@@ -338,7 +339,7 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void): Promise<Block> {
+async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void, onChoice?: (a: ChoiceAnswer) => void): Promise<Block> {
   const tool = tools.find((t) => t.name === block.name);
   const base = { type: "tool_result", tool_use_id: block.id };
   if (!tool) return { ...base, is_error: true, content: `Unknown tool ${String(block.name)}` };
@@ -349,6 +350,7 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
     const text = result.content.map((c) => c.text).join("\n");
     if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(JSON.parse(text) as Omit<DeckEditProposal, "id">) });
     if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(JSON.parse(text) as Omit<TurnPlan, "id">) });
+    if (tool.name === CHOICE_TOOL && !result.isError && onChoice) onChoice({ id: String(block.id), ...(JSON.parse(text) as Omit<ChoiceAnswer, "id">) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
     const sources = result.isError ? null : adaptToolResult(tool.name, text);
     return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
@@ -517,6 +519,8 @@ type RoundsOptions = {
   onProposal?: (p: DeckEditProposal) => void;
   /** Called with each turn plan the model proposes (Log Pose copilot). */
   onPlan?: (p: TurnPlan) => void;
+  /** Called with each answer to a pending choice the model gives while the app plays the turn (Log Pose copilot). */
+  onChoice?: (a: ChoiceAnswer) => void;
   /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
   recheck?: (cost: number) => Promise<Refusal | null>;
   /**
@@ -588,7 +592,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     }
     state.toolCalls += calls.length;
     for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
-    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan))) });
+    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan, o.onChoice))) });
   }
   return state;
 }
@@ -641,16 +645,17 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   };
   const proposals: DeckEditProposal[] = [];
   // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), turnPlanTool(deps.catalog, game)];
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
   const onProposal = (p: DeckEditProposal) => {
     proposals.push(p);
     emit({ event: "proposal", data: p });
   };
   const onPlan = (p: TurnPlan) => emit({ event: "plan", data: p });
+  const onChoice = (a: ChoiceAnswer) => emit({ event: "choice", data: a });
   // The copilot text is a second block after the cached prefix, so turns without a game keep the same cached prefix.
   const system = [
     { type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
-    ...(game ? [{ type: "text", text: game.plans === false ? COPILOT_INSTRUCTIONS + NO_PLANS_INSTRUCTIONS : COPILOT_INSTRUCTIONS }] : []),
+    ...(game ? [{ type: "text", text: game.plans === false ? COPILOT_INSTRUCTIONS + NO_PLANS_INSTRUCTIONS : COPILOT_INSTRUCTIONS + (game.autopilot ? AUTOPILOT_INSTRUCTIONS : "") }] : []),
   ];
   const state = newRounds(userMessage);
   const turn = state.turn;
@@ -659,7 +664,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   let checked = false;
   try {
     await runToolRounds(state, {
-      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan,
+      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan, onChoice,
       recheck: (cost) => refusalNow(api, token, cost),
       afterAnswer: async (st) => {
         const deck = body.context?.deck;
