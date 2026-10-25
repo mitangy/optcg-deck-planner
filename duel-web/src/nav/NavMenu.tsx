@@ -9,7 +9,7 @@ import { useStickyHeadHeight } from "./useStickyHeadHeight";
 /**
  * The hamburger button every page header starts with, and the left drawer it opens.
  * The drawer is a shared Headless UI Dialog (#715): fixed and portalled to <body>, so opening it
- * moves nothing in the header; it traps Tab, closes on Escape or a tap on the backdrop, and
+ * moves nothing in the header; it slides in and out (the Dialog's `transition`); it traps Tab, closes on Escape or a tap on the backdrop, and
  * hands focus back to the button.
  */
 export function NavMenu() {
@@ -48,6 +48,7 @@ export function NavMenu() {
         className="nav-drawer-root"
         panelClassName="nav-drawer"
         panelProps={{ id: drawerId }}
+        transition
         label="Site menu"
       >
         <nav aria-label="Site menu" className="nav-drawer-nav">

@@ -63,5 +63,8 @@ module.exports = {
     {"id": "tabs-list-class-dropped", "file": "packages/ui/src/tabs/Tabs.tsx", "from": "<HeadlessTabList {...props} className={join(\"ui-tab-list\", className)} />", "to": "<HeadlessTabList {...props} className=\"ui-tab-list\" />", "kills": ["keeps the app's own classes on the row and the panel, beside the shared ones (#719)"]},
     {"id": "tabs-panel-class-dropped", "file": "packages/ui/src/tabs/Tabs.tsx", "from": "<HeadlessTabPanel tabIndex={tabIndex} {...props} className={join(\"ui-tab-panel\", className)} />", "to": "<HeadlessTabPanel tabIndex={tabIndex} {...props} className=\"ui-tab-panel\" />", "kills": ["keeps the app's own classes on the row and the panel, beside the shared ones (#719)"]},
     {"id": "tabs-panel-tab-stop", "file": "packages/ui/src/tabs/Tabs.tsx", "from": "tabIndex = -1, ...props", "to": "tabIndex = 0, ...props", "kills": ["only the selected tab is in the Tab order, and the panel is not a tab stop (#719)"]},
+    // Dialog transition prop (#722)
+    {"id": "dialog-transition-dropped", "edits": [{"file": "packages/ui/src/popups/Dialog.tsx", "from": "role={role} transition={transition} className", "to": "role={role} className"}, {"file": "packages/ui/src/popups/Dialog.tsx", "from": "<DialogPanel ref={panelRef} transition={transition} className", "to": "<DialogPanel ref={panelRef} className"}], "kills": ["keeps the panel mounted, marked data-closed, while it leaves, then unmounts (#722)"]},
+    {"id": "dialog-transition-always-on", "file": "packages/ui/src/popups/Dialog.tsx", "from": "  transition = false,\n  children,", "to": "  transition = true,\n  children,", "kills": ["without transition the panel unmounts at once (#722)"]},
   ],
 };
