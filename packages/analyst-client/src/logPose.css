@@ -801,6 +801,32 @@
   color: var(--lp-muted-d);
 }
 
+/* What the board asked for the player while Log Pose plays their turn, and the choices it answered: muted lines, not bubbles (#725). */
+.lp-auto-line {
+  align-self: stretch;
+  margin: 0;
+  padding: 0 4px;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-auto-choice {
+  margin: 6px 0 0;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-auto-tag {
+  font-weight: 600;
+  color: var(--lp-ink-d);
+}
+
 /* ——— Rating an answer: thumbs up / down and "This is wrong" (#679) ———
    The row is always 36px tall (44px on touch) and the status has a slot of its own, so saving a vote moves nothing.
    Only the note form opens, directly below the buttons. */

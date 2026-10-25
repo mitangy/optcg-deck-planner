@@ -76,14 +76,44 @@ export type GameSnapshot = {
     donDeck: number;
   };
   battle?: string | null;
-  choice?: { prompt: string; kind: string } | null;
+  choice?: PendingChoiceSnap | null;
   legal: LegalAction[];
 };
+
+/** One option of a pending choice as the analyst reads it. */
+export type ChoiceOptionSnap = { id: string; defId?: string; label?: string; inst?: string; zone?: string; owner?: "you" | "opponent"; eligible: boolean };
+
+/** The choice's options; cut to {@link CHOICE_OPTION_LIMIT}, with `truncated` set when some were left out. */
+export type ChoiceRequestSnap = {
+  type: "confirm" | "select" | "mode" | "order" | "look";
+  min?: number;
+  max?: number;
+  options?: ChoiceOptionSnap[];
+  allowTopOrBottom?: boolean;
+  distinctNames?: boolean;
+  rest?: string;
+  truncated?: boolean;
+};
+
+/** The front pending choice, when it is this seat's to answer. */
+export type PendingChoiceSnap = {
+  id?: string;
+  prompt: string;
+  kind: string;
+  optional?: boolean;
+  declineOnly?: boolean;
+  request?: ChoiceRequestSnap;
+};
+
+/** Must equal MAX_CHOICE_OPTIONS in analyst/src/copilot.ts. */
+export const CHOICE_OPTION_LIMIT = 40;
 
 /** The live game sent with a message: the brief ticket proves an unranked room, the analyst checks it again. */
 export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: string[];
   /** False when only the board is attached (the copilot setting is off): Log Pose answers in words, no turn plans. */
   plans?: boolean;
+  /** The app is playing the turn for the player (they asked Log Pose to): Log Pose answers choices with answer_choice. */
+  autopilot?: boolean;
 };
 
 /** What the page the user is on adds to a message. */
@@ -110,6 +140,8 @@ export type TurnPlan = {
   turn: number;
   summary: string;
   steps: PlanStep[];
+  /** The player asked Log Pose to play the turn: the board starts the plan by itself. */
+  autoplay?: boolean;
   /** The game (its ticket's match key) the plan was made for, stamped when the answer arrives. Card ids only mean something in that game. */
   gameKey?: string;
 };
@@ -194,8 +226,71 @@ export function parseTurnPlan(raw: unknown): TurnPlan | null {
     if (!step) return null;
     steps.push(step);
   }
-  return { id, turn: o.turn, summary, steps };
+  return { id, turn: o.turn, summary, steps, ...(o.autoplay === true ? { autoplay: true } : {}) };
 }
+
+/** Log Pose's answer to a pending choice while the board plays the turn, from a `choice` event. */
+export type ChoiceAnswer = {
+  /** The tool call's id. */
+  id: string;
+  /** The pending choice it answers: the board applies it only when this is still the front choice. */
+  choiceId: string;
+  accept: boolean;
+  selectedOptionIds?: string[];
+  orderedOptionIds?: string[];
+  topOptionIds?: string[];
+  /** One line for the chat: "Chose Nami, Zoro". */
+  summary: string;
+  /** The game it was asked for, stamped when it arrives (like a plan's). */
+  gameKey?: string;
+};
+
+export const CHOICE_LIMITS = { id: 80, summary: 200, options: CHOICE_OPTION_LIMIT };
+
+const ids = (v: unknown): string[] | undefined | null => {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v) || v.length > CHOICE_LIMITS.options) return null;
+  const out: string[] = [];
+  for (const x of v) {
+    const id = str(x, CHOICE_LIMITS.id);
+    if (!id) return null;
+    out.push(id);
+  }
+  return out;
+};
+
+/** A choice answer from a `choice` event, or null when it is unusable (a malformed id list drops the whole answer). */
+export function parseChoiceAnswer(raw: unknown): ChoiceAnswer | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const id = str(o.id, CHOICE_LIMITS.id);
+  const choiceId = str(o.choiceId, CHOICE_LIMITS.id);
+  if (!id || !choiceId || typeof o.accept !== "boolean") return null;
+  const selected = ids(o.selectedOptionIds);
+  const ordered = ids(o.orderedOptionIds);
+  const top = ids(o.topOptionIds);
+  if (selected === null || ordered === null || top === null) return null;
+  return {
+    id,
+    choiceId,
+    accept: o.accept,
+    ...(selected ? { selectedOptionIds: selected } : {}),
+    ...(ordered ? { orderedOptionIds: ordered } : {}),
+    ...(top ? { topOptionIds: top } : {}),
+    summary: str(o.summary, CHOICE_LIMITS.summary) ?? (o.accept ? "Answered" : "Declined"),
+  };
+}
+
+/** Ties an answer to the game its message was sent for, like {@link stampPlan}. */
+export function stampChoice(answer: ChoiceAnswer, context: ChatContext | undefined): ChoiceAnswer {
+  const ticket = context?.game?.ticket;
+  return ticket ? { ...answer, gameKey: ticketGameKey(ticket) } : answer;
+}
+
+/** The prefix of a message the board sends on the player's behalf while Log Pose plays their turn; the panel shows it as a muted line. */
+export const AUTO_PREFIX = "(auto) ";
+export const isAutoMessage = (text: string): boolean => text.startsWith(AUTO_PREFIX);
+export const autoText = (text: string): string => (isAutoMessage(text) ? text.slice(AUTO_PREFIX.length) : text);
 
 export type ErrorCode = "credit" | "daily" | "monthly" | "busy" | "auth" | "server" | "bad_request";
 export type DonePayload = {
@@ -222,6 +317,8 @@ export type StreamHandlers = {
   onProposal?: (proposal: DeckEditProposal) => void;
   /** A turn plan Log Pose proposes for the live game, to show as a Turn plan card under the answer. */
   onPlan?: (plan: TurnPlan) => void;
+  /** Log Pose's answer to a pending choice, while the board plays the turn for the player. */
+  onChoice?: (answer: ChoiceAnswer) => void;
   onDone?: (done: DonePayload) => void;
   /** An `error` event inside the stream. */
   onError?: (err: { message: string; code?: ErrorCode }) => void;
@@ -269,6 +366,9 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   } else if (event === "plan") {
     const plan = parseTurnPlan(d);
     if (plan) handlers.onPlan?.(plan);
+  } else if (event === "choice") {
+    const answer = parseChoiceAnswer(d);
+    if (answer) handlers.onChoice?.(answer);
   } else if (event === "done") handlers.onDone?.(d as DonePayload);
   else if (event === "error")
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });
