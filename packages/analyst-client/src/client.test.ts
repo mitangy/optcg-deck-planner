@@ -219,6 +219,39 @@ describe("deck edit events (#400)", () => {
   });
 });
 
+describe("new deck events (#726)", () => {
+  const wire = {
+    id: "d1",
+    version: 1,
+    name: "Red Luffy",
+    leader_id: "ST01-001",
+    leader_name: "Monkey.D.Luffy",
+    summary: "Plain red beats.",
+    cards: [{ id: "ST01-003", name: "Nami", copies: 4 }],
+    count: 50,
+    legality: { legal: true, problems: [], upcoming: [], ban_list_checked: true },
+  };
+
+  it("hands a deck_draft event to onDraft and ignores one with no usable cards (#726)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: deck_draft\ndata: ${JSON.stringify(wire)}\n\nevent: deck_draft\ndata: ${JSON.stringify({ ...wire, id: "d2", cards: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "build" }, { onDraft: (d) => seen.push(d) }, undefined, f.impl);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ id: "d1", name: "Red Luffy", leaderId: "ST01-001", legality: { banListChecked: true } });
+  });
+
+  it("reads a saved thread's new decks and drops unusable ones (#726)", async () => {
+    const impl = (async () =>
+      Response.json({ id: 4, title: "t", messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "Opening it.", drafts: [wire, { id: "bad" }] }] })) as unknown as typeof fetch;
+    const thread = await fetchThread("https://api.test", 4, impl);
+    expect(thread!.messages[0]!.drafts).toEqual([]);
+    expect(thread!.messages[1]!.drafts!.map((d) => d.id)).toEqual(["d1"]);
+  });
+});
+
 describe("turn plans (#416)", () => {
   const plan = {
     id: "toolu_1",

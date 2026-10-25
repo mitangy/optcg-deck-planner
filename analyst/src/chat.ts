@@ -10,6 +10,7 @@ import { newestFormat } from "./playbook";
 import { buildTools, instructionsFor, type Knowledge, type ToolDef } from "./server";
 import { answerChoiceTool, AUTOPILOT_INSTRUCTIONS, cardReferenceLine, CHOICE_TOOL, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContext, gameContextBlock, PLAN_TOOL, turnPlanTool, verifyGame, type ChoiceAnswer, type TurnPlan } from "./copilot";
 import { parseEditLines } from "./editLines";
+import { newDeckTool, NEW_DECK_TOOL, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, PROPOSE_TOOL, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { adaptToolResult, gameResults } from "./sources";
 
@@ -77,7 +78,7 @@ export type CallModel = (
   onCite?: (citation: Citation) => void,
 ) => Promise<ModelReply>;
 
-export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "plan" | "choice" | "done" | "error"; data: Record<string, unknown> };
+export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "deck_draft" | "plan" | "choice" | "done" | "error"; data: Record<string, unknown> };
 
 const MAX_CITED_TEXT = 800;
 
@@ -201,7 +202,9 @@ You're answering in the Log Pose panel inside the player's app, often on a phone
 A user message can start with a <context> block saying which page they are on and the deck or game open there. Use it when they say "this deck" or "this game"; don't mention the block itself. When the context names a build hint, the player tapped Why? on it: check the deck with analyze_deck, explain what triggers the hint here and whether it matters for this leader, and give +N / -N changes if it does. Hints are the app's rules of thumb, not game rules (except tier rule).
 Tool results arrive as sources the app turns into numbered citations for the player. Ground every factual claim (card text and stats, rules, rulings, win rates, playbook notes, what happened in a game, deck numbers, odds) in a tool result and say it in a sentence you can cite, rather than blending several sources into one sentence. Keep your own judgement (matchup reads, what to cut, how a line plays out) in separate sentences and say it is your judgement or your read; judgement is not cited. Don't write source ids or citation numbers yourself. Bring in only the facts the answer needs: no stats, odds or rulings they didn't ask about.
 Numbers from sim_stats, bot games and analyze_position are bot simulations: say "in bot simulations" each time, keep them in their own sentence apart from matchup_stats and tournament_stats numbers (never add or average them), and when real games or tournaments disagree with them, say so and trust the real ones. For "what should I have done" on a finished game, call analyze_position on that turn and report the top options, what was actually played and the estimated win chances as estimates.
-When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. Never say a change was made: only the player applies it.
+When the <context> block lists an open deck and you recommend concrete card changes, call propose_deck_edit once with every change and a short reason for each. The app shows them as a card the player can apply. Don't repeat the changes as +N / -N lines; point to the card. If the tool refuses, fix the change and call it again, or explain why. With no open deck, write +N / -N lines. When you called propose_deck_edit with apply true, say the change is being made to their open deck and they can Undo it on the card; otherwise never say a change was made: only the player applies it.
+When the player asks you to make, apply or do an edit themselves ("swap X for Y", "make those edits", "fix my deck for me"), call propose_deck_edit with apply true. For suggestions in a review or an answer to "what would you change?", leave apply off.
+When the player asks you to build, make or create a new deck, look the cards up first, then call propose_new_deck once with the leader and the full 50-card list (the analyze_deck, draw_odds and simulate rules above still apply to that list). The app opens the create-deck page with the name and list filled in, and the player presses Create to save it: tell them that, and don't write the whole list out as text too. If the tool refuses, fix the list and call it again.
 When the player asks you to tune, fix or change a deck, commit to exact changes: every change names a card by number with a copy count, and as many copies come out as go in so the deck stays at 50 (never "cut 3 of your weakest 2-drops": pick the cards). With an open deck, call propose_deck_edit right away; don't ask whether to propose it. Missing playbook notes or tournament data are not a reason to hold back: give your read and say it is your read. If you'd keep the list as it is, say so in the first sentence.`;
 
 /** What the model wrote in the turn so far, as text. */
@@ -285,6 +288,7 @@ const STATUS: Record<string, string> = {
   draft_lesson: "Saving a lesson draft",
   my_lessons: "Reading your lessons",
   propose_deck_edit: "Checking the suggested change",
+  propose_new_deck: "Checking the new deck",
   propose_turn_plan: "Checking the turn plan",
   answer_choice: "Answering the prompt",
 };
@@ -339,7 +343,7 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void, onChoice?: (a: ChoiceAnswer) => void): Promise<Block> {
+async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void, onDraft?: (d: NewDeckDraft) => void, onChoice?: (a: ChoiceAnswer) => void): Promise<Block> {
   const tool = tools.find((t) => t.name === block.name);
   const base = { type: "tool_result", tool_use_id: block.id };
   if (!tool) return { ...base, is_error: true, content: `Unknown tool ${String(block.name)}` };
@@ -349,6 +353,7 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
     const result = await tool.run(parsed.data as Record<string, unknown>);
     const text = result.content.map((c) => c.text).join("\n");
     if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(JSON.parse(text) as Omit<DeckEditProposal, "id">) });
+    if (tool.name === NEW_DECK_TOOL && !result.isError && onDraft) onDraft({ id: String(block.id), ...(JSON.parse(text) as Omit<NewDeckDraft, "id">) });
     if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(JSON.parse(text) as Omit<TurnPlan, "id">) });
     if (tool.name === CHOICE_TOOL && !result.isError && onChoice) onChoice({ id: String(block.id), ...(JSON.parse(text) as Omit<ChoiceAnswer, "id">) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
@@ -521,6 +526,8 @@ type RoundsOptions = {
   onPlan?: (p: TurnPlan) => void;
   /** Called with each answer to a pending choice the model gives while the app plays the turn (Log Pose copilot). */
   onChoice?: (a: ChoiceAnswer) => void;
+  /** Called with each new deck the model builds (chat only, #726). */
+  onDraft?: (d: NewDeckDraft) => void;
   /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
   recheck?: (cost: number) => Promise<Refusal | null>;
   /**
@@ -592,7 +599,7 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     }
     state.toolCalls += calls.length;
     for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
-    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan, o.onChoice))) });
+    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan, o.onDraft, o.onChoice))) });
   }
   return state;
 }
@@ -644,11 +651,16 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     content: [...(ctx ? [{ type: "text", text: ctx }] : []), ...(game && claims ? [{ type: "text", text: gameContextBlock(deps.catalog, game, claims) }] : []), { type: "text", text: body.message }],
   };
   const proposals: DeckEditProposal[] = [];
+  const drafts: NewDeckDraft[] = [];
   // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
   const onProposal = (p: DeckEditProposal) => {
     proposals.push(p);
     emit({ event: "proposal", data: p });
+  };
+  const onDraft = (d: NewDeckDraft) => {
+    drafts.push(d);
+    emit({ event: "deck_draft", data: d });
   };
   const onPlan = (p: TurnPlan) => emit({ event: "plan", data: p });
   const onChoice = (a: ChoiceAnswer) => emit({ event: "choice", data: a });
@@ -664,7 +676,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   let checked = false;
   try {
     await runToolRounds(state, {
-      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan, onChoice,
+      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan, onDraft, onChoice,
       recheck: (cost) => refusalNow(api, token, cost),
       afterAnswer: async (st) => {
         const deck = body.context?.deck;
@@ -694,6 +706,11 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
       if (finished && proposals.length) {
         await plannerCall(api, token, `/analyst/chat/threads/${threadId}/proposals`, true, { proposals }).catch((err) =>
           console.error("saving deck edit proposals failed", err instanceof Error ? err.message : err),
+        );
+      }
+      if (finished && drafts.length) {
+        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/drafts`, true, { drafts }).catch((err) =>
+          console.error("saving new deck drafts failed", err instanceof Error ? err.message : err),
         );
       }
     }

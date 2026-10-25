@@ -1825,6 +1825,74 @@
   color: var(--lp-danger-d);
 }
 
+/* ——— New deck card: a deck Log Pose built (#726). Shares the edit card's chrome. ——— */
+
+.lp-draft-leader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  min-width: 0;
+}
+
+.lp-draft-leader-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-draft-list {
+  margin: 8px 0 0;
+  min-width: 0;
+}
+
+.lp-draft-list > summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--lp-muted-d);
+}
+
+.lp-draft-rows {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 14rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lp-draft-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.lp-draft-row .lp-edit-badge,
+.lp-draft-row .lp-edit-name {
+  grid-area: auto;
+}
+
+.lp-draft-row .lp-edit-badge {
+  background: var(--lp-surface-2-d);
+  color: var(--lp-ink-d);
+}
+
+.lp-draft-open {
+  min-width: 11rem;
+}
+
+/* Two lines reserved, so the note changing after the page opens moves nothing. */
+.lp-draft-note {
+  min-height: 2.6em;
+}
+
 /* Phones: touch-sized buttons that share the row. */
 .lp-panel[data-phone] .lp-edit-actions {
   min-height: 44px;
@@ -1834,6 +1902,16 @@
 .lp-panel[data-phone] .lp-edit-done {
   flex: 1 1 0;
   min-height: 44px;
+}
+
+/* "✓ Applied by Log Pose" is longer than "✓ Applied": it takes its own width and Undo gets the rest. */
+.lp-panel[data-phone] .lp-edit[data-by] .lp-edit-done {
+  flex: 0 1 auto;
+  padding: 0 8px;
+}
+
+.lp-panel[data-phone] .lp-draft-open {
+  flex: 1 1 auto;
 }
 
 .lp-panel[data-phone] .lp-edit-note {

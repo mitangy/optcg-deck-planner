@@ -37,7 +37,9 @@ import { askContext, canAsk, gameMessageContext, messageContext, requestAction, 
 import { placeAt, type Citation, type PlacedCitation } from "./citations";
 import { logPoseChrome } from "./chrome";
 import { DeckEditCard } from "./DeckEditCard";
-import { isEmptyAnswer, type DeckEditor, type DeckEditProposal } from "./proposals";
+import { fromHistory, liveAnswer, type Msg } from "./chatMessages";
+import { NewDeckCard } from "./NewDeckCard";
+import { isEmptyAnswer, type DeckEditor } from "./proposals";
 import { DockHandle, ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight, type DockPreview } from "./PanelResize";
 import { clampDockW, DOCK_W_DEFAULT, fitDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSides } from "./panelDock";
 import { compassRect, growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
@@ -276,14 +278,6 @@ function useMedia(query: string): boolean {
   return match;
 }
 
-type Msg = { role: "user" | "assistant"; text: string; citations: PlacedCitation[]; proposals?: DeckEditProposal[]; plans?: TurnPlan[];
-  /** Choices Log Pose answered for the player while the board played the turn. */
-  choices?: ChoiceAnswer[];
-  stopped?: boolean;
-  /** The answer is stored in the thread (it finished, or it came from the saved thread), so it can be rated (#679). */
-  saved?: boolean;
-};
-
 /** How an answer changes the player's credit: its done event carries the new figures; a refusal switches the input for a notice. */
 type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode) => void; refresh: () => void };
 
@@ -322,7 +316,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
           writeThreadId(null);
           threadRef.current = null;
           setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map((m) => ({ role: m.role, text: m.text, citations: m.citations ?? [], proposals: m.proposals ?? [], saved: true }))));
+        } else setMessages((cur) => (cur.length ? cur : t.messages.map(fromHistory)));
       })
       .catch(() => setError("Could not load your last chat."))
       .finally(() => setHistory("done"));
@@ -339,7 +333,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
       setBusy(true);
       setStatus("");
       setError(null);
-      setMessages((cur) => [...cur, { role: "user", text: message, citations: [] }, { role: "assistant", text: "", citations: [] }]);
+      setMessages((cur) => [...cur, { role: "user", text: message, citations: [] }, liveAnswer()]);
       const patchLast = (fn: (m: Msg) => Msg) =>
         setMessages((cur) => {
           const last = cur[cur.length - 1];
@@ -361,6 +355,8 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
             // A suggested deck edit shows as an Apply card under this answer.
             onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
+            // A new deck shows as a New deck card under this answer, and the app opens its create page.
+            onDraft: (d) => patchLast((m) => ({ ...m, drafts: [...(m.drafts ?? []).filter((x) => x.id !== d.id), d] })),
             // A turn plan shows as a Turn plan card under this answer.
             // The board hears of it here, from the live stream only: an answer read back from a saved chat never starts a plan.
             onPlan: (plan) => {
@@ -1177,7 +1173,10 @@ function LogPosePanel({
                 </p>
               ))}
               {(m.proposals ?? []).map((p) => (
-                <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} onAskAgain={() => submit(ASK_AGAIN)} />
+                <DeckEditCard key={p.id} proposal={p} editor={editor} busy={chat.busy} live={m.live === true} onNavigate={phone ? onClose : undefined} onAskAgain={() => submit(ASK_AGAIN)} />
+              ))}
+              {(m.drafts ?? []).map((d) => (
+                <NewDeckCard key={d.id} draft={d} live={m.live === true} onOpened={phone ? onClose : undefined} />
               ))}
               {game
                 ? (m.plans ?? []).map((plan) => (

@@ -1,6 +1,7 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
 import type { HintContext } from "./ask";
+import { parseDraft, type NewDeckDraft } from "./drafts";
 import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
 import { SseHttpError, streamSse } from "./sse";
@@ -315,6 +316,8 @@ export type StreamHandlers = {
   onCite?: (citations: Citation[]) => void;
   /** A deck edit Log Pose suggests for the open deck, to show as an Apply card under the answer. */
   onProposal?: (proposal: DeckEditProposal) => void;
+  /** A new deck Log Pose built, to show as a New deck card under the answer (and open in the create-deck page). */
+  onDraft?: (draft: NewDeckDraft) => void;
   /** A turn plan Log Pose proposes for the live game, to show as a Turn plan card under the answer. */
   onPlan?: (plan: TurnPlan) => void;
   /** Log Pose's answer to a pending choice, while the board plays the turn for the player. */
@@ -363,6 +366,9 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   } else if (event === "proposal") {
     const proposal = parseProposal(d);
     if (proposal) handlers.onProposal?.(proposal);
+  } else if (event === "deck_draft") {
+    const draft = parseDraft(d);
+    if (draft) handlers.onDraft?.(draft);
   } else if (event === "plan") {
     const plan = parseTurnPlan(d);
     if (plan) handlers.onPlan?.(plan);
@@ -438,7 +444,7 @@ export async function streamAnalyst(
   }
 }
 
-export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[] };
+export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[]; drafts?: NewDeckDraft[] };
 export type ThreadHistory = { id: number; title: string; messages: ThreadMessage[] };
 
 /** GET {apiBase}/analyst/chat/threads/{id}; null when it is gone (404). */
@@ -453,6 +459,7 @@ export async function fetchThread(apiBase: string, threadId: number, fetchImpl: 
       ...m,
       citations: parseCitations(m.citations, true),
       proposals: (Array.isArray(m.proposals) ? m.proposals : []).map(parseProposal).filter((p): p is DeckEditProposal => p !== null),
+      drafts: (Array.isArray(m.drafts) ? m.drafts : []).map(parseDraft).filter((d): d is NewDeckDraft => d !== null),
     })),
   };
 }

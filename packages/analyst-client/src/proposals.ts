@@ -10,6 +10,8 @@ export type DeckEditProposal = {
   id: string;
   target: { ref: string; name: string; leaderId: string | null };
   summary: string;
+  /** The player asked Log Pose to make this change: the card applies it once to the open deck (#726). */
+  apply: boolean;
   lines: DeckEditLine[];
   /** The deck as the model saw it, with normalized ids. */
   base: { id: string; copies: number }[];
@@ -72,6 +74,7 @@ export function parseProposal(raw: unknown): DeckEditProposal | null {
     id,
     target: { ref, name, leaderId: str(target.leader_id, 20) },
     summary: str(raw.summary, 300) ?? "",
+    apply: raw.apply === true,
     lines,
     base,
     legality: {
@@ -124,37 +127,65 @@ export const applyOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) =
 /** The ops Undo sends: each line back from `after` to `before`. */
 export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));
 
-/** An answer bubble worth keeping: it has text, a deck edit, a turn plan, a choice Log Pose answered, or was stopped on purpose. */
-export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; plans?: readonly unknown[]; choices?: readonly unknown[]; stopped?: boolean }): boolean =>
-  !m.text && !m.proposals?.length && !m.plans?.length && !m.choices?.length && !m.stopped;
+/** An answer bubble worth keeping: it has text, a deck edit, a new deck, a turn plan, a choice Log Pose answered, or was stopped on purpose. */
+export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; drafts?: readonly unknown[]; plans?: readonly unknown[]; choices?: readonly unknown[]; stopped?: boolean }): boolean =>
+  !m.text && !m.proposals?.length && !m.drafts?.length && !m.plans?.length && !m.choices?.length && !m.stopped;
+
+/** Whether the card should apply this edit now: Log Pose was asked to make it, it arrived live (not from a saved thread), the open deck is untouched, and it was not applied before. */
+export function shouldAutoApply(
+  p: DeckEditProposal,
+  state: ProposalState,
+  handled: readonly string[] | ReadonlySet<string>,
+  live: boolean,
+): boolean {
+  const done = Array.isArray(handled) ? (handled as string[]).includes(p.id) : (handled as ReadonlySet<string>).has(p.id);
+  return p.apply && live && state.kind === "ready" && !done;
+}
 
 export const DISMISSED_KEY = "optcg-logpose:dismissed";
+/** Edits Log Pose already applied (or tried to) on this device, so a re-render, a reload or Undo never applies one again. */
+export const AUTO_APPLIED_KEY = "optcg-logpose:auto-applied";
 const MAX_DISMISSED = 200;
 
-/** The ids of the edits the player dismissed on this device. Never throws; empty when storage is blocked. */
-export function readDismissed(storage: Pick<Storage, "getItem"> | null = safeStorage()): string[] {
+type ReadStore = Pick<Storage, "getItem">;
+type WriteStore = Pick<Storage, "getItem" | "setItem">;
+
+/** The ids kept under `key` in localStorage (newest 200). Never throws. */
+export function readIds(key: string, storage: ReadStore | null): string[] {
   try {
-    const parsed: unknown = JSON.parse(storage?.getItem(DISMISSED_KEY) ?? "[]");
+    const parsed: unknown = JSON.parse(storage?.getItem(key) ?? "[]");
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string").slice(-MAX_DISMISSED) : [];
   } catch {
     return [];
   }
 }
 
-/** Remembers (or forgets) one dismissed edit, keeping the newest 200. */
-export function writeDismissed(id: string, dismissed: boolean, storage: Pick<Storage, "getItem" | "setItem"> | null = safeStorage()): string[] {
-  const next = readDismissed(storage).filter((x) => x !== id);
-  if (dismissed) next.push(id);
+/** Adds (or removes) one id under `key`, keeping the newest 200. Never throws. */
+export function writeIds(key: string, id: string, on: boolean, storage: WriteStore | null): string[] {
+  const next = readIds(key, storage).filter((x) => x !== id);
+  if (on) next.push(id);
   const kept = next.slice(-MAX_DISMISSED);
   try {
-    storage?.setItem(DISMISSED_KEY, JSON.stringify(kept));
+    storage?.setItem(key, JSON.stringify(kept));
   } catch {
     // A per-viewer convenience: without storage the card just forgets on reload.
   }
   return kept;
 }
 
-function safeStorage(): Storage | null {
+/** The ids of the edits the player dismissed on this device. Never throws; empty when storage is blocked. */
+export const readDismissed = (storage: ReadStore | null = safeStorage()): string[] => readIds(DISMISSED_KEY, storage);
+
+/** Remembers (or forgets) one dismissed edit, keeping the newest 200. */
+export const writeDismissed = (id: string, dismissed: boolean, storage: WriteStore | null = safeStorage()): string[] => writeIds(DISMISSED_KEY, id, dismissed, storage);
+
+/** The ids of the edits Log Pose already applied on this device. Never throws. */
+export const readAutoApplied = (storage: ReadStore | null = safeStorage()): string[] => readIds(AUTO_APPLIED_KEY, storage);
+
+/** Remembers that an edit was handled, keeping the newest 200. */
+export const markAutoApplied = (id: string, storage: WriteStore | null = safeStorage()): string[] => writeIds(AUTO_APPLIED_KEY, id, true, storage);
+
+export function safeStorage(): Storage | null {
   try {
     return typeof localStorage === "undefined" ? null : localStorage;
   } catch {
