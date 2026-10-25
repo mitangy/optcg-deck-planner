@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Tab, TabGroup, TabList } from "@optcg/ui/tabs";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
@@ -54,6 +55,7 @@ import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
 import { leaderGlow } from "../home/leaderGlow";
+import { Dialog, Listbox, ListboxButton, ListboxList, ListboxOption } from "@optcg/ui/popups";
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
 import {
   BOT_DECK_MIRROR,
@@ -201,8 +203,17 @@ function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }
   );
 }
 
-/** "Sailing with" trigger + popover to switch, edit, or add decks. */
-function DeckSwitcher({
+/** Rows of the switcher's footer: they ride in the Listbox so the keyboard reaches them like a deck. */
+const NEW_DECK = "__new-deck__";
+const MANAGE_DECKS = "__manage-decks__";
+
+/**
+ * "Sailing with" trigger + a Headless UI Listbox to switch decks. Arrow keys, Home / End, type-ahead,
+ * Enter, Escape (focus back on the trigger) and outside click come from the Listbox; the list floats
+ * under the trigger in a portal, so opening it never moves the page. The footer's New deck and
+ * Manage decks are options too (picking one navigates), so the keyboard reaches them.
+ */
+export function DeckSwitcher({
   decks,
   selectedDeck,
   onChoose,
@@ -212,116 +223,94 @@ function DeckSwitcher({
   onChoose: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
   const glow = leaderGlow(lookupCard(selectedDeck.leaderId).colors);
-  const rootRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: PointerEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  function pick(value: string) {
+    if (value === NEW_DECK) navigate("/decks/new");
+    else if (value === MANAGE_DECKS) navigate("/decks");
+    else onChoose(value);
+  }
 
   return (
-    <div className="deck-switcher" ref={rootRef}>
-      <button
-        type="button"
-        className={`home-deck${open ? " open" : ""}`}
-        style={glow ? ({ "--glow": glow } as CSSProperties) : undefined}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <LeaderThumb key={selectedDeck.id} deck={selectedDeck} className="home-deck-art" />
-        <span className="home-deck-text">
-          <span className="home-deck-label">Sailing with</span>
-          <span className="home-deck-name">{selectedDeck.name}</span>
-          <span className="home-deck-leader">
-            {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
-            <IncompleteBadge deck={selectedDeck} />
-          </span>
-          <span className="home-deck-change">
-            Change deck{" "}
-            <span className="home-deck-chevron" aria-hidden>
-              ▾
+    <Listbox value={selectedDeck.id} onChange={pick}>
+      {({ open }: { open: boolean }) => (
+        <div className="deck-switcher">
+          <ListboxButton
+            className={`home-deck${open ? " open" : ""}`}
+            style={glow ? ({ "--glow": glow } as CSSProperties) : undefined}
+          >
+            <LeaderThumb key={selectedDeck.id} deck={selectedDeck} className="home-deck-art" />
+            <span className="home-deck-text">
+              <span className="home-deck-label">Sailing with</span>
+              <span className="home-deck-name">{selectedDeck.name}</span>
+              <span className="home-deck-leader">
+                {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
+                <IncompleteBadge deck={selectedDeck} />
+              </span>
+              <span className="home-deck-change">
+                Change deck{" "}
+                <span className="home-deck-chevron" aria-hidden>
+                  ▾
+                </span>
+              </span>
             </span>
-          </span>
-        </span>
-      </button>
-      <Link to={`/decks/${selectedDeck.id}/configure`} className="home-deck-edit">
-        Edit deck
-      </Link>
+          </ListboxButton>
+          <Link to={`/decks/${selectedDeck.id}/configure`} className="home-deck-edit">
+            Edit deck
+          </Link>
 
-      {open ? (
-        <div className="deck-menu" role="listbox" aria-label="Choose a deck">
-          <ul className="deck-menu-list">
-            {decks.map((d) => {
-              const active = d.id === selectedDeck.id;
-              return (
-                <li key={d.id} className={`deck-menu-row${active ? " active" : ""}`}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    className="deck-menu-pick"
-                    onClick={() => {
-                      onChoose(d.id);
-                      setOpen(false);
-                    }}
+          <ListboxList anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="deck-menu">
+            <div className="deck-menu-list">
+              {decks.map((d) => {
+                const active = d.id === selectedDeck.id;
+                return (
+                  <ListboxOption
+                    as="div"
+                    key={d.id}
+                    value={d.id}
+                    className={`deck-menu-row${active ? " active" : ""}`}
                   >
-                    <LeaderThumb deck={d} className="deck-menu-art" />
-                    <span className="deck-menu-text">
-                      <span className="deck-menu-name">{d.name}</span>
-                      <span className="deck-menu-sub">
-                        {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
+                    <div className="deck-menu-pick">
+                      <LeaderThumb deck={d} className="deck-menu-art" />
+                      <span className="deck-menu-text">
+                        <span className="deck-menu-name">{d.name}</span>
+                        <span className="deck-menu-sub">
+                          {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
+                        </span>
                       </span>
-                    </span>
-                    <span className="deck-menu-check" aria-hidden>
-                      {active ? "✓" : ""}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="deck-menu-edit"
-                    aria-label={`Edit ${d.name}`}
-                    title="Edit deck"
-                    onClick={() => navigate(`/decks/${d.id}/configure`)}
-                  >
-                    Edit
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="deck-menu-foot">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => navigate("/decks/new")}
-            >
-              + New deck
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate("/decks")}
-            >
-              Manage decks
-            </button>
-          </div>
+                      <span className="deck-menu-check" aria-hidden>
+                        {active ? "✓" : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="deck-menu-edit"
+                      aria-label={`Edit ${d.name}`}
+                      title="Edit deck"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/decks/${d.id}/configure`);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </ListboxOption>
+                );
+              })}
+            </div>
+            <div className="deck-menu-foot">
+              <ListboxOption as="div" value={NEW_DECK} className="btn btn-secondary btn-sm">
+                + New deck
+              </ListboxOption>
+              <ListboxOption as="div" value={MANAGE_DECKS} className="btn btn-ghost btn-sm">
+                Manage decks
+              </ListboxOption>
+            </div>
+          </ListboxList>
         </div>
-      ) : null}
-    </div>
+      )}
+    </Listbox>
   );
 }
 
@@ -607,15 +596,6 @@ export function LobbyPage() {
       .finally(() => setAuthChecked(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!sheetOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !busy) closeSheet();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sheetOpen, busy]);
 
   // Spectate link: wait for sign-in to settle (account token vs guest token), then
   // reuse the spectate flow. `replace` so Back doesn't land on the link and re-join.
@@ -1108,197 +1088,183 @@ export function LobbyPage() {
       </main>
 
       {sheetOpen ? (
-        <div
-          className="sheet-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !busy) closeSheet();
+        <Dialog
+          open
+          onClose={() => {
+            if (!busy) closeSheet();
           }}
+          className="sheet-backdrop"
+          panelClassName="sheet"
+          label={modeTitle}
         >
-          <div className="sheet" role="dialog" aria-modal="true" aria-label={modeTitle}>
-            <div className="sheet-head">
-              {mode ? (
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Back to modes"
-                  disabled={busy}
-                  onClick={() => {
-                    setError(null);
-                    setMode(null);
-                  }}
-                >
-                  ←
-                </button>
-              ) : (
-                <span className="icon-btn-spacer" aria-hidden />
-              )}
-              <h2 className="sheet-title">{modeTitle}</h2>
+          <div className="sheet-head">
+            {mode ? (
               <button
                 type="button"
                 className="icon-btn"
-                aria-label="Close"
+                aria-label="Back to modes"
                 disabled={busy}
-                onClick={closeSheet}
+                onClick={() => {
+                  setError(null);
+                  setMode(null);
+                }}
               >
-                ✕
+                ←
+              </button>
+            ) : (
+              <span className="icon-btn-spacer" aria-hidden />
+            )}
+            <h2 className="sheet-title">{modeTitle}</h2>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Close"
+              disabled={busy}
+              onClick={closeSheet}
+            >
+              ✕
+            </button>
+          </div>
+
+          {!mode ? (
+            <div className="mode-grid">
+              {MODE_CARDS.map((m) => (
+                <button
+                  key={m.mode}
+                  type="button"
+                  className="mode-card"
+                  onClick={() => pickMode(m.mode)}
+                >
+                  <span className="mode-glyph" aria-hidden>
+                    {m.glyph}
+                  </span>
+                  <span className="mode-title">{m.title}</span>
+                  <span className="mode-blurb">{m.blurb}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="sheet-body">
+              {mode === "create" || mode === "join" ? (
+                <TabGroup selectedIndex={mode === "join" ? 1 : 0} onChange={(i) => pickMode(i === 1 ? "join" : "create")}>
+                  <TabList className="segmented" aria-label="Private room">
+                    <Tab className={({ selected }) => (selected ? "active" : "")}>Create</Tab>
+                    <Tab className={({ selected }) => (selected ? "active" : "")}>Join</Tab>
+                  </TabList>
+                </TabGroup>
+              ) : null}
+
+              {mode !== "spectate" ? (
+                <DeckPicker
+                  id="setup-deck"
+                  label="Your deck"
+                  decks={decks}
+                  value={selectedId}
+                  onChange={chooseDeck}
+                />
+              ) : null}
+
+              {mode === "hotseat" ? (
+                <DeckPicker
+                  id="enemy-deck"
+                  label="Opponent deck"
+                  decks={decks}
+                  value={opponentDeckId}
+                  onChange={setOpponentDeckId}
+                />
+              ) : null}
+
+              {mode === "bot" ? (
+                <>
+                  <div className="field">
+                    <span className="field-label" id="bot-level-label">
+                      Bot level
+                    </span>
+                    <div className="segmented segmented-3" role="radiogroup" aria-labelledby="bot-level-label">
+                      {BOT_LEVELS.map((l) => (
+                        <button
+                          key={l.level}
+                          type="button"
+                          role="radio"
+                          aria-checked={botLevel === l.level}
+                          className={botLevel === l.level ? "active" : ""}
+                          onClick={() => setBotLevel(l.level)}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="field-hint">{BOT_LEVELS.find((l) => l.level === botLevel)?.hint}</p>
+                  </div>
+                  <DeckPicker
+                    id="bot-deck"
+                    label="Bot's deck"
+                    decks={decks}
+                    value={botDeckId}
+                    onChange={setBotDeckId}
+                    mirror={{ label: "Same as your deck", deck: selectedDeck }}
+                  />
+                  <p className="field-hint">
+                    A casual game against the computer: not ranked, no timer, and not saved to your match history.
+                  </p>
+                </>
+              ) : null}
+
+              {mode === "create" ? (
+                <div className="field">
+                  <label htmlFor="timer-preset">Timer</label>
+                  <select
+                    id="timer-preset"
+                    value={timerPreset}
+                    onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
+                  >
+                    <option value="off">No timer</option>
+                    <option value="turn_30">30 second turns</option>
+                    <option value="seat_15m">15 minutes per player</option>
+                    <option value="turn_30_seat_15m">30s turns + 15 min per player</option>
+                  </select>
+                  <p className="field-hint">
+                    {timerPreset === "seat_15m" || timerPreset === "turn_30_seat_15m"
+                      ? "Each player's clock only runs while it's their move; whoever runs out loses. "
+                      : ""}
+                    Private rooms are unranked.
+                  </p>
+                </div>
+              ) : null}
+
+              {mode === "join" || mode === "spectate" ? (
+                <div className="field">
+                  <label htmlFor="room">Room id</label>
+                  <input
+                    id="room"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    placeholder="Paste the room id"
+                  />
+                </div>
+              ) : null}
+
+              {mode === "queue" ? (
+                <p className="field-hint">
+                  Ranked games give each player 15 minutes on a chess clock. Your Bounty updates after the match.
+                </p>
+              ) : null}
+
+              {error ? <p className="error-text">{error}</p> : null}
+
+              <button
+                type="button"
+                className="btn btn-primary btn-lg sheet-confirm"
+                disabled={busy || queueing}
+                onClick={() => void confirmSetup(mode)}
+              >
+                {busy && busyStatus ? busyStatus : confirmLabel}
               </button>
             </div>
-
-            {!mode ? (
-              <div className="mode-grid">
-                {MODE_CARDS.map((m) => (
-                  <button
-                    key={m.mode}
-                    type="button"
-                    className="mode-card"
-                    onClick={() => pickMode(m.mode)}
-                  >
-                    <span className="mode-glyph" aria-hidden>
-                      {m.glyph}
-                    </span>
-                    <span className="mode-title">{m.title}</span>
-                    <span className="mode-blurb">{m.blurb}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="sheet-body">
-                {mode === "create" || mode === "join" ? (
-                  <div className="segmented" role="tablist" aria-label="Private room">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={mode === "create"}
-                      className={mode === "create" ? "active" : ""}
-                      onClick={() => pickMode("create")}
-                    >
-                      Create
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={mode === "join"}
-                      className={mode === "join" ? "active" : ""}
-                      onClick={() => pickMode("join")}
-                    >
-                      Join
-                    </button>
-                  </div>
-                ) : null}
-
-                {mode !== "spectate" ? (
-                  <DeckPicker
-                    id="setup-deck"
-                    label="Your deck"
-                    decks={decks}
-                    value={selectedId}
-                    onChange={chooseDeck}
-                  />
-                ) : null}
-
-                {mode === "hotseat" ? (
-                  <DeckPicker
-                    id="enemy-deck"
-                    label="Opponent deck"
-                    decks={decks}
-                    value={opponentDeckId}
-                    onChange={setOpponentDeckId}
-                  />
-                ) : null}
-
-                {mode === "bot" ? (
-                  <>
-                    <div className="field">
-                      <span className="field-label" id="bot-level-label">
-                        Bot level
-                      </span>
-                      <div className="segmented segmented-3" role="radiogroup" aria-labelledby="bot-level-label">
-                        {BOT_LEVELS.map((l) => (
-                          <button
-                            key={l.level}
-                            type="button"
-                            role="radio"
-                            aria-checked={botLevel === l.level}
-                            className={botLevel === l.level ? "active" : ""}
-                            onClick={() => setBotLevel(l.level)}
-                          >
-                            {l.label}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="field-hint">{BOT_LEVELS.find((l) => l.level === botLevel)?.hint}</p>
-                    </div>
-                    <DeckPicker
-                      id="bot-deck"
-                      label="Bot's deck"
-                      decks={decks}
-                      value={botDeckId}
-                      onChange={setBotDeckId}
-                      mirror={{ label: "Same as your deck", deck: selectedDeck }}
-                    />
-                    <p className="field-hint">
-                      A casual game against the computer: not ranked, no timer, and not saved to your match history.
-                    </p>
-                  </>
-                ) : null}
-
-                {mode === "create" ? (
-                  <div className="field">
-                    <label htmlFor="timer-preset">Timer</label>
-                    <select
-                      id="timer-preset"
-                      value={timerPreset}
-                      onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
-                    >
-                      <option value="off">No timer</option>
-                      <option value="turn_30">30 second turns</option>
-                      <option value="seat_15m">15 minutes per player</option>
-                      <option value="turn_30_seat_15m">30s turns + 15 min per player</option>
-                    </select>
-                    <p className="field-hint">
-                      {timerPreset === "seat_15m" || timerPreset === "turn_30_seat_15m"
-                        ? "Each player's clock only runs while it's their move; whoever runs out loses. "
-                        : ""}
-                      Private rooms are unranked.
-                    </p>
-                  </div>
-                ) : null}
-
-                {mode === "join" || mode === "spectate" ? (
-                  <div className="field">
-                    <label htmlFor="room">Room id</label>
-                    <input
-                      id="room"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      value={roomId}
-                      onChange={(e) => setRoomId(e.target.value)}
-                      placeholder="Paste the room id"
-                    />
-                  </div>
-                ) : null}
-
-                {mode === "queue" ? (
-                  <p className="field-hint">
-                    Ranked games give each player 15 minutes on a chess clock. Your Bounty updates after the match.
-                  </p>
-                ) : null}
-
-                {error ? <p className="error-text">{error}</p> : null}
-
-                <button
-                  type="button"
-                  className="btn btn-primary btn-lg sheet-confirm"
-                  disabled={busy || queueing}
-                  onClick={() => void confirmSetup(mode)}
-                >
-                  {busy && busyStatus ? busyStatus : confirmLabel}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+          )}
+        </Dialog>
       ) : null}
       <WhatsNewCard app="duel" Link={Link} />
     </div>

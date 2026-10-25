@@ -10,6 +10,7 @@ import { PlannerApiError, plannerCall, type PlannerApi } from "./matches";
 import type { ToolDef } from "./server";
 
 export const PLAN_TOOL = "propose_turn_plan";
+export const CHOICE_TOOL = "answer_choice";
 export const COPILOT_REFUSAL = "Log Pose can only help in casual and practice games.";
 export const NO_GAME_ERROR = "No live game is attached; ask from the board.";
 
@@ -54,6 +55,44 @@ const legalAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("end_turn") }),
 ]);
 
+/** The most options a choice request carries; a request with more is marked `truncated` and cannot be answered by Log Pose. */
+export const MAX_CHOICE_OPTIONS = 40;
+
+const choiceOption = z.object({
+  id: z.string().min(1).max(80),
+  defId: defId.optional(),
+  label: z.string().max(120).optional(),
+  /** The card's instance id when it is on a board, so the model can tell two copies apart in the <game> block. */
+  inst: instId.optional(),
+  zone: z.string().max(20).optional(),
+  owner: z.enum(["you", "opponent"]).optional(),
+  eligible: z.boolean(),
+});
+
+const choiceRequest = z.object({
+  type: z.enum(["confirm", "select", "mode", "order", "look"]),
+  min: count.optional(),
+  max: count.optional(),
+  options: z.array(choiceOption).max(MAX_CHOICE_OPTIONS).optional(),
+  allowTopOrBottom: z.boolean().optional(),
+  distinctNames: z.boolean().optional(),
+  /** look: where the cards not taken go (deck_bottom, top_or_bottom, ...). */
+  rest: z.string().max(40).optional(),
+  /** The request had more options than fit: Log Pose cannot answer it. */
+  truncated: z.boolean().optional(),
+});
+
+const pendingChoice = z.object({
+  id: z.string().min(1).max(80).optional(),
+  prompt: z.string().max(300),
+  kind: z.string().max(60),
+  /** Declining is legal. */
+  optional: z.boolean().optional(),
+  /** Only declining is legal (a Life card with no [Trigger], a cost that can't be paid). */
+  declineOnly: z.boolean().optional(),
+  request: choiceRequest.optional(),
+});
+
 const gameSnapshot = z.object({
   seat: z.union([z.literal(0), z.literal(1)]),
   turn: z.number().int().min(0).max(1000),
@@ -72,7 +111,7 @@ const gameSnapshot = z.object({
     donTotal: count,
   }),
   battle: z.string().max(300).nullable().optional(),
-  choice: z.object({ prompt: z.string().max(300), kind: z.string().max(60) }).nullable().optional(),
+  choice: pendingChoice.nullable().optional(),
   legal: z.array(legalAction).max(120),
 });
 
@@ -82,6 +121,8 @@ export const gameContext = z.object({
   snapshot: gameSnapshot,
   /** False when the player has not turned on the copilot setting: Log Pose coaches in words and plans are refused. */
   plans: z.boolean().optional(),
+  /** The app is playing the turn for the player (they asked Log Pose to play it): choices are answered with answer_choice. */
+  autopilot: z.boolean().optional(),
   log: z.array(z.string().max(200)).max(40).optional(),
 });
 
@@ -89,6 +130,7 @@ export type GameContext = z.infer<typeof gameContext>;
 export type GameSnapshot = z.infer<typeof gameSnapshot>;
 type SnapCard = z.infer<typeof snapCard>;
 type LegalAction = z.infer<typeof legalAction>;
+type ChoiceOption = z.infer<typeof choiceOption>;
 
 /** What the planner's brief ticket says about the game. */
 export type GameClaims = { leader: string; opponent: string; deck: { id: string; copies: number }[] };
@@ -191,6 +233,7 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
     `Opponent hand: ${s.opponent.hand} cards (hidden), DON!! total ${s.opponent.donTotal}`,
     `Battle: ${s.battle || "none"}`,
     `Pending choice for you: ${s.choice ? `${s.choice.prompt} (${s.choice.kind})` : "none"}`,
+    ...(s.choice ? choiceLines(catalog, s.choice) : []),
     "Legal actions:",
     ...s.legal.map((a) => `- ${describeLegal(a, named)}`),
   ];
@@ -205,6 +248,28 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
     lines.push(cardReferenceLine(c));
   }
   return `<game>\n${lines.join("\n")}\n</game>`;
+}
+
+function optionName(catalog: Catalog, o: ChoiceOption): string {
+  return o.label || (o.defId ? nameOfDef(catalog, o.defId) : o.id);
+}
+
+/** The pending choice's id and options, so the model can answer it with answer_choice. */
+function choiceLines(catalog: Catalog, c: NonNullable<GameSnapshot["choice"]>): string[] {
+  const r = c.request;
+  const lines: string[] = [];
+  if (c.id) lines.push(`Choice id: ${c.id}`);
+  if (c.declineOnly) lines.push("Only declining is allowed.");
+  else if (c.optional) lines.push("You may decline.");
+  if (!r) return lines;
+  if (r.truncated) lines.push("This choice has too many options to list; the player must make it.");
+  const range = r.min !== undefined && r.max !== undefined ? ` (pick ${r.min === r.max ? r.min : `${r.min} to ${r.max}`})` : "";
+  lines.push(`Choice type: ${r.type}${range}${r.distinctNames ? ", all picks need different names" : ""}${r.allowTopOrBottom ? ", each card may go on top or bottom" : ""}${r.rest ? `, the rest go: ${r.rest}` : ""}`);
+  for (const o of r.options ?? []) {
+    const where = [o.owner === "opponent" ? "opponent's" : o.owner === "you" ? "yours" : "", o.zone ?? "", o.inst ? `[${o.inst}]` : ""].filter(Boolean).join(" ");
+    lines.push(`- option ${o.id}: ${optionName(catalog, o)}${where ? ` (${where})` : ""}${o.eligible ? "" : " (not allowed)"}`);
+  }
+  return lines;
 }
 
 function describeLegal(a: LegalAction, named: (id: string) => string): string {
@@ -232,18 +297,27 @@ function describeLegal(a: LegalAction, named: (id: string) => string): string {
   }
 }
 
+/**
+ * Added after COPILOT_INSTRUCTIONS when the app is playing the turn for the player (context.game.autopilot): the
+ * app runs your plans and asks you for each choice and for what comes next, so answer, don't discuss.
+ */
+export const AUTOPILOT_INSTRUCTIONS = `
+The app is playing this turn for the player right now: they asked you to. Don't coach and don't ask them anything.
+If the <game> block has a pending choice, answer it with answer_choice (its Choice id, then accept, and the option ids it lists) and nothing else. Otherwise plan the rest of the turn with propose_turn_plan and play_now true, ending with end_turn when nothing useful is left. If a tool refuses, fix the call and try again.
+Say at most one short line.`;
+
 /** Added after COPILOT_INSTRUCTIONS when the copilot setting is off: the game is attached but plans are not. */
 export const NO_PLANS_INSTRUCTIONS = `
 Turn play-out is off for this game, so propose_turn_plan is refused: give the line in words. If they want turns played out, they can turn on the Log Pose copilot setting in duel settings.`;
 
 export const COPILOT_INSTRUCTIONS = `
 
-The player turned on Log Pose for their live casual game. Their message starts with a <game> block: the board as they see it, their hand, the legal actions, the recent log, their deck list and the cards on the table. You coach; you do not play.
+The player turned on Log Pose for their live casual game. Their message starts with a <game> block: the board as they see it, their hand, the legal actions, the recent log, their deck list and the cards on the table. You coach by default; you play only when the player asks you to play their turn, and then the app plays the plan you propose.
 You only know what is in the <game> block. Never guess the opponent's hand or deck order; reason about what their leader usually plays and call it your read. Card text for cards on the table is in the block's card reference; look up anything else with get_cards.
 Be brief: the player reads this on a phone between moves. Keep in-game answers to about 60 words in at most three short lines, with no headings: the play first in one line (for example "Attack their Leader with Luffy, +2 DON!!"), then one or two sentences of why. Add an alternative, a risk or a number only when it would change their decision. Don't recap the board, their hand or the legal actions, and don't quote card text back; they can see it. Go deeper only when they ask for more.
-When they ask you to plan or play their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one sentence what the plan does and that they tap Play this turn to run it; don't list the steps again, the plan card shows them. Keep each step's why to a few words, and leave it out when the step is obvious. If the tool refuses, fix the plan and call it again. Never say you made a move: only the player runs the plan.
+When they ask you to plan their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one sentence what the plan does and that they tap Play this turn to run it; don't list the steps again, the plan card shows them. When they ask you to play, take or do their turn for them, call it the same way with play_now true, then say in one sentence that you're playing it now and they can tap Stop to take over. Set play_now only when they asked you to play the turn, never for "plan my turn" or "what should I do". Keep each step's why to a few words, and leave it out when the step is obvious. If the tool refuses, fix the plan and call it again. Never say you made a move you didn't propose: the app runs the plan, nothing else moves.
 In the mulligan step, judge keep or mulligan from Your hand, your deck list and whether they go first; never ask them for their hand, it is in the block.
-Choices that come up mid-turn (searches, targets, triggers) are the player's; mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.`;
+Choices that come up mid-turn (searches, targets, triggers) are the player's unless the app is playing the turn for them; otherwise mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.`;
 
 const planStep = z.object({
   action: z.enum(["play", "give_don", "activate", "attack", "end_turn"]),
@@ -268,6 +342,8 @@ export type TurnPlan = {
   turn: number;
   summary: string;
   steps: ({ label: string; why?: string } & Record<string, unknown>)[];
+  /** The player asked Log Pose to play the turn: the app starts the plan by itself. */
+  autoplay?: true;
 };
 
 const spentTooMuch = (at: string, don: number, active: number) =>
@@ -278,7 +354,9 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
   const s = game.snapshot;
   const fail = (error: string) => ({ ok: false as const, error });
   if (!s.yourTurn) return fail("It isn't the player's turn, so there is nothing to plan. Answer in text.");
-  if (s.choice) return fail("The player has a choice to make first. Tell them what you'd pick and plan again after they answer.");
+  if (s.choice) {
+    return fail(game.autopilot ? "There is a pending choice first. Answer it with answer_choice; the app asks you to plan again after it." : "The player has a choice to make first. Tell them what you'd pick and plan again after they answer.");
+  }
   if (s.phase !== "main") return fail(`It's the ${s.phase} phase; a turn plan can only be made in the main phase.`);
   if (input.steps.length < 1 || input.steps.length > MAX_STEPS) return fail(`A plan has 1 to ${MAX_STEPS} steps.`);
 
@@ -400,17 +478,158 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     description:
       "Plan the player's whole turn from the <game> block. Nothing is played: the app shows the steps as a card the player can run with Play this turn. " +
       "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId; the target, if any, is chosen when the ability resolves and is the player's to pick), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
-      "Characters played earlier in the plan can act in later steps by their hand id. The plan is checked against the board and refused with the reason when a step can't work.",
+      "Characters played earlier in the plan can act in later steps by their hand id. The plan is checked against the board and refused with the reason when a step can't work. " +
+      "Set play_now only when the player asked you to play their turn for them: the app then starts the plan by itself.",
     inputSchema: {
       summary: z.string().trim().min(3).max(300),
       steps: z.array(planStep).min(1).max(MAX_STEPS),
+      play_now: z.boolean().optional(),
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args) => {
       if (!game) return refusal(NO_GAME_ERROR);
       if (game.plans === false) return refusal("Turn play-out is off for this game; describe the line in words instead.");
-      const r = checkTurnPlan(catalog, game, args as { summary: string; steps: PlanStepInput[] });
-      return r.ok ? { content: [{ type: "text" as const, text: JSON.stringify(r.plan) }] } : refusal(r.error);
+      const input = args as { summary: string; steps: PlanStepInput[]; play_now?: boolean };
+      const r = checkTurnPlan(catalog, game, input);
+      // Playing is the player's to ask for; the app asking Log Pose to go on (autopilot) is the same request.
+      if (!r.ok) return refusal(r.error);
+      const plan = { ...r.plan, ...(input.play_now === true || game.autopilot === true ? { autoplay: true as const } : {}) };
+      return { content: [{ type: "text" as const, text: JSON.stringify(plan) }] };
+    },
+  };
+}
+
+/** What the app applies for an answered choice (the answer_choice tool's result, plus the tool_use id as `id` on the SSE event). */
+export type ChoiceAnswer = {
+  id: string;
+  choiceId: string;
+  accept: boolean;
+  selectedOptionIds?: string[];
+  orderedOptionIds?: string[];
+  topOptionIds?: string[];
+  /** One line for the player: "Chose Nami, Zoro", "Declined". */
+  summary: string;
+};
+
+type ChoiceInput = { choiceId: string; accept: boolean; selected?: string[]; ordered?: string[]; top?: string[]; why?: string };
+
+const sameSet = (a: readonly string[], b: readonly string[]) => a.length === b.length && new Set(a).size === a.length && b.every((x) => a.includes(x));
+
+/**
+ * Checks an answer against the pending choice in the snapshot. Returns the answer in the shapes the game takes
+ * (resolve_pending_choice's selected / ordered / top ids), or the reason the model should fix.
+ */
+export function checkChoiceAnswer(catalog: Catalog, game: GameContext, input: ChoiceInput): { ok: true; answer: Omit<ChoiceAnswer, "id"> } | { ok: false; error: string } {
+  const fail = (error: string) => ({ ok: false as const, error });
+  const c = game.snapshot.choice;
+  if (!c) return fail("There is no pending choice to answer.");
+  if (!c.id || c.id !== input.choiceId) return fail(`The pending choice is ${c.id ?? "unnamed"}, not ${input.choiceId}. Use the Choice id from the <game> block.`);
+  const r = c.request;
+  const base = { choiceId: c.id };
+  const canDecline = c.optional === true || c.kind === "life_trigger";
+  if (!input.accept) {
+    if (!canDecline) return fail("This choice can't be declined; answer it with accept true.");
+    return { ok: true, answer: { ...base, accept: false, summary: "Declined" } };
+  }
+  if (c.declineOnly) return fail("Only declining is allowed here; call again with accept false.");
+  if (!r || r.type === "confirm") return { ok: true, answer: { ...base, accept: true, summary: "Accepted" } };
+  if (r.truncated) return fail("This choice has too many options to answer; the player makes it.");
+  const options = r.options ?? [];
+  const byId = new Map(options.map((o) => [o.id, o]));
+  const names = (ids: string[]) => ids.map((id) => optionName(catalog, byId.get(id)!)).join(", ");
+  const unique = (ids: string[], what: string) => (new Set(ids).size === ids.length ? null : `${what} lists an option twice.`);
+  const unknown = (ids: string[], what: string) => {
+    const bad = ids.find((id) => !byId.has(id));
+    return bad ? `${what}: ${bad} isn't one of this choice's options.` : null;
+  };
+  const picks = (ids: string[], min: number, max: number) => {
+    const err = unknown(ids, "selected") ?? unique(ids, "selected");
+    if (err) return err;
+    const ineligible = ids.find((id) => !byId.get(id)!.eligible);
+    if (ineligible) return `selected: ${ineligible} can't be chosen.`;
+    if (ids.length < min || ids.length > max) return `Pick ${min === max ? min : `${min} to ${max}`} option${max === 1 ? "" : "s"}; you picked ${ids.length}.`;
+    if (r.distinctNames) {
+      const seen = new Set(ids.map((id) => optionName(catalog, byId.get(id)!)));
+      if (seen.size !== ids.length) return "Every pick needs a different card name.";
+    }
+    return null;
+  };
+  switch (r.type) {
+    case "select": {
+      const selected = input.selected ?? [];
+      const err = picks(selected, r.min ?? 0, r.max ?? options.length);
+      if (err) return fail(err);
+      return { ok: true, answer: { ...base, accept: true, selectedOptionIds: selected, summary: selected.length ? `Chose ${names(selected)}` : "Chose none" } };
+    }
+    case "mode": {
+      const selected = input.selected ?? [];
+      const err = picks(selected, 1, 1);
+      if (err) return fail(err);
+      return { ok: true, answer: { ...base, accept: true, selectedOptionIds: selected, summary: `Chose ${names(selected)}` } };
+    }
+    case "order": {
+      const ordered = input.ordered ?? [];
+      const err = unknown(ordered, "ordered") ?? unique(ordered, "ordered");
+      if (err) return fail(err);
+      if (!sameSet(ordered, options.map((o) => o.id))) return fail("ordered must list every option exactly once, first = placed first.");
+      const top = input.top ?? [];
+      if (top.length) {
+        if (!r.allowTopOrBottom) return fail("These cards can't be split between top and bottom; leave top out.");
+        const bad = unknown(top, "top") ?? unique(top, "top");
+        if (bad) return fail(bad);
+      }
+      // With a top/bottom split the answer lists the top cards first, as the board's own order prompt does.
+      const arranged = r.allowTopOrBottom ? [...ordered.filter((id) => top.includes(id)), ...ordered.filter((id) => !top.includes(id))] : ordered;
+      return { ok: true, answer: { ...base, accept: true, orderedOptionIds: arranged, ...(r.allowTopOrBottom ? { topOptionIds: top.filter((id) => ordered.includes(id)) } : {}), summary: `Ordered ${names(arranged)}` } };
+    }
+    case "look": {
+      const selected = input.selected ?? [];
+      const err = picks(selected, r.min ?? 0, r.max ?? 0);
+      if (err) return fail(err);
+      const rest = options.map((o) => o.id).filter((id) => !selected.includes(id));
+      const ordered = input.ordered ?? rest;
+      const bad = unknown(ordered, "ordered") ?? unique(ordered, "ordered");
+      if (bad) return fail(bad);
+      if (!sameSet(ordered, rest)) return fail("ordered must list exactly the options you did not select, once each.");
+      const top = input.top ?? [];
+      // Top or bottom moves the cards that are left together: all on top, or none.
+      if (r.rest === "top_or_bottom") {
+        if (top.length && !sameSet(top, rest)) return fail("top must be every card you did not select (all on top) or empty (all on the bottom).");
+      } else if (top.length) return fail("The cards left over can't be split between top and bottom; leave top out.");
+      const placed = r.rest === "top_or_bottom" ? { orderedOptionIds: ordered, topOptionIds: top.length ? ordered : [] } : { orderedOptionIds: ordered };
+      return { ok: true, answer: { ...base, accept: true, selectedOptionIds: selected, ...placed, summary: selected.length ? `Took ${names(selected)}` : "Took none" } };
+    }
+  }
+}
+
+/**
+ * answer_choice, bound to the attached game. Only while the app is playing the turn (autopilot): otherwise
+ * choices are the player's. With no game it is a stub that refuses, so a tool_use kept in the history still matches a tool.
+ */
+export function answerChoiceTool(catalog: Catalog, game: GameContext | undefined): ToolDef {
+  return {
+    name: CHOICE_TOOL,
+    title: "Answer the pending choice",
+    description:
+      "Answer the player's pending choice while the app is playing their turn for them. choiceId = the Choice id in the <game> block. accept false declines (only when the block says you may). " +
+      "select / mode: selected = the option ids to take (mode: exactly one). order: ordered = every option id, first = placed first (top = the ones that go on top, when the block says each may go on top or bottom). " +
+      "look: selected = the cards to take; ordered = the others in the order they go back; top = all the others to put them on top (leave out for the bottom, when the block says top or bottom). " +
+      "Effect-order prompts: ordered = the ability ids, first = resolves first. The answer is checked against the choice and refused with the reason when it can't work.",
+    inputSchema: {
+      choiceId: z.string().min(1).max(80),
+      accept: z.boolean(),
+      selected: z.array(z.string().max(80)).max(MAX_CHOICE_OPTIONS).optional(),
+      ordered: z.array(z.string().max(80)).max(MAX_CHOICE_OPTIONS).optional(),
+      top: z.array(z.string().max(80)).max(MAX_CHOICE_OPTIONS).optional(),
+      why: z.string().trim().max(200).optional(),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    run: async (args) => {
+      if (!game) return refusal(NO_GAME_ERROR);
+      if (game.plans === false) return refusal("Turn play-out is off for this game; say what you would pick instead.");
+      if (!game.autopilot) return refusal("The player makes their own choices unless they asked you to play their turn; say what you would pick.");
+      const r = checkChoiceAnswer(catalog, game, args as ChoiceInput);
+      return r.ok ? { content: [{ type: "text" as const, text: JSON.stringify(r.answer) }] } : refusal(r.error);
     },
   };
 }

@@ -540,10 +540,15 @@
   color: var(--warn-ink);
 }
 
-.dh-tray {
+/* The popover floats in a portal, outside the tray, so it needs the tier colours too. */
+.dh-tray,
+.dh-pop {
   --dh-rule: var(--danger);
   --dh-shape: var(--warn);
   --dh-synergy: var(--accent);
+}
+
+.dh-tray {
   position: relative;
   display: flex;
   align-items: stretch;
@@ -691,7 +696,6 @@
 }
 
 .dh-pop {
-  position: fixed;
   z-index: 80;
   box-sizing: border-box;
   max-height: calc(100dvh - 1.5rem);

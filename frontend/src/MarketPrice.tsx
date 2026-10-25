@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { api, money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { InlineSkeleton } from "./Skeleton";
@@ -11,6 +12,40 @@ function formatSaleDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** The panel body. It mounts only while the popover is open, so the sales are fetched on open and cached. */
+function RecentSales({ productId }: { productId: number }) {
+  const salesQ = useQuery({
+    queryKey: ["recent-sales", productId],
+    queryFn: () => api.recentSales(productId),
+    staleTime: 30 * 60 * 1000,
+  });
+  return (
+    <>
+      <div className="market-sales-head">Last 3 sold</div>
+      {salesQ.isLoading && <InlineSkeleton lines={3} label="Loading recent sales…" />}
+      {salesQ.error && <p className="error market-sales-status">{(salesQ.error as Error).message}</p>}
+      {salesQ.data && salesQ.data.sales.length === 0 && <p className="muted market-sales-status">No recent sales</p>}
+      {salesQ.data && salesQ.data.sales.length > 0 && (
+        <ul className="market-sales-list">
+          {salesQ.data.sales.map((sale, idx) => (
+            <li key={`${sale.order_date}-${sale.price}-${idx}`}>
+              <span className="market-sale-price">{money(sale.price)}</span>
+              <span className="market-sale-meta">
+                {[sale.condition, sale.variant, formatSaleDate(sale.order_date)].filter(Boolean).join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/**
+ * A market price that opens its last three sales in a Headless UI Popover. The panel floats in a
+ * portal under the price (flipping above it near the bottom of the screen), so opening it, or its
+ * list loading, never moves or resizes the price button.
+ */
 export function MarketPrice({
   price,
   productId,
@@ -18,119 +53,35 @@ export function MarketPrice({
   price: number | null | undefined;
   productId?: number | null;
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
-  const canExpand = productId != null && productId > 0;
-  const salesQ = useQuery({
-    queryKey: ["recent-sales", productId],
-    queryFn: () => api.recentSales(productId!),
-    enabled: open && canExpand,
-    staleTime: 30 * 60 * 1000,
-  });
-
-  const place = useCallback(() => {
-    const btn = btnRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    const width = 224;
-    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
-    // Drop below the price; flip above it when the panel would run off the bottom of the screen.
-    const height = panelRef.current?.offsetHeight ?? 0;
-    const below = rect.bottom + 6;
-    const above = rect.top - 6 - height;
-    const top = height > 0 && below + height > window.innerHeight - 8 && above >= 8 ? above : below;
-    setPanelPos((prev) => (prev && prev.top === top && prev.left === left ? prev : { top, left }));
-  }, []);
-
-  // Once the panel (or its sales list) is on screen its height is known, so re-check which side fits.
-  const placed = panelPos !== null;
-  useLayoutEffect(() => {
-    if (open && placed) place();
-  }, [open, placed, place, salesQ.isLoading, salesQ.data, salesQ.error]);
-
-  useEffect(() => {
-    if (!open) {
-      setPanelPos(null);
-      return;
-    }
-    place();
-    function onPointerDown(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, place]);
-
   if (price == null || Number.isNaN(price)) {
     return <span className="muted">—</span>;
   }
 
-  if (!canExpand) {
+  if (productId == null || productId <= 0) {
     return <span>{money(price)}</span>;
   }
 
   return (
-    <div ref={rootRef} className={`market-price${open ? " open" : ""}`}>
-      <button
-        ref={btnRef}
-        type="button"
-        className="market-price-btn"
-        aria-expanded={open}
-        title="Show last 3 sold prices"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>{money(price)}</span>
-        <span className="market-price-chevron" aria-hidden="true">
-          {open ? "▴" : "▾"}
-        </span>
-      </button>
-      {open && panelPos && (
-        <div
-          ref={panelRef}
-          className="market-sales"
-          role="region"
-          aria-label="Last 3 sold prices"
-          style={{ top: panelPos.top, left: panelPos.left }}
-        >
-          <div className="market-sales-head">Last 3 sold</div>
-          {salesQ.isLoading && <InlineSkeleton lines={3} label="Loading recent sales…" />}
-          {salesQ.error && (
-            <p className="error market-sales-status">{(salesQ.error as Error).message}</p>
-          )}
-          {salesQ.data && salesQ.data.sales.length === 0 && (
-            <p className="muted market-sales-status">No recent sales</p>
-          )}
-          {salesQ.data && salesQ.data.sales.length > 0 && (
-            <ul className="market-sales-list">
-              {salesQ.data.sales.map((sale, idx) => (
-                <li key={`${sale.order_date}-${sale.price}-${idx}`}>
-                  <span className="market-sale-price">{money(sale.price)}</span>
-                  <span className="market-sale-meta">
-                    {[sale.condition, sale.variant, formatSaleDate(sale.order_date)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+    <Popover as="div" className={({ open }: { open: boolean }) => `market-price${open ? " open" : ""}`}>
+      {({ open }: { open: boolean }) => (
+        <>
+          <PopoverButton type="button" className="market-price-btn" title="Show last 3 sold prices">
+            <span>{money(price)}</span>
+            <span className="market-price-chevron" aria-hidden="true">
+              {open ? "▴" : "▾"}
+            </span>
+          </PopoverButton>
+          <PopoverPanel
+            anchor={{ to: "bottom start", gap: 6, padding: 8 }}
+            role="region"
+            aria-label="Last 3 sold prices"
+            className="market-sales"
+          >
+            <RecentSales productId={productId} />
+          </PopoverPanel>
+        </>
       )}
-    </div>
+    </Popover>
   );
 }
 
@@ -208,6 +159,8 @@ export function AltArtsRow({
   base = null,
   baseOwnedControl,
   cardId,
+  shownProductId = null,
+  onShow,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -221,11 +174,31 @@ export function AltArtsRow({
   baseOwnedControl?: ReactNode;
   /** Falls back to the card's preview art when an alt (or the base) has none of its own. */
   cardId?: string | null;
+  /** Product id of the art currently shown as the card's picture (0/null = base). */
+  shownProductId?: number | null;
+  /** Makes a tile the card's picture (0 = base). Adds a Show control to every tile. */
+  onShow?: (productId: number) => void;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
   const wantSum = list.reduce((s, a) => s + (a.wanted ?? 0), 0);
   const atCap = cardNeeded != null && wantSum >= cardNeeded;
+  const shown = shownProductId ?? 0;
+  const showControl = (productId: number, name: string) =>
+    onShow ? (
+      productId === shown ? (
+        <span className="alt-shown-chip">Shown</span>
+      ) : (
+        <button
+          type="button"
+          className="alt-show-btn"
+          aria-label={`Show ${name} as the card's art`}
+          onClick={() => onShow(productId)}
+        >
+          Show
+        </button>
+      )
+    ) : null;
 
   return (
     <div className="alt-arts">
@@ -236,6 +209,7 @@ export function AltArtsRow({
             <MarketPrice price={base.market_price} productId={base.product_id} />
             {baseOwnedControl}
             <span className="alt-base-label">Base</span>
+            {showControl(0, `${base.name} base art`)}
           </div>
         </div>
       )}
@@ -288,6 +262,7 @@ export function AltArtsRow({
                   Alt
                 </span>
               )}
+              {showControl(alt.product_id, alt.name)}
             </div>
           </div>
         );

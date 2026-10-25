@@ -1,0 +1,19 @@
+/*
+ * Structure only. The group and panels wrappers take no part in layout (display: contents), so a
+ * tab row and its panels lay out exactly as the plain elements they replace. Looks stay with each
+ * app's classes: style the selected tab with [aria-selected="true"] or [data-selected].
+ * :where() keeps specificity at zero so an app class on the same element wins.
+ */
+
+:where(.ui-tabs, .ui-tab-panels) {
+  display: contents;
+}
+
+/*
+ * Headless UI moves focus to a tab from its click handler (it cancels mousedown), and Chrome then
+ * counts that as keyboard focus when nothing was focused before, so a plain mouse click would draw
+ * the browser's focus ring. Headless marks real keyboard focus with [data-focus]; only that one rings.
+ */
+.ui-tab-list [role="tab"]:focus-visible:not([data-focus]) {
+  outline: none;
+}

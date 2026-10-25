@@ -28,6 +28,8 @@ from app.models import (
     BotMatch,
     Deck,
     DuelMatch,
+    DuelMatchLog,
+    DuelMatchProgress,
     DuelMatchSeat,
     DuelRating,
     User,
@@ -424,6 +426,114 @@ def test_overview_active_players_and_top_leaders_use_their_windows_667(api):
     ]
 
 
+def test_overview_days_picks_the_window_for_the_charts_and_top_leaders_691(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin", created_at=NOW - timedelta(days=200))
+    p = mk(S, "p@x.test", created_at=NOW - timedelta(days=5))
+    mk(S, "old@x.test", created_at=NOW - timedelta(days=40))
+    with S() as db:
+        seat(db, "w1", p, "OP01-001", True, NOW - timedelta(days=2))
+        seat(db, "w2", p, "OP05-060", True, NOW - timedelta(days=20))
+        seat(db, "w3", p, "OP09-001", False, NOW - timedelta(days=60))
+        db.commit()
+    login(c, S, admin)
+    default = c.get("/admin/overview").json()
+    assert default["days"] == 30 and len(default["signups_by_day"]) == 30
+    week = c.get("/admin/overview?days=7").json()
+    assert week["days"] == 7 and len(week["signups_by_day"]) == 7 and len(week["matches_by_day"]) == 7
+    assert [l["leader_id"] for l in week["top_leaders"]] == ["OP01-001"]
+    assert sum(m["ranked"] + m["casual"] for m in week["matches_by_day"]) == 1
+    quarter = c.get("/admin/overview?days=90").json()
+    assert len(quarter["matches_by_day"]) == 90
+    assert sorted(l["leader_id"] for l in quarter["top_leaders"]) == ["OP01-001", "OP05-060", "OP09-001"]
+    assert sum(s["real"] for s in quarter["signups_by_day"]) == 2  # the admin from 200 days ago is outside
+    # The old key stays the last 30 days whatever the window.
+    assert sorted(l["leader_id"] for l in quarter["top_leaders_30d"]) == ["OP01-001", "OP05-060"]
+
+
+def test_overview_and_bots_refuse_a_window_the_page_does_not_offer_691(api):
+    c, S = api
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    for path in ("/admin/overview", "/admin/bots"):
+        for bad in ("0", "8", "365", "abc"):
+            assert c.get(f"{path}?days={bad}").status_code == 422, (path, bad)
+
+
+def test_overview_top_leaders_lists_up_to_25_691(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    with S() as db:
+        for i in range(30):
+            seat(db, f"l{i}", admin, f"OP01-{i + 1:03d}", True, NOW - timedelta(hours=1))
+        db.commit()
+    login(c, S, admin)
+    data = c.get("/admin/overview").json()
+    assert len(data["top_leaders"]) == 25
+
+
+def test_bots_by_day_follows_days_and_leaves_out_older_games_691(api):
+    c, S = api
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    with S() as db:
+        for i, age in enumerate((1, 10, 50)):
+            db.add(BotMatch(game_id=f"g{i}", batch_id="b", batch_index=i, leader_a="OP01-001", leader_b="OP05-060", winner=0, turns=7, first_seat=0, replay="{}", created_at=NOW - timedelta(days=age)))
+        db.commit()
+    default = c.get("/admin/bots").json()
+    assert default["days"] == 14 and len(default["bot_games"]["by_day"]) == 14
+    assert sum(d["games"] for d in default["bot_games"]["by_day"]) == 2
+    week = c.get("/admin/bots?days=7").json()
+    assert len(week["bot_games"]["by_day"]) == 7 and sum(d["games"] for d in week["bot_games"]["by_day"]) == 1
+    quarter = c.get("/admin/bots?days=90").json()
+    assert len(quarter["bot_games"]["by_day"]) == 90 and sum(d["games"] for d in quarter["bot_games"]["by_day"]) == 3
+    assert quarter["bot_games"]["total"] == 3  # the totals are not windowed
+
+
+def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    ann = mk(S, "ann@x.test", name="Ann", username="annie")
+    bob = mk(S, "bob@x.test", name="Bob")
+    mod = mk(S, "mod@x.test", "moderator")
+    day = (NOW - timedelta(days=3)).replace(hour=12, minute=0, second=0, microsecond=0)
+    with S() as db:
+        for mid, at, ranked, winner, leaders in [
+            ("late", day + timedelta(hours=5), False, 1, ("OP01-001", "OP05-060")),
+            ("early", day - timedelta(hours=5), True, 0, ("OP09-001", None)),
+            ("next-day", day + timedelta(days=1), True, 0, ("OP01-001", "OP01-001")),
+            ("prev-day", day - timedelta(days=1), True, 0, ("OP01-001", "OP01-001")),
+        ]:
+            db.add(
+                DuelMatch(
+                    match_id=mid, seat0_user_id=ann, seat1_user_id=bob, winner_seat=winner, ranked=ranked, turns=9,
+                    seat0_rating_before=1000, seat1_rating_before=1000, seat0_rating_after=1000, seat1_rating_after=1000,
+                    seat0_leader_id=leaders[0], seat1_leader_id=leaders[1], created_at=at,
+                )
+            )
+        db.flush()
+        # A match from before leaders were stored on it keeps its leader in the seat row.
+        db.add(DuelMatchSeat(match_id="early", seat=1, user_id=bob, leader_id="OP02-001", won=True, ranked=True, created_at=day))
+        db.commit()
+    url = f"/admin/matches?day={day.date().isoformat()}"
+    assert c.get(url).status_code == 401
+    login(c, S, mod)
+    assert c.get(url).status_code == 403
+    login(c, S, admin)
+    data = c.get(url).json()
+    assert data["day"] == day.date().isoformat()
+    assert [m["id"] for m in data["matches"]] == ["early", "late"]
+    early, late = data["matches"]
+    assert (late["ranked"], late["turns"], late["winner_seat"]) == (False, 9, 1)
+    assert late["seats"] == [
+        {"user_id": ann, "name": "annie", "leader_id": "OP01-001", "won": False},
+        {"user_id": bob, "name": "Bob", "leader_id": "OP05-060", "won": True},
+    ]
+    assert early["seats"][1]["leader_id"] == "OP02-001"
+    assert c.get("/admin/matches?day=nope").status_code == 422
+    assert c.get("/admin/matches").status_code == 422
+    empty = c.get("/admin/matches?day=2001-01-01").json()
+    assert empty == {"day": "2001-01-01", "matches": []}
+
+
 def test_overview_counts_planner_decks_and_log_pose_use_667(api):
     from app.models import AnalystAccess, AnalystUsage
 
@@ -731,3 +841,52 @@ def test_startup_makes_only_the_admin_email_admin_and_adds_the_columns_667(monke
         assert conn.execute(text("SELECT lower(email), role FROM users WHERE email = 'someone@x.test'")).one()[1] == "user"
     assert {"role", "banned_at", "ban_reason", "banned_by"} <= {c["name"] for c in inspect(engine).get_columns("users")}
     engine.dispose()
+
+
+def _replay_fixtures(S, p0: int, p1: int) -> None:
+    with S() as db:
+        db.add(
+            DuelMatch(
+                match_id="done", seat0_user_id=p0, seat1_user_id=p1, winner_seat=0, turns=6,
+                seat0_rating_before=1000, seat1_rating_before=1000, seat0_rating_after=1000, seat1_rating_after=1000,
+            )
+        )
+        db.flush()
+        db.add(DuelMatchLog(match_id="done", replay=json.dumps({"seed": 1})))
+        db.add(DuelMatchProgress(match_id="cut", seat0_user_id=p0, seat1_user_id=p1, replay=json.dumps({"seed": 2}), closed=True, turns=3))
+        db.add(DuelMatchProgress(match_id="live", seat0_user_id=p0, seat1_user_id=p1, replay=json.dumps({"seed": 3}), closed=False))
+        db.commit()
+
+
+def test_admin_opens_another_players_finished_replay_but_nobody_else_can_691(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    mod = mk(S, "mod@x.test", "moderator")
+    stranger = mk(S, "s@x.test")
+    p0, p1 = mk(S, "p0@x.test", name="Zed"), mk(S, "p1@x.test")
+    _replay_fixtures(S, p0, p1)
+    login(c, S, admin)
+    got = c.get("/duel/matches/me/done/replay")
+    assert got.status_code == 200
+    assert (got.json()["replay"], got.json()["finished"], got.json()["players"][0]) == ({"seed": 1}, True, "Zed")
+    for uid in (mod, stranger):
+        login(c, S, uid)
+        assert c.get("/duel/matches/me/done/replay").status_code == 404
+    login(c, S, p1)
+    assert c.get("/duel/matches/me/done/replay").json()["your_seat"] == 1
+
+
+def test_admin_opens_a_closed_cut_off_game_but_a_game_still_being_played_stays_409_691(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    mod = mk(S, "mod@x.test", "moderator")
+    p0, p1 = mk(S, "p0@x.test"), mk(S, "p1@x.test")
+    _replay_fixtures(S, p0, p1)
+    login(c, S, admin)
+    cut = c.get("/duel/matches/me/cut/replay")
+    assert (cut.status_code, cut.json()["finished"], cut.json()["replay"]) == (200, False, {"seed": 2})
+    assert c.get("/duel/matches/me/live/replay").status_code == 409
+    assert c.get("/duel/matches/me/nope/replay").status_code == 404
+    login(c, S, mod)
+    assert c.get("/duel/matches/me/cut/replay").status_code == 404
+    assert c.get("/duel/matches/me/live/replay").status_code == 404

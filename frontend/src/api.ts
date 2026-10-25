@@ -25,7 +25,7 @@ export function getApiBaseUrl(): string {
   return API_URL;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: HeadersInit = {
     ...(init?.headers || {}),
   };
@@ -62,6 +62,8 @@ export type User = {
   name: string;
   /** Shopping Need sums copies across distinct leaders instead of max across decks. */
   sum_across_leaders?: boolean;
+  /** Public handle shared with duel-web; null until picked. */
+  username?: string | null;
 };
 
 export type DeckSummary = {
@@ -79,6 +81,8 @@ export type DeckSummary = {
   sort_order: number;
   /** Effective Main for this leader (explicit or earliest same-leader fallback). */
   is_main?: boolean;
+  /** Friends can't see this deck. */
+  hidden_from_friends?: boolean;
 };
 
 export type PrintingView = {
@@ -133,6 +137,8 @@ export type CardView = {
   product_id?: number | null;
   section: "main" | "additional" | "don" | string;
   alt_arts: PrintingView[];
+  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
+  display_art?: number | null;
 };
 
 export type DeckDetail = {
@@ -146,6 +152,7 @@ export type DeckDetail = {
   cards: CardView[];
   main_cards?: number;
   don_cards?: number;
+  hidden_from_friends?: boolean;
 };
 
 export type ShoppingItem = {
@@ -167,6 +174,8 @@ export type ShoppingItem = {
   product_id?: number | null;
   used_in: string[];
   alt_arts: PrintingView[];
+  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
+  display_art?: number | null;
   deck_sort_key?: string;
   primary_leader_card_id?: string | null;
   primary_leader_name?: string | null;
@@ -307,6 +316,8 @@ export type GroupBuyLine = {
   image_url: string;
   members: GroupBuyMemberQty[];
   alt_arts: PrintingView[];
+  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
+  display_art?: number | null;
   my_qty: number;
   my_suggested_qty: number;
   my_is_custom: boolean;
@@ -530,6 +541,14 @@ export const api = {
         body: JSON.stringify({ qty }),
       },
     ),
+  setDisplayArt: (cardId: string, productId: number | null) =>
+    request<{ card_id: string; product_id: number | null }>(
+      `/owned/${encodeURIComponent(cardId)}/display`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ product_id: productId }),
+      },
+    ),
   searchCatalog: (opts?: {
     q?: string;
     color?: string;
@@ -563,6 +582,12 @@ export const api = {
     request<{ card_id: string; qty: number }>(`/owned/${encodeURIComponent(cardId)}`, {
       method: "PUT",
       body: JSON.stringify({ qty }),
+    }),
+  /** Add copies on top of the current Owned counts, one request for many cards. */
+  addOwned: (items: { card_id: string; add: number }[]) =>
+    request<{ items: { card_id: string; owned: number }[] }>("/owned/add", {
+      method: "POST",
+      body: JSON.stringify({ items }),
     }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),

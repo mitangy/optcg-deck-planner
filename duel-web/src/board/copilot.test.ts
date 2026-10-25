@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { TurnPlan } from "@optcg/analyst-client";
+import type { ChoiceAnswer, TurnPlan } from "@optcg/analyst-client";
 import type { Intent, PendingChoiceView, PlayerView } from "../net/protocol";
 import {
+  autoAsk,
+  autoAskAllowed,
   buildSnapshot,
+  choiceAnswerIntent,
   compactLegal,
   copilotAvailable,
   copilotShown,
@@ -196,7 +199,7 @@ describe("the snapshot sent to the analyst (#416)", () => {
     ({ id: "ch1", seat: 0, kind: "effect", cardDefId: "OP01-016", optional: false, prompt: "Choose a card", ...extra }) as PendingChoiceView;
 
   it("includes the front choice only when it is this seat's to answer (#416)", () => {
-    expect(buildSnapshot(mkView(), null, choice({})).choice).toEqual({ prompt: "Choose a card", kind: "effect" });
+    expect(buildSnapshot(mkView(), null, choice({})).choice).toMatchObject({ id: "ch1", prompt: "Choose a card", kind: "effect" });
     expect(buildSnapshot(mkView(), null, choice({ seat: 1 })).choice).toBeNull();
     expect(buildSnapshot(mkView(), null, null).choice).toBeNull();
   });
@@ -558,5 +561,206 @@ describe("a plan outlives the device showing the other seat (#416)", () => {
   it("leaves a run that already ended alone (#416)", () => {
     const stopped = stopRun(startRun(p), "You stopped it.");
     expect(stepRunOtherSeat(stopped, mkView({ seat: 1, turnNumber: 4 }, []))).toBe(stopped);
+  });
+});
+
+// ——— Log Pose plays the turn (#725) ———
+
+describe("the choice in the snapshot (#725)", () => {
+  const ch = (extra: Partial<PendingChoiceView>): PendingChoiceView =>
+    ({ id: "ch1", seat: 0, kind: "effect", cardDefId: "OP01-016", optional: false, prompt: "Choose", ...extra }) as PendingChoiceView;
+  const opts = (n: number, eligible = true) => Array.from({ length: n }, (_, i) => ({ id: `o${i}`, defId: "OP01-016", eligible }));
+
+  it("carries the id and every option of a select with its limits, and marks what can be declined (#725)", () => {
+    const c = buildSnapshot(mkView(), null, ch({ optional: true, request: { type: "select", min: 1, max: 2, options: [{ id: "o1", defId: "OP01-016", eligible: true, ownerSeat: 1, zone: "character", instanceId: "i9" }, { id: "o2", defId: "HIDDEN", eligible: false }] } })).choice!;
+    expect(c).toMatchObject({ id: "ch1", optional: true, request: { type: "select", min: 1, max: 2 } });
+    expect(c.request!.options).toEqual([
+      { id: "o1", defId: "OP01-016", inst: "i9", zone: "character", owner: "opponent", eligible: true },
+      // A hidden card never goes out as a card number.
+      { id: "o2", eligible: false },
+    ]);
+  });
+
+  it("marks a Life card without [Trigger] and a cost that can't be paid as decline-only (#725)", () => {
+    expect(buildSnapshot(mkView(), null, ch({ kind: "life_trigger", noTrigger: true })).choice).toMatchObject({ declineOnly: true, optional: true });
+    expect(buildSnapshot(mkView(), null, ch({ unpayable: true })).choice).toMatchObject({ declineOnly: true, optional: true });
+    expect(buildSnapshot(mkView(), null, ch({ kind: "life_trigger" })).choice).not.toHaveProperty("declineOnly");
+  });
+
+  it("sends the abilities of an order_effects prompt as an order, and look and order requests with their limits (#725)", () => {
+    const order = buildSnapshot(mkView(), null, ch({ kind: "order_effects", unorderedChoices: [ch({ id: "u1", prompt: "Draw 1" }), ch({ id: "u2", prompt: "K.O. one" })] })).choice!;
+    expect(order.request).toMatchObject({ type: "order", options: [{ id: "u1", label: "Draw 1" }, { id: "u2", label: "K.O. one" }] });
+    const look = buildSnapshot(mkView(), null, ch({ request: { type: "look", options: opts(3), minSelect: 0, maxSelect: 1, groups: [], rest: "top_or_bottom", restLabel: "" } })).choice!;
+    expect(look.request).toMatchObject({ type: "look", min: 0, max: 1, rest: "top_or_bottom" });
+  });
+
+  it("marks a request with more than 40 options truncated, eligible ones first, so Log Pose won't guess at it (#725)", () => {
+    const many = [...opts(30, false), ...opts(20).map((o, i) => ({ ...o, id: `e${i}` }))];
+    const r = buildSnapshot(mkView(), null, ch({ request: { type: "select", min: 1, max: 1, options: many } })).choice!.request!;
+    expect(r.options).toHaveLength(40);
+    expect(r.truncated).toBe(true);
+    expect(r.options![0]!.eligible).toBe(true);
+    expect(buildSnapshot(mkView(), null, ch({ request: { type: "select", min: 1, max: 1, options: opts(40) } })).choice!.request).not.toHaveProperty("truncated");
+  });
+});
+
+describe("how many times Log Pose may ask on its own in a turn (#725)", () => {
+  it("allows exactly six automatic requests and refuses the seventh (#725)", () => {
+    expect(autoAskAllowed(0)).toBe(true);
+    expect(autoAskAllowed(5)).toBe(true);
+    expect(autoAskAllowed(6)).toBe(false);
+    expect(autoAskAllowed(7)).toBe(false);
+  });
+});
+
+describe("what Log Pose is asked next while it plays the turn (#725)", () => {
+  const p = plan([give("L0", 1), endTurn]);
+  const auto = (over: Partial<PlanRun> = {}): PlanRun => ({ ...startRun(p, true), ...over });
+  const none = new Set<string>();
+  const front = (extra: Record<string, unknown> = {}) => [{ id: "ch7", seat: 0, kind: "effect", prompt: "Choose a card to trash", ...extra }];
+
+  it("asks about the front choice of its own seat, once per choice id (#725)", () => {
+    const run = auto({ state: "choice" });
+    const a = autoAsk(run, mkView({ pendingChoices: front() }), none)!;
+    expect(a).toMatchObject({ kind: "choice", key: "choice:ch7" });
+    expect(a.text).toContain("Choose a card to trash");
+    expect(autoAsk(run, mkView({ pendingChoices: front() }), new Set([a.key]))).toBeNull();
+    expect(autoAsk(run, mkView({ pendingChoices: front({ id: "ch8" }) }), new Set([a.key]))).toMatchObject({ key: "choice:ch8" });
+  });
+
+  it("never asks about the opponent's choice (#725)", () => {
+    expect(autoAsk(auto({ state: "running" }), mkView({ pendingChoices: front({ seat: 1 }) }), none)).toBeNull();
+  });
+
+  it("asks nothing for a run the player started themselves, or on another turn, or after the game (#725)", () => {
+    const manual = { ...auto(), auto: undefined } as PlanRun;
+    expect(autoAsk(manual, mkView({ pendingChoices: front() }), none)).toBeNull();
+    expect(autoAsk(auto({ state: "choice" }), mkView({ turnNumber: 4, pendingChoices: front() }), none)).toBeNull();
+    expect(autoAsk(auto({ state: "choice" }), mkView({ winner: 0, pendingChoices: front() }), none)).toBeNull();
+    expect(autoAsk(null, mkView(), none)).toBeNull();
+  });
+
+  it("asks for a new plan when a step is blocked, with the step and why (#725)", () => {
+    const a = autoAsk(auto({ state: "blocked", reason: "That card can't be played.", cursor: { step: 0, done: 0, inFlight: null } }), mkView(), none)!;
+    expect(a).toMatchObject({ kind: "replan", key: `replan:${p.id}:0` });
+    expect(a.text).toBe(replanQuestion(p, 0, "That card can't be played."));
+  });
+
+  it("asks to play the rest when the run finished without ending the turn, and only once nothing is going on (#725)", () => {
+    const done = auto({ state: "done", cursor: { step: 2, done: 0, inFlight: null } });
+    expect(autoAsk(done, mkView(), none)).toMatchObject({ kind: "continue", key: `continue:${p.id}` });
+    expect(autoAsk(done, mkView({ battle: { attackerId: "L0" } }), none)).toBeNull();
+    expect(autoAsk(done, mkView({ phase: "counter" }), none)).toBeNull();
+    expect(autoAsk(done, mkView({ activeSeat: 1 }), none)).toBeNull();
+    expect(autoAsk(done, mkView(), new Set([`continue:${p.id}`]))).toBeNull();
+  });
+
+  it("answers a choice first when the run finished with a prompt still open (#725)", () => {
+    const done = auto({ state: "done", cursor: { step: 2, done: 0, inFlight: null } });
+    expect(autoAsk(done, mkView({ pendingChoices: front() }), none)).toMatchObject({ kind: "choice" });
+  });
+
+  it("asks nothing while the run is just playing (#725)", () => {
+    expect(autoAsk(auto({ state: "running" }), mkView(), none)).toBeNull();
+  });
+});
+
+describe("carrying out Log Pose's answer to a choice (#725)", () => {
+  const ch = (extra: Partial<PendingChoiceView>): PendingChoiceView =>
+    ({ id: "ch1", seat: 0, kind: "effect", cardDefId: "OP01-016", optional: false, prompt: "Choose", ...extra }) as PendingChoiceView;
+  const ans = (extra: Partial<ChoiceAnswer> = {}): ChoiceAnswer => ({ id: "tu1", choiceId: "ch1", accept: true, summary: "x", ...extra });
+  const o = (id: string, extra: Record<string, unknown> = {}) => ({ id, defId: "OP01-016", eligible: true, ...extra });
+  const select = (extra: Record<string, unknown> = {}) => ch({ request: { type: "select", min: 1, max: 2, options: [o("a"), o("b"), o("c", { eligible: false }), o("d")], ...extra } as never });
+  const names: Record<string, string> = { "OP01-016": "Nami", "OP01-029": "Sanji" };
+  const nameOf = (id: string) => names[id] ?? id;
+  const intent = (c: PendingChoiceView, a: ChoiceAnswer, nameFor?: (defId: string) => string) => choiceAnswerIntent(c, a, 0, nameFor);
+
+  it("answers only the choice it names, never the next prompt (#725)", () => {
+    expect(choiceAnswerIntent(select(), ans({ choiceId: "ch0", selectedOptionIds: ["a"] }), 0)).toBeNull();
+    expect(choiceAnswerIntent(select(), ans({ selectedOptionIds: ["a"] }), 0)).toEqual({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["a"] });
+  });
+
+  it("answers only a choice that is this seat's own (#725)", () => {
+    expect(choiceAnswerIntent(select({}), ans({ selectedOptionIds: ["a"] }), 1)).toBeNull();
+    expect(choiceAnswerIntent(ch({ seat: 1 }), ans({}), 0)).toBeNull();
+  });
+
+  it("builds a select from eligible, unique picks within min..max (#725)", () => {
+    for (const bad of [[], ["a", "a"], ["c"], ["zzz"], ["a", "b", "d"]]) expect(intent(select(), ans({ selectedOptionIds: bad }))).toBeNull();
+    expect(intent(select(), ans({}))).toBeNull();
+    expect(intent(select(), ans({ selectedOptionIds: ["a", "b"] }))).toMatchObject({ selectedOptionIds: ["a", "b"] });
+    expect(intent(select({ min: 0 }), ans({ selectedOptionIds: [] }))).toMatchObject({ accept: true, selectedOptionIds: [] });
+  });
+
+  it("refuses two picks with the same card name when the prompt wants different ones (#725)", () => {
+    const same = ch({ request: { type: "select", min: 1, max: 2, distinctNames: true, options: [o("a"), o("b"), o("d", { defId: "OP01-029" })] } as never });
+    expect(intent(same, ans({ selectedOptionIds: ["a", "b"] }), nameOf)).toBeNull();
+    expect(intent(same, ans({ selectedOptionIds: ["a", "d"] }), nameOf)).toMatchObject({ selectedOptionIds: ["a", "d"] });
+  });
+
+  it("builds a mode from exactly one eligible option (#725)", () => {
+    const mode = ch({ request: { type: "mode", options: [o("m1"), o("m2"), o("m3", { eligible: false })] } as never });
+    expect(intent(mode, ans({ selectedOptionIds: ["m2"] }))).toEqual({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["m2"] });
+    for (const bad of [[], ["m1", "m2"], ["m3"]]) expect(intent(mode, ans({ selectedOptionIds: bad }))).toBeNull();
+  });
+
+  it("declines only what can be declined, and accepts nothing when only declining is legal (#725)", () => {
+    expect(intent(ch({ optional: true }), ans({ accept: false }))).toEqual({ type: "resolve_pending_choice", accept: false });
+    expect(intent(ch({}), ans({ accept: false }))).toBeNull();
+    expect(intent(ch({ kind: "life_trigger" }), ans({ accept: false }))).toEqual({ type: "resolve_pending_choice", accept: false });
+    expect(intent(ch({ kind: "life_trigger", noTrigger: true }), ans({}))).toBeNull();
+    expect(intent(ch({ unpayable: true }), ans({}))).toBeNull();
+    expect(intent(ch({ unpayable: true }), ans({ accept: false }))).toEqual({ type: "resolve_pending_choice", accept: false });
+  });
+
+  it("accepts a confirm, and a choice with no request (#725)", () => {
+    expect(intent(ch({ request: { type: "confirm" } }), ans({}))).toEqual({ type: "resolve_pending_choice", accept: true });
+    expect(intent(ch({}), ans({}))).toEqual({ type: "resolve_pending_choice", accept: true });
+  });
+
+  it("orders cards as the board's own prompt does: all in order, or top first with the top ids (#725)", () => {
+    const order = (allowTopOrBottom?: true) => ch({ request: { type: "order", destination: "deck", options: [o("a"), o("b"), o("c")], ...(allowTopOrBottom ? { allowTopOrBottom } : {}) } as never });
+    expect(intent(order(), ans({ orderedOptionIds: ["c", "a", "b"] }))).toEqual({ type: "resolve_pending_choice", accept: true, orderedOptionIds: ["c", "a", "b"] });
+    expect(intent(order(), ans({ orderedOptionIds: ["c", "a"] }))).toBeNull();
+    expect(intent(order(), ans({ orderedOptionIds: ["c", "a", "a"] }))).toBeNull();
+    expect(intent(order(true), ans({ orderedOptionIds: ["a", "b", "c"], topOptionIds: ["c"] }))).toEqual({ type: "resolve_pending_choice", accept: true, orderedOptionIds: ["c", "a", "b"], topOptionIds: ["c"] });
+  });
+
+  it("takes within the look's limits and sends the rest back in order, all on one side for top-or-bottom (#725)", () => {
+    const look = (rest: string) => ch({ request: { type: "look", options: [o("a"), o("b"), o("c")], minSelect: 0, maxSelect: 1, groups: [], rest, restLabel: "" } as never });
+    expect(intent(look("deck_bottom"), ans({ selectedOptionIds: ["b"], orderedOptionIds: ["c", "a"] }))).toEqual({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["b"], orderedOptionIds: ["c", "a"] });
+    expect(intent(look("deck_bottom"), ans({ selectedOptionIds: ["a", "b"] }))).toBeNull();
+    expect(intent(look("deck_bottom"), ans({ selectedOptionIds: ["b"], orderedOptionIds: ["a"] }))).toBeNull();
+    expect(intent(look("deck_bottom"), ans({ selectedOptionIds: [], topOptionIds: ["a"] }))).toBeNull();
+    expect(intent(look("top_or_bottom"), ans({ selectedOptionIds: [], orderedOptionIds: ["a", "b", "c"], topOptionIds: ["a", "b", "c"] }))).toMatchObject({ topOptionIds: ["a", "b", "c"] });
+    expect(intent(look("top_or_bottom"), ans({ selectedOptionIds: [] }))).toMatchObject({ orderedOptionIds: ["a", "b", "c"], topOptionIds: [] });
+    expect(intent(look("top_or_bottom"), ans({ selectedOptionIds: [], topOptionIds: ["a"] }))).toBeNull();
+  });
+
+  it("orders simultaneous effects with order_pending_effects, only as a permutation of the abilities (#725)", () => {
+    const fx = ch({ kind: "order_effects", unorderedChoices: [ch({ id: "u1" }), ch({ id: "u2" })] });
+    expect(intent(fx, ans({ orderedOptionIds: ["u2", "u1"] }))).toEqual({ type: "order_pending_effects", orderedIds: ["u2", "u1"] });
+    expect(intent(fx, ans({ orderedOptionIds: ["u2"] }))).toBeNull();
+    expect(intent(fx, ans({}))).toBeNull();
+  });
+});
+
+describe("a run Log Pose plays (#725)", () => {
+  const p = plan([endTurn]);
+
+  it("is marked auto only when started that way, and its card says so (#725)", () => {
+    expect(startRun(p).auto).toBeUndefined();
+    expect(startRun(p, true).auto).toBe(true);
+    const view = mkView();
+    expect(planCardMode(p, startRun(p, true), startRun(p, true), view)).toMatchObject({ kind: "running", auto: true });
+    expect(planCardMode(p, startRun(p), startRun(p), view)).not.toHaveProperty("auto");
+    expect(planCardMode(p, { ...startRun(p, true), state: "blocked", reason: "x" }, null, view)).toMatchObject({ kind: "blocked", auto: true });
+    expect(planCardMode(p, { ...startRun(p, true), state: "choice" }, null, view)).toMatchObject({ kind: "choice", auto: true });
+  });
+
+  it("keeps its marker through the executor's steps (#725)", () => {
+    const r = stepRun(startRun(p, true), mkView({}, [END]));
+    expect(r.run.auto).toBe(true);
+    expect(r.send).toEqual(END);
   });
 });

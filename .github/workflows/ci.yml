@@ -383,7 +383,7 @@ jobs:
         with:
           node-version: "22"
       - name: Install root workspace deps
-        if: contains(fromJSON('["rules","deck-analytics","patch-notes","analyst-client","analyst","game-server"]'), matrix.suite)
+        if: contains(fromJSON('["rules","deck-analytics","patch-notes","ui","site-legal","analyst-client","analyst","game-server"]'), matrix.suite)
         run: npm ci
       - name: Install duel-web deps
         if: matrix.suite == 'duel-web'

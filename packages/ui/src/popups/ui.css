@@ -1,0 +1,63 @@
+/*
+ * Structure only: where the backdrop and menu sit. Colours, radii and shadows
+ * come from the host app through --ui-* variables (the same token bridge as
+ * site-legal's --fb-* and patch-notes' --wn-*); map them in the app's CSS.
+ * :where() keeps specificity at zero so an app class on the same element wins.
+ */
+
+:where(.ui-dialog) {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ui-z, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ui-pad, 1rem);
+  background: var(--ui-backdrop, rgb(0 0 0 / 0.6));
+  /* Headless UI focuses the dialog itself when nothing inside asks for focus. */
+  outline: none;
+}
+
+:where(.ui-dialog-panel) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Opt-in look for a panel with no styles of its own: panelClassName="ui-surface". */
+:where(.ui-surface) {
+  color: var(--ui-ink, inherit);
+  background: var(--ui-panel-bg, Canvas);
+  border: var(--ui-border, 1px solid currentColor);
+  border-radius: var(--ui-radius, 12px);
+}
+
+:where(.ui-menu-items) {
+  z-index: var(--ui-z, 1000);
+  box-sizing: border-box;
+  min-width: var(--button-width, 8rem);
+  max-height: min(var(--anchor-max-height, 60dvh), 60dvh);
+  overflow: auto;
+  padding: 0.25rem;
+  color: var(--ui-ink, inherit);
+  background: var(--ui-panel-bg, Canvas);
+  border: var(--ui-border, 1px solid currentColor);
+  border-radius: var(--ui-radius, 8px);
+  outline: none;
+}
+
+:where(.ui-menu-items [data-focus]) {
+  background: var(--ui-hover, rgb(128 128 128 / 0.2));
+}
+
+:where(.ui-popover-panel) {
+  z-index: var(--ui-z, 1000);
+  box-sizing: border-box;
+  max-height: min(var(--anchor-max-height, 60dvh), 60dvh);
+  overflow: auto;
+  color: var(--ui-ink, inherit);
+  background: var(--ui-panel-bg, Canvas);
+  border: var(--ui-border, 1px solid currentColor);
+  border-radius: var(--ui-radius, 8px);
+  outline: none;
+}

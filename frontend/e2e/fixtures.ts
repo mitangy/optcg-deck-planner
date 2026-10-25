@@ -61,6 +61,10 @@ type Planner = {
   owned: Map<string, number>;
   /** Owned alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
   altOwned: Map<string, number>;
+  /** JSON bodies the page POSTed to /owned/add (Collection photo scan). */
+  ownedAdds: { items: { card_id: string; add: number }[] }[];
+  /** Chosen display art per card (0 = base, >0 = product id), as the fake backend holds it. */
+  displayArt: Map<string, number>;
   /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
   extras: Map<string, number>;
   /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
@@ -73,6 +77,8 @@ type Planner = {
   enableLogPose(): void;
   /** Sign out for this session (call before `open`): /auth/me answers null. */
   signOut(): void;
+  /** Whether the fake deck is hidden from friends (set by PATCH /decks/:id with hidden_from_friends). */
+  readonly deckHidden: boolean;
   /** Decks the page created through POST /decks (name and decklist as sent). */
   createdDecks: { name: string; decklist: string }[];
   /** JSON bodies the page POSTed to the fake analyst's /chat. */
@@ -93,7 +99,10 @@ export const test = base.extend<{ planner: Planner }>({
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
     const extras = new Map<string, number>();
+    const ownedAdds: Planner["ownedAdds"] = [];
+    const displayArt = new Map<string, number>();
     let hasDecks = true;
+    let deckHidden = false;
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
       const alt_arts = (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
@@ -116,6 +125,7 @@ export const test = base.extend<{ planner: Planner }>({
         product_id: c.product_id,
         section: c.section,
         alt_arts,
+        display_art: displayArt.get(c.card_id) ?? null,
       };
     };
     const mainCards = CARDS.reduce((s, c) => s + c.needed, 0);
@@ -129,6 +139,7 @@ export const test = base.extend<{ planner: Planner }>({
       cards: CARDS.map(cardView),
       main_cards: mainCards,
       don_cards: 0,
+      hidden_from_friends: deckHidden,
     });
     // Mirrors the backend: still-needed copies are priced at the standard printing.
     const remainingCost = (v: ReturnType<typeof cardView>) => Math.round(v.still_need * v.market_price * 100) / 100;
@@ -299,7 +310,13 @@ export const test = base.extend<{ planner: Planner }>({
           },
         ]);
       }
-      if (path === `/decks/${DECK_ID}`) return json(deckDetail());
+      if (path === `/decks/${DECK_ID}`) {
+        if (method === "PATCH") {
+          const patch = JSON.parse(req.postData() ?? "{}") as { hidden_from_friends?: boolean };
+          if (typeof patch.hidden_from_friends === "boolean") deckHidden = patch.hidden_from_friends;
+        }
+        return json(deckDetail());
+      }
       if (path === "/shopping") return json(shopping(new URL(req.url()).searchParams.get("extras") !== "false"));
       if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
@@ -361,6 +378,24 @@ export const test = base.extend<{ planner: Planner }>({
         else altOwned.delete(`${cardId}:${m[2]}`);
         return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
+      if (path === "/owned/add" && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as Planner["ownedAdds"][number];
+        ownedAdds.push(body);
+        const items = body.items.map((i) => {
+          const next = (owned.get(i.card_id) ?? 0) + i.add;
+          owned.set(i.card_id, next);
+          return { card_id: i.card_id, owned: next };
+        });
+        return json({ items });
+      }
+      // Which art a card shows: PUT /owned/:card/display (null = automatic).
+      if ((m = path.match(/^\/owned\/([^/]+)\/display$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!).toUpperCase();
+        const productId = (JSON.parse(req.postData() ?? "{}") as { product_id: number | null }).product_id;
+        if (productId == null) displayArt.delete(cardId);
+        else displayArt.set(cardId, productId);
+        return json({ card_id: cardId, product_id: productId });
+      }
       if ((m = path.match(/^\/owned\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
@@ -406,11 +441,16 @@ export const test = base.extend<{ planner: Planner }>({
     await use({
       owned,
       altOwned,
+      displayArt,
       extras,
+      ownedAdds,
       noDecks() {
         hasDecks = false;
       },
       requests,
+      get deckHidden() {
+        return deckHidden;
+      },
       errors,
       chats,
       createdDecks,

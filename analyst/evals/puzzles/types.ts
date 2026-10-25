@@ -1,13 +1,15 @@
 /** Rules puzzles (#677): one position, one question, one answer the duel engine decides. */
 
-export const PUZZLE_TYPES = ["power", "counter_needed", "playable", "can_attack", "scenario"] as const;
+export const PUZZLE_TYPES = ["power", "counter_needed", "playable", "can_attack", "scenario", "defend", "lethal", "scenario_chain"] as const;
 export type PuzzleType = (typeof PUZZLE_TYPES)[number];
 
 /**
  * The right answer. `key` is the field of the model's JSON answer. A number is compared exactly; a "set" is a list of
  * distinct card ids whose order and repeats do not matter; a "multiset" keeps repeats (two copies in a hand are two entries).
+ * An "all" gold (#685) is several golds asked at once: the answer is one JSON object holding every part's `key`, and it is
+ * right only when every part is.
  */
-export type Gold = { key: string; mode: "number"; value: number } | { key: string; mode: "set" | "multiset"; value: string[] };
+export type Gold = { key: string; mode: "number"; value: number } | { key: string; mode: "set" | "multiset"; value: string[] } | { key: string; mode: "all"; parts: Gold[] };
 
 export type Puzzle = {
   id: string;

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { NavMenu } from "../nav/NavMenu";
 import { fetchAuthMe } from "../net/api";
 import { BackLink } from "../pages/BackLink";
@@ -12,7 +13,7 @@ import {
   fetchAdminMe,
   fetchAdminOverview,
 } from "./adminApi";
-import { type AdminTab, tabsForRole } from "./adminLogic";
+import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
 import { BotsTab } from "./BotsTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
@@ -20,25 +21,37 @@ import { UsersTab, type Actor } from "./UsersTab";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
-/** One tab's data: fetched when the tab first opens, again on Refresh. */
-function useTabData<T>(active: boolean, fetcher: (force: boolean) => Promise<T>) {
+/**
+ * One tab's data: fetched when the tab first opens, again on Refresh, and again when `key` changes (a new date range).
+ * The data on screen stays until the new response lands, so the page does not blank or jump; a response for an
+ * older key is dropped.
+ */
+function useTabData<T>(active: boolean, fetcher: (force: boolean) => Promise<T>, key: string | number = "") {
   const [state, setState] = useState<Load<T>>({ status: "loading" });
   const [started, setStarted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const latest = useRef(fetcher);
+  latest.current = fetcher;
+  const seq = useRef(0);
   const run = useCallback((force = false) => {
+    const mine = ++seq.current;
     setRefreshing(true);
-    fetcher(force)
-      .then((data) => setState({ status: "ready", data }))
-      .catch((e: Error) => setState((s) => (s.status === "ready" ? s : { status: "error", message: e.message })))
-      .finally(() => setRefreshing(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    latest.current(force)
+      .then((data) => mine === seq.current && setState({ status: "ready", data }))
+      .catch((e: Error) => mine === seq.current && setState((s) => (s.status === "ready" ? s : { status: "error", message: e.message })))
+      .finally(() => mine === seq.current && setRefreshing(false));
   }, []);
+  const lastKey = useRef(key);
   useEffect(() => {
     if (active && !started) {
       setStarted(true);
+      lastKey.current = key;
+      run(false);
+    } else if (started && lastKey.current !== key) {
+      lastKey.current = key;
       run(false);
     }
-  }, [active, started, run]);
+  }, [active, started, run, key]);
   return { state, refreshing, run };
 }
 
@@ -78,8 +91,11 @@ export default function AdminPage() {
   const tabs = who.status === "ok" ? tabsForRole(who.me.role) : [];
   const current = tab && tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? null);
 
-  const overview = useTabData<AdminOverview>(current === "players", () => fetchAdminOverview());
-  const bots = useTabData<AdminBots>(current === "bots", () => fetchAdminBots());
+  // Each tab keeps its own date range, so switching tabs does not reset the other one.
+  const [overviewDays, setOverviewDays] = useState<RangeDays>(30);
+  const [botsDays, setBotsDays] = useState<RangeDays>(14);
+  const overview = useTabData<AdminOverview>(current === "players", () => fetchAdminOverview(overviewDays), overviewDays);
+  const bots = useTabData<AdminBots>(current === "bots", () => fetchAdminBots(botsDays), botsDays);
   const hosting = useTabData<AdminHosting>(current === "hosting", fetchAdminHosting);
 
   if (who.status === "loading") {
@@ -115,8 +131,14 @@ export default function AdminPage() {
         </p>
       );
     }
-    if (current === "players") return <PlayersTab data={s.data as AdminOverview} />;
-    if (current === "bots") return <BotsTab data={s.data as AdminBots} />;
+    if (current === "players") {
+      const d = s.data as AdminOverview;
+      return <PlayersTab data={d} days={overviewDays} onDaysChange={setOverviewDays} stale={refreshing || d.days !== overviewDays} />;
+    }
+    if (current === "bots") {
+      const d = s.data as AdminBots;
+      return <BotsTab data={d} days={botsDays} onDaysChange={setBotsDays} stale={refreshing || d.days !== botsDays} />;
+    }
     return <HostingTab data={s.data as AdminHosting} />;
   }
 
@@ -130,24 +152,33 @@ export default function AdminPage() {
           <span className="adm-role">{who.me.role}</span>
         </header>
 
-        <div className="adm-tabbar">
-          <div className="adm-tabs" role="tablist" aria-label="Admin sections">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" role="tab" aria-selected={t.id === current} className="adm-tab" onClick={() => setTab(t.id)}>
-                {t.label}
+        <TabGroup
+          selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
+          onChange={(i) => setTab(tabs[i]!.id)}
+        >
+          <div className="adm-tabbar">
+            <TabList className="adm-tabs" aria-label="Admin sections">
+              {tabs.map((t) => (
+                <Tab key={t.id} className="adm-tab">
+                  {t.label}
+                </Tab>
+              ))}
+            </TabList>
+            {tabData ? (
+              <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
+                Refresh
               </button>
-            ))}
+            ) : null}
           </div>
-          {tabData ? (
-            <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
-              Refresh
-            </button>
-          ) : null}
-        </div>
 
-        <div className="adm-body" role="tabpanel">
-          {body()}
-        </div>
+          <TabPanels>
+            {tabs.map((t) => (
+              <TabPanel key={t.id} className="adm-body">
+                {t.id === current ? body() : null}
+              </TabPanel>
+            ))}
+          </TabPanels>
+        </TabGroup>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import "@optcg/site-legal/siteLegal.css";
 import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
+import "./friends/friends.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

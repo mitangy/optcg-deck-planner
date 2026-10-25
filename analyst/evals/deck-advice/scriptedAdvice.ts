@@ -58,6 +58,8 @@ export function scriptedAdviceModel(catalog: Catalog, c: AdviceCase, freq: Reado
   const style = scriptedStyle(c);
   return scriptedModel(({ call }) => {
     if (!deltas.length) return textReply("This list looks well tuned for the current meta; I would not change it. This is my read.", model);
+    // After the app's check (#686) a text-style model keeps its answer and does not repeat the lines.
+    if (style === "text" && call > 0) return textReply("Those are the changes I would make.", model);
     if (style === "text") return textReply(`This is my read of the list. Here are the changes I would make:\n${lines(catalog, deltas).join("\n")}`, model);
     if (call === 0) {
       return toolReply([{ name: PROPOSE_TOOL, input: { summary: "Tune the list for the current meta", changes: deltas.map((d) => ({ id: d.id, delta: d.delta, reason: d.delta < 0 ? "Weaker than the alternatives here" : "Fits the plan better" })) } }], model);

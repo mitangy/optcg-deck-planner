@@ -242,6 +242,7 @@ def _build_lines(
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
     viewer_shop_alts: dict[str, list] = {}
+    viewer_display: dict[str, int | None] = {}
     # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
     for member in group.members:
@@ -257,6 +258,7 @@ def _build_lines(
                     a.product_id: a.wanted for a in item.alt_arts if a.wanted > 0
                 }
                 viewer_shop_alts[item.card_id] = item.alt_arts
+                viewer_display[item.card_id] = item.display_art
         member_shop_alts[member.user_id] = by_card
 
     catalog, primary_ids, alts, printings = _catalog_bundle(
@@ -361,6 +363,7 @@ def _build_lines(
                     if m.qty > 0 or m.user_id == viewer_user_id
                 ],
                 alt_arts=list(viewer_shop_alts.get(card_id) or alts.get(card_id, [])),
+                display_art=viewer_display.get(card_id),
                 my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
                 my_is_custom=my_is_custom,

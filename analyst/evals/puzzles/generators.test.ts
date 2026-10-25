@@ -1,7 +1,7 @@
 import { applyIntent, listLegalIntents, powerOf, type Intent, type MatchState, type Seat } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
-import { attackerIds, canAttackPuzzle, counterBattle, counterPuzzle, playableIds, playablePuzzle, powerPuzzle } from "./generators";
+import { attackerIds, canAttackPuzzle, counterBattle, counterPuzzle, PLAYABLE_ABILITY_NOTE, PLAYABLE_QUESTION, playableIds, playablePuzzle, powerPuzzle } from "./generators";
 import { BIG, board, justPlayed, KAROO, KAROO_LEADER, LUFFY, NEWGATE, rng, VIVI, ZORO_RUSH } from "./testkit";
 
 const catalog = loadCatalog();
@@ -131,6 +131,45 @@ describe("playable gold is the engine's legal plays", () => {
     h.hand(0, VIVI, KAROO);
     h.don(0, 1, 5);
     expect(playableIds(h.state, 0)).toEqual([KAROO]);
+  });
+});
+
+describe("playable question and ability traps (#697)", () => {
+  const BUGGY = "OP09-042"; // Leader: [Activate: Main] rest 5 DON!!, trash 1: play a {Cross Guild} Character from hand
+  const CROSS_GUILD = "OP09-048"; // Character, cost 6
+  const COUNTER_ONLY = "EB01-019"; // Event with only a [Counter]
+  const OPTIONAL_COST = "EB01-051"; // Event: [Main] You may trash 2 cards from the top of your deck: ...
+
+  it("is the engine's reading: an Event with a [Main] counts even if its optional cost is unpaid, a [Counter]-only Event does not (#697)", () => {
+    const h = board();
+    h.hand(0, COUNTER_ONLY, OPTIONAL_COST);
+    h.don(0, 5);
+    expect(playableIds(h.state, 0)).toEqual([OPTIONAL_COST]);
+    expect(playablePuzzle(h.state, catalog, rng(1))!.gold).toEqual({ key: "cards", mode: "set", value: [OPTIONAL_COST] });
+  });
+
+  it("keeps a position where a Leader's [Activate: Main] could play a hand card, tags it, and tells the model to leave the ability out (#697)", () => {
+    const h = board([BUGGY, NEWGATE]);
+    h.hand(0, CROSS_GUILD, CROSS_GUILD);
+    h.don(0, 5);
+    expect(listLegalIntents(h.state, 0).some((i) => i.type === "activate_ability")).toBe(true);
+    // Nothing in the hand is playable by paying its cost (the Character costs 6), so only the trap keeps it from being turned down.
+    for (let seed = 1; seed <= 12; seed += 1) {
+      const made = playablePuzzle(h.state, catalog, rng(seed))!;
+      expect(made, `seed ${seed}`).not.toBeNull();
+      expect(made.tags).toEqual(["none-playable", "ability-trap"]);
+      expect(made.gold).toEqual({ key: "cards", mode: "set", value: [] });
+      expect(made.question).toBe(PLAYABLE_QUESTION + PLAYABLE_ABILITY_NOTE);
+    }
+  });
+
+  it("adds no note and no tag when no ability could play or discount a hand card (#697)", () => {
+    const h = board();
+    h.hand(0, KAROO, BIG);
+    h.don(0, 2);
+    const made = playablePuzzle(h.state, catalog, rng(1))!;
+    expect(made.tags).toEqual(["mixed"]);
+    expect(made.question).toBe(PLAYABLE_QUESTION);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gradeAnswer, normalizeCard, parseAnswer } from "./answer";
+import { goldText, gradeAnswer, normalizeCard, parseAnswer } from "./answer";
 import type { Gold } from "./types";
 
 const known = [
@@ -59,6 +59,32 @@ describe("grading an answer exactly", () => {
   it("marks an unparseable reply wrong (#677)", () => {
     const graded = gradeAnswer({ key: "power", mode: "number", value: 0 }, parseAnswer("zero"));
     expect(graded).toMatchObject({ correct: false, given: "(no answer)" });
+  });
+
+  it("marks a chain right only when every part is, and names the parts that are wrong (#685)", () => {
+    const gold: Gold = {
+      key: "all",
+      mode: "all",
+      parts: [
+        { key: "my_active_don", mode: "number", value: 1 },
+        { key: "opp_field", mode: "multiset", value: [] },
+        { key: "opp_trash", mode: "multiset", value: ["ST01-003", "ST01-009"] },
+      ],
+    };
+    const right = '{"my_active_don": 1, "opp_field": [], "opp_trash": ["Nefeltari Vivi (ST01-009)", "ST01-003"]}';
+    expect(gradeAnswer(gold, answer(right), known)).toMatchObject({ correct: true });
+    const oneWrong = gradeAnswer(gold, answer('{"my_active_don": 2, "opp_field": [], "opp_trash": ["ST01-003", "ST01-009"]}'), known);
+    expect(oneWrong).toMatchObject({ correct: false, reason: "wrong: my_active_don" });
+    const twoWrong = gradeAnswer(gold, answer('{"my_active_don": 1, "opp_field": ["ST01-003"], "opp_trash": ["ST01-003"]}'), known);
+    expect(twoWrong).toMatchObject({ correct: false, reason: "wrong: opp_field, opp_trash" });
+    expect(goldText(gold)).toBe('{"my_active_don":1,"opp_field":[],"opp_trash":["ST01-003","ST01-009"]}');
+  });
+
+  it("does not read a chain's lone field as the answer to every part (#685)", () => {
+    const gold: Gold = { key: "all", mode: "all", parts: [{ key: "my_life", mode: "number", value: 2 }, { key: "opp_life", mode: "number", value: 2 }] };
+    expect(gradeAnswer(gold, answer('{"my_life": 2}')).correct).toBe(false);
+    expect(gradeAnswer(gold, answer("2")).correct).toBe(false);
+    expect(gradeAnswer(gold, answer('{"my_life": 2, "opp_life": 2}')).correct).toBe(true);
   });
 
   it("turns a card name into the card number only when one card of the puzzle has it (#677)", () => {

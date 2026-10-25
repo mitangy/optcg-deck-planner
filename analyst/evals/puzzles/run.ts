@@ -4,7 +4,7 @@
  * money (needs ANTHROPIC_API_KEY); `--model-api scripted` and `--dump` are free.
  *
  *   --n <per type>           default 25            --seed <n>        default 1
- *   --types power,counter_needed,playable,can_attack,scenario   (default all)
+ *   --types power,counter_needed,playable,can_attack,scenario,defend,lethal,scenario_chain   (default all; the last three are the harder ones, #685)
  *   --new-share <0-1>        share of puzzles with an OP18 / EB05 card, default 0.3
  *   --synth-share <0-1>      share of position puzzles from Harness boards instead of self-play, default 0.5
  *   --decks <file>           deck list JSON for self-play (default: the meta decks file if present, else random decks)

@@ -11,6 +11,12 @@ def test_parse_decklist_qty_after_card_id():
     assert parsed["OP01-002"] == 4
 
 
+def test_parse_decklist_reads_the_log_pose_deck_list_text_728():
+    """The client hands Log Pose's new deck over as `1xLEADER` then `NxID` lines, no spaces."""
+    parsed = {c.card_id: c.needed for c in parse_decklist("1xOP01-001\n4xOP01-016\n2xST01-012\n1xOP05-119")}
+    assert parsed == {"OP01-001": 1, "OP01-016": 4, "ST01-012": 2, "OP05-119": 1}
+
+
 def test_shopping_need_is_max_across_decks_not_sum(db):
     """Master shopping need = max copies among decks that use the card."""
     add_catalog(db, "OP01-001", name="Luffy", product_id=1, market=1.0)

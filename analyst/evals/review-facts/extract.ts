@@ -8,7 +8,7 @@ import { z } from "zod";
 import { costUsd, type Usage } from "../../src/chat";
 import { withRetry } from "../retry";
 
-export const CLAIM_KINDS = ["played", "attacked", "ko", "life_taken", "countered", "blocked", "trigger", "life_total", "result", "went_first", "mulligan", "other"] as const;
+export const CLAIM_KINDS = ["played", "attacked", "ko", "life_taken", "countered", "blocked", "trigger", "life_total", "don", "hand_size", "on_board", "trashed", "result", "went_first", "mulligan", "other"] as const;
 
 export const claimSchema = z.object({
   quote: z.string().min(1),
@@ -28,26 +28,31 @@ export const EXTRACT_SYSTEM = `You read a post-game review of one One Piece Card
 The review is written to one player ("you") about their game against "the opponent". Turn numbers are the game's own, as in "Turn 3".
 
 Extract only statements of fact that a replay of the game could confirm or refute. Skip opinions, advice, evaluations, predictions, hypotheticals ("if you had...", "you should have...", "consider..."), card text, odds, win-chance numbers, and anything about what a player could not see or what the deck contains.
-Copy "quote" verbatim from the review: the shortest span that states the claim, no rewording, no ellipsis. One claim per fact; split a sentence that states several.
+Copy "quote" verbatim from the review: the shortest span that states the claim, no rewording, no ellipsis. One claim per fact; split a sentence that states several, and split a list of cards into one claim per card ("A and B" is two claims, never card "A, B").
+card and target: copy the name exactly as the review writes it. Never expand a partial name ("a Luffy" stays "Luffy") and never fill in a card the sentence does not name from the sentences around it.
 
 Kinds, and how to fill the fields:
 - played: a player played a card (Character, Event or Stage) from hand. actor = who played it. card = its name as written.
-- attacked: a player attacked. actor = the attacker's player. card = the attacking card (the Leader's name if the Leader attacked). target = "leader" if a Leader was attacked, else the attacked card's name.
-- ko: a Character was K.O.'d. actor = the player who OWNED the K.O.'d card. card = its name.
-- life_taken: a player lost Life. actor = the player who lost it. number = how many, only if stated exactly.
-- countered: a player used a Counter. actor = who used it. card = the counter card, if named.
+- attacked: a player attacked. actor = the attacker's player. card = the attacking card (the Leader's name if the Leader attacked), only if the review says that card attacked ("You played Yamato and attacked the Leader" does not say Yamato attacked: card null). target = "leader" if a Leader was attacked, "character" when the review says a Character was attacked without naming it, else the attacked card's name. Never put a card that is not the attacked card in target (a card that got -2000 power is not the target).
+- ko: a Character was K.O.'d. actor = the player who OWNED the K.O.'d card, not the attacker or the effect's user ("your attacks K.O.'d their Alvida" is actor = opponent). card = its name. number = how many, only if stated exactly.
+- life_taken: a player lost Life, from a battle or an effect. actor = the player who lost it. number = how many, only if stated exactly, never 0. card = the card named as taking the Life or as the Life card taken, if any.
+- countered: a player used a Counter. actor = who used it. card = the counter card, if named. Cards used to stop an attack ("spent X to stop", "used X as a counter", "countered with X") are countered claims, one per card, actor = the player who used them (the defender), not "played".
 - blocked: a player blocked. actor = the blocker's player. card = the blocker, if named.
-- trigger: a Life card's [Trigger] was activated. actor = the player whose Life card it was. card if named.
+- trigger: a Life card's [Trigger] was activated. actor = the player whose Life card it was (the defender), not the attacker. card if named.
 - life_total: a player's Life total at a point. actor, number = the Life count.
+- don: a count of a player's DON!! at a point in the game. actor = whose. number = the count. target = "active", "rested", "attached" or "total" (all DON!! on the field), as the review says; null if it only says "DON!!". turn if given.
+- hand_size: how many cards a player held in hand ("an empty hand" is 0). Only a stated number of cards in hand, counting every copy ("three Sakazuki, Law and Sweet 3 Generals" is 5). "drew 3" is not a hand size: skip it. actor, number, turn if given.
+- on_board: a named Character or Stage was on a player's field (on the board). actor = whose field. card = its name. turn if given.
+- trashed: a named card went to a player's trash (discarded, used as a cost, or K.O.'d). actor = whose trash. card = its name. turn if given.
 - result: who won. actor = the winner. target = how, one of "life" (Life reduced to zero), "deck_out", "effect", "concede", "timeout", or null if the review does not say.
 - went_first: actor = the player who went first.
 - mulligan: actor = who mulliganed or kept. number = 1 if they mulliganed, 0 if they kept.
 - other: any other checkable game event.
-turn = the game turn number if the review gives one for this claim (a "Turn 4" header or "on turn 4"); null otherwise. Do not guess a turn from "your second turn".
-Use null for any field the review does not state. Never invent a card name.
+turn = the turn the event happened, if the review gives or implies one. A "Turn N" header is only a default: "the opponent had just played X" under a Turn 3 header happened on turn 2; "had already played on turn 8" is turn 8; "your turn-1 Nami died" means Nami was played on turn 1 and the K.O. turn is unknown (null). Null if no turn is stated. Do not guess a turn from "your second turn".
+Use null for any field the review does not state, except actor: use "none" when the claim names no player. Never invent a card name.
 Return {"claims": [...]} only.`;
 
-const CLAIMS_JSON_SCHEMA = {
+export const CLAIMS_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["claims"],
@@ -61,7 +66,8 @@ const CLAIMS_JSON_SCHEMA = {
         properties: {
           quote: { type: "string" },
           kind: { type: "string", enum: [...CLAIM_KINDS] },
-          actor: { type: ["string", "null"], enum: ["you", "opponent", null] },
+          // The API rejects an enum with a list of types (#683), so "no actor" is sent as "none" and read back as null.
+          actor: { type: "string", enum: ["you", "opponent", "none"] },
           turn: { type: ["integer", "null"] },
           card: { type: ["string", "null"] },
           target: { type: ["string", "null"] },
@@ -86,7 +92,7 @@ export function parseClaims(text: string): { claims: Claim[]; invalid: number } 
   const claims: Claim[] = [];
   let invalid = 0;
   for (const c of list) {
-    const r = claimSchema.safeParse(c);
+    const r = claimSchema.safeParse(c && typeof c === "object" && (c as { actor?: unknown }).actor === "none" ? { ...c, actor: null } : c);
     if (r.success) claims.push(r.data);
     else invalid += 1;
   }

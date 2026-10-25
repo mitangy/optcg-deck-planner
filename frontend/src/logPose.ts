@@ -1,4 +1,6 @@
 /** Where the planner shows the Log Pose chat, and what the deck page tells it. */
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { DeckContext, DeckEditOp, LogPosePage, SourceHooks } from "@optcg/analyst-client";
 
 /** Public share links are for people without an account; the sign-in page has no session yet. */
@@ -41,9 +43,21 @@ export function plannerDeckContext(deck: DeckCards): DeckContext {
 }
 
 /** Where an edit for a planner deck can be applied: its deck page. */
+export const plannerDeckHref = (ref: string): string | null => (ref.startsWith("planner:") ? `/decks/${ref.slice(8)}` : null);
+
 export const PLANNER_SOURCE_HOOKS: SourceHooks = {
-  deckHref: (ref) => (ref.startsWith("planner:") ? `/decks/${ref.slice(8)}` : null),
+  deckHref: plannerDeckHref,
 };
+
+/** Opens a planner deck's page inside the app (no page reload), so Log Pose's answer stays on screen; false for a deck that isn't a planner one. */
+export function openDeckFor(navigate: (to: string) => void): NonNullable<SourceHooks["openDeck"]> {
+  return (ref) => {
+    const to = plannerDeckHref(ref);
+    if (!to) return false;
+    navigate(to);
+    return true;
+  };
+}
 
 /**
  * Applies Log Pose's suggested changes to a planner deck with its existing absolute-count save, one card at a
@@ -73,4 +87,43 @@ export async function applyPlannerEdit<T>(save: (cardId: string, needed: number)
     }
   }
   return last;
+}
+
+/** The router state key a deck built by Log Pose travels in to the import page (#726). */
+export const DRAFT_STATE_KEY = "logPoseDraft";
+
+/** The name and list Log Pose filled in, from a location's state; null when the state is not one. */
+export function readLogPoseDraft(state: unknown): { name: string; list: string } | null {
+  const d = state && typeof state === "object" ? (state as Record<string, unknown>)[DRAFT_STATE_KEY] : null;
+  if (!d || typeof d !== "object") return null;
+  const { name, list } = d as Record<string, unknown>;
+  return typeof name === "string" && typeof list === "string" && list.trim() ? { name, list } : null;
+}
+
+/** Opens the import page (the planner's create-deck page) with Log Pose's deck filled in. The planner has no live board, so it always goes. */
+export function openNewDeckFor(navigate: (to: string, options: { state: unknown }) => void): NonNullable<SourceHooks["openNewDeck"]> {
+  return (draft) => {
+    navigate("/import", { state: { [DRAFT_STATE_KEY]: draft } });
+    return true;
+  };
+}
+
+/**
+ * For the import page: fills the name and list from a deck Log Pose handed over in the router state (on arrival, or while the page is
+ * already open), then forgets the state so a refresh does not refill it. Returns whether Log Pose filled the form in.
+ */
+export function useLogPoseDraft(fill: (draft: { name: string; list: string }) => void): boolean {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [filled, setFilled] = useState(false);
+  const fillRef = useRef(fill);
+  fillRef.current = fill;
+  useEffect(() => {
+    const draft = readLogPoseDraft(location.state);
+    if (!draft) return;
+    fillRef.current(draft);
+    setFilled(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
+  return filled;
 }

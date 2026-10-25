@@ -12,16 +12,16 @@ export type Made = Omit<Puzzle, "id" | "source">;
 
 const side = (seat: Seat, view: Seat) => (seat === view ? "your" : "your opponent's");
 const sorted = (xs: readonly string[]) => [...xs].sort();
-const pickOf = <T>(rng: Rng, xs: readonly T[]): T => xs[rng.nextInt(xs.length)]!;
+export const pickOf = <T>(rng: Rng, xs: readonly T[]): T => xs[rng.nextInt(xs.length)]!;
 
 /** Both sides from `view`'s seat, the acting player's hand, and a turn line. */
-function headOf(state: MatchState, view: Seat, catalog: Catalog, turnLine: string, opts: { attackerId?: string } = {}): string[] {
+export function headOf(state: MatchState, view: Seat, catalog: Catalog, turnLine: string, opts: { attackerId?: string; showHand?: boolean } = {}): string[] {
   return [turnLine, ...describeSeat(state, view, catalog, "Your", opts), ...describeSeat(state, (1 - view) as Seat, catalog, "Opponent's", opts)];
 }
 
 const mainLine = (state: MatchState) => `Turn ${state.turnNumber}. It is your turn and you are in your Main Phase; no effect is waiting to resolve.`;
 
-function finish(type: PuzzleType, catalog: Catalog, head: string[], ids: string[], question: string, schema: string, gold: Gold, tags: string[]): Made | null {
+export function finish(type: PuzzleType, catalog: Catalog, head: string[], ids: string[], question: string, schema: string, gold: Gold, tags: string[]): Made | null {
   const text = assemble(catalog, head, ids, question, schema);
   if (!text) return null;
   return { type, tags, newSet: hasNewSet(ids), position: text.position, cards: ids, question, schema, message: text.message, gold };
@@ -80,6 +80,31 @@ export const attackerIds = (state: MatchState, seat: Seat): string[] => idsOf(st
 const consistent = (cards: readonly CardInstance[], able: ReadonlySet<string>) =>
   cards.every((c) => cards.filter((d) => d.defId === c.defId).every((d) => able.has(d.id) === able.has(c.id)));
 
+/** What an [Activate: Main] has to say to make the playable question a trap: it plays a card from the hand or lowers a card's cost. */
+const HAND_HELP = /play[^.]*from your hand|cost[^.]*reduced|reduce[^.]*cost/i;
+
+/** The seat has a legal [Activate: Main] whose text plays a card from the hand or lowers a cost: a reader may count the cards it would let them play. */
+export function handAbilityLegal(state: MatchState, seat: Seat, catalog: Catalog): boolean {
+  const sources = [state.players[seat].leader, ...state.players[seat].characters];
+  return listLegalIntents(state, seat).some((i) => {
+    if (i.type !== "activate_ability") return false;
+    const source = sources.find((c) => c.id === i.sourceId);
+    return !!source && HAND_HELP.test(catalog.cards.get(source.defId)?.text ?? "");
+  });
+}
+
+/**
+ * What the engine counts as playable (the gold): a Character or Stage whose cost the active DON!! pays (a Character also when
+ * 5 Characters are in play, one is trashed to make room), and an Event that has a [Main] effect, whose header gates are open
+ * (a [DON!! xN] or once-per-turn), whatever that effect would do. An Event with no [Main] (a [Counter] or [Trigger] only) is
+ * never playable now, and abilities of other cards are not used first.
+ */
+export const PLAYABLE_QUESTION =
+  "Which cards in your hand could you play right now by paying their cost, without first using any other card's ability? Count a Character even if you'd have to trash one of your 5 Characters to make room. Count an Event when the game lets you play it now for its [Main] effect, even if that effect would do nothing (an optional cost you can't pay and an effect with no target don't stop it); an Event with no [Main] effect (only a [Counter] or [Trigger]) can't be played now.";
+
+/** Added when a Leader or Character of yours has an [Activate: Main] that plays a card from the hand or lowers a cost. */
+export const PLAYABLE_ABILITY_NOTE = " You do have an [Activate: Main] ability that could play a card from your hand or lower a cost; count only the cards you could play without using it.";
+
 export function playablePuzzle(state: MatchState, catalog: Catalog, rng: Rng): Made | null {
   const view = state.activeSeat;
   const hand = state.players[view].hand;
@@ -88,9 +113,11 @@ export function playablePuzzle(state: MatchState, catalog: Catalog, rng: Rng): M
   const yes = playableIds(state, view);
   if (!consistent(hand, playableCards(state, view))) return null;
   const mixed = yes.length > 0 && yes.length < new Set(hand.map((c) => c.defId)).size;
-  if (!mixed && rng.next() < 0.85) return null;
-  const question = "Which cards in your hand can you play right now? Count a Character as playable when you could play it (replacing one of your Characters if you already have 5), and an Event only when its [Main] effect can be used now.";
-  const tags = [yes.length === 0 ? "none-playable" : mixed ? "mixed" : "all-playable"];
+  // Positions where an [Activate: Main] could play or discount a hand card test reading, so they are always kept.
+  const trap = handAbilityLegal(state, view, catalog);
+  if (!mixed && !trap && rng.next() < 0.85) return null;
+  const question = PLAYABLE_QUESTION + (trap ? PLAYABLE_ABILITY_NOTE : "");
+  const tags = [yes.length === 0 ? "none-playable" : mixed ? "mixed" : "all-playable", ...(trap ? ["ability-trap"] : [])];
   return finish("playable", catalog, headOf(state, view, catalog, mainLine(state)), ids, question, '{"cards": ["<card number>", ...]}', { key: "cards", mode: "set", value: sorted(yes) }, tags);
 }
 

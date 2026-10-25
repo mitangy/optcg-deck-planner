@@ -43,8 +43,13 @@ from app.schemas import (
     GroupBuyReceiptMatchRequest,
     GroupBuySummary,
     OwnedCollectionResponse,
+    DisplayArtResult,
+    DisplayArtUpdate,
     OwnedPrintingResult,
     OwnedPrintingUpdate,
+    OwnedAddRequest,
+    OwnedAddResponse,
+    OwnedAddResult,
     OwnedUpdate,
     ShoppingExtraUpdate,
     PrintingView,
@@ -116,7 +121,9 @@ def rename_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.rename_deck(db, user, deck_id, body.name)
+        return services.update_deck(
+            db, user, deck_id, body.name, body.hidden_from_friends
+        )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -324,6 +331,20 @@ def get_owned(
     return services.owned_collection(db, user)
 
 
+@router.post("/owned/add", response_model=OwnedAddResponse)
+def post_owned_add(
+    body: OwnedAddRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Add copies to several cards at once (the Collection photo scan)."""
+    try:
+        rows = services.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return OwnedAddResponse(items=[OwnedAddResult(card_id=c, owned=n) for c, n in rows])
+
+
 @router.put("/owned/{card_id}")
 def put_owned(
     card_id: str,
@@ -352,6 +373,21 @@ def put_owned_printing(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
+
+
+@router.put("/owned/{card_id}/display", response_model=DisplayArtResult)
+def put_display_art(
+    card_id: str,
+    body: DisplayArtUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Choose which art the card shows (null = automatic, 0 = base art)."""
+    try:
+        product_id = services.set_display_art(db, user, card_id, body.product_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return DisplayArtResult(card_id=card_id.upper().strip(), product_id=product_id)
 
 
 @router.get("/share/shopping", response_model=ShareInfo | None)

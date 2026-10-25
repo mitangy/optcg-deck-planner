@@ -1,7 +1,7 @@
 import { runScenario } from "@optcg/rules/src/testing/scenario";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
-import { asksOf, scenarioPuzzles, usableRow } from "./scenario";
+import { asksOf, scenarioChainPuzzles, scenarioPuzzles, usableRow } from "./scenario";
 import { SCENARIO_ROWS } from "./scenarioRows";
 
 const catalog = loadCatalog();
@@ -69,5 +69,44 @@ describe("scenario puzzles", () => {
     expect(all.length).toBeGreaterThan(60);
     expect(new Set(all.map((p) => p.id)).size).toBe(all.length);
     for (const p of all) for (const id of p.cards) expect(p.message, p.id).toContain(`- ${id} `);
+  });
+
+  it("make one chain per row with two or more questions, asking all of them in one JSON object (#685)", () => {
+    const chains = scenarioChainPuzzles(catalog);
+    expect(chains.length).toBeGreaterThan(40);
+    expect(new Set(chains.map((p) => p.id)).size).toBe(chains.length);
+    for (const p of chains) {
+      expect(p.type).toBe("scenario_chain");
+      expect(p.gold.mode, p.id).toBe("all");
+      if (p.gold.mode !== "all") continue;
+      const keys = p.gold.parts.map((part) => part.key);
+      expect(keys.length, p.id).toBeGreaterThanOrEqual(2);
+      expect(new Set(keys).size, p.id).toBe(keys.length);
+      for (const key of keys) expect(p.schema, p.id).toContain(`"${key}":`);
+    }
+    const made = chains.find((p) => p.source.includes("adds an active DON!! when an opposing Character is K.O.'d"))!;
+    expect(made.gold).toEqual({
+      key: "all",
+      mode: "all",
+      parts: [
+        { key: "my_active_don", mode: "number", value: 1 },
+        { key: "opp_field", mode: "multiset", value: [] },
+        { key: "opp_trash", mode: "multiset", value: ["ST01-003"] },
+      ],
+    });
+    expect(made.question).toContain("- opp_trash: Which cards are in your opponent's trash?");
+    expect(made.message).toContain('{"my_active_don": <number>, "opp_field": ["<card number>", ...], "opp_trash": ["<card number>", ...]}');
+  });
+
+  it("keep two Characters' powers apart in a chain by seat and card number (#685)", () => {
+    const made = scenarioChainPuzzles(catalog).find((p) => p.source.includes("gives opposing Characters -1000 power with 10 DON!!"))!;
+    expect(made.gold).toEqual({
+      key: "all",
+      mode: "all",
+      parts: [
+        { key: "opp_power_ST01-003", mode: "number", value: 2000 },
+        { key: "opp_power_ST01-009", mode: "number", value: 3000 },
+      ],
+    });
   });
 });

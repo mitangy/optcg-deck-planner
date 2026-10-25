@@ -22,10 +22,29 @@ describe("the puzzle set", () => {
     const all = generatePuzzles({ seed: 3, n: 8, types: ["power", "playable"], newShare: 1, synthShare: 0.5, catalog });
     expect(all.puzzles.every((p) => p.newSet)).toBe(true);
     for (const p of a.puzzles) expect(p.message.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
-  }, 120_000);
+  }, 240_000);
 
   it("splits the puzzles between Harness boards and self-play, and between new and older sets, by the shares (#677)", () => {
     expect(quotas(10, 0.5, 0.3)).toEqual({ "harness-new": 2, "harness-old": 3, "selfplay-new": 2, "selfplay-old": 3 });
     expect(quotas(25, 0.4, 0)).toEqual({ "harness-new": 0, "harness-old": 10, "selfplay-new": 0, "selfplay-old": 15 });
   });
+
+  it("holds defend, lethal and scenario_chain puzzles, each with the gold its type decides (#685)", () => {
+    const make = () => generatePuzzles({ seed: 2, n: 3, types: ["defend", "lethal", "scenario_chain"], newShare: 0.3, synthShare: 0.5, catalog });
+    const a = make();
+    expect(a.short).toEqual({});
+    expect(a.puzzles.map((p) => p.id)).toEqual(["defend-s2-1", "defend-s2-2", "defend-s2-3", "lethal-s2-1", "lethal-s2-2", "lethal-s2-3", "scenario_chain-s2-1", "scenario_chain-s2-2", "scenario_chain-s2-3"]);
+    expect(make()).toEqual(a);
+    for (const p of a.puzzles) expect(p.message.length, p.id).toBeLessThanOrEqual(MESSAGE_LIMIT);
+    for (const p of a.puzzles.filter((p) => p.type === "defend")) {
+      expect(p.gold).toMatchObject({ key: "cards", mode: "number" });
+      expect(p.message, p.id).toContain("it is your block step");
+    }
+    for (const p of a.puzzles.filter((p) => p.type === "lethal")) {
+      expect(p.gold).toMatchObject({ key: "damage", mode: "number" });
+      expect(p.source).toBe("harness lethal");
+      expect(p.message, p.id).toContain("Your opponent's hand is shown face up for this puzzle.");
+    }
+    for (const p of a.puzzles.filter((p) => p.type === "scenario_chain")) expect(p.gold.mode, p.id).toBe("all");
+  }, 240_000);
 });

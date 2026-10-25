@@ -32,7 +32,7 @@ import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
-import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
+import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -61,13 +61,20 @@ import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
-import { HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
+import { MenuItem } from "@optcg/ui/popups";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
+import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { MetaPage } from "./MetaPage";
+import { FriendsNavLink } from "./friends/FriendsNavLink";
+import { FriendsPage } from "./friends/FriendsPage";
+import { FriendPage } from "./friends/FriendPage";
+import { FriendDeckPage } from "./friends/FriendDeckPage";
+import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
-import { baseTileFor, mainImageUrl } from "./altArt";
+import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   AltsOwnedNote,
@@ -301,6 +308,43 @@ function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["decks"] });
   void qc.invalidateQueries({ queryKey: ["group-buy"] });
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+/** Display art is a view choice only: refresh the views that show it. */
+function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["group-buy"] });
+  void qc.invalidateQueries({ queryKey: ["group-buys"] });
+}
+
+/** Patch the chosen art (null = automatic, 0 = base) onto every cached view of a card. */
+function applyDisplayArtOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  cardId: string,
+  productId: number | null,
+) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
+    old
+      ? {
+          ...old,
+          items: old.items.map((item) =>
+            item.card_id.toUpperCase() === id ? { ...item, display_art: productId } : item,
+          ),
+        }
+      : old,
+  );
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+    old
+      ? {
+          ...old,
+          cards: old.cards.map((card) =>
+            card.card_id.toUpperCase() === id ? { ...card, display_art: productId } : card,
+          ),
+        }
+      : old,
+  );
 }
 
 function sumAltOwned(alts: { owned?: number }[]): number {
@@ -541,6 +585,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
             <NavLink to="/decks">Decks</NavLink>
             <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
+            <FriendsNavLink />
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
           </nav>
@@ -1245,6 +1290,18 @@ function ShoppingPage() {
     }
   };
 
+  const changeShoppingDisplayArt = async (cardId: string, productId: number) => {
+    setAltOwnedErr(null);
+    applyDisplayArtOptimistic(qc, cardId, productId);
+    try {
+      await api.setDisplayArt(cardId, productId);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateDisplayArtViews(qc);
+    }
+  };
+
   const shoppingAltRow = (item: ShoppingItem) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
@@ -1261,6 +1318,8 @@ function ShoppingPage() {
         />
       }
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
+      shownProductId={shownProductId(item)}
+      onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
       busyProductId={
         altOwnedBusyKey?.startsWith(`${item.card_id}:`)
           ? Number(altOwnedBusyKey.slice(item.card_id.length + 1))
@@ -2538,6 +2597,7 @@ function CollectionPage() {
           items={[]}
           showNeed={false}
           initialImage={droppedImage}
+          multi={{ onAdded: () => invalidateOwnedViews(qc) }}
           renderHitAction={(card) => (
             <div className="scan-hit-owned">
               <span className="muted">In collection</span>
@@ -2970,6 +3030,7 @@ function CardTable({
   neededBusyId = null,
   onAltOwnedChange,
   altOwnedBusyKey = null,
+  onDisplayArtChange,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -2981,6 +3042,8 @@ function CardTable({
   onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
   /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
+  /** Owner pages only: pick which art the card shows (0 = base). */
+  onDisplayArtChange?: (cardId: string, productId: number) => void;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
@@ -3007,6 +3070,12 @@ function CardTable({
       onOwnedChange={
         onAltOwnedChange
           ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
+          : undefined
+      }
+      shownProductId={shownProductId(c)}
+      onShow={
+        onDisplayArtChange
+          ? (productId) => onDisplayArtChange(c.card_id, productId)
           : undefined
       }
       busyProductId={
@@ -3800,6 +3869,18 @@ function DeckDetailPage() {
     }
   };
 
+  const changeDisplayArt = async (cardId: string, productId: number) => {
+    setAltOwnedErr(null);
+    applyDisplayArtOptimistic(qc, cardId, productId);
+    try {
+      await api.setDisplayArt(cardId, productId);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateDisplayArtViews(qc);
+    }
+  };
+
   const resetOwned = useMutation({
     mutationFn: () => api.resetDeckOwned(deckId),
     onSuccess: (res) => {
@@ -4078,51 +4159,35 @@ function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
-          <HeadPopover
-            label="More"
-            icon={<MoreIcon />}
-            className="btn quiet"
-            panelLabel="More deck actions"
-            width={260}
-          >
-            {(close) => (
-              <div className="head-popover-menu" role="menu">
-                {data.leader_card_id && !data.is_main && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={setMain.isPending}
-                    onClick={() => {
-                      setMain.mutate();
-                      close();
-                    }}
-                  >
-                    {setMain.isPending ? "Setting…" : "Set as Main deck"}
-                    <span className="muted">Other decks for this leader compare against it</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="danger"
-                  disabled={resetOwned.isPending || data.cards.length === 0}
-                  onClick={() => {
-                    close();
-                    const ok = window.confirm(
-                      "Reset owned counts to 0 for every card in this deck?\n\n" +
-                        "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
-                    );
-                    if (!ok) return;
-                    setResetMsg(null);
-                    resetOwned.mutate();
-                  }}
-                >
-                  {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
-                  <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+          <HeadMenu label="More" icon={<MoreIcon />} className="btn quiet" width={260}>
+            <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} />
+            {data.leader_card_id && !data.is_main && (
+              <MenuItem disabled={setMain.isPending}>
+                <button type="button" onClick={() => setMain.mutate()}>
+                  {setMain.isPending ? "Setting…" : "Set as Main deck"}
+                  <span className="muted">Other decks for this leader compare against it</span>
                 </button>
-              </div>
+              </MenuItem>
             )}
-          </HeadPopover>
+            <MenuItem disabled={resetOwned.isPending || data.cards.length === 0}>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Reset owned counts to 0 for every card in this deck?\n\n" +
+                      "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
+                  );
+                  if (!ok) return;
+                  setResetMsg(null);
+                  resetOwned.mutate();
+                }}
+              >
+                {resetOwned.isPending ? "Resetting…" : "Reset owned counts"}
+                <span className="muted">Sets every card in this deck to 0 owned (also removes them from Collection)</span>
+              </button>
+            </MenuItem>
+          </HeadMenu>
         </div>
       </div>
 
@@ -4196,6 +4261,7 @@ function DeckDetailPage() {
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
         onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+        onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
       />
       {additional.length > 0 && (
@@ -4212,6 +4278,7 @@ function DeckDetailPage() {
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
             onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+            onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
           />
         </>
@@ -4238,6 +4305,7 @@ function DeckDetailPage() {
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
           onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
+          onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
         />
       )}
@@ -4259,6 +4327,12 @@ function ImportPage() {
   const [decklist, setDecklist] = useState("");
   const [mode, setMode] = useState<"paste" | "file">("paste");
   const [err, setErr] = useState<string | null>(null);
+  // A deck Log Pose built arrives in the router state (#726): its name and list go straight into the form.
+  const fromLogPose = useLogPoseDraft((d) => {
+    setName(d.name);
+    setDecklist(d.list);
+    setMode("paste");
+  });
   const create = useMutation({
     mutationFn: () => api.createDeck(name.trim(), decklist),
     onSuccess: async (deck) => {
@@ -4314,66 +4388,62 @@ function ImportPage() {
         <code>.deck</code> file.
       </p>
       <form className="import-form" onSubmit={onSubmit}>
+        {fromLogPose ? (
+          <p className="import-note" role="status">
+            Filled in by Log Pose. Check it, then press Create deck.
+          </p>
+        ) : null}
         <label>
           Deck name
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
 
-        <div className="import-modes" role="tablist" aria-label="Import method">
-          <button
-            type="button"
-            className={mode === "paste" ? "mode active" : "mode"}
-            onClick={() => setMode("paste")}
-          >
-            Paste deck code
-          </button>
-          <button
-            type="button"
-            className={mode === "file" ? "mode active" : "mode"}
-            onClick={() => setMode("file")}
-          >
-            Upload file
-          </button>
-        </div>
+        <TabGroup selectedIndex={mode === "paste" ? 0 : 1} onChange={(i) => setMode(i === 0 ? "paste" : "file")}>
+          <TabList className="import-modes" aria-label="Import method">
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Paste deck code</Tab>
+            <Tab className={({ selected }) => (selected ? "mode active" : "mode")}>Upload file</Tab>
+          </TabList>
 
-        {mode === "paste" ? (
-          <div className="paste-block">
-            <div className="paste-actions">
-              <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
-                Paste from clipboard
-              </button>
-            </div>
-            <label>
-              Deck code
-              <textarea
-                value={decklist}
-                onChange={(e) => setDecklist(e.target.value)}
-                rows={16}
-                placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
-                required
-              />
-            </label>
-            <p className="hint">
-              Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
-              <code>4xOP15-053</code>.
-            </p>
-          </div>
-        ) : (
-          <label>
-            Decklist file (.txt / .deck)
-            <input
-              type="file"
-              accept=".txt,.deck,text/plain"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-            {decklist && (
+          <TabPanels>
+            <TabPanel className="paste-block">
+              <div className="paste-actions">
+                <button type="button" className="btn secondary" onClick={pasteFromClipboard}>
+                  Paste from clipboard
+                </button>
+              </div>
+              <label>
+                Deck code
+                <textarea
+                  value={decklist}
+                  onChange={(e) => setDecklist(e.target.value)}
+                  rows={16}
+                  placeholder={"1xOP15-002\n4xOP15-053\n4xOP15-052\n…"}
+                  required
+                />
+              </label>
               <p className="hint">
-                Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
-                “Paste deck code” to review before creating.
+                Same format as OPTCGSim “Copy Deck List to Clipboard” — one card per line like{" "}
+                <code>4xOP15-053</code>.
               </p>
-            )}
-          </label>
-        )}
+            </TabPanel>
+            <TabPanel>
+              <label>
+                Decklist file (.txt / .deck)
+                <input
+                  type="file"
+                  accept=".txt,.deck,text/plain"
+                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                />
+                {decklist && (
+                  <p className="hint">
+                    Loaded {decklist.split("\n").filter((l) => l.trim()).length} lines — switch to
+                    “Paste deck code” to review before creating.
+                  </p>
+                )}
+              </label>
+            </TabPanel>
+          </TabPanels>
+        </TabGroup>
 
         {err && <p className="error">{err}</p>}
         <button className="btn primary" type="submit" disabled={create.isPending}>
@@ -4657,8 +4727,11 @@ export default function App() {
   // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const navigate = useNavigate();
+  // A deck Log Pose builds opens the import page with the list filled in (#726).
+  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
-    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={PLANNER_SOURCE_HOOKS}>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -4699,6 +4772,30 @@ export default function App() {
           element={
             <RequireAuth>
               <CollectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <RequireAuth>
+              <FriendsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends/:username"
+          element={
+            <RequireAuth>
+              <FriendPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/friends/:username/decks/:deckId"
+          element={
+            <RequireAuth>
+              <FriendDeckPage />
             </RequireAuth>
           }
         />

@@ -40,11 +40,16 @@ class DeckCreate(BaseModel):
 
 
 class DeckRename(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    """PATCH /decks/{id}: rename, hide from friends, or both (#703)."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    hidden_from_friends: bool | None = None
 
     @field_validator("name")
     @classmethod
-    def _strip_name(cls, value: str) -> str:
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip()
         if not value:
             raise ValueError("Deck name cannot be blank")
@@ -75,6 +80,7 @@ class DeckSummary(BaseModel):
     sort_order: int
     # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False
+    hidden_from_friends: bool = False
 
 
 class CatalogCardResult(BaseModel):
@@ -104,6 +110,16 @@ class PrintingView(BaseModel):
     wanted: int = 0
     # Copies of this alt the user owns (per user, not per deck).
     owned: int = 0
+
+
+class DisplayArtUpdate(BaseModel):
+    # None = automatic, 0 = base art, >0 = a special printing's product id.
+    product_id: int | None = Field(default=None, ge=0)
+
+
+class DisplayArtResult(BaseModel):
+    card_id: str
+    product_id: int | None = None
 
 
 class OwnedPrintingUpdate(BaseModel):
@@ -179,6 +195,8 @@ class CardView(BaseModel):
     product_id: int | None = None
     section: str = "main"  # main | additional | don
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
 
 
 class DeckDetail(BaseModel):
@@ -189,6 +207,7 @@ class DeckDetail(BaseModel):
     # Name of the Main deck this list is compared against (empty when this is Main).
     prior_decks: list[str] = []
     is_main: bool = False
+    hidden_from_friends: bool = False
     cards: list[CardView]
     main_cards: int = 0
     don_cards: int = 0
@@ -219,6 +238,8 @@ class ShoppingItem(BaseModel):
     product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
     # Multi-leader cards use the earliest deck's leader as primary.
     deck_sort_key: str = ""
@@ -277,6 +298,26 @@ class OwnedCollectionResponse(BaseModel):
 
 class OwnedUpdate(BaseModel):
     qty: int = Field(ge=0, le=10_000)
+
+
+class OwnedAddItem(BaseModel):
+    card_id: str = Field(min_length=1, max_length=32)
+    add: int = Field(ge=1, le=99)
+
+
+class OwnedAddRequest(BaseModel):
+    """Copies to add on top of what the user already owns (a scanned photo's cards)."""
+
+    items: list[OwnedAddItem] = Field(min_length=1, max_length=200)
+
+
+class OwnedAddResult(BaseModel):
+    card_id: str
+    owned: int
+
+
+class OwnedAddResponse(BaseModel):
+    items: list[OwnedAddResult]
 
 
 class ShoppingExtraUpdate(BaseModel):
@@ -393,6 +434,8 @@ class GroupBuyLineOut(BaseModel):
     image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
+    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
+    display_art: int | None = None
     # Viewer (current user) contribution on this line — for qty editors.
     my_qty: int = 0
     my_suggested_qty: int = 0
@@ -1125,9 +1168,8 @@ class AnalystDeckEditTarget(BaseModel):
     leader_id: str | None = None
 
 
-class AnalystDeckEditLegality(BaseModel):
+class AnalystDraftLegality(BaseModel):
     legal: bool
-    count: int = Field(ge=0, le=500)
     problems: list[str] = Field(default_factory=list, max_length=20)
     upcoming: list[str] = Field(default_factory=list, max_length=20)
     ban_list_checked: bool
@@ -1140,6 +1182,10 @@ class AnalystDeckEditLegality(BaseModel):
         return v
 
 
+class AnalystDeckEditLegality(AnalystDraftLegality):
+    count: int = Field(ge=0, le=500)
+
+
 class AnalystDeckEdit(BaseModel):
     """A deck change Log Pose suggests for the deck open in an app, shown as an Apply card (#400)."""
 
@@ -1147,6 +1193,8 @@ class AnalystDeckEdit(BaseModel):
     version: Literal[1]
     target: AnalystDeckEditTarget
     summary: str = Field(max_length=300)
+    # True when the player asked Log Pose to make this change: the app applies it once to the open deck (#726).
+    apply: bool = False
     lines: list[AnalystDeckEditLine] = Field(min_length=1, max_length=12)
     base: list[AnalystDeckCard] = Field(default_factory=list, max_length=80)
     legality: AnalystDeckEditLegality
@@ -1156,11 +1204,36 @@ class AnalystProposalsIn(BaseModel):
     proposals: list[AnalystDeckEdit] = Field(min_length=1, max_length=4)
 
 
+class AnalystDraftCard(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    copies: int = Field(ge=1, le=4)
+
+
+class AnalystDeckDraft(BaseModel):
+    """A new deck Log Pose built for the player: the app opens its create-deck page with it filled in (#726)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    name: str = Field(min_length=1, max_length=60)
+    leader_id: str = Field(pattern=CARD_ID_PATTERN)
+    leader_name: str = Field(max_length=120)
+    summary: str = Field(max_length=300)
+    cards: list[AnalystDraftCard] = Field(min_length=1, max_length=50)
+    count: int = Field(ge=0, le=500)
+    legality: AnalystDraftLegality
+
+
+class AnalystDraftsIn(BaseModel):
+    drafts: list[AnalystDeckDraft] = Field(min_length=1, max_length=2)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     proposals: list[AnalystDeckEdit] = Field(default_factory=list)
+    drafts: list[AnalystDeckDraft] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):

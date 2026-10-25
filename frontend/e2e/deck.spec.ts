@@ -121,11 +121,12 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   // The control row under the drawer shifts down (the toolbar grows); the sort trigger itself must hold still once open.
   const sort = page.getByRole("button", { name: /^Sort:/ });
   await expectStationary(sort, () => sort.click(), "Sort menu");
-  await expect(page.getByRole("menu")).toBeVisible();
+  const sortPanel = page.getByRole("dialog", { name: "Sort order" });
+  await expect(sortPanel).toBeVisible();
   let issues = await planner.audit();
   expect(issues, `sort menu open:\n${formatIssues(issues)}`).toEqual([]);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(sortPanel).toHaveCount(0);
 
   // Unticking "Still need only" brings back the fully owned card.
   await page.getByLabel("Still need only").uncheck();
@@ -278,4 +279,29 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
   await inc.click();
   await expect(left).toHaveText("$34.30 left");
   await expect(page.locator(IZO)).toHaveCount(0);
+});
+
+test("Show picks the card's art, an unowned alt or the base over an owned alt, without changing counts (#702)", async ({ page, planner }) => {
+  const left = page.locator(".deck-progress-meta");
+  await expect(left).toHaveText("$36.80 left");
+  const mainArt = page.locator(IZO).locator("img.thumb").first();
+  await expect(mainArt).toHaveAttribute("src", /101_400w/);
+
+  // Show the alt nobody owns: it becomes the card's picture and the counts stay put.
+  await page.locator(IZO).getByRole("button", { name: "Show Izo (Alternate Art) as the card's art" }).click();
+  await expect(mainArt).toHaveAttribute("src", /201_400w/);
+  await expect(page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-shown-chip")).toHaveText("Shown");
+  expect(planner.displayArt.get("EB01-002")).toBe(201);
+  expect(planner.altOwned.get("EB01-002:201")).toBeUndefined();
+  await expect(left).toHaveText("$36.80 left");
+
+  // Own a copy of the alt, then choose the base art anyway: the base stays the picture.
+  await page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
+  await expect(left).toHaveText("$35.55 left");
+  await page.locator(IZO).getByRole("button", { name: "Show Izo base art as the card's art" }).click();
+  await expect(mainArt).toHaveAttribute("src", /101_400w/);
+  expect(planner.displayArt.get("EB01-002")).toBe(0);
+  // The choice is saved: a reload keeps the base art.
+  await page.reload();
+  await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
 });

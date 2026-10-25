@@ -7,6 +7,7 @@ import { z } from "zod";
 import { analyzeDeck } from "./analysis";
 import type { Catalog } from "./catalog";
 import { deckFromLines, type Deck } from "./decks";
+import type { Edit } from "./editLines";
 import { deckBanCheck } from "./knowledge";
 import type { OfficialLibrary } from "./official/library";
 import type { ToolDef } from "./server";
@@ -26,13 +27,15 @@ export type DeckEditProposal = {
   version: 1;
   target: { ref: string; name: string; leader_id: string | null };
   summary: string;
+  /** The player asked Log Pose to make this change: the app applies it to the open deck once (#726). */
+  apply: boolean;
   lines: { id: string; name: string; before: number; after: number; reason: string }[];
   /** The deck as sent in the context block, with normalized ids. */
   base: { id: string; copies: number }[];
   legality: { legal: boolean; count: number; problems: string[]; upcoming: string[]; ban_list_checked: boolean };
 };
 
-export type ProposalInput = { summary: string; changes: { id: string; delta: number; reason: string }[] };
+export type ProposalInput = { summary: string; changes: { id: string; delta: number; reason: string }[]; apply?: boolean };
 
 export type ProposalResult = { ok: true; proposal: Omit<DeckEditProposal, "id"> } | { ok: false; error: string };
 
@@ -45,7 +48,7 @@ const DECK_SIZE = 50;
 type Problem = { key: string; text: string };
 
 /** The deck's rule problems (count, copies, colors, leader rules) and, with a ban list, its ban problems. */
-async function problemsOf(catalog: Catalog, library: OfficialLibrary | undefined, deck: Deck) {
+export async function problemsOf(catalog: Catalog, library: OfficialLibrary | undefined, deck: Deck) {
   const rule: Problem[] = analyzeDeck(catalog, deck)
     .hints.filter((h) => h.tier === "rule")
     // One key per offending card, so fixing only some of them adds nothing; a hint with no cards keeps one key.
@@ -119,6 +122,7 @@ export async function proposeDeckEdit(
       version: 1,
       target: { ref: deck.ref, name: deck.name?.trim() || "Deck", leader_id: leaderId },
       summary: input.summary,
+      apply: input.apply === true,
       lines: ordered,
       base: beforeDeck.cards.map((c) => ({ id: c.id, copies: c.copies })),
       legality: {
@@ -132,6 +136,41 @@ export async function proposeDeckEdit(
   };
 }
 
+/**
+ * Checks +N / -N lines the model wrote as text against the open deck, with the checks propose_deck_edit makes:
+ * the problems the lines would add and the card count they leave. A card number not in the catalog, or more copies out than the deck has, is a problem.
+ */
+export async function checkTextEdits(
+  catalog: Catalog,
+  library: OfficialLibrary | undefined,
+  deck: ContextDeck,
+  edits: readonly Edit[],
+): Promise<{ count: number; problems: string[] }> {
+  const leaderId = normalizeStatsCardId(deck.leaderId ?? "");
+  const beforeDeck = deckFromLines(catalog, deck.cards ?? [], leaderId);
+  const next = new Map(beforeDeck.cards.map((c) => [c.id, c.copies]));
+  const own: string[] = [];
+  for (const e of edits) {
+    const id = normalizeStatsCardId(e.id);
+    const card = catalog.cards.get(id);
+    if (!card) {
+      own.push(`${id} is not a card number`);
+      continue;
+    }
+    const delta = e.sign === "+" ? e.copies : -e.copies;
+    const before = next.get(id) ?? 0;
+    if (before + delta < 0) own.push(`${id} has ${before} ${before === 1 ? "copy" : "copies"} in the deck, not ${-delta} to remove`);
+    next.set(id, Math.max(0, before + delta));
+  }
+  const afterDeck = deckFromLines(catalog, [...next].map(([id, copies]) => ({ id, copies })), leaderId);
+  const was = await problemsOf(catalog, library, beforeDeck);
+  const now = await problemsOf(catalog, library, afterDeck);
+  const introduced = introducedProblems(was.problems, was.count, now.problems, now.count);
+  const countText = `${now.count} of ${DECK_SIZE} cards`;
+  if (now.count !== DECK_SIZE && !introduced.includes(countText)) introduced.push(countText);
+  return { count: now.count, problems: [...new Set([...own, ...introduced])] };
+}
+
 const textOf = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
 const refusal = (error: string) => ({ isError: true, content: [{ type: "text" as const, text: error }] });
 
@@ -142,7 +181,8 @@ export function deckEditTool(catalog: Catalog, knowledge: { library?: OfficialLi
     name: PROPOSE_TOOL,
     title: "Suggest deck edit",
     description:
-      "Suggest changes to the deck open in the app (the deck in the <context> block). Nothing is changed: the app shows them as a card with Apply and Dismiss. " +
+      "Suggest changes to the deck open in the app (the deck in the <context> block). By default nothing is changed: the app shows them as a card with Apply and Dismiss. " +
+      "Set apply true only when the player asked you to make the change (\"swap X for Y\", \"make those edits\", \"fix my deck for me\"): the app then applies it to their open deck once, with Undo on the card. Leave it false for suggestions in a review. " +
       "Give every change at once; delta adds (positive) or removes (negative) copies. The resulting deck is checked for 50 cards, at most 4 copies, the leader's colors and rules, and the ban list. " +
       "A change that adds a problem is refused with the reason.",
     inputSchema: {
@@ -157,6 +197,7 @@ export function deckEditTool(catalog: Catalog, knowledge: { library?: OfficialLi
         )
         .min(1)
         .max(12),
+      apply: z.boolean().optional(),
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args) => {

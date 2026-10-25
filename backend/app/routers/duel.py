@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app import duel_live, redis_client
 from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
-from app.roles import is_banned
+from app.roles import is_admin, is_banned
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
@@ -830,11 +830,12 @@ def my_match_replay(
 
     It holds both hands and decks, so it goes only to the game's own players, and only once
     nobody is playing it any more. Finished games always qualify; a game that never sent a
-    result qualifies after its room closed.
+    result qualifies after its room closed. The admin may open anyone's, for the admin page's
+    matches list (#691); a game still being played stays hidden from them too.
     """
     row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
     if row is not None:
-        if user.id not in (row.seat0_user_id, row.seat1_user_id):
+        if user.id not in (row.seat0_user_id, row.seat1_user_id) and not is_admin(user):
             raise HTTPException(status_code=404, detail="Match not found")
         log_row = db.get(DuelMatchLog, match_id)
         if log_row is None:
@@ -843,7 +844,7 @@ def my_match_replay(
     else:
         progress = db.get(DuelMatchProgress, match_id)
         players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
-        if user.id not in players:
+        if progress is None or (user.id not in players and not is_admin(user)):
             raise HTTPException(status_code=404, detail="Match not found")
         if not _progress_closed(progress, datetime.now(timezone.utc)):
             raise HTTPException(status_code=409, detail="This game is still being played")
@@ -854,7 +855,7 @@ def my_match_replay(
     response.headers["Cache-Control"] = "private, max-age=300"
     return DuelMatchReplayOut(
         match_id=match_id,
-        your_seat=0 if seat0_id == user.id else 1,
+        your_seat=1 if seat1_id == user.id else 0,
         players=[names.get(seat0_id, "Player"), names.get(seat1_id, "Player")],
         finished=finished,
         turns=turns,
