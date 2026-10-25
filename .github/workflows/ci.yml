@@ -106,15 +106,17 @@ jobs:
   duel-web-e2e-shard:
     # Click-through tests: duel-web in Chromium against a real local game
     # server (the FastAPI backend is faked in the browser). See duel-web/e2e/README.md.
-    # Split three ways so the suite's wall time is a third of a single job's (#485);
-    # each shard is its own runner, so the fixed ports never collide. The
-    # `duel-web-e2e` job below is the one PRs require.
+    # Split four ways so the suite's wall time is a fraction of a single job's (#485);
+    # each shard is its own runner, so the fixed ports never collide. Specs are
+    # assigned by recorded duration (duel-web/e2e/timings.json, #737), not by
+    # count, so the shards finish together. The `duel-web-e2e` job below is the
+    # one PRs require.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -129,14 +131,23 @@ jobs:
         working-directory: duel-web
       - run: npx playwright install --with-deps chromium
         working-directory: duel-web
-      - run: npx playwright test --shard=${{ matrix.shard }}/3
+      - name: Run this shard's specs
         working-directory: duel-web
+        run: |
+          FILES="$(node scripts/e2e-shards.mjs ${{ matrix.shard }} 4)"
+          if [ -z "$FILES" ]; then
+            echo "No specs in shard ${{ matrix.shard }}; skipping."
+            exit 0
+          fi
+          # Unquoted on purpose: one argument per spec file.
+          npx playwright test $FILES
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: duel-web-e2e-report-${{ matrix.shard }}
           path: |
             duel-web/playwright-report
+            duel-web/playwright-report-json
             duel-web/test-results
           if-no-files-found: ignore
 
