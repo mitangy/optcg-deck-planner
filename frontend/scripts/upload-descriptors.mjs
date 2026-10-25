@@ -11,11 +11,15 @@
  * bytes are unchanged has the same filename and is simply overwritten with
  * identical content. Only the manifest meaningfully changes between runs.
  *
+ * A `card-detector.json` + `card-detector-<hash>.onnx` pair in the bundle
+ * directory (see pack-detector.mjs) is uploaded too.
+ *
  * Requires BLOB_READ_WRITE_TOKEN.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { put } from "@vercel/blob";
+import { descriptorChunkFiles } from "../src/descriptorCache.ts";
 
 /** Everything lives under one prefix so a stale bundle can be identified. */
 const PREFIX = "scan-data";
@@ -51,11 +55,9 @@ async function main() {
 
   const manifestName = "descriptors.manifest.json";
   const manifest = JSON.parse(readFileSync(join(dir, manifestName), "utf8"));
-  const chunkFiles = readdirSync(dir).filter((f) => f.endsWith(".bin"));
-  if (chunkFiles.length !== manifest.chunks.length) {
-    console.error(
-      `manifest lists ${manifest.chunks.length} chunks but ${chunkFiles.length} .bin files are present`,
-    );
+  const { files: chunkFiles, missing } = descriptorChunkFiles(manifest, readdirSync(dir));
+  if (missing.length) {
+    console.error(`manifest lists ${missing.length} chunk(s) that are not present: ${missing.join(", ")}`);
     process.exit(1);
   }
 
@@ -79,6 +81,51 @@ async function main() {
     uploaded += 1;
     bytes += body.length;
     if (uploaded % 10 === 0) console.log(`  ${uploaded}/${chunkFiles.length}`);
+  }
+
+  // The card detector model (optional) is published like a chunk: the
+  // content-addressed .onnx first, then its pointer. See pack-detector.mjs.
+  const pointerPath = join(dir, "card-detector.json");
+  if (existsSync(pointerPath)) {
+    const pointer = JSON.parse(readFileSync(pointerPath, "utf8"));
+    await put(`${PREFIX}/${pointer.file}`, readFileSync(join(dir, pointer.file)), {
+      access: "public",
+      contentType: "application/octet-stream",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      cacheControlMaxAge: 31536000,
+    });
+    await put(`${PREFIX}/card-detector.json`, readFileSync(pointerPath), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      cacheControlMaxAge: 60,
+    });
+    console.log(`uploaded card detector ${pointer.file}`);
+  }
+
+  // The art embedder bundle (optional): model + embeddings first, then the pointer.
+  const embedderPointerPath = join(dir, "card-embedder.json");
+  if (existsSync(embedderPointerPath)) {
+    const p = JSON.parse(readFileSync(embedderPointerPath, "utf8"));
+    for (const file of [p.model.file, p.embeddings.file]) {
+      await put(`${PREFIX}/${file}`, readFileSync(join(dir, file)), {
+        access: "public",
+        contentType: "application/octet-stream",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        cacheControlMaxAge: 31536000,
+      });
+    }
+    await put(`${PREFIX}/card-embedder.json`, readFileSync(embedderPointerPath), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      cacheControlMaxAge: 60,
+    });
+    console.log(`uploaded card embedder ${p.model.file} + ${p.embeddings.file}`);
   }
 
   const manifestRes = await put(`${PREFIX}/${manifestName}`, readFileSync(join(dir, manifestName)), {

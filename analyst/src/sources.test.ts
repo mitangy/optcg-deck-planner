@@ -460,3 +460,41 @@ describe("suggested deck edits as a source (#400)", () => {
     ]);
   });
 });
+
+describe("Log Pose making an edit or a new deck, as sources (#726)", () => {
+  const edit = {
+    version: 1,
+    apply: true,
+    target: { ref: "duel:d1", name: "Luffy", leader_id: "ST01-001" },
+    summary: "Tune",
+    lines: [{ id: "ST01-016", name: "Diable Jambe", before: 0, after: 2, reason: "Cheaper" }],
+    base: [{ id: "ST01-003", copies: 4 }],
+    legality: { legal: true, count: 50, problems: [], upcoming: [], ban_list_checked: true },
+  };
+
+  it("tells the model an apply edit is being made to the open deck, with Undo on the card (#726)", () => {
+    const [one] = results(adapt("propose_deck_edit", edit));
+    expect(texts(one!)[0]).toBe("The app is making this change to the player's open deck now; the card has Undo.");
+    const [plain] = results(adapt("propose_deck_edit", { ...edit, apply: false }));
+    expect(texts(plain!)[0]).toBe("Shown to the player as an Apply card; nothing has changed yet.");
+  });
+
+  it("tells the model a new deck opens on the create page and nothing is saved (#726)", () => {
+    const draft = {
+      version: 1,
+      name: "Red Luffy",
+      leader_id: "ST01-001",
+      leader_name: "Monkey.D.Luffy",
+      summary: "Plain red beats.",
+      cards: [{ id: "ST01-003", name: "Nami", copies: 4 }],
+      count: 50,
+      legality: { legal: true, problems: [], upcoming: [], ban_list_checked: true },
+    };
+    const blocks = adapt("propose_new_deck", draft);
+    const [one] = results(blocks);
+    expect(results(blocks)).toHaveLength(1);
+    expect(one!.title).toBe("New deck: Red Luffy");
+    expect(texts(one!)[0]).toMatch(/create-deck page.*nothing is saved until the player presses Create/);
+    expect(texts(one!).join(" ")).toContain("50 cards, legal");
+  });
+});

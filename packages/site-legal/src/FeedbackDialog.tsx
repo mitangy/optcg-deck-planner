@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import {
   FEEDBACK_KINDS,
   MAX_FEEDBACK_LENGTH,
@@ -19,62 +19,26 @@ type Props = {
 
 type Phase = "editing" | "sending" | "sent";
 
-const FOCUSABLE = 'button:not([disabled]), textarea, input, [href], [tabindex]:not([tabindex="-1"])';
-
 /**
  * Modal over whatever page is open (fixed overlay: nothing behind it moves).
- * Escape and the backdrop close it, focus lands in the text box and returns to
- * the opener on close. Rendered in a portal so no parent can clip or stack over it.
+ * It is the shared Headless UI Dialog (`@optcg/ui/popups`): Escape and the backdrop close it
+ * (not while sending), Tab stays inside it, focus lands in the text box and returns to the opener on
+ * close, and it renders in a portal so no parent can clip or stack over it.
  */
 export function FeedbackDialog({ title, submit, onClose }: Props) {
   const [kind, setKind] = useState<FeedbackKind>("bug");
   const [message, setMessage] = useState("");
   const [phase, setPhase] = useState<Phase>("editing");
   const [error, setError] = useState<string | null>(null);
-  const titleId = useId();
-  const cardRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const sending = phase === "sending";
-  const sendingRef = useRef(false);
-  sendingRef.current = sending;
-
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    textRef.current?.focus();
-    // Capture phase: Escape closes this dialog only, not a menu or sheet under it.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!sendingRef.current) onCloseRef.current();
-        return;
-      }
-      if (e.key !== "Tab" || !cardRef.current) return;
-      const items = Array.from(cardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
-      if (!cardRef.current.contains(active)) {
-        e.preventDefault();
-        first.focus();
-      } else if (e.shiftKey && active === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      if (opener && opener.isConnected) opener.focus();
-    };
+  // Headless UI skips initial focus on touch screens (it would raise the keyboard); this dialog always did,
+  // since writing is the one thing it is for, so the text box takes focus itself as it mounts.
+  const focusOnMount = useCallback((el: HTMLTextAreaElement | null) => {
+    textRef.current = el;
+    el?.focus();
   }, []);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const sending = phase === "sending";
 
   useEffect(() => {
     if (phase === "sent") closeRef.current?.focus();
@@ -101,18 +65,9 @@ export function FeedbackDialog({ title, submit, onClose }: Props) {
     }
   };
 
-  return createPortal(
-    <div
-      className="feedback-backdrop"
-      role="presentation"
-      onPointerDown={(e) => {
-        if (e.target === e.currentTarget && !sending) onClose();
-      }}
-    >
-      <div ref={cardRef} className="feedback-card" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <h2 id={titleId} className="feedback-title">
-          {title}
-        </h2>
+  return (
+    <Dialog open onClose={() => (sending ? undefined : onClose())} className="feedback-backdrop" panelClassName="feedback-card">
+      <DialogTitle className="feedback-title">{title}</DialogTitle>
         {phase === "sent" ? (
           <>
             <p className="feedback-thanks" role="status">
@@ -142,7 +97,7 @@ export function FeedbackDialog({ title, submit, onClose }: Props) {
               ))}
             </div>
             <textarea
-              ref={textRef}
+              ref={focusOnMount}
               className="feedback-text"
               aria-label="Message"
               placeholder="What happened, and what did you expect?"
@@ -169,8 +124,6 @@ export function FeedbackDialog({ title, submit, onClose }: Props) {
             </div>
           </form>
         )}
-      </div>
-    </div>,
-    document.body,
+    </Dialog>
   );
 }

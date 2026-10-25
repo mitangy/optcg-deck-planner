@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import { chatBody, ChatHttpError, runChat, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
-import { cardReferenceLine, COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext } from "./copilot";
+import { answerChoiceTool, AUTOPILOT_INSTRUCTIONS, cardReferenceLine, checkChoiceAnswer, COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext } from "./copilot";
 
 const catalog = loadCatalog();
 const TICKET = "mb1.ticket-body.ticket-sig";
@@ -424,6 +424,171 @@ describe("copilot chat turn", () => {
     expect(seen[0]!.tools.map((t: { name: string }) => t.name)).toContain("propose_turn_plan");
     expect(events.some((e) => e.event === "plan")).toBe(false);
     expect(seen[1]!.messages.at(-1).content[0]).toMatchObject({ is_error: true, content: NO_GAME_ERROR });
+  });
+});
+
+// ——— Log Pose plays the turn (#725) ———
+
+const opt = (id: string, defId: string, over: Record<string, unknown> = {}) => ({ id, defId, eligible: true, ...over });
+const SELECT = {
+  id: "pc-1",
+  prompt: "Choose up to 2 cards",
+  kind: "effect",
+  optional: true,
+  request: { type: "select", min: 1, max: 2, options: [opt("o1", "OP01-016"), opt("o2", "ST01-004"), opt("o3", "ST01-015", { eligible: false }), opt("o4", "ST01-006")] },
+};
+const withChoice = (choice: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+  gameContext.parse({ ticket: TICKET, snapshot: snapshot({ choice }), autopilot: true, ...extra });
+const answered = async (g: GameContext | undefined, input: Record<string, unknown>) => {
+  const r = await answerChoiceTool(catalog, g).run(input);
+  const text = r.content.map((c) => c.text).join("\n");
+  return r.isError ? { error: text, answer: undefined } : { error: undefined, answer: JSON.parse(text) as Record<string, unknown> };
+};
+
+describe("copilot play-my-turn plan (#725)", () => {
+  const steps = [{ action: "play", card: "h1" }, { action: "end_turn" }];
+  it("marks a plan autoplay only when the model says play_now or the app is already playing, so Plan my turn stays a tap (#725)", async () => {
+    const run = async (g: GameContext, extra: Record<string, unknown>) => JSON.parse((await turnPlanTool(catalog, g).run({ summary: "Play Nami", steps, ...extra })).content[0]!.text);
+    expect(await run(game(), {})).not.toHaveProperty("autoplay");
+    expect(await run(game(), { play_now: false })).not.toHaveProperty("autoplay");
+    expect(await run(game(), { play_now: true })).toMatchObject({ autoplay: true });
+    expect(await run(gameContext.parse({ ticket: TICKET, snapshot: snapshot(), autopilot: true }), {})).toMatchObject({ autoplay: true });
+  });
+});
+
+describe("copilot answer_choice (#725)", () => {
+  it("answers a select with the picked ids and a summary naming the cards (#725)", async () => {
+    const r = await answered(withChoice(SELECT), { choiceId: "pc-1", accept: true, selected: ["o1", "o2"] });
+    expect(r.answer).toEqual({ choiceId: "pc-1", accept: true, selectedOptionIds: ["o1", "o2"], summary: "Chose Nami, Sanji" });
+  });
+
+  it("refuses an answer for a choice that isn't the pending one, so a late answer can't hit the next prompt (#725)", async () => {
+    const r = await answered(withChoice(SELECT), { choiceId: "pc-0", accept: true, selected: ["o1"] });
+    expect(r.error).toMatch(/pending choice is pc-1, not pc-0/);
+    const none = await answered(gameContext.parse({ ticket: TICKET, snapshot: snapshot(), autopilot: true }), { choiceId: "pc-1", accept: true });
+    expect(none.error).toMatch(/no pending choice/i);
+  });
+
+  it("refuses ids that aren't options, options marked not allowed and picks outside min..max (#725)", async () => {
+    const g = withChoice(SELECT);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["zzz"] })).error).toMatch(/zzz isn't one of this choice's options/);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o3"] })).error).toMatch(/o3 can't be chosen/);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: [] })).error).toMatch(/Pick 1 to 2/);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1", "o2", "o4"] })).error).toMatch(/Pick 1 to 2 options; you picked 3/);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1", "o2", "o1"] })).error).toMatch(/lists an option twice/);
+  });
+
+  it("allows picking exactly max and exactly min (#725)", async () => {
+    const g = withChoice(SELECT);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o2"] })).answer).toBeDefined();
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1", "o2"] })).answer).toBeDefined();
+  });
+
+  it("refuses two picks with the same card name when the prompt wants different names (#725)", async () => {
+    const g = withChoice({ ...SELECT, request: { ...SELECT.request, distinctNames: true, options: [opt("o1", "OP01-016"), opt("o2", "OP01-016"), opt("o3", "ST01-004")] } });
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1", "o2"] })).error).toMatch(/different card name/);
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1", "o3"] })).answer).toBeDefined();
+  });
+
+  it("takes exactly one option for a mode prompt (#725)", async () => {
+    const g = withChoice({ id: "pc-2", prompt: "Pick one", kind: "effect", request: { type: "mode", options: [opt("m1", "OP01-016", { label: "Draw a card" }), opt("m2", "ST01-004", { label: "Rest a Character" })] } });
+    expect((await answered(g, { choiceId: "pc-2", accept: true, selected: ["m1", "m2"] })).error).toMatch(/Pick 1 option/);
+    expect((await answered(g, { choiceId: "pc-2", accept: true, selected: ["m2"] })).answer).toMatchObject({ selectedOptionIds: ["m2"], summary: "Chose Rest a Character" });
+  });
+
+  it("declines only an optional choice, and never accepts one that only allows declining (#725)", async () => {
+    expect((await answered(withChoice(SELECT), { choiceId: "pc-1", accept: false })).answer).toEqual({ choiceId: "pc-1", accept: false, summary: "Declined" });
+    const must = withChoice({ ...SELECT, optional: false });
+    expect((await answered(must, { choiceId: "pc-1", accept: false })).error).toMatch(/can't be declined/);
+    const life = withChoice({ id: "pc-3", prompt: "Activate the Trigger?", kind: "life_trigger", declineOnly: true });
+    expect((await answered(life, { choiceId: "pc-3", accept: true })).error).toMatch(/Only declining/);
+    expect((await answered(life, { choiceId: "pc-3", accept: false })).answer).toMatchObject({ accept: false });
+  });
+
+  it("accepts a confirm prompt, and a choice without a request counts as one (#725)", async () => {
+    const g = withChoice({ id: "pc-4", prompt: "Draw a card?", kind: "effect", optional: true, request: { type: "confirm" } });
+    expect((await answered(g, { choiceId: "pc-4", accept: true })).answer).toEqual({ choiceId: "pc-4", accept: true, summary: "Accepted" });
+    expect((await answered(withChoice({ id: "pc-5", prompt: "Go?", kind: "effect" }), { choiceId: "pc-5", accept: true })).answer).toMatchObject({ accept: true });
+  });
+
+  it("needs a permutation of every option for an order prompt, with top only when the cards may split (#725)", async () => {
+    const order = (over: Record<string, unknown> = {}) => withChoice({ id: "pc-6", prompt: "Order them", kind: "effect", request: { type: "order", destination: "deck", options: [opt("a", "OP01-016"), opt("b", "ST01-004"), opt("c", "ST01-015")], ...over } });
+    expect((await answered(order(), { choiceId: "pc-6", accept: true, ordered: ["c", "a", "b"] })).answer).toMatchObject({ orderedOptionIds: ["c", "a", "b"] });
+    expect((await answered(order(), { choiceId: "pc-6", accept: true, ordered: ["c", "a"] })).error).toMatch(/every option exactly once/);
+    expect((await answered(order(), { choiceId: "pc-6", accept: true, ordered: ["c", "a", "b"], top: ["c"] })).error).toMatch(/can't be split/);
+    const split = await answered(order({ allowTopOrBottom: true }), { choiceId: "pc-6", accept: true, ordered: ["a", "b", "c"], top: ["c"] });
+    expect(split.answer).toMatchObject({ orderedOptionIds: ["c", "a", "b"], topOptionIds: ["c"] });
+  });
+
+  it("takes within minSelect..maxSelect for a look and puts the rest back in the order given (#725)", async () => {
+    const look = (rest = "deck_bottom") => withChoice({ id: "pc-7", prompt: "Look at the top 3", kind: "effect", request: { type: "look", min: 0, max: 1, rest, options: [opt("l1", "OP01-016"), opt("l2", "ST01-004"), opt("l3", "ST01-015")] } });
+    const ok = await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l2"], ordered: ["l3", "l1"] });
+    expect(ok.answer).toMatchObject({ selectedOptionIds: ["l2"], orderedOptionIds: ["l3", "l1"] });
+    expect(ok.answer).not.toHaveProperty("topOptionIds");
+    expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l1", "l2"] })).error).toMatch(/Pick 0 to 1/);
+    expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l2"], ordered: ["l1"] })).error).toMatch(/exactly the options you did not select/);
+    expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l2"], top: ["l1", "l3"] })).error).toMatch(/can't be split/);
+    // top or bottom moves the leftovers together
+    const top = await answered(look("top_or_bottom"), { choiceId: "pc-7", accept: true, selected: [], top: ["l1", "l2", "l3"] });
+    expect(top.answer).toMatchObject({ orderedOptionIds: ["l1", "l2", "l3"], topOptionIds: ["l1", "l2", "l3"] });
+    expect((await answered(look("top_or_bottom"), { choiceId: "pc-7", accept: true, selected: [], top: ["l1"] })).error).toMatch(/every card you did not select/);
+    expect((await answered(look("top_or_bottom"), { choiceId: "pc-7", accept: true, selected: [] })).answer).toMatchObject({ topOptionIds: [] });
+  });
+
+  it("refuses a choice whose options were cut to fit (#725)", async () => {
+    const g = withChoice({ ...SELECT, request: { ...SELECT.request, truncated: true } });
+    expect((await answered(g, { choiceId: "pc-1", accept: true, selected: ["o1"] })).error).toMatch(/too many options/);
+  });
+
+  it("is refused when the player makes their own choices, when plans are off and when no game is attached (#725)", async () => {
+    const manual = gameContext.parse({ ticket: TICKET, snapshot: snapshot({ choice: SELECT }) });
+    expect((await answered(manual, { choiceId: "pc-1", accept: true, selected: ["o1"] })).error).toMatch(/player makes their own choices/);
+    expect((await answered(withChoice(SELECT, { plans: false }), { choiceId: "pc-1", accept: true, selected: ["o1"] })).error).toMatch(/play-out is off/);
+    expect((await answered(undefined, { choiceId: "pc-1", accept: true })).error).toBe(NO_GAME_ERROR);
+  });
+
+  it("says it took none when a select allows none and nothing is picked (#725)", () => {
+    const g = withChoice({ ...SELECT, request: { ...SELECT.request, min: 0 } });
+    expect(checkChoiceAnswer(catalog, g, { choiceId: "pc-1", accept: true, selected: [] })).toMatchObject({ ok: true, answer: { summary: "Chose none" } });
+  });
+
+  it("lists the choice id and its options, with names, in the <game> block (#725)", () => {
+    const block = gameContextBlock(catalog, withChoice(SELECT), claims);
+    expect(block).toContain("Choice id: pc-1");
+    expect(block).toContain("option o1: Nami");
+    expect(block).toContain("option o3: Gum-Gum Jet Pistol (not allowed)");
+  });
+
+  it("streams a choice event when the app is playing, adds the autopilot instructions, and sends a refused answer back (#725)", async () => {
+    const answers = {
+      "POST /analyst/briefs/lookup": LOOKUP,
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+    };
+    const { api } = planner(answers);
+    const bad = { type: "tool_use", id: "tu0", name: "answer_choice", input: { choiceId: "pc-1", accept: true, selected: ["o3"] } };
+    const good = { type: "tool_use", id: "tu1", name: "answer_choice", input: { choiceId: "pc-1", accept: true, selected: ["o1"], why: "Draw" } };
+    const { seen, callModel } = scriptedModel([
+      { content: [bad], stop_reason: "tool_use", usage: usage(10, 5) },
+      { content: [good], stop_reason: "tool_use", usage: usage(10, 5) },
+      { content: [{ type: "text", text: "Taking Nami." }], stop_reason: "end_turn", usage: usage(10, 5) },
+    ]);
+    const events: SseEvent[] = [];
+    const body = chatBody.parse({ message: "(auto) Answer my pending choice", context: { game: { ticket: TICKET, snapshot: snapshot({ choice: SELECT }), autopilot: true } } });
+    await runChat(deps(api, callModel), "chat.tok", body, (e) => events.push(e), new AbortController().signal);
+    expect(events.filter((e) => e.event === "choice").map((e) => e.data)).toEqual([{ id: "tu1", choiceId: "pc-1", accept: true, selectedOptionIds: ["o1"], summary: "Chose Nami" }]);
+    expect(seen[0]!.system[1].text).toBe(COPILOT_INSTRUCTIONS + AUTOPILOT_INSTRUCTIONS);
+    expect(seen[0]!.tools.map((t: { name: string }) => t.name)).toContain("answer_choice");
+    expect(seen[1]!.messages.at(-1).content[0]).toMatchObject({ tool_use_id: "tu0", is_error: true });
+  });
+
+  it("keeps the autopilot text off a game the player is playing themselves (#725)", async () => {
+    const { api } = planner({ "POST /analyst/briefs/lookup": LOOKUP, "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/threads/9/messages": null, "POST /analyst/chat/usage": null, "GET /analyst/chat/budget": BUDGET });
+    const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Go." }], stop_reason: "end_turn", usage: usage(10, 5) }]);
+    await runChat(deps(api, callModel), "chat.tok", chatBody.parse({ message: "Plan my turn", context: { game: { ticket: TICKET, snapshot: snapshot() } } }), () => undefined, new AbortController().signal);
+    expect(seen[0]!.system[1].text).toBe(COPILOT_INSTRUCTIONS);
   });
 });
 

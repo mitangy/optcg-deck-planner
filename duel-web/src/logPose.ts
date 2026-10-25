@@ -107,6 +107,16 @@ export function deckHref(ref: string): string | null {
   return ref.startsWith("duel:") ? `/decks/${encodeURIComponent(ref.slice(5))}/configure` : null;
 }
 
+/** Opens a saved deck's editor inside the app (no page reload), so Log Pose's answer stays on screen; false for a deck that isn't one of ours. */
+export function openDeckFor(navigate: (to: string) => void): NonNullable<SourceHooks["openDeck"]> {
+  return (ref) => {
+    const to = deckHref(ref);
+    if (!to) return false;
+    navigate(to);
+    return true;
+  };
+}
+
 /** What the panel shows for cited sources: links to your match logs and card names and pictures from the atlas. */
 export const SOURCE_HOOKS: SourceHooks = {
   href: sourceHref,
@@ -116,3 +126,38 @@ export const SOURCE_HOOKS: SourceHooks = {
     return { name: card.name, imageUrl: card.imageUrl };
   },
 };
+
+/** The router state key a deck built by Log Pose travels in to the create-deck page (#726). */
+export const DRAFT_STATE_KEY = "logPoseDraft";
+
+/** The name and list Log Pose filled in, from a location's state; null when the state is not one. */
+export function readLogPoseDraft(state: unknown): { name: string; list: string } | null {
+  const d = state && typeof state === "object" ? (state as Record<string, unknown>)[DRAFT_STATE_KEY] : null;
+  if (!d || typeof d !== "object") return null;
+  const { name, list } = d as Record<string, unknown>;
+  return typeof name === "string" && typeof list === "string" && list.trim() ? { name, list } : null;
+}
+
+/** Routes that render a game: a board, a watched game, a replay or the demo. */
+export function inGameRoute(pathname: string): boolean {
+  return ["/duel", "/hotseat", "/watch", "/replay", "/demo"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
+ * Opens /decks/new with Log Pose's deck filled in. The card opening it by itself (`auto`) never takes the player away from a
+ * board, a watched game or a replay: it returns false there. The button the player presses goes too, but from a game route it
+ * first asks (`askLeave` gets the move to run on Leave).
+ */
+export function openNewDeckFor(
+  navigate: (to: string, options: { state: unknown }) => void,
+  pathname: () => string,
+  askLeave: (leave: () => void) => void,
+): NonNullable<SourceHooks["openNewDeck"]> {
+  return (draft, how) => {
+    if (how.auto && !showsLogPose(pathname())) return false;
+    const go = () => navigate("/decks/new", { state: { [DRAFT_STATE_KEY]: draft } });
+    if (!how.auto && inGameRoute(pathname())) askLeave(go);
+    else go();
+    return true;
+  };
+}

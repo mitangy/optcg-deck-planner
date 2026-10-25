@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ticketGameKey, useLogPose, useLogPoseGame, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
+import { ticketGameKey, useLogPose, useLogPoseGame, type ChoiceAnswer, type GameAskResult, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
 import { lookupCard } from "../cards/atlas";
 import { setBoardCopilot } from "../logPose";
 import type { BriefTicketWire, Intent, PlayerView, Seat } from "../net/protocol";
@@ -8,7 +8,12 @@ import { useDuelSettings } from "../settings";
 import type { BattleLogEntry } from "./battleLog";
 import { describeBattle } from "./battleBanner";
 import {
+  AUTO_CAP_REASON,
+  AUTO_UNDECIDED_REASON,
+  autoAsk,
+  autoAskAllowed,
   buildSnapshot,
+  choiceAnswerIntent,
   copilotAvailable,
   copilotShown,
   gameAttached,
@@ -22,6 +27,7 @@ import {
   stepRun,
   stepRunOtherSeat,
   stopRun,
+  type AutoAsk,
   type PlanCardMode,
   type PlanRun,
 } from "./copilot";
@@ -55,10 +61,12 @@ type CopilotSnap = {
   run: PlanRun | null;
   /** Runs that finished, by plan id, so their cards keep saying how it went. */
   finished: Record<string, PlanRun>;
+  /** Log Pose is playing the turn: waiting for the board, or asking Log Pose what to do next. Null when it is not. */
+  auto: "waiting" | "asking" | null;
 };
 
 function createStore() {
-  let snap: CopilotSnap = { view: null, run: null, finished: {} };
+  let snap: CopilotSnap = { view: null, run: null, finished: {}, auto: null };
   const listeners = new Set<() => void>();
   return {
     get: () => snap,
@@ -106,19 +114,19 @@ export function TurnPlanCard({
       status = mode.disabledReason ?? "Nothing is played until you tap Play this turn.";
       break;
     case "running":
-      status = `Playing step ${mode.step + 1} of ${plan.steps.length}`;
+      status = `${mode.auto ? "Log Pose is playing" : "Playing"} step ${mode.step + 1} of ${plan.steps.length}`;
       break;
     case "choice":
-      status = "Your call: answer the prompt, then the plan continues";
+      status = mode.auto ? "Log Pose is answering the prompt, then the plan continues" : "Your call: answer the prompt, then the plan continues";
       break;
     case "blocked":
-      status = `Step ${mode.step + 1} can't be played: ${mode.reason}`;
+      status = `Step ${mode.step + 1} can't be played: ${mode.reason}${mode.auto ? " Log Pose is planning the rest." : ""}`;
       break;
     case "done":
       status = "Done. Every step was played.";
       break;
     case "stopped":
-      status = `Stopped before step ${mode.step + 1}.${mode.reason ? ` ${mode.reason}` : ""}`;
+      status = `${mode.step >= plan.steps.length ? "Played every step." : `Stopped before step ${mode.step + 1}.`}${mode.reason ? ` ${mode.reason}` : ""}`;
       break;
   }
   return (
@@ -148,7 +156,7 @@ export function TurnPlanCard({
             Play this turn
           </button>
         ) : null}
-        {mode.kind === "blocked" ? (
+        {mode.kind === "blocked" && !mode.auto ? (
           <>
             <button type="button" className="lp-btn copilot-btn" onClick={onSkip}>
               Skip step
@@ -202,19 +210,21 @@ function useBarBottom(on: boolean): number {
   return top;
 }
 
-function CopilotPill({ run, onStop }: { run: PlanRun; onStop: () => void }) {
+function CopilotPill({ run, auto, onStop }: { run: PlanRun | null; auto: CopilotSnap["auto"]; onStop: () => void }) {
   const top = useBarBottom(true);
-  const total = run.plan.steps.length;
-  const step = Math.min(run.cursor.step + 1, total);
-  const note = run.state === "choice" ? "your call" : run.state === "blocked" ? "needs you" : null;
+  const playing = run?.auto === true || (run === null && auto !== null);
+  let text: string;
+  if (!run) text = auto === "asking" ? "Log Pose is playing · deciding" : "Log Pose is playing";
+  else {
+    const step = Math.min(run.cursor.step + 1, run.plan.steps.length);
+    const note = run.state === "choice" ? (playing ? "choosing" : "your call") : run.state === "blocked" ? (playing ? "re-planning" : "needs you") : null;
+    text = `${playing ? "Log Pose is playing" : "Log Pose"} · step ${step} of ${run.plan.steps.length}${note ? ` · ${note}` : ""}`;
+  }
   const style: CSSProperties = { top: top + 6 };
   const el = (
-    <div className="logpose copilot-pill" data-state={run.state} style={style} role="status">
+    <div className="logpose copilot-pill" data-state={run?.state ?? "running"} data-auto={playing ? "true" : undefined} style={style} role="status">
       <span className="copilot-pill-dot" aria-hidden="true" />
-      <span className="copilot-pill-text">
-        Log Pose · step {step} of {total}
-        {note ? ` · ${note}` : ""}
-      </span>
+      <span className="copilot-pill-text">{text}</span>
       <button type="button" className="copilot-pill-stop" onClick={onStop}>
         Stop
       </button>
@@ -241,7 +251,7 @@ export function useLogPoseCopilot(o: {
   /** The board's error banner: a refused move stops the plan. */
   errorBanner?: string | null;
 }): { shown: boolean; trigger: ReactNode; railTrigger: ReactNode; pill: ReactNode } {
-  const { enabled, openPanel } = useLogPose();
+  const { enabled, openPanel, askGame, stopGameAsk } = useLogPose();
   const settings = useDuelSettings();
   const brief = o.source?.brief ?? null;
   const view = o.view ?? null;
@@ -273,6 +283,115 @@ export function useLogPoseCopilot(o: {
   planningRef.current = offered;
   const ticketSeatRef = useRef(o.ticketSeat);
   ticketSeatRef.current = o.ticketSeat;
+  const askRef = useRef(askGame);
+  askRef.current = askGame;
+  const stopAskRef = useRef(stopGameAsk);
+  stopAskRef.current = stopGameAsk;
+
+  /**
+   * Log Pose playing the turn (#725). One session per turn: it starts when a live autoplay plan arrives, answers the
+   * run's pending choices and plans on when the run ends early, makes at most AUTO_ASK_CAP requests, and ends the moment the
+   * player stops it, the turn or game ends, or Log Pose cannot decide. Nothing here runs for a plan read back from a saved chat.
+   */
+  const auto = useMemo(() => {
+    type Session = { turn: number; asks: number; fired: Set<string>; answered: Set<string>; ctrl: AbortController; inFlight: boolean };
+    let session: Session | null = null;
+    const apply = (run: PlanRun, v: PlayerView) => {
+      const r = stepRun(run, v);
+      store.set({ run: r.run });
+      if (r.send) sendRef.current(r.send);
+    };
+    /** Ends the session; `reason` is shown on the run's card (also when it had already finished all its steps). */
+    const end = (reason?: string) => {
+      const s = session;
+      session = null;
+      if (s) {
+        s.ctrl.abort();
+        if (s.inFlight) stopAskRef.current();
+      }
+      const run = store.get().run;
+      if (runActive(run)) store.set({ run: stopRun(run, reason), auto: null });
+      else {
+        const last = store.get().run;
+        if (s && reason && last?.auto && (last.state === "done" || last.state === "stopped")) {
+          store.set({ run: { ...last, state: "stopped", reason: last.state === "stopped" && last.reason ? `${last.reason} ${reason}` : reason }, auto: null });
+        } else store.set({ auto: null });
+      }
+    };
+    const ask = (a: AutoAsk) => {
+      const s = session;
+      if (!s) return;
+      if (!autoAskAllowed(s.asks)) return end(AUTO_CAP_REASON);
+      s.fired.add(a.key);
+      s.asks += 1;
+      s.inFlight = true;
+      store.set({ auto: "asking" });
+      void askRef.current(a.text, { auto: true, signal: s.ctrl.signal }).then((res: GameAskResult) => {
+        if (session !== s) return;
+        s.inFlight = false;
+        if (res.aborted) end("You stopped it.");
+        else if (!res.sent || res.error || (!res.plan && !res.choice)) end(AUTO_UNDECIDED_REASON);
+        else {
+          store.set({ auto: "waiting" });
+          // The board may have moved on while Log Pose answered (no new view is coming to ask about it).
+          const v = viewRef.current;
+          if (v && v.seat === ticketSeatRef.current) drive(v);
+        }
+      });
+    };
+    /**
+     * A fresh view. The session ends with the turn or the game, whichever seat the device shows; on the ticket's own
+     * seat's view it also asks Log Pose what comes next, if anything does.
+     */
+    const drive = (v: PlayerView, mine = true) => {
+      const s = session;
+      if (!s) return;
+      if (v.winner != null || v.turnNumber !== s.turn) return end();
+      if (!mine) return;
+      const run = store.get().run;
+      if (run?.auto && run.state === "stopped") return end();
+      if (s.inFlight) return;
+      const a = autoAsk(run, v, s.fired);
+      if (a) ask(a);
+    };
+    return {
+      get active() {
+        return session !== null;
+      },
+      /** A plan Log Pose proposed to play now has just streamed in. */
+      onLivePlan(plan: TurnPlan) {
+        if (!plan.autoplay || !planningRef.current) return;
+        const cur = viewRef.current;
+        if (!cur || cur.seat !== ticketSeatRef.current) return;
+        // A step that was blocked is replaced by the plan Log Pose just made for the rest of the turn.
+        const run = store.get().run;
+        if (session && runActive(run) && run.auto && run.state === "blocked") store.set({ run: stopRun(run, run.reason) });
+        const why = playBlockReason(plan, cur, store.get().run, gameKeyNow());
+        if (why) return session ? end(why) : undefined;
+        if (!session || session.turn !== plan.turn) {
+          session?.ctrl.abort();
+          session = { turn: plan.turn, asks: 0, fired: new Set(), answered: new Set(), ctrl: new AbortController(), inFlight: false };
+        }
+        store.set({ auto: session.inFlight ? "asking" : "waiting" });
+        apply(startRun(plan, true), cur);
+      },
+      /** Log Pose has answered a pending choice: carried out only if it names the choice on the table now. */
+      onLiveChoice(answer: ChoiceAnswer) {
+        const s = session;
+        const v = viewRef.current;
+        if (!s || !v || (answer.gameKey && answer.gameKey !== gameKeyNow())) return;
+        const front = v.pendingChoices?.[0];
+        // Already answered, or the player answered it themselves while Log Pose was deciding: nothing to apply.
+        if (s.answered.has(answer.choiceId) || !front) return;
+        const intent = v.seat === ticketSeatRef.current ? choiceAnswerIntent(front, answer, v.seat, (defId) => lookupCard(defId).name) : null;
+        if (!intent) return end("Log Pose's answer didn't fit the prompt. It's your call.");
+        s.answered.add(front.id);
+        sendRef.current(intent);
+      },
+      drive,
+      end,
+    };
+  }, [store]);
 
   const actions = useMemo<Actions>(() => {
     const apply = (run: PlanRun, v: PlayerView) => {
@@ -288,6 +407,7 @@ export function useLogPoseCopilot(o: {
         apply(startRun(plan), cur);
       },
       stop: () => {
+        if (auto.active) return auto.end("You stopped it.");
         const run = store.get().run;
         if (runActive(run)) store.set({ run: stopRun(run, "You stopped it.") });
       },
@@ -298,7 +418,7 @@ export function useLogPoseCopilot(o: {
         apply(skipStep(run), cur);
       },
     };
-  }, [store]);
+  }, [store, auto]);
 
   const game = useMemo<LogPoseGame>(
     () => ({
@@ -314,8 +434,10 @@ export function useLogPoseCopilot(o: {
         return { ticket, snapshot: buildSnapshot(v, battle, v.pendingChoices?.[0]), plans: planningRef.current, ...(log.length ? { log } : {}) };
       },
       renderPlan: (plan, ctx) => <PlanCardConnector key={plan.id} plan={plan} store={store} actions={actions} gameKey={gameKeyNow()} ctx={ctx} />,
+      onLivePlan: auto.onLivePlan,
+      onLiveChoice: auto.onLiveChoice,
     }),
-    [store, actions],
+    [store, actions, auto],
   );
   useLogPoseGame(attached ? game : null);
 
@@ -331,25 +453,40 @@ export function useLogPoseCopilot(o: {
     if (!view) return;
     store.set({ view });
     const run = store.get().run;
-    if (!runActive(run)) return;
-    if (!offered) store.set({ run: stopRun(run, "Log Pose left the board.") });
-    else if (over) store.set({ run: stopRun(run, "The game is over.") });
-    // Hotseat: the device shows the other seat (the defender answering the attack). The plan waits for its seat.
-    else if (view.seat !== ticketSeatRef.current) store.set({ run: stepRunOtherSeat(run, view) });
-    else {
-      const r = stepRun(run, view);
-      store.set({ run: r.run });
-      if (r.send) sendRef.current(r.send);
+    const mine = view.seat === ticketSeatRef.current;
+    if (runActive(run)) {
+      if (!offered) store.set({ run: stopRun(run, "Log Pose left the board.") });
+      else if (over) store.set({ run: stopRun(run, "The game is over.") });
+      // Hotseat: the device shows the other seat (the defender answering the attack). The plan waits for its seat.
+      else if (!mine) store.set({ run: stepRunOtherSeat(run, view) });
+      else {
+        const r = stepRun(run, view);
+        store.set({ run: r.run });
+        if (r.send) sendRef.current(r.send);
+      }
     }
-  }, [view, offered, over, store]);
+    // Log Pose playing the turn: it ends with the board, and otherwise asks what comes next from the player's own seat.
+    if (!auto.active) return;
+    if (!offered || over) auto.end();
+    else auto.drive(view, mine);
+  }, [view, offered, over, store, auto]);
+
+  // Leaving the board ends it: no request goes out after.
+  useEffect(
+    () => () => {
+      if (auto.active) auto.end();
+    },
+    [auto],
+  );
 
   // A refused move ends the plan: it was built on a board that is no longer the one on screen.
   const banner = o.errorBanner ?? null;
   useEffect(() => {
     if (!banner) return;
+    if (auto.active) return auto.end(`The game refused a move (${banner}).`);
     const run = store.get().run;
     if (runActive(run)) store.set({ run: stopRun(run, `The game refused a move (${banner}).`) });
-  }, [banner, store]);
+  }, [banner, store, auto]);
 
   // Only the running plan matters here, so a fresh view alone never re-renders the board a second time.
   const activeRun = useSyncExternalStore(
@@ -360,9 +497,15 @@ export function useLogPoseCopilot(o: {
     },
     () => null,
   );
-  const running = offered && activeRun !== null;
+  const autoState = useSyncExternalStore(
+    store.subscribe,
+    () => store.get().auto,
+    () => null,
+  );
+  const running = offered && (activeRun !== null || autoState !== null);
   // The pill stays up while the device shows the other seat (hotseat: the defender answers), so Stop is always there.
-  const pill = running && activeRun ? <CopilotPill run={activeRun} onStop={actions.stop} /> : null;
+  // While Log Pose plays the turn it stays up between plans too, so there is always a Stop.
+  const pill = running ? <CopilotPill run={activeRun} auto={autoState} onStop={actions.stop} /> : null;
 
   if (!shown) return { shown: false, trigger: null, railTrigger: null, pill };
 

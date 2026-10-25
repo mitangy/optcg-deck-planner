@@ -1,4 +1,5 @@
 import { Dialog as HeadlessDialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { useCallback, useEffect, useRef } from "react";
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
 import "./ui.css";
 
@@ -11,10 +12,25 @@ export type DialogProps = {
   panelClassName?: string;
   /** Accessible name, when the panel has no `DialogTitle`. */
   label?: string;
+  /** `alertdialog` for a notice that needs an answer. Default `dialog`. */
+  role?: "dialog" | "alertdialog";
+  /**
+   * Whether a click or tap outside the panel calls `onClose` (default true). With `false`
+   * only Escape does, for an editor where a stray click must not throw the work away.
+   */
+  closeOnOutsideClick?: boolean;
   /** Ref of the panel element (a swipe-to-dismiss sheet moves it). */
   panelRef?: Ref<HTMLDivElement>;
   /** Extra attributes and handlers for the panel element. */
   panelProps?: Omit<ComponentPropsWithoutRef<"div">, "className" | "children">;
+  /**
+   * Opt in to enter and leave transitions (default false: the dialog unmounts the moment `open` turns false).
+   * The backdrop and the panel then stay mounted until their CSS transition ends and carry `data-closed`
+   * (hidden state), `data-enter` and `data-leave`, e.g. `.my-panel { transition: transform 200ms }`
+   * `.my-panel[data-closed] { transform: translateX(-100%) }`. With no transition in CSS (reduced motion)
+   * it unmounts at once. Focus return, Escape and outside click behave the same.
+   */
+  transition?: boolean;
   children: ReactNode;
 };
 
@@ -24,10 +40,41 @@ export type DialogProps = {
  * portal to the end of `<body>`, and a page scroll lock. The look comes from
  * `className` / `panelClassName`; ui.css only places the backdrop.
  */
-export function Dialog({ open, onClose, className, panelClassName, label, panelRef, panelProps, children }: DialogProps) {
+export function Dialog({
+  open,
+  onClose,
+  className,
+  panelClassName,
+  label,
+  role,
+  closeOnOutsideClick = true,
+  panelRef,
+  panelProps,
+  transition = false,
+  children,
+}: DialogProps) {
+  // Headless UI calls onClose for Escape and for an outside click alike. When only Escape may close,
+  // note the key in the capture phase (before Headless UI's own window listener) and drop other calls.
+  const escapeJustPressed = useRef(false);
+  useEffect(() => {
+    if (closeOnOutsideClick) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      escapeJustPressed.current = true;
+      setTimeout(() => {
+        escapeJustPressed.current = false;
+      }, 0);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [closeOnOutsideClick]);
+  const close = useCallback(() => {
+    if (closeOnOutsideClick || escapeJustPressed.current) onClose();
+  }, [closeOnOutsideClick, onClose]);
+
   return (
-    <HeadlessDialog open={open} onClose={onClose} className={`ui-dialog ${className ?? ""}`.trim()} aria-label={label}>
-      <DialogPanel ref={panelRef} className={`ui-dialog-panel ${panelClassName ?? ""}`.trim()} {...panelProps}>
+    <HeadlessDialog open={open} onClose={close} role={role} transition={transition} className={`ui-dialog ${className ?? ""}`.trim()} aria-label={label}>
+      <DialogPanel ref={panelRef} transition={transition} className={`ui-dialog-panel ${panelClassName ?? ""}`.trim()} {...panelProps}>
         {children}
       </DialogPanel>
     </HeadlessDialog>

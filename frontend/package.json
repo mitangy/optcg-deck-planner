@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "extract-descriptors": "tsx scripts/extract-descriptors.mjs",
-    "upload-descriptors": "node scripts/upload-descriptors.mjs",
+    "upload-descriptors": "tsx scripts/upload-descriptors.mjs",
+    "pack-detector": "node scripts/pack-detector.mjs",
     "e2e": "playwright test",
     "e2e:visual": "playwright test --grep @visual"
   },
@@ -19,6 +20,7 @@
     "@techstark/opencv-js": "^5.0.0-release.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "onnxruntime-web": "1.30.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0"

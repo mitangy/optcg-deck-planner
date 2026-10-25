@@ -39,6 +39,7 @@ const SUITES = {
   "deck-analytics": require("./suites/deck-analytics.cjs"),
   "patch-notes": require("./suites/patch-notes.cjs"),
   ui: require("./suites/ui.cjs"),
+  "site-legal": require("./suites/site-legal.cjs"),
   "analyst-client": require("./suites/analyst-client.cjs"),
   analyst: require("./suites/analyst.cjs"),
   "game-server": require("./suites/game-server.cjs"),

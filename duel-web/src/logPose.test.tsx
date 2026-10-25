@@ -136,9 +136,10 @@ describe("sources in a Log Pose answer (#390)", () => {
       ["2", "Rules §6-5-3 Blocker", "2"],
       ["1", "Zoro (OP01-001)", "1"],
     ]);
-    expect(html).toContain("Zoro costs 3.<button");
-    expect(html).toContain("Blockers rest.<button");
-    expect(html).toMatch(/Blockers rest\.<button[^>]*>2<\/button><button[^>]*>1<\/button> He wins/);
+    // Each marker is the button of its own popover (#718): a wrapper span around it and a hidden focus guard after it.
+    const marker = (n: number) => `<span[^>]*><button[^>]*>${n}</button></span><span hidden[^>]*></span>`;
+    expect(html).toMatch(new RegExp(`Zoro costs 3\\.${marker(1)} Blockers rest`));
+    expect(html).toMatch(new RegExp(`Blockers rest\\.${marker(2)}${marker(1)} He wins`));
   });
 
   it("lists each cited source once under the answer, with its kind (#390)", () => {

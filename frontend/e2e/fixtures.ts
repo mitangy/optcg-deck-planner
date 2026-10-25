@@ -61,6 +61,8 @@ type Planner = {
   owned: Map<string, number>;
   /** Owned alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
   altOwned: Map<string, number>;
+  /** JSON bodies the page POSTed to /owned/add (Collection photo scan). */
+  ownedAdds: { items: { card_id: string; add: number }[] }[];
   /** Chosen display art per card (0 = base, >0 = product id), as the fake backend holds it. */
   displayArt: Map<string, number>;
   /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
@@ -97,6 +99,7 @@ export const test = base.extend<{ planner: Planner }>({
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
     const extras = new Map<string, number>();
+    const ownedAdds: Planner["ownedAdds"] = [];
     const displayArt = new Map<string, number>();
     let hasDecks = true;
     let deckHidden = false;
@@ -375,6 +378,16 @@ export const test = base.extend<{ planner: Planner }>({
         else altOwned.delete(`${cardId}:${m[2]}`);
         return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
+      if (path === "/owned/add" && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as Planner["ownedAdds"][number];
+        ownedAdds.push(body);
+        const items = body.items.map((i) => {
+          const next = (owned.get(i.card_id) ?? 0) + i.add;
+          owned.set(i.card_id, next);
+          return { card_id: i.card_id, owned: next };
+        });
+        return json({ items });
+      }
       // Which art a card shows: PUT /owned/:card/display (null = automatic).
       if ((m = path.match(/^\/owned\/([^/]+)\/display$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
@@ -430,6 +443,7 @@ export const test = base.extend<{ planner: Planner }>({
       altOwned,
       displayArt,
       extras,
+      ownedAdds,
       noDecks() {
         hasDecks = false;
       },
