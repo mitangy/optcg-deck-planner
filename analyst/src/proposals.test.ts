@@ -122,6 +122,17 @@ describe("propose_deck_edit (#400)", () => {
     expect(await refused(propose(open(MAIN, { leaderId: null }), swap))).toBe(NO_DECK_ERROR);
   });
 
+  it("marks a proposal for auto-apply only when the model asked for it (#726)", async () => {
+    const swap = [change("ST01-016", 2), change("ST01-015", -2)];
+    const asked = await proposeDeckEdit(catalog, undefined, open(), { summary: "Tune the list", changes: swap, apply: true });
+    const unasked = await proposeDeckEdit(catalog, undefined, open(), { summary: "Tune the list", changes: swap });
+    expect(asked.ok && asked.proposal.apply).toBe(true);
+    expect(unasked.ok && unasked.proposal.apply).toBe(false);
+    // A refused change is still refused when apply is set.
+    const refusedApply = await proposeDeckEdit(catalog, undefined, open(), { summary: "Tune the list", changes: [change("ST01-016", 2)], apply: true });
+    expect(refusedApply.ok).toBe(false);
+  });
+
   it("makes at most 4 proposals in one turn (#400)", async () => {
     const tool = deckEditTool(catalog, {}, open());
     const args = { summary: "Tune the list", changes: [change("ST01-016", 1), change("ST01-015", -1)] };

@@ -32,7 +32,7 @@ import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { WhatsNewCard } from "@optcg/patch-notes";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
-import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose } from "./logPose";
+import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -4327,6 +4327,12 @@ function ImportPage() {
   const [decklist, setDecklist] = useState("");
   const [mode, setMode] = useState<"paste" | "file">("paste");
   const [err, setErr] = useState<string | null>(null);
+  // A deck Log Pose built arrives in the router state (#726): its name and list go straight into the form.
+  const fromLogPose = useLogPoseDraft((d) => {
+    setName(d.name);
+    setDecklist(d.list);
+    setMode("paste");
+  });
   const create = useMutation({
     mutationFn: () => api.createDeck(name.trim(), decklist),
     onSuccess: async (deck) => {
@@ -4382,6 +4388,11 @@ function ImportPage() {
         <code>.deck</code> file.
       </p>
       <form className="import-form" onSubmit={onSubmit}>
+        {fromLogPose ? (
+          <p className="import-note" role="status">
+            Filled in by Log Pose. Check it, then press Create deck.
+          </p>
+        ) : null}
         <label>
           Deck name
           <input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -4716,8 +4727,11 @@ export default function App() {
   // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const navigate = useNavigate();
+  // A deck Log Pose builds opens the import page with the list filled in (#726).
+  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
-    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={PLANNER_SOURCE_HOOKS}>
+    <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />

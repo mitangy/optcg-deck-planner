@@ -1154,9 +1154,8 @@ class AnalystDeckEditTarget(BaseModel):
     leader_id: str | None = None
 
 
-class AnalystDeckEditLegality(BaseModel):
+class AnalystDraftLegality(BaseModel):
     legal: bool
-    count: int = Field(ge=0, le=500)
     problems: list[str] = Field(default_factory=list, max_length=20)
     upcoming: list[str] = Field(default_factory=list, max_length=20)
     ban_list_checked: bool
@@ -1169,6 +1168,10 @@ class AnalystDeckEditLegality(BaseModel):
         return v
 
 
+class AnalystDeckEditLegality(AnalystDraftLegality):
+    count: int = Field(ge=0, le=500)
+
+
 class AnalystDeckEdit(BaseModel):
     """A deck change Log Pose suggests for the deck open in an app, shown as an Apply card (#400)."""
 
@@ -1176,6 +1179,8 @@ class AnalystDeckEdit(BaseModel):
     version: Literal[1]
     target: AnalystDeckEditTarget
     summary: str = Field(max_length=300)
+    # True when the player asked Log Pose to make this change: the app applies it once to the open deck (#726).
+    apply: bool = False
     lines: list[AnalystDeckEditLine] = Field(min_length=1, max_length=12)
     base: list[AnalystDeckCard] = Field(default_factory=list, max_length=80)
     legality: AnalystDeckEditLegality
@@ -1185,11 +1190,36 @@ class AnalystProposalsIn(BaseModel):
     proposals: list[AnalystDeckEdit] = Field(min_length=1, max_length=4)
 
 
+class AnalystDraftCard(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    copies: int = Field(ge=1, le=4)
+
+
+class AnalystDeckDraft(BaseModel):
+    """A new deck Log Pose built for the player: the app opens its create-deck page with it filled in (#726)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    name: str = Field(min_length=1, max_length=60)
+    leader_id: str = Field(pattern=CARD_ID_PATTERN)
+    leader_name: str = Field(max_length=120)
+    summary: str = Field(max_length=300)
+    cards: list[AnalystDraftCard] = Field(min_length=1, max_length=50)
+    count: int = Field(ge=0, le=500)
+    legality: AnalystDraftLegality
+
+
+class AnalystDraftsIn(BaseModel):
+    drafts: list[AnalystDeckDraft] = Field(min_length=1, max_length=2)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     proposals: list[AnalystDeckEdit] = Field(default_factory=list)
+    drafts: list[AnalystDeckDraft] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):

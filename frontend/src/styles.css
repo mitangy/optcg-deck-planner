@@ -2323,6 +2323,18 @@ tr.done td {
   box-shadow: var(--shadow);
 }
 
+/* Shown when Log Pose filled in the form (#726). */
+.import-form .import-note {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--info-line);
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info-ink);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 .import-form label {
   display: grid;
   min-width: 0;

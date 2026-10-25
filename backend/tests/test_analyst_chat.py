@@ -138,8 +138,8 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
     view = c.get(f"/analyst/chat/threads/{tid}").json()
     assert view["messages"] == [
-        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": []},
-        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": []},
+        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": [], "drafts": []},
+        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": [], "drafts": []},
     ]
     c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
@@ -297,6 +297,7 @@ def _edit(pid: str, name: str = "Luffy") -> dict:
         "version": 1,
         "target": {"ref": "duel:d1", "name": name, "leader_id": "ST01-001"},
         "summary": "Tune the list",
+        "apply": False,
         "lines": [
             {"id": "ST01-016", "name": "Diable Jambe", "before": 0, "after": 2, "reason": "Cheaper"},
             {"id": "ST01-015", "name": "Gum-Gum Jet Pistol", "before": 2, "after": 0, "reason": "Too slow"},
@@ -361,6 +362,83 @@ def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
     assert view[3]["proposals"][0] == _edit("t1")
     # The model's own history is unchanged.
     assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
+
+
+def _draft(did: str, name: str = "Red Luffy") -> dict:
+    """A new deck as the analyst saves it (#726)."""
+    return {
+        "id": did,
+        "version": 1,
+        "name": name,
+        "leader_id": "ST01-001",
+        "leader_name": "Monkey.D.Luffy",
+        "summary": "Plain red beats.",
+        "cards": [{"id": "ST01-003", "name": "Nami", "copies": 4}, {"id": "ST01-015", "name": "Gum-Gum Jet Pistol", "copies": 2}],
+        "count": 50,
+        "legality": {"legal": True, "problems": [], "upcoming": [], "ban_list_checked": False},
+    }
+
+
+def test_a_new_deck_draft_must_come_from_a_propose_new_deck_call_in_its_thread(chat):
+    """A draft is kept only when its id is a stored propose_new_deck tool_use of this thread (#726)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Build"}, headers=h).json()["id"]
+    messages = _propose_turn("d1", "Opening it.", name="propose_new_deck") + _propose_turn("t2", "An edit.")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    url = f"/analyst/chat/threads/{tid}/drafts"
+    # Neither an id the thread never had, nor a call to propose_deck_edit.
+    assert c.post(url, json={"drafts": [_draft("nope")]}, headers=h).status_code == 400
+    assert c.post(url, json={"drafts": [_draft("t2")]}, headers=h).status_code == 400
+    assert c.post(url, json={"drafts": [_draft("d1"), _draft("nope")]}, headers=h).status_code == 400
+    assert [m["drafts"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
+    assert c.post(url, json={"drafts": [_draft("d1")]}, headers=h).status_code == 204
+    # Saving the same one again is ignored; the first stays.
+    assert c.post(url, json={"drafts": [_draft("d1", name="Changed")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [d["name"] for m in shown for d in m["drafts"]] == ["Red Luffy"]
+    # An edit is not a draft: a propose_deck_edit id saved as a proposal never shows up as a draft, and the reverse.
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [_edit("d1")]}, headers=h).status_code == 400
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [_edit("t2")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [d["id"] for m in shown for d in m["drafts"]] == ["d1"]
+    assert [p["id"] for m in shown for p in m["proposals"]] == ["t2"]
+
+
+def test_the_thread_view_shows_a_new_deck_under_the_answer_that_made_it(chat):
+    """The draft sits on the answer that ended its turn, so it comes back on reload (#726)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Build"}, headers=h).json()["id"]
+    first = [
+        {"role": "user", "content": [{"type": "text", "text": "Hi"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Ahoy."}]},
+    ]
+    messages = first + _propose_turn("d1", "Opening it.", name="propose_new_deck")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/drafts", json={"drafts": [_draft("d1")]}, headers=h).status_code == 204
+    view = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [(m["role"], m["text"], [d["id"] for d in m["drafts"]]) for m in view] == [
+        ("user", "Hi", []),
+        ("assistant", "Ahoy.", []),
+        ("user", "Review d1", []),
+        ("assistant", "Opening it.", ["d1"]),
+    ]
+    assert view[3]["drafts"][0] == _draft("d1")
+
+
+def test_an_edit_keeps_its_apply_flag_across_a_reload(chat):
+    """A stored edit remembers whether Log Pose was asked to make it (#726)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Luffy"}, headers=h).json()["id"]
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": _propose_turn("t1", "Made it.")}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [{**_edit("t1"), "apply": True}]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [p["apply"] for m in shown for p in m["proposals"]] == [True]
 
 
 def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
