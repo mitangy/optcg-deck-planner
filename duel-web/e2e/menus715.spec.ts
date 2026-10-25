@@ -180,3 +180,39 @@ test("Tab and Shift+Tab stay inside the open site menu drawer (#715)", async ({ 
   await expect(drawer).toHaveCount(0);
   await expect(hamburger).toBeFocused();
 });
+
+test("the site menu drawer slides out when closed instead of vanishing (#722)", async ({ page }) => {
+  await fakeApi(page);
+  await page.goto("/settings");
+  // Stretch the slide so the test can look at the middle of it.
+  await page.addStyleTag({ content: ".nav-drawer, .nav-drawer-root { transition-duration: 2s !important; }" });
+  const hamburger = page.getByRole("button", { name: "Menu" });
+  await hamburger.click();
+  const drawer = page.getByRole("dialog", { name: "Site menu" });
+  const panel = drawer.locator(".nav-drawer");
+  await expect(panel).not.toHaveAttribute("data-closed", /.*/);
+  await expect.poll(async () => (await panel.boundingBox())?.x, { message: "slid fully in" }).toBe(0);
+
+  await page.keyboard.press("Escape");
+  // Mid-close: still in the page, marked closed, and partway off the left edge.
+  await expect(drawer).toHaveCount(1);
+  await expect(panel).toHaveAttribute("data-closed", "");
+  await expect.poll(async () => (await panel.boundingBox())!.x).toBeLessThan(0);
+  const box = (await panel.boundingBox())!;
+  expect(box.x + box.width).toBeGreaterThan(0);
+  await expect(drawer).toHaveCount(0, { timeout: 8000 });
+  await expect(hamburger).toBeFocused();
+});
+
+test("the site menu drawer closes at once with reduced motion (#722)", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await fakeApi(page);
+  await page.goto("/settings");
+  // Only the duration (not the property): were the drawer still allowed to transition, it would take 2s.
+  await page.addStyleTag({ content: ".nav-drawer, .nav-drawer-root { transition-duration: 2s; }" });
+  await page.getByRole("button", { name: "Menu" }).click();
+  const drawer = page.getByRole("dialog", { name: "Site menu" });
+  await expect(drawer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(drawer).toHaveCount(0, { timeout: 500 });
+});
