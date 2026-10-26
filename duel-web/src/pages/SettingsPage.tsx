@@ -251,9 +251,8 @@ export function SettingsPage() {
               ))}
             </div>
             <p className="field-hint">
-              Colours for the whole app, from One Piece crews and places. Light mode
-              brightens menus and panels; the playmat stays dark so cards read
-              clearly. Auto follows your device. {savedWhere}
+              Crew colours for the whole app. Light mode keeps the playmat dark. Auto
+              follows your device. {savedWhere}
             </p>
           </section>
 
@@ -273,8 +272,8 @@ export function SettingsPage() {
               {!playmatUrl ? <span>Default playmat</span> : null}
             </div>
             <p className="field-hint">
-              Official playmats are 24 × 14 in (12:7). You can crop, rotate and
-              flip after choosing an image. Shown on your side of the board.{" "}
+              Best at 12:7 (official mats are 24 × 14 in). Crop, rotate and flip after
+              choosing. Shown on your side of the board.{" "}
               {savedWhere}
             </p>
             <div className="btn-row">
@@ -365,8 +364,7 @@ export function SettingsPage() {
                   {cardBackUrl
                     ? "Custom card back."
                     : "Official ONE PIECE CARD GAME back."}{" "}
-                  Shown on your deck and Life cards; opponents see the official
-                  back. Crop, rotate and flip after choosing an image.{" "}
+                  Opponents always see the official back.{" "}
                   {savedWhere}
                 </p>
                 <div className="btn-row">
@@ -433,8 +431,7 @@ export function SettingsPage() {
               <span>Deck stats</span>
             </label>
             <p className="field-hint">
-              Cost curve, counters, draw odds, searchers and build hints, the same as the deck
-              planner. Shown as a Deck stats section when you edit a deck. {savedWhere}
+              Cost curve, counters, draw odds and build hints when you edit a deck. {savedWhere}
             </p>
           </div>
         </section>
