@@ -48,69 +48,109 @@ export const TOTAL_SECONDS = 72;
 export const SCENES: SceneDef[] = [
   {
     id: 'landing', clip: '01-landing', start: 0, dur: 5, transition: 'cut',
-    // 1.2s of the logo reveal plays before the footage; speed it up slightly so the
-    // whole 5s clip still fits. Tune `rate` / `clipDelay` once the real clip exists.
+    // 1.2s of logo reveal plays before the footage; the 5s clip is sped up so it fits.
     clipDelay: 1.2, rate: 1.3,
-    focus: [f(0, FULL), f(2.4, r(0.1, 0.12, 0.8)), f(3.9, r(0.2, 0.25, 0.6))],
+    focus: [f(0, FULL), f(1.8, r(0.18, 0.02, 0.64)), f(3.6, r(0.22, 0.06, 0.56))],
   },
+  // 02: hand -> play Sanji -> DON!! attach -> attack arrow -> opponent reveals a life card. 1.3x from clip 1.3s.
   {
-    id: 'turn', clip: '02-turn', start: 5, dur: 7, trimStart: 0.5, transition: 'zoom',
+    id: 'turn', clip: '02-turn', start: 5, dur: 8.5, trimStart: 1.3, rate: 1.3, transition: 'zoom',
     eyebrow: 'Drag. Attach. Attack.',
-    focus: [f(0, FULL), f(1.0, r(0.15, 0.45, 0.7)), f(3.0, r(0.2, 0.05, 0.6)), f(5.0, r(0.3, 0.3, 0.55)), f(6.2, FULL)],
+    focus: [f(0, r(0.0, 0.1, 0.9)), f(2.6, r(0.0, 0.2, 0.8)), f(5.0, FULL), f(7.3, r(0.05, 0.0, 0.92))],
   },
-  // "Make it yours." part 1: crew themes as fast on-beat cuts (2s = 4 beats each) from one clip.
-  {id: 'themes-1', clip: '03-themes', start: 12, dur: 2, trimStart: 0, transition: 'wipe-right', eyebrow: 'Crew themes', focus: [f(0, FULL)]},
-  {id: 'themes-2', clip: '03-themes', start: 14, dur: 2, trimStart: 2, transition: 'wipe-left', eyebrow: 'Crew themes', focus: [f(0, r(0.05, 0.1, 0.9)), f(1.5, r(0.1, 0.18, 0.8))]},
-  {id: 'themes-3', clip: '03-themes', start: 16, dur: 2, trimStart: 4, transition: 'wipe-right', eyebrow: 'Crew themes', focus: [f(0, r(0.2, 0.3, 0.6)), f(1.5, r(0.15, 0.25, 0.7))]},
-  {id: 'themes-4', clip: '03-themes', start: 18, dur: 2, trimStart: 6, transition: 'wipe-left', eyebrow: 'Crew themes', focus: [f(0, FULL), f(1.5, r(0.0, 0.0, 0.9))]},
-  {id: 'themes-5', clip: '03-themes', start: 20, dur: 2, trimStart: 8, transition: 'wipe-right', eyebrow: 'Light mode too', focus: [f(0, r(0.1, 0.1, 0.85)), f(1.5, FULL)]},
+  // "Make it yours." one continuous take: the crew themes cycle on their own, so no cuts.
   {
-    id: 'custom-art', clip: '04-custom-art', start: 22, dur: 10, transition: 'wipe-left',
-    eyebrow: 'Your playmat. Your card backs. Your DON!!',
-    rate: 0.8, // 8s clip stretched over 10s; set to 1 if the real clip is longer
-    focus: [f(0, r(0.0, 0.05, 0.75)), f(3.5, r(0.25, 0.1, 0.7)), f(6.5, FULL), f(8.0, r(0.15, 0.3, 0.7))],
+    id: 'themes', clip: '03-themes', start: 13.5, dur: 10, trimStart: 0.5, transition: 'wipe-right',
+    eyebrow: 'Crew themes, light mode too',
+    focus: [f(0, FULL), f(4, r(0.0, 0.0, 0.96)), f(8, FULL)],
+  },
+  // 04: playmat upload + crop, card back, DON!! art, then the board wearing them (dead scrolling cut out).
+  {
+    id: 'art-mat', clip: '04-custom-art', start: 23.5, dur: 3, trimStart: 0.5, rate: 1.2, transition: 'wipe-left',
+    eyebrow: 'Your playmat',
+    focus: [f(0, r(0.17, 0.12, 0.7)), f(1.0, r(0.22, 0.18, 0.62)), f(2.3, r(0.17, 0.0, 0.7))],
   },
   {
-    id: 'layout', clip: '05-layout', start: 32, dur: 6, transition: 'wipe-right',
+    id: 'art-back', clip: '04-custom-art', start: 26.5, dur: 2.5, trimStart: 4.4, rate: 1.4, transition: 'fade',
+    eyebrow: 'Your card backs',
+    focus: [f(0, r(0.17, 0.05, 0.7)), f(0.8, r(0.2, 0.25, 0.65)), f(1.9, r(0.17, 0.05, 0.7))],
+  },
+  {
+    id: 'art-don', clip: '04-custom-art', start: 29, dur: 1.5, trimStart: 8.0, rate: 1.2, transition: 'fade',
+    eyebrow: 'Your DON!! art',
+    focus: [f(0, r(0.17, 0.1, 0.7))],
+  },
+  {
+    id: 'art-board', clip: '04-custom-art', start: 30.5, dur: 2.5, trimStart: 10.1, transition: 'fade',
+    eyebrow: 'All of it, on the table',
+    focus: [f(0, FULL), f(0.5, r(0.0, 0.2, 0.85))],
+  },
+  {
+    id: 'layout-hand', clip: '05-layout', start: 33, dur: 2.5, trimStart: 3.4, rate: 1.3, transition: 'wipe-right',
     eyebrow: 'Arrange the table your way',
-    focus: [f(0, FULL), f(1.0, r(0.55, 0.2, 0.45)), f(3.0, r(0.1, 0.5, 0.7)), f(4.8, FULL)],
+    focus: [f(0, r(0.05, 0.25, 0.85))],
   },
   {
-    id: 'friends', clip: '06-friends', start: 38, dur: 10, transition: 'zoom',
+    id: 'layout-tilt', clip: '05-layout', start: 35.5, dur: 3.5, trimStart: 7.2, rate: 1.2, transition: 'fade',
+    eyebrow: 'Arrange the table your way',
+    focus: [f(0, r(0.3, 0.0, 0.7)), f(0.9, r(0.15, 0.15, 0.7)), f(2.3, FULL)],
+  },
+  {
+    id: 'friends-lobby', clip: '06-friends', start: 39, dur: 2.5, trimStart: 0.8, rate: 1.4, transition: 'zoom',
     eyebrow: 'Invite a friend',
-    focus: [f(0, r(0.0, 0.05, 0.6)), f(3.0, r(0.1, 0.1, 0.7)), f(6.0, FULL), f(8.0, r(0.2, 0.25, 0.6))],
+    focus: [f(0, r(0.2, 0.05, 0.66))],
   },
   {
-    id: 'spectate', clip: '07-spectate', start: 48, dur: 5, transition: 'wipe-left',
+    id: 'friends-room', clip: '06-friends', start: 41.5, dur: 3.5, trimStart: 4.3, transition: 'fade',
+    eyebrow: 'Invite a friend',
+    focus: [f(0, FULL)],
+  },
+  {
+    id: 'spectate', clip: '07-spectate', start: 45, dur: 4.5, transition: 'wipe-left',
     eyebrow: 'Watch live matches',
-    focus: [f(0, FULL), f(1.5, r(0.1, 0.1, 0.8)), f(3.5, r(0.25, 0.3, 0.6))],
+    focus: [f(0, FULL), f(1.2, r(0.02, 0.02, 0.96))],
   },
   {
-    id: 'ranked', clip: '08-ranked', start: 53, dur: 5, transition: 'zoom',
+    id: 'ranked-seat', clip: '08-ranked', start: 49.5, dur: 3, trimStart: 0.6, rate: 1.1, transition: 'zoom',
     eyebrow: 'Ranked ladder',
-    focus: [f(0, r(0.55, 0.0, 0.45)), f(2.5, FULL), f(3.5, r(0.2, 0.2, 0.6))],
+    focus: [f(0, FULL)],
   },
   {
-    id: 'logpose', clip: '09-logpose', start: 58, dur: 6, transition: 'zoom',
+    id: 'ranked-board', clip: '08-ranked', start: 52.5, dur: 2, trimStart: 4.5, transition: 'fade',
+    eyebrow: 'Ranked ladder',
+    focus: [f(0, r(0.3, 0.0, 0.6))],
+  },
+  {
+    id: 'logpose-review', clip: '09-logpose', start: 54.5, dur: 3.5, trimStart: 0.6, rate: 1.4, transition: 'zoom',
     eyebrow: 'Log Pose, your AI deck analyst',
-    focus: [f(0, FULL), f(1.5, r(0.5, 0.05, 0.5)), f(4.0, r(0.1, 0.2, 0.7))],
+    focus: [f(0, r(0.22, 0.0, 0.56)), f(1.6, r(0.22, 0.18, 0.56)), f(2.7, r(0.22, 0.22, 0.56))],
   },
   {
-    id: 'planner', clip: '10-planner', start: 64, dur: 4, trimStart: 0.5, transition: 'wipe-right',
+    id: 'logpose-replay', clip: '09-logpose', start: 58, dur: 4, trimStart: 7.2, rate: 1.1, transition: 'fade',
+    eyebrow: 'Replay every turn',
+    focus: [f(0, FULL)],
+  },
+  {
+    id: 'planner', clip: '10-planner', start: 62, dur: 4.5, trimStart: 0.4, transition: 'wipe-right',
     eyebrow: 'Deck planner + market prices',
-    focus: [f(0, FULL), f(1.5, r(0.45, 0.1, 0.55)), f(3.0, r(0.2, 0.3, 0.6))],
+    focus: [f(0, FULL), f(1.5, r(0.35, 0.2, 0.65))],
+  },
+  {
+    id: 'planner-duel', clip: '10-planner', start: 66.5, dur: 1.5, trimStart: 7.4, transition: 'fade',
+    eyebrow: 'Play in Duel',
+    focus: [f(0, FULL)],
   },
 ];
 
 /** On-screen lines. `em: true` words get the gold/bold treatment. Times in seconds. */
 export const CAPTIONS: CaptionDef[] = [
   {start: 1.5, end: 5, words: [{t: 'The One Piece'}, {t: 'Card Game,'}, {t: 'online.', em: true}]},
-  {start: 5, end: 12, words: [{t: 'Built to feel like'}, {t: 'the table.', em: true}]},
-  {start: 12, end: 38, words: [{t: 'Make it'}, {t: 'yours.', em: true}]},
-  {start: 38, end: 53, words: [{t: 'Play with'}, {t: 'friends.', em: true}]},
-  {start: 53, end: 58, words: [{t: 'Climb the'}, {t: 'ranks.', em: true}]},
-  {start: 58, end: 64, words: [{t: 'Get better'}, {t: 'every game.', em: true}]},
-  {start: 64, end: 68, words: [{t: 'Plan decks.'}, {t: 'Track prices.', em: true}]},
+  {start: 5, end: 13.5, words: [{t: 'Built to feel like'}, {t: 'the table.', em: true}]},
+  {start: 13.5, end: 39, words: [{t: 'Make it'}, {t: 'yours.', em: true}]},
+  {start: 39, end: 49.5, words: [{t: 'Play with'}, {t: 'friends.', em: true}]},
+  {start: 49.5, end: 54.5, words: [{t: 'Climb the'}, {t: 'ranks.', em: true}]},
+  {start: 54.5, end: 62, words: [{t: 'Get better'}, {t: 'every game.', em: true}]},
+  {start: 62, end: 68, words: [{t: 'Plan decks.'}, {t: 'Track prices.', em: true}]},
 ];
 
 export const END_CARD = {

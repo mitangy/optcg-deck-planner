@@ -14,7 +14,7 @@ export async function run(): Promise<void> {
   const t = await startTake({
     id,
     gameSeed: 11,
-    seed: { settings: { handLayout: "fan" } },
+    seed: { settings: { handLayout: "fan", playmatDim: 0 } },
     fake: { me: { ...MIKO, ...MIKO_STATS }, friends: friendsOfMiko() },
   });
   const p = t.page;
@@ -64,7 +64,7 @@ export async function run(): Promise<void> {
     await shot("4");
     t.rec.markIn(0.1);
     await sleep(500);
-    await t.pointer.hover({ x: 800, y: 1062 }, { ms: 700 });
+    await t.pointer.hover({ x: 1010, y: 760 }, { ms: 900 });
     await sleep(1700);
   } finally {
     await finishTake(t);

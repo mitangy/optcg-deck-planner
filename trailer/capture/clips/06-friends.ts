@@ -2,7 +2,7 @@
 import { sleep } from "../lib/util";
 import { finishTake, newWindow, startTake } from "../lib/take";
 import { MIKO, ZORO, WORST_GENERATION } from "../lib/data";
-import { MIKO_STATS, friendsOfMiko, friendsOfZoro } from "../lib/world";
+import { MIKO_STATS, friendsOfMiko, friendsOfZoro, matchesOfMiko } from "../lib/world";
 import { World } from "../lib/fakeApi";
 import { profileDecks } from "../lib/data";
 
@@ -13,7 +13,7 @@ export async function run(): Promise<void> {
   const t = await startTake({
     id,
     gameSeed: 23,
-    fake: { me: { ...MIKO, ...MIKO_STATS }, friends: friendsOfMiko(), world },
+    fake: { me: { ...MIKO, ...MIKO_STATS }, friends: friendsOfMiko(), matches: matchesOfMiko(), world },
   });
   const p = t.page;
   const shot = async (n: string) => { if (process.env.SHOTS) await p.screenshot({ path: `/tmp/shots/${id}-${n}.png` }); };
