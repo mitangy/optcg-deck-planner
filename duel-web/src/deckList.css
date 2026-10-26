@@ -1,0 +1,521 @@
+/*
+ * Decks page (/decks): saved decks as a grid of cards, with a search box and a sort menu above it (#747).
+ * Palette tokens only (--arena-*, --chrome*, --ink, --muted, --line*), so every crew theme and light mode follow.
+ * Loaded after styles.css, so a rule here beats the older row styles of the same specificity.
+ */
+
+.deck-list-subtitle {
+  margin: 0;
+}
+
+.deck-list-count {
+  margin-left: 0.55rem;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: 0.1em;
+}
+
+.deck-list-empty {
+  margin: 0;
+  padding: 1rem 0;
+}
+
+/* ——— Search + sort ——— */
+
+.deck-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.deck-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.deck-search svg {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.deck-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.55rem 0.75rem 0.55rem 2.4rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  font-size: 0.9rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.deck-search input::placeholder {
+  color: var(--muted);
+}
+
+.deck-search input:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
+}
+
+.deck-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--arena-raised);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.deck-sort-btn:hover,
+.deck-sort-btn[data-open] {
+  border-color: var(--line-strong);
+}
+
+.deck-sort-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.deck-sort-btn svg {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 140ms ease;
+}
+
+.deck-sort-btn[data-open] svg {
+  transform: rotate(180deg);
+}
+
+.deck-sort-prefix {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ——— Cards ——— */
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.85rem;
+}
+
+.deck-grid > .deck-swipe-slot {
+  border-radius: 12px;
+}
+
+.deck-list-row.deck-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border-color: var(--line);
+  background: var(--arena-panel);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.deck-list-row.deck-card:hover,
+.deck-list-row.deck-card:focus-within {
+  border-color: var(--line-strong);
+}
+
+.deck-card-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.deck-card-open:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--chrome-bright);
+}
+
+.deck-card-art {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  height: 8rem;
+  overflow: hidden;
+  background: var(--arena-deep);
+}
+
+/* The leader's face sits in the upper part of the card scan; cropping toward it keeps the portrait. */
+.deck-card-img,
+.deck-card-img-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.deck-card-img {
+  object-fit: cover;
+  object-position: 50% 22%;
+  transition: transform 300ms ease;
+}
+
+.deck-card-open:hover .deck-card-img {
+  transform: scale(1.06);
+}
+
+.deck-card-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Fades the art into the card body. */
+.deck-card-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--arena-panel) 0%, rgb(var(--panel-rgb) / 0.2) 55%, transparent 100%);
+  pointer-events: none;
+}
+
+.deck-card-colors {
+  position: absolute;
+  z-index: 1;
+  left: 0.75rem;
+  bottom: 0.5rem;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.deck-card-dot {
+  display: block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  /* A thin light ring keeps the black colour visible on the dark art. */
+  border: 1px solid rgb(255 255 255 / 0.4);
+  box-shadow: 0 0 0 2px rgb(var(--panel-rgb) / 0.9);
+}
+
+.deck-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.55rem 0.8rem 0.75rem;
+}
+
+.deck-card-name {
+  display: block;
+  overflow: hidden;
+  color: var(--chrome-bright);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-card-leader {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-card-warn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.deck-card-warn svg {
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Pushes the count to the bottom so cards in one row line up whether or not they carry a warning. */
+.deck-card-count {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.2rem 0.5rem;
+  margin-top: auto;
+  padding-top: 0.6rem;
+}
+
+.deck-card-count-label {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.deck-card-count-num {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.deck-card-count-max {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.deck-card-bar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--muted-rgb) / 0.25);
+}
+
+.deck-card-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chrome);
+}
+
+.deck-card-bar.is-incomplete > span {
+  background: var(--warn);
+}
+
+.deck-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.6rem;
+  padding: 0 0.4rem 0 0.8rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+/* Replaces the old row's min-width: the badge is a text label here. */
+.deck-card-foot .deck-list-builtin {
+  min-width: 0;
+  font-size: 0.72rem;
+}
+
+.deck-card-play {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chrome-bright);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.deck-card-play:hover {
+  background: rgb(var(--chrome-rgb) / 0.12);
+}
+
+.deck-card-play:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* The "…" button sits over the art's top right corner; the list it opens floats in a portal. */
+.deck-card-menu-btn {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+}
+
+/* A 32px chip inside the 44px hit target. */
+.deck-card-menu-btn::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(var(--deep-rgb) / 0.72);
+  backdrop-filter: blur(4px);
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.deck-card-menu-btn svg {
+  position: relative;
+  fill: currentColor;
+}
+
+.deck-card-menu-btn:hover::before,
+.deck-card-menu-btn[data-open]::before {
+  border-color: var(--line-strong);
+  background: rgb(var(--deep-rgb) / 0.9);
+}
+
+.deck-card-menu-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ——— Menus (deck actions, sort) ——— */
+
+.deck-card-menu {
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 11rem;
+  padding: 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--arena-panel);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  animation: deck-menu-in 140ms ease-out;
+}
+
+.deck-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Headless UI keeps focus on the list and marks the active row [data-focus] (arrow keys and pointer alike). */
+.deck-card-menu-item[data-focus],
+.deck-card-menu-item:hover {
+  background: rgb(var(--chrome-bright-rgb) / 0.14);
+}
+
+.deck-card-menu-item.is-danger {
+  color: var(--crimson-bright);
+}
+
+.deck-card-menu-item.is-danger[data-focus],
+.deck-card-menu-item.is-danger:hover {
+  background: color-mix(in srgb, var(--crimson-bright) 16%, transparent);
+}
+
+.deck-sort-check {
+  flex: 0 0 1rem;
+  color: var(--chrome-bright);
+  text-align: center;
+}
+
+/* ——— Layouts ——— */
+
+@media (min-width: 1024px) {
+  .deck-list-page {
+    max-width: 1400px;
+  }
+
+  /* Your decks take the room; the planner list stays a narrow column to drag from. */
+  .deck-list-columns {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+}
+
+/* Phones: a shorter art strip keeps a long list from being all picture. */
+@media (max-width: 599px) {
+  .deck-card-art {
+    height: 6.5rem;
+  }
+}
+
+/* Short landscape windows. */
+@media (max-height: 500px) {
+  .deck-card-art {
+    height: 5.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card-img,
+  .deck-sort-btn svg,
+  .deck-card-menu {
+    transition: none;
+    animation: none;
+  }
+
+  .deck-card-open:hover .deck-card-img {
+    transform: none;
+  }
+}

@@ -30,6 +30,17 @@ import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { NavMenu } from "../nav/NavMenu";
+import { Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
+import { colorFill } from "../board/PreviewBadges";
+import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
+import {
+  DECK_SORTS,
+  filterDecks,
+  loadDeckSort,
+  saveDeckSort,
+  sortDecks,
+  type DeckSort,
+} from "../decks/deckListView";
 
 type PlannerState =
   | { status: "loading" }
@@ -188,15 +199,57 @@ function PlannerRow({
   );
 }
 
-function DeckRow({
+const MENU_ANCHOR = { to: "bottom end", gap: 6, padding: 8 } as const;
+const SORT_ANCHOR = { to: "bottom end", gap: 6, padding: 8 } as const;
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+      <circle cx="5" cy="12" r="1.9" />
+      <circle cx="12" cy="12" r="1.9" />
+      <circle cx="19" cy="12" r="1.9" />
+    </svg>
+  );
+}
+
+function WarnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+      <path d="M12 3.5 22 20.5H2L12 3.5Z" />
+      <path d="M12 10v4.5M12 17.4v.2" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="6" />
+      <path d="m15 15 5 5" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/** One saved deck: leader art with its colours, name, leader, main-deck count and a "…" menu of what you can do with it. */
+function DeckCard({
   deck,
   onOpen,
+  onPlay,
   onDelete,
   arrived,
 }: {
   deck: SavedDeck;
   arrived: boolean;
   onOpen: () => void;
+  onPlay: () => void;
   onDelete: () => void;
 }) {
   const leader = lookupCard(deck.leaderId);
@@ -205,51 +258,146 @@ function DeckRow({
     deck.leaderId,
   );
   const canDelete = !deck.id.startsWith("test-");
-  const showArt = Boolean(leaderArt);
+  const incomplete = isIncompleteDeck(deck);
+  const count = deck.cards.length;
+  const colorNames = leader.colors.map((c) => c.charAt(0).toUpperCase() + c.slice(1));
 
   return (
-    <SwipeRow
-      className="deck-list-row"
-      arrived={arrived}
-    >
-      <button type="button" className="deck-list-open" onClick={onOpen}>
-        {showArt ? (
-          <img
-            className="deck-list-leader"
-            src={leaderArt!}
-            alt=""
-            loading="lazy"
-            onError={failLeaderArt}
-          />
+    <SwipeRow className="deck-list-row deck-card" arrived={arrived}>
+      <button type="button" className="deck-card-open" aria-label={`Edit ${deck.name}`} onClick={onOpen}>
+        <span className="deck-card-art">
+          {leaderArt ? (
+            <img className="deck-card-img" src={leaderArt} alt="" loading="lazy" onError={failLeaderArt} />
+          ) : (
+            <span className="deck-card-img-fallback" aria-hidden>
+              {deck.leaderId}
+            </span>
+          )}
+          {colorNames.length ? (
+            <span className="deck-card-colors" role="img" aria-label={`Colour ${colorNames.join("/")}`}>
+              {colorNames.map((c) => (
+                <i key={c} className="deck-card-dot" style={{ background: colorFill([c]) }} title={c} />
+              ))}
+            </span>
+          ) : null}
+        </span>
+        <span className="deck-card-body">
+          <span className="deck-card-name" title={deck.name}>{deck.name}</span>
+          <span className="deck-card-leader" title={`${leader.name} (${deck.leaderId})`}>
+            {leader.name} · {deck.leaderId}
+          </span>
+          {incomplete ? (
+            <span className="deck-card-warn" role="note">
+              <WarnIcon />
+              <span>Incomplete: {count} of {MAX_MAIN_DECK_SIZE} main-deck cards</span>
+            </span>
+          ) : null}
+          <span className="deck-card-count">
+            <span className="deck-card-count-label">Main deck</span>
+            <span className="deck-card-count-num">
+              {count}
+              <span className="deck-card-count-max">/{MAX_MAIN_DECK_SIZE}</span>
+            </span>
+            <span
+              className={`deck-card-bar${incomplete ? " is-incomplete" : ""}`}
+              role="progressbar"
+              aria-label={`${count} of ${MAX_MAIN_DECK_SIZE} main-deck cards`}
+              aria-valuemin={0}
+              aria-valuemax={MAX_MAIN_DECK_SIZE}
+              aria-valuenow={Math.min(count, MAX_MAIN_DECK_SIZE)}
+            >
+              <span style={{ width: `${Math.min(100, (count / MAX_MAIN_DECK_SIZE) * 100)}%` }} />
+            </span>
+          </span>
+        </span>
+      </button>
+      <div className="deck-card-foot">
+        {canDelete ? (
+          <span className="deck-card-updated">
+            Updated {new Date(deck.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
         ) : (
-          <span className="deck-list-leader deck-list-leader-fallback" aria-hidden>
-            {deck.leaderId}
+          <span className="deck-list-builtin" title="Built-in test deck">
+            Built-in
           </span>
         )}
-        <div className="deck-list-meta">
-          <div className="deck-list-name">
-            {deck.name}
-            {isIncompleteDeck(deck) ? (
-              <span className="deck-incomplete-badge" title={`${deck.cards.length} of 50 main-deck cards`}>
-                Incomplete
-              </span>
-            ) : null}
-          </div>
-          <div className="deck-list-sub">
-            {leader.name} ({deck.leaderId}) · {deck.cards.length} main
-          </div>
-        </div>
-      </button>
-      {canDelete ? (
-        <button type="button" className="btn btn-danger deck-list-delete" onClick={onDelete}>
-          Delete
+        <button type="button" className="deck-card-play" aria-label={`Play with ${deck.name}`} onClick={onPlay}>
+          Play <span aria-hidden>→</span>
         </button>
-      ) : (
-        <span className="deck-list-builtin" title="Built-in test deck">
-          Built-in
-        </span>
-      )}
+      </div>
+      <Menu>
+        <MenuButton type="button" className="deck-card-menu-btn" aria-label={`Actions for ${deck.name}`}>
+          <MoreIcon />
+        </MenuButton>
+        <MenuList anchor={MENU_ANCHOR} className="deck-card-menu">
+          <MenuItem>
+            <button type="button" className="deck-card-menu-item" onClick={onOpen}>
+              Edit
+            </button>
+          </MenuItem>
+          <MenuItem>
+            <button type="button" className="deck-card-menu-item" onClick={onPlay}>
+              Play with this deck
+            </button>
+          </MenuItem>
+          {canDelete ? (
+            <MenuItem>
+              <button type="button" className="deck-card-menu-item is-danger" onClick={onDelete}>
+                Delete
+              </button>
+            </MenuItem>
+          ) : null}
+        </MenuList>
+      </Menu>
     </SwipeRow>
+  );
+}
+
+/** Search box and sort menu above the deck cards. */
+function DeckToolbar({
+  query,
+  onQuery,
+  sort,
+  onSort,
+}: {
+  query: string;
+  onQuery: (q: string) => void;
+  sort: DeckSort;
+  onSort: (s: DeckSort) => void;
+}) {
+  const label = DECK_SORTS.find((s) => s.id === sort)?.label ?? "";
+  return (
+    <div className="deck-toolbar">
+      <label className="deck-search">
+        <SearchIcon />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder="Search decks or leaders"
+          aria-label="Search decks or leaders"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </label>
+      <Listbox value={sort} onChange={onSort}>
+        <ListboxButton className="deck-sort-btn" aria-label={`Sort decks: ${label}`}>
+          <span className="deck-sort-prefix">Sort:</span>
+          <span className="deck-sort-value">{label}</span>
+          <ChevronIcon />
+        </ListboxButton>
+        <ListboxList anchor={SORT_ANCHOR} className="deck-card-menu deck-sort-menu">
+          {DECK_SORTS.map((s) => (
+            <ListboxOption key={s.id} value={s.id} className="deck-card-menu-item deck-sort-option">
+              <span className="deck-sort-check" aria-hidden>
+                {s.id === sort ? "✓" : ""}
+              </span>
+              {s.label}
+            </ListboxOption>
+          ))}
+        </ListboxList>
+      </Listbox>
+    </div>
   );
 }
 
@@ -268,6 +416,8 @@ export function DeckListPage() {
   const [arrived, setArrived] = useState<Set<number | string>>(() => new Set());
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const deepLinkHandled = useRef(false);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<DeckSort>(loadDeckSort);
   // Phones swipe rows between the lists; the grip drag could not reach the top of a long list.
   const phone = !useMediaQuery(DESKTOP_DECKS_QUERY);
 
@@ -400,6 +550,32 @@ export function DeckListPage() {
     return listSavedDecks();
   }, [tick, syncedDecks]);
 
+  const shownDecks = useMemo(() => sortDecks(filterDecks(decks, query), sort), [decks, query, sort]);
+
+  function pickSort(next: DeckSort) {
+    setSort(next);
+    saveDeckSort(next);
+  }
+
+  function playWith(deck: SavedDeck) {
+    setSelectedDeckId(deck.id);
+    navigate("/");
+  }
+
+  function confirmDelete(deck: SavedDeck) {
+    if (
+      !window.confirm(
+        deck.plannerDeckId
+          ? `Delete “${deck.name}” from your duel decks? It stays in your planner.`
+          : `Delete “${deck.name}”? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    deleteDeck(deck.id);
+    refresh();
+  }
+
   const plannerLeft = useMemo(
     () => (planner.status === "ready" ? plannerDecksNotLocal(planner.decks, decks) : []),
     [planner, decks],
@@ -449,7 +625,7 @@ export function DeckListPage() {
           </div>
           <div className="deck-config-heading">
             <h1 className="deck-config-title">Decks</h1>
-            <p className="meta">Choose a deck to edit, or create a new one.</p>
+            <p className="meta deck-list-subtitle">Choose a deck to edit, or create a new one.</p>
           </div>
           <div className="deck-list-header-actions">
             <button
@@ -464,7 +640,7 @@ export function DeckListPage() {
               className="btn btn-primary deck-list-new"
               onClick={() => navigate("/decks/new")}
             >
-              New deck
+              <span aria-hidden>+</span> New deck
             </button>
           </div>
         </header>
@@ -475,7 +651,12 @@ export function DeckListPage() {
             data-deck-drop="local"
             aria-label="Your decks"
           >
-            <h2 className="lobby-section-title">Your decks</h2>
+            <h2 className="lobby-section-title">
+              Your decks
+              <span className="deck-list-count" aria-label={`${decks.length} decks`}>
+                {query.trim() ? `${shownDecks.length} of ${decks.length}` : decks.length}
+              </span>
+            </h2>
             {decks.length === 0 ? (
               <p className="meta">
                 No decks yet.{" "}
@@ -485,32 +666,33 @@ export function DeckListPage() {
                 .
               </p>
             ) : (
-              <ul className="deck-list">
-                {decks.map((deck) => (
-                  <DeckRow
-                    key={deck.id}
-                    deck={deck}
-                    onOpen={() => {
-                      setSelectedDeckId(deck.id);
-                      navigate(`/decks/${deck.id}/configure`);
-                    }}
-                    onDelete={() => {
-                      if (
-                        !window.confirm(
-                          deck.plannerDeckId
-                            ? `Delete “${deck.name}” from your duel decks? It stays in your planner.`
-                            : `Delete “${deck.name}”? This cannot be undone.`,
-                        )
-                      ) {
-                        return;
-                      }
-                      deleteDeck(deck.id);
-                      refresh();
-                    }}
-                    arrived={arrived.has(deck.id)}
-                  />
-                ))}
-              </ul>
+              <>
+                <DeckToolbar query={query} onQuery={setQuery} sort={sort} onSort={pickSort} />
+                {shownDecks.length === 0 ? (
+                  <p className="meta deck-list-empty" role="status">
+                    No decks match “{query.trim()}”.{" "}
+                    <button type="button" className="linkish" onClick={() => setQuery("")}>
+                      Clear search
+                    </button>
+                  </p>
+                ) : (
+                  <ul className="deck-list deck-grid">
+                    {shownDecks.map((deck) => (
+                      <DeckCard
+                        key={deck.id}
+                        deck={deck}
+                        onOpen={() => {
+                          setSelectedDeckId(deck.id);
+                          navigate(`/decks/${deck.id}/configure`);
+                        }}
+                        onPlay={() => playWith(deck)}
+                        onDelete={() => confirmDelete(deck)}
+                        arrived={arrived.has(deck.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </section>
 
