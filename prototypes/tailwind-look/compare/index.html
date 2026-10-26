@@ -1,0 +1,302 @@
+<title>Tailwind Look Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Sora:wght@400;600;700&display=swap">
+<style>
+/* Layout: one screen at a time, Current vs Tailwind side by side (stacked on phones), tradeoffs below.
+   Single deliberate look: the duel app's Night Sea navy with chrome gold, so it reads as "ours". */
+:root {
+  --sea-deep: #0b1720;
+  --sea-panel: #132634;
+  --sea-raised: #1b3345;
+  --line: #2a4558;
+  --bone: #f1e9d6;
+  --haze: #9fb0ba;
+  --chrome: #d2a54d;
+  --chrome-bright: #f0dca8;
+  --on-chrome: #1d1406;
+  --tide: #7fb6d6;
+  --good: #7cc497;
+  --warn: #e7a85b;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+body {
+  background:
+    radial-gradient(1100px 520px at 50% -8%, #1f4a5c66, transparent 70%),
+    var(--sea-deep);
+  color: var(--bone);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+  display: grid;
+  gap: 28px;
+}
+header { display: grid; gap: 10px; max-width: 72ch; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--chrome); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 24px; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--chrome-bright); }
+p { margin: 0; }
+.lede { color: var(--haze); max-width: 68ch; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--sea-panel); border: 1px solid var(--line); min-width: 0; }
+.seg button {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--haze);
+  background: transparent; border: 0; border-radius: 8px; padding: 7px 12px; cursor: pointer;
+}
+.seg button:hover { color: var(--bone); }
+.seg button[aria-pressed="true"] { background: linear-gradient(#e6bd62, #c7963d); color: var(--on-chrome); }
+.seg button:focus-visible, .toggle:focus-visible { outline: 2px solid var(--chrome-bright); outline-offset: 2px; }
+.seg-label { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--haze); }
+.ctl { display: grid; gap: 6px; min-width: 0; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.pair.tall { grid-template-columns: repeat(2, minmax(0, 360px)); justify-content: center; gap: 28px; }
+figure { margin: 0; display: grid; gap: 8px; min-width: 0; }
+figcaption { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; }
+figcaption b { font-weight: 700; }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--haze); }
+.tag.tw { border-color: var(--chrome); color: var(--chrome-bright); }
+.shot {
+  display: block; width: 100%; max-width: 100%; height: auto; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--sea-panel); box-shadow: 0 14px 34px #0008;
+}
+.note { color: var(--haze); font-size: 14px; max-width: 80ch; }
+.note b { color: var(--bone); }
+.extras { display: grid; gap: 12px; }
+.extras[hidden] { display: none; }
+
+.tradeoffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.col { background: var(--sea-panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+.col ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: var(--haze); font-size: 14px; }
+.col li b { color: var(--bone); font-weight: 600; }
+.col.good h3 { color: var(--good); }
+.col.cost h3 { color: var(--warn); }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; }
+.fact { background: var(--sea-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; min-width: 0; }
+.fact strong { font-family: var(--font-display); font-size: 24px; font-variant-numeric: tabular-nums; color: var(--chrome-bright); line-height: 1.2; }
+.fact span { font-size: 12px; color: var(--haze); }
+.rec { border-left: 3px solid var(--chrome); padding: 4px 0 4px 16px; display: grid; gap: 8px; max-width: 80ch; }
+.rec p { color: var(--haze); }
+.rec p b { color: var(--bone); }
+footer { color: var(--haze); font-size: 12px; }
+code { font-size: 12.5px; background: var(--sea-raised); padding: 1px 6px; border-radius: 5px; color: var(--chrome-bright); }
+
+@media (max-width: 820px) {
+  .pair, .pair.tall { grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
+  .pair.tall figure { max-width: 380px; justify-self: center; width: 100%; }
+  .tradeoffs { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { .shot { transition: opacity .2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Prototype · not shipped</span>
+    <h1>The planner and duel app, restyled with Tailwind and shadcn</h1>
+    <p class="lede">Five real screens rebuilt three ways: with shadcn/ui in our own colours, with shadcn/ui in its stock theme, and with plain Tailwind plus Headless UI. Left is the live app today, right is the version you pick. Choose a screen, a version and a screen size.</p>
+  </header>
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="seg-label" id="lbl-screen">Screen</span>
+      <div class="seg" role="group" aria-labelledby="lbl-screen" id="screens"></div>
+    </div>
+    <div class="ctl">
+      <span class="seg-label" id="lbl-ver">Compare today with</span>
+      <div class="seg" role="group" aria-labelledby="lbl-ver" id="versions"></div>
+    </div>
+    <div class="ctl">
+      <span class="seg-label" id="lbl-size">Size</span>
+      <div class="seg" role="group" aria-labelledby="lbl-size" id="sizes"></div>
+    </div>
+  </div>
+
+  <section aria-live="polite" style="display:grid;gap:14px">
+    <h2 id="screen-title"></h2>
+    <p class="note" id="screen-note"></p>
+    <div class="pair" id="pair">
+      <figure>
+        <figcaption><b>Today</b><span class="tag">Hand-written CSS</span></figcaption>
+        <img class="shot" id="img-cur" alt="">
+      </figure>
+      <figure>
+        <figcaption><b id="tw-name">Tailwind prototype</b><span class="tag tw" id="tw-tag">Tailwind + Headless UI</span></figcaption>
+        <img class="shot" id="img-tw" alt="">
+      </figure>
+    </div>
+    <div class="extras" id="extras" hidden></div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>What shadcn adds</h2>
+    <p class="note">shadcn/ui is a set of ready-made components (built on Radix and Tailwind) that get copied into the app. Both shadcn skins above come from the same code: the only difference is a block of about 60 colour and font settings.</p>
+    <div class="tradeoffs">
+      <div class="col good">
+        <h3>What came for free</h3>
+        <ul>
+          <li><b>Menus, pop-ups and drawers just worked.</b> Dropdowns, the market price pop-up, the phone menu, the phone battle log drawer, card previews on hover and scroll areas all looked right first time, with keyboard and focus handled.</li>
+          <li><b>Re-theming is one block.</b> Swapping shadcn's grey theme for our parchment, sea and gold took one set of colour variables, with no per-component changes.</li>
+          <li><b>Charts come with it.</b> The planner's cost curve uses shadcn's chart, and it picks up the theme colours on its own.</li>
+        </ul>
+      </div>
+      <div class="col cost">
+        <h3>What fought back</h3>
+        <ul>
+          <li><b>Nothing for the board.</b> Card slots, rested cards, the fanned hand, DON!! rows and card sizing are all custom either way, so the shadcn board looks almost the same as the Tailwind one.</li>
+          <li><b>Sized for business apps.</b> Badges, tabs and cards came too tall and too padded for power labels and the phase strip, and had to be overridden.</li>
+          <li><b>Missing pieces.</b> No stepper for owned counts, no segmented bar for counters, and its toggle buttons allow "nothing selected", which List/Grid can't have.</li>
+          <li><b>Some colours collide in our theme.</b> A few of shadcn's surface colours end up the same navy in our palette, so selected items vanished until fixed one by one.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Stock vs our colours</h3>
+        <ul>
+          <li><b>Stock shadcn looks generic.</b> Clean and readable, but black and grey everywhere: black top bar, white End turn button, grey chart bars that are hard to tell apart.</li>
+          <li><b>With our colours it reads as our app.</b> Fraunces headings, parchment, sea and gold carry most of the identity, on both apps.</li>
+          <li><b>It adds Radix.</b> shadcn pulls in Radix for behaviour, next to the Headless UI we already use, so we'd want to pick one.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>What it would take</h2>
+    <div class="facts">
+      <div class="fact"><strong>7,705</strong><span>lines of planner CSS today</span></div>
+      <div class="fact"><strong>21,488</strong><span>lines of duel-web CSS today</span></div>
+      <div class="fact"><strong>7,182</strong><span>of those in the board stylesheet</span></div>
+      <div class="fact"><strong>9</strong><span>crew themes + light mode on the board</span></div>
+      <div class="fact"><strong>~860</strong><span>Playwright checks that find things by CSS class</span></div>
+    </div>
+    <div class="tradeoffs">
+      <div class="col good">
+        <h3>What gets better</h3>
+        <ul>
+          <li><b>One set of colours for both apps.</b> The palette lives in one Tailwind theme block, so both apps pull from the same list.</li>
+          <li><b>Phone layouts are quicker to write.</b> Phone, desktop and landscape sizes go on the element itself, so there's no separate media-query file to keep in sync.</li>
+          <li><b>Pop-ups and menus get easier.</b> Headless UI comes from the same team as Tailwind, so open, focused and selected states style in one word each, and menus float over the page without pushing anything.</li>
+          <li><b>Spacing and corners stay consistent.</b> Everything snaps to one spacing scale, which is where most of the cleaner look on the right comes from.</li>
+        </ul>
+      </div>
+      <div class="col cost">
+        <h3>What it costs</h3>
+        <ul>
+          <li><b>It isn't less code.</b> The five prototype screens took about 1,300 lines of components, and the styling moves into long class lists inside the components.</li>
+          <li><b>The board is the hard part.</b> Crew themes, light mode, the tilted board, text size and pop-up size settings all have to stay as CSS variables underneath, so it can't go all-Tailwind.</li>
+          <li><b>The tests would need rework.</b> About 860 test lines find things by class names like <code>.board-root</code> and <code>.float-card</code>, and those names go away. Every visual snapshot would need re-blessing too.</li>
+          <li><b>Some layouts read worse.</b> The board's grid placement turns into lookup tables, and a few layouts needed the same markup written twice for different sizes.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Same either way</h3>
+        <ul>
+          <li><b>The look is still ours.</b> Tailwind is a way of writing styles, not a theme. Most of the polish on the right could also come from tidying our current CSS.</li>
+          <li><b>Headless UI stays.</b> The shared pop-ups and menus in <code>@optcg/ui</code> keep their behaviour; only the styling would change.</li>
+          <li><b>Card art and data don't change.</b> These shots use real catalog cards and a real OP17 tournament deck.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="rec">
+      <h3>If we go ahead</h3>
+      <p><b>Do it one screen at a time, planner first.</b> Tailwind can run next to the current CSS, with its colours read from our existing variables, so each screen can switch over in its own PR with its own snapshot update. The duel board would go last, or keep its own CSS for good.</p>
+      <p><b>A cheaper middle path:</b> keep plain CSS, but borrow the parts that made the prototype look cleaner, mainly one spacing scale, one set of buttons and chips, and shared colour tokens across both apps.</p>
+    </div>
+  </section>
+
+  <footer>Screenshots taken in Chromium at 1440×900 (desktop), 390×844 (phone portrait) and 844×390 (phone landscape). The prototype uses example data; today's planner shots use the planner's test deck, so the card lists differ between the two sides.</footer>
+</div>
+
+<script>
+const SCREENS = [
+  { id: "planner-deck", label: "Planner · Deck", title: "Planner deck page",
+    note: "The prototype keeps the same pieces: leader header, owned progress, search and sort, deck list with steppers and prices, and the Deck stats column. On phones Deck stats folds into a section you can open.",
+    extras: [{ title: "Market price pop-up open (desktop)", cur: "planner-deck-popover-desktop", tw: "planner-deck-popover-desktop" },
+             { title: "Whole page (desktop)", cur: "planner-deck-desktop-full", tw: "planner-deck-desktop-full" }] },
+  { id: "planner-collection", label: "Planner · Collection", title: "Planner Collection",
+    note: "Today's Collection opens as a table. The prototype adds summary numbers, colour and type filters and a card grid, with the table still one tap away." },
+  { id: "duel-home", label: "Duel · Home", title: "Duel home page",
+    note: "Same deck hero and big Play button. The prototype adds a deck strip, an online friends list and a What's new card. Those friends and notes are example content." },
+  { id: "duel-decks", label: "Duel · Decks", title: "Duel Decks page",
+    note: "Today's Decks page lists name, leader and Delete. The prototype adds colour chips, win and loss record, an invalid-deck warning and a menu per deck.",
+    extras: [{ title: "Deck menu open (desktop, prototype only)", tw: "duel-decks-menu-desktop" }] },
+  { id: "duel-board", label: "Duel · Board", title: "Duel game board",
+    note: "The prototype is a static mock of one turn: both mats, DON!!, life, deck and trash, the fanned hand, phase strip, actions and the recent plays log. Today's board has far more states, settings and animation than the mock covers." },
+];
+const VERSIONS = [
+  { id: "shadcn", label: "shadcn · our colours", name: "shadcn/ui, our colours", tag: "shadcn/ui + Tailwind", dir: "shadcn" },
+  { id: "shadcn-stock", label: "shadcn · stock theme", name: "shadcn/ui, stock theme", tag: "shadcn/ui defaults", dir: "shadcn-stock" },
+  { id: "tailwind", label: "Tailwind + Headless UI", name: "Tailwind prototype", tag: "Tailwind + Headless UI", dir: "tailwind" },
+];
+const SIZES = [
+  { id: "desktop", label: "Desktop" },
+  { id: "portrait", label: "Phone portrait" },
+  { id: "landscape", label: "Phone landscape" },
+];
+let screen = "duel-board", size = "desktop", version = "shadcn";
+try {
+  const h = location.hash.slice(1);
+  if (SCREENS.some(s => s.id === h)) screen = h;
+} catch (e) {}
+
+const src = (side, name) => `shots/${side}/${name}.webp`;
+function seg(el, items, get, set) {
+  el.innerHTML = "";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = it.label;
+    b.setAttribute("aria-pressed", String(get() === it.id));
+    b.addEventListener("click", () => { set(it.id); render(); });
+    el.appendChild(b);
+  }
+}
+function render() {
+  seg(document.getElementById("screens"), SCREENS, () => screen, v => { screen = v; try { history.replaceState(null, "", "#" + v); } catch (e) {} });
+  seg(document.getElementById("versions"), VERSIONS, () => version, v => version = v);
+  seg(document.getElementById("sizes"), SIZES, () => size, v => size = v);
+  const ver = VERSIONS.find(x => x.id === version);
+  document.getElementById("tw-name").textContent = ver.name;
+  document.getElementById("tw-tag").textContent = ver.tag;
+  const s = SCREENS.find(x => x.id === screen);
+  const sz = SIZES.find(x => x.id === size);
+  document.getElementById("screen-title").textContent = `${s.title} · ${sz.label}`;
+  document.getElementById("screen-note").textContent = s.note;
+  const name = `${screen}-${size}`;
+  const cur = document.getElementById("img-cur"), tw = document.getElementById("img-tw");
+  cur.src = src("current", name); cur.alt = `${s.title} today, ${sz.label}`;
+  tw.src = src(ver.dir, name); tw.alt = `${s.title} as ${ver.name}, ${sz.label}`;
+  document.getElementById("pair").classList.toggle("tall", size === "portrait");
+  const ex = document.getElementById("extras");
+  ex.innerHTML = "";
+  const extras = (s.extras || []);
+  ex.hidden = size !== "desktop" || !extras.length;
+  for (const e of extras) {
+    const wrap = document.createElement("div");
+    wrap.style.display = "grid"; wrap.style.gap = "10px";
+    const h = document.createElement("h3"); h.textContent = e.title; wrap.appendChild(h);
+    const pair = document.createElement("div"); pair.className = "pair";
+    for (const [side, key, label] of [["current", e.cur, "Today"], [ver.dir, e.tw, ver.name]]) {
+      if (!key) continue;
+      const f = document.createElement("figure");
+      f.innerHTML = `<figcaption><b>${label}</b></figcaption>`;
+      const img = document.createElement("img"); img.className = "shot"; img.loading = "lazy";
+      img.src = src(side, key); img.alt = `${e.title}, ${label}`;
+      f.appendChild(img); pair.appendChild(f);
+    }
+    if (pair.children.length === 1) pair.style.gridTemplateColumns = "minmax(0, 1fr)";
+    wrap.appendChild(pair); ex.appendChild(wrap);
+  }
+}
+render();
+</script>
