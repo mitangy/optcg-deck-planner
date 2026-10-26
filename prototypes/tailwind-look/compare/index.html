@@ -104,14 +104,18 @@ code { font-size: 12.5px; background: var(--sea-raised); padding: 1px 6px; borde
 <div class="wrap">
   <header>
     <span class="eyebrow">Prototype · not shipped</span>
-    <h1>The planner and duel app, restyled with Tailwind</h1>
-    <p class="lede">Five real screens rebuilt with Tailwind CSS v4, still using Headless UI for menus, pop-ups and tabs, and still in our own colours and fonts (no shadcn or Radix look). Left is the live app today, right is the Tailwind prototype. Pick a screen and a screen size.</p>
+    <h1>The planner and duel app, restyled with Tailwind and shadcn</h1>
+    <p class="lede">Five real screens rebuilt three ways: with shadcn/ui in our own colours, with shadcn/ui in its stock theme, and with plain Tailwind plus Headless UI. Left is the live app today, right is the version you pick. Choose a screen, a version and a screen size.</p>
   </header>
 
   <div class="controls">
     <div class="ctl">
       <span class="seg-label" id="lbl-screen">Screen</span>
       <div class="seg" role="group" aria-labelledby="lbl-screen" id="screens"></div>
+    </div>
+    <div class="ctl">
+      <span class="seg-label" id="lbl-ver">Compare today with</span>
+      <div class="seg" role="group" aria-labelledby="lbl-ver" id="versions"></div>
     </div>
     <div class="ctl">
       <span class="seg-label" id="lbl-size">Size</span>
@@ -128,11 +132,43 @@ code { font-size: 12.5px; background: var(--sea-raised); padding: 1px 6px; borde
         <img class="shot" id="img-cur" alt="">
       </figure>
       <figure>
-        <figcaption><b>Tailwind prototype</b><span class="tag tw">Tailwind + Headless UI</span></figcaption>
+        <figcaption><b id="tw-name">Tailwind prototype</b><span class="tag tw" id="tw-tag">Tailwind + Headless UI</span></figcaption>
         <img class="shot" id="img-tw" alt="">
       </figure>
     </div>
     <div class="extras" id="extras" hidden></div>
+  </section>
+
+  <section style="display:grid;gap:16px">
+    <h2>What shadcn adds</h2>
+    <p class="note">shadcn/ui is a set of ready-made components (built on Radix and Tailwind) that get copied into the app. Both shadcn skins above come from the same code: the only difference is a block of about 60 colour and font settings.</p>
+    <div class="tradeoffs">
+      <div class="col good">
+        <h3>What came for free</h3>
+        <ul>
+          <li><b>Menus, pop-ups and drawers just worked.</b> Dropdowns, the market price pop-up, the phone menu, the phone battle log drawer, card previews on hover and scroll areas all looked right first time, with keyboard and focus handled.</li>
+          <li><b>Re-theming is one block.</b> Swapping shadcn's grey theme for our parchment, sea and gold took one set of colour variables, with no per-component changes.</li>
+          <li><b>Charts come with it.</b> The planner's cost curve uses shadcn's chart, and it picks up the theme colours on its own.</li>
+        </ul>
+      </div>
+      <div class="col cost">
+        <h3>What fought back</h3>
+        <ul>
+          <li><b>Nothing for the board.</b> Card slots, rested cards, the fanned hand, DON!! rows and card sizing are all custom either way, so the shadcn board looks almost the same as the Tailwind one.</li>
+          <li><b>Sized for business apps.</b> Badges, tabs and cards came too tall and too padded for power labels and the phase strip, and had to be overridden.</li>
+          <li><b>Missing pieces.</b> No stepper for owned counts, no segmented bar for counters, and its toggle buttons allow "nothing selected", which List/Grid can't have.</li>
+          <li><b>Some colours collide in our theme.</b> A few of shadcn's surface colours end up the same navy in our palette, so selected items vanished until fixed one by one.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Stock vs our colours</h3>
+        <ul>
+          <li><b>Stock shadcn looks generic.</b> Clean and readable, but black and grey everywhere: black top bar, white End turn button, grey chart bars that are hard to tell apart.</li>
+          <li><b>With our colours it reads as our app.</b> Fraunces headings, parchment, sea and gold carry most of the identity, on both apps.</li>
+          <li><b>It adds Radix.</b> shadcn pulls in Radix for behaviour, next to the Headless UI we already use, so we'd want to pick one.</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
   <section style="display:grid;gap:16px">
@@ -198,12 +234,17 @@ const SCREENS = [
   { id: "duel-board", label: "Duel · Board", title: "Duel game board",
     note: "The prototype is a static mock of one turn: both mats, DON!!, life, deck and trash, the fanned hand, phase strip, actions and the recent plays log. Today's board has far more states, settings and animation than the mock covers." },
 ];
+const VERSIONS = [
+  { id: "shadcn", label: "shadcn · our colours", name: "shadcn/ui, our colours", tag: "shadcn/ui + Tailwind", dir: "shadcn" },
+  { id: "shadcn-stock", label: "shadcn · stock theme", name: "shadcn/ui, stock theme", tag: "shadcn/ui defaults", dir: "shadcn-stock" },
+  { id: "tailwind", label: "Tailwind + Headless UI", name: "Tailwind prototype", tag: "Tailwind + Headless UI", dir: "tailwind" },
+];
 const SIZES = [
   { id: "desktop", label: "Desktop" },
   { id: "portrait", label: "Phone portrait" },
   { id: "landscape", label: "Phone landscape" },
 ];
-let screen = "planner-deck", size = "desktop";
+let screen = "duel-board", size = "desktop", version = "shadcn";
 try {
   const h = location.hash.slice(1);
   if (SCREENS.some(s => s.id === h)) screen = h;
@@ -222,7 +263,11 @@ function seg(el, items, get, set) {
 }
 function render() {
   seg(document.getElementById("screens"), SCREENS, () => screen, v => { screen = v; try { history.replaceState(null, "", "#" + v); } catch (e) {} });
+  seg(document.getElementById("versions"), VERSIONS, () => version, v => version = v);
   seg(document.getElementById("sizes"), SIZES, () => size, v => size = v);
+  const ver = VERSIONS.find(x => x.id === version);
+  document.getElementById("tw-name").textContent = ver.name;
+  document.getElementById("tw-tag").textContent = ver.tag;
   const s = SCREENS.find(x => x.id === screen);
   const sz = SIZES.find(x => x.id === size);
   document.getElementById("screen-title").textContent = `${s.title} · ${sz.label}`;
@@ -230,7 +275,7 @@ function render() {
   const name = `${screen}-${size}`;
   const cur = document.getElementById("img-cur"), tw = document.getElementById("img-tw");
   cur.src = src("current", name); cur.alt = `${s.title} today, ${sz.label}`;
-  tw.src = src("tailwind", name); tw.alt = `${s.title} as a Tailwind prototype, ${sz.label}`;
+  tw.src = src(ver.dir, name); tw.alt = `${s.title} as ${ver.name}, ${sz.label}`;
   document.getElementById("pair").classList.toggle("tall", size === "portrait");
   const ex = document.getElementById("extras");
   ex.innerHTML = "";
@@ -241,7 +286,7 @@ function render() {
     wrap.style.display = "grid"; wrap.style.gap = "10px";
     const h = document.createElement("h3"); h.textContent = e.title; wrap.appendChild(h);
     const pair = document.createElement("div"); pair.className = "pair";
-    for (const [side, key, label] of [["current", e.cur, "Today"], ["tailwind", e.tw, "Tailwind prototype"]]) {
+    for (const [side, key, label] of [["current", e.cur, "Today"], [ver.dir, e.tw, ver.name]]) {
       if (!key) continue;
       const f = document.createElement("figure");
       f.innerHTML = `<figcaption><b>${label}</b></figcaption>`;
