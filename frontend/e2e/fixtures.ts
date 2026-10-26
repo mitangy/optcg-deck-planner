@@ -41,6 +41,26 @@ const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
 const META_DECKS = fixture<{ leader_id: string; decks: MetaDeckFixture[] }>("meta-decks.json");
 
 export const SHARE_TOKEN = "tok-oden-1";
+
+type ShareItem = { need: number; owned: number; alts_owned?: number; still_need: number; market_price: number | null; remaining_cost: number | null };
+/** Like the API (#741): a signed-out viewer owns nothing, so every copy is still needed. */
+function signedOutShare(): unknown {
+  const share = SHARE as { items: ShareItem[] };
+  const items = share.items.map((i) => ({
+    ...i,
+    owned: 0,
+    alts_owned: 0,
+    still_need: i.need,
+    remaining_cost: i.market_price == null ? null : Math.round(i.need * i.market_price * 100) / 100,
+  }));
+  return {
+    ...share,
+    items,
+    viewer_signed_in: false,
+    cards_still_needed: items.reduce((n, i) => n + i.still_need, 0),
+    remaining_market: Math.round(items.reduce((n, i) => n + (i.remaining_cost ?? 0), 0) * 100) / 100,
+  };
+}
 export const DECK_ID = 1;
 export const GROUP_BUY_ID = 7;
 /** Fixed wall clock so dates in recent sales and anything time-derived never drift. */
@@ -429,7 +449,8 @@ export const test = base.extend<{ planner: Planner }>({
         return json(groupBuy());
       }
       if (path.startsWith("/catalog/sales/")) return json({ product_id: Number(path.split("/").pop()), sales: SALES });
-      if (path === `/public/share/${SHARE_TOKEN}`) return json(SHARE);
+      if (path === `/public/share/${SHARE_TOKEN}/copy` && method === "POST") return signedIn ? json(deckDetail()) : json({ detail: "Not signed in" }, 401);
+      if (path === `/public/share/${SHARE_TOKEN}`) return json(signedIn ? { ...(SHARE as object), viewer_signed_in: true } : signedOutShare());
       if (path.startsWith("/public/share/")) return json({ detail: "This share link is no longer available" }, 404);
       return json({ detail: `not in e2e fake API: ${method} ${path}` }, 404);
     });

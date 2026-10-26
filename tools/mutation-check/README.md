@@ -45,6 +45,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 | `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
 | `alt-arts` | `scripts/test_sync_alt_arts.py` | unittest |
+| `ci` | `tools/ci/*.test.cjs` (the PR path filter) | `node --test` (a mutation's `args` narrows the files) |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
 | `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |
 
@@ -91,7 +92,9 @@ per part. Ids are spread round-robin across a suite's parts, and the script
 throws if any changed id is missing or repeated.
 
 In `.github/workflows/ci.yml`, PR CI runs this as three jobs. `mutation-plan`
-checks out with `fetch-depth: 0`, finds the PR base SHA and runs `--matrix`.
+checks out with `fetch-depth: 0`, finds the PR base SHA, runs `--check-anchors`
+(so a stale anchor fails a PR even when the path filter skips the rules job) and
+runs `--matrix`.
 `mutation-proofs-part` runs one matrix entry per part in parallel, installs only
 what its suite needs (root `npm ci`, the `duel-web`, `frontend` and `mobile`
 installs, or Python plus `backend/requirements.txt` with `BACKEND_PYTHON` set),
@@ -148,6 +151,7 @@ When you add or change a test, add one mutation per behavior it claims, in
 - A mutation can set `requiresEnv: "NAME"` when it only has an effect with
   that environment variable set (for example Postgres-only behavior under
   `TEST_DATABASE_URL`); without it the runner reports it as skipped.
+- analyst mutations of `analyst/src/**` run only `src/` (see the end of `suites/analyst.cjs`; the evals and puzzles are most of its run time). An id whose kills need a test outside `src/` goes in that file's `FULL_SUITE` list.
 - vitest and mocha mutations can set `args` (a test file or a mocha `-g` filter, for example `"src/__tests__/hardBotV2.test.ts"`) to run only the tests the mutation claims to kill instead of the whole suite; the baseline still runs everything.
 - pytest mutations can set `args` (e.g. `"tests/test_config.py"`) when the
   opposite condition breaks app startup and would crash collection for the

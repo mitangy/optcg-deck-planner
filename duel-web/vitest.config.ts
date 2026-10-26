@@ -18,7 +18,7 @@ export default defineConfig({
   esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
-    // e2e/ holds Playwright specs (`npm run e2e`), not unit tests.
-    include: ["src/**/*.test.{ts,tsx}"],
+    // e2e/ holds Playwright specs (`npm run e2e`), not unit tests. scripts/ tests cover the e2e shard planner.
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
   },
 });

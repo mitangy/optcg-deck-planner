@@ -48,6 +48,7 @@ const SUITES = {
   "alt-arts": require("./suites/alt-arts.cjs"),
   "duel-e2e": require("./suites/duel-e2e.cjs"),
   "frontend-e2e": require("./suites/frontend-e2e.cjs"),
+  ci: require("./suites/ci.cjs"),
 };
 
 const args = process.argv.slice(2);
@@ -168,6 +169,16 @@ const runners = {
     if (!summary && !/\d+ failed/.test(out)) return { error: `pytest did not run:\n${out.slice(-800)}`, failed: [] };
     const failed = [...out.matchAll(/^FAILED (\S+)/gm)].map((m) => m[1]);
     return { failed, total: Number(summary?.[1] ?? 0) + failed.length };
+  },
+  // Node's built-in test runner (tools/ci). A mutation's `args` narrows the files.
+  "node-test"(cwd, suite, mutation) {
+    let out = "";
+    try { out = execSync(`node --test --test-reporter=tap ${mutation?.args ?? suite.args}`, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
+    const total = /^# tests (\d+)/m.exec(out);
+    if (!total) return { error: `node --test did not run:\n${out.slice(-800)}`, failed: [] };
+    // TAP escapes "#" in test names as "\#".
+    const failed = [...out.matchAll(/^\s*not ok \d+ - (.*)$/gm)].map((m) => m[1].replace(/\\#/g, "#"));
+    return { failed, total: Number(total[1]) };
   },
   unittest(cwd, suite) {
     const env = pythonEnv();

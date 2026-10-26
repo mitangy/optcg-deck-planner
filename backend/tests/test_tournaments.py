@@ -9,13 +9,15 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app import db as app_db
 from app import tournament_sync as ts
 from app.config import Settings
 from app.models import Tournament, TournamentDeck, TournamentGame
 from app.tournament_stats import tournament_stats
+from tests.db_support import make_bare_engine, requires_postgres
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
@@ -546,3 +548,26 @@ def test_sync_status_reports_what_is_stored_and_the_last_run_397(analyst):  # no
     s = c.get("/analyst/tournaments/sync-status", headers=SERVICE).json()
     assert (s["events"], s["decks"], s["games"]) == (3, 25, 13)
     assert (s["last_run"]["synced"], s["last_run"]["games"], s["last_run"]["rate_limited"]) == (3, 13, False)
+
+
+@requires_postgres
+def test_only_one_api_worker_runs_a_tournament_sync_at_a_time_682(monkeypatch):
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    runs: list[int] = []
+    monkeypatch.setattr(ts, "sync_tournaments", lambda db, client, days: runs.append(days) or {"synced": 0})
+    monkeypatch.setattr(ts, "LimitlessClient", lambda: type("C", (), {"close": lambda self: None})())
+    monkeypatch.setattr(app_db, "SessionLocal", lambda: type("S", (), {"close": lambda self: None})())
+    with engine.connect() as other_worker:
+        other_worker.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.TOURNAMENT_SYNC_LOCK_KEY})
+        assert ts.run_once(30) is None
+        assert runs == []
+        other_worker.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": app_db.TOURNAMENT_SYNC_LOCK_KEY})
+        other_worker.commit()
+    assert ts.run_once(30) == {"synced": 0}
+    assert runs == [30]
+    # The run gave the lock back, so the next one (here or in another worker) can start.
+    again = app_db.try_advisory_lock(app_db.TOURNAMENT_SYNC_LOCK_KEY, engine)
+    assert again is not None
+    again.release()
+    engine.dispose()

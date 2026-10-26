@@ -5,7 +5,11 @@ import type { AddressInfo } from "node:net";
 import { Client, type Room as ClientRoom } from "@colyseus/sdk";
 import { Redis } from "ioredis";
 import { WebSocket, WebSocketServer } from "ws";
+import { createHmac } from "node:crypto";
+import { RedisPresence } from "colyseus";
 import { wsCompression } from "../src/cluster.js";
+import { getGameTokenSecret } from "../src/env.js";
+import { claimCreatorRoom, MAX_ROOMS_PER_CREATOR, releaseCreatorRoom, ROOM_COUNT_TTL_S, useSharedRoomCounts } from "../src/matchmakeGuard.js";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
 
 describe("game socket compression", () => {
@@ -103,5 +107,71 @@ describe("game-server pool on Redis", function () {
       queued(new Client(`http://127.0.0.1:${ports[1]}`), "pool-q1"),
     ]);
     assert.equal(m0, m1);
+  });
+});
+
+describe("per-account open-room cap across a pool", function () {
+  this.timeout(30_000);
+  const redisUrl = process.env.REDIS_TEST_URL;
+  const stores: RedisPresence[] = [];
+
+  before(async function () {
+    if (!redisUrl) this.skip();
+    const redis = new Redis(redisUrl!);
+    await redis.flushdb();
+    redis.disconnect();
+  });
+
+  beforeEach(async () => {
+    const redis = new Redis(redisUrl!);
+    await redis.flushdb();
+    redis.disconnect();
+  });
+  afterEach(() => useSharedRoomCounts(null));
+  after(() => stores.forEach((s) => s.shutdown()));
+
+  const deployed = () => {
+    process.env.REQUIRE_GAME_TOKEN = "true";
+    const b64url = (buf: Buffer) => buf.toString("base64url");
+    const body = b64url(Buffer.from(JSON.stringify({ uid: 682, email: "cap@example.com", exp: Math.floor(Date.now() / 1000) + 600 })));
+    return { gameToken: `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}` };
+  };
+
+  it("counts an account's open rooms across processes, not per process (#682)", async () => {
+    const options = deployed();
+    try {
+      // Two processes are two stores on the same Redis; each starts with a count of zero of its own.
+      const a = new RedisPresence(redisUrl!);
+      const b = new RedisPresence(redisUrl!);
+      stores.push(a, b);
+      useSharedRoomCounts(a);
+      for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) await claimCreatorRoom(options);
+      useSharedRoomCounts(b);
+      await assert.rejects(() => claimCreatorRoom(options), /Too many open rooms/);
+      // Releasing on the first process frees a slot for the second.
+      useSharedRoomCounts(a);
+      releaseCreatorRoom(682);
+      await new Promise((r) => setTimeout(r, 100));
+      useSharedRoomCounts(b);
+      assert.equal(await claimCreatorRoom(options), 682);
+    } finally {
+      delete process.env.REQUIRE_GAME_TOKEN;
+    }
+  });
+
+  it("a crashed process's count expires instead of pinning the cap (#682)", async () => {
+    const options = deployed();
+    try {
+      const a = new RedisPresence(redisUrl!);
+      stores.push(a);
+      useSharedRoomCounts(a);
+      await claimCreatorRoom(options);
+      const redis = new Redis(redisUrl!);
+      const ttl = await redis.ttl("duel:rooms:682");
+      redis.disconnect();
+      assert.ok(ttl > 0 && ttl <= ROOM_COUNT_TTL_S, `ttl ${ttl}`);
+    } finally {
+      delete process.env.REQUIRE_GAME_TOKEN;
+    }
   });
 });

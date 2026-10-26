@@ -21,7 +21,7 @@ from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import DuelCosmetic, DuelUserSettings, User
-from app.rate_limit import RateLimiter
+from app.rate_limit import RateLimiter, client_ip
 from app.schemas import (
     DuelCosmeticActiveIn,
     DuelCosmeticActiveOut,
@@ -50,6 +50,9 @@ DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKe
 PUBLIC_SIG_CHARS = 32
 
 _upload_rate = RateLimiter(max_calls=20, period_s=60, name="duel_prefs_upload_rate")
+# The image is cached for a year, so a viewer loads it once; this is generous
+# enough for a venue behind one address and still stops a scraper hammering the database.
+_public_image_rate = RateLimiter(max_calls=600, period_s=60, name="duel_prefs_public_image_rate")
 
 
 def _sniff_mime(data: bytes) -> str | None:
@@ -253,6 +256,7 @@ def public_path(cosmetic_id: int, settings: Settings) -> str:
 
 @router.get("/cosmetics/{cosmetic_id}/public/{sig}")
 def public_cosmetic_image(
+    request: Request,
     cosmetic_id: int,
     sig: str,
     db: Annotated[Session, Depends(get_db)],
@@ -263,6 +267,8 @@ def public_cosmetic_image(
     Only links this API handed to the owner work: the id alone, or a wrong
     signature, is a 404 (the same answer as a deleted image).
     """
+    if not _public_image_rate.allow(f"public-cosmetic:{client_ip(request)}"):
+        raise HTTPException(status_code=429, detail="Too many requests")
     if not hmac.compare_digest(sig.encode(), public_sig(cosmetic_id, settings).encode()):
         raise HTTPException(status_code=404, detail="Image not found")
     row = db.get(DuelCosmetic, cosmetic_id)

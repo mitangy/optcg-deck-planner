@@ -270,6 +270,8 @@ export type PublicShoppingResponse = ShoppingResponse & {
   owner_name: string;
   kind: string;
   deck_name: string | null;
+  viewer_signed_in?: boolean;
+  viewer_is_owner?: boolean;
 };
 
 export type GroupBuyMemberQty = {
@@ -610,6 +612,8 @@ export const api = {
     request<{ ok: boolean }>(`/share/${encodeURIComponent(token)}`, { method: "DELETE" }),
   publicShare: (token: string) =>
     request<PublicShoppingResponse>(`/public/share/${encodeURIComponent(token)}`),
+  copySharedDeck: (token: string) =>
+    request<DeckDetail>(`/public/share/${encodeURIComponent(token)}/copy`, { method: "POST" }),
   groupBuys: () => request<GroupBuySummary[]>("/group-buys"),
   groupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}`),
   createGroupBuy: (body: { title?: string; deck_ids?: number[] }) =>

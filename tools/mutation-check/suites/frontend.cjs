@@ -12,6 +12,8 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Long dotted card names wrap at the dots in the deck table (#731)
+    { id: "card-name-no-break-after-dots", file: "frontend/src/cardName.tsx", from: "  if (parts.length === 1) return name;", to: "  return name;", kills: ["card names break after dots so long names can wrap (#731)"] },
     // Owned shows the total including alt arts (#652)
     { id: "owned-total-base-only", file: "frontend/src/OwnedCells.tsx", from: "return owned + Math.max(0, altsOwned ?? 0);", to: "return owned;", kills: ["totalOwned adds the alt copies to the base count (#652)", "the Owned cell is a read-only total, not a stepper, when editable alt tiles are shown (#652)"] },
     { id: "owned-total-cell-shows-stepper", file: "frontend/src/OwnedCells.tsx", from: "if (isTotal) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;", to: "if (false) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;", kills: ["the Owned cell is a read-only total, not a stepper, when editable alt tiles are shown (#652)"] },

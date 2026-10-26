@@ -39,6 +39,7 @@ from app.models import (
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
+from app.server_urls import normalize_server_url
 from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
@@ -135,7 +136,8 @@ def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
 
 # Redis key holding the game-server pool new games go to (blue/green switch).
 GAME_SERVER_POOL_KEY = "duel:gs:current"
-_LOCAL_HOSTS = {"localhost", "127.0.0.1"}
+# Every address the pointer has named (never expires), so invites to rooms on an older pool still resolve.
+GAME_SERVER_KNOWN_KEY = "duel:gs:known"
 
 
 def game_server_url(settings: Settings) -> str | None:
@@ -153,23 +155,26 @@ def game_server_url(settings: Settings) -> str | None:
 
 
 def _valid_pool_url(raw: str) -> str:
-    url = raw.strip().rstrip("/")
-    try:
-        parts = urlsplit(url)
-        host = parts.hostname
-        _ = parts.port  # raises ValueError on a malformed port
-    except ValueError:
-        host = None
-    if (
-        not host
-        or parts.username is not None
-        or parts.password is not None
-        or parts.query
-        or parts.fragment
-        or not (parts.scheme == "https" or (parts.scheme == "http" and host in _LOCAL_HOSTS))
-    ):
+    url = normalize_server_url(raw)
+    if url is None:
         raise HTTPException(status_code=422, detail="url must be https:// (or http://localhost for dev)")
     return url
+
+
+def known_game_server_urls(settings: Settings) -> set[str]:
+    """Every pool address the API has handed out: the current assignment plus each one the pointer ever named.
+
+    A friend's invite names the pool its room is on, and the recipient's client
+    dials it with a game token, so only addresses from this set are accepted.
+    """
+    urls = {u for u in (game_server_url(settings),) if u}
+    r = redis_client.get_redis()
+    if r is not None:
+        try:
+            urls |= set(r.smembers(GAME_SERVER_KNOWN_KEY))
+        except redis_client.RedisError:
+            redis_client.report_failure("game-server pool read")
+    return urls
 
 
 @router.get("/admin/game-server-pool", response_model=GameServerPoolOut)
@@ -204,6 +209,7 @@ def set_game_server_pool(
     else:
         pool = _valid_pool_url(body.url)
         r.set(GAME_SERVER_POOL_KEY, pool)
+        r.sadd(GAME_SERVER_KNOWN_KEY, pool)
     return GameServerPoolOut(pool_url=pool, game_server_url=game_server_url(settings))
 
 
@@ -569,6 +575,7 @@ def ingest_presence(
                 role=e.role,
                 phase=e.phase,
                 ranked=e.ranked,
+                server_url=e.server_url,
                 updated_at=now,
             )
         )

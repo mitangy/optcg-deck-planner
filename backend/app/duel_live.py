@@ -15,6 +15,8 @@ Presence
 Progress (games with no result yet)
   ``duel:progress:{match_id}``      JSON snapshot, PROGRESS_TTL_S.
   ``duel:progress:user:{user_id}``  sorted set match_id -> updated_at (epoch s).
+  ``duel:progress:index``           sorted set of every live snapshot, the same way,
+                                    so the sweep can find the idle ones.
 """
 
 from __future__ import annotations
@@ -41,6 +43,9 @@ def _presence_inst_key(instance_id: str) -> str:
 
 def _progress_key(match_id: str) -> str:
     return f"duel:progress:{match_id}"
+
+
+PROGRESS_INDEX_KEY = "duel:progress:index"
 
 
 def _progress_user_key(user_id: int) -> str:
@@ -80,7 +85,14 @@ def write_presence_snapshot(r, instance_id: str, entries: Iterable, now: datetim
             key,
             e.room_id,
             json.dumps(
-                {"instance_id": instance_id, "role": e.role, "phase": e.phase, "ranked": e.ranked, "updated_at": stamp},
+                {
+                    "instance_id": instance_id,
+                    "role": e.role,
+                    "phase": e.phase,
+                    "ranked": e.ranked,
+                    "server_url": e.server_url,
+                    "updated_at": stamp,
+                },
                 separators=(",", ":"),
             ),
         )
@@ -110,6 +122,7 @@ def read_presence(r, user_ids: list[int]) -> list[DuelPresence]:
                     role=data.get("role", "player"),
                     phase=data.get("phase", "playing"),
                     ranked=bool(data.get("ranked", False)),
+                    server_url=data.get("server_url"),
                     updated_at=_parse_time(data["updated_at"]),
                 )
             )
@@ -151,6 +164,8 @@ def write_progress(r, row: DuelMatchProgress) -> None:
     score = row.updated_at.timestamp()
     pipe = r.pipeline(transaction=True)
     pipe.set(_progress_key(row.match_id), json.dumps(data, separators=(",", ":")), ex=PROGRESS_TTL_S)
+    pipe.zadd(PROGRESS_INDEX_KEY, {row.match_id: score})
+    pipe.expire(PROGRESS_INDEX_KEY, PROGRESS_TTL_S)
     for uid in (row.seat0_user_id, row.seat1_user_id):
         pipe.zadd(_progress_user_key(uid), {row.match_id: score})
         # Index entries older than the snapshots themselves point at nothing.
@@ -162,6 +177,7 @@ def write_progress(r, row: DuelMatchProgress) -> None:
 def delete_progress(r, match_id: str, user_ids: Iterable[int]) -> None:
     pipe = r.pipeline(transaction=True)
     pipe.delete(_progress_key(match_id))
+    pipe.zrem(PROGRESS_INDEX_KEY, match_id)
     for uid in user_ids:
         pipe.zrem(_progress_user_key(uid), match_id)
     pipe.execute()
@@ -174,3 +190,13 @@ def user_progress(r, user_id: int, limit: int) -> list[DuelMatchProgress]:
         return []
     raws = r.mget([_progress_key(m) for m in match_ids])
     return [_progress_from_json(m, raw) for m, raw in zip(match_ids, raws) if raw]
+
+
+def idle_progress_ids(r, older_than: datetime, limit: int) -> list[str]:
+    """Match ids whose latest snapshot is older than ``older_than``, oldest first."""
+    return r.zrangebyscore(PROGRESS_INDEX_KEY, "-inf", older_than.timestamp(), start=0, num=limit)
+
+
+def drop_index_entry(r, match_id: str) -> None:
+    """Forget an index entry whose snapshot already expired."""
+    r.zrem(PROGRESS_INDEX_KEY, match_id)
