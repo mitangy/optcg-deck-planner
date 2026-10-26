@@ -15,6 +15,7 @@ import "./board.css";
 import "./interactions.css";
 import "./popupScale.css";
 import "./auth/username.css";
+import "./deckList.css";
 import "./light.css";
 import "./metaDecks.css";
 import "./admin/admin.css";
