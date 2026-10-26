@@ -26,6 +26,8 @@ REQUEST_PAUSE_S = 0.12
 # out. It is launched as a background job instead; this guard keeps at most one
 # sync running at a time and records the outcome for observability.
 _sync_lock = threading.Lock()
+# Held across workers while this one syncs (see try_claim_sync_slot).
+_sync_advisory = None
 _sync_state: dict[str, Any] = {
     "running": False,
     "started_at": None,
@@ -50,6 +52,18 @@ def try_claim_sync_slot() -> bool:
     not briefly see a stale ``finished_at`` from a prior run.
     """
     if not _sync_lock.acquire(blocking=False):
+        return False
+    # The thread lock only covers this worker; the advisory lock keeps the others out too.
+    global _sync_advisory
+    from app.db import CATALOG_SYNC_LOCK_KEY, try_advisory_lock
+
+    try:
+        _sync_advisory = try_advisory_lock(CATALOG_SYNC_LOCK_KEY)
+    except BaseException:
+        _sync_lock.release()
+        raise
+    if _sync_advisory is None:
+        _sync_lock.release()
         return False
     _sync_state.update(
         running=True,
@@ -80,6 +94,7 @@ def run_catalog_sync_job(
     Pass ``already_claimed=True`` when the caller used :func:`try_claim_sync_slot`
     so the lock/state are not acquired twice.
     """
+    global _sync_advisory
     if not already_claimed and not try_claim_sync_slot():
         return None
     factory = session_factory or _default_session_factory
@@ -95,6 +110,9 @@ def run_catalog_sync_job(
         db.close()
         _sync_state["running"] = False
         _sync_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        if _sync_advisory is not None:
+            _sync_advisory.release()
+            _sync_advisory = None
         _sync_lock.release()
 
 

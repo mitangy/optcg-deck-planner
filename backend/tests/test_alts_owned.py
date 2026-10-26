@@ -125,6 +125,35 @@ def test_collection_lists_cards_owned_only_as_alts_625(db):
     assert col.items[0].value == 40.0
 
 
+def test_collection_items_carry_alt_arts_with_owned_counts_and_display_art_723(db):
+    user = _seed(db)
+    add_catalog(db, "OP01-016", name="Nami", product_id=101, market=5.0, special=True)
+    add_catalog(db, "OP01-017", name="Usopp", product_id=2, market=0.5)
+    set_owned(db, user, "OP01-016", 1)
+    set_owned(db, user, "OP01-017", 2)
+    services.set_alt_owned(db, user, "OP01-016", 100, 2)
+    services.set_display_art(db, user, "OP01-016", 101)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        res = TestClient(app).get("/owned")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 200
+    items = {i["card_id"]: i for i in res.json()["items"]}
+    nami = items["OP01-016"]
+    # Every alt printing is listed, the unowned one at 0; the card keeps its own counts and value.
+    assert {a["product_id"]: a["owned"] for a in nami["alt_arts"]} == {100: 2, 101: 0}
+    assert nami["display_art"] == 101
+    assert nami["owned"] == 1
+    assert nami["alts_owned"] == 2
+    assert nami["value"] == 41.0
+    # A card with no alt printings has none listed and no choice.
+    assert items["OP01-017"]["alt_arts"] == []
+    assert items["OP01-017"]["display_art"] is None
+
+
 def test_reset_deck_owned_also_clears_alt_copies_625(db):
     user = _seed(db)
     deck = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
@@ -215,12 +244,12 @@ def test_display_art_endpoint_sets_clears_and_rejects_702(db):
         app.dependency_overrides.clear()
 
 
-def test_display_art_on_share_uses_owner_choice_702(db):
+def test_display_art_on_share_uses_viewer_choice_702(db):
     user = _seed(db)
     deck = add_deck_with_cards(db, user, "A", {"OP01-016": 4})
     services.set_display_art(db, user, "OP01-016", 100)
     link = services.create_or_update_share(db, user, "deck", deck.id)
 
-    view = services.public_share_view(db, link.token)
+    view = services.public_share_view(db, link.token, user)
 
     assert view.items[0].display_art == 100

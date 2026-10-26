@@ -304,9 +304,13 @@ def sync_status(db: Session) -> dict:
     }
 
 
-def run_once(days: int) -> dict:
-    from app.db import SessionLocal
+def run_once(days: int) -> dict | None:
+    """One sync run, or None when another API worker is already running one."""
+    from app.db import SessionLocal, TOURNAMENT_SYNC_LOCK_KEY, try_advisory_lock
 
+    lock = try_advisory_lock(TOURNAMENT_SYNC_LOCK_KEY)
+    if lock is None:
+        return None
     client = LimitlessClient()
     db = SessionLocal()
     try:
@@ -314,6 +318,7 @@ def run_once(days: int) -> dict:
     finally:
         db.close()
         client.close()
+        lock.release()
 
 
 async def sync_loop(

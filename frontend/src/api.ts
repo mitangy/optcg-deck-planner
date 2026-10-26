@@ -242,6 +242,10 @@ export type OwnedCard = {
   used_in: string[];
   /** Copies still to buy on the full shopping list (decks + added directly); 0 when covered. */
   buying?: number;
+  /** Every alt printing of the card (owned or not), each with the viewer's owned count. */
+  alt_arts?: PrintingView[];
+  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
+  display_art?: number | null;
 };
 
 export type OwnedCollectionResponse = {
@@ -266,6 +270,8 @@ export type PublicShoppingResponse = ShoppingResponse & {
   owner_name: string;
   kind: string;
   deck_name: string | null;
+  viewer_signed_in?: boolean;
+  viewer_is_owner?: boolean;
 };
 
 export type GroupBuyMemberQty = {
@@ -606,6 +612,8 @@ export const api = {
     request<{ ok: boolean }>(`/share/${encodeURIComponent(token)}`, { method: "DELETE" }),
   publicShare: (token: string) =>
     request<PublicShoppingResponse>(`/public/share/${encodeURIComponent(token)}`),
+  copySharedDeck: (token: string) =>
+    request<DeckDetail>(`/public/share/${encodeURIComponent(token)}/copy`, { method: "POST" }),
   groupBuys: () => request<GroupBuySummary[]>("/group-buys"),
   groupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}`),
   createGroupBuy: (body: { title?: string; deck_ids?: number[] }) =>

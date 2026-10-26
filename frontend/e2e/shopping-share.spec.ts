@@ -2,7 +2,7 @@
  * The shopping list (home) and the public share page at /share/:token.
  * Each flow ends with the UI audit; runs at desktop-1200 and phone-375.
  */
-import { expect, formatIssues, test, SHARE_TOKEN } from "./fixtures";
+import { DECK_ID, expect, formatIssues, test, SHARE_TOKEN } from "./fixtures";
 import { expectStationary } from "./audit";
 
 test.afterEach(({ planner }) => {
@@ -48,6 +48,34 @@ test("share page lists the shared cards with prices and passes the audit", async
   await expectStationary(grid, () => grid.click(), "Grid toggle");
   const price = page.getByRole("button", { name: /\$6\.80/ });
   await expectStationary(price, () => price.click(), "share market price");
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("signed-in viewer adds the shared deck to their decks (#741)", async ({ page, planner }) => {
+  await planner.open(`/share/${SHARE_TOKEN}`);
+  await expect(page.getByText(/Owned counts are from your collection/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "My decks" })).toBeVisible();
+  const add = page.getByRole("button", { name: "Add to my decks" });
+  await expect(add).toBeVisible();
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+
+  await add.click();
+  await expect(page).toHaveURL(new RegExp(`/decks/${DECK_ID}$`));
+  expect(planner.requests).toContain(`POST /public/share/${SHARE_TOKEN}/copy`);
+});
+
+test("signed-out viewer is sent to sign in and back to the shared deck (#741)", async ({ page, planner }) => {
+  planner.signOut();
+  await planner.open(`/share/${SHARE_TOKEN}`);
+  await expect(page.getByText("Sign in to see which of these cards you own.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add to my decks" })).toHaveCount(0);
+  const next = encodeURIComponent(`/share/${SHARE_TOKEN}`);
+  const add = page.getByRole("link", { name: "Sign in to add" });
+  await expect(add).toHaveAttribute("href", `/login?next=${next}`);
+  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", `/login?next=${next}`);
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });

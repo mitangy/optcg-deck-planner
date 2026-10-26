@@ -68,6 +68,59 @@ export function patchOwnedCollection(
 }
 
 /**
+ * Apply an alt-art Owned change to the cached collection: that printing's count,
+ * the card's alt total, its value (the alt copies at the alt's own market price)
+ * and the page totals move right away. A card whose copies all drop to 0 stays
+ * listed until the next refetch.
+ */
+export function patchOwnedCollectionAlt(
+  old: OwnedCollectionResponse,
+  cardId: string,
+  productId: number,
+  qty: number,
+): OwnedCollectionResponse {
+  const id = cardId.toUpperCase();
+  const items = old.items.map((item) => {
+    if (item.card_id.toUpperCase() !== id) return item;
+    const before = (item.alt_arts ?? []).find((a) => a.product_id === productId);
+    if (!before) return item;
+    const alt_arts = (item.alt_arts ?? []).map((a) => (a.product_id === productId ? { ...a, owned: qty } : a));
+    const alts_owned = alt_arts.reduce((n, a) => n + (a.owned ?? 0), 0);
+    const delta = qty - (before.owned ?? 0);
+    // A missing price leaves the value to the refetch rather than guessing.
+    const value =
+      item.value == null || before.market_price == null
+        ? item.value
+        : Math.round((item.value + delta * before.market_price) * 100) / 100;
+    return { ...item, alt_arts, alts_owned, value };
+  });
+  const totals = collectionTotals(items.filter(holdsCopies));
+  return {
+    ...old,
+    items,
+    unique_cards: totals.cards,
+    total_copies: totals.copies,
+    total_value: totals.value,
+    unpriced_cards: totals.unpriced,
+  };
+}
+
+/** Patch the chosen art (null = automatic, 0 = base) onto a card in the cached collection. */
+export function patchOwnedCollectionDisplayArt(
+  old: OwnedCollectionResponse,
+  cardId: string,
+  productId: number | null,
+): OwnedCollectionResponse {
+  const id = cardId.toUpperCase();
+  return {
+    ...old,
+    items: old.items.map((item) =>
+      item.card_id.toUpperCase() === id ? { ...item, display_art: productId } : item,
+    ),
+  };
+}
+
+/**
  * Refetch every view that shows Owned counts (shopping list, deck pages, the
  * Collection). Call after any server-side change to Owned.
  */

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getApiBaseUrl, getDuelIngestSecret } from "./env.js";
+import { getApiBaseUrl, getDuelIngestSecret, getPoolUrl } from "./env.js";
 
 /** One user in one room, as reported to the API for the friends list. */
 export type PresenceEntry = {
@@ -8,6 +8,8 @@ export type PresenceEntry = {
   role: "player" | "spectator";
   phase: "waiting" | "playing" | "finished";
   ranked: boolean;
+  /** Where clients reach this room's pool (POOL_URL); the API keeps it for invites and friends. */
+  server_url?: string;
 };
 
 export interface PresenceSource {
@@ -59,9 +61,10 @@ export class PresenceReporter {
   /** Entries for real accounts only (legacy devUserId seats have synthetic negative ids). */
   snapshot(): PresenceEntry[] {
     const out: PresenceEntry[] = [];
+    const serverUrl = getPoolUrl();
     for (const source of this.sources) {
       for (const entry of source.presenceEntries()) {
-        if (entry.user_id > 0) out.push(entry);
+        if (entry.user_id > 0) out.push(serverUrl ? { ...entry, server_url: serverUrl } : entry);
       }
     }
     return out;

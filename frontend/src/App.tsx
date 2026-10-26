@@ -55,8 +55,16 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import { nameWithBreaks } from "./cardName";
 import { nextExtraTarget } from "./shoppingExtras";
-import { collectionTotals, holdsCopies, invalidateOwnedViews, patchOwnedCollection } from "./ownedCollection";
+import {
+  collectionTotals,
+  holdsCopies,
+  invalidateOwnedViews,
+  patchOwnedCollection,
+  patchOwnedCollectionAlt,
+  patchOwnedCollectionDisplayArt,
+} from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
@@ -77,7 +85,6 @@ import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
-  AltsOwnedNote,
   OwnedCell,
   OwnedStepper,
   StillNeededCell,
@@ -314,6 +321,7 @@ function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
 function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["shopping"] });
   void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["owned"] });
   void qc.invalidateQueries({ queryKey: ["group-buy"] });
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
 }
@@ -345,6 +353,49 @@ function applyDisplayArtOptimistic(
         }
       : old,
   );
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+    old ? patchOwnedCollectionDisplayArt(old, id, productId) : old,
+  );
+}
+
+/**
+ * Save alt-art owned counts and the chosen display art from a page that keeps
+ * no editing state of its own (the Collection): optimistic patches to every
+ * cached view, the save, then a refetch so values and totals come from the server.
+ */
+function useAltArtEditing() {
+  const qc = useQueryClient();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const changeAltOwned = async (cardId: string, productId: number, qty: number) => {
+    setError(null);
+    setBusyKey(`${cardId}:${productId}`);
+    applyAltOwnedOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setAltOwned(cardId, productId, qty);
+      applyAltOwnedOptimistic(qc, cardId, productId, res.qty);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      invalidateAltOwnedViews(qc);
+      setBusyKey(null);
+    }
+  };
+  const changeDisplayArt = async (cardId: string, productId: number) => {
+    setError(null);
+    applyDisplayArtOptimistic(qc, cardId, productId);
+    try {
+      await api.setDisplayArt(cardId, productId);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      invalidateDisplayArtViews(qc);
+    }
+  };
+  /** The alt printing of `cardId` whose save is in flight, if any. */
+  const busyProductId = (cardId: string) =>
+    busyKey?.startsWith(`${cardId}:`) ? Number(busyKey.slice(cardId.length + 1)) : null;
+  return { error, changeAltOwned, changeDisplayArt, busyProductId };
 }
 
 function sumAltOwned(alts: { owned?: number }[]): number {
@@ -394,6 +445,9 @@ function applyAltOwnedOptimistic(
       remaining_market: Math.round(remaining * 100) / 100,
     };
   });
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+    old ? patchOwnedCollectionAlt(old, id, productId, qty) : old,
+  );
   qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
     if (!old) return old;
     return {
@@ -1985,14 +2039,28 @@ function CollectionItemsView({
   items,
   layout,
   onOwnedSaved,
+  showAltArts,
+  altRow,
 }: {
   items: OwnedCard[];
   layout: CardLayout;
   onOwnedSaved: () => void;
+  showAltArts: boolean;
+  altRow: (item: OwnedCard) => ReactNode;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_collection");
   const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
   if (items.length === 0) return null;
+  const hasAltRow = (item: OwnedCard) => showAltArts && (item.alt_arts?.length ?? 0) > 0;
+  // Collection alt tiles are always editable, so they own the per-art counts (base under the Base tile).
+  const ownedCell = (item: OwnedCard) => (
+    <OwnedCell
+      isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
+      owned={item.owned}
+      altsOwned={item.alts_owned}
+      stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
+    />
+  );
   const usedIn = (item: OwnedCard) =>
     [item.used_in.length ? item.used_in.join(", ") : "Not in a deck", item.buying ? `Buying ${item.buying}` : ""]
       .filter(Boolean)
@@ -2005,7 +2073,7 @@ function CollectionItemsView({
           <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
             <div className="grid-card collection-grid-card">
               <div className="grid-card-media">
-                <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
+                <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
               </div>
               <div className="grid-card-body">
                 <div className="card-id">{item.card_id}</div>
@@ -2019,14 +2087,14 @@ function CollectionItemsView({
                 </div>
                 <div className="grid-card-owned">
                   <span>Owned</span>
-                  <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
-<AltsOwnedNote count={item.alts_owned} />
+                  {ownedCell(item)}
                 </div>
                 {item.tcgplayer_url && (
                   <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
                     TCGPlayer
                   </a>
                 )}
+                {hasAltRow(item) && <div className="grid-card-alts">{altRow(item)}</div>}
               </div>
             </div>
           </article>
@@ -2054,7 +2122,7 @@ function CollectionItemsView({
               <tr key={item.card_id} data-card-id={item.card_id}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
+                    <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
                     <div>
                       <div className="card-id">{item.card_id}</div>
                       <div>{item.name}</div>
@@ -2065,11 +2133,9 @@ function CollectionItemsView({
                       )}
                     </div>
                   </div>
+                  {hasAltRow(item) && <div className="card-cell-alts">{altRow(item)}</div>}
                 </td>
-                <td>
-                  <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
-<AltsOwnedNote count={item.alts_owned} />
-                </td>
+                <td>{ownedCell(item)}</td>
                 <td>
                   <MarketPrice price={item.market_price} productId={item.product_id} />
                 </td>
@@ -2087,7 +2153,7 @@ function CollectionItemsView({
           <article key={item.card_id} className="mobile-card" data-card-id={item.card_id}>
             <div className="mobile-card-top">
               <MobileCardMedia
-                src={item.image_url || undefined}
+                src={mainImageUrl(item)}
                 cardId={item.card_id}
                 alt={item.name}
                 cost={item.cost}
@@ -2111,12 +2177,12 @@ function CollectionItemsView({
                   </div>
                   <div className="mobile-card-owned">
                     <span>Owned</span>
-                    <OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
-<AltsOwnedNote count={item.alts_owned} />
+                    {ownedCell(item)}
                   </div>
                 </div>
               </div>
             </div>
+            {hasAltRow(item) && <div className="mobile-card-alts">{altRow(item)}</div>}
             <p className={`used-in mobile-used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</p>
           </article>
         ))}
@@ -2438,6 +2504,7 @@ function CollectionPage() {
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
+  const [showAltArts, setShowAltArts] = useShowAltArts();
   const [sparesOnly, setSparesOnly] = usePersistedOpen(COLLECTION_SPARES_KEY, false);
   const [colors, setColors] = useState<string[]>(loadCollectionColors);
   const [scanOpen, setScanOpen] = useState(false);
@@ -2481,10 +2548,11 @@ function CollectionPage() {
     if (colors.length) parts.push(colors.join("/"));
     if (sparesOnly) parts.push("Not in a deck");
     if (!showDons) parts.push("No DON!!");
+    if (showAltArts) parts.push("Alt arts");
     if (layout === "grid") parts.push("Grid");
     return parts.join(" · ");
-  }, [effectiveSorts, colors, sparesOnly, showDons, layout]);
-  const activeFilters = colors.length + (sparesOnly ? 1 : 0) + (showDons ? 0 : 1);
+  }, [effectiveSorts, colors, sparesOnly, showDons, showAltArts, layout]);
+  const activeFilters = colors.length + (sparesOnly ? 1 : 0) + (showDons ? 0 : 1) + (showAltArts ? 1 : 0);
 
   function toggleColor(color: string) {
     setColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]));
@@ -2496,6 +2564,23 @@ function CollectionPage() {
     void qc.invalidateQueries({ queryKey: ["shopping"] });
     void qc.invalidateQueries({ queryKey: ["deck"] });
   };
+
+  const altArt = useAltArtEditing();
+  const altRow = (item: OwnedCard) => (
+    <AltArtsRow
+      alts={item.alt_arts ?? []}
+      cardId={item.card_id}
+      editable
+      base={baseTileFor(item, true)}
+      baseOwnedControl={
+        <OwnedInput compact name={item.name} cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />
+      }
+      onOwnedChange={(productId, qty) => void altArt.changeAltOwned(item.card_id, productId, qty)}
+      shownProductId={shownProductId(item)}
+      onShow={(productId) => void altArt.changeDisplayArt(item.card_id, productId)}
+      busyProductId={altArt.busyProductId(item.card_id)}
+    />
+  );
 
   if (isLoading) return <ShoppingListSkeleton label="Loading your collection…" />;
   if (error) return <p className="error">{(error as Error).message}</p>;
@@ -2544,6 +2629,14 @@ function CollectionPage() {
                   <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
                   Show DON!!
                 </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showAltArts}
+                    onChange={(e) => setShowAltArts(e.target.checked)}
+                  />
+                  Show alt arts
+                </label>
               </div>
               <div className="deck-filter">
                 <div className="deck-filter-head">
@@ -2573,6 +2666,7 @@ function CollectionPage() {
             </CollapsibleFilters>
           </div>
 
+          {altArt.error && <p className="error">{altArt.error}</p>}
           {narrowed && (
             <p className="search-result-note muted" role="status">
               Showing {shown.cards} of {allItems.length} cards · {shown.copies}{" "}
@@ -2583,7 +2677,13 @@ function CollectionPage() {
           {items.length === 0 ? (
             <p className="muted">No owned cards match the current search and filters.</p>
           ) : (
-            <CollectionItemsView items={items} layout={layout} onOwnedSaved={onOwnedSaved} />
+            <CollectionItemsView
+              items={items}
+              layout={layout}
+              onOwnedSaved={onOwnedSaved}
+              showAltArts={showAltArts}
+              altRow={altRow}
+            />
           )}
         </>
       )}
@@ -3155,21 +3255,23 @@ function CardTable({
             {tableCards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <div className="card-cell-inner">
-                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
-                    <div>
-                      <div className="card-id">{c.card_id}</div>
-                      <div>{c.name}</div>
-                      {c.tcgplayer_url && (
-                        <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      )}
+                  <div className="card-cell-row">
+                    <div className="card-cell-inner">
+                      <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
+                      <div>
+                        <div className="card-id">{c.card_id}</div>
+                        <div>{nameWithBreaks(c.name)}</div>
+                        {c.tcgplayer_url && (
+                          <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                            TCGPlayer
+                          </a>
+                        )}
+                      </div>
                     </div>
+                    {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
+                      <div className="card-cell-alts">{altRow(c)}</div>
+                    )}
                   </div>
-                  {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                    <div className="card-cell-alts">{altRow(c)}</div>
-                  )}
                 </td>
                 <td>
                   {ownedCell(c)}
@@ -4506,10 +4608,24 @@ function PublicSharePage() {
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
+  const meQ = useMe();
+  const me = meQ.data ?? null;
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  // Owned counts on a deck link come from whoever is viewing, so the viewer is part of the key.
   const { data, isLoading, error } = useQuery({
-    queryKey: ["public-share", token],
+    queryKey: ["public-share", token, me?.id ?? null],
     queryFn: () => api.publicShare(token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !meQ.isLoading,
+  });
+  const loginHref = `/login?next=${encodeURIComponent(`/share/${token}`)}`;
+  const copyDeck = useMutation({
+    mutationFn: () => api.copySharedDeck(token),
+    onSuccess: (created) => {
+      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      navigate(`/decks/${created.id}`);
+    },
   });
 
   const shareStatsCards = useMemo(
@@ -4552,27 +4668,56 @@ function PublicSharePage() {
               Play Duel
             </a>
             <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
+            {me ? (
+              <Link className="btn secondary" to="/">
+                My decks
+              </Link>
+            ) : (
+              <Link className="btn secondary" to={loginHref}>
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </header>
       <main className="app-main">
-        {isLoading && <ShoppingListSkeleton />}
+        {(isLoading || meQ.isLoading) && <ShoppingListSkeleton />}
         {error && <p className="error">{(error as Error).message}</p>}
         {data && (
           <div className={data.kind === "deck" ? "deck-layout" : undefined}>
           <section className="deck-main">
-            <div className="page-head">
+            <div className="page-head share-head">
               <div>
                 <p className="eyebrow">Public {data.kind === "deck" ? "deck" : "shopping"} list</p>
                 <h1>{data.deck_name || `${data.owner_name}'s list`}</h1>
                 <p className="muted">
-                  Shared by {data.owner_name} · {formatShoppingListStats(data)}
+                  {data.kind !== "deck"
+                    ? `Shared by ${data.owner_name} · ${formatShoppingListStats(data)}`
+                    : me
+                      ? `Shared by ${data.owner_name} · Owned counts are from your collection · ${formatShoppingListStats(data)}`
+                      : `Shared by ${data.owner_name} · ${formatShoppingListStats(data)} · Sign in to see which of these cards you own.`}
                 </p>
               </div>
+              {data.kind === "deck" && (
+                <div className="page-head-actions">
+                  {me ? (
+                    <button
+                      type="button"
+                      className="btn primary share-copy-btn"
+                      disabled={copyDeck.isPending}
+                      onClick={() => copyDeck.mutate()}
+                    >
+                      {copyDeck.isPending ? "Adding…" : "Add to my decks"}
+                    </button>
+                  ) : (
+                    <Link className="btn primary share-copy-btn" to={loginHref}>
+                      Sign in to add
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
+            {copyDeck.error && <p className="error">{(copyDeck.error as Error).message}</p>}
 
             <div className="list-toolbar">
               <div className="list-toolbar-row">

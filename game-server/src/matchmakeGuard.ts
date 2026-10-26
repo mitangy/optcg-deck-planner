@@ -23,25 +23,75 @@ export function checkMatchmakeToken(options: unknown): true {
 export const MAX_ROOMS_PER_CREATOR = 5;
 const liveRoomsByCreator = new Map<number, number>();
 
-/** Counts a new room against its creator. Returns the creator id to release on dispose, or null when not counted. */
-export function claimCreatorRoom(options: unknown): number | null {
+/**
+ * Where a pool keeps each account's open-room count. Colyseus' Redis presence
+ * satisfies it; a process without Redis keeps the in-memory map above.
+ */
+export interface RoomCountStore {
+  incr(key: string): Promise<number>;
+  decr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<unknown>;
+  del(key: string): unknown;
+}
+
+/**
+ * A count left behind by a process that died without disposing its rooms
+ * expires on its own; every claim pushes the expiry out again.
+ */
+export const ROOM_COUNT_TTL_S = 6 * 3600;
+const roomCountKey = (uid: number) => `duel:rooms:${uid}`;
+
+let sharedCounts: RoomCountStore | null = null;
+
+/** Count open rooms in a store shared by the pool instead of this process's memory (null goes back to memory). */
+export function useSharedRoomCounts(store: RoomCountStore | null): void {
+  sharedCounts = store;
+}
+
+/** Token holder a new room counts against, or null for rooms that are not a player's to flood. */
+function creatorUid(options: unknown): number | null {
   // Deployed servers only: local dev and e2e reuse one account across many rooms.
   if (!requireGameToken()) return null;
   const o = options && typeof options === "object" ? (options as Record<string, unknown>) : {};
   const token = typeof o.gameToken === "string" ? o.gameToken.trim() : "";
   // Rooms the ranked matchmaker creates carry no token; they are not a player's to flood.
   const payload = token ? verifyGameToken(token) : null;
-  if (!payload) return null;
-  const live = liveRoomsByCreator.get(payload.uid) ?? 0;
-  if (live >= MAX_ROOMS_PER_CREATOR) {
-    throw new Error("Too many open rooms; leave one first");
+  return payload ? payload.uid : null;
+}
+
+const tooManyRooms = () => new Error("Too many open rooms; leave one first");
+
+/** Counts a new room against its creator. Returns the creator id to release on dispose, or null when not counted. */
+export async function claimCreatorRoom(options: unknown): Promise<number | null> {
+  const uid = creatorUid(options);
+  if (uid === null) return null;
+  const store = sharedCounts;
+  if (store) {
+    const key = roomCountKey(uid);
+    const live = await store.incr(key);
+    if (live > MAX_ROOMS_PER_CREATOR) {
+      await store.decr(key);
+      throw tooManyRooms();
+    }
+    await store.expire(key, ROOM_COUNT_TTL_S);
+    return uid;
   }
-  liveRoomsByCreator.set(payload.uid, live + 1);
-  return payload.uid;
+  const live = liveRoomsByCreator.get(uid) ?? 0;
+  if (live >= MAX_ROOMS_PER_CREATOR) throw tooManyRooms();
+  liveRoomsByCreator.set(uid, live + 1);
+  return uid;
 }
 
 export function releaseCreatorRoom(uid: number | null): void {
   if (uid === null) return;
+  const store = sharedCounts;
+  if (store) {
+    const key = roomCountKey(uid);
+    // Fire and forget: dispose must not wait on Redis, and a missed release
+    // heals when the key expires.
+    void store.decr(key).then((live) => (live <= 0 ? store.del(key) : undefined)).catch(() => {});
+    return;
+  }
   const live = (liveRoomsByCreator.get(uid) ?? 1) - 1;
   if (live > 0) liveRoomsByCreator.set(uid, live);
   else liveRoomsByCreator.delete(uid);

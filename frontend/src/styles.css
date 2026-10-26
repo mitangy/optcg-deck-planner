@@ -491,6 +491,13 @@ h1 {
   min-width: 0;
 }
 
+/* Deck table: let the text block shrink so long dotted names wrap at the dots
+   (see nameWithBreaks); dotless words may break anywhere as a last resort. */
+.deck-main .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .data-table {
   min-width: 720px;
   /* separate + 0 spacing draws each cell's border-bottom in full so lines
@@ -899,6 +906,26 @@ button.ghost.danger:not(:disabled):hover {
 .page-head-actions .btn,
 .page-head-actions .ghost {
   min-width: 0;
+}
+
+/* Shared deck head: the title block takes the free width and wraps, so the button keeps its spot in both states. */
+.share-head {
+  flex-wrap: nowrap;
+}
+
+.share-head > div:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.share-head .page-head-actions {
+  flex: 0 0 auto;
+}
+
+/* Same width for "Add to my decks" / "Adding…" / "Sign in to add" so the button never resizes. */
+.page-head-actions .share-copy-btn {
+  min-width: 11rem;
+  white-space: nowrap;
 }
 
 .share-banner {
@@ -3553,6 +3580,38 @@ tr.done td {
   max-width: 100%;
 }
 
+/* Wide screens (#734): the deck List view puts the alt tiles in the card's own row, right of the
+   card text, instead of under the art. Below 1440px the table has no spare width, so they stay stacked;
+   the editor column in edit mode takes that width too. */
+@media (min-width: 1440px) {
+  /* Auto table layout sizes the cell by its min-content, which lets the text collapse to a few px;
+     reserve room for art + text + one column of tiles so the other columns give way instead. */
+  .deck-layout:not(.deck-layout-editing) .deck-main .card-cell {
+    min-width: 27rem;
+  }
+
+  .deck-layout:not(.deck-layout-editing) .deck-main .card-cell-inner > div:not(.thumb) {
+    min-width: 6rem;
+  }
+
+  .deck-layout:not(.deck-layout-editing) .deck-main .card-cell-row {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .deck-layout:not(.deck-layout-editing) .deck-main .card-cell-row > .card-cell-inner {
+    flex: 1 1 15rem;
+    /* art (6.75rem) + gap + the text's 6rem floor, so the text never spills into the gap */
+    min-width: 13.5rem;
+  }
+
+  .deck-layout:not(.deck-layout-editing) .deck-main .card-cell-row > .card-cell-alts {
+    flex: 0 1 auto;
+    margin-top: 0;
+  }
+}
+
 .deck-main .card-cell .card-cell-alts .alt-art .thumb,
 .card-cell-alts .alt-art .thumb {
   width: 52px;
@@ -5782,13 +5841,6 @@ button.ghost.scan-open:hover {
   }
 }
 
-/* ——— Deck list density: ~96px art in the list rows (grid view and other pages keep the big thumb) ——— */
-.deck-main .card-cell .thumb,
-.deck-main .card-cell .thumb.placeholder {
-  width: 69px;
-  height: 96px;
-}
-
 .deck-main .data-table th {
   white-space: nowrap;
 }
@@ -5800,18 +5852,6 @@ button.ghost.scan-open:hover {
     min-width: 9.5rem;
     justify-content: center;
     text-align: center;
-  }
-}
-
-@media (max-width: 800px) {
-  .deck-main .mobile-card .thumb,
-  .deck-main .mobile-card .thumb.placeholder {
-    width: 72px;
-    height: 100px;
-  }
-
-  .deck-main .mobile-card .mobile-card-media {
-    width: 72px;
   }
 }
 

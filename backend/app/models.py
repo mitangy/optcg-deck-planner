@@ -904,6 +904,8 @@ class DuelPresence(Base):
     role: Mapped[str] = mapped_column(String(16), default="player")  # player | spectator
     phase: Mapped[str] = mapped_column(String(16), default="playing")  # waiting | playing | finished
     ranked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Address clients dial for this room's game-server pool; null when the game server did not say.
+    server_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -928,6 +930,8 @@ class DuelInvite(Base):
     from_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     room_id: Mapped[str] = mapped_column(String(64))
+    # Game-server pool the room was opened on, so the recipient can still reach it after the API's pool pointer moves.
+    server_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
