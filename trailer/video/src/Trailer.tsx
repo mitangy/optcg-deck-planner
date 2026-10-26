@@ -10,7 +10,7 @@ import type {Layout} from './layout';
 import {Logo} from './Logo';
 import {OVERLAP, SceneLayer} from './SceneLayer';
 import {CAPTIONS, END_CARD, FULL, SCENES} from './scenes.config';
-import {BEAT, COLORS, FONT_SANS} from './theme';
+import {COLORS, FONT_SANS} from './theme';
 import type {SceneDef} from './types';
 
 const FRAME_IN = 36; // frame (30fps) at which the browser frame rises after the logo reveal
@@ -44,19 +44,16 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
   const totalH = fh + BAR_H;
   const endF = Math.round(END_CARD.start * fps);
 
-  // --- persistent browser frame: rises in, floats, punches on cuts, morphs to the end-card layout ---
+  // --- persistent browser frame: rises in, floats, morphs to the end-card layout ---
   const appear = spring({frame: frame - FRAME_IN, fps, config: {damping: 18, stiffness: 70, mass: 1}});
   const appearO = clamp01((frame - FRAME_IN) / 10);
   const morph = spring({frame: frame - endF, fps, config: {damping: 22, stiffness: 60, mass: 1}});
   const mainCy = L.frame.top + totalH / 2;
   const endCy = L.end.desktop.top + (totalH * L.end.desktop.scale) / 2;
-  const cutFrames = SCENES.map((s) => Math.round(s.start * fps)).filter((c) => c > 0);
-  const sinceCut = Math.min(...cutFrames.map((c) => (frame >= c ? frame - c : 9999)));
-  const punch = sinceCut < BEAT ? Math.pow(1 - sinceCut / BEAT, 3) : 0;
   const float = Math.sin(frame / 52) * 4 * (1 - morph);
   const frameCx = lerp(L.frame.cx, L.end.desktop.cx, morph);
   const frameCy = lerp(mainCy, endCy, morph) + (1 - appear) * 110 + float;
-  const frameScale = lerp(1, L.end.desktop.scale, morph) * (0.93 + 0.07 * appear) * (1 + 0.007 * punch * (1 - morph));
+  const frameScale = lerp(1, L.end.desktop.scale, morph) * (0.93 + 0.07 * appear) ;
   const rotY = Math.sin(frame / 95) * 1.1 * (1 - morph) + morph * 0;
 
   // --- music ---

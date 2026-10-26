@@ -4,8 +4,8 @@ import {FocusClip} from './FocusClip';
 import {COLORS} from './theme';
 import type {SceneDef} from './types';
 
-/** Length of the transition into a scene, in frames (lands on the beat, finishes in ~0.3s). */
-export const OVERLAP = 9;
+/** Length of the transition into a scene, in frames: one full beat (0.5s), so cuts read as smooth crossfades, not jumps. */
+export const OVERLAP = 15;
 
 const SLANT = 14; // percent of width the wipe edge leans over the full height
 
@@ -13,7 +13,7 @@ const SLANT = 14; // percent of width the wipe edge leans over the full height
 export const SceneLayer: React.FC<{scene: SceneDef; W: number; H: number}> = ({scene, W, H}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const p = interpolate(frame, [0, OVERLAP], [0, 1], {extrapolateRight: 'clamp', easing: Easing.bezier(0.6, 0, 0.2, 1)});
+  const p = interpolate(frame, [0, OVERLAP], [0, 1], {extrapolateRight: 'clamp', easing: Easing.inOut(Easing.sin)});
   const t = scene.transition;
 
   const clip = (
@@ -49,7 +49,7 @@ export const SceneLayer: React.FC<{scene: SceneDef; W: number; H: number}> = ({s
 
   if (t === 'zoom') {
     return (
-      <div style={{position: 'absolute', inset: 0, opacity: Math.min(1, p * 2.2), transform: `scale(${1 + (1 - p) * 0.12})`, filter: p < 1 ? `blur(${(1 - p) * 8}px)` : undefined}}>
+      <div style={{position: 'absolute', inset: 0, opacity: p, transform: `scale(${1 + (1 - p) * 0.04})`, filter: p < 1 ? `blur(${(1 - p) * 3}px)` : undefined}}>
         {clip}
       </div>
     );

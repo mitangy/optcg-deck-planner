@@ -58,7 +58,10 @@ export const FocusClip: React.FC<Props> = ({clip, W, H, focus, trimStart = 0, ra
 
   const delayF = Math.round(delay * fps);
   const playable = Math.max(1, Math.floor(((avail - trimStart) / rate) * fps));
-  const vf = Math.min(Math.max(0, frame - delayF), playable - 1);
+  // Never play past the scene's own end: during the crossfade out, hold its last frame so footage
+  // beyond this segment (another take spliced into the same clip) never flashes in.
+  const lastF = Math.max(0, Math.min(playable, sceneFrames - delayF) - 1);
+  const vf = Math.min(Math.max(0, frame - delayF), lastF);
 
   const keys = focus.length ? focus : [{at: 0, rect: {x: 0, y: 0, w: 1, h: 1}}];
   const cams = keys.map((k) => camFor(k.rect, W, H, aspect));
