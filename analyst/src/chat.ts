@@ -589,7 +589,8 @@ async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<Roun
     state.turn.push({ role: "assistant", content: reply.content });
     const calls = reply.content.filter((b) => b.type === "tool_use");
     if (reply.stop_reason !== "tool_use" || calls.length === 0) {
-      const next = o.afterAnswer && round + 1 < o.maxRounds ? await o.afterAnswer(state) : null;
+      // Obeying a check takes two rounds (a proposal, then the final text), so add it only when two remain (#692).
+      const next = o.afterAnswer && round + 2 < o.maxRounds ? await o.afterAnswer(state) : null;
       if (next) {
         state.turn.push(next);
         continue;

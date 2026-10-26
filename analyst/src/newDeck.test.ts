@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import { newDeckTool, NEW_DECK_TOO_MANY_ERROR, proposeNewDeck, type NewDeckInput } from "./newDeck";
@@ -54,6 +55,18 @@ describe("propose_new_deck (#726)", () => {
     const five = [{ id: "ST01-003", copies: 5 }, ...MAIN.slice(1, 12), { id: "ST01-015", copies: 1 }];
     expect(five.reduce((s, c) => s + c.copies, 0)).toBe(50);
     expect(await refused(proposeNewDeck(catalog, undefined, input({ cards: five })))).toMatch(/Over 4 copies/);
+  });
+
+  it("the tool accepts 50 copies of an any-number card and still refuses a 5th copy of a normal one (#728)", async () => {
+    const tool = newDeckTool(catalog, {});
+    const schema = z.object(tool.inputSchema as z.ZodRawShape);
+    const pacifista = { name: "Pacifista", leader_id: "OP01-060", cards: [{ id: "OP01-075", copies: 50 }], summary: "Fifty Pacifista." };
+    expect(schema.safeParse(pacifista).success).toBe(true);
+    const r = await proposeNewDeck(catalog, undefined, pacifista);
+    expect(r.ok && r.draft.legality.legal).toBe(true);
+    const five = [{ id: "ST01-003", copies: 5 }, ...MAIN.slice(1, 12), { id: "ST01-015", copies: 1 }];
+    expect(schema.safeParse(input({ cards: five })).success).toBe(true);
+    expect(await refused(tool.run(input({ cards: five }) as unknown as Record<string, unknown>).then((x) => ({ ok: !x.isError, error: (x.content[0] as { text: string }).text }) as never))).toMatch(/Over 4 copies/);
   });
 
   it("refuses a banned card using the ban list (#726)", async () => {

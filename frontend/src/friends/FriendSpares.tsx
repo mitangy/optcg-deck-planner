@@ -32,7 +32,8 @@ export function FriendSpares({
 
   const renderRow = (item: SpareItem, side: TradeSide) => {
     const rowKey = `${side}:${item.card_id}`;
-    const productId = printing[rowKey] ?? null;
+    // Default to Standard only when they own base copies; otherwise the first alt they own (#705).
+    const productId = rowKey in printing ? printing[rowKey] : item.base_owned > 0 ? null : (item.printings[0]?.product_id ?? null);
     const chosen = item.printings.find((p) => p.product_id === productId);
     const card: TrayCard = {
       side,
@@ -67,7 +68,7 @@ export function FriendSpares({
             value={productId ?? ""}
             onChange={(e) => setPrinting((p) => ({ ...p, [rowKey]: e.target.value === "" ? null : Number(e.target.value) }))}
           >
-            <option value="">Standard</option>
+            <option value="">Standard ×{item.base_owned}</option>
             {item.printings.map((p) => (
               <option key={p.product_id} value={p.product_id}>
                 {p.label} ×{p.owned}

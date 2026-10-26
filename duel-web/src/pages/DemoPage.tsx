@@ -893,7 +893,7 @@ function demoPickedBy(v: string | null): Seat | null | undefined {
   return v === "0" ? 0 : v === "1" ? 1 : undefined;
 }
 
-/** Sample undo states for `?undo[=ask|force|menu|blocked|limit]` (#536). */
+/** Sample undo states for `?undo[=ask|force|menu|blocked|limit|nothing|full]` (#536). */
 export function demoUndoState(kind: string | null): UndoState {
   const free = { available: true, forceable: false } as const;
   const base: UndoState = {
@@ -915,6 +915,14 @@ export function demoUndoState(kind: string | null): UndoState {
     const reason = `Undo stops here: ${looked}`;
     const blocked = { available: false, forceable: true, blockedReason: reason, revealReason: looked } as const;
     return { ...base, options: { action: { ...blocked, steps: 1 }, turn: { ...blocked, steps: 3 } }, blockedReason: reason };
+  }
+  if (kind === "nothing") {
+    const none = { available: false, forceable: false, steps: 0, blockedReason: "Nothing to undo yet" } as const;
+    return { ...base, targetTurn: null, action: null, options: { action: none, turn: none }, blockedReason: "Nothing to undo yet" };
+  }
+  if (kind === "full") {
+    const full = { available: false, forceable: false, steps: 0, blockedReason: "Undo history limit reached" } as const;
+    return { ...base, options: { action: full, turn: full }, blockedReason: "Undo history limit reached" };
   }
   if (kind === "limit") {
     return {
@@ -1167,7 +1175,7 @@ export function DemoPage() {
           undo
             ? {
                 state: undo,
-                defaultOpen: ["menu", "blocked", "limit"].includes(params.get("undo") ?? ""),
+                defaultOpen: ["menu", "blocked", "limit", "nothing", "full"].includes(params.get("undo") ?? ""),
                 onAction: (action, opts) =>
                   setUndo((u) =>
                     u

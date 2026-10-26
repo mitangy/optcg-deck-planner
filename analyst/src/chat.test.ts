@@ -964,6 +964,13 @@ describe("deck edit suggestions (#400)", () => {
       expect(checks(seen)).toBe(0);
       expect(events.at(-1)!.event).toBe("done");
     });
+
+    it("a +N/-N answer one round before the limit still finishes (#692)", async () => {
+      const refusedCall = (i: number) => ({ content: [{ ...propose, id: `t${i}`, input: { summary: "Nope", changes: [{ id: "ZZ99-999", delta: 1, reason: "Unknown" }] } }], stop_reason: "tool_use", usage: usage(1, 1) });
+      const replies = [...Array.from({ length: MAX_TOOL_ROUNDS - 2 }, (_, i) => refusedCall(i)), text("+1 ST01-016"), { content: [propose], stop_reason: "tool_use", usage: usage(1, 1) }];
+      const { events } = await turn(replies);
+      expect(events.at(-1)!.event).toBe("done");
+    });
   });
 });
 

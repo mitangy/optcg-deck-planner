@@ -34,7 +34,7 @@ export function parseDraft(raw: unknown): NewDeckDraft | null {
     if (!isRec(c)) continue;
     const cid = str(c.id, 20);
     const copies = c.copies;
-    if (!cid || typeof copies !== "number" || !Number.isInteger(copies) || copies < 1 || copies > 4) continue;
+    if (!cid || typeof copies !== "number" || !Number.isInteger(copies) || copies < 1 || copies > 50) continue;
     cards.push({ id: normalizeCardId(cid), name: str(c.name, 120) ?? cid, copies });
   }
   if (!cards.length) return null;

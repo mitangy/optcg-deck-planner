@@ -84,7 +84,7 @@ export function UndoControl({ state, autoAccept, className, label, ariaLabel, de
               className={`${className}${dimmed ? " is-blocked" : ""}${open ? " armed" : ""}`}
               title={undoButtonTitle(state, autoAccept)}
               aria-label={ariaLabel}
-              aria-disabled={dimmed || undefined}
+              data-blocked={dimmed || undefined}
             >
               {label}
             </MenuButton>

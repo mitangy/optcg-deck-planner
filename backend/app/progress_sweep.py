@@ -3,8 +3,8 @@
 With Redis configured a live game's log exists only in Redis (see duel_live)
 until its room closes and sends the ``closed`` snapshot. A game-server process
 that crashes never sends it, and Redis forgets the log after PROGRESS_TTL_S.
-This sweep saves such logs as closed ``DuelMatchProgress`` rows (the shape a
-room closing without a result leaves) once they have been silent long enough.
+This sweep saves such logs as ``DuelMatchProgress`` rows (open ones: only a room
+closing sends ``closed``) once they have been silent long enough.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ BATCH = 200
 
 
 def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_s: float = IDLE_AFTER_S) -> int:
-    """Save idle live snapshots to Postgres as closed rows and drop the Redis copy. Returns how many were saved."""
+    """Save idle live snapshots to Postgres as open rows and drop the Redis copy. Returns how many were saved."""
     # The match lock and result check are the ingest route's own, so a result and a sweep cannot interleave.
     from app.routers.duel import _has_result, _lock_match
 
@@ -52,7 +52,9 @@ def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_
                 db.add(row)
             for field in ("ranked", "seat0_leader_id", "seat1_leader_id", "turns", "replay", "seat0_log", "seat1_log"):
                 setattr(row, field, getattr(live, field))
-            row.closed = True
+            # Not closed: a sweep only knows the game went quiet, not that it ended. The replay opens
+            # when the room says so or after PROGRESS_STALE_AFTER without a snapshot, as for any cut-off game.
+            row.closed = False
             row.updated_at = live.updated_at
             saved += 1
         # Finished games and snapshots of deleted accounts have nowhere to go; the live copy just goes.
