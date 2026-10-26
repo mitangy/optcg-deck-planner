@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-26
   { date: "2026-10-26", app: "planner", pr: 752, title: "A fresher Collection page", text: "The Collection now opens with three summary cards (unique cards, copies and estimated value), round colour buttons you can combine, Leader / Character / Event / Stage chips, and a Filters menu for Not in a deck, Show DON!! and Show alt arts. Grid view is now a wall of card art with a copies badge on each card. Your List / Grid choice, sorts and filters are kept." },
+  { date: "2026-10-26", app: "duel", title: "Shorter settings descriptions", text: "The descriptions under the duel settings are shorter and easier to read, on the Settings page and under ⚙ in a match. \"Hand\" is now \"Hand layout\" and \"Animations\" is now \"Animation speed\"." },
   // 2026-10-25
   { date: "2026-10-25", app: "planner", pr: 742, title: "Shared decks show what you own", text: "Opening someone's shared deck link now shows owned counts and what's still needed from your own collection, and Add to my decks copies it into your decks. Signed out, it shows the full cost and asks you to sign in." },
   { date: "2026-10-25", app: "planner", pr: 735, title: "Alt arts beside the card on wide screens", text: "On a wide screen (1440 pixels or more), a deck's List view now shows each card's alt art tiles next to the card instead of under it. Smaller screens and Edit deck keep them under the card." },

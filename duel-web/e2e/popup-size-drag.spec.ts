@@ -191,7 +191,7 @@ test("Gameplay settings have a separate Card pop-up size slider on desktop only,
   const other = sheet.locator("#popup-size");
   await expect(other).toHaveCount(1);
   // The Pop-up size row no longer claims the hover card.
-  await expect(other.locator("xpath=..")).not.toContainText("hover card, choices");
+  await expect(other.locator("xpath=..")).not.toContainText("hover card");
   if (phone()) {
     await expect(card).toHaveCount(0);
     return;
