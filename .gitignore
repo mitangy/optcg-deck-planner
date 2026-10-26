@@ -28,3 +28,11 @@ tools/mutation-check/suites/.base-*
 # breadth mutation tool (Stryker)
 packages/rules/reports/
 packages/rules/.stryker-tmp/
+
+# trailer (issue #754): capture + render outputs
+trailer/out/
+trailer/clips/
+trailer/video/node_modules/
+trailer/video/public/clips/
+trailer/video/public/music.mp3
+trailer/video/src/generated.json
