@@ -104,4 +104,32 @@ describe("OutboxScheduler", () => {
     assert.deepEqual(calls.enqueued, ["m9"]);
     assert.equal(calls.drains, 1);
   });
+
+  it("a result queued while the scheduler checks the next due time is still sent (#389)", async () => {
+    const pending: string[] = [];
+    const drained: string[] = [];
+    let release: ((v: number | null) => void) | null = null;
+    let calls = 0;
+    const outbox = {
+      async enqueue(p: { match_id: string }) { pending.push(p.match_id); },
+      async drain() { drained.push(...pending.splice(0)); },
+      // The first query sees the outbox as it was when it started, and answers later.
+      nextDueInMs() {
+        calls += 1;
+        const snapshot = pending.length;
+        if (calls > 1) return Promise.resolve(snapshot ? 0 : null);
+        return new Promise<number | null>((resolve) => { release = () => resolve(snapshot ? 0 : null); });
+      },
+    };
+    const timers: number[] = [];
+    const scheduler = new OutboxScheduler(outbox as never, (_fn, ms) => { timers.push(ms); return 0 as never; }, () => {});
+    const first = scheduler.kick();
+    await new Promise((r) => setTimeout(r, 0));
+    assert.ok(release, "run() is awaiting nextDueInMs");
+    await scheduler.enqueue({ match_id: "m2" } as never);
+    (release as (v: null) => void)(null);
+    await first;
+    assert.deepEqual(drained, ["m2"]);
+    assert.deepEqual(timers, []);
+  });
 });

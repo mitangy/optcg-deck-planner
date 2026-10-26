@@ -406,6 +406,21 @@ def test_a_new_deck_draft_must_come_from_a_propose_new_deck_call_in_its_thread(c
     assert [p["id"] for m in shown for p in m["proposals"]] == ["t2"]
 
 
+def test_a_new_deck_draft_keeps_more_than_four_copies_of_an_any_number_card(chat):
+    """Pacifista-style cards run any number, so /drafts takes up to 50 copies of one card (#728)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Build"}, headers=h).json()["id"]
+    messages = _propose_turn("d1", "Opening it.", name="propose_new_deck")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    d = _draft("d1")
+    d["cards"] = [{"id": "OP01-075", "name": "Pacifista", "copies": 50}]
+    assert c.post(f"/analyst/chat/threads/{tid}/drafts", json={"drafts": [d]}, headers=h).status_code == 204
+    d["cards"][0]["copies"] = 51
+    assert c.post(f"/analyst/chat/threads/{tid}/drafts", json={"drafts": [d]}, headers=h).status_code == 422
+
+
 def test_the_thread_view_shows_a_new_deck_under_the_answer_that_made_it(chat):
     """The draft sits on the answer that ended its turn, so it comes back on reload (#726)."""
     c, _ = chat

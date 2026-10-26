@@ -110,14 +110,18 @@ def validate_offer(
     }
     for (side, card_id, pid), qty in sorted(merged.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or 0)):
         if pid is None:
-            continue
-        have = alts_by_party[side].get(card_id, {}).get(pid, 0)
+            # The standard printing is limited by base copies, not by the card's total spare (#705).
+            h = parties[side][1].get(card_id)
+            have = h.base_owned if h else 0
+        else:
+            have = alts_by_party[side].get(card_id, {}).get(pid, 0)
         if have < qty:
             party = parties[side][0]
             subject = "You don't" if party.id == actor.id else f"{who(party)} doesn't"
+            what = "of that printing" if pid is not None else "of the standard printing"
             raise HTTPException(
                 status_code=409,
-                detail=f"{subject} own {qty} of that printing of {card_id}.",
+                detail=f"{subject} own {qty} {what} of {card_id}.",
             )
 
 

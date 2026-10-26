@@ -98,6 +98,8 @@ export type SpareItem = {
   image_url: string;
   market_price: number | null;
   spare: number;
+  /** Copies of the standard printing; a standard trade line cannot exceed this (#705). */
+  base_owned: number;
   want: number;
   printings: SparePrinting[];
 };
