@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-26
+  { date: "2026-10-26", app: "duel", pr: 747, title: "A new Decks page", text: "Your decks are now cards showing the leader's art and colours, how many of the 50 main-deck cards each has, and a warning when a deck is incomplete. Search by deck or leader name, sort by recent edit, name or leader, and use the ... menu on a card to edit, play with or delete a deck." },
   // 2026-10-25
   { date: "2026-10-25", app: "planner", pr: 742, title: "Shared decks show what you own", text: "Opening someone's shared deck link now shows owned counts and what's still needed from your own collection, and Add to my decks copies it into your decks. Signed out, it shows the full cost and asks you to sign in." },
   { date: "2026-10-25", app: "planner", pr: 735, title: "Alt arts beside the card on wide screens", text: "On a wide screen (1440 pixels or more), a deck's List view now shows each card's alt art tiles next to the card instead of under it. Smaller screens and Edit deck keep them under the card." },

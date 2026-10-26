@@ -105,7 +105,7 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
   const chopper = page.getByRole("button", { name: "Remove one Tony Tony.Chopper" });
   const openEditor = async () => {
     await page.goto("/decks");
-    await page.locator(".deck-list li", { hasText: "Red Vanilla" }).click();
+    await page.locator(".deck-list li", { hasText: "Red Vanilla" }).getByRole("button", { name: "Edit Red Vanilla" }).click();
     await expect(page).toHaveURL(/configure$/);
     await expect(save).toHaveText("Saved");
   };
