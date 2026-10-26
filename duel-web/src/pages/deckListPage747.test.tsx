@@ -62,8 +62,8 @@ async function type(input: HTMLInputElement, value: string) {
   });
 }
 
-describe("Decks page cards (#747)", () => {
-  it("typing a leader's name in the search box leaves only that leader's deck cards (#747)", async () => {
+describe("Decks page cards (#750)", () => {
+  it("typing a leader's name in the search box leaves only that leader's deck cards (#750)", async () => {
     await mount();
     expect(names()).toContain("Alpha");
     expect(names()).toContain("Bravo");
@@ -71,7 +71,7 @@ describe("Decks page cards (#747)", () => {
     expect(names()).toEqual(["Bravo"]);
   });
 
-  it("flags only the deck under 50 cards as incomplete, with its count (#747)", async () => {
+  it("flags only the deck under 50 cards as incomplete, with its count (#750)", async () => {
     await mount();
     const warns = Array.from(document.querySelectorAll(".deck-card-warn")).map((w) => w.textContent);
     expect(warns).toEqual(["Incomplete: 42 of 50 main-deck cards"]);

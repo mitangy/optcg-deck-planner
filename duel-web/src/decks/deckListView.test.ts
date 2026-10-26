@@ -14,29 +14,29 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("Decks page search and sort (#747)", () => {
-  it("search finds a deck by its leader's name, not only the deck's own name (#747)", () => {
+describe("Decks page search and sort (#750)", () => {
+  it("search finds a deck by its leader's name, not only the deck's own name (#750)", () => {
     expect(ids(filterDecks(DECKS, "imu"))).toEqual(["b"]);
   });
 
-  it("search finds a deck by its name in any case, and by its leader's card number (#747)", () => {
+  it("search finds a deck by its name in any case, and by its leader's card number (#750)", () => {
     expect(ids(filterDecks(DECKS, "ALPHA"))).toEqual(["a"]);
     expect(ids(filterDecks(DECKS, "op15-002"))).toEqual(["c"]);
   });
 
-  it("search shows every deck for empty or blank text and none for text nothing matches (#747)", () => {
+  it("search shows every deck for empty or blank text and none for text nothing matches (#750)", () => {
     expect(ids(filterDecks(DECKS, ""))).toEqual(["a", "b", "c"]);
     expect(ids(filterDecks(DECKS, "   "))).toEqual(["a", "b", "c"]);
     expect(filterDecks(DECKS, "zzz")).toEqual([]);
   });
 
-  it("sorts by last edit newest first, by name A to Z, or by leader name A to Z (#747)", () => {
+  it("sorts by last edit newest first, by name A to Z, or by leader name A to Z (#750)", () => {
     expect(ids(sortDecks(DECKS, "recent"))).toEqual(["c", "a", "b"]);
     expect(ids(sortDecks(DECKS, "name"))).toEqual(["a", "b", "c"]);
     expect(ids(sortDecks(DECKS, "leader"))).toEqual(["b", "c", "a"]);
   });
 
-  it("sorts decks that share a leader by deck name, and does not reorder the list it was given (#747)", () => {
+  it("sorts decks that share a leader by deck name, and does not reorder the list it was given (#750)", () => {
     const same = [
       { id: "z", name: "Zeta", leaderId: "OP11-041", updatedAt: 1 },
       { id: "y", name: "Yankee", leaderId: "OP11-041", updatedAt: 1 },
@@ -45,14 +45,14 @@ describe("Decks page search and sort (#747)", () => {
     expect(ids(same)).toEqual(["z", "y"]);
   });
 
-  it("offers the three sorts and falls back to Recently updated for an unknown stored value (#747)", () => {
+  it("offers the three sorts and falls back to Recently updated for an unknown stored value (#750)", () => {
     expect(DECK_SORTS.map((s) => s.id)).toEqual(["recent", "name", "leader"]);
     expect(parseDeckSort("leader")).toBe("leader");
     expect(parseDeckSort("win-rate")).toBe("recent");
     expect(parseDeckSort(null)).toBe("recent");
   });
 
-  it("remembers the sort that was picked, and still loads when storage is blocked (#747)", () => {
+  it("remembers the sort that was picked, and still loads when storage is blocked (#750)", () => {
     expect(loadDeckSort()).toBe("recent");
     saveDeckSort("name");
     expect(loadDeckSort()).toBe("name");
