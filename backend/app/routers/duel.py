@@ -842,7 +842,8 @@ def my_match_replay(
             raise HTTPException(status_code=404, detail="No replay was kept for this match")
         seat0_id, seat1_id, turns, replay_text, finished = row.seat0_user_id, row.seat1_user_id, row.turns, log_row.replay, True
     else:
-        progress = db.get(DuelMatchProgress, match_id)
+        # The newest copy decides: a swept row can be old while the game goes on in Redis.
+        progress = _latest_progress(db=db, match_id=match_id)
         players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
         if progress is None or (user.id not in players and not is_admin(user)):
             raise HTTPException(status_code=404, detail="Match not found")

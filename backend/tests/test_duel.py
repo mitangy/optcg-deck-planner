@@ -836,7 +836,7 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
     with SessionLocal() as db:
         assert sweep_idle_progress(fake_redis, db, later) == 1
         row = db.get(DuelMatchProgress, "crashed")
-        assert row is not None and row.closed is True and row.turns == 2
+        assert row is not None and row.turns == 2
         assert db.get(DuelMatchProgress, "playing") is None
     assert not fake_redis.exists("duel:progress:crashed")
     assert fake_redis.exists("duel:progress:playing")
@@ -844,6 +844,35 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
     listed = {m["match_id"]: m for m in c.get("/duel/matches/me").json()["matches"]}
     assert listed["crashed"]["finished"] is False and listed["crashed"]["has_log"] is True
     assert c.get("/duel/matches/me/crashed").json()["log"] == log[0]
+
+
+def test_an_idle_game_swept_to_postgres_keeps_its_replay_locked_651(client, fake_redis):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import DuelMatchProgress
+    from app.progress_sweep import sweep_idle_progress
+
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
+    _progress(c, "slow", me["id"], a["user_id"], replay=_replay("slow"), turns=3)
+    assert c.get("/duel/matches/me/slow/replay").status_code == 409
+    with SessionLocal() as db:
+        assert sweep_idle_progress(fake_redis, db, datetime.now(timezone.utc) + timedelta(minutes=31)) == 1
+    # A long turn is not a finished game: the swept copy stays locked...
+    assert c.get("/duel/matches/me/slow/replay").status_code == 409
+    # ...also after the game sends its next live snapshot.
+    _progress(c, "slow", me["id"], a["user_id"], replay=_replay("slow"), turns=4)
+    assert c.get("/duel/matches/me/slow/replay").status_code == 409
+    # Even once the swept row is a day old, a fresh live snapshot keeps it locked.
+    with SessionLocal() as db:
+        row = db.get(DuelMatchProgress, "slow")
+        row.updated_at = datetime.now(timezone.utc) - timedelta(hours=25)
+        db.commit()
+    assert c.get("/duel/matches/me/slow/replay").status_code == 409
+    # Once the room closes it opens.
+    assert _progress(c, "slow", me["id"], a["user_id"], replay=_replay("slow"), turns=5, closed=True).status_code == 204
+    assert c.get("/duel/matches/me/slow/replay").status_code == 200
 
 
 def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):

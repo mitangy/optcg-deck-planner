@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-26
+  { date: "2026-10-26", app: "duel", pr: 651, title: "Replays stay locked until the game ends", text: "A game with a very long turn could open its replay to both players while it was still being played. The replay now stays locked until the game really ends." },
   // 2026-10-25
   { date: "2026-10-25", app: "duel", pr: 651, title: "Undo explains itself again", text: "When Undo is dimmed because there is nothing to undo yet, or the undo limit is reached, tapping it opens its menu again and tells you why. That is the only way to see the reason on a phone." },
   { date: "2026-10-25", app: "both", pr: 651, title: "Log Pose can build decks with Pacifista", text: "Ask Log Pose to build a deck around a card that lets you run any number of copies, like Pacifista, and it now keeps all of them in the deck it opens for you. Before, it was held to 4 copies of every card." },
