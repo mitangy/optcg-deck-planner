@@ -71,17 +71,17 @@ export const SCENES: SceneDef[] = [
     focus: [f(0, r(0.17, 0.12, 0.7)), f(1.0, r(0.22, 0.18, 0.62)), f(2.3, r(0.17, 0.0, 0.7))],
   },
   {
-    id: 'art-back', clip: '04-custom-art', start: 18.5, dur: 2.5, trimStart: 4.4, rate: 1.4, transition: 'fade',
+    id: 'art-back', clip: '04-custom-art', start: 18.5, dur: 2.5, trimStart: 5.7, rate: 1.5, transition: 'fade',
     eyebrow: 'Your card backs',
     focus: [f(0, r(0.17, 0.05, 0.7)), f(0.8, r(0.2, 0.25, 0.65)), f(1.9, r(0.17, 0.05, 0.7))],
   },
   {
-    id: 'art-don', clip: '04-custom-art', start: 21, dur: 1.5, trimStart: 8.0, rate: 1.2, transition: 'fade',
+    id: 'art-don', clip: '04-custom-art', start: 21, dur: 1.5, trimStart: 10.1, rate: 1.2, transition: 'fade',
     eyebrow: 'Your DON!! art',
     focus: [f(0, r(0.17, 0.1, 0.7))],
   },
   {
-    id: 'art-board', clip: '04-custom-art', start: 22.5, dur: 2.5, trimStart: 10.1, transition: 'fade',
+    id: 'art-board', clip: '04-custom-art', start: 22.5, dur: 2.5, trimStart: 12.6, transition: 'fade',
     eyebrow: 'All of it, on the table',
     focus: [f(0, FULL), f(0.5, r(0.0, 0.2, 0.85))],
   },
@@ -93,10 +93,10 @@ export const SCENES: SceneDef[] = [
   {
     id: 'layout-tilt', clip: '05-layout', start: 27.5, dur: 3.5, trimStart: 7.2, rate: 1.2, transition: 'fade',
     eyebrow: 'Arrange the table your way',
-    focus: [f(0, r(0.3, 0.0, 0.7)), f(0.9, r(0.15, 0.15, 0.7)), f(2.3, FULL)],
+    focus: [f(0, r(0.3, 0.0, 0.7)), f(0.8, r(0.15, 0.15, 0.7)), f(1.7, FULL)],
   },
   {
-    id: 'friends-lobby', clip: '06-friends', start: 31, dur: 2.5, trimStart: 0.8, rate: 1.4, transition: 'zoom',
+    id: 'friends-lobby', clip: '06-friends', start: 31, dur: 2.5, trimStart: 0.8, rate: 1.2, transition: 'zoom',
     eyebrow: 'Invite a friend',
     focus: [f(0, r(0.2, 0.05, 0.66))],
   },

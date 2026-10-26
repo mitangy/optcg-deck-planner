@@ -1,6 +1,6 @@
 /** 04-custom-art (8s): Settings > Appearance: playmat and card back uploads, a DON!! card, then the board wearing them. */
 import { join } from "node:path";
-import { sleep } from "../lib/util";
+import { easeScrollTo, layoutSettled, sleep } from "../lib/util";
 import { ASSET_DIR } from "../lib/env";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";
@@ -30,12 +30,17 @@ export async function run(): Promise<void> {
     await shot(`editor-${file.replace(/\W/g, "")}`);
     await t.pointer.click(apply, { ms: 600, settle: 60 });
     await sleep(550);
+    // The crop closes and "Processing…" resolves; wait out the reflow, then ease back to the section instead of letting the page jump.
+    await p.getByText(/Processing/).first().waitFor({ state: "detached", timeout: 15_000 }).catch(() => {});
+    await layoutSettled(p);
+    await easeScrollTo(p, section, { ms: 700 });
+    await sleep(250);
   };
   try {
     await t.goto("/settings");
     await p.locator("#playmat").waitFor();
     await sleep(1500);
-    await p.evaluate(() => document.querySelector("#playmat")!.scrollIntoView({ block: "start" }));
+    await easeScrollTo(p, "#playmat", { ms: 700 });
     await sleep(600);
     await t.pointer.park(1200, 300);
     await shot("0");
@@ -44,13 +49,13 @@ export async function run(): Promise<void> {
     await sleep(400);
     await upload("#playmat", "playmat.png");
     await shot("1");
-    await p.evaluate(() => document.querySelector("#card-back")!.scrollIntoView({ block: "start", behavior: "smooth" }));
-    await sleep(800);
+    await easeScrollTo(p, "#card-back", { ms: 850 });
+    await sleep(300);
     await upload("#card-back", "cardback.png");
     await shot("2");
     // DON!! art: the next panel down, pick the gold Luffy printing.
-    await p.evaluate(() => document.querySelector("#don-card")!.scrollIntoView({ block: "start", behavior: "smooth" }));
-    await sleep(700);
+    await easeScrollTo(p, "#don-card", { ms: 850 });
+    await sleep(300);
     const tile = p.locator("#don-card .don-art-tile", { hasText: "Gold" }).first();
     await t.pointer.click(tile, { ms: 800, settle: 60 });
     await sleep(900);

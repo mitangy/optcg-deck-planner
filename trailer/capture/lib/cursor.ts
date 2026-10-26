@@ -4,7 +4,7 @@
  * hand: curved paths, eased speed, a beat before clicking.
  */
 import type { BrowserContext, Locator, Page } from "playwright";
-import { easeInOutCubic, rng, sleep } from "./util";
+import { easeInOutCubic, easeScrollTo, rng, sleep } from "./util";
 
 export type CursorStyle = "arrow" | "touch";
 
@@ -127,7 +127,17 @@ export class Pointer {
   /** Centre of an element, nudged a little off true centre like a real click. */
   async centerOf(target: Locator | { x: number; y: number }): Promise<{ x: number; y: number }> {
     if ("x" in target) return target;
-    await target.scrollIntoViewIfNeeded();
+    // Out of view: bring it in with an eased scroll, never Playwright's instant jump.
+    const inView = await target.evaluate((n) => {
+      const b = n.getBoundingClientRect();
+      return b.top >= 80 && b.bottom <= innerHeight - 20;
+    }).catch(() => true);
+    if (!inView) {
+      await target.evaluate((n) => { n.setAttribute("data-ease-target", ""); });
+      await easeScrollTo(this.page, "[data-ease-target]", { ms: 800, offset: 200 });
+      await target.evaluate((n) => { n.removeAttribute("data-ease-target"); });
+      await sleep(120);
+    }
     const box = await target.boundingBox();
     if (!box) throw new Error("pointer target has no box");
     const jx = (this.rand() - 0.5) * Math.min(box.width * 0.25, 14);
