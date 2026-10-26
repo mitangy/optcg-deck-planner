@@ -12,6 +12,13 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Collection page filters (#752)
+    { id: "collection748-type-filter-ignored", file: "frontend/src/collectionView.ts", from: "  if (f.type) list = list.filter((i) => cardHasType(i, f.type));\n", to: "", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)", "colour, type and Not in a deck narrow together (#752)"] },
+    { id: "collection748-type-case-sensitive", file: "frontend/src/collectionView.ts", from: "return (card.card_type ?? \"\").trim().toLowerCase() === type.toLowerCase();", to: "return (card.card_type ?? \"\").trim() === type;", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)"] },
+    { id: "collection748-colors-must-all-match", file: "frontend/src/collectionView.ts", from: "return colors.some((c) => parts.includes(c.toLowerCase()));", to: "return colors.every((c) => parts.includes(c.toLowerCase()));", kills: ["several colour chips show cards of any of those colours, and a two-colour card matches either (#752)"] },
+    { id: "collection748-dual-colour-first-only", file: "frontend/src/collectionView.ts", from: "const parts = cardColorNames(card).map((p) => p.toLowerCase());", to: "const parts = cardColorNames(card).slice(0, 1).map((p) => p.toLowerCase());", kills: ["several colour chips show cards of any of those colours, and a two-colour card matches either (#752)"] },
+    { id: "collection748-spares-filter-ignored", file: "frontend/src/collectionView.ts", from: "  if (f.sparesOnly) list = list.filter((i) => i.used_in.length === 0);\n", to: "", kills: ["colour, type and Not in a deck narrow together (#752)"] },
+    { id: "collection748-all-types-offered", file: "frontend/src/collectionView.ts", from: "return COLLECTION_TYPES.filter((t) => items.some((i) => cardHasType(i, t)));", to: "return [...COLLECTION_TYPES];", kills: ["type chips are offered only for types in the collection, in the usual order (#752)"] },
     // Long dotted card names wrap at the dots in the deck table (#731)
     { id: "card-name-no-break-after-dots", file: "frontend/src/cardName.tsx", from: "  if (parts.length === 1) return name;", to: "  return name;", kills: ["card names break after dots so long names can wrap (#731)"] },
     // Owned shows the total including alt arts (#652)

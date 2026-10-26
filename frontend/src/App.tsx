@@ -55,6 +55,14 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { BuildTag } from "./BuildTag";
+import {
+  CardColorChips,
+  CollectionFilterMenu,
+  CollectionStatCards,
+  ColorFilterChips,
+  TypeFilterChips,
+} from "./CollectionToolbar";
+import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { nameWithBreaks } from "./cardName";
 import { nextExtraTarget } from "./shoppingExtras";
 import {
@@ -1979,6 +1987,7 @@ function ShoppingPage() {
 const COLLECTION_SHOW_DONS_KEY = "optcg_collection_show_dons";
 const COLLECTION_SPARES_KEY = "optcg_collection_spares_only";
 const COLLECTION_COLORS_KEY = "optcg_collection_colors";
+const COLLECTION_TYPE_KEY = "optcg_collection_type";
 
 function loadCollectionColors(): string[] {
   try {
@@ -1987,33 +1996,6 @@ function loadCollectionColors(): string[] {
   } catch {
     return [];
   }
-}
-
-function cardHasColor(card: { color: string }, colors: string[]): boolean {
-  const parts = card.color.split(/[/,&]+/).map((p) => p.trim().toLowerCase());
-  return colors.some((c) => parts.includes(c.toLowerCase()));
-}
-
-function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefined }) {
-  return (
-    <ul className="stat-strip" aria-label="Collection totals">
-      <li>
-        <span className="stat-label">Cards</span>
-        <span className="stat-value">{data?.unique_cards ?? 0}</span>
-      </li>
-      <li>
-        <span className="stat-label">Copies</span>
-        <span className="stat-value">{data?.total_copies ?? 0}</span>
-      </li>
-      <li>
-        <span className="stat-label">Est. value</span>
-        <span className="stat-value gold">
-          {money(data?.total_value ?? 0)}
-          {data?.unpriced_cards ? <small> + {data.unpriced_cards} unpriced</small> : null}
-        </span>
-      </li>
-    </ul>
-  );
 }
 
 function collectionColumnValue(item: OwnedCard, key: string) {
@@ -2068,37 +2050,46 @@ function CollectionItemsView({
 
   if (layout === "grid") {
     return (
-      <div className="card-grid">
-        {items.map((item) => (
-          <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
-            <div className="grid-card collection-grid-card">
-              <div className="grid-card-media">
-                <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
+      <div className="card-grid collection-grid">
+        {items.map((item) => {
+          const copies = item.owned + (item.alts_owned ?? 0);
+          return (
+            <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
+              <div className="grid-card collection-grid-card">
+                <div className="collection-tile-art">
+                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
+                  <span className="copies-badge" role="img" aria-label={`${copies} owned`} title={`${copies} owned`}>
+                    ×{copies}
+                  </span>
+                </div>
+                <div className="grid-card-body">
+                  <div className="grid-card-name" title={item.name}>
+                    {item.name}
+                  </div>
+                  <div className="collection-tile-row">
+                    <span className="card-id">{item.card_id}</span>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                  </div>
+                  <CardColorChips color={item.color} />
+                  <div className="grid-card-meta muted">
+                    Value <strong className="collection-value">{money(item.value)}</strong>
+                    {item.buying ? ` · Buying ${item.buying}` : ""}
+                  </div>
+                  <div className="grid-card-owned">
+                    <span>Owned</span>
+                    {ownedCell(item)}
+                  </div>
+                  {item.tcgplayer_url && (
+                    <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                      TCGPlayer
+                    </a>
+                  )}
+                  {hasAltRow(item) && <div className="grid-card-alts">{altRow(item)}</div>}
+                </div>
               </div>
-              <div className="grid-card-body">
-                <div className="card-id">{item.card_id}</div>
-                <div className="grid-card-name">{item.name}</div>
-                <div className="grid-card-meta muted">
-                  Value <strong className="collection-value">{money(item.value)}</strong>
-                  {item.buying ? ` · Buying ${item.buying}` : ""}
-                </div>
-                <div className="grid-card-price">
-                  <MarketPrice price={item.market_price} productId={item.product_id} />
-                </div>
-                <div className="grid-card-owned">
-                  <span>Owned</span>
-                  {ownedCell(item)}
-                </div>
-                {item.tcgplayer_url && (
-                  <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                    TCGPlayer
-                  </a>
-                )}
-                {hasAltRow(item) && <div className="grid-card-alts">{altRow(item)}</div>}
-              </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
     );
   }
@@ -2126,6 +2117,7 @@ function CollectionItemsView({
                     <div>
                       <div className="card-id">{item.card_id}</div>
                       <div>{item.name}</div>
+                      <CardColorChips color={item.color} />
                       {item.tcgplayer_url && (
                         <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
@@ -2507,6 +2499,7 @@ function CollectionPage() {
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [sparesOnly, setSparesOnly] = usePersistedOpen(COLLECTION_SPARES_KEY, false);
   const [colors, setColors] = useState<string[]>(loadCollectionColors);
+  const [typeChoice, setTypeChoice] = usePersistedChoice(COLLECTION_TYPE_KEY, "", ["", ...COLLECTION_TYPES]);
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
   const [pageDragging, setPageDragging] = useState(false);
@@ -2530,29 +2523,24 @@ function CollectionPage() {
 
   const allItems = data?.items ?? [];
   const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
+  // Type chips only list types the collection has; a remembered type that is gone counts as All.
+  const types = useMemo(() => typesPresent(allItems.filter((i) => showDons || !isDonCard(i))), [allItems, showDons]);
+  const type = types.includes(typeChoice) ? typeChoice : "";
   const items = useMemo(() => {
-    let list = allItems;
-    if (!showDons) list = list.filter((i) => !isDonCard(i));
-    if (sparesOnly) list = list.filter((i) => i.used_in.length === 0);
-    if (colors.length) list = list.filter((i) => cardHasColor(i, colors));
-    if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
+    const list = filterOwnedCards(showDons ? allItems : allItems.filter((i) => !isDonCard(i)), {
+      colors,
+      type,
+      sparesOnly,
+      search,
+    });
     return [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
-  }, [allItems, showDons, sparesOnly, colors, search, effectiveSorts]);
+  }, [allItems, showDons, sparesOnly, colors, type, search, effectiveSorts]);
 
   const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
-  const filterSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
-    if (colors.length) parts.push(colors.join("/"));
-    if (sparesOnly) parts.push("Not in a deck");
-    if (!showDons) parts.push("No DON!!");
-    if (showAltArts) parts.push("Alt arts");
-    if (layout === "grid") parts.push("Grid");
-    return parts.join(" · ");
-  }, [effectiveSorts, colors, sparesOnly, showDons, showAltArts, layout]);
-  const activeFilters = colors.length + (sparesOnly ? 1 : 0) + (showDons ? 0 : 1) + (showAltArts ? 1 : 0);
+  // Filters that differ from their defaults (Show DON!! and Show alt arts start on).
+  const activeFilters = (sparesOnly ? 1 : 0) + (showDons ? 0 : 1) + (showAltArts ? 0 : 1);
 
   function toggleColor(color: string) {
     setColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]));
@@ -2587,13 +2575,13 @@ function CollectionPage() {
 
   return (
     <section>
-      <div className="page-head">
+      <div className="page-head collection-head">
         <div>
           <p className="eyebrow">Cards you own</p>
           <h1>Collection</h1>
-          <CollectionStatStrip data={data} />
         </div>
       </div>
+      <CollectionStatCards data={data} />
 
       <CollectionAddPanel
         ownedById={ownedById}
@@ -2609,71 +2597,50 @@ function CollectionPage() {
         </p>
       ) : (
         <>
-          <div className="list-toolbar">
-            <div className="list-toolbar-row">
-              <CardSearchInput value={search} onChange={setSearch} />
-              <CardLayoutToggle layout={layout} onChange={setLayout} />
+          <div className="list-toolbar collection-toolbar">
+            <div className="collection-toolbar-row">
+              <CardSearchInput value={search} onChange={setSearch} icon placeholder="Search name, ID, color…" />
+              <ColorFilterChips selected={colors} onToggle={toggleColor} onClear={() => setColors([])} />
             </div>
-            <CollapsibleFilters summary={filterSummary} badge={activeFilters} badgeLabel="filters on">
-              <div className="filters">
+            <div className="collection-toolbar-row">
+              {types.length > 0 ? (
+                <TypeFilterChips types={types} value={type} onChange={setTypeChoice} />
+              ) : (
+                <span />
+              )}
+              <div className="collection-toolbar-tools">
                 <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} />
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={sparesOnly}
-                    onChange={(e) => setSparesOnly(e.target.checked)}
-                  />
-                  Not in a deck
-                </label>
-                <label>
-                  <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
-                  Show DON!!
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showAltArts}
-                    onChange={(e) => setShowAltArts(e.target.checked)}
-                  />
-                  Show alt arts
-                </label>
-              </div>
-              <div className="deck-filter">
-                <div className="deck-filter-head">
-                  <span>Colors</span>
-                  {colors.length > 0 && (
-                    <button type="button" className="ghost" onClick={() => setColors([])}>
-                      Any color
-                    </button>
-                  )}
-                </div>
-                <div className="deck-filter-list">
-                  {COLOR_ORDER.map((color) => (
-                    <label key={color} className="deck-chip">
-                      <input
-                        type="checkbox"
-                        checked={colors.includes(color)}
-                        onChange={() => toggleColor(color)}
-                      />
-                      {color}
+                <CollectionFilterMenu badge={activeFilters}>
+                  <div className="collection-filter-list">
+                    <label>
+                      <input type="checkbox" checked={sparesOnly} onChange={(e) => setSparesOnly(e.target.checked)} />
+                      Not in a deck
                     </label>
-                  ))}
-                </div>
+                    <label>
+                      <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
+                      Show DON!!
+                    </label>
+                    <label>
+                      <input type="checkbox" checked={showAltArts} onChange={(e) => setShowAltArts(e.target.checked)} />
+                      Show alt arts
+                    </label>
+                  </div>
+                  <p className="need-mode-note muted">
+                    Value is owned copies × the standard printing&apos;s TCGPlayer market price.
+                  </p>
+                </CollectionFilterMenu>
+                <CardLayoutToggle layout={layout} onChange={setLayout} icons />
               </div>
-              <p className="need-mode-note muted">
-                Value is owned copies × the standard printing&apos;s TCGPlayer market price.
-              </p>
-            </CollapsibleFilters>
+            </div>
           </div>
 
           {altArt.error && <p className="error">{altArt.error}</p>}
-          {narrowed && (
-            <p className="search-result-note muted" role="status">
-              Showing {shown.cards} of {allItems.length} cards · {shown.copies}{" "}
-              {shown.copies === 1 ? "copy" : "copies"} ·{" "}
-              {money(shown.value)}
-            </p>
-          )}
+          {/* Always present, so narrowing the list never shifts the cards below it. */}
+          <p className="collection-count muted" role="status">
+            {narrowed ? `Showing ${shown.cards} of ${allItems.length} cards` : `${allItems.length} ${allItems.length === 1 ? "card" : "cards"}`}
+            {" · "}
+            {shown.copies} {shown.copies === 1 ? "copy" : "copies"} · {money(shown.value)}
+          </p>
           {items.length === 0 ? (
             <p className="muted">No owned cards match the current search and filters.</p>
           ) : (

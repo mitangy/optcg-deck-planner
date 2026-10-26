@@ -40,9 +40,9 @@ test("stepping Owned updates the card value and the total (#268)", async ({ page
 });
 
 test("color filter narrows the list and shows the filtered total (#268)", async ({ page, planner }) => {
-  const toggle = page.getByRole("button", { name: /Filters/ });
-  await expectStationary(toggle, () => toggle.click(), "Filters toggle");
-  await page.getByRole("checkbox", { name: "Green" }).check();
+  const green = page.getByRole("button", { name: "Green", exact: true });
+  await expectStationary(green, () => green.click(), "Green colour chip");
+  await expect(green).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("[data-card-id]:visible")).toHaveCount(1);
   await expect(page.locator(row("EB01-001"))).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Showing 1 of 3 cards · 1 copy · $2.40");
@@ -299,12 +299,12 @@ test("a card with no alt arts keeps the Owned stepper, and turning Show alt arts
   await expect(izo.getByRole("textbox")).toHaveCount(0);
 
   const toggle = page.getByRole("button", { name: /Filters/ });
-  await expectStationary(toggle, () => toggle.click(), "Filters toggle");
-  await expect(toggle).toContainText("Alt arts");
+  await expectStationary(toggle, () => toggle.click(), "Filters button");
   await page.getByRole("checkbox", { name: "Show alt arts" }).uncheck();
   await expect(izo.locator(".alt-art")).toHaveCount(0);
   await expect(izo.getByRole("textbox")).toHaveValue("2");
-  await expect(toggle).not.toContainText("Alt arts");
+  // The button counts filters that differ from their defaults; alt arts start on.
+  await expect(toggle).toContainText("1 on");
 });
 
 test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)", async ({ page, planner }) => {
@@ -323,6 +323,59 @@ test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)",
   await izo.getByRole("button", { name: "Show Izo base art as the card's art" }).click();
   await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
   expect(planner.displayArt.get("EB01-002")).toBe(0);
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("type and colour chips narrow the Collection together, and the count line keeps its place (#752)", async ({ page, planner }) => {
+  const count = page.getByRole("status");
+  const types = page.getByRole("group", { name: "Card type" });
+  const colors = page.getByRole("group", { name: "Colors" });
+  // Only the types owned get a chip: Oden is a Leader, Izo and Chopper are Characters.
+  await expect(types.getByRole("button")).toHaveText(["All", "Leader", "Character"]);
+  await expect(count).toHaveText("3 cards · 6 copies · $5.80");
+
+  const before = await page.locator(row("EB01-002")).boundingBox();
+  await types.getByRole("button", { name: "Character" }).click();
+  await expect(types.getByRole("button", { name: "Character" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-card-id]:visible")).toHaveCount(2);
+  await expect(page.locator(row("EB01-001"))).toHaveCount(0);
+  await expect(count).toHaveText("Showing 2 of 3 cards · 5 copies · $3.40");
+  // Same top edge once narrowed: the count line was already there, so nothing above the list moved.
+  expect((await page.locator(row("EB01-002")).boundingBox())!.y).toBeCloseTo(before!.y, 0);
+
+  // Every card is Red, so Red keeps both Characters; adding Green (any of) keeps them too.
+  await colors.getByRole("button", { name: "Red", exact: true }).click();
+  await expect(page.locator("[data-card-id]:visible")).toHaveCount(2);
+  await colors.getByRole("button", { name: "Green", exact: true }).click();
+  await expect(page.locator("[data-card-id]:visible")).toHaveCount(2);
+  await types.getByRole("button", { name: "Leader" }).click();
+  await expect(page.locator("[data-card-id]:visible")).toHaveCount(1);
+  await expect(page.locator(row("EB01-001"))).toBeVisible();
+
+  await colors.getByRole("button", { name: "Any color" }).click();
+  await types.getByRole("button", { name: "All" }).click();
+  await expect(page.locator("[data-card-id]:visible")).toHaveCount(3);
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("the Grid tile shows the copies badge on the art, with name, id, price and colours (#752)", async ({ page, planner }) => {
+  await page.getByRole("button", { name: "Grid", exact: true }).click();
+  const izo = page.locator(".grid-card-wrap" + row("EB01-002"));
+  await expect(izo.locator(".copies-badge")).toHaveText("×2");
+  await expect(izo.getByRole("img", { name: "2 owned" })).toBeVisible();
+  await expect(izo.locator(".grid-card-name")).toHaveText("Izo");
+  await expect(izo.locator(".color-chip")).toHaveText(["Red"]);
+  await expect(izo).toContainText("EB01-002");
+  // The badge sits on the art's top-right corner.
+  const art = (await izo.locator("img.thumb").first().boundingBox())!;
+  const badge = (await izo.locator(".copies-badge").boundingBox())!;
+  expect(badge.x + badge.width).toBeGreaterThan(art.x + art.width - 4);
+  expect(badge.y).toBeLessThan(art.y + 16);
+  // Stepping an owned alt raises the badge with the card's total copies.
+  await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
+  await expect(izo.locator(".copies-badge")).toHaveText("×3");
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
