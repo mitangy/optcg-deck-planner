@@ -50,92 +50,92 @@ const TOGGLES: Toggle[] = [
   {
     key: "keepHandOpen",
     label: "Keep hand open",
-    hint: "Desktop: the fanned hand (or the corner dock in short windows) stays up instead of tucking away. It can cover your DON!! row and Trash: press H or its Hide button during a match to hide the hand completely, and again to bring it back.",
+    hint: "The hand stays up instead of tucking away. Press H during a match to hide it.",
   },
   {
     key: "layoutGrips",
     label: "Drag handles",
-    hint: "Desktop: shows a grip on each side panel and on the fanned hand so you can move them. Turn it off to hide the grips once your layout is set; the layout stays.",
+    hint: "Shows grips for moving the side panels and the hand. Your layout stays when it's off.",
   },
   {
     key: "oneTapActions",
     label: "One-tap actions",
-    hint: "Skips the second tap: a card whose pop-up has one button does it straight away (Play, Attack, Activate, +1 DON!!), Counter and Blocker taps play at once, tapping a Leader or Character gives it the selected DON!!, and an effect that wants exactly N picks resolves on the last one.",
+    hint: "Skips the confirm tap: one-button actions, Counters, Blockers and DON!! happen on the first tap.",
   },
   {
     key: "dimUnplayable",
     label: "Gray out unplayable cards",
-    hint: "In your main phase, fades hand cards that cost more than your active DON!! and have no other play. Turn it off to keep every card at full colour.",
+    hint: "In your main phase, fades hand cards you can't play.",
   },
   {
     key: "handCounters",
     label: "Counter values on hand cards",
-    hint: "Shows each hand card's Counter (+1000, +2000) as a badge on the card.",
+    hint: "Shows each hand card's Counter value as a badge.",
   },
   {
     key: "cantAttackWarning",
     label: "Can't attack warning",
-    hint: "When you try to attack with a card that can't (summoning sick, rested, already attacked), it flashes red, shakes and says why.",
+    hint: "A card that can't attack flashes red and says why.",
   },
   {
     key: "battleArrow",
     label: "Battle arrow",
-    hint: "Draws the cannon-shot arc from the attacking card to its target during a battle.",
+    hint: "Draws an arc from the attacker to its target.",
   },
   {
     key: "attackGlow",
     label: "Attack-ready glow",
-    hint: "Your Leader and Characters that can attack right now glow green.",
+    hint: "Cards that can attack right now glow green.",
   },
   {
     key: "compactOwnBoard",
     label: "Simple board on phones",
-    hint: "Portrait phones: shows your own cards the way your opponent's are shown: Life, Deck, DON!! deck and Trash become a row of counts, and the cards get bigger. Tap Trash or face-up Life to open it.",
+    hint: "Portrait phones: your Life, Deck, DON!! and Trash become counts, so your cards get bigger.",
   },
   {
     key: "previewBigCard",
     label: "Big card preview",
-    hint: "Desktop: the card preview on the left shows just the card, as big as it fits. Off shows a smaller card with its cost, colour, power and Counter icons and its text below.",
+    hint: "Shows just the card, as big as it fits. Off adds its stats and text.",
   },
   {
     key: "previewPopup",
     label: "Card preview pop-up",
-    hint: "Desktop: the card preview floats over the board as a large pop-up you can drag anywhere (double-click its top bar to put it back) instead of sitting in a side column. Needs Card preview on.",
+    hint: "Shows the card preview as a pop-up you can drag, instead of a side panel. Needs Card preview on.",
   },
   {
     key: "donUpright",
     label: "Upright DON!! on rested cards",
-    hint: "DON!! given to a Leader or Character stays upright under it when the card rests, instead of turning sideways with it.",
+    hint: "DON!! stays upright when the card it's on rests.",
   },
   {
     key: "totalPower",
     label: "Show total power",
-    hint: "Power on board cards shows just the total (green when raised, red when lowered) instead of the printed power plus the bonus. Hover or inspect a card for the breakdown.",
+    hint: "Shows only the total power: green when raised, red when lowered. Hover a card for the breakdown.",
   },
   {
     key: "shortcutTags",
     label: "Shortcut key tags",
-    hint: "Shows the key for each action (Space, A, E, P, D, 1 to 9) on its button. The keys still work with the tags off.",
+    hint: "Shows each action's key on its button. The keys work either way.",
   },
   {
     key: "oppHandTopRight",
     label: "Opponent hand, top right",
-    hint: "Puts the opponent's hand count and card backs at the right of their half instead of the left. Landscape phones: a row of backs at the top of the right column instead of just the count.",
+    hint: "Shows the opponent's hand on the right of their side instead of the left.",
   },
   {
     key: "tiltedBoard",
     label: "Tilted board",
-    hint: "Desktop and landscape tablets: the board leans away from you like a real table, so your cards come out bigger and the opponent's side is a little smaller and further back.",
+    hint: "The board leans away from you like a real table.",
   },
   {
     key: "bigBoard",
     label: "Bigger playing area",
-    hint: "Gives the two playmats as much of the window as it can. On computers it hides the top bar (its menu moves to the ⋯ button at the top of a side column), shrinks the side columns to their minimum and trims the margins and gaps. Computers and landscape phones get wider two-row mats. You can still drag the column edges; this mode keeps its own widths, so the ones you set for the normal layout are untouched.",
+    hint: "Gives the playmats as much of the window as it can: hides the top bar and trims the columns and margins.",
   },
   {
     key: "actionsBeside",
     label: "Buttons beside the board",
-    hint: "Computers: Keep / Mulligan, End turn and the other action buttons sit right beside the mats, at the line where they meet, so the two playmats touch with no strip between them. Off: the buttons float in a strip between the mats. The tilted board and phones keep their layout.",
+    hint: "Puts the action buttons beside the mats so the mats touch. Off puts them in a strip between the mats.",
   },
   {
     key: "turnSplash",
@@ -145,7 +145,7 @@ const TOGGLES: Toggle[] = [
   {
     key: "gameHints",
     label: "Opening hand tips",
-    hint: "During the mulligan step, explains who goes first and what Keep and Mulligan do. Off hides the explanation; the Keep and Mulligan buttons stay.",
+    hint: "Explains Keep, Mulligan and who goes first during the mulligan.",
   },
   {
     key: "reduceMotion",
@@ -155,12 +155,12 @@ const TOGGLES: Toggle[] = [
   {
     key: "turnAlert",
     label: "Vibration",
-    hint: "Short buzzes on supported phones (Android) for picking up and dropping cards, incoming attacks and your move. Also marks the browser tab while you're away.",
+    hint: "Buzzes on supported phones (Android) for card moves, attacks and your turn.",
   },
   {
     key: "turnSound",
     label: "Sounds",
-    hint: "A chime when your turn starts or you need to respond, a lower two-tone cue when you are attacked, a thud when a Life card is lost, and short effects for drawing, playing, attacking, blocking, countering, K.O.s, DON!!, Triggers and the result. Works on iPhone too.",
+    hint: "A chime on your turn, plus short sounds for plays, attacks, K.O.s and more. Works on iPhone too.",
   },
 ];
 
@@ -171,17 +171,17 @@ const SHOW_TOGGLES: ShowToggle[] = [
   {
     key: "showCardPreview",
     label: "Card preview",
-    hint: "Desktop: the hovered card's art and text at the top of the left column. Off gives its room to the other panels in that column.",
+    hint: "The hovered card's art and text, at the top of the left column.",
   },
   {
     key: "showRecentPlays",
     label: "Recent plays",
-    hint: "Desktop: the strip of the latest plays and attacks in the left column. The Battle log keeps the full record.",
+    hint: "The latest plays and attacks. The Battle log keeps the full record.",
   },
   {
     key: "showChat",
     label: "Chat",
-    hint: "Online matches: the chat panel on desktop, the Chat pill on phones and the chat button on the landscape rail.",
+    hint: "The chat panel or Chat button in online matches.",
   },
 ];
 
@@ -294,7 +294,7 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              “Only if DON!! or attackers are left” asks while you have active DON!! or a ready attacker, and the button says which.
+              The middle option asks only while you have active DON!! or a ready attacker.
             </p>
           </div>
 
@@ -315,9 +315,7 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              Auto passes for you when you have no blocker or Counter card. Smart also passes the
-              counter step when all your Counter cards together can't save the attacked card;
-              Counter events always stop you. Your opponent may notice a quick pass.
+              Auto passes when you can&apos;t block or counter. Smart also passes when your Counters can&apos;t save the card.
             </p>
           </div>
 
@@ -340,13 +338,11 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              Locks rotation while a match is open, where the browser allows it (Android, in full
-              screen or when installed).
+              Locks rotation during a match where the browser allows it (Android, full screen or installed).
             </p>
             {lockNote ? (
               <p className="field-hint field-note" role="status">
-                Your browser can&apos;t lock rotation here; turn your phone instead (Android: try Full
-                screen from the ⋯ menu).
+                Your browser can&apos;t lock rotation here, so turn your phone instead.
               </p>
             ) : null}
           </div>
@@ -355,7 +351,7 @@ export function GameplaySettingsFields() {
       case "handLayout":
         return (
           <div className="field">
-            <label htmlFor="hand-layout">Hand</label>
+            <label htmlFor="hand-layout">Hand layout</label>
             <select
               id="hand-layout"
               value={settings.handLayout}
@@ -369,8 +365,8 @@ export function GameplaySettingsFields() {
             </select>
             <p className="field-hint">
               {desktop
-                ? "Automatic is the Grid on a desktop window at least 680 px tall (it never covers your DON!! row) and the fan elsewhere. The fan peeks off the bottom of the board and rises when you point at it; drag its grip to put it anywhere on the screen (on the bottom edge it still tucks away). Grid keeps the hand open as a side panel you can move to either column."
-                : "Fan overlaps the hand so every card fits; Grid shows them side by side and scrolls."}
+                ? "Automatic uses Grid on tall windows and Fan elsewhere. Fan tucks under the board; Grid is a side panel you can move."
+                : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
             </p>
           </div>
 
@@ -391,12 +387,7 @@ export function GameplaySettingsFields() {
               </button>
             </div>
             <p className="field-hint">
-              With Drag handles on, drag the grip at the top of any side panel (card preview, battle
-              log, actions, Grid hand, chat ...) to snap it into the left or right column, and the
-              fanned hand&apos;s grip to move it anywhere (spectating, each of the two hands has its own). Drop the opponent hand on the top of the
-              playmat to pin it there. Drag the inner edge of a column, or the line between two panels, to
-              resize them (double-click an edge to reset it). Reset puts every panel, size, both
-              hands and moved pop-ups back.
+              With Drag handles on, drag a panel&apos;s grip to move it, or an edge to resize it (double-click to reset). Reset layout puts every panel, hand and pop-up back.
             </p>
           </div>
 
@@ -415,9 +406,7 @@ export function GameplaySettingsFields() {
               <option value="both">Both</option>
             </select>
             <p className="field-hint">
-              Desktop: put every side panel in a single column on the side you pick, so the board gets
-              the room of the other one. Both keeps the left and right columns; your saved panel
-              positions come back when you switch to it.
+              One column gives the board more room. Both keeps a column on each side.
             </p>
           </div>
 
@@ -437,8 +426,7 @@ export function GameplaySettingsFields() {
               <option value="right">Right of the mat</option>
             </select>
             <p className="field-hint">
-              Where the opponent&apos;s hand sits on a desktop window: in the right-hand panel, or
-              pinned beside or above their half of the playmat.
+              Where the opponent&apos;s hand sits: in a side panel, or pinned to their half of the mat.
             </p>
           </div>
 
@@ -459,8 +447,7 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              Text already grows with your window; this sets it larger or smaller on top, including
-              card power numbers and the card text on the left.
+              Makes text and card power numbers bigger or smaller.
             </p>
           </div>
 
@@ -481,15 +468,14 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              Which way your Life cards fan out on your mat. The opponent&apos;s Life fans the other way
-              so it mirrors yours.
+              Which way your Life cards fan out. The opponent&apos;s Life mirrors yours.
             </p>
           </div>
         );
       case "animationSpeed":
         return (
           <div className="field">
-            <label htmlFor="animation-speed">Animations</label>
+            <label htmlFor="animation-speed">Animation speed</label>
             <select
               id="animation-speed"
               value={settings.animationSpeed}
@@ -502,8 +488,7 @@ export function GameplaySettingsFields() {
               ))}
             </select>
             <p className="field-hint">
-              How fast cards fly for draws, plays and KOs. Off skips card motion. “Reduce animations”
-              keeps its short fade instead of Normal or Fast.
+              How fast cards move for draws, plays and K.O.s.
             </p>
           </div>
 
@@ -518,12 +503,10 @@ export function GameplaySettingsFields() {
                 disabled={settings.animationSpeed === "off"}
                 onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
               />
-              <span>Show played, trashed and drawn cards</span>
+              <span>Spotlight played and K.O.&apos;d cards</span>
             </label>
             <p className="field-hint">
-              Each card that is played, used as a Counter, K.O.&apos;d or trashed by an effect (from
-              hand, deck, Life or the field) shows big over its owner&apos;s side for a moment, then
-              drops into its spot. Follows the Animations speed; Off hides it too.
+              Cards that are played, used as a Counter, K.O.&apos;d or trashed show big for a moment. Off when Animation speed is Off.
             </p>
           </div>
 
@@ -543,7 +526,7 @@ export function GameplaySettingsFields() {
               onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
             />
             <p className="field-hint">
-              How big the pop-ups are: choices and searches, card actions, DON!! and hand confirms, reveals and pick bars. The − and + buttons in a pop-up’s top bar change this too. The hover card has its own size, below. Reset layout puts it back to 100%.
+              Size of choice, search and action pop-ups. The − and + in a pop-up’s top bar change it too.
             </p>
           </div>
         );
@@ -562,7 +545,7 @@ export function GameplaySettingsFields() {
               onChange={(e) => updateSettings({ previewPopupSize: clampPopupSize(Number(e.target.value)) })}
             />
             <p className="field-hint">
-              How big the hover card pop-up is, apart from the other pop-ups. It stops growing once the card would no longer fit the window. The − and + buttons in its top bar change this too. Reset layout puts it back to 100%.
+              Size of the hover card pop-up. The − and + in its top bar change it too.
             </p>
           </div>
         );
@@ -571,8 +554,7 @@ export function GameplaySettingsFields() {
           <div className="field gameplay-group" role="group" aria-labelledby="show-on-screen-label">
             <span className="field-label" id="show-on-screen-label">Show on screen</span>
             <p className="field-hint">
-              Hide the extras you don&apos;t use. Your hand, DON!!, Life, the turn and the Battle log always
-              stay; panels you hide keep their place in your layout.
+              Hide extras you don&apos;t use. Hidden panels keep their place in your layout.
             </p>
             {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
               <div className="gameplay-toggle" key={t.key}>
