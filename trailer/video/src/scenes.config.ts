@@ -39,7 +39,7 @@ export const CLIPS: Record<ClipId, ClipDef> = {
   '11-phone': {file: 'clips/11-phone.mp4', duration: 4, orientation: 'portrait'},
 };
 
-export const TOTAL_SECONDS = 72;
+export const TOTAL_SECONDS = 58;
 
 /**
  * Transitions INTO a scene (all land on the beat, run ~0.27s):
@@ -58,86 +58,76 @@ export const SCENES: SceneDef[] = [
     eyebrow: 'Drag. Attach. Attack.',
     focus: [f(0, r(0.0, 0.1, 0.9)), f(2.6, r(0.0, 0.2, 0.8)), f(5.0, FULL), f(7.3, r(0.05, 0.0, 0.92))],
   },
-  // "Make it yours." one continuous take: the crew themes cycle on their own, so no cuts.
+  // "Make it yours." just two crew themes (pink, then blue), then straight into the playmat upload.
   {
-    id: 'themes', clip: '03-themes', start: 13.5, dur: 10, trimStart: 0.5, transition: 'wipe-right',
-    eyebrow: 'Crew themes, light mode too',
-    focus: [f(0, FULL), f(4, r(0.0, 0.0, 0.96)), f(8, FULL)],
+    id: 'themes', clip: '03-themes', start: 13.5, dur: 2, trimStart: 2.9, transition: 'wipe-right',
+    eyebrow: 'Crew colour themes',
+    focus: [f(0, FULL)],
   },
   // 04: playmat upload + crop, card back, DON!! art, then the board wearing them (dead scrolling cut out).
   {
-    id: 'art-mat', clip: '04-custom-art', start: 23.5, dur: 3, trimStart: 0.5, rate: 1.2, transition: 'wipe-left',
+    id: 'art-mat', clip: '04-custom-art', start: 15.5, dur: 3, trimStart: 0.5, rate: 1.2, transition: 'wipe-left',
     eyebrow: 'Your playmat',
     focus: [f(0, r(0.17, 0.12, 0.7)), f(1.0, r(0.22, 0.18, 0.62)), f(2.3, r(0.17, 0.0, 0.7))],
   },
   {
-    id: 'art-back', clip: '04-custom-art', start: 26.5, dur: 2.5, trimStart: 4.4, rate: 1.4, transition: 'fade',
+    id: 'art-back', clip: '04-custom-art', start: 18.5, dur: 2.5, trimStart: 4.4, rate: 1.4, transition: 'fade',
     eyebrow: 'Your card backs',
     focus: [f(0, r(0.17, 0.05, 0.7)), f(0.8, r(0.2, 0.25, 0.65)), f(1.9, r(0.17, 0.05, 0.7))],
   },
   {
-    id: 'art-don', clip: '04-custom-art', start: 29, dur: 1.5, trimStart: 8.0, rate: 1.2, transition: 'fade',
+    id: 'art-don', clip: '04-custom-art', start: 21, dur: 1.5, trimStart: 8.0, rate: 1.2, transition: 'fade',
     eyebrow: 'Your DON!! art',
     focus: [f(0, r(0.17, 0.1, 0.7))],
   },
   {
-    id: 'art-board', clip: '04-custom-art', start: 30.5, dur: 2.5, trimStart: 10.1, transition: 'fade',
+    id: 'art-board', clip: '04-custom-art', start: 22.5, dur: 2.5, trimStart: 10.1, transition: 'fade',
     eyebrow: 'All of it, on the table',
     focus: [f(0, FULL), f(0.5, r(0.0, 0.2, 0.85))],
   },
   {
-    id: 'layout-hand', clip: '05-layout', start: 33, dur: 2.5, trimStart: 3.4, rate: 1.3, transition: 'wipe-right',
+    id: 'layout-hand', clip: '05-layout', start: 25, dur: 2.5, trimStart: 3.4, rate: 1.3, transition: 'wipe-right',
     eyebrow: 'Arrange the table your way',
     focus: [f(0, r(0.05, 0.25, 0.85))],
   },
   {
-    id: 'layout-tilt', clip: '05-layout', start: 35.5, dur: 3.5, trimStart: 7.2, rate: 1.2, transition: 'fade',
+    id: 'layout-tilt', clip: '05-layout', start: 27.5, dur: 3.5, trimStart: 7.2, rate: 1.2, transition: 'fade',
     eyebrow: 'Arrange the table your way',
     focus: [f(0, r(0.3, 0.0, 0.7)), f(0.9, r(0.15, 0.15, 0.7)), f(2.3, FULL)],
   },
   {
-    id: 'friends-lobby', clip: '06-friends', start: 39, dur: 2.5, trimStart: 0.8, rate: 1.4, transition: 'zoom',
+    id: 'friends-lobby', clip: '06-friends', start: 31, dur: 2.5, trimStart: 0.8, rate: 1.4, transition: 'zoom',
     eyebrow: 'Invite a friend',
     focus: [f(0, r(0.2, 0.05, 0.66))],
   },
   {
-    id: 'friends-room', clip: '06-friends', start: 41.5, dur: 3.5, trimStart: 4.3, transition: 'fade',
+    id: 'friends-room', clip: '06-friends', start: 33.5, dur: 3.5, trimStart: 4.3, transition: 'fade',
     eyebrow: 'Invite a friend',
     focus: [f(0, FULL)],
   },
   {
-    id: 'spectate', clip: '07-spectate', start: 45, dur: 4.5, transition: 'wipe-left',
+    id: 'spectate', clip: '07-spectate', start: 37, dur: 4.5, transition: 'wipe-left',
     eyebrow: 'Watch live matches',
     focus: [f(0, FULL), f(1.2, r(0.02, 0.02, 0.96))],
   },
   {
-    id: 'ranked-seat', clip: '08-ranked', start: 49.5, dur: 3, trimStart: 0.6, rate: 1.1, transition: 'zoom',
+    id: 'ranked-seat', clip: '08-ranked', start: 41.5, dur: 3, trimStart: 0.6, rate: 1.1, transition: 'zoom',
     eyebrow: 'Ranked ladder',
     focus: [f(0, FULL)],
   },
   {
-    id: 'ranked-board', clip: '08-ranked', start: 52.5, dur: 2, trimStart: 4.5, transition: 'fade',
+    id: 'ranked-board', clip: '08-ranked', start: 44.5, dur: 2, trimStart: 4.5, transition: 'fade',
     eyebrow: 'Ranked ladder',
     focus: [f(0, r(0.3, 0.0, 0.6))],
   },
   {
-    id: 'logpose-review', clip: '09-logpose', start: 54.5, dur: 3.5, trimStart: 0.6, rate: 1.4, transition: 'zoom',
+    id: 'logpose-review', clip: '09-logpose', start: 46.5, dur: 3.5, trimStart: 0.6, rate: 1.4, transition: 'zoom',
     eyebrow: 'Log Pose, your AI deck analyst',
     focus: [f(0, r(0.22, 0.0, 0.56)), f(1.6, r(0.22, 0.18, 0.56)), f(2.7, r(0.22, 0.22, 0.56))],
   },
   {
-    id: 'logpose-replay', clip: '09-logpose', start: 58, dur: 4, trimStart: 7.2, rate: 1.1, transition: 'fade',
+    id: 'logpose-replay', clip: '09-logpose', start: 50, dur: 4, trimStart: 7.2, rate: 1.1, transition: 'fade',
     eyebrow: 'Replay every turn',
-    focus: [f(0, FULL)],
-  },
-  {
-    id: 'planner', clip: '10-planner', start: 62, dur: 4.5, trimStart: 0.4, transition: 'wipe-right',
-    eyebrow: 'Deck planner + market prices',
-    focus: [f(0, FULL), f(1.5, r(0.35, 0.2, 0.65))],
-  },
-  {
-    id: 'planner-duel', clip: '10-planner', start: 66.5, dur: 1.5, trimStart: 7.4, transition: 'fade',
-    eyebrow: 'Play in Duel',
     focus: [f(0, FULL)],
   },
 ];
@@ -146,15 +136,14 @@ export const SCENES: SceneDef[] = [
 export const CAPTIONS: CaptionDef[] = [
   {start: 1.5, end: 5, words: [{t: 'The One Piece'}, {t: 'Card Game,'}, {t: 'online.', em: true}]},
   {start: 5, end: 13.5, words: [{t: 'Built to feel like'}, {t: 'the table.', em: true}]},
-  {start: 13.5, end: 39, words: [{t: 'Make it'}, {t: 'yours.', em: true}]},
-  {start: 39, end: 49.5, words: [{t: 'Play with'}, {t: 'friends.', em: true}]},
-  {start: 49.5, end: 54.5, words: [{t: 'Climb the'}, {t: 'ranks.', em: true}]},
-  {start: 54.5, end: 62, words: [{t: 'Get better'}, {t: 'every game.', em: true}]},
-  {start: 62, end: 68, words: [{t: 'Plan decks.'}, {t: 'Track prices.', em: true}]},
+  {start: 13.5, end: 31, words: [{t: 'Make it'}, {t: 'yours.', em: true}]},
+  {start: 31, end: 41.5, words: [{t: 'Play with'}, {t: 'friends.', em: true}]},
+  {start: 41.5, end: 46.5, words: [{t: 'Climb the'}, {t: 'ranks.', em: true}]},
+  {start: 46.5, end: 54, words: [{t: 'Get better'}, {t: 'every game.', em: true}]},
 ];
 
 export const END_CARD = {
-  start: 68,
+  start: 54,
   dur: 4,
   headline: [{t: 'Free in your'}, {t: 'browser.', em: true}],
   url: 'optcgduel.app',
