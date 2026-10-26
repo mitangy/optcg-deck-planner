@@ -650,5 +650,115 @@ export const TCG_PRODUCTS: Record<
   "OP18-052": {
     "productId": 723257,
     "alts": []
+  },
+  "EB05-003": {
+    "productId": 725853,
+    "alts": []
+  },
+  "EB05-015": {
+    "productId": 725854,
+    "alts": []
+  },
+  "EB05-026": {
+    "productId": 725855,
+    "alts": []
+  },
+  "EB05-029": {
+    "productId": 725856,
+    "alts": []
+  },
+  "EB05-032": {
+    "productId": 725857,
+    "alts": []
+  },
+  "EB05-033": {
+    "productId": 725858,
+    "alts": []
+  },
+  "EB05-039": {
+    "productId": 725859,
+    "alts": []
+  },
+  "EB05-041": {
+    "productId": 725860,
+    "alts": []
+  },
+  "EB05-053": {
+    "productId": 725861,
+    "alts": []
+  },
+  "EB05-058": {
+    "productId": 725862,
+    "alts": []
+  },
+  "EB05-059": {
+    "productId": 723136,
+    "alts": []
+  },
+  "EB05-061": {
+    "productId": 725863,
+    "alts": [
+      {
+        "id": "p1",
+        "label": "Alternate Art",
+        "productId": 723148
+      }
+    ]
+  },
+  "OP18-013": {
+    "productId": 725442,
+    "alts": []
+  },
+  "OP18-015": {
+    "productId": 724463,
+    "alts": []
+  },
+  "OP18-036": {
+    "productId": 724624,
+    "alts": []
+  },
+  "OP18-047": {
+    "productId": 724625,
+    "alts": []
+  },
+  "OP18-063": {
+    "productId": 723309,
+    "alts": []
+  },
+  "OP18-077": {
+    "productId": 724626,
+    "alts": []
+  },
+  "OP18-085": {
+    "productId": 723378,
+    "alts": []
+  },
+  "OP18-092": {
+    "productId": 724684,
+    "alts": []
+  },
+  "OP18-101": {
+    "productId": 723531,
+    "alts": []
+  },
+  "OP18-108": {
+    "productId": 725207,
+    "alts": []
+  },
+  "P-152": {
+    "productId": 717032,
+    "alts": []
+  },
+  "P-153": {
+    "productId": 717033,
+    "alts": []
+  },
+  "P-154": {
+    "productId": 717034,
+    "alts": []
+  },
+  "P-157": {
+    "productId": 717555,
+    "alts": []
   }
 };

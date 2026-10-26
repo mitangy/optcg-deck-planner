@@ -43,9 +43,9 @@ describe("artAfterError", () => {
 
   it("EB05 cards fall back to preview art when TCGPlayer art fails (#575)", () => {
     const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
-    const preview = artAfterError(cdn, "EB05-001");
-    expect(preview).toBe("/cards/preview/EB05-001.webp");
-    expect(artAfterError(preview!, "EB05-001")).toBeNull();
+    const preview = artAfterError(cdn, "EB05-061");
+    expect(preview).toBe("/cards/preview/EB05-061.webp");
+    expect(artAfterError(preview!, "EB05-061")).toBeNull();
     expect(artAfterError(cdn, "OP01-016")).toBe("/cards/OP01-016.png");
   });
 
@@ -59,18 +59,18 @@ describe("artAfterError", () => {
   });
 
   it("a failed alt printing shows its own preview, not the card's (#581)", () => {
-    // 722644 is EB05-010's alt; EB05-010 has no card-level preview, EB05-001 does.
-    const alt = "https://tcgplayer-cdn.tcgplayer.com/product/722644_400w.jpg";
-    const preview = artAfterError(alt, "EB05-010");
-    expect(preview).toBe("/cards/preview/p722644.webp");
-    expect(artAfterError(preview!, "EB05-010")).toBeNull();
+    // 723148 is EB05-061's alt. Both have previews, so the alt's own must win.
+    const alt = "https://tcgplayer-cdn.tcgplayer.com/product/723148_400w.jpg";
+    const preview = artAfterError(alt, "EB05-061");
+    expect(preview).toBe("/cards/preview/p723148.webp");
+    expect(artAfterError(preview!, "EB05-061")).toBeNull();
     // Large (_in_1000x1000) urls resolve the same product.
-    expect(artAfterError("https://tcgplayer-cdn.tcgplayer.com/product/722644_in_1000x1000.jpg", "EB05-010")).toBe(
-      "/cards/preview/p722644.webp",
+    expect(artAfterError("https://tcgplayer-cdn.tcgplayer.com/product/723148_in_1000x1000.jpg", "EB05-061")).toBe(
+      "/cards/preview/p723148.webp",
     );
     // A product without an alt preview keeps the card-level chain.
     const other = "https://tcgplayer-cdn.tcgplayer.com/product/999999_400w.jpg";
-    expect(artAfterError(other, "EB05-001")).toBe("/cards/preview/EB05-001.webp");
+    expect(artAfterError(other, "EB05-061")).toBe("/cards/preview/EB05-061.webp");
     expect(artAfterError(other, "OP01-016")).toBe("/cards/OP01-016.png");
   });
 });

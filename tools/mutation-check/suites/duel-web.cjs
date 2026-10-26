@@ -483,6 +483,8 @@ module.exports = {
       { json: "duel-web/src/assets/cardAtlas.json", patch: (a) => { delete a["OP01-013"]; } },
       { json: "duel-web/src/assets/cardCatalog.json", patch: (c) => { delete c["OP01-013"]; } },
     ], kills: ["resolves curated real ids with art urls and includes cosmetics catalog"] },
+    // Every engine card has a TCGPlayer catalog row (#670)
+    { id: "catalog-row-missing-new-card", json: "duel-web/src/assets/cardCatalog.json", patch: (c) => { delete c["OP18-013"]; }, kills: ["every engine card has a catalog row with a TCGPlayer image (#670)"], args: "src/cards/catalogCoverage.test.ts" },
     // deck art prefs and storage
     { id: "seat-art-shared", file: `${src}/decks/artPrefs.ts`, from: "    const fromSeat = getSeatArtPref(ownerSeat, defId);", to: "    const fromSeat = getSeatArtPref(0, defId);", kills: ["uses different alt arts per seat"] },
     { id: "seat-art-leaks-to-opponent", file: `${src}/decks/seatArtPrefs.ts`, from: "  maps[seat] = next;", to: "  maps = [next, { ...maps[1], ...next }];", kills: ["updates all copies for a seat"] },
