@@ -327,7 +327,7 @@ test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)",
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-test("type and colour chips narrow the Collection together, and the count line keeps its place (#748)", async ({ page, planner }) => {
+test("type and colour chips narrow the Collection together, and the count line keeps its place (#752)", async ({ page, planner }) => {
   const count = page.getByRole("status");
   const types = page.getByRole("group", { name: "Card type" });
   const colors = page.getByRole("group", { name: "Colors" });
@@ -360,7 +360,7 @@ test("type and colour chips narrow the Collection together, and the count line k
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-test("the Grid tile shows the copies badge on the art, with name, id, price and colours (#748)", async ({ page, planner }) => {
+test("the Grid tile shows the copies badge on the art, with name, id, price and colours (#752)", async ({ page, planner }) => {
   await page.getByRole("button", { name: "Grid", exact: true }).click();
   const izo = page.locator(".grid-card-wrap" + row("EB01-002"));
   await expect(izo.locator(".copies-badge")).toHaveText("×2");
