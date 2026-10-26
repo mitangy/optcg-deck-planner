@@ -6829,3 +6829,443 @@ button.ghost.scan-tray-fix {
   border: 1px solid var(--ok-line);
   cursor: default;
 }
+
+/* ——— Collection redesign (#748) ———
+   Stat cards, round colour chips, type chips, a pill toolbar and art-first grid tiles.
+   Everything uses the page tokens, so light and dark both follow the theme. */
+.collection-head {
+  margin-bottom: 0.85rem;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-cards li {
+  display: grid;
+  align-content: start;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.85rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.stat-cards .stat-value {
+  font-size: clamp(1.3rem, 0.9rem + 1.6vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
+.stat-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Card-colour dots are the one place the planner hard-codes colour (they stand for the printed card colours). */
+.color-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--dot, #888);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.color-dot[data-color="red"] { --dot: #c0392f; }
+.color-dot[data-color="green"] { --dot: #2f8a55; }
+.color-dot[data-color="blue"] { --dot: #2b72b8; }
+.color-dot[data-color="purple"] { --dot: #7a4aa8; }
+.color-dot[data-color="black"] { --dot: #22282c; }
+.color-dot[data-color="yellow"] { --dot: #e2b020; }
+
+.color-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.55rem 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card-sunk);
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.collection-toolbar {
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.collection-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.collection-toolbar-row .card-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.collection-toolbar-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.card-search.with-icon {
+  position: relative;
+}
+
+.card-search-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.card-search.with-icon .card-search-input {
+  padding-left: 2.45rem;
+}
+
+.collection-toolbar .card-search-input {
+  border-radius: 999px;
+}
+
+.color-filter {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.color-filter-btn,
+.color-filter-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.color-filter-btn .color-dot {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.color-filter-btn:hover {
+  border-color: var(--gold);
+}
+
+.color-filter-btn.on {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 22%, var(--card));
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.color-filter-clear {
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.color-filter-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.color-filter-clear:not(:disabled):hover {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.type-chip {
+  min-height: 2.5rem;
+  padding: 0.25rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.type-chip:hover {
+  border-color: var(--gold);
+}
+
+.type-chip.on {
+  background: var(--primary-bg);
+  border-color: var(--primary-bg);
+  color: var(--primary-ink);
+}
+
+.collection-toolbar .sort-menu-btn,
+.collection-filter-btn {
+  min-height: 2.5rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.95rem;
+  font-weight: 600;
+}
+
+.collection-filter-menu {
+  position: relative;
+}
+
+.collection-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* The badge keeps its footprint when empty, so the first filter on moves nothing. */
+.collection-filter-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--primary-bg);
+  color: var(--primary-ink);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.collection-filter-badge.empty {
+  visibility: hidden;
+}
+
+.collection-filter-panel {
+  z-index: 60;
+  width: min(18rem, calc(100vw - 1rem));
+  padding: 0.75rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
+}
+
+.collection-filter-list {
+  display: grid;
+}
+
+.collection-filter-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.collection-filter-panel .need-mode-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+}
+
+.layout-toggle.with-icons button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+}
+
+/* The shared mobile rules stretch the sort button and the toggle to the full row; here they share it. */
+.collection-toolbar .sort-menu,
+.collection-toolbar .layout-toggle {
+  width: auto;
+}
+
+.collection-toolbar .layout-toggle button {
+  flex: none;
+}
+
+.collection-count {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  min-height: 1.35em;
+}
+
+/* Grid tiles: art first, copies badge on the art, then name, id + price, colours. */
+.collection-grid {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+
+.grid-card.collection-grid-card {
+  gap: 0.55rem;
+  padding: 0.6rem;
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.collection-tile-art {
+  position: relative;
+}
+
+.collection-tile-art .thumb-btn {
+  display: block;
+  width: 100%;
+}
+
+.collection-tile-art .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
+.collection-tile-art .thumb.placeholder {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+}
+
+.copies-badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  min-width: 1.7rem;
+  padding: 0.1rem 0.45rem;
+  border: 2px solid var(--card);
+  border-radius: 999px;
+  background: var(--primary-bg);
+  color: var(--primary-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+}
+
+.collection-grid-card .grid-card-name {
+  -webkit-line-clamp: 1;
+  font-size: 0.9rem;
+}
+
+.collection-tile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.collection-tile-row .card-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.collection-tile-row .market-price-btn {
+  padding-inline: 0.3rem;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 560px) {
+  .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .stat-cards {
+    gap: 0.5rem;
+  }
+
+  .stat-cards li {
+    padding: 0.6rem 0.7rem;
+    border-radius: 14px;
+  }
+
+  .stat-cards .stat-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+  }
+
+  .color-filter {
+    gap: 0.3rem;
+  }
+
+  .color-filter-btn,
+  .color-filter-clear {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .collection-toolbar-tools {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .collection-toolbar-tools .sort-menu {
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+
+  .collection-toolbar .sort-menu-btn {
+    width: 100%;
+    max-width: none;
+    text-align: left;
+  }
+
+  /* Icon-only List / Grid on phones keeps the tools on one line. */
+  .layout-toggle.with-icons .layout-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .layout-toggle.with-icons button {
+    padding-inline: 0.7rem;
+  }
+}
