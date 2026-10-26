@@ -21,8 +21,7 @@ export function MatchBriefSettings() {
           <span>Matchup brief before casual and practice games</span>
         </label>
         <p className="field-hint">
-          A short Log Pose read of your deck against your opponent&apos;s Leader, shown as a card you can
-          close, with a Brief button to bring it back. Never shown in ranked games.
+          A short Log Pose read of the matchup when the game starts. Never in ranked.
         </p>
       </div>
       <div className="gameplay-toggle">
@@ -36,8 +35,7 @@ export function MatchBriefSettings() {
           <span>Write briefs automatically</span>
         </label>
         <p className="field-hint">
-          Off: the card offers a Get brief button, and a brief someone already wrote shows right away. On:
-          Log Pose writes one as soon as the game starts, and it counts toward your Log Pose daily limit.
+          Writes the brief as the game starts instead of when you ask. Uses your Log Pose daily limit.
         </p>
       </div>
       <div className="gameplay-toggle">
@@ -50,8 +48,7 @@ export function MatchBriefSettings() {
           <span>Log Pose in casual and practice games</span>
         </label>
         <p className="field-hint">
-          Ask Log Pose about your turn from the board, and let it play a turn you approve. Never in ranked
-          games. Uses your Log Pose daily limit.
+          Ask Log Pose about your turn, or let it play one you approve. Never in ranked. Uses your daily limit.
         </p>
       </div>
     </>
