@@ -3,7 +3,7 @@ import { evalCond, evalCount, evalValue, ctxFor, isNegated } from "../engine/que
 import { Harness } from "../testing/harness.js";
 import type { GameEvent, Seat } from "../types.js";
 
-// Behavior pinned from the 2026-10-26 weekly Stryker run (#PRNUM).
+// Behavior pinned from the 2026-10-26 weekly Stryker run (#753).
 
 const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
 const ALVIDA = "OP03-023"; // vanilla 1-cost {East Blue}
@@ -33,7 +33,7 @@ describe("a Stage played over another Stage", () => {
   const MINI_MERRY = "EB01-011"; // Stage, 1 cost
   const LAND_OF_WANO = "OP02-048"; // Stage, 1 cost
 
-  it("trashes the Stage already on the field (#PRNUM)", () => {
+  it("trashes the Stage already on the field (#753)", () => {
     const h = new Harness();
     h.stage(0, LAND_OF_WANO);
     h.hand(0, MINI_MERRY);
@@ -47,7 +47,7 @@ describe("a Stage played over another Stage", () => {
 describe("a delayed effect that does not name the source card", () => {
   const BONNEY = "EB02-015"; // 7-cost. [On Play] ... set up to 1 of your DON!! cards as active at the end of this turn.
 
-  it("still fires at the end of the turn after its source left the field (#PRNUM)", () => {
+  it("still fires at the end of the turn after its source left the field (#753)", () => {
     const h = new Harness();
     h.field(0, KAROO, KAROO, KAROO, KAROO);
     h.hand(0, BONNEY, ALVIDA);
@@ -73,7 +73,7 @@ describe("picking a Character to play by an effect", () => {
 
   const optionDefs = (h: Harness) => (h.choice!.request as { options: { defId?: string }[] }).options.map((o) => o.defId);
 
-  it("does not offer a card that cannot be played by effects (#PRNUM)", () => {
+  it("does not offer a card that cannot be played by effects (#753)", () => {
     const h = new Harness();
     h.hand(0, LUFFY, ZORO, ROBIN);
     h.don(0, 7);
@@ -81,7 +81,7 @@ describe("picking a Character to play by an effect", () => {
     expect(optionDefs(h)).toEqual([ROBIN]);
   });
 
-  it("offers that same card when the effect only adds it to the hand (#PRNUM)", () => {
+  it("offers that same card when the effect only adds it to the hand (#753)", () => {
     const h = new Harness();
     h.hand(0, GERD, KAROO);
     h.trash(0, ZORO);
@@ -103,7 +103,7 @@ describe("a selection with a total limit or distinct names", () => {
 
   const request = (h: Harness) => h.choice!.request as unknown as Record<string, unknown>;
 
-  it("tells the chooser the total cost limit (#PRNUM)", () => {
+  it("tells the chooser the total cost limit (#753)", () => {
     const h = new Harness();
     h.hand(0, LOKI);
     h.don(0, 10);
@@ -113,7 +113,7 @@ describe("a selection with a total limit or distinct names", () => {
     expect(request(h).totalPowerAtMost).toBeUndefined();
   });
 
-  it("tells the chooser the total power limit (#PRNUM)", () => {
+  it("tells the chooser the total power limit (#753)", () => {
     const h = new Harness();
     h.hand(0, SABO);
     h.don(0, 10);
@@ -123,7 +123,7 @@ describe("a selection with a total limit or distinct names", () => {
     expect(request(h).totalCostAtMost).toBeUndefined();
   });
 
-  it("tells the chooser the cards must have different names, and the total cost limit (#PRNUM)", () => {
+  it("tells the chooser the cards must have different names, and the total cost limit (#753)", () => {
     const h = new Harness();
     h.hand(0, XEBEC, STUSSY, GLORIOSA, KYO);
     h.don(0, 10);
@@ -132,7 +132,7 @@ describe("a selection with a total limit or distinct names", () => {
     expect(request(h).totalCostAtMost).toBe(9);
   });
 
-  it("does not claim distinct names for a selection that has no such rule (#PRNUM)", () => {
+  it("does not claim distinct names for a selection that has no such rule (#753)", () => {
     const h = new Harness();
     h.hand(0, LOKI);
     h.don(0, 10);
@@ -162,7 +162,7 @@ describe("putting a Character into Life by an effect", () => {
     return { h, events: resolveWithEvents(h, end) };
   }
 
-  it("Top puts the Character on top of the owner's Life, face-up, and says it came from the field (#PRNUM)", () => {
+  it("Top puts the Character on top of the owner's Life, face-up, and says it came from the field (#753)", () => {
     const { h, events } = gastinoOn(ALVIDA, "Top");
     expect(ids(h, 1)).toEqual([]);
     expect(h.state.players[1].life).toEqual([ALVIDA, KAROO, KAROO, KAROO]);
@@ -170,13 +170,13 @@ describe("putting a Character into Life by an effect", () => {
     expect(events).toContainEqual({ type: "life_added", seat: 1, defId: ALVIDA, source: "field", faceUp: true });
   });
 
-  it("Bottom puts the Character under the owner's Life (#PRNUM)", () => {
+  it("Bottom puts the Character under the owner's Life (#753)", () => {
     const { h } = gastinoOn(ALVIDA, "Bottom");
     expect(h.state.players[1].life).toEqual([KAROO, KAROO, KAROO, ALVIDA]);
     expect(h.state.players[1].faceUpLife).toEqual([false, false, false, true]);
   });
 
-  it("a Character leaving the field this way triggers the owner's \"removed from the field\" ability (#PRNUM)", () => {
+  it("a Character leaving the field this way triggers the owner's \"removed from the field\" ability (#753)", () => {
     const h = new Harness({ leaders: ["ST01-001", BUGGY] });
     h.field(1, BLUGORI);
     h.hand(1, PRISONER);
@@ -191,7 +191,7 @@ describe("putting a Character into Life by an effect", () => {
     expect(ids(h, 1)).toEqual([PRISONER]);
   });
 
-  it("a card added from the trash says it came from the trash (#PRNUM)", () => {
+  it("a card added from the trash says it came from the trash (#753)", () => {
     const h = new Harness();
     h.hand(0, SHIRYU, KAROO);
     h.trash(0, PIZARRO);
@@ -203,7 +203,7 @@ describe("putting a Character into Life by an effect", () => {
     expect(events).toContainEqual({ type: "life_added", seat: 0, defId: PIZARRO, source: "trash", faceUp: true });
   });
 
-  it("a card added from the hand says it came from the hand (#PRNUM)", () => {
+  it("a card added from the hand says it came from the hand (#753)", () => {
     const h = new Harness({ leaders: [LUFFY_LEADER, "ST01-001"] });
     h.life(0);
     h.attach(0, h.state.players[0].leader, 2);
@@ -220,7 +220,7 @@ describe("putting a Character into Life by an effect", () => {
 describe("a static \"have their effects negated\" on a selector", () => {
   const ROGER = "OP13-064"; // Your Leader and all of your Characters that do not have a type including "Roger Pirates" have their effects negated.
 
-  it("negates your Leader and your other Characters, but not a Roger Pirates Character or the opponent's cards (#PRNUM)", () => {
+  it("negates your Leader and your other Characters, but not a Roger Pirates Character or the opponent's cards (#753)", () => {
     const h = new Harness();
     const [mine, roger] = h.field(0, KAROO, ROGER);
     const [theirs] = h.field(1, KAROO);
@@ -239,7 +239,7 @@ describe("count values", () => {
 
   const count = (h: Harness, expr: Parameters<typeof evalCount>[2], vars: Record<string, string[]> = {}) => evalCount(h.state, ctxFor(0, h.state.players[0].leader, vars), expr);
 
-  it("a total over the field uses current cost and power, over the hand the printed ones (#PRNUM)", () => {
+  it("a total over the field uses current cost and power, over the hand the printed ones (#753)", () => {
     const h = new Harness();
     const [karoo] = h.field(0, KAROO);
     h.field(0, LOKI, SAI);
@@ -254,7 +254,7 @@ describe("count values", () => {
     expect(count(h, { of: "total", selector: hand, field: "power" })).toBe(8000 + 3000 + 4000);
   });
 
-  it("a sum over listed ids uses current values on the field and printed values elsewhere, and skips ids that are gone (#PRNUM)", () => {
+  it("a sum over listed ids uses current values on the field and printed values elsewhere, and skips ids that are gone (#753)", () => {
     const h = new Harness();
     const [karoo, loki] = h.field(0, KAROO, LOKI);
     h.attach(0, karoo!, 1);
@@ -264,7 +264,7 @@ describe("count values", () => {
     expect(count(h, { of: "var_sum", name: "_r", field: "power" }, vars)).toBe(8000 + 4000 + 4000);
   });
 
-  it("a difference never goes below 0 (#PRNUM)", () => {
+  it("a difference never goes below 0 (#753)", () => {
     const h = new Harness();
     h.don(0, 2);
     h.don(1, 5);
@@ -274,14 +274,14 @@ describe("count values", () => {
     expect(count(h, { of: "diff", left: opponent, right: you })).toBe(3);
   });
 
-  it("a sum adds its parts (#PRNUM)", () => {
+  it("a sum adds its parts (#753)", () => {
     const h = new Harness();
     h.life(0, KAROO, KAROO, KAROO);
     h.hand(0, KAROO, KAROO);
     expect(count(h, { of: "sum", exprs: [{ of: "life", player: "you" }, { of: "hand", player: "you" }] })).toBe(5);
   });
 
-  it("a value is count / per, times times, plus plus (#PRNUM)", () => {
+  it("a value is count / per, times times, plus plus (#753)", () => {
     const h = new Harness();
     h.hand(0, KAROO, KAROO, KAROO, KAROO, KAROO);
     const ctx = ctxFor(0, h.state.players[0].leader);
@@ -290,7 +290,7 @@ describe("count values", () => {
     expect(evalValue(h.state, ctx, { count: hand, times: 3, plus: 1 })).toBe(16);
   });
 
-  it("battle power reads the attacker or the defender, whether it is a Leader or a Character (#PRNUM)", () => {
+  it("battle power reads the attacker or the defender, whether it is a Leader or a Character (#753)", () => {
     const h = new Harness();
     const [attacker] = h.field(0, KAROO);
     const [defender] = h.field(1, SAI);
@@ -306,7 +306,7 @@ describe("count values", () => {
     expect(count(g, { of: "battle_power", role: "attacker" })).toBe(3000);
   });
 
-  it("DON!! attached, the source's power and its base power are read from the source card (#PRNUM)", () => {
+  it("DON!! attached, the source's power and its base power are read from the source card (#753)", () => {
     const h = new Harness();
     const [karoo, sai] = h.field(0, KAROO, SAI);
     h.attach(0, karoo!, 2);
@@ -321,7 +321,7 @@ describe("count values", () => {
     expect(at(sai, { of: "self_power" })).toBe(5000);
   });
 
-  it("distinct names counts each name once (#PRNUM)", () => {
+  it("distinct names counts each name once (#753)", () => {
     const h = new Harness();
     h.field(0, KAROO, KAROO, SAI);
     expect(count(h, { of: "distinct_names", selector: { player: "you", zone: "character" } })).toBe(2);
@@ -329,7 +329,7 @@ describe("count values", () => {
 });
 
 describe("conditions on a list of picked cards", () => {
-  it("all-match needs at least one card and every card to match; any-match needs one match (#PRNUM)", () => {
+  it("all-match needs at least one card and every card to match; any-match needs one match (#753)", () => {
     const h = new Harness();
     const [karoo, sai] = h.field(0, KAROO, "OP01-012"); // 1-cost and 2-cost vanilla
     const cond = (c: "var_all_match" | "var_any_match", ids: string[]) => evalCond(h.state, ctxFor(0, h.state.players[0].leader, { _p: ids }), { c, name: "_p", filter: { cost: { op: "<=", value: 1 } } });
@@ -354,18 +354,18 @@ describe("hand rows in the player view", () => {
     return h;
   }
 
-  it("say a hand lock blocks every card in hand, Characters and Events alike (#PRNUM)", () => {
+  it("say a hand lock blocks every card in hand, Characters and Events alike (#753)", () => {
     const h = afterShanks();
     expect(h.view(0).you.hand.map((c) => [c.defId, c.playCost, c.blocked])).toEqual([[KAROO, 1, "from_hand"], [GUARD_POINT, 1, "from_hand"]]);
   });
 
-  it("show no play cost and no block while the opponent is the one in their main phase (#PRNUM)", () => {
+  it("show no play cost and no block while the opponent is the one in their main phase (#753)", () => {
     const h = afterShanks();
     h.hand(1, KAROO);
     expect(h.view(1).you.hand.map((c) => [c.playCost, c.blocked])).toEqual([[undefined, undefined]]);
   });
 
-  it("show no play cost and no block outside the main phase (#PRNUM)", () => {
+  it("show no play cost and no block outside the main phase (#753)", () => {
     const h = afterShanks();
     const [attacker] = h.field(0, KAROO);
     h.attack(attacker!, "leader");
@@ -379,7 +379,7 @@ describe("static results read through the query cache", () => {
   const YAMATO = "EB05-046"; // 4-cost 5000: if your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.
   const LOKI = "OP17-119"; // 8000 base power
 
-  it("a Character keeps its own static bonuses in the view after another card's condition has looked at it (#PRNUM)", () => {
+  it("a Character keeps its own static bonuses in the view after another card's condition has looked at it (#753)", () => {
     const h = new Harness();
     h.field(0, INAZUMA, YAMATO);
     h.field(1, LOKI);
