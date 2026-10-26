@@ -447,18 +447,27 @@ export function CardSearchInput({
   onChange,
   placeholder = "Search name, ID, color…",
   label = "Search cards",
+  icon = false,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
+  /** A magnifier inside the field's left edge. */
+  icon?: boolean;
 }) {
   const id = useId();
   return (
-    <div className="card-search">
+    <div className={`card-search${icon ? " with-icon" : ""}`}>
       <label className="sr-only" htmlFor={id}>
         {label}
       </label>
+      {icon ? (
+        <svg className="card-search-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      ) : null}
       <input
         id={id}
         type="search"

@@ -84,7 +84,7 @@ export function turnAlertCopy(
   if (!d.finePointer) return phone;
   return {
     label: "Tab alert",
-    hint: "Marks the browser tab when the game needs you while you're in another tab.",
+    hint: "Marks the browser tab when the game needs you.",
   };
 }
 

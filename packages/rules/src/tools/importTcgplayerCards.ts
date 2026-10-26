@@ -58,6 +58,23 @@ function decodeEntities(text: string): string {
 }
 
 /**
+ * Join description lines with spaces. Bandai ends every text line with a period, which the
+ * card-text compiler needs to split abilities; TCGPlayer omits it ("gains [Rush]\n[On Play] ...").
+ * Only a line followed by an ability tag gets one. A line of only bracketed tags ("[Blocker]") stays unpunctuated, as on Bandai rows.
+ */
+function joinLines(lines: string[]): string {
+  return lines
+    .map((line, i) => {
+      // Only a line followed by an ability tag: TCGPlayer also hard-wraps sentences mid-clause
+      // ("K.O. 1 of\nyour Characters").
+      if (!lines[i + 1]?.startsWith("[")) return line;
+      const hasText = line.replace(/\[[^\]]*\]/g, "").trim() !== "";
+      return hasText && !/[.!?)]["'”’]*$/.test(line) ? `${line}.` : line;
+    })
+    .join(" ");
+}
+
+/**
  * Convert a TCGPlayer description to Bandai-style text: tags stripped, line
  * breaks collapsed to single spaces, and "Characters-4000 power" / "DON!! -1"
  * written with U+2212 like the Bandai rows. The [Trigger] clause is the line
@@ -76,8 +93,12 @@ export function convertDescription(html: string): { text: string; trigger: strin
   const norm = (value: string) => cleanText(value)
     .replace(/(\S)-(\d+)(?= (?:power|cost)\b)/g, `$1 ${MINUS}$2`)
     .replace(/(^|\s)-(\d+)(?= (?:power|cost)\b)/g, `$1${MINUS}$2`)
-    .replace(/DON!! -(\d)/g, `DON!! ${MINUS}$1`);
-  return { text: norm(textLines.join(" ")), trigger: norm(triggerLines.join(" ")) };
+    .replace(/DON!! -(\d)/g, `DON!! ${MINUS}$1`)
+    // TCGPlayer drops minus signs: "DON!! 1:" is "DON!! −1:", and positive grants are always
+    // printed "+N", so an unsigned "give … 4000 power" is a lost minus.
+    .replace(/DON!! (\d+)(?=:)/g, `DON!! ${MINUS}$1`)
+    .replace(/\b(give\b[^.:;]*?\s)(?<!\b(?:with|has|have) )(\d+)(?= power\b(?! or (?:less|more)\b))/gi, `$1${MINUS}$2`);
+  return { text: norm(joinLines(textLines)), trigger: norm(joinLines(triggerLines)) };
 }
 
 function intOrUndefined(value: string | undefined): number | undefined {
