@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-26
+  { date: "2026-10-26", app: "duel", title: "Add cards filters fixed", text: "The Color, Type and Attribute filters under Add cards in the deck editor are small tick boxes again, instead of big empty boxes, and the search box text no longer starts halfway across." },
   { date: "2026-10-26", app: "planner", pr: 752, title: "A fresher Collection page", text: "The Collection now opens with three summary cards (unique cards, copies and estimated value), round colour buttons you can combine, Leader / Character / Event / Stage chips, and a Filters menu for Not in a deck, Show DON!! and Show alt arts. Grid view is now a wall of card art with a copies badge on each card. Your List / Grid choice, sorts and filters are kept." },
   { date: "2026-10-26", app: "duel", pr: 750, title: "A new Decks page", text: "Your decks are now cards showing the leader's art and colours, how many of the 50 main-deck cards each has, and a warning when a deck is incomplete. Search by deck or leader name, sort by recent edit, name or leader, and use the ... menu on a card to edit, play with or delete a deck." },
   { date: "2026-10-26", app: "duel", title: "Shorter settings descriptions", text: "The descriptions under the duel settings are shorter and easier to read, on the Settings page and under ⚙ in a match. \"Hand\" is now \"Hand layout\" and \"Animations\" is now \"Animation speed\"." },

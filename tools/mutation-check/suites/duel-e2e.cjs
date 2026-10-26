@@ -1094,5 +1094,10 @@ module.exports = {
     // Site menu drawer slide-out (#722)
     { id: "e2e-nav-drawer-no-transition", args: "menus715 --project=desktop-1280 -g \"#722\"", file: "duel-web/src/nav/NavMenu.tsx", from: "        panelProps={{ id: drawerId }}\n        transition\n", to: "        panelProps={{ id: drawerId }}\n", kills: ["menus715.spec.ts > the site menu drawer slides out when closed instead of vanishing (#722) [desktop-1280]"] },
     { id: "e2e-nav-drawer-reduced-motion-ignored", args: "menus715 --project=desktop-1280 -g \"#722\"", file: "duel-web/src/ui.css", from: "@media (prefers-reduced-motion: reduce) {\n  .nav-drawer-root,\n  .nav-drawer {\n    transition: none;\n  }\n}\n", to: "", kills: ["menus715.spec.ts > the site menu drawer closes at once with reduced motion (#722) [desktop-1280]"] },
+    // Add cards filter checkboxes (#755): the Decks page search styles must not reach the editor's inputs
+    { id: "e2e-deck-list-search-styles-leak", args: "deck-editor-filters.spec", edits: [
+      { file: "duel-web/src/deckList.css", from: ".deck-list-search input {", to: ".deck-search input {" },
+      { file: "duel-web/src/pages/DeckListPage.tsx", from: '<label className="deck-list-search">', to: '<label className="deck-search">' },
+    ], kills: ["deck-editor-filters.spec.ts > the deck editor's Add cards filter checkboxes stay small checkboxes that toggle (#755) [desktop-1280]", "deck-editor-filters.spec.ts > the deck editor's Add cards filter checkboxes stay small checkboxes that toggle (#755) [phone-375]"] },
   ],
 };
