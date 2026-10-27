@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-27
+  { date: "2026-10-27", app: "duel", pr: 759, title: "Chopper, Tom, Blueno and Mr. 4", text: "Four new OP18 cards are in the duel app: Tony Tony.Chopper (OP18-029), Mr. 4 & Miss.Merry Christmas (OP18-051), Tom (OP18-070) and Blueno (OP18-110). They show preview art until their official images are out." },
   // 2026-10-26
   { date: "2026-10-26", app: "duel", pr: 756, title: "Add cards filters fixed", text: "The Color, Type and Attribute filters under Add cards in the deck editor are small tick boxes again, instead of big empty boxes, and the search box text no longer starts halfway across." },
   { date: "2026-10-26", app: "duel", pr: 651, title: "Replays stay locked until the game ends", text: "A game with a very long turn could open its replay to both players while it was still being played. The replay now stays locked until the game really ends." },

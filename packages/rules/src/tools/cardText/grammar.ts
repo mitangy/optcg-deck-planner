@@ -577,7 +577,7 @@ const EFFECT_RULES: EffectRule[] = [
   [/^add this card to your hand$/i, () => ({ do: "to_hand", target: { ref: "self" } })],
   [/^return (.+?) to the (top|bottom) of the owner's deck$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "to_deck", target, position: m[2]!.toLowerCase() as "top" | "bottom" } : null; }],
   [/^(?:add|place) (.+?) (?:to|at) the top or bottom of (?:your opponent's|the owner's|your) life cards face-up$/i, (m, ctx) => { const target = fieldTarget(m[1]!, ctx); return target ? { do: "to_life", target, position: "top_or_bottom", faceUp: true } : null; }],
-  [/^place (.+?) at the (top|bottom) of (?:the owner's|its owner's|their owner's|your|their) deck(?: in any order)?$/i, (m, ctx) => {
+  [/^place (.+?) at the (top|bottom) of (?:the owner's|its owner's|their owner's|your|their) deck(?: in any order(?: of their choosing)?)?$/i, (m, ctx) => {
     const src = m[1]!;
     const fromTrash = /^(.+) from your trash$/i.exec(src);
     const target = fromTrash ? zoneTarget(fromTrash[1]!, "trash", ctx) : fieldTarget(src, ctx);
@@ -702,7 +702,7 @@ export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
     if (eff && cond) return { do: "if", cond, then: eff };
   }
   // Verb distribution: "KO up to 1 X and up to 1 Y" / "place up to 1 X and up to 1 Y at the bottom of the owner's deck"
-  const dist = /^(ko|rest|return|place|trash|give) (up to .+?) and (up to .+?)( (?:to the owner's hand|at the (?:top|bottom) of the owner's deck(?: in any order)?|[+-]\d+ (?:power|cost) (?:during this turn|during this battle)))?$/i.exec(t);
+  const dist = /^(ko|rest|return|place|trash|give) (up to .+?) and (up to .+?)( (?:to the owner's hand|at the (?:top|bottom) of the owner's deck(?: in any order(?: of their choosing)?)?|[+-]\d+ (?:power|cost) (?:during this turn|during this battle)))?$/i.exec(t);
   if (dist) {
     const tail = dist[4] ?? "";
     const a = parseEffectClause(dist[1] + " " + dist[2] + tail, ctx);
