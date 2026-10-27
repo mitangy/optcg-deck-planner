@@ -3,7 +3,7 @@
 #                         trailer/capture/run.sh 03 06-friends   some of them (id or number prefix)
 #
 # Starts (and stops again) everything a take needs, on ports of its own so `npm run e2e` is never disturbed:
-#   - Xvfb on :97 (1920x1080) and :96 (the phone clip's bigger-pixel screen)
+#   - Xvfb on :97 (1920x1080), :96 (the portrait phone clips' bigger-pixel screen) and :95 (the landscape phone clip's)
 #   - the local game server (Colyseus + rules engine) on :2667
 #   - the planner's Vite dev server on :5275 (clip 10)
 #   - duel-web's Vite dev server on :5274, pointed at a backend address nothing listens on:
@@ -21,6 +21,7 @@ export TRAILER_FAKE_API="${TRAILER_FAKE_API:-http://127.0.0.1:8865}"
 export TRAILER_TOKEN_SECRET="${TRAILER_TOKEN_SECRET:-trailer-secret}"
 export TRAILER_DISPLAY="${TRAILER_DISPLAY:-:97}"
 export TRAILER_PHONE_DISPLAY="${TRAILER_PHONE_DISPLAY:-:96}"
+export TRAILER_PHONE_LAND_DISPLAY="${TRAILER_PHONE_LAND_DISPLAY:-:95}"
 # The footer's "Up to date" check compares the running bundle with the (faked) /version.json: both use this.
 export VITE_GIT_SHA="${VITE_GIT_SHA:-$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo abcdef0)}"
 
@@ -51,6 +52,7 @@ start_xvfb() { # display WxHxD
 }
 start_xvfb "$TRAILER_DISPLAY" 1920x1080x24
 start_xvfb "$TRAILER_PHONE_DISPLAY" 1000x1700x24
+start_xvfb "$TRAILER_PHONE_LAND_DISPLAY" 1700x1000x24
 
 GAME="http://127.0.0.1:$TRAILER_GAME_PORT"
 WEB="http://127.0.0.1:$TRAILER_WEB_PORT"

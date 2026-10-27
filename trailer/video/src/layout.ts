@@ -11,6 +11,8 @@ export type Layout = {
   /** eyebrow (small caps sub-caption) top edge, size */
   eyebrow: {top: number; size: number};
   compassR: number;
+  /** the big phone of the phone section: screen height (width follows the 750:1624 footage), centre, and how much it grows when turned sideways */
+  phone: {h: number; cx: number; cy: number; landscapeScale: number};
   end: {
     desktop: {scale: number; cx: number; top: number};
     phone: {w: number; h: number; cx: number; top: number; rot: number};
@@ -28,6 +30,7 @@ export const LAYOUT_16x9: Layout = {
   headline: {top: 920, height: 92, size: 76, maxW: 1920 - SAFE.x * 2},
   eyebrow: {top: 884, size: 23},
   compassR: 900,
+  phone: {h: 700, cx: 960, cy: 452, landscapeScale: 1.45},
   end: {
     desktop: {scale: 0.7, cx: 842, top: 56},
     phone: {w: 280, h: 606, cx: 1432, top: 84, rot: 3},
@@ -45,6 +48,7 @@ export const LAYOUT_9x16: Layout = {
   headline: {top: 170, height: 300, size: 84, maxW: 940},
   eyebrow: {top: 1700, size: 24},
   compassR: 760,
+  phone: {h: 940, cx: 540, cy: 1000, landscapeScale: 1.06},
   end: {
     desktop: {scale: 0.54, cx: 330, top: 250},
     phone: {w: 400, h: 866, cx: 700, top: 420, rot: 3},

@@ -37,7 +37,7 @@ export const BrowserFrame: React.FC<{w: number; h: number; url?: string; childre
 );
 
 /** Phone bezel, content is (w x h). */
-export const PhoneFrame: React.FC<{w: number; h: number; children: React.ReactNode}> = ({w, h, children}) => (
+export const PhoneFrame: React.FC<{w: number; h: number; island?: number; children: React.ReactNode}> = ({w, h, island = 1, children}) => (
   <div
     style={{
       width: w + 20, height: h + 20, borderRadius: 52, padding: 10, boxSizing: 'border-box', background: '#070c18',
@@ -47,6 +47,6 @@ export const PhoneFrame: React.FC<{w: number; h: number; children: React.ReactNo
     }}
   >
     <div style={{position: 'relative', width: w, height: h, borderRadius: 42, overflow: 'hidden', background: '#000'}}>{children}</div>
-    <div style={{position: 'absolute', top: 20, left: '50%', width: 74, height: 20, borderRadius: 10, background: '#02050b', transform: 'translateX(-50%)', zIndex: 3}} />
+    <div style={{position: 'absolute', top: 20, left: '50%', width: 74, height: 20, borderRadius: 10, background: '#02050b', transform: 'translateX(-50%)', zIndex: 3, opacity: island}} />
   </div>
 );

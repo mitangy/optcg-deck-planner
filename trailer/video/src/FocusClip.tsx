@@ -54,7 +54,7 @@ export const FocusClip: React.FC<Props> = ({clip, W, H, focus, trimStart = 0, ra
   const def = CLIPS[clip];
   const probed = (generated.clips as Record<string, {file: string; duration: number | null}>)[clip];
   const avail = probed?.duration ?? def.duration;
-  const aspect = def.orientation === 'portrait' ? 750 / 1624 : 16 / 9;
+  const aspect = def.aspect ?? (def.orientation === 'portrait' ? 750 / 1624 : 16 / 9);
 
   const delayF = Math.round(delay * fps);
   const playable = Math.max(1, Math.floor(((avail - trimStart) / rate) * fps));

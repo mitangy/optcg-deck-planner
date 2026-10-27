@@ -1,12 +1,12 @@
 export type ClipId =
   | '01-landing' | '02-turn' | '03-themes' | '04-custom-art' | '05-layout' | '06-friends'
-  | '07-spectate' | '08-ranked' | '09-logpose' | '10-planner' | '11-phone';
+  | '07-spectate' | '08-ranked' | '09-logpose' | '10-planner' | '11-phone' | '12-phone-portrait' | '13-phone-landscape';
 
 export type Rect = {x: number; y: number; w: number; h: number};
 export type FocusKey = {at: number; rect: Rect};
 export type Transition = 'cut' | 'fade' | 'zoom' | 'wipe-right' | 'wipe-left';
 
-export type ClipDef = {file: string; duration: number; orientation: 'landscape' | 'portrait'};
+export type ClipDef = {file: string; duration: number; orientation: 'landscape' | 'portrait'; /** width / height when not 16:9 or 750:1624 */ aspect?: number};
 
 export type SceneDef = {
   id: string;

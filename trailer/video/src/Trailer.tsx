@@ -9,7 +9,8 @@ import {Intro} from './Intro';
 import type {Layout} from './layout';
 import {Logo} from './Logo';
 import {OVERLAP, SceneLayer} from './SceneLayer';
-import {CAPTIONS, END_CARD, FULL, SCENES} from './scenes.config';
+import {PhoneStage, phoneHandoff} from './PhoneStage';
+import {CAPTIONS, END_CARD, FULL, PHONE, SCENES} from './scenes.config';
 import {COLORS, FONT_SANS} from './theme';
 import type {SceneDef} from './types';
 
@@ -33,7 +34,11 @@ const eyebrowRuns = () => {
     if (last && last.text === s.eyebrow && Math.abs(last.end - s.start) < 1e-6) last.end = s.start + s.dur;
     else runs.push({text: s.eyebrow, start: s.start, end: s.start + s.dur});
   }
-  return runs;
+  for (const k of ['portrait', 'landscape'] as const) {
+    const start = k === 'portrait' ? PHONE.start : PHONE.turnAt;
+    runs.push({text: PHONE[k].eyebrow, start, end: k === 'portrait' ? PHONE.turnAt : PHONE.end});
+  }
+  return runs.sort((a, b) => a.start - b.start);
 };
 
 export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
@@ -50,10 +55,11 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
   const morph = spring({frame: frame - endF, fps, config: {damping: 22, stiffness: 60, mass: 1}});
   const mainCy = L.frame.top + totalH / 2;
   const endCy = L.end.desktop.top + (totalH * L.end.desktop.scale) / 2;
+  const hide = phoneHandoff(frame, fps); // 1 while the big phone has the stage
   const float = Math.sin(frame / 52) * 4 * (1 - morph);
   const frameCx = lerp(L.frame.cx, L.end.desktop.cx, morph);
-  const frameCy = lerp(mainCy, endCy, morph) + (1 - appear) * 110 + float;
-  const frameScale = lerp(1, L.end.desktop.scale, morph) * (0.93 + 0.07 * appear) ;
+  const frameCy = lerp(mainCy, endCy, morph) + (1 - appear) * 110 + float + hide * 36;
+  const frameScale = lerp(1, L.end.desktop.scale, morph) * (0.93 + 0.07 * appear) * lerp(1, 0.9, hide);
   const rotY = Math.sin(frame / 95) * 1.1 * (1 - morph) + morph * 0;
 
   // --- music ---
@@ -73,7 +79,7 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
 
       <Intro cx={L.width / 2} cy={L.height / 2} />
 
-      <div style={{position: 'absolute', inset: 0, perspective: 2600, opacity: appearO}}>
+      <div style={{position: 'absolute', inset: 0, perspective: 2600, opacity: appearO * (1 - clamp01(hide / 0.6))}}>
         <div
           style={{
             position: 'absolute', left: frameCx - fw / 2, top: frameCy - totalH / 2, width: fw, height: totalH,
@@ -93,6 +99,8 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
           </BrowserFrame>
         </div>
       </div>
+
+      <PhoneStage layout={L} />
 
       {/* headline lines */}
       {CAPTIONS.map((c, i) => {
