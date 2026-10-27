@@ -42835,6 +42835,27 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-029": {
+    "id": "OP18-029",
+    "name": "Tony Tony.Chopper",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 9,
+    "power": 6000,
+    "counter": 1000,
+    "rush": true,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725883_400w.jpg",
+    "effectText": "[Rush] [When Attacking] [Once Per Turn] Give up to 3 rested DON!! cards to your Leader and set this Character as active. Then, this Character will not become active in your next Refresh Phase.",
+    "traits": [
+      "Animal",
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-031": {
     "id": "OP18-031",
     "name": "Nico Robin",
@@ -42952,6 +42973,24 @@
       "Cross Guild"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-051": {
+    "id": "OP18-051",
+    "name": "Mr. 4 & Miss.Merry Christmas",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725884_400w.jpg",
+    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] You may rest 5 of your DON!! cards: Place up to 1 Character with a cost of 6 or less and up to 1 Character with a cost of 5 or less at the bottom of the owner's deck in any order of the owner's choosing.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Slash/Strike",
     "abilitySupport": "ok"
   },
   "OP18-052": {
@@ -43085,6 +43124,25 @@
       "The Franky Family"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-070": {
+    "id": "OP18-070",
+    "name": "Tom",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725885_400w.jpg",
+    "effectText": "[On Play] DON!! −1, you may trash 1 card from your hand: Add up to 2 Stage cards from your trash to your hand.",
+    "traits": [
+      "Fish-Man",
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "OP18-076": {
@@ -43286,6 +43344,25 @@
       "CP9"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-110": {
+    "id": "OP18-110",
+    "name": "Blueno",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725887_400w.jpg",
+    "effectText": "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 card with a type including \"CP\" other than [Blueno] and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Draw 1 card and K.O. up to 1 of your opponent's Characters with a cost of 2 or less.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-111": {
