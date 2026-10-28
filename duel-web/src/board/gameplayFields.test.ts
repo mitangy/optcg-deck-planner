@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   GAMEPLAY_GROUPS,
   groupOf,
+  rowDisabledNote,
   rowShown,
   showOrientation,
   showToggleShown,
@@ -13,8 +14,8 @@ import {
   type RowKey,
 } from "./gameplayFields";
 
-const desktop: FieldDevice = { desktop: true, tiltFits: true, finePointer: true };
-const phone: FieldDevice = { desktop: false, tiltFits: false, finePointer: false };
+const desktop: FieldDevice = { desktop: true, tiltFits: true, finePointer: true, portrait: false };
+const phone: FieldDevice = { desktop: false, tiltFits: false, finePointer: false, portrait: true };
 
 describe("gameplay rows by device", () => {
   it("lists Buttons beside the board on a desktop window only, phones keep their own layout (#556)", () => {
@@ -117,5 +118,36 @@ describe("Gameplay settings groups (#496)", () => {
     const desktopOnly: GameplayGroup = { id: "board", title: "Desk", chip: "Desk", rows: ["layoutGrips", "sidePanels"] };
     expect(visibleGroups(phone, [desktopOnly])).toEqual([]);
     expect(visibleGroups(desktop, [desktopOnly]).map((g) => g.id)).toEqual(["board"]);
+  });
+});
+
+describe("gameplay rows that do nothing in this layout (#790)", () => {
+  const upright = phone;
+  const sideways: FieldDevice = { ...phone, portrait: false };
+  const off = { compactOwnBoard: false };
+  const on = { compactOwnBoard: true };
+
+  it("disables Hand layout on a phone held sideways, not upright and not on a desktop window (#790)", () => {
+    expect(rowDisabledNote("handLayout", sideways, off)).toMatch(/grid/i);
+    expect(rowDisabledNote("handLayout", upright, off)).toBeNull();
+    expect(rowDisabledNote("handLayout", desktop, off)).toBeNull();
+  });
+
+  it("disables Simple board on a phone held sideways, not upright and not on a desktop window (#790)", () => {
+    expect(rowDisabledNote("compactOwnBoard", sideways, off)).toMatch(/upright/i);
+    expect(rowDisabledNote("compactOwnBoard", upright, off)).toBeNull();
+    expect(rowDisabledNote("compactOwnBoard", desktop, off)).toBeNull();
+  });
+
+  it("disables Life stack direction only upright with Simple board on (#790)", () => {
+    expect(rowDisabledNote("lifeFan", upright, on)).toMatch(/Simple board/);
+    expect(rowDisabledNote("lifeFan", upright, off)).toBeNull();
+    expect(rowDisabledNote("lifeFan", sideways, on)).toBeNull();
+    expect(rowDisabledNote("lifeFan", desktop, on)).toBeNull();
+  });
+
+  it("leaves other rows alone (#790)", () => {
+    expect(rowDisabledNote("textSize", sideways, on)).toBeNull();
+    expect(rowDisabledNote("sortHandByCost", sideways, on)).toBeNull();
   });
 });
