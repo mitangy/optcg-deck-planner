@@ -26,7 +26,9 @@ export const union = (rs: Rect[]): Rect => {
 
 export type RingSpec = {
   /** Recorded control(s) to circle. */
-  k: string | string[];
+  k?: string | string[];
+  /** Or an explicit box in CSS px of the shot (a strip no single control covers). */
+  rect?: Rect;
   pad?: number;
   radius?: number;
   /** Dim everything outside this ring. */
@@ -50,10 +52,6 @@ export type ShotSpec = {
   /** Crop aspect (w / h); the crop grows to it. */
   ar?: number;
   rings?: RingSpec[];
-  /** Portrait: ride on the first picture as an inset (phone pictures after a desktop one always do). */
-  inset?: boolean;
-  /** Portrait: which corner of the picture a phone inset sits in (default bottom right). */
-  at?: 'tl' | 'tr' | 'bl' | 'br';
   /** Small pill on the crop, e.g. "Phone". */
   tag?: string;
 };
@@ -75,14 +73,38 @@ export type InfographicSpec = {
   tip?: string;
 };
 
+/** Box of a ring's target in the shot's CSS px. */
+export const ringBox = (src: string, r: RingSpec): Rect => {
+  if (r.rect) return r.rect;
+  const keys = Array.isArray(r.k) ? r.k : [r.k ?? ''];
+  return union(keys.map((key) => boxOf(src, key)));
+};
+
 export function resolveCrop(s: ShotSpec): Rect {
   const src = SRC[s.kind];
   const bounds: Rect = s.inside ? boxOf(s.src, s.inside) : {x: 0, y: 0, w: src.w, h: src.h};
   let c: Rect;
   if (s.rect) c = {...s.rect};
   else {
-    const focus = s.focus ?? s.rings?.flatMap((r) => (Array.isArray(r.k) ? r.k : [r.k])) ?? [];
-    const u = union(focus.map((k) => boxOf(s.src, k)));
+    const focus = s.focus ?? [];
+    const rects = focus.map((key) => boxOf(s.src, key));
+    // The crop always holds every ring completely (its pad plus the stroke).
+    for (const r of s.rings ?? []) {
+      const b = ringBox(s.src, r);
+      const e = (r.pad ?? 7) + 5;
+      rects.push({x: b.x - e, y: b.y - e, w: b.w + e * 2, h: b.h + e * 2});
+      if (r.arrow) {
+        // The arrow and its label sit outside the ring, on `arrow`'s side: keep room for them (about 1.1 px per CSS px).
+        const reach = (72 + (r.label ? 24 + r.label.length * 11 : 0)) / 1.1;
+        const horizontal = r.arrow === 'left' || r.arrow === 'right';
+        const x0 = r.arrow === 'left' ? b.x - e - reach : b.x - e;
+        const y0 = r.arrow === 'up' ? b.y - e - reach : b.y - e;
+        rects.push({x: x0, y: y0, w: b.w + e * 2 + (horizontal ? reach : 0), h: b.h + e * 2 + (horizontal ? 0 : reach)});
+        if (r.arrow === 'right') rects.push({x: b.x, y: b.y - e, w: b.w + e + reach, h: b.h + e * 2});
+        if (r.arrow === 'down') rects.push({x: b.x - e, y: b.y, w: b.w + e * 2, h: b.h + e + reach});
+      }
+    }
+    const u = union(rects);
     const [l, t, r, b] = Array.isArray(s.pad) ? s.pad : [s.pad ?? 36, s.pad ?? 36, s.pad ?? 36, s.pad ?? 36];
     c = {x: u.x - l, y: u.y - t, w: u.w + l + r, h: u.h + t + b};
   }
@@ -95,16 +117,9 @@ export function resolveCrop(s: ShotSpec): Rect {
     c.x = cx - c.w / 2;
     c.y = cy - c.h / 2;
   }
-  // Keep inside the bounds: shrink (same aspect) to fit, then shift.
-  const k = Math.min(1, bounds.w / c.w, bounds.h / c.h);
-  if (k < 1) {
-    const cx = c.x + c.w / 2;
-    const cy = c.y + c.h / 2;
-    c.w *= k;
-    c.h *= k;
-    c.x = cx - c.w / 2;
-    c.y = cy - c.h / 2;
-  }
+  // Keep inside the bounds: clamp each side on its own (the aspect gives way, the content never does), then shift.
+  c.w = Math.min(c.w, bounds.w);
+  c.h = Math.min(c.h, bounds.h);
   c.x = Math.max(bounds.x, Math.min(bounds.x + bounds.w - c.w, c.x));
   c.y = Math.max(bounds.y, Math.min(bounds.y + bounds.h - c.h, c.y));
   return c;
@@ -190,15 +205,15 @@ export const Shot: React.FC<{spec: ShotSpec; w: number; h: number}> = ({spec, w,
   // Rings keep a steady weight whatever the zoom.
   const unit = Math.max(0.8, Math.min(1.5, k / 1.6));
   const rings = (spec.rings ?? []).map((r) => {
-    const keys = Array.isArray(r.k) ? r.k : [r.k];
-    const u = union(keys.map((key) => boxOf(spec.src, key)));
+    const u = ringBox(spec.src, r);
     const pad = r.pad ?? 7;
     return {r, rect: {x: (u.x - pad - crop.x) * k, y: (u.y - pad - crop.y) * k, w: (u.w + pad * 2) * k, h: (u.h + pad * 2) * k}};
   });
   return (
+    <div style={{position: 'relative', width: w, height: h, flex: 'none'}}>
     <div
       style={{
-        position: 'relative', width: w, height: h, borderRadius: 16, overflow: 'hidden', background: COLORS.navy0, flex: 'none',
+        position: 'absolute', inset: 0, borderRadius: 16, overflow: 'hidden', background: COLORS.navy0,
         border: '1.5px solid rgba(255,255,255,0.14)', boxShadow: '0 18px 40px -14px rgba(0,0,0,0.7)',
       }}
     >
@@ -215,10 +230,11 @@ export const Shot: React.FC<{spec: ShotSpec; w: number; h: number}> = ({spec, w,
           {r.arrow ? <Arrow ring={rect} side={r.arrow} label={r.label} unit={unit} /> : null}
         </React.Fragment>
       ))}
+    </div>
       {spec.tag ? (
         <div
           style={{
-            position: 'absolute', left: 8, top: 8, background: 'rgba(5,11,29,0.82)', color: COLORS.goldBright, fontFamily: FONT_SANS, fontWeight: 600,
+            position: 'absolute', left: 14, top: -27, background: 'rgba(5,11,29,0.82)', color: COLORS.goldBright, fontFamily: FONT_SANS, fontWeight: 600,
             fontSize: Math.max(11, Math.min(16, w / 24)), letterSpacing: 1, textTransform: 'uppercase', padding: '4px 10px', borderRadius: 999, border: '1px solid rgba(232,182,76,0.5)',
           }}
         >

@@ -2,7 +2,7 @@ import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {Logo} from '../Logo';
 import {COLORS, FONT_DISPLAY, FONT_SANS} from '../theme';
-import {aspectOf, fitBest, fitRow, Key, NumberBadge, Rich, Shot, type InfographicSpec, type Step} from './kit';
+import {aspectOf, fitBest, fitCol, Key, NumberBadge, Rich, Shot, type InfographicSpec, type Step} from './kit';
 
 type Orientation = 'portrait' | 'landscape';
 
@@ -17,39 +17,20 @@ const textHeight = (t: string, w: number, fs: number, keys: boolean) => {
   return lines * fs * 1.3 + (keys ? fs * 1.75 : 0);
 };
 
-const corner = (at: 'tl' | 'tr' | 'bl' | 'br' = 'br'): React.CSSProperties => ({
-  [at[0] === 't' ? 'top' : 'bottom']: -12,
-  [at[1] === 'l' ? 'left' : 'right']: -10,
-});
-
 const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wide?: boolean}> = ({step, w, h, portrait, wide}) => {
   // Wide, short picture areas (portrait cards with the text on the left) get wider crops.
-  const shots = (step.shots ?? []).map((s) => (wide && s.ar ? {...s, ar: Math.min(2.6, s.ar * 1.4)} : !portrait && s.ar ? {...s, ar: Math.min(s.ar, 1.55)} : s));
-  // Portrait cards are small: a phone variant rides as an inset on the desktop picture instead of splitting it.
-  if (portrait && shots.length === 2 && ((shots[0].kind !== 'phone' && shots[1].kind === 'phone') || shots[1].inset)) {
-    const [a, b] = shots;
-    const bw0 = 0.42;
-    const main = fitRow([aspectOf(a)], w * 0.97, h * 0.97, 0)[0];
-    let iw = main.w * bw0;
-    let ih = iw / aspectOf(b);
-    if (ih > main.h * 0.55) {
-      ih = main.h * 0.55;
-      iw = ih * aspectOf(b);
-    }
-    return (
-      <div style={{width: w, height: h, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{position: 'relative', width: main.w, height: main.h}}>
-          <Shot spec={a} w={main.w} h={main.h} />
-          <div style={{position: 'absolute', ...corner(b.at), filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.6))'}}>
-            <Shot spec={b} w={iw} h={ih} />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const single = (step.shots?.length ?? 0) === 1;
+  const shots = (step.shots ?? []).map((s) => {
+    if (wide && single && s.ar) return {...s, ar: Math.min(2.6, s.ar * 1.4)};
+    // Landscape columns are tall: board crops grow taller (more board around the control) instead of floating in space.
+    if (!portrait && s.ar && !s.inside) return {...s, ar: Math.min(s.ar, 1.2)};
+    return s;
+  });
   if (shots.length) {
-    const gap = 16;
-    const {dir, sizes} = fitBest(shots.map(aspectOf), w, h, gap);
+    const gap = 34;
+    const aspects = shots.map(aspectOf);
+    // Landscape columns are tall and narrow: stack. Portrait picks whichever layout gives the pictures more room.
+    const {dir, sizes} = !portrait && shots.length > 1 ? {dir: 'col' as const, sizes: fitCol(aspects, w, h - 10, gap)} : fitBest(aspects, w, h - 10, gap);
     return (
       <div style={{width: w, height: h, display: 'flex', flexDirection: dir === 'row' ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap}}>
         {shots.map((s, i) => (
@@ -82,9 +63,9 @@ const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wi
 
 /** Portrait, up to three steps: the sentence on the left, the pictures on the right. */
 const RowCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number}> = ({step, n, w, h, fs}) => {
-  const pad = 22;
+  const pad = 20;
   const badge = Math.round(fs * 1.6);
-  const textW = Math.round(Math.min(360, w * 0.36));
+  const textW = Math.round(Math.min(310, w * 0.32));
   return (
     <div
       style={{
@@ -152,7 +133,7 @@ export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientat
   const portrait = orientation === 'portrait';
   const pad = portrait ? 56 : 64;
   const titleFs = Math.min(portrait ? 78 : 88, ((W - pad * 2) / (spec.title.length * 0.54)) | 0);
-  const bodyTop = portrait ? 270 : 236;
+  const bodyTop = portrait ? 244 : 236;
   const footH = 40;
   const tipH = spec.tip ? (portrait ? 78 : 64) : 0;
   const bodyBottom = H - 34 - footH - 18 - (tipH ? tipH + 18 : 0);

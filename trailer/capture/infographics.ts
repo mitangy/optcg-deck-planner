@@ -42,6 +42,10 @@ async function lobby(): Promise<void> {
     await p.goto(`${WEB_ORIGIN}/`);
     await sleep(2500);
     await s.shot("fb-lobby", { friendWatch: p.getByRole("button", { name: "Watch", exact: true }).first(), spectate: p.getByRole("button", { name: /^Spectate/ }), send: p.getByRole("button", { name: "Send feedback" }) });
+    // Scrolled to the very bottom the footer has room under it, so a ring around its link is not cut by the screen edge.
+    await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await sleep(400);
+    await s.shot("fb-lobby-bottom", { whatsnew: p.locator(".site-footer").getByText(/What.s new/), send: p.getByRole("button", { name: "Send feedback" }) });
     await p.getByRole("button", { name: "Send feedback" }).click();
     await sleep(700);
     await s.shot("fb-dialog-empty", { card: p.locator(".feedback-card"), kinds: p.locator(".feedback-kinds"), text: p.locator(".feedback-text"), send: p.locator(".feedback-btn-primary") });
@@ -293,7 +297,23 @@ async function phone(): Promise<void> {
   }
 }
 
-const groups: Record<string, () => Promise<void>> = { lobby, match, hand, phone };
+/** The real Yes/No prompt, on the app's own demo board (/demo?prompt=confirm, no match needed). */
+async function demo(): Promise<void> {
+  const s = await openStill({ kind: "desktop", extra });
+  const p = s.page;
+  try {
+    await p.goto(`${WEB_ORIGIN}/demo?prompt=confirm`);
+    await p.locator(".choice-confirm").waitFor();
+    await sleep(1500);
+    const box = p.locator(".choice-confirm");
+    await s.shot("y-confirm", { prompt: box, yes: box.getByRole("button", { name: "Yes", exact: true }), no: box.getByRole("button", { name: "No", exact: true }) });
+  } finally {
+    if (s.errors.length) console.log(s.errors);
+    await s.close();
+  }
+}
+
+const groups: Record<string, () => Promise<void>> = { lobby, match, hand, phone, demo };
 const want = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 for (const g of want.length ? want : Object.keys(groups)) {
   if (!groups[g]) throw new Error(`unknown group ${g}`);
