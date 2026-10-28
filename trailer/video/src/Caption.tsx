@@ -20,7 +20,7 @@ export const Headline: React.FC<{words: CaptionWord[]; durationInFrames: number;
 }) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const flat = words.flatMap((w) => w.t.split(' ').map((t) => ({t, em: !!w.em})));
+  const flat = words.flatMap((w) => w.t.split(' ').map((t, i, a) => ({t, em: !!w.em, br: !!w.br && i === a.length - 1})));
   const e = interpolate(frame, [durationInFrames - EXIT, durationInFrames], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.in(Easing.cubic)});
   return (
     <div style={{position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: maxW, height: boxH, display: 'flex', alignItems: 'flex-end', justifyContent: align === 'center' ? 'center' : 'flex-start'}}>
@@ -34,11 +34,11 @@ export const Headline: React.FC<{words: CaptionWord[]; durationInFrames: number;
         {flat.map((w, i) => {
           const p = spring({frame: frame - i * stagger, fps, config: {damping: 20, stiffness: 110, mass: 0.9}});
           const blur = (1 - p) * 16;
-          return (
+          const span = (
             <span
               key={i}
               style={{
-                display: 'inline-block', marginRight: i < flat.length - 1 ? size * 0.26 : 0, opacity: Math.min(1, p * 1.6),
+                display: 'inline-block', marginRight: i < flat.length - 1 && !w.br ? size * 0.26 : 0, opacity: Math.min(1, p * 1.6),
                 transform: `translateY(${(1 - p) * 46}px)`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined,
                 ...(w.em ? emStyle : {}),
               }}
@@ -46,6 +46,7 @@ export const Headline: React.FC<{words: CaptionWord[]; durationInFrames: number;
               {w.t}
             </span>
           );
+          return w.br ? <React.Fragment key={i}>{span}<br /></React.Fragment> : span;
         })}
       </div>
     </div>

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Renders every info-* Still (portrait 1080x1350 and landscape 1920x1080) to ../out/infographics/<id>-<orientation>.png.
+// Renders every info-* Still (portrait 1080x1350, landscape 1920x1080, story 1080x1920) to ../out/infographics/<id>-<orientation>.png.
 // Bundles once. `node scripts/render-infographics.mjs [id-substring ...]` renders only matching ids.
 import {bundle} from '@remotion/bundler';
 import {getCompositions, renderStill} from '@remotion/renderer';

@@ -4,9 +4,12 @@ import {Logo} from '../Logo';
 import {COLORS, FONT_DISPLAY, FONT_SANS} from '../theme';
 import {aspectOf, fitBest, fitCol, Key, NumberBadge, Rich, Shot, type InfographicSpec, type Step} from './kit';
 
-type Orientation = 'portrait' | 'landscape';
+type Orientation = 'portrait' | 'landscape' | 'story';
 
-export const SIZES = {portrait: {w: 1080, h: 1350}, landscape: {w: 1920, h: 1080}} as const;
+export const SIZES = {portrait: {w: 1080, h: 1350}, landscape: {w: 1920, h: 1080}, story: {w: 1080, h: 1920}} as const;
+
+/** Instagram Stories / Reels cover the top 220px and bottom 340px of a 1080x1920 canvas with their own UI. */
+export const STORY_SAFE = {top: 220, bottom: 340};
 
 const plain = (t: string) => t.replace(/\*\*/g, '');
 
@@ -17,10 +20,12 @@ const textHeight = (t: string, w: number, fs: number, keys: boolean) => {
   return lines * fs * 1.3 + (keys ? fs * 1.75 : 0);
 };
 
-const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wide?: boolean}> = ({step, w, h, portrait, wide}) => {
+const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wide?: boolean; first?: boolean}> = ({step, w, h, portrait, wide, first}) => {
   // Wide, short picture areas (portrait cards with the text on the left) get wider crops.
-  const single = (step.shots?.length ?? 0) === 1;
-  const shots = (step.shots ?? []).map((s) => {
+  // Story: one big picture per step (the desktop one) instead of two small ones; before/after pairs stay together.
+  const keepAll = !first || step.shots?.[0]?.tag === 'Before';
+  const single = keepAll ? (step.shots?.length ?? 0) === 1 : true;
+  const shots = (keepAll ? step.shots ?? [] : (step.shots ?? []).slice(0, 1)).map((s) => {
     if (wide && single && s.ar) return {...s, ar: Math.min(2.6, s.ar * 1.4)};
     // Landscape columns are tall: board crops grow taller (more board around the control) instead of floating in space.
     if (!portrait && s.ar && !s.inside) return {...s, ar: Math.min(s.ar, 1.2)};
@@ -62,10 +67,10 @@ const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wi
 };
 
 /** Portrait, up to three steps: the sentence on the left, the pictures on the right. */
-const RowCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number}> = ({step, n, w, h, fs}) => {
+const RowCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number; textW?: number; badgeK?: number}> = ({step, n, w, h, fs, textW: tw, badgeK = 1.6}) => {
   const pad = 20;
-  const badge = Math.round(fs * 1.6);
-  const textW = Math.round(Math.min(310, w * 0.32));
+  const badge = Math.round(fs * badgeK);
+  const textW = tw ?? Math.round(Math.min(310, w * 0.32));
   return (
     <div
       style={{
@@ -83,7 +88,7 @@ const RowCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number
         </div>
       </div>
       <div style={{flex: 1}}>
-        <Picture step={step} w={w - pad * 2 - textW - 26} h={h - pad * 2} portrait wide />
+        <Picture step={step} w={w - pad * 2 - textW - 26} h={h - pad * 2} portrait wide first={textW >= 400} />
       </div>
     </div>
   );
@@ -130,13 +135,18 @@ const StackCard: React.FC<{step: Step; n: number; w: number; h: number; fs: numb
 
 export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientation}> = ({spec, orientation}) => {
   const {w: W, h: H} = SIZES[orientation];
-  const portrait = orientation === 'portrait';
-  const pad = portrait ? 56 : 64;
+  const story = orientation === 'story';
+  const portrait = orientation !== 'landscape';
+  const pad = story ? 44 : portrait ? 56 : 64;
   const titleFs = Math.min(portrait ? 78 : 88, ((W - pad * 2) / (spec.title.length * 0.54)) | 0);
-  const bodyTop = portrait ? 244 : 236;
+  // Story: nothing essential in the top 220 / bottom 340 px (Instagram's own UI sits there).
+  const topY = story ? STORY_SAFE.top + 8 : portrait ? 50 : 42;
+  const titleY = story ? topY + 44 : portrait ? 98 : 84;
+  const bodyTop = story ? titleY + titleFs * 1.18 + 62 : portrait ? 244 : 236;
   const footH = 40;
-  const tipH = spec.tip ? (portrait ? 78 : 64) : 0;
-  const bodyBottom = H - 34 - footH - 18 - (tipH ? tipH + 18 : 0);
+  const footBottom = story ? STORY_SAFE.bottom + 6 : 34;
+  const tipH = spec.tip ? (story ? 112 : portrait ? 78 : 64) : 0;
+  const bodyBottom = H - footBottom - footH - 18 - (tipH ? tipH + 18 : 0);
   const bodyH = bodyBottom - bodyTop;
   const bodyW = W - pad * 2;
   const n = spec.steps.length;
@@ -149,7 +159,7 @@ export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientat
     cards = (
       <div style={{display: 'flex', flexWrap: 'wrap', gap, width: bodyW}}>
         {spec.steps.map((s, i) => (
-          <StackCard key={i} step={s} n={i + 1} w={cw} h={ch} fs={27} portrait />
+          <StackCard key={i} step={s} n={i + 1} w={cw} h={ch} fs={story ? 34 : 27} portrait />
         ))}
       </div>
     );
@@ -158,7 +168,7 @@ export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientat
     cards = (
       <div style={{display: 'flex', flexDirection: 'column', gap, width: bodyW}}>
         {spec.steps.map((s, i) => (
-          <RowCard key={i} step={s} n={i + 1} w={bodyW} h={ch} fs={n === 3 ? 31 : 33} />
+          <RowCard key={i} step={s} n={i + 1} w={bodyW} h={ch} fs={story ? 40 : n === 3 ? 31 : 33} textW={story ? 450 : undefined} badgeK={story ? 1.25 : 1.6} />
         ))}
       </div>
     );
@@ -187,14 +197,14 @@ export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientat
       </svg>
 
       {/* header */}
-      <div style={{position: 'absolute', left: pad, top: portrait ? 50 : 42, display: 'flex', alignItems: 'center', gap: 14}}>
+      <div style={{position: 'absolute', left: pad, top: topY, display: 'flex', alignItems: 'center', gap: 14}}>
         <Logo size={38} id={`logo-${spec.id}`} />
         <div style={{fontWeight: 700, fontSize: 20, letterSpacing: 4, color: COLORS.gold, textTransform: 'uppercase'}}>OPTCG Duel · How to</div>
       </div>
-      <div style={{position: 'absolute', left: pad, top: portrait ? 98 : 84, width: bodyW, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: titleFs, lineHeight: 1.1, color: COLORS.ink, letterSpacing: -0.5, whiteSpace: 'nowrap'}}>
+      <div style={{position: 'absolute', left: pad, top: titleY, width: bodyW, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: titleFs, lineHeight: 1.1, color: COLORS.ink, letterSpacing: -0.5, whiteSpace: 'nowrap'}}>
         {spec.title}
       </div>
-      <div style={{position: 'absolute', left: pad, top: portrait ? 98 + titleFs * 1.18 : 84 + titleFs * 1.18, width: bodyW, fontWeight: 400, fontSize: portrait ? 28 : 30, color: COLORS.muted, whiteSpace: 'nowrap'}}>
+      <div style={{position: 'absolute', left: pad, top: titleY + titleFs * 1.18, width: bodyW, fontWeight: 400, fontSize: story ? 30 : portrait ? 28 : 30, color: COLORS.muted, whiteSpace: 'nowrap'}}>
         {spec.subtitle}
       </div>
 
@@ -208,16 +218,16 @@ export const Infographic: React.FC<{spec: InfographicSpec; orientation: Orientat
           }}
         >
           <div style={{fontWeight: 700, fontSize: 20, letterSpacing: 3, color: COLORS.navy0, background: COLORS.gold, borderRadius: 8, padding: '5px 12px'}}>TIP</div>
-          <div style={{fontSize: portrait ? 25 : 26, color: COLORS.ink, lineHeight: 1.25}}>
+          <div style={{fontSize: story ? 30 : portrait ? 25 : 26, color: COLORS.ink, lineHeight: 1.25}}>
             <Rich text={spec.tip} />
           </div>
         </div>
       ) : null}
 
       {/* footer */}
-      <div style={{position: 'absolute', left: pad, right: pad, bottom: 34, height: footH, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+      <div style={{position: 'absolute', left: pad, right: pad, bottom: footBottom, height: footH, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
         <div style={{fontWeight: 700, fontSize: 26, color: COLORS.gold, letterSpacing: 0.5}}>optcgduel.app</div>
-        <div style={{fontSize: 18, color: COLORS.muted}}>Unofficial fan project. Not affiliated with Bandai.</div>
+        <div style={{fontSize: story ? 20 : 18, color: COLORS.muted}}>Unofficial fan project. Not affiliated with Bandai.</div>
       </div>
     </AbsoluteFill>
   );

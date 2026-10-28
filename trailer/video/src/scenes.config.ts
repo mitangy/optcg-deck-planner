@@ -19,7 +19,7 @@
  * scene start; the camera springs to each rect when its `at` is reached.
  * `r(x, y, w)` is shorthand for a 16:9-shaped rect (h = w).
  */
-import type {ClipId, ClipDef, FocusKey, SceneDef, CaptionDef, Rect} from './types';
+import type {ClipId, ClipDef, FocusKey, SceneDef, CaptionDef, Rect, Edit} from './types';
 
 export const r = (x: number, y: number, w: number): Rect => ({x, y, w, h: w});
 export const FULL: Rect = {x: 0, y: 0, w: 1, h: 1};
@@ -185,3 +185,6 @@ export const END_CARD = {
   desktop: {clip: '01-landing' as ClipId, trimStart: 2.5, focus: FULL},
   phone: {clip: '11-phone' as ClipId, trimStart: 0, focus: FULL},
 };
+
+/** The full 68.5s trailer as an edit (the default of TrailerComp). The ad cutdowns in ads.config.ts reuse its pieces. */
+export const FULL_EDIT: Edit = {id: 'full', scenes: SCENES, captions: CAPTIONS, phone: PHONE, endCard: END_CARD, total: TOTAL_SECONDS, intro: true, frameIn: 36};

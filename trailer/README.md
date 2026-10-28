@@ -11,7 +11,7 @@ cd trailer/video
 npm install
 npm run clips:placeholders   # optional: labelled placeholder clips, ONLY for ids missing from ../clips
 npm run render               # -> trailer/out/trailer-16x9.mp4  (about 6 min on 4 CPUs)
-npm run render:9x16          # -> trailer/out/trailer-9x16.mp4  (stub layout, 1080x1920)
+npm run render:9x16          # -> trailer/out/trailer-9x16.mp4  (the full edit in the vertical layout, not an ad)
 npm run studio               # live preview and scrubbing while tuning
 ```
 
@@ -30,6 +30,22 @@ Other knobs: `src/layout.ts` (frame size and text positions for 16:9 and 9:16), 
 Music: drop a licensed 120 BPM track at `trailer/video/public/music.mp3` (gitignored). It fades in over 1.5 s and out over the last 3 s. Without the file the trailer renders silent. If a captured clip is shorter than its scene, its last frame is held; if longer, the scene's `trimStart` / `rate` decide what is used.
 
 Fonts (Sora and Fraunces, the app's fonts) are vendored in `public/fonts/` so renders work offline. If Remotion cannot download its own headless Chrome, set `REMOTION_USE_PW_CHROME=1` to use the Playwright one in `/opt/pw-browsers`.
+
+## Instagram ads
+
+Four cutdowns of the same footage for Stories / Reels (9:16, 1080x1920) and the feed (4:5, 1080x1350), defined in `video/src/ads.config.ts`: `Ad15-9x16`, `Ad15-4x5` (15 s) and `Ad30-9x16`, `Ad30-4x5` (30 s). They open on gameplay with a caption in the first frame (no logo intro) and end on a card with "Play free in your browser", `optcgduel.app` and the Bandai disclaimer. Silent (the music slot works as in the trailer).
+
+```bash
+cd trailer/video
+npm run render:ads           # all four -> trailer/out/ads/ad-<15|30>s-<9x16|4x5>.mp4, plus the story infographics
+npm run render:ad15          # both 15 s;  render:ad30 for the 30 s;  render:ad15-9x16 etc. for one
+node scripts/render-infographics.mjs story   # 1080x1920 story versions of the help infographics -> out/infographics/<id>-story.png
+```
+
+- An edit is `{scenes, captions, phone, endCard, total, intro, frameIn}` (`Edit` in `types.ts`). `TrailerComp` takes one; the default is `FULL_EDIT` (the 68.5 s trailer, unchanged). Ad scenes are picked from `SCENES` by id with their own `start` / `dur` / `trimStart` / `rate`, all on the 0.5 s beat grid. Captions use `br: true` to break a line.
+- Layouts: `LAYOUT_9x16` keeps everything inside y 220..1580 (Instagram covers the top 220 and bottom 340 px); `LAYOUT_4x5` has small margins only. The 16:9 footage is cropped into a near-square window, so ad scenes aim the camera with `v(cx, cy, zoom)` (view centre in 0..1 clip coordinates) instead of the 16:9 `r(x, y, w)` rects. In the vertical layouts the phone chips (Add to Home Screen, commute, flight) sit above and below the phone.
+- Story infographics (`info-<id>-story`) reuse the portrait layout with 40 px step text, one large screenshot per step, and the title / footer kept inside the safe zone.
+- Check splices after a render: `ffmpeg -i X.mp4 -vf "scale=480:-1,format=gray,tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=diff.txt" -f null -` (time of line i is (i+1)/30 s); a YAVG above 9 that is not a real UI change (a dialog opening) is a jump.
 
 ## Capturing
 

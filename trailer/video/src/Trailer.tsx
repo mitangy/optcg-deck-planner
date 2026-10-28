@@ -10,23 +10,21 @@ import type {Layout} from './layout';
 import {Logo} from './Logo';
 import {OVERLAP, SceneLayer} from './SceneLayer';
 import {PhoneStage, phoneHandoff} from './PhoneStage';
-import {CAPTIONS, END_CARD, FULL, PHONE, SCENES} from './scenes.config';
+import {FULL_EDIT} from './scenes.config';
 import {COLORS, FONT_SANS} from './theme';
-import type {SceneDef} from './types';
+import type {Edit, SceneDef} from './types';
 
-const FRAME_IN = 36; // frame (30fps) at which the browser frame rises after the logo reveal
-
-const endScene: SceneDef = {
-  id: 'end', clip: END_CARD.desktop.clip, start: END_CARD.start, dur: END_CARD.dur, trimStart: END_CARD.desktop.trimStart,
-  transition: 'fade', focus: [{at: 0, rect: END_CARD.desktop.focus}],
-};
-const ALL_SCENES = [...SCENES, endScene];
+const endSceneOf = (edit: Edit): SceneDef => ({
+  id: 'end', clip: edit.endCard.desktop.clip, start: edit.endCard.start, dur: edit.endCard.dur, trimStart: edit.endCard.desktop.trimStart,
+  transition: 'fade', focus: [{at: 0, rect: edit.endCard.desktop.focus}],
+});
 
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 /** Consecutive scenes with the same eyebrow become one run so the label doesn't restart on every cut. */
-const eyebrowRuns = () => {
+const eyebrowRuns = (edit: Edit) => {
+  const {scenes: SCENES, phone: PHONE} = edit;
   const runs: {text: string; start: number; end: number}[] = [];
   for (const s of SCENES) {
     if (!s.eyebrow) continue;
@@ -41,7 +39,9 @@ const eyebrowRuns = () => {
   return runs.sort((a, b) => a.start - b.start);
 };
 
-export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
+export const TrailerComp: React.FC<{layout: Layout; edit?: Edit}> = ({layout: L, edit = FULL_EDIT}) => {
+  const END_CARD = edit.endCard;
+  const ALL_SCENES = [...edit.scenes, endSceneOf(edit)];
   const frame = useCurrentFrame();
   const {fps, durationInFrames} = useVideoConfig();
   const fw = L.frame.w;
@@ -50,12 +50,13 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
   const endF = Math.round(END_CARD.start * fps);
 
   // --- persistent browser frame: rises in, floats, morphs to the end-card layout ---
-  const appear = spring({frame: frame - FRAME_IN, fps, config: {damping: 18, stiffness: 70, mass: 1}});
-  const appearO = clamp01((frame - FRAME_IN) / 10);
+  const FRAME_IN = edit.frameIn;
+  const appear = FRAME_IN > 0 ? spring({frame: frame - FRAME_IN, fps, config: {damping: 18, stiffness: 70, mass: 1}}) : 1;
+  const appearO = FRAME_IN > 0 ? clamp01((frame - FRAME_IN) / 10) : 1;
   const morph = spring({frame: frame - endF, fps, config: {damping: 22, stiffness: 60, mass: 1}});
   const mainCy = L.frame.top + totalH / 2;
   const endCy = L.end.desktop.top + (totalH * L.end.desktop.scale) / 2;
-  const hide = phoneHandoff(frame, fps); // 1 while the big phone has the stage
+  const hide = phoneHandoff(frame, fps, edit.phone); // 1 while the big phone has the stage
   const float = Math.sin(frame / 52) * 4 * (1 - morph);
   const frameCx = lerp(L.frame.cx, L.end.desktop.cx, morph);
   const frameCy = lerp(mainCy, endCy, morph) + (1 - appear) * 110 + float + hide * 36;
@@ -77,7 +78,7 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
         />
       )}
 
-      <Intro cx={L.width / 2} cy={L.height / 2} />
+      {edit.intro && <Intro cx={L.width / 2} cy={L.height / 2} />}
 
       <div style={{position: 'absolute', inset: 0, perspective: 2600, opacity: appearO * (1 - clamp01(hide / 0.6))}}>
         <div
@@ -100,10 +101,10 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
         </div>
       </div>
 
-      <PhoneStage layout={L} />
+      <PhoneStage layout={L} phone={edit.phone} />
 
       {/* headline lines */}
-      {CAPTIONS.map((c, i) => {
+      {edit.captions.map((c, i) => {
         const from = Math.round(c.start * fps);
         const dur = Math.round((c.end - c.start) * fps);
         return (
@@ -114,7 +115,7 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
           </Sequence>
         );
       })}
-      {eyebrowRuns().map((r, i) => {
+      {eyebrowRuns(edit).map((r, i) => {
         const from = Math.round(r.start * fps) + 6;
         const dur = Math.round((r.end - r.start) * fps) - 6;
         return (
@@ -127,13 +128,13 @@ export const TrailerComp: React.FC<{layout: Layout}> = ({layout: L}) => {
       })}
 
       <Sequence from={endF} layout="none">
-        <EndCard layout={L} />
+        <EndCard layout={L} end={END_CARD} />
       </Sequence>
     </div>
   );
 };
 
-const EndCard: React.FC<{layout: Layout}> = ({layout: L}) => {
+const EndCard: React.FC<{layout: Layout; end: Edit['endCard']}> = ({layout: L, end: END_CARD}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const ph = L.end.phone;
@@ -155,8 +156,8 @@ const EndCard: React.FC<{layout: Layout}> = ({layout: L}) => {
         </PhoneFrame>
       </div>
 
-      <div style={{position: 'absolute', left: (L.width - L.headline.maxW) / 2, top: L.end.headline.top, width: L.headline.maxW, height: L.end.headline.size * 1.2}}>
-        <Headline words={END_CARD.headline} durationInFrames={100000} size={L.end.headline.size} maxW={L.headline.maxW} boxH={L.end.headline.size * 1.2} stagger={5} />
+      <div style={{position: 'absolute', left: (L.width - L.headline.maxW) / 2, top: L.end.headline.top, width: L.headline.maxW, height: L.end.headline.size * 1.2 * (L.end.headline.lines ?? 1)}}>
+        <Headline words={END_CARD.headline} durationInFrames={100000} size={L.end.headline.size} maxW={L.headline.maxW} boxH={L.end.headline.size * 1.2 * (L.end.headline.lines ?? 1)} stagger={5} />
       </div>
 
       <div
