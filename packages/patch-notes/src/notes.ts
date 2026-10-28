@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", pr: 771, title: "A bolder attack arrow", text: "The battle arrow is thicker, has a dark outline so it stands out on bright cards and playmats (and in the light theme), and stays clearly visible while you pick a Counter or answer another prompt." },
   { date: "2026-10-28", app: "planner", pr: 765, title: "Multi-card scanning waits for the card finder", text: "Scanning a photo of several cards right after opening the scanner no longer finds almost nothing. It now shows \"Loading card finder…\" until the finder is ready, then scans the whole photo." },
   { date: "2026-10-28", app: "planner", pr: 763, title: "More promo alt arts", text: "Promo printings such as Perona's Japanese 3rd Anniversary Set and Zeus's Bandai Card Games Fest playmat promo now show up as alt arts you can pick, track and price, along with other anniversary, Judge and celebration pack promos." },
   // 2026-10-27
