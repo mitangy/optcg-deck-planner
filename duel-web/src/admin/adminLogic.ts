@@ -1,15 +1,16 @@
-import type { AdminUser, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { AdminUser, EventParticipant, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "hosting" | "users";
+export type AdminTab = "players" | "bots" | "hosting" | "event" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
   { id: "bots", label: "Bots & Log Pose" },
   { id: "hosting", label: "Hosting" },
+  { id: "event", label: "Event" },
   { id: "users", label: "Users" },
 ];
 
-/** The admin tabs a role may open: the admin sees all four, a moderator only Users, anyone else none. */
+/** The admin tabs a role may open: the admin sees all five, a moderator only Users, anyone else none. */
 export function tabsForRole(role: Role | undefined | null): readonly { id: AdminTab; label: string }[] {
   if (role === "admin") return ADMIN_TABS;
   if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "users");
@@ -325,4 +326,29 @@ export function externalUrl(raw: string | null | undefined): string | null {
 /** "14:05" (UTC) for a match's start. */
 export function timeOf(iso: string): string {
   return iso.slice(11, 16);
+}
+
+export type ParticipantSortKey = "name" | "email" | "games" | "opponents" | "eligible";
+
+/** Sorts the giveaway participants. Ties fall back to eligible first, then most games, then name, so the order is stable. */
+export function sortParticipants(rows: readonly EventParticipant[], sort: SortState<ParticipantSortKey>): EventParticipant[] {
+  const dirSign = sort.dir === "asc" ? 1 : -1;
+  const primary = (a: EventParticipant, b: EventParticipant): number => {
+    if (sort.key === "name") return a.name.localeCompare(b.name);
+    if (sort.key === "email") return a.email.localeCompare(b.email);
+    if (sort.key === "games") return a.games - b.games;
+    if (sort.key === "opponents") return a.opponents - b.opponents;
+    return Number(a.eligible) - Number(b.eligible);
+  };
+  return [...rows].sort((a, b) => dirSign * primary(a, b) || Number(b.eligible) - Number(a.eligible) || b.games - a.games || a.name.localeCompare(b.name) || a.user_id - b.user_id);
+}
+
+/** The draw button is offered once the event has ended, a seed was committed, and nothing was drawn yet. */
+export function canDrawEvent(event: { status: string; draw: { drawn_at: string | null } | null }): boolean {
+  return event.status === "ended" && event.draw !== null && event.draw.drawn_at === null;
+}
+
+/** The seed can be committed only while the event is upcoming and none exists. */
+export function canCommitSeed(event: { status: string; draw: unknown | null }): boolean {
+  return event.status === "upcoming" && event.draw === null;
 }
