@@ -25,7 +25,7 @@ product ids) are the manifests of the preview files. They are maintained by
 
 ## popups (Headless UI)
 
-`import { Dialog, Menu, MenuButton, MenuList, MenuItem, Popover, PopoverButton, PopoverPanel, PopoverGroup, Listbox, ListboxButton, ListboxList, ListboxOption } from "@optcg/ui/popups"`.
+`import { Dialog, Menu, MenuButton, MenuList, MenuItem, Popover, PopoverButton, PopoverPanel, PopoverGroup, Listbox, ListboxButton, ListboxList, ListboxOption, Select } from "@optcg/ui/popups"`.
 
 Behaviour comes from [Headless UI](https://headlessui.com) (the project does not use
 Radix, shadcn or Tailwind); the look stays with each app's own CSS.
@@ -104,6 +104,23 @@ A floating panel of anything: checkboxes, steppers, text, buttons. `PopoverPanel
 A single choice from a list. `ListboxList` is anchored and portalled like `MenuList` (it reuses the `ui-menu-items` class, `--button-width` is the trigger's width, so `width: var(--button-width)` lines the list up with it). Arrow keys, Home / End, type-ahead on each option's text, Enter / Space (pick and close), Escape (focus returns to the button) and outside click come from Headless UI. `ListboxButton` also opens on Enter (Headless UI leaves Enter to submit a form, like a native select); inside a `<form>` it keeps that. The active option shows `[data-focus]` (pointer and keys alike) and the chosen one `[data-selected]`; the list is `role="listbox"`, named by its button (Headless UI sets `aria-labelledby`, so an `aria-label` on it is ignored), and each row `role="option"`.
 
 - Options are single-purpose: Headless UI keeps focus on the list, so a button inside an option is reached by pointer only and Tab closes the list. Put anything that must be keyboard-reachable in an option of its own (the lobby's "+ New deck" and "Manage decks" rows are options whose pick navigates), or use a `Popover` if it is a panel of controls.
+### Select
+
+```tsx
+<Select
+  id="window" aria-label="Window"
+  value={days}                      // a number stays a number
+  onChange={setDays}
+  options={[{ value: 7, label: "Last 7 days" }, { value: 30, label: "Last 30 days" }]}
+/>
+```
+
+The replacement for a native `<select>`, whose open list the browser draws in its own colours (light gray with near-invisible text on Windows Chrome). Built on the Listbox above: a button with the chosen label and a chevron, and an opaque themed list in a portal under it (never moves the trigger or its neighbours), so every dropdown in both apps looks the same. Options are `{ value, label, sub?, disabled?, buttonLabel? }`: `sub` is a second line, `buttonLabel` what the closed button shows when `label` is rich. Props: `value`, `onChange(value)`, `options`, `aria-label`, `label` (a visible label; wraps the select in a column and `className` then goes on that wrapper), `id` (on the button, so `<label htmlFor>` works), `disabled`, `name`, `className` / `buttonClassName` (on the button), `listClassName`, `anchor`, `title`.
+
+- Style the closed button with `.ui-select-button` (an app rule on it beats `ui.css`, which is `:where()`): the old `.field select` rules become `.field .ui-select-button`. Parts: `ui-select-value`, `ui-select-chevron`, `ui-select-list`, `ui-select-option`, `ui-select-label`, `ui-select-sub`, `ui-select-check`. Open is `[data-open]`, disabled `[data-disabled]`.
+- Tokens (map them next to the other `--ui-*` ones): `--ui-field-bg`, `--ui-field-border` (a border shorthand), `--ui-field-radius`, `--ui-accent` (ring, chevron, check), `--ui-selected` (chosen row), `--ui-active` (active row), `--ui-muted` (`sub` and visible label).
+- In tests, the closed button is a `button[aria-haspopup="listbox"]` (click it, then click a `role="option"`); there is no `selectOption`.
+
 ## tabs (Headless UI)
 
 `import { TabGroup, TabList, Tab, TabPanels, TabPanel } from "@optcg/ui/tabs"`. Same approach as popups:

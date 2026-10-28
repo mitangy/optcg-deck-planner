@@ -55,7 +55,7 @@ import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
 import { leaderGlow } from "../home/leaderGlow";
-import { Dialog, Listbox, ListboxButton, ListboxList, ListboxOption } from "@optcg/ui/popups";
+import { Dialog, Listbox, ListboxButton, ListboxList, ListboxOption, Select } from "@optcg/ui/popups";
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
 import {
   BOT_DECK_MIRROR,
@@ -178,14 +178,15 @@ function DeckPicker({
         ) : (
           <span className="deck-picker-art" aria-hidden />
         )}
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-          {mirror ? <option value="">{mirror.label}</option> : null}
-          {decks.map((d) => (
-            <option key={d.id} value={d.id}>
-              {deckLabel(d)}
-            </option>
-          ))}
-        </select>
+        <Select
+          id={id}
+          value={value}
+          onChange={onChange}
+          options={[
+            ...(mirror ? [{ value: "", label: mirror.label }] : []),
+            ...decks.map((d) => ({ value: d.id, label: deckLabel(d) })),
+          ]}
+        />
       </div>
     </div>
   );
@@ -1213,16 +1214,17 @@ export function LobbyPage() {
               {mode === "create" ? (
                 <div className="field">
                   <label htmlFor="timer-preset">Timer</label>
-                  <select
+                  <Select<TimerPreset>
                     id="timer-preset"
                     value={timerPreset}
-                    onChange={(e) => setTimerPreset(e.target.value as TimerPreset)}
-                  >
-                    <option value="off">No timer</option>
-                    <option value="turn_30">30 second turns</option>
-                    <option value="seat_15m">15 minutes per player</option>
-                    <option value="turn_30_seat_15m">30s turns + 15 min per player</option>
-                  </select>
+                    onChange={setTimerPreset}
+                    options={[
+                      { value: "off", label: "No timer" },
+                      { value: "turn_30", label: "30 second turns" },
+                      { value: "seat_15m", label: "15 minutes per player" },
+                      { value: "turn_30_seat_15m", label: "30s turns + 15 min per player" },
+                    ]}
+                  />
                   <p className="field-hint">
                     {timerPreset === "seat_15m" || timerPreset === "turn_30_seat_15m"
                       ? "Each player's clock only runs while it's their move; whoever runs out loses. "

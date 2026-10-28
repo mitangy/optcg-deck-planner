@@ -83,10 +83,11 @@ test("Shopping remembers Still need only and the Add cards color after a reload 
 
   await addPanel(page).getByRole("button", { name: /Add cards/ }).click();
   const color = addPanel(page).getByLabel("Filter catalog by color");
-  await color.selectOption("Blue");
+  await color.click();
+  await page.getByRole("option", { name: "Blue", exact: true }).click();
 
   await page.reload();
   // The Filters drawer remembers that it was open, so it is already showing the checkbox.
   await expect(page.getByLabel("Still need only")).not.toBeChecked();
-  await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveValue("Blue");
+  await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveText(/Blue/);
 });

@@ -1,5 +1,4 @@
-import { Label } from "@headlessui/react";
-import { Listbox, ListboxButton, ListboxList, ListboxOption } from "@optcg/ui/popups";
+import { Select } from "@optcg/ui/popups";
 import { useState } from "react";
 import type { RematchDeckOption } from "../decks/rematchDecks";
 import type { PlayerDeckWire, RematchAction, RematchState, Seat, SeatPlayers } from "../net/protocol";
@@ -21,9 +20,9 @@ export function decksFromPicks(options: readonly RematchDeckOption[], picks: rea
 const KEEP_DECK = "Keep same deck";
 
 /**
- * "Deck for the rematch" picker on the shared Headless UI Listbox. A native select draws its open list with the
- * browser's own colours (light gray with near-invisible text on Windows Chrome), so the list is ours: themed,
- * opaque, and floating in a portal under the button so opening it never moves the panel (#772).
+ * "Deck for the rematch" picker on the shared Select. A native select draws its open list with the browser's
+ * own colours (light gray with near-invisible text on Windows Chrome), so the list is ours: themed, opaque,
+ * and floating in a portal under the button so opening it never moves the panel (#772).
  */
 function DeckSelect({
   options,
@@ -36,42 +35,21 @@ function DeckSelect({
   label: string;
   onChange: (id: string) => void;
 }) {
-  const picked = options.find((o) => o.id === value);
   return (
-    <Listbox value={value} onChange={onChange}>
-      <div className="rematch-deck">
-        <Label className="rematch-deck-label">{label}</Label>
-        <ListboxButton className="rematch-deck-button">
-          <span className="rematch-deck-current">{picked ? picked.name : KEEP_DECK}</span>
-          <span className="rematch-deck-chevron" aria-hidden>
-            ▾
-          </span>
-        </ListboxButton>
-        <ListboxList anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="rematch-deck-list">
-          <ListboxOption as="div" value="" className="rematch-deck-row">
-            <span className="rematch-deck-text">
-              <span className="rematch-deck-name">{KEEP_DECK}</span>
-            </span>
-            <span className="rematch-deck-check" aria-hidden>
-              {value === "" ? "✓" : ""}
-            </span>
-          </ListboxOption>
-          {options.map((o) => (
-            <ListboxOption as="div" key={o.id} value={o.id} className="rematch-deck-row">
-              <span className="rematch-deck-text">
-                <span className="rematch-deck-name">{o.name}</span>
-                <span className="rematch-deck-sub">
-                  {o.leaderName} · {o.cards} cards
-                </span>
-              </span>
-              <span className="rematch-deck-check" aria-hidden>
-                {value === o.id ? "✓" : ""}
-              </span>
-            </ListboxOption>
-          ))}
-        </ListboxList>
-      </div>
-    </Listbox>
+    <Select
+      className="rematch-deck"
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: "", label: KEEP_DECK },
+        ...options.map((o) => ({
+          value: o.id,
+          label: o.name,
+          sub: `${o.leaderName} · ${o.cards} cards`,
+        })),
+      ]}
+    />
   );
 }
 
