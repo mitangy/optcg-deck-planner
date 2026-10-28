@@ -14,7 +14,7 @@
  * Everything except `loadCardDetector`/`runModel` is pure and unit-tested.
  */
 import type { Quad } from "./cardRectify";
-import { isCardShaped, quadIoU, quadSides, setCardModelDetector, sortReadingOrder, uprightQuad } from "./cardDetect";
+import { intersectionArea, isCardShaped, quadIoU, quadSides, setCardModelDetector, sortReadingOrder, uprightQuad } from "./cardDetect";
 import type { DetectedCard } from "./cardDetect";
 import { quadArea } from "./cardRectify";
 import { scanLog } from "./scanLog";
@@ -159,6 +159,9 @@ export function decodeDetections(
   return out;
 }
 
+/** Share of a quad that must lie inside the photo (the model labels cards that are at least 55% in frame). */
+const MIN_INSIDE_FRAME = 0.4;
+
 /** Corners that cannot be a card: collapsed, bow-tied or the wrong shape. */
 export function isPlausibleCard(q: Quad, imageW: number, imageH: number): boolean {
   if (quadArea(q) < 100) return false;
@@ -174,10 +177,15 @@ export function isPlausibleCard(q: Quad, imageW: number, imageH: number): boolea
     if (sign && s !== sign) return false;
     sign = s;
   }
-  // A card can sit partly off-frame by a hair; far outside is a hallucination.
-  const slackX = imageW * 0.05;
-  const slackY = imageH * 0.05;
-  if (q.some((p) => p.x < -slackX || p.x > imageW + slackX || p.y < -slackY || p.y > imageH + slackY)) return false;
+  // A card cut by the photo's edge keeps its full quad (corners outside the
+  // photo are fine, #789); one with only a sliver inside is a hallucination.
+  const frame: Quad = [
+    { x: 0, y: 0 },
+    { x: imageW, y: 0 },
+    { x: imageW, y: imageH },
+    { x: 0, y: imageH },
+  ];
+  if (intersectionArea(q, frame) < MIN_INSIDE_FRAME * quadArea(q)) return false;
   return isCardShaped(q, 0.3);
 }
 
