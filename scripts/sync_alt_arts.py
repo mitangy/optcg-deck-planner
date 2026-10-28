@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Add missing alternate-art printings to the cosmetics catalog (#581).
 
-Usage: python3 scripts/sync_alt_arts.py [--dry-run]
+Usage: python3 scripts/sync_alt_arts.py [--dry-run] [--backend-list-only]
 
 `build_cosmetics_catalog.py` was run once, so alt printings that TCGPlayer
 listed later (or whose name had no "alternate art" marker, like El Thor's
@@ -33,6 +33,11 @@ Hashes are cached in `scripts/data/art_hashes.json` (keyed by productId) so a
 later run only downloads pictures it has not seen. Hashing needs Pillow
 (`pip install pillow`); the pure planning logic does not.
 
+Every run (but --dry-run) also writes `backend/app/data/alt_art_products.json`,
+the sorted productIds of every alt across the three sources, so the planner
+backend flags those printings special (#762). `--backend-list-only` skips the
+TCGCSV fetch and only regenerates that file from the current catalog.
+
 `sync_preview_art.py` then downloads preview scans for alts that still have no
 TCGPlayer image.
 """
@@ -57,6 +62,7 @@ CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
 TCG_PRODUCTS = ROOT / "duel-web/src/assets/tcgProducts.json"
 HASH_CACHE = ROOT / "scripts/data/art_hashes.json"
+BACKEND_ALT_LIST = ROOT / "backend/app/data/alt_art_products.json"
 
 UA = "Mozilla/5.0"
 TCGCSV = "https://tcgcsv.com/tcgplayer/68"
@@ -339,14 +345,38 @@ def existing_alt_info(card_id: str, catalog: dict, atlas: dict, tcg: dict):
     return pids, {a["id"] for a in alts}, [a.get("label", "") for a in alts]
 
 
+def alt_product_ids(catalog: dict, atlas: dict, tcg: dict) -> list[int]:
+    """Sorted unique productIds of every alt art in catalog, atlas and tcgProducts."""
+    pids: set[int] = set()
+    for card_id in catalog:
+        found, _, _ = existing_alt_info(card_id, catalog, atlas, tcg)
+        pids |= found
+    return sorted(pids)
+
+
+def save_backend_alt_list(pids: list[int], path: Path = BACKEND_ALT_LIST) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(pids, separators=(",", ":")) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--dry-run", action="store_true", help="print the plan, write nothing (but the hash cache)")
+    ap.add_argument(
+        "--backend-list-only",
+        action="store_true",
+        help="skip the TCGCSV fetch; only regenerate backend/app/data/alt_art_products.json",
+    )
     args = ap.parse_args()
 
     catalog = load_json(CATALOG)
     atlas = load_json(ATLAS)
     tcg = load_json(TCG_PRODUCTS)
+    if args.backend_list_only:
+        pids = alt_product_ids(catalog, atlas, tcg)
+        save_backend_alt_list(pids)
+        print(f"Wrote {len(pids)} alt product ids to {BACKEND_ALT_LIST.relative_to(ROOT)}")
+        return 0
     print("Reading tcgcsv.com products...")
     by_number = products_by_number()
 
@@ -403,6 +433,8 @@ def main() -> int:
         CATALOG.write_text(
             json.dumps(catalog, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8"
         )
+    if not args.dry_run:
+        save_backend_alt_list(alt_product_ids(catalog, atlas, tcg))
     save_hashes(cache)  # a cache only: kept on --dry-run so a second run is cheap
 
     by_label = Counter(a["label"] for _, a in added)

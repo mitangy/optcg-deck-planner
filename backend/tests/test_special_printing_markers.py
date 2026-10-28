@@ -192,3 +192,58 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
     alts = _alt_arts_map(db, {"OP01-016", "OP14-029"})
     assert [a.product_id for a in alts.get("OP01-016", [])] == [12]
     assert "OP14-029" not in alts or alts["OP14-029"] == []
+
+
+PERONA_NAME = "Perona (Japanese Version 3rd Anniversary Set)"
+PERONA_ANNIVERSARY_PID = 680491  # on the shipped alt-art list, no name marker
+
+
+def test_unmarked_promo_is_special_only_when_its_product_is_on_the_alt_list_762():
+    assert is_special_printing(PERONA_NAME, PERONA_ANNIVERSARY_PID)
+    assert not is_special_printing(PERONA_NAME, 999999999)
+    assert not is_special_printing(PERONA_NAME)
+
+
+def test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762(db):
+    db.add(
+        CatalogCard(
+            card_id="OP12-034",
+            name="Perona",
+            market_price=0.5,
+            image_url="https://img.test/perona-base.jpg",
+            group_name="Legacy of the Master",
+            is_special=0,
+        )
+    )
+    db.add(
+        CatalogPrinting(
+            card_id="OP12-034",
+            product_id=1,
+            name="Perona",
+            market_price=0.5,
+            image_url="https://img.test/perona-base.jpg",
+            group_name="Legacy of the Master",
+            is_special=0,
+        )
+    )
+    db.add(
+        CatalogPrinting(
+            card_id="OP12-034",
+            product_id=PERONA_ANNIVERSARY_PID,
+            name=PERONA_NAME,
+            market_price=3.0,
+            image_url="https://img.test/perona-anniv.jpg",
+            group_name="Promo",
+            is_special=0,  # stale: no name marker
+        )
+    )
+    db.commit()
+
+    refresh_special_flags(db)
+
+    row = db.scalar(
+        select(CatalogPrinting).where(CatalogPrinting.product_id == PERONA_ANNIVERSARY_PID)
+    )
+    assert row is not None and row.is_special == 1
+    alts = _alt_arts_map(db, {"OP12-034"})
+    assert [a.product_id for a in alts.get("OP12-034", [])] == [PERONA_ANNIVERSARY_PID]

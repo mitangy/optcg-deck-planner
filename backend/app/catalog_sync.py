@@ -192,7 +192,7 @@ def refresh_special_flags(db: Session) -> dict[str, int]:
     printings_updated = 0
     by_card: dict[str, list[CatalogPrinting]] = defaultdict(list)
     for row in printings:
-        flag = 1 if is_special_printing(row.name) else 0
+        flag = 1 if is_special_printing(row.name, row.product_id) else 0
         if int(row.is_special or 0) != flag:
             row.is_special = flag
             printings_updated += 1
@@ -277,7 +277,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "image_url": product.get("imageUrl") or "",
                     "tcgplayer_url": product.get("url") or "",
                     "group_name": group_name,
-                    "is_special": 1 if is_special_printing(name) else 0,
+                    "is_special": 1 if is_special_printing(name, product_id) else 0,
                 }
                 by_card[card_id].append(entry)
 

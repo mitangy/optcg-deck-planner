@@ -25,5 +25,9 @@ module.exports = {
     { id: "alt-duplicate-label-kept", file: F, from: `    if label not in taken:\n        return label\n`, to: `    return label\n`, kills: ["test_a_label_the_card_already_has_gets_a_number"] },
     { id: "alt-known-product-readded", file: F, from: `        if pid == primary_pid or pid in known_pids:\n            continue\n`, to: ``, kills: ["test_the_primary_and_existing_alt_products_are_never_candidates"] },
     { id: "alt-pcc-label-plain", file: F, from: `if suffix and len(suffix) <= PCC_SUFFIX_MAX:`, to: `if False:`, kills: ["test_premium_card_collection_keeps_a_short_volume"] },
+    { id: "alt-ids-skip-atlas", file: F, from: `    alts += atlas.get(card_id, {}).get("altArts") or []\n`, to: ``, kills: ["test_ids_from_catalog_atlas_and_tcg_products_are_deduped_and_sorted_762"] },
+    { id: "alt-ids-skip-tcg-products", file: F, from: `    alts += tcg.get(card_id, {}).get("alts") or []\n`, to: ``, kills: ["test_ids_from_catalog_atlas_and_tcg_products_are_deduped_and_sorted_762"] },
+    { id: "alt-ids-unsorted", file: F, from: `    return sorted(pids)\n\n\ndef save_backend_alt_list`, to: `    return sorted(pids, reverse=True)\n\n\ndef save_backend_alt_list`, kills: ["test_ids_from_catalog_atlas_and_tcg_products_are_deduped_and_sorted_762"] },
+    { id: "alt-ids-not-deduped", file: F, from: `    pids: set[int] = set()\n    for card_id in catalog:\n        found, _, _ = existing_alt_info(card_id, catalog, atlas, tcg)\n        pids |= found\n    return sorted(pids)`, to: `    pids: list[int] = []\n    for card_id in catalog:\n        found, _, _ = existing_alt_info(card_id, catalog, atlas, tcg)\n        pids += found\n    return sorted(pids)`, kills: ["test_ids_from_catalog_atlas_and_tcg_products_are_deduped_and_sorted_762"] },
   ],
 };
