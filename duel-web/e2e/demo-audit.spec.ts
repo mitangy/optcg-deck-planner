@@ -983,15 +983,17 @@ for (const vp of [
   }
 }
 
-// The fan and its count sit in the middle of the gutter, vertically on the opponent
-// mat's height rather than stuck to the top (#582).
+// The fan lines up with the top of the opponent mat and hugs the mat's side, with its count
+// under it, however wide the window is (#775; it was centred in the gutter, #582).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+  { width: 2600, height: 900 },
 ]) {
   for (const spot of ["left", "right"] as const) {
     for (const big of [true, false]) {
-      test(`the opponent hand on the ${spot} is centred beside the opponent mat at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#582)`, async ({ page }, info) => {
+      test(`the opponent hand on the ${spot} is top-aligned with the opponent mat and hugs its edge at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#775)`, async ({ page }, info) => {
         test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
         await page.setViewportSize(vp);
         await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
@@ -1007,23 +1009,38 @@ for (const vp of [
           const box = (el: Element) => el.getBoundingClientRect();
           const wrap = box(document.querySelector(".opp-hand-mat-side")!);
           const mat = box(document.querySelector(".side-field.side-opp")!);
-          const kids = [...document.querySelectorAll(".opp-hand-mat-side .opp-hand-corner > *")].map(box);
+          const count = box(document.querySelector(".opp-hand-mat-side .opp-hand-count")!);
           const backs = [...document.querySelectorAll(".opp-hand-mat-side .opp-corner-card")].map(box);
           return {
-            wrapX: wrap.left + wrap.width / 2,
-            matY: mat.top + mat.height / 2,
-            top: Math.min(...kids.map((r) => r.top)),
-            bottom: Math.max(...kids.map((r) => r.bottom)),
+            matT: mat.top,
+            matL: mat.left,
+            matR: mat.right,
+            wrapL: wrap.left,
+            wrapR: wrap.right,
+            countT: count.top,
+            backT: Math.min(...backs.map((r) => r.top)),
+            backB: Math.max(...backs.map((r) => r.bottom)),
             backL: Math.min(...backs.map((r) => r.left)),
             backR: Math.max(...backs.map((r) => r.right)),
-            kids: kids.length,
             backs: backs.length,
           };
         });
-        expect(m.kids).toBeGreaterThan(0);
         expect(m.backs).toBeGreaterThan(0);
-        expect(Math.abs((m.top + m.bottom) / 2 - m.matY)).toBeLessThan(6);
-        expect(Math.abs((m.backL + m.backR) / 2 - m.wrapX)).toBeLessThan(6);
+        // Top of the cards on the top of the mat (not above it, not hanging down the gutter).
+        expect(m.backT - m.matT).toBeLessThan(8);
+        expect(m.backT - m.matT).toBeGreaterThan(-3);
+        // Hugging the mat's side, not centred in a gutter that can be far wider than the fan.
+        if (spot === "right") {
+          expect(m.backL).toBeGreaterThanOrEqual(m.matR);
+          expect(m.backL - m.matR).toBeLessThan(16);
+          expect(m.backR).toBeLessThanOrEqual(m.wrapR + 1);
+        } else {
+          expect(m.backR).toBeLessThanOrEqual(m.matL);
+          expect(m.matL - m.backR).toBeLessThan(16);
+          expect(m.backL).toBeGreaterThanOrEqual(m.wrapL - 1);
+        }
+        // The count is under the cards.
+        expect(m.countT).toBeGreaterThanOrEqual(m.backB - 1);
       });
     }
   }
