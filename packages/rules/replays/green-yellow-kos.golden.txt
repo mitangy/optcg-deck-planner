@@ -31,7 +31,7 @@ Seat 1 leader: Charlotte Linlin (OP17-099)
 > #5 seat 1 play_card {"handIndex":3}
   Seat 1 plays Nico Olvia (rests 1 DON!!)
   Seat 1 activates Nico Olvia's ability
-  Seat 1 may resolve Nico Olvia's effect (Nico Olvia — pay the cost to activate: [On Play] You may trash 1 card with a Trigger from your hand: If your Leader is [Nico Robin], draw 2 cards.)
+  Seat 1 may resolve Nico Olvia's effect (Nico Olvia — pay the cost to activate: [On Play] You may trash 1 card with a [Trigger] from your hand: If your Leader is [Nico Robin], draw 2 cards.)
 
 > #6 seat 1 resolve_pending_choice {"accept":false}
   Seat 1 declines Nico Olvia's effect

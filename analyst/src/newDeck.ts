@@ -84,14 +84,14 @@ export function newDeckTool(catalog: Catalog, knowledge: { library?: OfficialLib
     name: NEW_DECK_TOOL,
     title: "Build new deck",
     description:
-      "Build a new deck for the player when they ask you to build, make or create one. Give the leader and the full main deck (every card by number with 1-4 copies, 50 cards in all, leader and DON!! not counted). " +
+      "Build a new deck for the player when they ask you to build, make or create one. Give the leader and the full main deck (every card by number with 1-4 copies, or more for a card that allows any number, 50 cards in all, leader and DON!! not counted). " +
       "Nothing is saved: the app opens its create-deck page with this name and list filled in and the player presses Create. " +
       "The list is checked for 50 cards, at most 4 copies, the leader's colors and rules, and the ban list; a list that breaks one is refused with the reasons.",
     inputSchema: {
       name: z.string().trim().min(2).max(60),
       leader_id: z.string().max(20),
       cards: z
-        .array(z.object({ id: z.string().max(20), copies: z.number().int().min(1).max(4) }))
+        .array(z.object({ id: z.string().max(20), copies: z.number().int().min(1).max(DECK_SIZE) }))
         .min(1)
         .max(DECK_SIZE),
       summary: z.string().trim().min(3).max(300),

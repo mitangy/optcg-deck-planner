@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.catalog_sync import refresh_special_flags
 from app.domain import is_special_printing
 from app.models import CatalogCard, CatalogPrinting
-from app.services import _alt_arts_map
+from app.services import _alt_arts_map, _primary_product_ids
 
 
 def test_classic_and_expanded_special_markers():
@@ -192,3 +192,91 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
     alts = _alt_arts_map(db, {"OP01-016", "OP14-029"})
     assert [a.product_id for a in alts.get("OP01-016", [])] == [12]
     assert "OP14-029" not in alts or alts["OP14-029"] == []
+
+
+PERONA_NAME = "Perona (Japanese Version 3rd Anniversary Set)"
+PERONA_ANNIVERSARY_PID = 680491  # on the shipped alt-art list, no name marker
+
+
+def test_unmarked_promo_is_special_only_when_its_product_is_on_the_alt_list_762():
+    assert is_special_printing(PERONA_NAME, PERONA_ANNIVERSARY_PID)
+    assert not is_special_printing(PERONA_NAME, 999999999)
+    assert not is_special_printing(PERONA_NAME)
+
+
+def test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762(db):
+    db.add(
+        CatalogCard(
+            card_id="OP12-034",
+            name="Perona",
+            market_price=0.5,
+            image_url="https://img.test/perona-base.jpg",
+            group_name="Legacy of the Master",
+            is_special=0,
+        )
+    )
+    db.add(
+        CatalogPrinting(
+            card_id="OP12-034",
+            product_id=1,
+            name="Perona",
+            market_price=0.5,
+            image_url="https://img.test/perona-base.jpg",
+            group_name="Legacy of the Master",
+            is_special=0,
+        )
+    )
+    db.add(
+        CatalogPrinting(
+            card_id="OP12-034",
+            product_id=PERONA_ANNIVERSARY_PID,
+            name=PERONA_NAME,
+            market_price=3.0,
+            image_url="https://img.test/perona-anniv.jpg",
+            group_name="Promo",
+            is_special=0,  # stale: no name marker
+        )
+    )
+    db.commit()
+
+    refresh_special_flags(db)
+
+    row = db.scalar(
+        select(CatalogPrinting).where(CatalogPrinting.product_id == PERONA_ANNIVERSARY_PID)
+    )
+    assert row is not None and row.is_special == 1
+    alts = _alt_arts_map(db, {"OP12-034"})
+    assert [a.product_id for a in alts.get("OP12-034", [])] == [PERONA_ANNIVERSARY_PID]
+
+
+BOA_BASE_PID = 486398  # real base printing, on the alt-art list, no name marker
+BOA_PRERELEASE_PID = 486712  # duel-web's main art, not on the list, no name marker
+
+
+def test_a_listed_promo_id_never_demotes_the_base_printing_763(db):
+    def printing(pid, name, price, group):
+        return CatalogPrinting(
+            card_id="OP02-059",
+            product_id=pid,
+            name=name,
+            market_price=price,
+            image_url=f"https://img.test/{pid}.jpg",
+            group_name=group,
+            is_special=0,
+        )
+
+    db.add(CatalogCard(card_id="OP02-059", name="Boa Hancock", market_price=0.25, is_special=0))
+    db.add(printing(BOA_BASE_PID, "Boa Hancock", 0.25, "Paramount War"))
+    db.add(printing(BOA_PRERELEASE_PID, "Boa Hancock", 63.96, "Paramount War Pre-Release Cards"))
+    db.add(printing(PERONA_ANNIVERSARY_PID, "Boa Hancock (Anniversary)", 3.0, "Promo"))
+    db.commit()
+
+    refresh_special_flags(db)
+
+    flags = {r.product_id: r.is_special for r in db.scalars(select(CatalogPrinting)).all()}
+    assert flags == {BOA_BASE_PID: 0, BOA_PRERELEASE_PID: 0, PERONA_ANNIVERSARY_PID: 1}
+    card = db.get(CatalogCard, "OP02-059")
+    assert card.market_price == 0.25 and card.group_name != "Paramount War Pre-Release Cards"
+    assert _primary_product_ids(db, {"OP02-059"}) == {"OP02-059": BOA_BASE_PID}
+    alts = _alt_arts_map(db, {"OP02-059"})
+    assert [a.product_id for a in alts["OP02-059"]] == [PERONA_ANNIVERSARY_PID]

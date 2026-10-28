@@ -22,7 +22,7 @@ vi.mock("./cardScanMatch", async (importOriginal) => ({
   },
 }));
 
-import { classifyMatch, matchAllCardsWith } from "./cardScanMulti";
+import { capOverlappedConfidence, classifyMatch, dropHiddenUnnamed, matchAllCardsWith } from "./cardScanMulti";
 describe("classifyMatch", () => {
   it("is sure only with enough inliers and a clear lead over the runner-up (#701)", () => {
     expect(classifyMatch({ inliers: 10, runnerUp: 5 })).toBe("sure");
@@ -91,5 +91,82 @@ describe("matchAllCardsWith touching blocks", () => {
     order([null, null, null, { cardId: "OP01-001", inliers: 30, runnerUp: 0 }]);
     const items = await run();
     expect(items).toHaveLength(3);
+  });
+});
+
+describe("overlapped detections (#769)", () => {
+  const item = (quad: Quad, inliers: number, confidence: "sure" | "check" | "none" = "sure") => ({ quad, inliers, confidence });
+
+  it("keeps sure only for the best read among overlapping cards (#769)", () => {
+    // Two cards of a fan: the rear one is half hidden behind the front one.
+    const rear = item(box(0, 0, 100, 140), 30);
+    const front = item(box(55, 0, 100, 140), 60);
+    expect(capOverlappedConfidence([rear, front]).map((i) => i.confidence)).toEqual(["check", "sure"]);
+    expect(capOverlappedConfidence([front, rear]).map((i) => i.confidence)).toEqual(["sure", "check"]);
+  });
+
+  it("breaks a tie by keeping only the first as sure (#769)", () => {
+    const a = item(box(0, 0, 100, 140), 40);
+    const b = item(box(55, 0, 100, 140), 40);
+    expect(capOverlappedConfidence([a, b]).map((i) => i.confidence)).toEqual(["sure", "check"]);
+  });
+
+  it("leaves cards that only touch alone (#769)", () => {
+    const a = item(box(0, 0, 100, 140), 30);
+    const b = item(box(95, 0, 100, 140), 60); // 5% sliver of overlap
+    expect(capOverlappedConfidence([a, b]).map((i) => i.confidence)).toEqual(["sure", "sure"]);
+  });
+
+  it("never upgrades a card that was not sure (#769)", () => {
+    const weak = item(box(0, 0, 100, 140), 5, "check");
+    const miss = item(box(55, 0, 100, 140), 0, "none");
+    expect(capOverlappedConfidence([weak, miss]).map((i) => i.confidence)).toEqual(["check", "none"]);
+  });
+
+  it("is applied to what matchAllCardsWith returns (#769)", async () => {
+    state.cards = [{ quad: box(0, 0, 100, 140) }, { quad: box(55, 0, 100, 140) }];
+    state.results = [
+      { cardId: "OP01-001", inliers: 30, runnerUp: 0 },
+      { cardId: "OP01-002", inliers: 60, runnerUp: 0 },
+    ];
+    const items = await run();
+    expect(items.map((i) => [i.cardId, i.confidence])).toEqual([
+      ["OP01-001", "check"],
+      ["OP01-002", "sure"],
+    ]);
+  });
+});
+
+describe("unnamed covered detections (#769)", () => {
+  const mk = (quad: Quad, confidence: "sure" | "check" | "none") => ({ quad, confidence });
+
+  it("drops an unnamed card that another detection mostly covers (#769)", () => {
+    const front = mk(box(0, 0, 100, 140), "sure");
+    const strip = mk(box(30, 0, 100, 140), "none"); // 70% of it is behind the front card
+    expect(dropHiddenUnnamed([front, strip])).toEqual([front]);
+  });
+
+  it("keeps a covered card that was named, even as check (#769)", () => {
+    const front = mk(box(0, 0, 100, 140), "sure");
+    const named = mk(box(30, 0, 100, 140), "check");
+    expect(dropHiddenUnnamed([front, named])).toHaveLength(2);
+  });
+
+  it("keeps an unnamed card that is only slightly overlapped (#769)", () => {
+    const a = mk(box(0, 0, 100, 140), "sure");
+    const b = mk(box(70, 0, 100, 140), "none"); // 30% overlapped
+    expect(dropHiddenUnnamed([a, b])).toHaveLength(2);
+  });
+
+  it("keeps one of two unnamed cards that cover each other (#769)", () => {
+    const a = mk(box(0, 0, 100, 140), "none");
+    const b = mk(box(20, 0, 100, 140), "none");
+    expect(dropHiddenUnnamed([a, b])).toEqual([b]);
+  });
+
+  it("is applied to what matchAllCardsWith returns (#769)", async () => {
+    state.cards = [{ quad: box(0, 0, 100, 140) }, { quad: box(30, 0, 100, 140) }];
+    state.results = [{ cardId: "OP01-001", inliers: 60, runnerUp: 0 }, null];
+    expect((await run()).map((i) => i.cardId)).toEqual(["OP01-001"]);
   });
 });

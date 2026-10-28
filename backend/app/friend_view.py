@@ -93,6 +93,11 @@ class Holdings:
     spare: int
     alts: dict[int, int]
 
+    @property
+    def base_owned(self) -> int:
+        """Copies of the standard printing (total minus alt-printing copies)."""
+        return max(0, self.owned_total - sum(self.alts.values()))
+
 
 def total_owned(db: Session, user_id: int) -> dict[str, int]:
     """card_id -> base copies + alt-printing copies."""
@@ -168,6 +173,7 @@ def spare_items(
                 image_url=cat.image_url if cat else "",
                 market_price=cat.market_price if cat else None,
                 spare=h.spare,
+                base_owned=h.base_owned,
                 want=want.get(card_id, 0),
                 printings=[
                     SparePrinting(

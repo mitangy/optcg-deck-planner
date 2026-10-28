@@ -10,6 +10,7 @@
  *   MODEL=public/scan-data/card-detector.onnx npx tsx scripts/detect-eval.mjs
  *   MODE=classic npx tsx scripts/detect-eval.mjs     # the OpenCV detector alone
  *   IDENTIFY=0 ...                                   # detection numbers only (fast)
+ *   SCORE=0.4 NMS=0.6 LONG_SIDE=800 ...              # override the model's decode options
  *   DESC=.scan-build/full-desc  PHOTOS=photo3,photo4  OUT=/tmp/overlays
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
@@ -31,6 +32,7 @@ const OUT = process.env.OUT || ".scan-build/real-detect";
 const only = process.env.PHOTOS ? process.env.PHOTOS.split(",") : null;
 const LONG = Number(process.env.LONG_SIDE || 0) || undefined;
 const SCORE = Number(process.env.SCORE || 0) || undefined;
+const NMS = Number(process.env.NMS || 0) || undefined;
 
 function decode(name) {
   const raw = jpeg.decode(readFileSync(join(DIR, name)), { useTArray: true, maxMemoryUsageInMB: 2048 });
@@ -79,7 +81,7 @@ const cv = await getCv();
 if (MODE === "model") {
   const ok = await loadCardDetector(new Uint8Array(readFileSync(MODEL)), ort);
   if (!ok) { console.error(`could not load ${MODEL}`); process.exit(1); }
-  if (LONG || SCORE) setCardModelDetector((img) => detectWithModel(img, { longSide: LONG, scoreThreshold: SCORE }));
+  if (LONG || SCORE || NMS) setCardModelDetector((img) => detectWithModel(img, { longSide: LONG, scoreThreshold: SCORE, nmsIoU: NMS }));
 }
 if (process.env.SYNTH) {
   // The multi-scan harness's synthetic scenes (run multi-scan-harness.mjs once to write them).
@@ -105,7 +107,7 @@ const truth = JSON.parse(readFileSync(join(DIR, "truth.json"), "utf8"));
 const quads = JSON.parse(readFileSync(join(DIR, "quads.json"), "utf8"));
 mkdirSync(OUT, { recursive: true });
 
-const tot = { gt: 0, found: 0, fp: 0, iou: 0, piles: 0, pilesFound: 0, idOk: 0, ms: 0 };
+const tot = { gt: 0, found: 0, fp: 0, iou: 0, piles: 0, pilesFound: 0, idOk: 0, ms: 0, sureWrong: 0 };
 for (const [photo, gt] of Object.entries(quads)) {
   if (only && !only.some((o) => photo.startsWith(o))) continue;
   const img = decode(photo);
@@ -136,6 +138,16 @@ for (const [photo, gt] of Object.entries(quads)) {
     `fp ${fp}  meanIoU ${(pairs.length ? iou / pairs.length : 0).toFixed(2)}` +
     (IDENTIFY ? `  piles ${pilesFound}/${piles.length}  idOk ${idOk}/${pairs.length}` : "") + `  ${Math.round(ms)}ms`,
   );
+  if (IDENTIFY) {
+    // Sure-but-wrong on labelled cards, and what the unlabelled extra detections were read as.
+    for (const p of pairs) {
+      const accepted = (truth[photo] || []).find((t) => t.ids.includes(gt[p.gi].id))?.ids ?? [gt[p.gi].id];
+      const it = items[p.di];
+      if (!(it.cardId && accepted.includes(it.cardId.split("__")[0])) && it.confidence !== "sure") console.log(`    not identified: ${gt[p.gi].id} read as ${it.cardId ?? "-"} (${it.confidence}, ${it.inliers} inliers)`);
+      if (it.confidence === "sure" && !(it.cardId && accepted.includes(it.cardId.split("__")[0]))) { tot.sureWrong += 1; console.log(`    SURE-BUT-WRONG: ${gt[p.gi].id} read as ${it.cardId}`); }
+    }
+    items.forEach((it, i) => { if (!matchedDet.has(i)) console.log(`    extra: ${it.confidence} ${it.cardId ?? "-"} inliers ${it.inliers}`); });
+  }
   const miss = gt.filter((_, gi) => !pairs.some((p) => p.gi === gi)).map((g) => g.id);
   if (miss.length) console.log(`    missed: ${miss.join(", ")}`);
   Object.assign(tot, { gt: tot.gt + gt.length, found: tot.found + pairs.length, fp: tot.fp + fp, iou: tot.iou + iou, piles: tot.piles + piles.length, pilesFound: tot.pilesFound + pilesFound, idOk: tot.idOk + idOk, ms: tot.ms + ms });
@@ -146,5 +158,5 @@ for (const [photo, gt] of Object.entries(quads)) {
   writeFileSync(join(OUT, `${MODE}-${photo}`), jpeg.encode({ width: over.width, height: over.height, data: Buffer.from(over.data) }, 82).data);
 }
 console.log(`\n${MODE.toUpperCase()}: top cards found ${tot.found}/${tot.gt}  false positives ${tot.fp}  mean IoU ${(tot.iou / Math.max(1, tot.found)).toFixed(3)}` +
-  (IDENTIFY ? `  piles ${tot.pilesFound}/${tot.piles}  ids correct ${tot.idOk}/${tot.found}` : "") + `  total ${Math.round(tot.ms)}ms`);
+  (IDENTIFY ? `  piles ${tot.pilesFound}/${tot.piles}  ids correct ${tot.idOk}/${tot.found}  sure-but-wrong ${tot.sureWrong}` : "") + `  total ${Math.round(tot.ms)}ms`);
 process.exit(0);

@@ -179,6 +179,30 @@ def _orm_printing_sort_key(row: CatalogPrinting) -> tuple:
     )
 
 
+def _special_flags(printings: list[tuple[int, str, float | None]]) -> dict[int, int]:
+    """is_special per product id for one card number (#761).
+
+    The alt-art id list (#763) may flag any printing except the one the name
+    markers alone would pick as primary: duel-web sometimes uses a pre-release
+    as a card's main art and lists the real base printing as an alt.
+    """
+    marker = {pid: is_special_printing(name) for pid, name, _ in printings}
+    primary = min(
+        printings,
+        # On a price tie, an id-listed printing is the alt rather than the primary.
+        key=lambda p: (
+            marker[p[0]],
+            p[2] if p[2] is not None else 1e9,
+            is_special_printing(p[1], p[0]),
+            p[0],
+        ),
+    )[0]
+    return {
+        pid: int(marker[pid] or (pid != primary and is_special_printing(name, pid)))
+        for pid, name, _ in printings
+    }
+
+
 def refresh_special_flags(db: Session) -> dict[str, int]:
     """Recompute is_special from stored names and re-pick preferred catalog rows.
 
@@ -192,11 +216,13 @@ def refresh_special_flags(db: Session) -> dict[str, int]:
     printings_updated = 0
     by_card: dict[str, list[CatalogPrinting]] = defaultdict(list)
     for row in printings:
-        flag = 1 if is_special_printing(row.name) else 0
-        if int(row.is_special or 0) != flag:
-            row.is_special = flag
-            printings_updated += 1
         by_card[row.card_id].append(row)
+    for rows in by_card.values():
+        flags = _special_flags([(r.product_id, r.name, r.market_price) for r in rows])
+        for row in rows:
+            if int(row.is_special or 0) != flags[row.product_id]:
+                row.is_special = flags[row.product_id]
+                printings_updated += 1
 
     now = datetime.now(timezone.utc)
     cards_updated = 0
@@ -277,7 +303,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "image_url": product.get("imageUrl") or "",
                     "tcgplayer_url": product.get("url") or "",
                     "group_name": group_name,
-                    "is_special": 1 if is_special_printing(name) else 0,
+                    "is_special": 0,  # set per card below, once all printings are known
                 }
                 by_card[card_id].append(entry)
 
@@ -298,6 +324,9 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         for entry in entries:
             unique[entry["product_id"]] = entry
         entries = list(unique.values())
+        flags = _special_flags([(e["product_id"], e["name"], e["market_price"]) for e in entries])
+        for entry in entries:
+            entry["is_special"] = flags[entry["product_id"]]
         printing_count += len(entries)
 
         best = sorted(entries, key=_printing_sort_key)[0]

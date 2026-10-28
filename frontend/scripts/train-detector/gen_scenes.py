@@ -14,10 +14,13 @@ Scenes are square (SIZE x SIZE). The network is fully convolutional, so it
 runs at the real photo's aspect at inference.
 
 Ground-truth rule (applied consistently): a card is labelled when it is a
-One Piece card face and at least VISIBLE_MIN (85%, i.e. the top card of a pile) of its area is not covered by
-anything drawn in front of it. Cards behind that are less visible, face-down
-cards, non-One-Piece "distractor" cards and boxes with printed art are NOT
-labelled.
+One Piece card face and at least VISIBLE_MIN of its area (default 35%,
+`--visible-min`) is not covered by anything drawn in front of it. A partly
+covered card gets its FULL printed quad (amodal: the hidden corners are where
+the card's own geometry puts them) and a keypoint visibility flag of 1 for
+every corner that is covered, 2 for corners that can be seen. Cards that are
+less visible than that, face-down cards, non-One-Piece "distractor" cards and
+boxes with printed art are NOT labelled.
 """
 import argparse, glob, math, os, random, sys
 from multiprocessing import Pool
@@ -25,7 +28,9 @@ import cv2
 import numpy as np
 
 SIZE = 640
-VISIBLE_MIN = 0.85
+VISIBLE_MIN = 0.35
+NON_OP_PILE = 0.07  # share of table piles made of non-One-Piece cards (--non-op-piles)
+DISTRACTOR_ON_CARDS = 0.0  # share of distractors dropped right next to / under a card (--hard-negatives)
 CARD_ASPECT = 63.0 / 88.0
 rng = random.Random()  # re-seeded per scene
 
@@ -125,6 +130,19 @@ def foil(img):
     rainbow = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).astype(np.float32)
     a = U(0.08, 0.28)
     return img * (1 - a) + rainbow * a
+
+
+def gold_frame(img):
+    """Gold-bordered alt art: a thick metallic frame on the card's edge."""
+    h, w = img.shape[:2]
+    t = max(3, int(w * U(0.035, 0.07)))
+    m = np.ones((h, w), np.float32)
+    m[t : h - t, t : w - t] = 0
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    shine = 0.75 + 0.25 * np.sin((xs + ys) / max(w, h) * U(4, 12))
+    gold = np.dstack([np.full((h, w), 60, np.float32), 175 * shine, 225 * shine]) * U(0.85, 1.1)
+    m = cv2.GaussianBlur(m, (0, 0), 0.8)[..., None]
+    return img * (1 - m) + gold * m
 
 
 def text_mask(w, h, words, scale, thick=1):
@@ -493,6 +511,8 @@ def make_scene(cards, bg, rngseed):
             f = round_card(im, cw, ch)
             if rng.random() < 0.15:
                 f = (foil(f[0]), f[1])
+            if rng.random() < 0.10:
+                f = (gold_frame(f[0]), f[1])
             g = U(0.88, 1.12)
             c = np.array([U(0.92, 1.08), U(0.92, 1.08), U(0.92, 1.08)], np.float32)
             return (np.clip(f[0] * g * c, 0, 255), f[1])
@@ -515,7 +535,8 @@ def make_scene(cards, bg, rngseed):
             sps.append(sp)
         # offsets: bottom card first, top card last
         d_ang = math.radians(rot + fan_dir)
-        along = ch if fan_dir % 180 == 0 else cw
+        rel = math.radians(fan_dir)  # card extent along the offset direction
+        along = abs(math.cos(rel)) * ch + abs(math.sin(rel)) * cw
         step = step_frac * along * rng.choice([1, 1])
         poly_pts = []
         local = []
@@ -601,18 +622,25 @@ def make_scene(cards, bg, rngseed):
             n = rng.choices([1, 2, 3, 4, 5], [30, 22, 20, 16, 12])[0]
             if kind in ("slab", "acrylic"):
                 n = 1
-            non_op = rng.random() < 0.07
-            style = rng.choice(["fan", "fan", "stack", "side"])
-            step = {"fan": U(0.03, 0.25), "stack": U(0.005, 0.045), "side": U(0.0, 0.0)}[style]
+            non_op = rng.random() < NON_OP_PILE
+            style = rng.choice(["fan", "wide_fan", "wide_fan", "stack", "side", "side", "cover"])
+            step = {"fan": U(0.03, 0.25), "wide_fan": U(0.3, 0.65), "stack": U(0.005, 0.045), "side": U(0.0, 0.0), "cover": U(0.3, 0.8)}[style]
             fan_dir = rng.choice([0, 180, 90, 270]) + U(-6, 6)
             if style == "side" and n > 1:  # cards laid next to each other, edges touching or overlapping
                 fan_dir = 90 if rng.random() < 0.5 else 270
                 step = U(0.5, 1.04)
+            if style == "cover":  # a card half on top of another, any direction
+                fan_dir = U(0, 360)
+                n = rng.choice([2, 2, 3])
+            if kind in ("slab", "acrylic"):
+                n = 1
             for attempt in range(8):
                 cx = U(0.1, 0.9) * SIZE
                 cy = U(0.1, 0.9) * SIZE
                 local, poly = add_pile(cx, cy, hc, rot, kind, n, step, fan_dir, non_op=non_op)
                 ok, m = foot_free(poly)
+                if not ok and placed > 0 and rng.random() < 0.3:
+                    ok = True  # lay this pile partly over a neighbour
                 if not ok or not inside_scene(local):
                     continue
                 # fan behind cards that are scattered: keep one label rule: visibility decided later
@@ -628,23 +656,28 @@ def make_scene(cards, bg, rngseed):
     distract = []
     for _ in range(rng.choice([0, 0, 1, 2, 3, 5]) if scene_kind != "shelf" else rng.randint(2, 4)):
         hh = logU(60, 280) if scene_kind != "shelf" else logU(220, 380)
-        ww = hh * U(0.45, 1.3)
+        hard_art = rng.random() < DISTRACTOR_ON_CARDS
+        ww = hh * CARD_ASPECT * U(1.05, 1.5) if hard_art else hh * U(0.45, 1.3)
         rotd = rng.choice([0, 90, 0]) + U(-8, 8) if rng.random() < 0.6 else U(0, 360)
         cx, cy = U(0.05, 0.95) * SIZE, U(0.05, 0.95) * SIZE
+        if items and rng.random() < DISTRACTOR_ON_CARDS:  # box with card art tucked behind / beside a card
+            sp0, H0, _ = rng.choice(items)
+            c0 = cv2.perspectiveTransform(sp0.quad.mean(0)[None, None], H0)[0, 0]
+            cx, cy = float(c0[0]) + U(-0.6, 0.6) * hh, float(c0[1]) + U(-0.6, 0.6) * hh
         col = np.array([U(10, 245), U(10, 245), U(10, 245)], np.float32)
         sw_, sh_ = int(ww) + 10, int(hh) + 10
         L = Layer(sw_, sh_)
         body = rr(sw_, sh_, 5, 5, sw_ - 5, sh_ - 5, U(1, 8))
         L.paint(col, body, 1.0)
-        if rng.random() < 0.7:  # printed art, sometimes a whole fake printed card
-            if rng.random() < 0.6:
+        if hard_art or rng.random() < 0.7:  # printed art, sometimes a whole fake printed card
+            if hard_art or rng.random() < 0.6:
                 art = read(rng.choice(cards))
-                aw = int(ww * U(0.4, 0.8))
+                aw = int(hh * CARD_ASPECT * U(0.7, 0.93)) if hard_art else int(ww * U(0.4, 0.8))
                 ah = int(aw / CARD_ASPECT)
                 if ah < hh * 0.95:
                     a = cv2.resize(art, (aw, ah)).astype(np.float32)
                     am = rr(aw, ah, 0, 0, aw, ah, 0.05 * aw)
-                    L.paint_img(a, am, int(sw_ * U(0.2, 0.5) - aw * 0.3) + 5, int(sh_ * U(0.25, 0.45)))
+                    L.paint_img(a, am, int(sw_ * U(0.2, 0.5) - aw * 0.3) + 5, int(sh_ * U(0.25, 0.45)) if not hard_art else int((sh_ - ah) * U(0.3, 0.9)))
             tm = text_mask(sw_, sh_, rand_words(rng.randint(1, 4)), ww / 140.0, 2)
             L.paint((240, 240, 240) if col.mean() < 140 else (30, 30, 30), tm, 0.9)
         if rng.random() < 0.3:
@@ -655,7 +688,7 @@ def make_scene(cards, bg, rngseed):
     img = base.copy()
     idmap = np.full((SIZE, SIZE), -1, np.int32)
     order = sorted(range(len(items)), key=lambda i: items[i][2])
-    dist_first = rng.random() < 0.6  # boxes behind the cards, or a stray one over a corner
+    dist_first = rng.random() < (0.85 if DISTRACTOR_ON_CARDS else 0.6)  # boxes behind the cards, or a stray one over a corner
     def draw_layer(L, H, ident):
         nonlocal img
         warped_pm = cv2.warpPerspective(L.pm, H, (SIZE, SIZE), flags=cv2.INTER_LINEAR)
@@ -685,7 +718,7 @@ def make_scene(cards, bg, rngseed):
         L.paint(skin, rr(300, 300, 20, 100, 280, 200, 50), 1.0)
         draw_layer(L, place_homography((300, 300), (U(0, 1) * SIZE, U(0, 1) * SIZE), U(0, 360)) @ np.diag([U(0.4, 1.0), U(0.4, 1.0), 1]), None)
 
-    # ---- labels: visible quads
+    # ---- labels: full quads of the cards that are visible enough, with per-corner visibility
     labels = []
     for i, (sp, H, _) in enumerate(items):
         if not sp.label:
@@ -698,11 +731,19 @@ def make_scene(cards, bg, rngseed):
             continue
         vis = (idmap[m > 0] == i).mean()
         if vis >= VISIBLE_MIN and (q >= 1).all() and (q <= SIZE - 1).all():
-            labels.append(q)
+            # a corner is seen when this card is the topmost thing just inside it
+            ctr = q.mean(0)
+            flags = []
+            for p in q:
+                d = ctr - p
+                p_in = p + d / (np.linalg.norm(d) + 1e-6) * 4.0
+                x, y = int(round(p_in[0])), int(round(p_in[1]))
+                flags.append(2 if idmap[min(max(y, 0), SIZE - 1), min(max(x, 0), SIZE - 1)] == i else 1)
+            labels.append((q, flags))
 
     if scene_kind == "shelf" and labels:
         # glass shelf: everything below the lowest card is a faded mirror image
-        ys = [q[:, 1].max() for q in labels]
+        ys = [q[:, 1].max() for q, _ in labels]
         y0 = int(min(SIZE - 40, max(ys) + SIZE * 0.015))
         k = SIZE - y0
         refl = img[max(0, y0 - k) : y0][::-1].astype(np.float32)
@@ -747,22 +788,24 @@ def make_scene(cards, bg, rngseed):
     return img, labels, scene_kind
 
 
-def label_line(q):
+def label_line(q, flags=(2, 2, 2, 2)):
     q = np.asarray(q, np.float32)
     x0, y0 = q.min(0)
     x1, y1 = q.max(0)
     cx, cy, w, h = (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0
     s = SIZE
     parts = [0, cx / s, cy / s, w / s, h / s]
-    for x, y in q:
-        parts += [x / s, y / s, 2]
+    for (x, y), f in zip(q, flags):
+        parts += [x / s, y / s, f]
     return " ".join(f"{v:.6f}" if isinstance(v, float) or isinstance(v, np.floating) else str(v) for v in parts)
 
 
 _G = {}
 
 
-def _init(cards_dir, tex_dir):
+def _init(cards_dir, tex_dir, visible_min, non_op, hard):
+    global VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS
+    VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS = visible_min, non_op, hard
     cv2.setNumThreads(1)
     cards = sorted(glob.glob(os.path.join(cards_dir, "*.jpg")))
     tex = sorted(glob.glob(os.path.join(tex_dir, "*.jpg")))
@@ -775,7 +818,7 @@ def _job(args):
     name = f"{split}_{idx:05d}"
     cv2.imwrite(os.path.join(out, "images", split, name + ".jpg"), img, [cv2.IMWRITE_JPEG_QUALITY, 92])
     with open(os.path.join(out, "labels", split, name + ".txt"), "w") as f:
-        f.write("\n".join(label_line(q) for q in labels))
+        f.write("\n".join(label_line(q, fl) for q, fl in labels))
     return len(labels)
 
 
@@ -787,6 +830,9 @@ def main():
     ap.add_argument("--n", type=int, default=2000)
     ap.add_argument("--val", type=int, default=200)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--visible-min", type=float, default=VISIBLE_MIN, help="label cards at least this fraction visible (full quad); 0.85 = top cards only")
+    ap.add_argument("--non-op-piles", type=float, default=NON_OP_PILE, help="share of table piles that are non-One-Piece cards (unlabelled)")
+    ap.add_argument("--hard-negatives", type=float, default=DISTRACTOR_ON_CARDS, help="share of distractor boxes placed on top of / behind real cards")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--val-cards-from", type=float, default=0.0, help="unused; reserved")
     a = ap.parse_args()
@@ -795,7 +841,7 @@ def main():
         os.makedirs(os.path.join(a.out, "labels", sp), exist_ok=True)
     jobs = [("train", i, a.seed * 1_000_003 + i, a.out) for i in range(a.n)]
     jobs += [("val", i, 777_777_000 + i, a.out) for i in range(a.val)]
-    with Pool(a.workers, initializer=_init, initargs=(a.cards, a.textures)) as p:
+    with Pool(a.workers, initializer=_init, initargs=(a.cards, a.textures, a.visible_min, a.non_op_piles, a.hard_negatives)) as p:
         counts = []
         for k, c in enumerate(p.imap_unordered(_job, jobs, chunksize=8)):
             counts.append(c)

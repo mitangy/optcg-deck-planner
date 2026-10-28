@@ -3,7 +3,7 @@ import { useCallback, useMemo } from "react";
 import { friendsApi, type SpareItem, type TradeSide } from "./friendsApi";
 import type { CardCap, TrayLine } from "./tradeLogic";
 
-const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
+const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, base: item.base_owned, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
 
 /** Spares between you and one friend, plus how many copies of a card each side can still put on the table. */
 export function useFriendSpares(friendId: number) {
@@ -23,6 +23,7 @@ export function useFriendSpares(friendId: number) {
       const mine = lines.filter((l) => l.side === side && l.cardId === cardId);
       return {
         spare: mine.reduce((n, l) => n + l.qty, 0),
+        base: mine.filter((l) => l.productId == null).reduce((n, l) => n + l.qty, 0),
         printings: Object.fromEntries(mine.filter((l) => l.productId != null).map((l) => [l.productId as number, l.qty])),
       };
     },

@@ -40,6 +40,22 @@ describe("TCGPlayer description conversion (#458)", () => {
     expect(out.text).toBe("[Blocker] (After your opponent declares an attack, you may rest this card.) Fish-Man Island -1 card.");
   });
 
+  it("convertDescription ends a text line before the next ability with a period, like Bandai (#670)", () => {
+    const pell = "If your Leader has the {Alabasta} type, this Character gains [Rush]\r\n<br>[On Play] <strong>You may trash 1 Character card with 5000 power or less from your hand:</strong> Draw 2 cards and trash up to 1 of your opponent's Characters with 3000 base power or less.";
+    expect(convertDescription(pell).text).toBe("If your Leader has the {Alabasta} type, this Character gains [Rush]. [On Play] You may trash 1 Character card with 5000 power or less from your hand: Draw 2 cards and trash up to 1 of your opponent's Characters with 3000 base power or less.");
+    expect(convertDescription("[Blocker]\r\n<br>[On Play] Play up to 1 Character card.").text).toBe("[Blocker] [On Play] Play up to 1 Character card.");
+    // TCGPlayer hard-wraps some sentences mid-clause: no period there.
+    expect(convertDescription("[Main] You may rest 1 of your DON!! cards and K.O. 1 of\r\n<br>your Characters: Draw 1 card.\r\n<br>[Activate: Main] You may trash this Character:\r\n<br>Draw 1 card.").text).toBe("[Main] You may rest 1 of your DON!! cards and K.O. 1 of your Characters: Draw 1 card. [Activate: Main] You may trash this Character: Draw 1 card.");
+    expect(convertDescription("Draw 1 card!\r\n<br>(Reminder text)\r\n<br>[On Play] Draw 1 card.").text).toBe("Draw 1 card! (Reminder text) [On Play] Draw 1 card.");
+  });
+
+  it("convertDescription restores the minus signs TCGPlayer drops from DON!! costs and give clauses (#670)", () => {
+    const hornet = "[Main] <strong>DON!! 1:</strong> If your Leader has the {The Vinsmoke Family} type, give up to 1 of your opponent's Characters 4000 power during this turn.<br>[Counter] <strong>DON!! 1:</strong> Your Leader gains +4000 power during this battle.";
+    expect(convertDescription(hornet).text).toBe("[Main] DON!! −1: If your Leader has the {The Vinsmoke Family} type, give up to 1 of your opponent's Characters −4000 power during this turn. [Counter] DON!! −1: Your Leader gains +4000 power during this battle.");
+    const keep = convertDescription("[Activate: Main] DON!! x1: Give up to 1 Character with 3000 base power or less +2000 power. Give your Leader with 5000 power or less −1000 power.\r\n<br>[Main] DON!! −2: K.O. a Character that has 6000 power.").text;
+    expect(keep).toBe("[Activate: Main] DON!! x1: Give up to 1 Character with 3000 base power or less +2000 power. Give your Leader with 5000 power or less −1000 power. [Main] DON!! −2: K.O. a Character that has 6000 power.");
+  });
+
   it("a card that only has a [Trigger] has no main text (#458)", () => {
     expect(convertDescription("[Trigger] Draw 1 card.")).toEqual({ text: "", trigger: "[Trigger] Draw 1 card." });
   });
@@ -155,8 +171,8 @@ describe("Bandai rebuild keeps TCGPlayer rows (#458)", () => {
 
 describe("provenance of TCGPlayer rows (#458)", () => {
   it("traits from TCGPlayer are unverified (#458)", () => {
-    expect(cardSourceRecord("EB05-002")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
-    expect(cardSourceRecord("EB05-002")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
-    expect(cardSourceRecord("EB05-002")?.sourceRevision).toBeNull();
+    expect(cardSourceRecord("OP18-015")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
+    expect(cardSourceRecord("OP18-015")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
+    expect(cardSourceRecord("OP18-015")?.sourceRevision).toBeNull();
   });
 });

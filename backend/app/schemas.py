@@ -1213,7 +1213,7 @@ class AnalystProposalsIn(BaseModel):
 class AnalystDraftCard(BaseModel):
     id: str = Field(pattern=CARD_ID_PATTERN)
     name: str = Field(max_length=120)
-    copies: int = Field(ge=1, le=4)
+    copies: int = Field(ge=1, le=50)
 
 
 class AnalystDeckDraft(BaseModel):

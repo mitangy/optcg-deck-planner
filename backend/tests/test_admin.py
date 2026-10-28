@@ -225,6 +225,31 @@ def test_banned_accounts_get_403_even_with_a_current_cookie_and_unban_restores_t
         assert (u.banned_at, u.ban_reason, u.banned_by) == (None, None, None)
 
 
+def test_banned_users_log_pose_tokens_are_refused_668(api):
+    from app.models import AnalystAccess
+    from app.routers.analyst import mint_chat_token
+
+    c, S = api
+    mod, plain = mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
+    with S() as db:
+        db.add(AnalystAccess(user_id=plain, status="approved"))
+        db.commit()
+        chat_token, _ = mint_chat_token(get_settings(), db.get(User, plain), int(datetime.now(timezone.utc).timestamp()))
+    login(c, S, plain)
+    personal = c.post("/analyst/token").json()["token"]
+    personal_h, chat_h = {"X-Analyst-Token": personal, **SERVICE}, {"X-Analyst-Token": chat_token, **SERVICE}
+    c.cookies.clear()
+    assert c.get("/analyst/me", headers=personal_h).status_code == 200
+    assert c.get("/analyst/chat/budget", headers=chat_h).json()["allowed"] is True
+    login(c, S, mod)
+    assert c.post(f"/admin/users/{plain}/ban").status_code == 200
+    c.cookies.clear()
+    assert c.get("/analyst/me", headers=personal_h).status_code == 403
+    assert c.get("/analyst/decks", headers=personal_h).status_code == 403
+    assert c.get("/analyst/me", headers=chat_h).status_code == 403
+    assert c.get("/analyst/chat/budget", headers=chat_h).status_code == 403
+
+
 def test_ban_rules_are_enforced_by_the_endpoint_667(api):
     c, S = api
     admin, mod, mod2, plain = mk(S, ADMIN_EMAIL, "admin"), mk(S, "m@x.test", "moderator"), mk(S, "m2@x.test", "moderator"), mk(S, "p@x.test")

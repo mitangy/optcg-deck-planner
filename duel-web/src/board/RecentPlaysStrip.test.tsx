@@ -4,12 +4,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { lookupCard } from "../cards/atlas";
 import { isPreviewArtPath } from "@optcg/ui/cardArt";
+import previewIds from "../../../packages/ui/src/cardArt/previewArt.json";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { BattleLogEntry } from "./battleLog";
 import { RecentPlaysStrip } from "./RecentPlaysStrip";
 
-// EB05 art is not on TCGplayer's CDN yet, so the thumbnail's first try 403s.
-const EB05 = "EB05-001";
+// A card with preview art and a TCGPlayer image in the catalog: the first try is the
+// TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
+// Taken from the preview list, so it follows sync_preview_art.py as previews come and go.
+const PREVIEWED = previewIds[0]!;
 
 function play(defId: string): BattleLogEntry {
   return {
@@ -45,16 +48,16 @@ function mount(defId: string): HTMLImageElement {
 
 describe("recent plays thumbnail art", () => {
   it("Recent plays thumbnail falls back to preview art when TCGPlayer art fails (#604)", () => {
-    const first = resolveCardImageUrl(EB05, { ownerSeat: 0 })!;
+    const first = resolveCardImageUrl(PREVIEWED, { ownerSeat: 0 })!;
     // Guard: the first try is a CDN url, so the fallback is what the test is about.
     expect(first).toMatch(/^https:\/\/tcgplayer-cdn\./);
-    const img = mount(EB05);
+    const img = mount(PREVIEWED);
     expect(img.getAttribute("src")).toBe(first);
     act(() => {
       img.dispatchEvent(new Event("error"));
     });
     const after = host!.querySelector<HTMLImageElement>(".recent-play-thumb img")!;
     expect(isPreviewArtPath(after.getAttribute("src"))).toBe(true);
-    expect(after.getAttribute("src")).toContain(EB05);
+    expect(after.getAttribute("src")).toContain(PREVIEWED);
   });
 });

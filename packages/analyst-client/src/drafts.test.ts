@@ -30,8 +30,13 @@ describe("new deck drafts (#726)", () => {
     expect(draft().cards.map((c) => c.id)).toEqual(["ST01-003", "ST01-015"]);
   });
 
+  it("keeps more than 4 copies of a card that allows any number (#728)", () => {
+    const p = parseDraft({ ...wire, cards: [{ id: "OP01-075", name: "Pacifista", copies: 50 }] })!;
+    expect(p.cards).toEqual([{ id: "OP01-075", name: "Pacifista", copies: 50 }]);
+  });
+
   it("drops malformed cards and refuses a draft with no usable cards or leader (#726)", () => {
-    const p = parseDraft({ ...wire, cards: [...wire.cards, { id: "ST01-004", name: "x", copies: 0 }, { id: "ST01-005", name: "x", copies: 5 }, { id: "ST01-006", name: "x", copies: 1.5 }, "junk", { name: "no id", copies: 1 }] })!;
+    const p = parseDraft({ ...wire, cards: [...wire.cards, { id: "ST01-004", name: "x", copies: 0 }, { id: "ST01-005", name: "x", copies: 51 }, { id: "ST01-006", name: "x", copies: 1.5 }, "junk", { name: "no id", copies: 1 }] })!;
     expect(p.cards.map((c) => c.id)).toEqual(["ST01-003", "ST01-015"]);
     expect(parseDraft({ ...wire, cards: [{ id: "ST01-004", name: "x", copies: 0 }] })).toBeNull();
     expect(parseDraft({ ...wire, leader_id: undefined })).toBeNull();

@@ -64,7 +64,7 @@ import {
 } from "./CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { nameWithBreaks } from "./cardName";
-import { nextExtraTarget } from "./shoppingExtras";
+import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import {
   collectionTotals,
   holdsCopies,
@@ -835,6 +835,20 @@ function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The decks ticked under Master Shopping's "Include decks", for views that count the same decks
+ * (deck pages, Buying hints). undefined means all decks, so those requests stay unfiltered.
+ */
+function savedShoppingDeckIds(allIds: number[]): number[] | undefined {
+  const saved = loadShoppingDeckFilter(allIds);
+  return saved && saved.length < allIds.length ? [...saved].sort((a, b) => a - b) : undefined;
+}
+
+function useSavedShoppingDeckIds(): number[] | undefined {
+  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  return decksQ.data ? savedShoppingDeckIds(decksQ.data.map((d) => d.id)) : undefined;
 }
 
 function loadSelectedCardIds(): Set<string> {
@@ -1726,7 +1740,10 @@ function ShoppingPage() {
         )}
       </div>
 
-      <ShoppingAddPanel defaultOpen={(data?.items.length ?? 0) === 0} />
+      <ShoppingAddPanel
+        defaultOpen={(data?.items.length ?? 0) === 0}
+        deckIds={filterReady && shoppingKey.length < allDeckIds.length ? shoppingKey : undefined}
+      />
 
       {emptyList ? (
         <>
@@ -1871,7 +1888,7 @@ function ShoppingPage() {
               {sumAcrossLeaders
                 ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy. Owned copies fill leaders in deck order."
                 : "One set of copies is moved between decks: 4 in a Luffy deck and 3 in a Sabo deck = 4 to buy."}{" "}
-              Decks with the same leader always share. Also used for deck pages, your public link and group buys.
+              Decks with the same leader always share. Also used for deck pages, your public link and group buys. Only decks ticked under Include decks count on deck pages.
             </p>
           </div>
           {sortingByDeck && (
@@ -2343,9 +2360,12 @@ function CatalogAddDrawer({
   );
 }
 
-/** Every card on the full shopping list (all decks + added directly), keyed by card id. */
-function useFullShoppingById(): Map<string, ShoppingItem> {
-  const q = useQuery({ queryKey: ["shopping", "all"], queryFn: () => api.shopping() });
+/** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
+function useFullShoppingById(deckIds?: number[]): Map<string, ShoppingItem> {
+  const q = useQuery({
+    queryKey: deckIds ? ["shopping", "all", deckIds] : ["shopping", "all"],
+    queryFn: () => api.shopping(deckIds),
+  });
   return useMemo(() => new Map((q.data?.items ?? []).map((i) => [i.card_id, i])), [q.data]);
 }
 
@@ -2360,7 +2380,7 @@ function CollectionAddPanel({
   onScan: () => void;
   onOwnedSaved: () => void;
 }) {
-  const shoppingById = useFullShoppingById();
+  const shoppingById = useFullShoppingById(useSavedShoppingDeckIds());
   return (
     <CatalogAddDrawer
       className="collection-add"
@@ -2452,14 +2472,18 @@ function ShoppingExtraControl({
   );
 }
 
-function ShoppingAddPanel({ defaultOpen }: { defaultOpen: boolean }) {
-  const shoppingById = useFullShoppingById();
-  const ownedQ = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
+function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
+  const shoppingById = useFullShoppingById(deckIds);
+  const ownedQ = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection() });
   const ownedById = useMemo(
-    () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, i.owned])),
+    () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, totalOwnedCopies(i)])),
     [ownedQ.data],
   );
-  const ownedOf = (cardId: string) => shoppingById.get(cardId)?.owned ?? ownedById.get(cardId) ?? 0;
+  // Base plus alt-art copies, matching how the backend computes still_need (#626).
+  const ownedOf = (cardId: string) => {
+    const item = shoppingById.get(cardId);
+    return item ? totalOwnedCopies(item) : (ownedById.get(cardId) ?? 0);
+  };
   return (
     <CatalogAddDrawer
       className="shopping-add"
@@ -2486,7 +2510,11 @@ function ShoppingAddPanel({ defaultOpen }: { defaultOpen: boolean }) {
 
 function CollectionPage() {
   const qc = useQueryClient();
-  const { data, isLoading, error } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection });
+  const savedDeckIds = useSavedShoppingDeckIds();
+  const { data, isLoading, error } = useQuery({
+    queryKey: savedDeckIds ? ["owned", savedDeckIds] : ["owned"],
+    queryFn: () => api.ownedCollection(savedDeckIds),
+  });
   const noUnavailableSorts = useMemo(() => [] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(false, noUnavailableSorts, {
     storageKey: OWNED_SORTS_KEY,
@@ -2791,7 +2819,10 @@ function DecksPage() {
     mutationFn: api.setDeckAsMain,
     onSuccess: (detail) => {
       void qc.invalidateQueries({ queryKey: ["decks"] });
-      qc.setQueryData(["deck", detail.id], detail);
+      // Cached with the unfiltered response only when Include decks is not narrowed.
+      if (!savedShoppingDeckIds(qc.getQueryData<DeckSummary[]>(["decks"])?.map((d) => d.id) ?? [])) {
+        qc.setQueryData(["deck", detail.id], detail);
+      }
       // Other same-leader decks change which cards are Additional.
       void qc.invalidateQueries({ queryKey: ["deck"] });
     },
@@ -3786,9 +3817,10 @@ function DeckDetailPage() {
   const deckId = Number(id);
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const savedDeckIds = useSavedShoppingDeckIds();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["deck", deckId],
-    queryFn: () => api.deck(deckId),
+    queryKey: savedDeckIds ? ["deck", deckId, savedDeckIds] : ["deck", deckId],
+    queryFn: () => api.deck(deckId, savedDeckIds),
     enabled: Number.isFinite(deckId),
   });
   // A failed deck query with no data goes back to "pending" while Retry refetches; remember the
@@ -3883,12 +3915,14 @@ function DeckDetailPage() {
   };
 
   const applyDeckUpdate = (detail: DeckDetail) => {
-    qc.setQueryData(["deck", deckId], detail);
+    // The response counts every deck's claims; with Include decks narrowed, refetch the filtered view.
+    if (savedDeckIds) void qc.invalidateQueries({ queryKey: ["deck", deckId] });
+    else qc.setQueryData(["deck", deckId], detail);
     invalidateAltWantViews(qc);
   };
 
   // Log Pose's Apply card: what is owned (for the chips) and how this page saves a suggested change.
-  const { data: ownedData } = useQuery({ queryKey: ["owned"], queryFn: api.ownedCollection, staleTime: 300_000 });
+  const { data: ownedData } = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection(), staleTime: 300_000 });
   const logPoseEditor = useMemo<DeckEditor | null>(() => {
     if (!data || !logPoseDeck) return null;
     const ownedById = new Map((ownedData?.items ?? []).map((i) => [i.card_id.toUpperCase(), i.owned]));

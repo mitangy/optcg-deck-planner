@@ -6,6 +6,7 @@ import {
   detectionsToCards,
   isPlausibleCard,
   letterboxGeometry,
+  MODEL_DEFAULTS,
   preprocess,
   resolveOptions,
   suppressDuplicates,
@@ -176,6 +177,14 @@ describe("suppressDuplicates", () => {
       0.5,
     );
     expect(kept).toHaveLength(1);
+  });
+
+  it("with the shipped threshold keeps a rear card that is 55% visible behind a fan's top card (#769)", () => {
+    // The model returns covered cards as full quads, so a rear card shows up as a quad
+    // that overlaps the top card's quad (IoU ~0.4 here) but is a different card.
+    const top = card(100, 100, 300);
+    const rear = card(100 + 0.45 * ((300 * 63) / 88), 100, 300);
+    expect(suppressDuplicates([{ score: 0.9, quad: top }, { score: 0.8, quad: rear }], MODEL_DEFAULTS.nmsIoU)).toHaveLength(2);
   });
 
   it("keeps a card that overlaps another's edge (a fanned pile) (#701)", () => {

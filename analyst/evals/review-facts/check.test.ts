@@ -186,6 +186,13 @@ describe("checking a claim loosely where the audit found the checker wrong (#687
     expect(on(f, { kind: "life_taken", actor: "opponent", turn: 1 }).verdict).toBe("unverifiable");
   });
 
+  it("compares a Life claim with a card named to the Life actually lost, not to the plays and attacks (#692)", () => {
+    const smokerSwing = { seat: 1 as Seat, attacker: SMOKER, attackerName: "Smoker", target: "leader", targetName: "leader", attackerPower: 6000, defenderPower: 5000, counters: [], hit: true };
+    const f = synth([{ plays: [play(1, SMOKER)], attacks: [smokerSwing], lifeTaken: [hit(0, PEARL)], lifeLost: [1, 0] }]);
+    expect(on(f, { kind: "life_taken", actor: "you", turn: 1, card: "Smoker", number: 2 }).verdict).toBe("contradicted");
+    expect(on(f, { kind: "life_taken", actor: "you", turn: 1, card: "Smoker", number: 1 }).verdict).toBe("supported");
+  });
+
   it("lets a Life claim name the card the other player played or attacked with that turn (#687)", () => {
     const f = synth([
       { plays: [play(1, NAMI), play(1, NAMI)], lifeLost: [2, 0] },

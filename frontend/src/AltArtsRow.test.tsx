@@ -11,11 +11,11 @@ import { AltArtsRow } from "./MarketPrice";
 const CARD_ID = "EB05-061";
 const PREVIEW = `https://optcgduel.app/cards/preview/${CARD_ID}.webp`;
 const alt: PrintingView = {
-  product_id: 723148,
+  product_id: 700001,
   name: "Alt art",
   market_price: null,
   low_price: null,
-  image_url: `https://tcgplayer-cdn.tcgplayer.com/product/723148_200w.jpg`,
+  image_url: `https://tcgplayer-cdn.tcgplayer.com/product/700001_200w.jpg`,
   tcgplayer_url: "",
   group_name: "",
   is_special: true,

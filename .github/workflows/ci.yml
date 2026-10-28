@@ -62,6 +62,33 @@ jobs:
           cat "$RUNNER_TEMP/changed.txt"
           node tools/ci/changes.cjs < "$RUNNER_TEMP/changed.txt" | tee -a "$GITHUB_OUTPUT"
 
+  pr-media:
+    # Pull requests only. Fails a PR that adds screenshots or recordings outside
+    # public/, assets/ and *-snapshots/ folders (tools/ci/pr-media.cjs, #783):
+    # they belong on the `pr-assets` branch (tools/pr-assets/upload.sh). The base
+    # is found as in `changes`. Needs no installs.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Find the base the PR merges into
+        run: |
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then
+            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          else
+            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Block screenshots and recordings outside app media folders
+        run: |
+          set -o pipefail
+          git diff --no-renames --diff-filter=A --name-only "$BASE_SHA" HEAD | node tools/ci/pr-media.cjs
+
   rules-and-game-server:
     needs: changes
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.rules == 'true')) }}

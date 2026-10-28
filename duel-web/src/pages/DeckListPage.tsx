@@ -368,7 +368,7 @@ function DeckToolbar({
   const label = DECK_SORTS.find((s) => s.id === sort)?.label ?? "";
   return (
     <div className="deck-toolbar">
-      <label className="deck-search">
+      <label className="deck-list-search">
         <SearchIcon />
         <input
           type="search"

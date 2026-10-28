@@ -489,7 +489,12 @@ export const api = {
       `/meta/decks?leader=${encodeURIComponent(leader)}&days=${days}&top=${top}&limit=50`,
     ),
   decks: () => request<DeckSummary[]>("/decks"),
-  deck: (id: number) => request<DeckDetail>(`/decks/${id}`),
+  deck: (id: number, deckIds?: number[]) => {
+    const params = new URLSearchParams();
+    for (const d of deckIds ?? []) params.append("deck_ids", String(d));
+    const qs = params.toString();
+    return request<DeckDetail>(`/decks/${id}${qs ? `?${qs}` : ""}`);
+  },
   createDeck: (name: string, decklist: string) =>
     request<DeckSummary>("/decks", {
       method: "POST",
@@ -577,7 +582,12 @@ export const api = {
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
   },
-  ownedCollection: () => request<OwnedCollectionResponse>("/owned"),
+  ownedCollection: (deckIds?: number[]) => {
+    const params = new URLSearchParams();
+    for (const d of deckIds ?? []) params.append("deck_ids", String(d));
+    const qs = params.toString();
+    return request<OwnedCollectionResponse>(`/owned${qs ? `?${qs}` : ""}`);
+  },
   /** Set the target copies to own for a card added straight to Master Shopping; 0 removes it. */
   setShoppingExtra: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/shopping/extras/${encodeURIComponent(cardId)}`, {

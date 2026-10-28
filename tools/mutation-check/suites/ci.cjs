@@ -27,5 +27,12 @@ module.exports = {
     m("ci-other-workflows-run-all", 'p.startsWith(".github/"), flags: []', 'p.startsWith(".github/"), flags: FLAGS', ["other workflows do not trigger the app jobs"]),
     m("ci-flags-not-unioned", "for (const f of rule ? rule.flags : FLAGS) on.add(f);", "on.clear(); for (const f of rule ? rule.flags : FLAGS) on.add(f);", ["flags union across paths"]),
     m("ci-empty-diff-runs-nothing", "if (!list.length) return Object.fromEntries(FLAGS.map((f) => [f, true]));", "if (!list.length) return Object.fromEntries(FLAGS.map((f) => [f, false]));", ["an empty path list runs everything"]),
+    ...[
+      ["ci-media-drops-video", "png|jpe?g|gif|webp|avif|bmp|webm|mp4|mov", "png|jpe?g|gif|webp|avif|bmp", "a webm and an mp4 recording outside app media folders are blocked"],
+      ["ci-media-case-sensitive", "|mov)$/i;", "|mov)$/;", "an uppercase extension is still blocked"],
+      ["ci-media-allows-all", "  return paths\n", "  return [];\n  return paths\n", "a PNG under docs/pr-shots is blocked"],
+      ["ci-media-no-snapshots", ' || dir.endsWith("-snapshots")', "", "card art, app assets and Playwright baselines are allowed"],
+      ["ci-media-no-assets", 'dir === "public" || dir === "assets"', 'dir === "public"', "card art, app assets and Playwright baselines are allowed"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/pr-media.cjs", from, to, kills: [kill] })),
   ],
 };

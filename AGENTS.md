@@ -47,7 +47,7 @@ When a change affects layout, card arts, lightbox, list/grid/mobile, or other in
    - List / Grid toggles
    - Measuring CSS box size (`getBoundingClientRect`) and proving image sources (`img.src`, `naturalWidth` / `naturalHeight`)
 4. Card arts: catalog rows stay `_200w`; the client rewrites thumbs to `_400w` and lightbox to `_in_1000x1000` via `packages/ui/src/cardArt/cardImage.ts`. A successful art review asserts those URLs and that the lightbox is hundreds of CSS pixels tall (typical native scan ~600×838), not that SAMPLE watermarks disappear (many TCGplayer/Bandai assets include SAMPLE).
-5. Save screenshots under `/opt/cursor/artifacts/` with short snake_case names.
+5. Save screenshots under `/opt/cursor/artifacts/` (outside the repo) with short snake_case names. To show them in a PR, upload them to the `pr-assets` branch with `tools/pr-assets/upload.sh <number> <files>`; never commit them to a code branch (see `CLAUDE.md` "PR screenshots and recordings").
 
 #### Demo videos (`RecordScreen`) need headed Chrome
 
@@ -64,5 +64,5 @@ When a change affects layout, card arts, lightbox, list/grid/mobile, or other in
 - [ ] Seeded images (or catalog sync) so thumbs are real TCGplayer arts, not placeholders
 - [ ] Puppeteer: list thumb size, lightbox opens, `src` is `_400w` / `_in_1000x1000` as expected
 - [ ] Spot-check ~375px and ~1200px (mobile list vs desktop table/grid) per `CLAUDE.md` polish rules
-- [ ] Artifacts in `/opt/cursor/artifacts/` (screenshots; video if the change is interactive)
+- [ ] Artifacts in `/opt/cursor/artifacts/` (screenshots; video if the change is interactive), embedded in the PR body via `tools/pr-assets/upload.sh`, not committed
 - [ ] No layout shift on expand; full-width chrome; no phantom mobile scroll (`CLAUDE.md`)

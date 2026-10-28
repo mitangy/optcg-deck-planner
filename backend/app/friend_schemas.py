@@ -112,6 +112,8 @@ class SpareItem(BaseModel):
     image_url: str = ""
     market_price: float | None = None
     spare: int
+    # Copies of the standard printing; a standard trade line is capped here, not at spare (#705).
+    base_owned: int = 0
     want: int = 0
     printings: list[SparePrinting] = []
 

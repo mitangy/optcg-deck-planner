@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from app import catalog_sync
-from app.models import CatalogPrinting
+from app.models import CatalogCard, CatalogPrinting
 
 
 def _group_urls(group_id: int, products: dict[str, Any], prices: dict[str, Any]) -> dict[str, Any]:
@@ -121,3 +121,70 @@ def test_printing_dropped_upstream_is_removed(db, monkeypatch):
 
     remaining = db.query(CatalogPrinting).filter_by(card_id="OP01-001").all()
     assert [r.product_id for r in remaining] == [111]
+
+
+def _perona_product(product_id: int) -> dict[str, Any]:
+    return {
+        "productId": product_id,
+        "name": "Perona (Japanese Version 3rd Anniversary Set)",
+        "imageUrl": f"https://tcgplayer.example/{product_id}.jpg",
+        "url": f"https://tcgplayer.example/product/{product_id}",
+        "extendedData": [
+            {"name": "Number", "value": "OP12-034"},
+            {"name": "Rarity", "value": "C"},
+            {"name": "CardType", "value": "Character"},
+        ],
+    }
+
+
+def test_sync_flags_unmarked_promo_only_when_its_product_is_on_the_alt_list_762(db, monkeypatch):
+    listed, unlisted = 680491, 999999999
+    groups = [{"groupId": 1, "name": "Promo"}]
+    products = {"results": [_perona_product(listed), _perona_product(unlisted)]}
+    prices = {
+        "results": [
+            {"productId": pid, "subTypeName": "Normal", "marketPrice": 3.0, "lowPrice": 2.0}
+            for pid in (listed, unlisted)
+        ]
+    }
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+
+    catalog_sync.sync_catalog(db)
+
+    flags = {
+        r.product_id: r.is_special
+        for r in db.query(CatalogPrinting).filter_by(card_id="OP12-034").all()
+    }
+    assert flags == {listed: 1, unlisted: 0}
+
+
+def test_sync_keeps_listed_base_printing_primary_763(db, monkeypatch):
+    base, prerelease, listed_alt = 486398, 486712, 680491
+    prices_by_pid = {base: 0.25, prerelease: 63.96, listed_alt: 3.0}
+    groups = [{"groupId": 1, "name": "Paramount War"}]
+    products = {
+        "results": [
+            {**_perona_product(pid), "name": "Boa Hancock", "extendedData": [
+                {"name": "Number", "value": "OP02-059"},
+                {"name": "Rarity", "value": "C"},
+                {"name": "CardType", "value": "Character"},
+            ]}
+            for pid in prices_by_pid
+        ]
+    }
+    prices = {
+        "results": [
+            {"productId": pid, "subTypeName": "Normal", "marketPrice": price, "lowPrice": price}
+            for pid, price in prices_by_pid.items()
+        ]
+    }
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+
+    catalog_sync.sync_catalog(db)
+
+    flags = {
+        r.product_id: r.is_special
+        for r in db.query(CatalogPrinting).filter_by(card_id="OP02-059").all()
+    }
+    assert flags == {base: 0, prerelease: 0, listed_alt: 1}
+    assert db.get(CatalogCard, "OP02-059").market_price == 0.25

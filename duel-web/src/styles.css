@@ -61,6 +61,15 @@
   color-scheme: dark;
 }
 
+/* Native <select> lists are drawn by the browser: Windows Chrome / Edge paint the open list with the
+   control's translucent background, so light text lands on light gray (#772). Give every option an
+   opaque themed colour pair. */
+select option,
+select optgroup {
+  background-color: var(--arena-panel);
+  color: var(--ink);
+}
+
 /* Tokens built from the palette, declared again on every themed element so a
    theme preview chip ([data-theme] on a span) resolves them from its own
    palette rather than inheriting the page's. */
@@ -2314,7 +2323,7 @@ button.zone-pile {
 }
 
 /* Desktop: a little more air between the readable grid cards above (#287). */
-@media (min-width: 900px) and (min-height: 500px) {
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) {
   .trash-viewer-grid {
     gap: 0.75rem;
   }
