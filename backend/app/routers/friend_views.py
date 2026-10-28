@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -288,11 +288,14 @@ def friend_spares(
     friend_id: int,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ) -> FriendSparesOut:
+    """`deck_ids` (the viewer's Include decks filter, #799) narrows only what the viewer needs.
+    Spare copies still reserve every deck, so unticking a deck never offers its cards for trade."""
     owner, _ = fv.require_friend_view(db, user, friend_id, "trades")
     theirs, their_cat = fv.holdings(db, owner)
     mine, my_cat = fv.holdings(db, user)
-    my_want = fv.wants(db, user)
+    my_want = fv.wants(db, user, deck_ids)
     their_want = fv.wants(db, owner)
     their_items = fv.spare_items(db, theirs, their_cat, my_want, fv.spare_card_ids(theirs))
     they_need_ids = [c for c in fv.spare_card_ids(mine) if their_want.get(c, 0) > 0]
