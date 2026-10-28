@@ -13,6 +13,15 @@ describe("match menu items", () => {
     expect(matchMenuItems(live)).toContain("copy-room");
   });
 
+  it("lists Full screen in the menu unless the toolbar already has its button (#TBD)", () => {
+    const fs = { ...live, fullscreenOffered: true };
+    expect(matchMenuItems(fs)).toContain("fullscreen");
+    expect(matchMenuItems({ ...fs, fullscreenInBar: false })).toContain("fullscreen");
+    expect(matchMenuItems({ ...fs, fullscreenInBar: true })).not.toContain("fullscreen");
+    // Never listed when the page cannot go full screen.
+    expect(matchMenuItems({ ...live, fullscreenInBar: false })).not.toContain("fullscreen");
+  });
+
   it("offers Concede to a live player", () => {
     expect(matchMenuItems(live)).toContain("concede");
   });

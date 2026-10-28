@@ -680,6 +680,7 @@ module.exports = {
     { id: "motion-spectator-hand-guessed", file: `${src}/board/motionCues.ts`, from: "      handIds: view.spectator ? null : y.hand.map((c) => c.id),", to: "      handIds: y.hand.map((c) => c.id),", kills: ["does not guess spectators' hand cards"] },
     // phone HUD match menu
     { id: "menu-concede-for-spectators", file: `${src}/board/matchMenuItems.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "o.canConcede && !o.over", kills: ["gives spectators no Concede"] },
+    { id: "menu-fullscreen-listed-with-bar-button", file: `${src}/board/matchMenuItems.ts`, from: "if (o.fullscreenOffered && !o.fullscreenInBar) items", to: "if (o.fullscreenOffered) items", kills: ["lists Full screen in the menu unless the toolbar already has its button (#TBD)"] },
     { id: "menu-concede-after-over", file: `${src}/board/matchMenuItems.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "o.canConcede && !o.spectating", kills: ["gives a finished match no Concede"] },
     { id: "menu-concede-without-handler", file: `${src}/board/matchMenuItems.ts`, from: "o.canConcede && !o.spectating && !o.over", to: "!o.spectating && !o.over", kills: ["has no Concede when the page cannot concede"] },
     { id: "menu-copy-room-in-hotseat", file: `${src}/board/matchMenuItems.ts`, from: "  if (!o.hotseat) items.push(\"copy-room\", \"copy-spectate\");", to: "  items.push(\"copy-room\");\n  if (!o.hotseat) items.push(\"copy-spectate\");", kills: ["has no Copy room in hotseat"] },
@@ -687,7 +688,7 @@ module.exports = {
     { id: "menu-spectate-link-missing", file: `${src}/board/matchMenuItems.ts`, from: "  if (!o.hotseat) items.push(\"copy-room\", \"copy-spectate\");", to: "  if (!o.hotseat) items.push(\"copy-room\");", kills: ["offers Copy spectate link to online players and spectators, not hotseat (#346)"] },
     { id: "spectate-url-unescaped", file: `${src}/board/clipboard.ts`, from: "/watch/${encodeURIComponent(roomId)}", to: "/watch/${roomId}", kills: ["points at /watch/<room id> on this origin with the id escaped (#346)"] },
     { id: "spectate-url-wrong-path", file: `${src}/board/clipboard.ts`, from: "/watch/${encodeURIComponent(roomId)}", to: "/?join=${encodeURIComponent(roomId)}", kills: ["points at /watch/<room id> on this origin with the id escaped (#346)"] },
-    { id: "menu-fullscreen-always", file: `${src}/board/matchMenuItems.ts`, from: "  if (o.fullscreenOffered) items.push(\"fullscreen\");", to: "  items.push(\"fullscreen\");", kills: ["offers Full screen only when the browser offers it"] },
+    { id: "menu-fullscreen-always", file: `${src}/board/matchMenuItems.ts`, from: "  if (o.fullscreenOffered && !o.fullscreenInBar) items.push(\"fullscreen\");", to: "  items.push(\"fullscreen\");", kills: ["offers Full screen only when the browser offers it"] },
     { id: "menu-no-reload", file: `${src}/board/matchMenuItems.ts`, from: "  items.push(\"reload\");\n", to: "", kills: ["offers Reload in every match"] },
     { id: "menu-leave-before-concede", file: `${src}/board/matchMenuItems.ts`, from: "  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");\n  items.push(\"leave\");", to: "  items.push(\"leave\");\n  if (o.canConcede && !o.spectating && !o.over) items.push(\"concede\");", kills: ["always ends with Leave, after Concede"] },
     // primary intent slot
