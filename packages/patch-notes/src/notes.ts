@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-28
+  { date: "2026-10-28", app: "planner", title: "More promo alt arts", text: "Promo printings such as Perona's Japanese 3rd Anniversary Set and Zeus's Bandai Card Games Fest playmat promo now show up as alt arts you can pick, track and price, along with other anniversary, Judge and celebration pack promos." },
   // 2026-10-27
   { date: "2026-10-27", app: "duel", pr: 759, title: "Chopper, Tom, Blueno and Mr. 4", text: "Four new OP18 cards are in the duel app: Tony Tony.Chopper (OP18-029), Mr. 4 & Miss.Merry Christmas (OP18-051), Tom (OP18-070) and Blueno (OP18-110). They show preview art until their official images are out." },
   // 2026-10-26

@@ -208,6 +208,10 @@ module.exports = {
     // special printings
     { id: "marker-dash-pack-missing", file: domain, from: "    \"dash pack\",\n", to: "", kills: ["test_classic_and_expanded_special_markers"] },
     { id: "marker-any-foil", file: domain, from: "    \"pirate foil\",\n", to: "    \"foil\",\n", kills: ["test_same_art_reprints_are_not_special"] },
+    { id: "is-special-ignores-product-list", file: domain, from: "    if product_id is not None and product_id in alt_art_product_ids():\n        return True\n", to: "", kills: ["test_unmarked_promo_is_special_only_when_its_product_is_on_the_alt_list_762", "test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762"] },
+    { id: "is-special-list-ignores-product-id-match", file: domain, from: "    if product_id is not None and product_id in alt_art_product_ids():", to: "    if product_id is not None:", kills: ["test_unmarked_promo_is_special_only_when_its_product_is_on_the_alt_list_762"] },
+    { id: "sync-catalog-skip-product-id", file: sync, from: "is_special_printing(name, product_id)", to: "is_special_printing(name)", kills: ["test_sync_flags_unmarked_promo_only_when_its_product_is_on_the_alt_list_762"] },
+    { id: "refresh-flags-skip-product-id", file: sync, from: "is_special_printing(row.name, row.product_id)", to: "is_special_printing(row.name)", kills: ["test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762"] },
     { id: "refresh-flags-not-written", file: sync, from: "            row.is_special = flag\n", to: "", kills: ["test_refresh_special_flags_promotes_new_markers"] },
     { id: "refresh-prefers-cheapest-special", file: sync, from: "    return (\n        int(row.is_special or 0),\n        row.market_price", to: "    return (\n        row.market_price", kills: ["test_refresh_special_flags_promotes_new_markers"] },
     { id: "alts-same-image-kept", file: services, from: "        if img and pref_img and img == pref_img:\n            continue\n", to: "", kills: ["test_alt_arts_map_excludes_preferred_and_same_image"] },

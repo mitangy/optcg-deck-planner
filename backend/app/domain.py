@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
+from functools import lru_cache
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
 
@@ -126,7 +129,25 @@ def parse_decklist(text: str) -> list[ParsedCard]:
     return [ParsedCard(card_id=cid, needed=qty) for cid, qty in cards.items()]
 
 
-def is_special_printing(name: str) -> bool:
+ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent / "data" / "alt_art_products.json"
+
+
+@lru_cache(maxsize=1)
+def alt_art_product_ids() -> frozenset[int]:
+    """TCGPlayer productIds duel-web verified as distinct alt art (#762).
+
+    Written by `scripts/sync_alt_arts.py`; covers promo printings whose name has
+    no marker. A missing or unreadable file means no extra ids.
+    """
+    try:
+        return frozenset(int(p) for p in json.loads(ALT_ART_PRODUCTS_PATH.read_text("utf-8")))
+    except (OSError, ValueError, TypeError):
+        return frozenset()
+
+
+def is_special_printing(name: str, product_id: int | None = None) -> bool:
+    if product_id is not None and product_id in alt_art_product_ids():
+        return True
     lower = name.lower()
     return any(marker in lower for marker in SPECIAL_NAME_MARKERS)
 

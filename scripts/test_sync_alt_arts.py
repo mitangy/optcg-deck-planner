@@ -9,7 +9,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sync_alt_arts import HASH_THRESHOLD, label_for, plan_card, suffix_label  # noqa: E402
+from sync_alt_arts import (  # noqa: E402
+    HASH_THRESHOLD,
+    alt_product_ids,
+    label_for,
+    plan_card,
+    suffix_label,
+)
 
 
 def bits(n: int) -> str:
@@ -185,6 +191,28 @@ class SuffixLabelTests(unittest.TestCase):
         long = suffix_label("Zoro (Some Extremely Long Event Name That Never Ends Vol. 12)")
         self.assertLessEqual(len(long), 28)
         self.assertTrue(long.startswith("Some Extremely Long"))
+
+
+class AltProductIdsTests(unittest.TestCase):
+    """The backend flags exactly these productIds as alt art (#762)."""
+
+    CATALOG = {
+        "OP12-034": {"altArts": [{"id": "p1", "productId": 900}, {"id": "p2", "productId": 300}]},
+        "OP11-106": {"altArts": [{"id": "p1", "productId": 300}]},  # shared id appears once
+        "OP01-001": {},
+    }
+    ATLAS = {"OP12-034": {"altArts": [{"id": "p3", "productId": 500}]}}
+    TCG = {
+        "OP11-106": {
+            "alts": [{"id": "p2", "imageUrl": "https://x/product/100_400w.jpg"}]  # no productId
+        }
+    }
+
+    def test_ids_from_catalog_atlas_and_tcg_products_are_deduped_and_sorted_762(self):
+        self.assertEqual(alt_product_ids(self.CATALOG, self.ATLAS, self.TCG), [100, 300, 500, 900])
+
+    def test_a_catalog_without_alts_gives_an_empty_list_762(self):
+        self.assertEqual(alt_product_ids({"OP01-001": {}}, {}, {}), [])
 
 
 if __name__ == "__main__":
