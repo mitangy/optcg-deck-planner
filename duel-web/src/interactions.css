@@ -21,9 +21,11 @@
   transition: opacity 0.15s ease;
 }
 
-/* One of your prompts is open: the arrow stays readable but out of the way. */
+/* One of your prompts is open (e.g. picking a Counter while attacked): the arrow
+   dims only slightly. It is the context for the prompt, so it must stay clearly
+   visible (#771). */
 .attack-overlay.attack-dim {
-  opacity: 0.35;
+  opacity: 0.75;
 }
 
 /* Aiming an attack by drag: the arrow follows the pointer over docks and
@@ -53,17 +55,26 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
 .atk-trail-glow {
   fill: none;
   stroke: var(--atk-glow);
+  stroke-width: 14;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+/* Dark edge under the dashed trail so it reads on gold art, bright playmats and
+   the light theme (#771). Solid, so it needs no march animation. */
+.atk-trail-outline {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.6);
   stroke-width: 9;
   stroke-linecap: round;
-  opacity: 0.55;
 }
 
 .atk-trail {
   fill: none;
   stroke: var(--atk);
-  stroke-width: 3;
+  stroke-width: 5;
   stroke-linecap: round;
-  stroke-dasharray: 10 7;
+  stroke-dasharray: 16 6;
   animation: atk-march 0.7s linear infinite;
 }
 
@@ -80,13 +91,13 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 .atk-head {
   fill: var(--atk);
-  stroke: rgba(0, 0, 0, 0.5);
-  stroke-width: 0.8;
+  stroke: rgba(0, 0, 0, 0.75);
+  stroke-width: 1.2;
 }
 
 @keyframes atk-march {
   to {
-    stroke-dashoffset: -34;
+    stroke-dashoffset: -44;
   }
 }
 
@@ -176,9 +187,9 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 .atk-redirect {
   stroke: var(--atk);
-  stroke-width: 1.5;
+  stroke-width: 2.5;
   stroke-dasharray: 3 5;
-  opacity: 0.45;
+  opacity: 0.7;
 }
 
 @media (prefers-reduced-motion: reduce) {
