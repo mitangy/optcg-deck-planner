@@ -85,4 +85,4 @@ wait_for "$WEB" "Vite"
 wait_for "$PLANNER" "the planner Vite"
 
 cd "$HERE"
-npx tsx main.ts "$@"
+npx tsx "${TRAILER_MAIN:-main.ts}" "$@"

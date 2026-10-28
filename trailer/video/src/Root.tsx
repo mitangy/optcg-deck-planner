@@ -1,5 +1,7 @@
 import React from 'react';
-import {Composition} from 'remotion';
+import {Composition, Still} from 'remotion';
+import {INFOGRAPHICS} from './infographics/data';
+import {Infographic, SIZES} from './infographics/Infographic';
 import {LAYOUT_16x9, LAYOUT_9x16} from './layout';
 import {SCENES, TOTAL_SECONDS} from './scenes.config';
 import {BEAT, FPS} from './theme';
@@ -18,6 +20,17 @@ const Trailer9x16: React.FC = () => <TrailerComp layout={LAYOUT_9x16} />;
 export const Root: React.FC = () => (
   <>
     <Composition id="Trailer16x9" component={Trailer16x9} durationInFrames={TOTAL_SECONDS * FPS} fps={FPS} width={1920} height={1080} />
+    {INFOGRAPHICS.flatMap((spec) =>
+      (['portrait', 'landscape'] as const).map((o) => (
+        <Still
+          key={`${spec.id}-${o}`}
+          id={`info-${spec.id}-${o}`}
+          width={SIZES[o].w}
+          height={SIZES[o].h}
+          component={() => <Infographic spec={spec} orientation={o} />}
+        />
+      )),
+    )}
     <Composition id="Trailer9x16" component={Trailer9x16} durationInFrames={TOTAL_SECONDS * FPS} fps={FPS} width={1080} height={1920} />
   </>
 );

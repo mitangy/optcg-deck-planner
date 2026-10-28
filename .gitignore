@@ -34,5 +34,6 @@ trailer/out/
 trailer/clips/
 trailer/video/node_modules/
 trailer/video/public/clips/
+trailer/video/public/infographics/
 trailer/video/public/music.mp3
 trailer/video/src/generated.json

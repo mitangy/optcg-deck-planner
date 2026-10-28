@@ -72,3 +72,18 @@ What each clip substitutes (anything not listed is the real app):
 | 11-phone | Same match on a phone viewport | As clip 02 |
 | 12-phone-portrait | A practice game on a 375x812 phone: drag a card from the fan to play it, drag a DON!! chip onto the Leader, drag the Leader onto the opponent's to attack, End turn, then answer the bot's attack (Pass block, a Counter chip, Resolve) | As clip 02; the waits for the opponent's counter and for the bot's turn are cut out of the recording (three hidden stretches, see `rec.cut()` in the script) |
 | 13-phone-landscape | The same game sideways (812x375): play a card, give DON!!, attack | As clip 02 |
+
+## Help infographics
+
+Player-facing "how to" graphics (send feedback, report a card, the fanned hand, undo, shortcuts, spectate), each as 1080x1350 (portrait, social) and 1920x1080 (landscape, help page / Discord). Real screenshots of the app with gold ring and arrow callouts.
+
+```bash
+cd trailer/video
+npm run infographics:shots   # capture: local stack + fake API, 2x/3x screenshots -> public/infographics/shots/ (gitignored), control boxes -> src/infographics/boxes.json
+npm run infographics         # render every Still -> trailer/out/infographics/<id>-<portrait|landscape>.png and overview.png
+node scripts/render-infographics.mjs hand   # only ids containing "hand"
+```
+
+- `capture/infographics.ts` (groups: `lobby`, `match`, `hand`, `phone`; `TRAILER_MAIN=infographics.ts ./run.sh match`) walks the app and records, next to each screenshot, the box of every control a callout points at. The compositions look boxes up by name, so a re-capture after a UI change moves the rings with it.
+- `video/src/infographics/data.ts` holds the copy and crops (one entry per infographic: title, steps of at most 12 words, shots with `focus` controls, `rings`, `arrow`), `Infographic.tsx` the two layouts, `kit.tsx` the crop maths, rings, key caps.
+- Desktop shots are 1440x900 (the hand ones 1040x700, so the Hand button and the cards sit close enough to crop together) at 2x, phones 390x844 at 3x. The pointer overlay is hidden; the hover card pop-up is hidden in the hand group only (it covered the hand while dragging).
