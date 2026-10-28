@@ -7,8 +7,8 @@
  */
 
 import type { Quad } from "./cardRectify";
-import { rectifyToImageData, RECTIFIED_HEIGHT, RECTIFIED_WIDTH } from "./cardRectify";
-import { detectCardsAsync, isCardShaped, type DetectOptions } from "./cardDetect";
+import { quadArea, rectifyToImageData, RECTIFIED_HEIGHT, RECTIFIED_WIDTH } from "./cardRectify";
+import { detectCardsAsync, intersectionArea, isCardShaped, type DetectOptions } from "./cardDetect";
 import { getCv } from "./cardMatch";
 import { CONFIDENT_INLIERS, SURE_LEAD, matchRectified, type ScanCandidate, type ScanMatch } from "./cardScanMatch";
 import { scanLog } from "./scanLog";
@@ -68,6 +68,54 @@ export function classifyMatch(
     return "sure";
   }
   return "check";
+}
+
+/** Share of a card's own area that another detected card must cover for it to count as overlapped. */
+export const COVERED_OVERLAP = 0.15;
+
+/**
+ * The detector also returns partly covered cards (a fan, an overlapping pair,
+ * a card half behind another) with their full outline. What such a crop shows
+ * is partly the card in front, and a printed box or a neighbour's art can read
+ * as a real card, so an overlapped detection is only "sure" when it is the
+ * best read (most inliers) among the detections it overlaps. Every other
+ * overlapped one is at most "check".
+ */
+export function capOverlappedConfidence<T extends Pick<MultiScanItem, "quad" | "inliers" | "confidence">>(items: T[]): T[] {
+  const areas = items.map((it) => quadArea(it.quad));
+  return items.map((it, i) => {
+    if (it.confidence !== "sure") return it;
+    const beaten = items.some((other, j) => {
+      if (j === i) return false;
+      if (intersectionArea(it.quad, other.quad) / areas[i] < COVERED_OVERLAP) return false;
+      return other.inliers > it.inliers || (other.inliers === it.inliers && j < i);
+    });
+    return beaten ? { ...it, confidence: "check" as const } : it;
+  });
+}
+
+/** Share of an unnamed detection's own area that another detection must cover for it to be dropped. */
+export const HIDDEN_UNNAMED_OVERLAP = 0.4;
+
+/**
+ * A covered card the matcher could not name is not worth a row in the tray
+ * (its crop is mostly the card in front, and the row only offers a fix form).
+ * Drop "none" detections that another detection mostly covers. Named ones stay
+ * (capped to "check" by `capOverlappedConfidence`). Of two unnamed detections
+ * that cover each other, one survives.
+ */
+export function dropHiddenUnnamed<T extends Pick<MultiScanItem, "quad" | "confidence">>(items: T[]): T[] {
+  const areas = items.map((it) => quadArea(it.quad));
+  const dropped = new Set<number>();
+  items.forEach((it, i) => {
+    if (it.confidence !== "none") return;
+    const hidden = items.some(
+      (other, j) =>
+        j !== i && !dropped.has(j) && intersectionArea(it.quad, other.quad) / areas[i] >= HIDDEN_UNNAMED_OVERLAP,
+    );
+    if (hidden) dropped.add(i);
+  });
+  return items.filter((_, i) => !dropped.has(i));
 }
 
 const THUMB_HEIGHT = 160;
@@ -150,7 +198,7 @@ export async function matchAllCardsWith(
     }
   }
   await settleBlock();
-  return items;
+  return dropHiddenUnnamed(capOverlappedConfidence(items));
 }
 
 export const matchAllCards: MatchAllCards = (photo, candidates, onProgress) =>

@@ -218,10 +218,25 @@ detector stays as the fallback.
   `frontend/scan-models/card-detector.onnx` and the *Scan descriptors* workflow
   packs it (an optional `detector_url` input overrides it). Locally, put the
   packed files in `frontend/public/scan-data/`.
-- **Labelling rule.** What the model is trained to find is exactly what the
-  tray needs: the printed card, and for a pile the top card (a card is labelled
-  when at least 85% of it is visible). Cards further back in a fan, face-down
-  cards, non-One-Piece cards in a binder and cards printed on boxes are not.
+- **Labelling rule (#769).** What the model is trained to find is the printed
+  card, including cards that are partly covered: a card is labelled when at
+  least 35% of it is visible (`gen_scenes.py --visible-min`), with its FULL
+  quad (the covered corners are extrapolated from the card's own geometry) and
+  keypoint visibility flag 1 on covered corners. So a fanned pile, an
+  overlapping pair or a card half behind another each come back as separate
+  cards. Cards less visible than that (a thin strip of a stack), face-down
+  cards, non-One-Piece cards and cards printed on boxes are not labelled; the
+  generator makes covered non-One-Piece cards and box art tucked behind real
+  cards on purpose (`--non-op-piles`, `--hard-negatives`) as negatives. The
+  model still often returns the strips of stacked toploaders as extra cards;
+  those read as "none" or "check" in the tray.
+- **Overlapped cards are never "sure" unless they are the best read (#769).**
+  A covered card's crop includes the card in front of it, and a printed box or
+  a neighbour's art can read as a real card, so `capOverlappedConfidence`
+  (`cardScanMulti.ts`) keeps "sure" only for the detection with the most
+  inliers among those that overlap it by 15% or more of its area; the rest are
+  at most "check". Unnamed ("none") detections that others cover by 40% or more
+  are dropped (`dropHiddenUnnamed`).
 
 #### Training it
 
@@ -234,6 +249,8 @@ LIMIT=1500 node scripts/fetch-reference-images.mjs .scan-build/refs-train
 for i in 1 2 3 4; do python scripts/train-detector/gen_scenes.py --cards .scan-build/refs-train \
     --textures <dir of CC0 colour textures, e.g. ambientCG 1K-JPG> \
     --out /tmp/det-r$i --n 2500 --val 200 --seed 2$i; done      # ~25 min each on 4 cores
+# partly covered cards (#769): add --visible-min 0.35 (the default); the last rounds also
+# --non-op-piles 0.2 --hard-negatives 0.4
 # rounds chain: each starts from the previous round's weights (the first from COCO).
 # The shipped model was ~10 epochs at 512 px over three rounds, then 5 at 640 px.
 python scripts/train-detector/train.py --rounds /tmp/det-r1 /tmp/det-r2 /tmp/det-r3 --epochs 4 --out /tmp/det-runs
@@ -256,34 +273,55 @@ many epochs over one. The owner's real photos are the test set and are never
 trained on.
 
 `scripts/detect-eval.mjs` scores the detector (and, with the descriptor bundle,
-the whole pipeline) on the real photos in `.scan-build/real-photos/`.
+the whole pipeline) on the real photos in `.scan-build/real-photos/`; it lists
+unlabelled extra detections with what they were read as, and any "sure" read
+that is wrong. `SCORE=`, `NMS=` and `LONG_SIDE=` override the decode options.
 
 #### How well it works
 
-Scored on four of the owner's phone photos (binder, store shelf, pink sleeves,
-toploaders and a PSA slab; 19 hand-labelled top cards in `quads.json`, none
-of them trained on). A card is found when a detected quad overlaps the
+Scored on five of the owner's phone photos (binder, store shelf, pink sleeves,
+toploaders and a PSA slab, and a 23-card Big Mom playmat spread; hand-labelled
+cards in `quads.json`, none of them trained on). Photos 1-4 are labelled with
+their top cards only, photo 5 with every card including covered ones. A card
+is found when a detected quad overlaps the
 labelled printed card by IoU >= 0.5; the pipeline column runs detection plus
 identification against all 6,774 printings.
 
-| photo | OpenCV found | model found | model false pos. | model mean IoU | piles identified, OpenCV -> model |
-|---|---|---|---|---|---|
-| binder (2 cards, non-One-Piece pockets around them) | 1/2 | 2/2 | 0 | 0.95 | 1/2 -> 2/2 |
-| store shelf (acrylic cases in front of printed boxes) | 1/2 | 2/2 | 0 | 0.91 | 1/2 -> 2/2 |
-| pink sleeves, fanned piles on a glass table | 2/5 | 5/5 | 1 | 0.86 | 2/5 -> 4/5 |
-| toploaders, PSA slab, stacks | 1/10 | 10/10 | 1 | 0.79 | 1/10 -> 8/10 |
-| **total** | **5/19** | **19/19** | **2** | **0.84** | **5/19 -> 16/19** |
+| photo | model found, before -> after #769 | extras after (what, confidence) | piles identified, before -> after |
+|---|---|---|---|
+| binder (2 cards, non-One-Piece pockets around them) | 2/2 -> 2/2 | 2 non-One-Piece binder cards, none | 2/2 -> 2/2 |
+| store shelf (acrylic cases in front of printed boxes) | 2/2 -> 2/2 | 2 box-art cards, none | 2/2 -> 2/2 |
+| pink sleeves, fanned piles on a glass table | 5/5 -> 5/5 | 1 real back card, check; 2 stack strips, none | 4/5 -> 5/5 |
+| toploaders, PSA slab, stacks | 10/10 -> 9/10 | 1 real back card of a stack, sure; 4 stack strips, none | 8/10 -> 8/10 |
+| Big Mom spread, 23 cards incl. fanned and overlapped | 17/23 -> 21/23 | none | 16/23 -> 21-22/23 |
+| **total** | **36/42 -> 39/42** | 12 (9 "none") | **32/42 -> 38-39/42** |
 
-Both false positives are real cards in a fan behind the top card, which the
-tray would show as a second copy rather than as junk. The score threshold
-(0.25) was chosen on these photos (0.30 finds 17/19), so treat the numbers as
-tuned, not blind. Mean IoU is looser than on the synthetic scenes because a
-few quads are rotated a few degrees; identification tolerates that.
+Identification varies by a card between runs (its walk is time-budgeted).
+Before #769 the model had 3 extras on these photos, one each on photos 3-5.
+After it the model also returns covered cards that photos 1-4 do not label
+(they are labelled with top cards only). Detections that another detection
+covers by 40% or more of their own area and that identification could not
+name are dropped (`dropHiddenUnnamed`), since a covered card we cannot name
+only gives the tray a fix form; named covered cards stay, as "check". That is
+also why photo 4 reads 9/10 (one top card, EB04-018, was unnamed and mostly
+overlapped by another detection) and photo 5 21/23. No labelled card was read as "sure"
+and wrong (0 of 39). The covered Katakuri fan, the overlapping foil pair,
+Daifuku and the gold-border Mamaragan (before: found at score 0.05) are
+found now; Pudding at the frame's left edge is missed (part of its quad
+leaves the photo, and the generator never labels such cards). The score
+threshold (0.25) was chosen on these photos, so treat the numbers as tuned,
+not blind. A higher threshold does not separate the leftovers: the non-One-Piece
+binder cards score 0.34-0.50, while real cards score as low as 0.42 (photo 4)
+and 0.49 (photo 5). NMS stays at IoU 0.5: with a 35% visibility rule a second
+card in a fan is at most ~48% overlapped, and a higher threshold only let
+duplicate quads of the same card through (0.65: 23 extras on the first four
+photos of the earlier model, 0.5: 16). Mean IoU (0.85) is looser than on the
+synthetic scenes because a few quads are rotated a few degrees;
+identification tolerates that.
 
 On the 30 synthetic harness scenes (flat, high contrast: the OpenCV
-detector's best case) the model reaches 96.8% recall (211/218), 100%
-precision and 0.89 mean IoU, against OpenCV's 98.2%, 100% and 0.94. Its misses
-are binder pockets and dim cards on busy backgrounds. The reference art is
+detector's best case) the model reaches 99.5% recall (217/218), 100%
+precision and 0.91 mean IoU (96.8% / 100% / 0.89 before #769), against OpenCV's 98.2%, 100% and 0.94. The reference art is
 shared with the training set, though the scenes are not.
 
 Speed: 0.2-0.35 s per photo in headless Chromium on a 4-core server CPU with
@@ -293,6 +331,10 @@ is not cross-origin isolated, so ORT runs on one thread. The ONNX is 5.8 MB, plu
 the ~14 MB onnxruntime-web WASM asset, fetched only when the scanner opens.
 Training took about 2.5 hours of CPU in total (5 rounds of 2,500 scenes,
 ~5 min/epoch at 512 px, ~9 at 640), plus ~25 min of scene generation per round.
+The #769 retrain (covered cards) fine-tuned the previous weights for 3.5 hours
+wall clock on 4 CPUs: 8 rounds of 2,000 fresh scenes, 4 epochs each (512 px for
+rounds 1-4 and 6-7, 640 px for 5 and 8; lr 0.001, AdamW), the last three with
+the hard negatives.
 
 Open problems: a stack of toploaders where only the front card is fully
 visible is the weakest case, and recall there varied between training rounds
