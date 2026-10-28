@@ -1201,3 +1201,40 @@ class TradeApplyLine(Base):
     # Negative = copies removed from the collection.
     delta: Mapped[int] = mapped_column(Integer)
     qty_before: Mapped[int] = mapped_column(Integer)
+
+
+class EventEntry(Base):
+    """A signed-in player's opt-in to a giveaway event (#794). One per player per event."""
+
+    __tablename__ = "event_entries"
+    __table_args__ = (UniqueConstraint("event_id", "user_id", name="uq_event_entry"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[str] = mapped_column(String(64), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # The official-rules version the player accepted when they joined.
+    rules_version: Mapped[str] = mapped_column(String(32))
+    opted_in_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class EventDraw(Base):
+    """The verifiable draw for an event (#794): the seed hash is public before the event, the seed after the draw."""
+
+    __tablename__ = "event_draws"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[str] = mapped_column(String(64), unique=True)
+    seed_hash: Mapped[str] = mapped_column(String(64))
+    seed: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    committed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    drawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    committed_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    drawn_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # JSON list of the user ids that were eligible when the draw ran, so the ranking stays fixed afterwards.
+    eligible_ids: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
+    # JSON list of user ids that forfeited; the next person in the ranking moves up.
+    forfeited: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")

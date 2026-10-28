@@ -9,7 +9,7 @@ from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db, startup_lock
-from app.routers import admin, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, feedback, friend_views, friends, meta, trades
+from app.routers import admin, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, events, feedback, friend_views, friends, meta, trades
 
 settings = get_settings()
 
@@ -100,6 +100,8 @@ app.include_router(duel_prefs.router)
 app.include_router(duel_decks.router)
 app.include_router(feedback.router)
 app.include_router(admin.router)
+app.include_router(events.router)
+app.include_router(events.admin_router)
 app.include_router(analyst.router)
 app.include_router(analyst_chat.router)
 app.include_router(analyst_feedback.router)
