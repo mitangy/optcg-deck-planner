@@ -18,8 +18,27 @@ export const phoneHandoff = (frame: number, fps: number): number => {
   return a * (1 - b);
 };
 
-const HomeChip: React.FC<{x: number; y: number; frame: number; fps: number}> = ({x, y, frame, fps}) => {
-  const {from, to, label, sub} = PHONE.homeScreen;
+const ICONS: Record<'home' | 'train' | 'plane', React.ReactNode> = {
+  home: (
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+      <path d="M12 8v8M8 12h8" />
+    </>
+  ),
+  train: (
+    <>
+      <rect x="5" y="3" width="14" height="14" rx="3.5" />
+      <path d="M5 10h14M9 13.5h.01M15 13.5h.01M8 21l2-4M16 21l-2-4" />
+    </>
+  ),
+  plane: <path d="M21 15.5v-2l-8-5V4a1.5 1.5 0 0 0-3 0v4.5l-8 5v2l8-2.5V18l-2.5 1.75V21L11 20l3.5 1v-1.25L12 18v-4.5z" transform="translate(1 0)" />,
+};
+
+/** A floating info chip (icon + two lines) beside the phone. `anchor` 'right' pins its right edge at x. */
+const InfoChip: React.FC<{
+  x: number; y: number; frame: number; fps: number; from: number; to: number; label: string; sub: string;
+  icon: keyof typeof ICONS; anchor?: 'left' | 'right';
+}> = ({x, y, frame, fps, from, to, label, sub, icon, anchor = 'left'}) => {
   const inP = spring({frame: frame - from * fps, fps, config: {damping: 18, stiffness: 110}});
   const outP = ease((frame - (to - 0.4) * fps) / (0.4 * fps));
   const o = clamp01(inP * 1.4) * (1 - outP);
@@ -27,7 +46,8 @@ const HomeChip: React.FC<{x: number; y: number; frame: number; fps: number}> = (
   return (
     <div
       style={{
-        position: 'absolute', left: x, top: y, opacity: o, transform: `translateY(${(1 - inP) * 24 - outP * 10}px) scale(${0.96 + 0.04 * inP})`,
+        position: 'absolute', left: x, top: y, opacity: o, whiteSpace: 'nowrap', transform: `${anchor === 'right' ? 'translateX(-100%) ' : ''}translateY(${(1 - inP) * 24 - outP * 10}px) scale(${0.96 + 0.04 * inP})`,
+        transformOrigin: anchor === 'right' ? '100% 50%' : '0% 50%',
         display: 'flex', alignItems: 'center', gap: 16, padding: '14px 26px 14px 16px', borderRadius: 22,
         background: 'linear-gradient(180deg, rgba(20,35,64,0.92), rgba(11,22,48,0.92))', border: '1.5px solid rgba(232,182,76,0.55)',
         boxShadow: '0 24px 50px -12px rgba(0,0,0,0.6), 0 0 40px rgba(232,182,76,0.12)', fontFamily: FONT_SANS,
@@ -35,8 +55,7 @@ const HomeChip: React.FC<{x: number; y: number; frame: number; fps: number}> = (
     >
       <div style={{width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(160deg, #1b3d63, #0b1630)', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={COLORS.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
-          <path d="M12 8v8M8 12h8" />
+          {ICONS[icon]}
         </svg>
       </div>
       <div>
@@ -114,7 +133,19 @@ export const PhoneStage: React.FC<{layout: Layout}> = ({layout: L}) => {
           )}
         </PhoneFrame>
       </div>
-      <HomeChip x={L.phone.cx + sw / 2 + 80} y={L.phone.cy - 150} frame={frame} fps={fps} />
+      <InfoChip x={L.phone.cx + sw / 2 + 80} y={L.phone.cy - 150} frame={frame} fps={fps} icon="home" {...PHONE.homeScreen} />
+      {PHONE.travel.map((t) => {
+        // either side of the turned (landscape) phone
+        const half = ((sh + 2 * pad) * L.phone.landscapeScale) / 2;
+        const gap = 36;
+        const x = t.side === 'left' ? L.phone.cx - half - gap : L.phone.cx + half + gap;
+        return (
+          <InfoChip
+            key={t.icon} x={x} y={L.phone.cy - 44} frame={frame} fps={fps} icon={t.icon} from={t.from} to={t.to}
+            label={t.label} sub={t.sub} anchor={t.side === 'left' ? 'right' : 'left'}
+          />
+        );
+      })}
     </div>
   );
 };

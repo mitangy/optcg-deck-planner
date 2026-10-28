@@ -4,7 +4,7 @@ Build notes for the optcgduel.app trailer (issue #754). Capture scripts write `t
 
 ## Rendering
 
-The edit lives in `trailer/video/` (Remotion 4, React, TypeScript). It reads the clips from `trailer/clips/` and renders a 1920x1080, 30 fps, 67.5 s trailer on a 120 BPM grid (every cut lands on a 0.5 s beat).
+The edit lives in `trailer/video/` (Remotion 4, React, TypeScript). It reads the clips from `trailer/clips/` and renders a 1920x1080, 30 fps, 68.5 s trailer on a 120 BPM grid (every cut lands on a 0.5 s beat).
 
 ```bash
 cd trailer/video
