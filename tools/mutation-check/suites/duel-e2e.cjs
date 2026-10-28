@@ -1111,5 +1111,8 @@ module.exports = {
     { id: "e2e-foldable-mouse-window-gets-rail", args: "foldable-layout --project=desktop-1280", edits: [
       { file: "duel-web/src/board/useMediaQuery.ts", from: "(orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px)\";\n\n/** Desktop window", to: "(orientation: landscape) and (min-width: 900px) and (max-width: 1099px)\";\n\n/** Desktop window" },
     ], kills: ["foldable-layout.spec.ts > A mouse window 1024x768 keeps the desktop layout (#770) [desktop-1280]"] },
+    // Turn heading fits its card at the narrowest side column (#774)
+    { id: "e2e-turn-heading-sized-from-window", args: "turn-heading-narrow --project=desktop-1280", file: "duel-web/src/board.css", from: "  font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 11cqi);\n", to: "  font-size: clamp(1.1rem, 1.45vw, 1.65rem);\n", kills: ["turn-heading-narrow.spec.ts > turn heading fits its card at the narrowest side column (#774) [desktop-1280]", "turn-heading-narrow.spec.ts > a long spectator name in the turn heading wraps inside the card at the narrowest column (#774) [desktop-1280]"] },
+    { id: "e2e-turn-heading-long-name-spills", args: "turn-heading-narrow --project=desktop-1280", file: "duel-web/src/board.css", from: "  max-width: 100%;\n  overflow-wrap: break-word;\n  line-height: 1.15;", to: "  line-height: 1.15;", kills: ["turn-heading-narrow.spec.ts > turn heading fits its card at the narrowest side column (#774) [desktop-1280]", "turn-heading-narrow.spec.ts > a long spectator name in the turn heading wraps inside the card at the narrowest column (#774) [desktop-1280]"] },
   ],
 };
