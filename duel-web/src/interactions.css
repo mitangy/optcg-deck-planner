@@ -584,7 +584,7 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
 
 /* Desktop/tablet rail scrolls vertically: let touch pan-y scroll the rail and
    treat sideways movement (towards the board) as the drag. */
-@media (min-width: 900px) and (min-height: 500px) {
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) {
   .arena .arena-rail .hand-row-inner .card-tile.card-draggable:not(.card-dragging) {
     touch-action: pan-y !important;
   }

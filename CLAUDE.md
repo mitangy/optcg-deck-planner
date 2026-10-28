@@ -29,6 +29,19 @@ Only write a test for behavior you can actually break. A test earns its place by
 6. **Name tests after the behavior and the PR number**, e.g. `Marco On K.O. fires once when he K.O.s himself (#225)`.
 7. **Before a mutation run, make sure no other run is in progress.** Suites share one restore journal, so `run.cjs` refuses to start while another run is active.
 
+## PR screenshots and recordings
+
+Every UI PR body embeds screenshot proofs (and a recording for animations, drags or multi-step flows). They are **never committed to a code branch**, not to the PR branch and not to `main` (#783). CI fails a PR that adds a `png/jpg/gif/webp/webm/mp4/mov` outside app asset folders (`public/`, `assets/`, Playwright `*-snapshots/`).
+
+1. Save captures outside the repo, e.g. your scratchpad or `/tmp/pr-shots/<number>/`.
+2. Upload them to the orphan `pr-assets` branch (never merges, has no code):
+   `tools/pr-assets/upload.sh <PR-or-issue-number> shot1.png shot2.png clip.webm`
+   It commits to `pr-assets/<number>/`, pushes (retrying and rebasing if another thread pushed first; never force) and prints Markdown with **commit-pinned** URLs.
+3. Paste that Markdown into the PR body. Images render inline (`https://raw.githubusercontent.com/mitangy/optcg-deck-planner/<sha>/<number>/<file>`). Use `<img src="..." width="420">` for side-by-side shots.
+4. Videos: GitHub only plays videos uploaded through its web editor, so a `.webm` from the script is a link. When motion should be visible inline, also upload a short GIF (e.g. `ffmpeg -i clip.webm -vf "fps=12,scale=640:-1" clip.gif`).
+
+Pushing to `pr-assets` is allowed for every thread. Don't use branch-name URLs (`/claude/project-thread-x/...`): they break when the branch is deleted or reused.
+
 ## Patch notes
 
 - Player-facing changes add an entry at the top of `packages/patch-notes/src/notes.ts` in the same PR.
