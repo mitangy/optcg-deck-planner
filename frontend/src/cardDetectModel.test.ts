@@ -133,6 +133,18 @@ describe("isPlausibleCard", () => {
   });
 });
 
+describe("isPlausibleCard at the photo's edge", () => {
+  it("accepts a card cut by the frame when most of it is inside, and not one mostly outside (#789)", () => {
+    // 220 px tall, 157 wide: 40 px past the left edge is 25% outside.
+    expect(isPlausibleCard(card(-40, 100), 640, 640)).toBe(true);
+    // Rotated, off the bottom-right corner by a third of its height.
+    expect(isPlausibleCard(rect(500, 620 - 157, 220, 157), 640, 640)).toBe(true);
+    // 100 px past the edge is 64% outside: only a sliver is in the photo.
+    expect(isPlausibleCard(card(-100, 100), 640, 640)).toBe(false);
+    expect(isPlausibleCard(card(300, 560), 640, 640)).toBe(false); // 73% below the bottom
+  });
+});
+
 describe("suppressDuplicates", () => {
   it("keeps the highest-scoring of overlapping quads (#701)", () => {
     const kept = suppressDuplicates(

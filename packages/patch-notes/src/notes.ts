@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "planner", pr: 801, title: "Scanning skips other games' cards and finds cut-off cards", text: "Scanning a photo now ignores cards from other games and the card art printed on boxes, so you get fewer \"No match\" rows. Cards that run off the edge of the photo are found too." },
   { date: "2026-10-28", app: "planner", pr: 799, title: "Friend Spares follows Include decks", text: "A friend's Spares tab now only lists cards you need for the decks ticked under Include decks on Master Shopping." },
   { date: "2026-10-28", app: "both", pr: 800, title: "Dropdowns match the theme everywhere", text: "Every dropdown now opens a list in the app's own colours instead of the gray list your browser draws, in both the planner and the duel app. That includes the printing picker in a friend's spares list, the filters, the settings, the deck editor and the replay controls." },
   { date: "2026-10-28", app: "duel", pr: 796, title: "Toolbar buttons fit a narrow side column, Full screen always shown", text: "With Bigger playing area on a computer, the buttons above the side column (Brief, Log Pose, Undo, the hot-seat switch and the ⋯ menu) now shrink to fit when you drag the column narrow, instead of the leftmost ones being cut off. The Full screen button now sits in that row instead of inside the ⋯ menu. Phones keep it in the menu." },
