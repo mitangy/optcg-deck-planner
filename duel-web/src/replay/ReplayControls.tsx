@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Dialog } from "@optcg/ui/popups";
+import { Dialog, Select } from "@optcg/ui/popups";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { isTyping } from "../board/useBoardHotkeys";
 import { PLAY_SPEEDS, type PlaySpeed } from "./replayCursor";
@@ -102,25 +102,25 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
   const turnSelect = (
     <label className="replay-field">
       <span className="replay-field-label">Turn</span>
-      <select className="replay-select" value={turn} onChange={(e) => actions.goTurn(Number(e.target.value))} aria-label="Jump to turn">
-        {turns.map((t) => (
-          <option key={t.turn} value={t.turn}>
-            {t.turn}
-          </option>
-        ))}
-      </select>
+      <Select
+        buttonClassName="replay-select"
+        value={turn}
+        onChange={actions.goTurn}
+        aria-label="Jump to turn"
+        options={turns.map((t) => ({ value: t.turn, label: t.turn }))}
+      />
     </label>
   );
   const speedSelect = (
     <label className="replay-field">
       <span className="replay-field-label">Speed</span>
-      <select className="replay-select" value={speed} onChange={(e) => actions.setSpeed(Number(e.target.value) as PlaySpeed)} aria-label="Playback speed">
-        {PLAY_SPEEDS.map((s) => (
-          <option key={s} value={s}>
-            {s}×
-          </option>
-        ))}
-      </select>
+      <Select
+        buttonClassName="replay-select"
+        value={speed}
+        onChange={actions.setSpeed}
+        aria-label="Playback speed"
+        options={PLAY_SPEEDS.map((s) => ({ value: s, label: `${s}×` }))}
+      />
     </label>
   );
   const flipButton = (

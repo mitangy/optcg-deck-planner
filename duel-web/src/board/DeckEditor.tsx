@@ -1,3 +1,4 @@
+import { Select, type SelectOption } from "@optcg/ui/popups";
 import { useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./CardInspect";
@@ -141,21 +142,15 @@ function StackCard({
         {alts.length > 0 ? (
           <label className="deck-stack-art-label">
             Artwork
-            <select
-              className="deck-stack-art-select"
+            <Select
+              buttonClassName="deck-stack-art-select"
               value={selectedAlt}
-              onChange={(e) => {
-                setDeckArtPref(deck.id, defId, e.target.value || null);
+              onChange={(id) => {
+                setDeckArtPref(deck.id, defId, id || null);
                 onChanged();
               }}
-            >
-              <option value="">Standard</option>
-              {alts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: "Standard" }, ...alts.map((a) => ({ value: a.id, label: a.label }))]}
+            />
           </label>
         ) : (
           <p className="meta">Standard artwork only</p>
@@ -164,6 +159,12 @@ function StackCard({
     </article>
   );
 }
+
+const YES_NO_OPTIONS: readonly SelectOption<"" | "yes" | "no">[] = [
+  { value: "", label: "Any" },
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
 
 function toggleInList(list: string[], value: string): string[] {
   return list.includes(value)
@@ -371,15 +372,15 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
               <div className="deck-filter-row">
                 <label className="deck-search-field">
                   <span>Counter</span>
-                  <select value={counter} onChange={(e) => setCounter(e.target.value)}>
-                    <option value="">Any</option>
-                    <option value="none">None</option>
-                    {counterOpts.map((n) => (
-                      <option key={n} value={String(n)}>
-                        +{n}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    value={counter}
+                    onChange={setCounter}
+                    options={[
+                      { value: "", label: "Any" },
+                      { value: "none", label: "None" },
+                      ...counterOpts.map((n) => ({ value: String(n), label: `+${n}` })),
+                    ]}
+                  />
                 </label>
                 <label className="deck-search-field">
                   <span>Cost min</span>
@@ -421,25 +422,11 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
                 </label>
                 <label className="deck-search-field">
                   <span>Blocker</span>
-                  <select
-                    value={blocker}
-                    onChange={(e) => setBlocker(e.target.value as "" | "yes" | "no")}
-                  >
-                    <option value="">Any</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
+                  <Select value={blocker} onChange={setBlocker} options={YES_NO_OPTIONS} />
                 </label>
                 <label className="deck-search-field">
                   <span>Rush</span>
-                  <select
-                    value={rush}
-                    onChange={(e) => setRush(e.target.value as "" | "yes" | "no")}
-                  >
-                    <option value="">Any</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
+                  <Select value={rush} onChange={setRush} options={YES_NO_OPTIONS} />
                 </label>
               </div>
 

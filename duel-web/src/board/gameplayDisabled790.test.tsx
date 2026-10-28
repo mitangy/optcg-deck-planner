@@ -35,7 +35,8 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const select = (id: string) => document.getElementById(id) as HTMLSelectElement;
+/** The Select button: `disabled` is its own, the chosen label is its text (a native select had `value`). */
+const select = (id: string) => document.getElementById(id) as HTMLButtonElement;
 const notes = () => Array.from(document.querySelectorAll('[role="note"]')).map((n) => n.textContent ?? "");
 const simpleBoard = () =>
   Array.from(document.querySelectorAll<HTMLInputElement>(".switch input")).find((i) =>
@@ -46,7 +47,7 @@ describe("Gameplay rows that do nothing in this layout (#790)", () => {
   it("grays out Hand layout and Simple board with a note on a phone held sideways, keeping the saved values (#790)", async () => {
     await mount([], { handLayout: "fan", compactOwnBoard: true });
     expect(select("hand-layout").disabled).toBe(true);
-    expect(select("hand-layout").value).toBe("fan");
+    expect(select("hand-layout").textContent).toContain("Fan");
     expect(simpleBoard().disabled).toBe(true);
     expect(simpleBoard().checked).toBe(true);
     expect(notes().some((n) => /grid on the right/.test(n))).toBe(true);

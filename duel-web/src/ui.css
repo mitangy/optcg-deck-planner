@@ -519,7 +519,7 @@ html {
 }
 
 .field input,
-.field select {
+.field .ui-select-button {
   width: 100%;
   min-height: 44px;
   background: var(--arena-mid);
@@ -532,7 +532,7 @@ html {
 }
 
 .field input:focus-visible,
-.field select:focus-visible {
+.field .ui-select-button:focus-visible {
   outline: none;
   border-color: var(--chrome);
   box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
@@ -1281,7 +1281,7 @@ html {
   min-width: 0;
 }
 
-.deck-picker select {
+.deck-picker .ui-select-button {
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -2141,10 +2141,10 @@ label.btn.is-busy {
 }
 
 /* Long deck names end in an ellipsis instead of being cut mid-letter. */
-.deck-picker select,
-.deck-config-switcher select,
-.field select,
-.lobby select {
+.deck-picker .ui-select-button,
+.deck-config-switcher .ui-select-button,
+.field .ui-select-button,
+.lobby .ui-select-button {
   max-width: 100%;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2170,6 +2170,13 @@ label.btn.is-busy {
   --ui-ink: var(--ink);
   --ui-border: 1px solid var(--line-strong);
   --ui-hover: rgb(var(--chrome-bright-rgb) / 0.14);
+  --ui-muted: var(--muted);
+  --ui-field-bg: var(--arena-mid);
+  --ui-field-border: 1px solid var(--line);
+  --ui-field-radius: 8px;
+  --ui-accent: var(--chrome-bright);
+  --ui-selected: rgb(var(--chrome-bright-rgb) / 0.1);
+  --ui-active: rgb(var(--chrome-bright-rgb) / 0.24);
 }
 
 /* What's new card (packages/patch-notes): map its tokens to the arena palette (follows crew themes and light mode). */

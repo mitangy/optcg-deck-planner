@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Select } from "@optcg/ui/popups";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { CardArt } from "../cards/CardArt";
@@ -285,13 +286,12 @@ export function MetaDecksPage() {
           </div>
           <div className="field meta-window">
             <label htmlFor="meta-window">Window</label>
-            <select id="meta-window" value={days} onChange={(e) => update({ days: Number(e.target.value) })}>
-              {META_WINDOWS.map((d) => (
-                <option key={d} value={d}>
-                  Last {d} days
-                </option>
-              ))}
-            </select>
+            <Select
+              id="meta-window"
+              value={days}
+              onChange={(d) => update({ days: d })}
+              options={META_WINDOWS.map((d) => ({ value: d, label: `Last ${d} days` }))}
+            />
           </div>
         </header>
 
