@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", pr: 796, title: "Toolbar buttons fit a narrow side column, Full screen always shown", text: "With Bigger playing area on a computer, the buttons above the side column (Brief, Log Pose, Undo, the hot-seat switch and the ⋯ menu) now shrink to fit when you drag the column narrow, instead of the leftmost ones being cut off. The Full screen button now sits in that row instead of inside the ⋯ menu. Phones keep it in the menu." },
   { date: "2026-10-28", app: "duel", pr: 792, title: "Settings that do nothing are grayed out", text: "On a phone, Hand layout and Simple board are now grayed out with a short note when the phone is held sideways, and Life stack direction is grayed out while Simple board is on. Your choices are kept for when they apply again." },
   { date: "2026-10-28", app: "duel", pr: 779, title: "A bolder attack arrow", text: "The battle arrow is thicker, has a dark outline so it stands out on bright cards and playmats (and in the light theme), and stays clearly visible while you pick a Counter or answer another prompt." },
   { date: "2026-10-28", app: "planner", pr: 788, title: "Scanning finds partly covered cards", text: "Scanning a photo now also finds cards that are partly covered, like fanned or overlapping cards. Check them before adding: a covered card is never marked as a sure match unless it is the clearest read in its spot." },
