@@ -448,6 +448,28 @@
   gap: var(--g);
 }
 
+/* Desktop Life sits at the top of your mat, level with the Characters row; the opponent's mirrors it (#768). */
+.arena.arena-wide:not(.arena-lp) .side-field.side-you .zone-life {
+  align-self: start;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field.side-opp .zone-life {
+  align-self: end;
+}
+
+/* The turn-order tag joins the Life column instead of floating over it: under your Life label, above the opponent's stack (#768). */
+.arena.arena-wide:not(.arena-lp) .side-field .zone-life .mat-order {
+  position: static;
+  max-width: 100%;
+  white-space: nowrap;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.14), 0.78rem);
+  letter-spacing: 0.03em;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field.side-opp .zone-life .mat-order {
+  order: -1;
+}
+
 /* Life cards lie sideways (landscape), stacked with a small offset like a
    real Life area. Each face is a card-width landscape slot; the portrait back
    art is drawn on a rotated pseudo-element so it isn't cropped. */
