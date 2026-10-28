@@ -292,7 +292,9 @@
 }
 
 /* Landscape phones: the rail is short, so every row shrinks a little. */
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .replay-compact {
     gap: 0.15rem;
     padding: 0.25rem 0.4rem;
