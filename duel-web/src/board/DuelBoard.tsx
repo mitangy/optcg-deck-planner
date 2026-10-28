@@ -2012,7 +2012,7 @@ export function DuelBoard({
       undoPendingMine ? (
         <button
           type="button"
-          className="hud-undo-btn hud-icon-btn armed"
+          className="hud-undo-btn hud-icon-btn hud-undo-cancel armed"
           aria-label="Cancel undo request"
           title="Waiting for your opponent to accept. Press to cancel."
           onClick={() => undo.onAction("cancel")}
@@ -2054,6 +2054,8 @@ export function DuelBoard({
         over,
         hotseat: Boolean(hotseatPass),
         fullscreenOffered,
+        // The computer's action row carries its own Full screen button; phones keep it in the menu.
+        fullscreenInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
         replay: isReplay,
       })}
@@ -2084,6 +2086,18 @@ export function DuelBoard({
       {brief.trigger}
       {copilot.trigger}
       {hudUndoPass}
+      {fullscreenOffered ? (
+        <button
+          type="button"
+          className="hud-undo-btn hud-icon-btn hud-fullscreen-btn"
+          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+          aria-pressed={isFullscreen}
+          title={isFullscreen ? "Exit full screen" : "Full screen"}
+          onClick={toggleFullscreen}
+        >
+          {isFullscreen ? "⤡" : "⛶"}
+        </button>
+      ) : null}
       {matchMenuEl("anchor")}
     </div>
   );

@@ -20,6 +20,7 @@ import { playTurnChime } from "./turnAlert";
 import {
   showToggleShown,
   turnAlertCopy,
+  rowDisabledNote,
   visibleGroups,
   type FieldDevice,
   type GroupId,
@@ -30,6 +31,7 @@ import {
 import {
   DESKTOP_BOARD_QUERY,
   FINE_POINTER_QUERY,
+  PORTRAIT_MAT_QUERY,
   TILT_BOARD_QUERY,
   useMediaQuery,
 } from "./useMediaQuery";
@@ -245,7 +247,16 @@ export function GameplaySettingsFields() {
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
   // Orientation lock and vibration are for phones and tablets, not a mouse and keyboard.
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
-  const device: FieldDevice = { desktop, tiltFits, finePointer };
+  // Upright phone: some rows do nothing in one orientation, so they are disabled with a note.
+  const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
+  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait };
+  const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
+  const disabledNote = (note: string | null) =>
+    note ? (
+      <p className="field-hint field-note" role="note">
+        {note}
+      </p>
+    ) : null;
   const groups = visibleGroups(device);
   const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
 
@@ -253,6 +264,7 @@ export function GameplaySettingsFields() {
     const toggle = toggleByKey.get(key);
     if (toggle) {
       const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
+      const note = noteFor(t.key);
       return (
         <div className="gameplay-toggle" key={t.key}>
           <label className="switch">
@@ -261,6 +273,7 @@ export function GameplaySettingsFields() {
               checked={
                 t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
               }
+              disabled={note !== null}
               onChange={(e) => {
                 if (t.key === "oppHandTopRight") {
                   updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
@@ -274,6 +287,7 @@ export function GameplaySettingsFields() {
             <span>{t.label}</span>
           </label>
           <p className="field-hint">{t.hint}</p>
+          {disabledNote(note)}
         </div>
       );
     }
@@ -354,6 +368,7 @@ export function GameplaySettingsFields() {
             <label htmlFor="hand-layout">Hand layout</label>
             <select
               id="hand-layout"
+              disabled={noteFor("handLayout") !== null}
               value={settings.handLayout}
               onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayoutPref })}
             >
@@ -368,6 +383,7 @@ export function GameplaySettingsFields() {
                 ? "Automatic uses Grid on tall windows and Fan elsewhere. Fan tucks under the board; Grid is a side panel you can move."
                 : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
             </p>
+            {disabledNote(noteFor("handLayout"))}
           </div>
 
         );
@@ -458,6 +474,7 @@ export function GameplaySettingsFields() {
             <label htmlFor="life-fan">Life stack direction</label>
             <select
               id="life-fan"
+              disabled={noteFor("lifeFan") !== null}
               value={settings.lifeFan}
               onChange={(e) => updateSettings({ lifeFan: e.target.value as LifeFan })}
             >
@@ -470,6 +487,7 @@ export function GameplaySettingsFields() {
             <p className="field-hint">
               Which way your Life cards fan out. The opponent&apos;s Life mirrors yours.
             </p>
+            {disabledNote(noteFor("lifeFan"))}
           </div>
         );
       case "animationSpeed":

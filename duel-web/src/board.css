@@ -7165,25 +7165,51 @@ body.is-panel-resize-row .col-cut {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: 0.25rem;
   min-width: 0;
   height: calc(44px + var(--safe-t));
-  padding: var(--safe-t) 0.5rem 0;
+  padding: var(--safe-t) 0.25rem 0;
+  overflow: hidden;
   border-bottom: 1px solid var(--line);
   background: rgb(var(--deep-rgb) / 0.35);
 }
 
+/* Buttons give way before they overflow: 36px at ordinary widths, narrower in a column dragged to its minimum, so no
+   icon is ever cut off at the row's edge. */
 .arena.arena-wide .col-actions > * {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .arena.arena-wide .col-actions .hud-icon-btn,
 .arena.arena-wide .col-actions .hud-pass-btn,
 .arena.arena-wide .col-actions .hud-undo-btn {
+  box-sizing: border-box;
   min-height: 36px;
-  min-width: 36px;
+  min-width: 0;
   padding: 0 0.6rem;
   font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn:not(.hud-undo-cancel) {
+  flex: 0 1 36px;
+  min-width: 20px;
+  padding: 0;
+}
+
+/* Text buttons: the hot-seat switch keeps its whole "→ P2" (the icons give way instead); the armed Cancel, which
+   only shows for a moment, shrinks with an ellipsis rather than overflow. */
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-cancel {
+  flex: 0 1 auto;
+  padding: 0 0.4rem;
+}
+
+.arena.arena-wide .col-actions .hud-pass-btn {
+  flex: none;
 }
 
 .arena.arena-wide .col-actions .hud-menu-btn {
@@ -7194,7 +7220,9 @@ body.is-panel-resize-row .col-cut {
 /* Brief and Log Pose are icons here (the buttons keep their names): with Undo and the hot-seat switch beside them,
    their text labels would not fit the narrowest column. */
 .arena.arena-wide .col-actions .hud-brief-btn.hud-brief-text {
+  flex: 0 1 36px;
   width: 36px;
+  min-width: 20px;
   padding: 0;
 }
 

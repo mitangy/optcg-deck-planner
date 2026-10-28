@@ -86,6 +86,7 @@ export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | n
 
       <g key={shotKey}>
         <path className="atk-trail-glow" d={arc.d} filter="url(#atk-glow)" />
+        <path className="atk-trail-outline" d={arc.d} />
         <path className="atk-trail" d={arc.d} markerEnd="url(#atk-head)" />
         <path className="atk-fuse" d={arc.d} />
 
@@ -176,8 +177,8 @@ function AttackDefs() {
         viewBox="0 0 12 12"
         refX="7"
         refY="6"
-        markerWidth="5"
-        markerHeight="5"
+        markerWidth="4"
+        markerHeight="4"
         orient="auto-start-reverse"
       >
         <path d="M1 1 L11 6 L1 11 L4 6 Z" className="atk-head" />
@@ -254,6 +255,7 @@ export function DragAttackArrow({ attackerId }: { attackerId: string | null }) {
         rx={10}
       />
       <path className="atk-trail-glow" d={aim.arc.d} filter="url(#atk-glow)" />
+      <path className="atk-trail-outline" d={aim.arc.d} />
       <path className="atk-trail" d={aim.arc.d} markerEnd="url(#atk-head)" />
       {aim.targetBox ? <path className="atk-fuse" d={aim.arc.d} /> : null}
       {aim.targetBox ? <Reticle box={aim.targetBox} /> : null}
