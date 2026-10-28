@@ -283,7 +283,6 @@ export function SideField({
           : undefined
       }
     >
-      {turnOrder && !counts ? orderTag : null}
       <div className="side-grid">
         {counts ? (
           <div className="opp-counts">
@@ -319,6 +318,7 @@ export function SideField({
             onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
             onInspectFace={setLifeFaceInspect}
           />
+          {turnOrder ? orderTag : null}
         </div>}
 
         <div
