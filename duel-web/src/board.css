@@ -3934,18 +3934,119 @@ body.is-panel-resize-row .col-cut {
   color: var(--ink);
 }
 
-.rematch-deck select {
+.rematch-deck-label {
+  color: var(--muted);
+}
+
+/* The trigger keeps one size whatever deck is picked: the name ellipsizes, the chevron stays put. */
+.rematch-deck-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  padding: 0.4rem 0.5rem;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--arena-raised);
   color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rematch-deck-button:hover,
+.rematch-deck-button[data-open] {
+  border-color: var(--line-strong);
+}
+
+.rematch-deck-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.rematch-deck-current {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rematch-deck-chevron {
+  flex: 0 0 auto;
+  color: var(--chrome-bright);
+  line-height: 1;
+}
+
+/* Floats in a portal over the game-over overlay (z-index 20); opaque so nothing shows through. */
+.rematch-deck-list {
+  --ui-z: 1000;
+  width: var(--button-width);
+  min-width: var(--button-width);
+  max-width: calc(100vw - 16px);
+  max-height: min(var(--anchor-max-height, 60dvh), 320px);
+  padding: 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--arena-panel);
+  color: var(--ink);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: deck-menu-in 140ms ease-out;
+}
+
+.rematch-deck-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 9px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.rematch-deck-row[data-selected] {
+  background: rgb(var(--chrome-bright-rgb) / 0.12);
+}
+
+.rematch-deck-row[data-focus] {
+  background: rgb(var(--chrome-bright-rgb) / 0.24);
+}
+
+.rematch-deck-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rematch-deck-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rematch-deck-sub {
+  color: var(--muted);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rematch-deck-check {
+  flex: 0 0 1em;
+  color: var(--chrome-bright);
+  font-weight: 700;
+  text-align: center;
 }
 
 /* —— Choice targets: live readiness under each field card —— */

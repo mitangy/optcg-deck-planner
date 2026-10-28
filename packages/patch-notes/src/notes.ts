@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", title: "Readable deck lists in the game-over rematch", text: "The \"Deck for the rematch\" picker now matches your theme and shows each deck's leader and size, instead of a gray list with hard-to-read text on Windows. Other dropdown lists in the app are easier to read too." },
   { date: "2026-10-28", app: "duel", pr: 777, title: "Life lines up with the top of the mat", text: "On a desktop-size board, your Life stack now sits at the top of your mat, level with your Characters, instead of floating in the middle. The opponent's Life mirrors it at the bottom of their mat, next to the midline." },
   { date: "2026-10-28", app: "duel", pr: 778, title: "Turn heading fits in a narrow side column", text: "When you drag a side column to its narrowest, the big \"Opponent's turn\" heading now shrinks to stay inside its box, and a long player name wraps onto a second line instead of spilling out." },
   { date: "2026-10-28", app: "planner", pr: 761, title: "Base cards show their normal price again", text: "About 20 cards, such as Boa Hancock (OP02-059), had switched to a pre-release or promo printing with a much higher price in your shopping list. They show their normal printing, price and art again, and the promo stays available as an alt art." },
