@@ -733,7 +733,7 @@
 }
 
 .adm-search input:focus-visible,
-.adm-urole select:focus-visible {
+.adm-urole .ui-select-button:focus-visible {
   outline: none;
   border-color: var(--chrome);
   box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
@@ -828,7 +828,7 @@
   padding-left: 0.6rem;
 }
 
-.adm-urole select {
+.adm-urole .ui-select-button {
   width: 100%;
   min-height: 36px;
   background: var(--arena-mid);

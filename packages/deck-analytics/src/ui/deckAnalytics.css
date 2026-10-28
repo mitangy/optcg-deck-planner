@@ -351,10 +351,11 @@
   flex-basis: 100%;
 }
 
-.ds-field select {
+.ds-field .ui-select-button {
   width: 100%;
   min-width: 0;
   height: 2.25rem;
+  padding-block: 0;
 }
 
 .ds-odds-toggles {

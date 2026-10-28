@@ -61,3 +61,136 @@
   border-radius: var(--ui-radius, 8px);
   outline: none;
 }
+
+/*
+ * Select (the replacement for a native <select>): a button with the chosen label and an opaque list.
+ * Tokens: --ui-field-bg / --ui-field-border / --ui-field-radius for the closed button, --ui-accent for the
+ * open / focus ring and the check mark, --ui-selected for the chosen row, --ui-active for the active (keyboard / hover) row.
+ */
+:where(.ui-select) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+:where(.ui-select-field-label) {
+  color: var(--ui-muted, inherit);
+  font-size: 0.8rem;
+}
+
+:where(.ui-select-button) {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--ui-ink, inherit);
+  background: var(--ui-field-bg, transparent);
+  border: var(--ui-field-border, 1px solid currentColor);
+  border-radius: var(--ui-field-radius, 8px);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* One size whatever is picked: the value ellipsizes and the chevron stays put. */
+:where(.ui-select-value) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.ui-select-chevron) {
+  flex: 0 0 auto;
+  color: var(--ui-accent, currentColor);
+  line-height: 1;
+}
+
+:where(.ui-select-button[data-hover], .ui-select-button[data-open]) {
+  border-color: var(--ui-accent, currentColor);
+}
+
+:where(.ui-select-button[data-focus]) {
+  outline: 2px solid var(--ui-accent, currentColor);
+  outline-offset: 1px;
+}
+
+:where(.ui-select-button[data-disabled]) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Floats in a portal; opaque so nothing shows through, at least as wide as the button. */
+:where(.ui-select-list) {
+  width: max-content;
+  min-width: var(--button-width, 8rem);
+  max-width: min(32rem, calc(100vw - 16px));
+  font-size: 0.875rem;
+  overscroll-behavior: contain;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.45);
+}
+
+.ui-select-list:focus-visible {
+  /* The list holds focus while open (the active row shows it); an app's global :focus-visible ring would box the whole list. */
+  outline: none;
+}
+
+:where(.ui-select-option) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+:where(.ui-select-option[data-selected]) {
+  background: var(--ui-selected, rgb(128 128 128 / 0.12));
+}
+
+/* The active row wins over the chosen one. */
+:where(.ui-select-list .ui-select-option[data-focus]) {
+  background: var(--ui-active, var(--ui-hover, rgb(128 128 128 / 0.2)));
+}
+
+:where(.ui-select-option[data-disabled]) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+:where(.ui-select-text) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+:where(.ui-select-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.ui-select-sub) {
+  color: var(--ui-muted, inherit);
+  font-size: 0.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.ui-select-check) {
+  flex: 0 0 1em;
+  color: var(--ui-accent, currentColor);
+  font-weight: 700;
+  text-align: center;
+}

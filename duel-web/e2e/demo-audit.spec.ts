@@ -1501,7 +1501,7 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
   if (desktop) {
     // Desktop picks the spot from the Opponent hand position list instead.
     await expect(toggle).toHaveCount(0);
-    await expect(page.getByLabel("Opponent hand position")).toHaveValue("right");
+    await expect(page.getByLabel("Opponent hand position")).toHaveText(/Right of the mat/);
     return;
   }
   await expect(toggle).toBeChecked();

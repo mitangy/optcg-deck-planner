@@ -29,7 +29,7 @@ test("Play vs Bot: the bot answers the opening hand and takes its turn (#631)", 
   await openBotSetup(page, 7);
   // Normal is the default level, and the bot copies your deck unless you pick another.
   await expect(page.getByRole("radio", { name: "Normal" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByLabel("Bot's deck")).toHaveValue("");
+  await expect(page.getByLabel("Bot's deck")).toContainText("Same as your deck");
   await page.getByRole("button", { name: "Start game" }).click();
 
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });

@@ -3324,7 +3324,7 @@ tr.done td {
 }
 
 .group-buy-order-form input,
-.group-buy-order-form select,
+.group-buy-order-form .ui-select-button,
 .group-buy-order-form textarea {
   font: inherit;
   color: inherit;
@@ -3539,23 +3539,17 @@ tr.done td {
 
 .group-buy-printing {
   box-sizing: border-box;
-  appearance: auto;
-  -webkit-appearance: menulist;
   max-width: 100%;
   min-width: 12rem;
   width: 100%;
   min-height: 2.25rem;
-  /* Leave room for the native dropdown caret so it never covers the label. */
-  padding: 0.35rem 2rem 0.35rem 0.55rem;
+  padding: 0.35rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
   font-size: 0.85rem;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 .data-table td.alt-arts-cell {
@@ -3985,8 +3979,7 @@ tr.done td {
   flex: 1 1 6rem;
 }
 
-.deck-editor-select select {
-  appearance: auto;
+.deck-editor-select .ui-select-button {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -4192,7 +4185,7 @@ tr.done td {
     flex: 1 1 0;
   }
 
-  .deck-editor-select select {
+  .deck-editor-select .ui-select-button {
     min-height: 2.35rem;
     padding: 0.35rem 0.45rem;
     font-size: 0.92rem;
@@ -6078,6 +6071,13 @@ button.remove-extra {
   --ui-ink: var(--ink);
   --ui-border: 1px solid var(--line-strong);
   --ui-hover: var(--field-bg);
+  --ui-muted: var(--muted);
+  --ui-field-bg: var(--field-bg);
+  --ui-field-border: 1px solid var(--line);
+  --ui-field-radius: 10px;
+  --ui-accent: var(--gold);
+  --ui-selected: var(--card-sunk);
+  --ui-active: var(--gold-soft);
 }
 
 /* What's new card (packages/patch-notes): map its tokens to the planner palette (light and dark). */
@@ -6113,7 +6113,7 @@ button.remove-extra {
   font-size: 0.9rem;
 }
 
-.meta-select select {
+.meta-select .ui-select-button {
   min-width: 9rem;
 }
 
@@ -6423,11 +6423,11 @@ a.meta-leader-card:focus-visible {
 @media (max-width: 520px) {
   .meta-controls,
   .meta-select,
-  .meta-select select {
+  .meta-select .ui-select-button {
     width: 100%;
   }
 
-  .meta-select select {
+  .meta-select .ui-select-button {
     flex: 1;
     min-width: 0;
   }

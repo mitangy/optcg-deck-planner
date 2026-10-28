@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "both", pr: 797, title: "Dropdowns match the theme everywhere", text: "Every dropdown now opens a list in the app's own colours instead of the gray list your browser draws, in both the planner and the duel app. That includes the printing picker in a friend's spares list, the filters, the settings, the deck editor and the replay controls." },
   { date: "2026-10-28", app: "duel", pr: 796, title: "Toolbar buttons fit a narrow side column, Full screen always shown", text: "With Bigger playing area on a computer, the buttons above the side column (Brief, Log Pose, Undo, the hot-seat switch and the ⋯ menu) now shrink to fit when you drag the column narrow, instead of the leftmost ones being cut off. The Full screen button now sits in that row instead of inside the ⋯ menu. Phones keep it in the menu." },
   { date: "2026-10-28", app: "duel", pr: 792, title: "Settings that do nothing are grayed out", text: "On a phone, Hand layout and Simple board are now grayed out with a short note when the phone is held sideways, and Life stack direction is grayed out while Simple board is on. Your choices are kept for when they apply again." },
   { date: "2026-10-28", app: "duel", pr: 779, title: "A bolder attack arrow", text: "The battle arrow is thicker, has a dark outline so it stands out on bright cards and playmats (and in the light theme), and stays clearly visible while you pick a Counter or answer another prompt." },
