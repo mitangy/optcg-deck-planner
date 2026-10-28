@@ -117,7 +117,7 @@ test("F toggles full screen on the board, with or without Bigger playing area (#
   }
 });
 
-// The narrowest side column (#TBD): every toolbar button stays inside the row, and Full screen has its own button.
+// The narrowest side column (#796): every toolbar button stays inside the row, and Full screen has its own button.
 // A real practice game (hot-seat), so Brief, Log Pose and the "→ P2" switch are all there.
 const ANALYST = "http://127.0.0.1:8766";
 const CORS = {
@@ -128,7 +128,7 @@ const CORS = {
 };
 
 for (const width of [180, 200, 250]) {
-  test(`every button in the action row fits a ${width}px side column and Full screen sits in the row, not the menu (#TBD)`, async ({ page, duel }) => {
+  test(`every button in the action row fits a ${width}px side column and Full screen sits in the row, not the menu (#796)`, async ({ page, duel }) => {
     await page.setViewportSize(DESKTOP);
     await page.addInitScript((w) => {
       const s = { bigBoard: true, matchBrief: true, logPoseCopilot: true, panelSizesBig: `R=${w}` };
@@ -201,7 +201,7 @@ for (const width of [180, 200, 250]) {
   });
 }
 
-test("the Full screen button in the row toggles full screen (#TBD)", async ({ page }) => {
+test("the Full screen button in the row toggles full screen (#796)", async ({ page }) => {
   await openDemo(page, DESKTOP, { bigBoard: true });
   test.skip(!(await page.evaluate(() => document.fullscreenEnabled)), "this browser has no Fullscreen API");
   const btn = page.locator(".col-actions .hud-fullscreen-btn");
@@ -212,7 +212,7 @@ test("the Full screen button in the row toggles full screen (#TBD)", async ({ pa
   await expect.poll(() => page.evaluate(() => document.fullscreenElement != null)).toBe(false);
 });
 
-test("a portrait phone keeps Full screen in its match menu (#TBD)", async ({ page }) => {
+test("a portrait phone keeps Full screen in its match menu (#796)", async ({ page }) => {
   await openDemo(page, { width: 375, height: 812 }, { bigBoard: true });
   test.skip(!(await page.evaluate(() => document.fullscreenEnabled)), "this browser has no Fullscreen API");
   await page.getByRole("button", { name: "Match menu" }).click();

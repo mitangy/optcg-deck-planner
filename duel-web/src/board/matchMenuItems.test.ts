@@ -13,7 +13,7 @@ describe("match menu items", () => {
     expect(matchMenuItems(live)).toContain("copy-room");
   });
 
-  it("lists Full screen in the menu unless the toolbar already has its button (#TBD)", () => {
+  it("lists Full screen in the menu unless the toolbar already has its button (#796)", () => {
     const fs = { ...live, fullscreenOffered: true };
     expect(matchMenuItems(fs)).toContain("fullscreen");
     expect(matchMenuItems({ ...fs, fullscreenInBar: false })).toContain("fullscreen");
