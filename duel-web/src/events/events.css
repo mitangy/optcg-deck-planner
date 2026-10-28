@@ -1,0 +1,203 @@
+/* Giveaway event banner on the home page, its join dialog and the official-rules page (#794). */
+
+.event-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(90deg, rgb(var(--chrome-rgb) / 0.14), transparent 75%),
+    var(--arena-panel);
+}
+
+.event-title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--chrome-bright);
+  overflow-wrap: anywhere;
+}
+
+/* Always on its own line, so the text changing between phases never moves the lines below it. */
+.event-status {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--chrome);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-banner[data-phase="live"] .event-status {
+  color: var(--ok);
+}
+
+.event-banner[data-phase="ended"] .event-status,
+.event-banner[data-phase="drawn"] .event-status {
+  color: var(--muted);
+}
+
+.event-when,
+.event-prize {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.event-prize {
+  color: var(--ink);
+}
+
+/* One fixed height for the button, the progress text and "entries closed", so joining shifts nothing. */
+.event-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.6rem;
+  margin-top: 0.2rem;
+  min-width: 0;
+}
+
+.event-action .btn {
+  flex: none;
+}
+
+.event-progress {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.event-progress b {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.event-progress[data-eligible="true"] b {
+  color: var(--ok);
+}
+
+.event-muted {
+  color: var(--muted);
+}
+
+.event-rules-link {
+  flex: none;
+  font-size: 0.78rem;
+  color: var(--chrome);
+  text-underline-offset: 0.15em;
+}
+
+.event-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b)) max(0.75rem, var(--safe-l));
+  background: rgb(var(--abyss-rgb) / 0.78);
+  overflow-y: auto;
+}
+
+.event-dialog {
+  width: min(26rem, 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--arena-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 1.1rem;
+  color: var(--ink);
+}
+
+.event-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.event-dialog-copy {
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.event-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.2rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.event-check input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.1rem 0 0;
+  accent-color: var(--chrome);
+}
+
+.event-check a {
+  color: var(--chrome);
+}
+
+/* Reserves the line, so an error appearing does not resize the dialog. */
+.event-dialog-error {
+  min-height: 1.3rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--crimson-bright);
+}
+
+.event-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.event-dialog-actions .btn {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+@media (max-height: 460px) {
+  .event-dialog {
+    padding: 0.7rem 0.9rem;
+  }
+  .event-dialog-copy {
+    display: none;
+  }
+}
+
+/* Official rules page. */
+.rules-page .legal-doc {
+  max-width: 70ch;
+}
+
+.rules-hash {
+  display: block;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgb(var(--panel-rgb) / 0.6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.rules-caps {
+  font-weight: 700;
+}

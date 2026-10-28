@@ -48,6 +48,7 @@ import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
 import { WhatsNewCard } from "@optcg/patch-notes";
+import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
@@ -1066,6 +1067,7 @@ export function LobbyPage() {
         </div>
 
         <div className="home-side">
+          <EventBanner />
           {friendError ? <p className="error-text">{friendError}</p> : null}
           {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />

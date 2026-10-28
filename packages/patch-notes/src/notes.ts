@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },
   { date: "2026-10-28", app: "duel", pr: 779, title: "A bolder attack arrow", text: "The battle arrow is thicker, has a dark outline so it stands out on bright cards and playmats (and in the light theme), and stays clearly visible while you pick a Counter or answer another prompt." },
   { date: "2026-10-28", app: "planner", pr: 788, title: "Scanning finds partly covered cards", text: "Scanning a photo now also finds cards that are partly covered, like fanned or overlapping cards. Check them before adding: a covered card is never marked as a sure match unless it is the clearest read in its spot." },
   { date: "2026-10-28", app: "duel", pr: 787, title: "Opponent hand beside the board lines up", text: "With the opponent's hand set to the left or right of the board, it now lines up with the top of their mat, right beside the board, with the card count under it, instead of floating in the middle of the empty space." },
