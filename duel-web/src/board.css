@@ -448,6 +448,28 @@
   gap: var(--g);
 }
 
+/* Desktop Life sits at the top of your mat, level with the Characters row; the opponent's mirrors it (#768). */
+.arena.arena-wide:not(.arena-lp) .side-field.side-you .zone-life {
+  align-self: start;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field.side-opp .zone-life {
+  align-self: end;
+}
+
+/* The turn-order tag joins the Life column instead of floating over it: under your Life label, above the opponent's stack (#768). */
+.arena.arena-wide:not(.arena-lp) .side-field .zone-life .mat-order {
+  position: static;
+  max-width: 100%;
+  white-space: nowrap;
+  font-size: clamp(0.5rem, calc(var(--c) * 0.14), 0.78rem);
+  letter-spacing: 0.03em;
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field.side-opp .zone-life .mat-order {
+  order: -1;
+}
+
 /* Life cards lie sideways (landscape), stacked with a small offset like a
    real Life area. Each face is a card-width landscape slot; the portrait back
    art is drawn on a rotated pseudo-element so it isn't cropped. */
@@ -575,8 +597,10 @@
 
    Column widths live on the board root, not .arena-body, so fixed overlays
    (prompts, hand dock, turn splash) can line up with the board column. */
-@media (min-width: 900px) and (min-height: 500px),
-  (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))),
+  (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena {
     --left-w: clamp(190px, 18vw, 320px);
     --rail-w: clamp(250px, 22vw, 380px);
@@ -1677,6 +1701,9 @@ body.is-panel-drag * {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgb(var(--deep-rgb) / 0.55);
+  /* The heading sizes from this card's width, not the window's: a column dragged to its narrowest is
+     250px wide in a 1920px window (#774). The banner is a stretched child of .turn-panel, so it has a width. */
+  container-type: inline-size;
 }
 
 .turn-banner-kicker {
@@ -1694,7 +1721,10 @@ body.is-panel-drag * {
 
 .turn-banner-title {
   font-family: var(--font-display);
-  font-size: clamp(1.1rem, 1.45vw, 1.65rem);
+  /* The cap keeps the longest word ("OPPONENT'S") inside the card at the narrowest column; wide columns keep the clamp. */
+  font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 11cqi);
+  max-width: 100%;
+  overflow-wrap: break-word;
   line-height: 1.15;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -2778,7 +2808,9 @@ body.is-panel-resize-row .col-cut {
 
 /* —— Landscape phones: slimmer columns, compact game state —— */
 
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena {
     --left-w: clamp(140px, 20vw, 210px);
     --rail-w: clamp(190px, 26vw, 260px);
@@ -2801,7 +2833,7 @@ body.is-panel-resize-row .col-cut {
   }
 
   .turn-banner-title {
-    font-size: 0.95rem;
+    font-size: min(0.95rem, 11cqi);
   }
 
   .turn-player-stats {
@@ -3121,7 +3153,7 @@ body.is-panel-resize-row .col-cut {
 /* Narrow: chat and battle log float from the top of the play area (not the
    board root) so a wrapped HUD can never cover them. Phone blocks below
    refine the battle-log pill. */
-@media not ((min-width: 900px) and (min-height: 500px)) {
+@media not ((min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px)))) {
   .arena .arena-body {
     position: relative;
   }
@@ -3156,7 +3188,7 @@ body.is-panel-resize-row .col-cut {
 /* —— Narrow desktop windows (1280 down to 150% zoom on a laptop): the logo and
    room name give way so the status chips never wrap onto a second line —— */
 
-@media (min-width: 900px) and (min-height: 500px) and (max-width: 1099px) {
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) and (max-width: 1099px) {
   .arena .hud-bar {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -3166,7 +3198,7 @@ body.is-panel-resize-row .col-cut {
   }
 }
 
-@media (min-width: 900px) and (min-height: 500px) and (max-width: 1019px) {
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) and (max-width: 1019px) {
   .arena .hud-actions .match-id {
     display: none;
   }
@@ -3351,7 +3383,9 @@ body.is-panel-resize-row .col-cut {
 
 /* —— Landscape phones: rail layout with height-bound mats —— */
 
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena .hud-bar {
     --hud-py: 0.25rem;
     --hud-px: 0.6rem;
@@ -4449,7 +4483,9 @@ body.is-panel-resize-row .col-cut {
 
 /* —— Landscape phones: icon rail | board | slim action column, hand under the board —— */
 
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena.arena-lp {
     --lp-rail-w: calc(44px + var(--safe-l));
     --left-w: var(--lp-rail-w);
@@ -4642,7 +4678,7 @@ body.is-panel-resize-row .col-cut {
   }
 
   .arena.arena-lp .turn-banner-title {
-    font-size: 0.9rem;
+    font-size: min(0.9rem, 11cqi);
   }
 
   .arena.arena-lp .arena-rail .intent-bar {
@@ -4701,7 +4737,9 @@ body.is-panel-resize-row .col-cut {
   }
 }
 
-@media (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (hover: hover) and (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena.arena-lp .hand-dock:hover {
     width: auto;
     transform: none;
@@ -4947,7 +4985,9 @@ body.is-panel-resize-row .col-cut {
 }
 
 /* Landscape phones: the tray fills the right column above the primary. */
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena.arena-lp .arena-rail .defend-tray {
     flex: 1 1 0;
     min-height: 0;
@@ -6034,7 +6074,10 @@ body.is-panel-resize-row .col-cut {
 
 /* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
    cost line goes (the art shows it) unless an effect changed it. */
-@media (pointer: coarse) and (max-width: 599px), (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (pointer: coarse) and (max-width: 599px),
+  (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena .side-field .card-caption .name {
     font-size: clamp(0.625rem, calc(var(--c) * 0.12 * var(--text-scale, 1)), 0.74rem);
   }
@@ -6050,7 +6093,9 @@ body.is-panel-resize-row .col-cut {
 }
 
 /* Landscape phones: the rail is narrow, so the pill's subtext wraps instead of being cut. */
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .waiting-opp-text span {
     white-space: normal;
     overflow-wrap: anywhere;
@@ -6852,7 +6897,9 @@ body.is-panel-resize-row .col-cut {
   }
 }
 
-@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px) {
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
   .arena.arena-big.arena-lp .playmat {
     --mat-gap: 2px;
     --midline-h: 1rem;
