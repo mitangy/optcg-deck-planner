@@ -94,6 +94,38 @@ def test_deck_pages_split_owned_across_leaders_when_summing(db):
     assert shop_still == 3 == a.still_need + s.still_need + lo.still_need
 
 
+def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_782(db):
+    """Deck pages and Buying counts only let ticked decks claim owned copies first."""
+    add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)
+    add_catalog(db, "LUF", name="Luffy", product_id=4, market=1.0)
+    user = make_user(db, email="incl@example.com", name="Incl", sub="sub-incl")
+    luffy = add_deck_with_cards(db, user, "Luffy", {"OP01-003": 4})
+    sabo = add_deck_with_cards(db, user, "Sabo", {"OP01-003": 3})
+    luffy.leader_card_id = "LUF"
+    sabo.leader_card_id = "SAB"
+    user.sum_across_leaders = True
+    db.commit()
+    set_owned(db, user, "OP01-003", 5)
+
+    def sabo_card(deck_ids):
+        return services.get_deck_detail(db, user, sabo.id, deck_ids=deck_ids).cards[0]
+
+    everyone = sabo_card(None)
+    assert (everyone.still_need, everyone.earlier_leaders_need, everyone.earlier_leaders) == (2, 4, ["Luffy"])
+    both = sabo_card([luffy.id, sabo.id])
+    assert (both.still_need, both.earlier_leaders_need) == (2, 4)
+    # Luffy is unticked: Sabo keeps all 5 owned copies. The deck itself always counts.
+    solo = sabo_card([sabo.id])
+    assert (solo.still_need, solo.earlier_leaders_need, solo.earlier_leaders) == (0, 0, [])
+
+    def buying(deck_ids):
+        by_id = {i.card_id: i for i in services.owned_collection(db, user, deck_ids=deck_ids).items}
+        return by_id["OP01-003"].buying
+
+    assert buying(None) == 2
+    assert buying([sabo.id]) == 0
+
+
 def test_shopping_need_sums_across_distinct_leaders_when_enabled(db):
     """sum_across_leaders: max within a leader, summed across leaders."""
     add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)

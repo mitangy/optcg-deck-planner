@@ -150,9 +150,11 @@ def get_deck(
     deck_id: int,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
+    """Optional deck_ids limits which other decks claim owned copies first (Separate per leader)."""
     try:
-        return services.get_deck_detail(db, user, deck_id)
+        return services.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -326,9 +328,10 @@ def patch_preferences(
 def get_owned(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
-    """Cards the user owns, with estimated market value."""
-    return services.owned_collection(db, user)
+    """Cards the user owns, with estimated market value. deck_ids filters the Buying counts."""
+    return services.owned_collection(db, user, deck_ids=deck_ids)
 
 
 @router.post("/owned/add", response_model=OwnedAddResponse)
