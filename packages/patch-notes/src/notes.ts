@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", title: "Opponent hand beside the board lines up", text: "With the opponent's hand set to the left or right of the board, it now lines up with the top of their mat, right beside the board, with the card count under it, instead of floating in the middle of the empty space." },
   { date: "2026-10-28", app: "duel", pr: 786, title: "The hand no longer pops up when you point at its buttons", text: "With \"Let the hand tuck away\", the fanned hand now rises only when you point at its cards, not at Hand, Sort or the other buttons above them, so the buttons stay put under your cursor." },
   { date: "2026-10-28", app: "duel", pr: 785, title: "Readable deck lists in the game-over rematch", text: "The \"Deck for the rematch\" picker now matches your theme and shows each deck's leader and size, instead of a gray list with hard-to-read text on Windows. Other dropdown lists in the app are easier to read too." },
   { date: "2026-10-28", app: "duel", pr: 776, title: "Bigger board on foldables and small tablets held sideways", text: "On an unfolded foldable or a tablet held sideways, the match now uses the side-panel layout with a hand on the right, so your cards are much bigger instead of tiny. Desktop windows and phones look the same as before." },
