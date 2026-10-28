@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", title: "Turn heading fits in a narrow side column", text: "When you drag a side column to its narrowest, the big \"Opponent's turn\" heading now shrinks to stay inside its box, and a long player name wraps onto a second line instead of spilling out." },
   { date: "2026-10-28", app: "both", pr: 767, title: "New Nico Robin and Nami alt arts", text: "Two new Extra Booster 05 alt arts are available: a second alternate art for Nico Robin (EB05-010) and Kentaro Yabuki art for Nami (EB05-055)." },
   { date: "2026-10-28", app: "planner", pr: 765, title: "Multi-card scanning waits for the card finder", text: "Scanning a photo of several cards right after opening the scanner no longer finds almost nothing. It now shows \"Loading card finder…\" until the finder is ready, then scans the whole photo." },
   { date: "2026-10-28", app: "planner", pr: 763, title: "More promo alt arts", text: "Promo printings such as Perona's Japanese 3rd Anniversary Set and Zeus's Bandai Card Games Fest playmat promo now show up as alt arts you can pick, track and price, along with other anniversary, Judge and celebration pack promos." },

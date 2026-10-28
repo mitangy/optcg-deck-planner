@@ -1099,5 +1099,8 @@ module.exports = {
       { file: "duel-web/src/deckList.css", from: ".deck-list-search input {", to: ".deck-search input {" },
       { file: "duel-web/src/pages/DeckListPage.tsx", from: '<label className="deck-list-search">', to: '<label className="deck-search">' },
     ], kills: ["deck-editor-filters.spec.ts > the deck editor's Add cards filter checkboxes stay small checkboxes that toggle (#755) [desktop-1280]", "deck-editor-filters.spec.ts > the deck editor's Add cards filter checkboxes stay small checkboxes that toggle (#755) [phone-375]"] },
+    // Turn heading fits its card at the narrowest side column (#774)
+    { id: "e2e-turn-heading-sized-from-window", args: "turn-heading-narrow --project=desktop-1280", file: "duel-web/src/board.css", from: "  font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 12.5cqi);\n", to: "  font-size: clamp(1.1rem, 1.45vw, 1.65rem);\n", kills: ["turn-heading-narrow.spec.ts > turn heading fits its card at the narrowest side column (#774) [desktop-1280]", "turn-heading-narrow.spec.ts > a long spectator name in the turn heading wraps inside the card at the narrowest column (#774) [desktop-1280]"] },
+    { id: "e2e-turn-heading-long-name-spills", args: "turn-heading-narrow --project=desktop-1280", file: "duel-web/src/board.css", from: "  max-width: 100%;\n  overflow-wrap: break-word;\n  line-height: 1.15;", to: "  line-height: 1.15;", kills: ["turn-heading-narrow.spec.ts > turn heading fits its card at the narrowest side column (#774) [desktop-1280]", "turn-heading-narrow.spec.ts > a long spectator name in the turn heading wraps inside the card at the narrowest column (#774) [desktop-1280]"] },
   ],
 };
