@@ -1,0 +1,17 @@
+{
+  "name": "optcg-trailer-capture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Playwright screen-capture scripts for the OPTCG Duel trailer (see ../README.md)",
+  "scripts": {
+    "capture": "bash run.sh",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "playwright": "1.56.1",
+    "tsx": "^4.21.0",
+    "typescript": "~5.7.2"
+  }
+}

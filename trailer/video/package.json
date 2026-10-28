@@ -1,0 +1,36 @@
+{
+  "name": "optcg-duel-trailer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remotion project for the optcgduel.app trailer",
+  "scripts": {
+    "clips:placeholders": "node scripts/make-placeholder-clips.mjs",
+    "prerender": "node scripts/prerender.mjs",
+    "studio": "npm run prerender && remotion studio src/index.ts",
+    "render": "npm run prerender && remotion render src/index.ts Trailer16x9 ../out/trailer-16x9.mp4 --concurrency=3 --crf=16",
+    "render:9x16": "npm run prerender && remotion render src/index.ts Trailer9x16 ../out/trailer-9x16.mp4 --concurrency=3 --crf=16",
+    "still": "npm run prerender && remotion still src/index.ts Trailer16x9",
+    "typecheck": "tsc --noEmit",
+    "infographics:shots": "cd ../capture && TRAILER_MAIN=infographics.ts ./run.sh",
+    "infographics": "node scripts/render-infographics.mjs && bash scripts/infographics-overview.sh",
+    "render:ad15": "npm run render:ad15-9x16 && npm run render:ad15-4x5",
+    "render:ad30": "npm run render:ad30-9x16 && npm run render:ad30-4x5",
+    "render:ad15-9x16": "npm run prerender && remotion render src/index.ts Ad15-9x16 ../out/ads/ad-15s-9x16.mp4 --concurrency=3 --crf=16",
+    "render:ad15-4x5": "npm run prerender && remotion render src/index.ts Ad15-4x5 ../out/ads/ad-15s-4x5.mp4 --concurrency=3 --crf=16",
+    "render:ad30-9x16": "npm run prerender && remotion render src/index.ts Ad30-9x16 ../out/ads/ad-30s-9x16.mp4 --concurrency=3 --crf=16",
+    "render:ad30-4x5": "npm run prerender && remotion render src/index.ts Ad30-4x5 ../out/ads/ad-30s-4x5.mp4 --concurrency=3 --crf=16",
+    "render:ads": "npm run render:ad15 && npm run render:ad30 && node scripts/render-infographics.mjs story"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.539",
+    "@remotion/bundler": "4.0.539",
+    "@remotion/renderer": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

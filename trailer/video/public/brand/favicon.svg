@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="crown"><path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z"/></clipPath></defs>
+  <rect width="64" height="64" rx="14" fill="#0b1720"/>
+  <!-- gold-framed card (as in the app icon) with the planner's straw hat on it -->
+  <rect x="14" y="5" width="36" height="54" rx="5" fill="#16303b" stroke="#e2b458" stroke-width="3.5"/>
+  <g transform="translate(32 32) scale(0.66) translate(-32 -31)">
+    <path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z" fill="#e2b458"/>
+    <rect x="17" y="32" width="30" height="6" fill="#b8322a" clip-path="url(#crown)"/>
+    <rect x="8" y="37" width="48" height="5" rx="2.5" fill="#d9a441"/>
+  </g>
+</svg>
