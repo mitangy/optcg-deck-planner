@@ -94,7 +94,7 @@ def test_deck_pages_split_owned_across_leaders_when_summing(db):
     assert shop_still == 3 == a.still_need + s.still_need + lo.still_need
 
 
-def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_781(db):
+def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_782(db):
     """Deck pages and Buying counts only let ticked decks claim owned copies first."""
     add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)
     add_catalog(db, "LUF", name="Luffy", product_id=4, market=1.0)
