@@ -12,6 +12,8 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
   { date: "2026-10-28", app: "duel", pr: 777, title: "Life lines up with the top of the mat", text: "On a desktop-size board, your Life stack now sits at the top of your mat, level with your Characters, instead of floating in the middle. The opponent's Life mirrors it at the bottom of their mat, next to the midline." },
+  { date: "2026-10-28", app: "planner", pr: 761, title: "Base cards show their normal price again", text: "About 20 cards, such as Boa Hancock (OP02-059), had switched to a pre-release or promo printing with a much higher price in your shopping list. They show their normal printing, price and art again, and the promo stays available as an alt art." },
+  { date: "2026-10-28", app: "both", pr: 767, title: "New Nico Robin and Nami alt arts", text: "Two new Extra Booster 05 alt arts are available: a second alternate art for Nico Robin (EB05-010) and Kentaro Yabuki art for Nami (EB05-055)." },
   { date: "2026-10-28", app: "planner", pr: 765, title: "Multi-card scanning waits for the card finder", text: "Scanning a photo of several cards right after opening the scanner no longer finds almost nothing. It now shows \"Loading card finder…\" until the finder is ready, then scans the whole photo." },
   { date: "2026-10-28", app: "planner", pr: 763, title: "More promo alt arts", text: "Promo printings such as Perona's Japanese 3rd Anniversary Set and Zeus's Bandai Card Games Fest playmat promo now show up as alt arts you can pick, track and price, along with other anniversary, Judge and celebration pack promos." },
   // 2026-10-27
