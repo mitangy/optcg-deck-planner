@@ -582,7 +582,9 @@ def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
     return get_deck_detail(db, user, deck_id)
 
 
-def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
+def get_deck_detail(
+    db: Session, user: User, deck_id: int, deck_ids: list[int] | None = None
+) -> DeckDetail:
     decks = db.scalars(
         select(Deck)
         .where(Deck.user_id == user.id)
@@ -616,14 +618,16 @@ def get_deck_detail(db: Session, user: User, deck_id: int) -> DeckDetail:
     earlier_need: dict[str, int] = defaultdict(int)
     earlier_labels: dict[str, list[str]] = defaultdict(list)
     if getattr(user, "sum_across_leaders", False):
+        # Only decks ticked under Include decks claim copies first (this deck always counts).
+        counted = decks if deck_ids is None else [d for d in decks if d.id in deck_ids or d.id == target.id]
         # Leader groups are ordered by their first deck (same as Master Shopping).
         group_order: dict[str, int] = {}
-        for idx, deck in enumerate(decks):
+        for idx, deck in enumerate(counted):
             group_order.setdefault(_leader_group_id(deck), idx)
         target_rank = group_order[_leader_group_id(target)]
         group_need: dict[str, dict[str, int]] = {}
         group_label: dict[str, str] = {}
-        for deck in decks:
+        for deck in counted:
             group = _leader_group_id(deck)
             if group_order[group] >= target_rank:
                 continue
@@ -1284,7 +1288,9 @@ def shopping_list(
     )
 
 
-def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
+def owned_collection(
+    db: Session, user: User, deck_ids: list[int] | None = None
+) -> OwnedCollectionResponse:
     """Every card the user owns (qty > 0) with its estimated market value.
 
     Base copies are tracked per card number and valued at the standard
@@ -1299,10 +1305,10 @@ def owned_collection(db: Session, user: User) -> OwnedCollectionResponse:
     # Every alt printing of these cards (owned or not) with the user's count, and the art they chose to show.
     alts = _alt_arts_map(db, card_ids, owned=alt_owned)
     display_choices = _display_choice_map(db, user.id)
-    # Still-to-buy copies on the full list (all decks + directly added cards).
+    # Still-to-buy copies on the list for the ticked decks (+ directly added cards).
     buying = {
         item.card_id: item.still_need
-        for item in shopping_list(db, user).items
+        for item in shopping_list(db, user, deck_ids=deck_ids).items
         if item.still_need > 0
     }
     catalog = _catalog_map(db, card_ids)
