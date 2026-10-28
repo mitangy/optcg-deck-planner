@@ -1,13 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { friendsApi, type SpareItem, type TradeSide } from "./friendsApi";
+import { useSavedShoppingDeckIds } from "../shoppingDeckFilter";
 import type { CardCap, TrayLine } from "./tradeLogic";
 
 const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, base: item.base_owned, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
 
 /** Spares between you and one friend, plus how many copies of a card each side can still put on the table. */
 export function useFriendSpares(friendId: number) {
-  const query = useQuery({ queryKey: ["friend", friendId, "spares"], queryFn: () => friendsApi.spares(friendId) });
+  /** The viewer's Include decks filter narrows "You need"; undefined (all decks) keeps the plain key. */
+  const deckIds = useSavedShoppingDeckIds();
+  const query = useQuery({
+    queryKey: deckIds ? ["friend", friendId, "spares", deckIds] : ["friend", friendId, "spares"],
+    queryFn: () => friendsApi.spares(friendId, deckIds),
+  });
   const caps = useMemo(() => {
     const map = new Map<string, CardCap>();
     for (const i of query.data?.their_spares ?? []) map.set(`get:${i.card_id}`, capOf(i));

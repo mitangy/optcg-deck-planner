@@ -64,6 +64,7 @@ import {
 } from "./CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { nameWithBreaks } from "./cardName";
+import { SHOPPING_DECKS_KEY, loadShoppingDeckFilter, savedShoppingDeckIds, useSavedShoppingDeckIds } from "./shoppingDeckFilter";
 import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import {
   collectionTotals,
@@ -119,7 +120,6 @@ import {
   ShoppingListSkeleton,
 } from "./Skeleton";
 
-const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 /* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
@@ -821,34 +821,6 @@ function sharedUsedIn(item: ShoppingItem): string {
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function loadShoppingDeckFilter(allIds: number[]): number[] | null {
-  try {
-    const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as number[];
-    if (!Array.isArray(parsed)) return null;
-    const allowed = new Set(allIds);
-    const filtered = parsed.filter((id) => allowed.has(id));
-    return filtered.length ? filtered : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The decks ticked under Master Shopping's "Include decks", for views that count the same decks
- * (deck pages, Buying hints). undefined means all decks, so those requests stay unfiltered.
- */
-function savedShoppingDeckIds(allIds: number[]): number[] | undefined {
-  const saved = loadShoppingDeckFilter(allIds);
-  return saved && saved.length < allIds.length ? [...saved].sort((a, b) => a - b) : undefined;
-}
-
-function useSavedShoppingDeckIds(): number[] | undefined {
-  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
-  return decksQ.data ? savedShoppingDeckIds(decksQ.data.map((d) => d.id)) : undefined;
 }
 
 function loadSelectedCardIds(): Set<string> {

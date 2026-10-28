@@ -167,7 +167,8 @@ export const friendsApi = {
   deck: (id: number, deckId: number) => request<FriendDeckDetail>(`/friends/${id}/decks/${deckId}`),
   copyDeck: (id: number, deckId: number) => request<DeckDetail>(`/friends/${id}/decks/${deckId}/copy`, { method: "POST" }),
   collection: (id: number) => request<FriendCollection>(`/friends/${id}/collection`),
-  spares: (id: number) => request<FriendSpares>(`/friends/${id}/spares`),
+  spares: (id: number, deckIds?: number[]) =>
+    request<FriendSpares>(`/friends/${id}/spares${deckIds ? `?${deckIds.map((d) => `deck_ids=${d}`).join("&")}` : ""}`),
 
   mySpares: () => request<{ items: MySpareItem[] }>("/me/spares"),
   setKeep: (cardId: string, keepQty: number) =>

@@ -362,14 +362,35 @@ def test_a_stranger_cannot_copy_a_deck_703(client):
 # --- spares -------------------------------------------------------------------
 
 
-def _spares(c, viewer, owner):
-    r = as_user(c, viewer).get(f"/friends/{owner}/spares")
+def _spares(c, viewer, owner, params=None):
+    r = as_user(c, viewer).get(f"/friends/{owner}/spares", params=params)
     assert r.status_code == 200, r.text
     return r.json()
 
 
 def _spare_of(body, card_id, key="their_spares"):
     return next((i["spare"] for i in body[key] if i["card_id"] == card_id), 0)
+
+
+def test_you_need_only_counts_the_decks_ticked_under_include_decks_799(client):
+    c, S = client
+    kai, me = _pair(S)
+    add_card(S, "OP01-001", "Zoro", 2.0)
+    add_card(S, "OP01-002", "Nami", 1.0)
+    own(S, kai, "OP01-001", 2)
+    own(S, kai, "OP01-002", 2)
+    zoro = make_deck(S, me, "Zoro deck", {"OP01-001": 2}, sort_order=1)
+    nami = make_deck(S, me, "Nami deck", {"OP01-002": 1}, sort_order=2)
+    share(c, kai, trades_open=True)
+
+    def needed(body):
+        return {i["card_id"]: i["want"] for i in body["you_need"]}
+
+    assert needed(_spares(c, me, kai)) == {"OP01-001": 2, "OP01-002": 1}
+    assert needed(_spares(c, me, kai, {"deck_ids": [nami]})) == {"OP01-002": 1}
+    body = _spares(c, me, kai, {"deck_ids": [nami]})
+    assert _spare_of(body, "OP01-001") == 2  # unticking a deck never changes what the friend can spare
+    assert needed(_spares(c, me, kai, {"deck_ids": [zoro]})) == {"OP01-001": 2}
 
 
 def test_a_card_needed_by_two_decks_is_reserved_once_at_the_larger_count_703(client):
