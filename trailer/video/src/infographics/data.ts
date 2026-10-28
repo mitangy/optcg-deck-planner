@@ -67,20 +67,21 @@ export const INFOGRAPHICS: InfographicSpec[] = [
   },
   {
     id: 'hand-tuck',
-    title: 'Tuck, raise and hide your hand',
-    subtitle: 'Your fanned hand, the way you want it.',
+    title: 'Tuck your hand out of the way',
+    subtitle: 'One click shrinks the hand so you can see the whole board.',
     steps: [
       {
-        text: '**Hover** the tucked hand to raise it.',
+        text: 'Click **Hand ▾** to tuck your hand down.',
+        keys: ['H'],
         shots: [
-          cmp('h-tucked', {...handCrop, tag: 'Tucked', rings: [{rect: {x: 232, y: 668, w: 420, h: 30}, pad: 3, radius: 10}]}),
-          cmp('h-hover', {...handCrop, tag: 'Raised'}),
+          cmp('h-pinned', {...handCrop, tag: 'Before', rings: [{k: 'toggle', pad: 5, arrow: 'right', label: 'Hand ▾'}]}),
+          cmp('h-tucked', {...handCrop, tag: 'After', rings: [{k: 'toggle', pad: 5}]}),
         ],
       },
       {
-        text: 'Click **Hand** to keep it up. Click again to tuck.',
+        text: '**Hover** the tucked hand to peek. Click **Hand ▴** to keep it up.',
         keys: ['H'],
-        shots: [cmp('h-pinned', {...handTight, rings: [{k: 'toggle', pad: 5, arrow: 'right', label: 'Hand'}]})],
+        shots: [cmp('h-hover', {...handCrop, tag: 'Peek', rings: [{k: 'toggle', pad: 5}]})],
       },
       {
         text: 'With **Keep hand open** on, **Hide** tucks it fully away.',
