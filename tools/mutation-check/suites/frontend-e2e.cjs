@@ -21,9 +21,9 @@ module.exports = {
   runner: "playwright",
   mutations: [
     // Collection redesign (#752)
-    { id: "e2e-collection748-type-chip-no-filter", args: "collection --project=desktop-1200 -g \"#748\"", file: "frontend/src/App.tsx", from: "  const type = types.includes(typeChoice) ? typeChoice : \"\";", to: "  const type = \"\";", kills: ["collection.spec.ts > type and colour chips narrow the Collection together, and the count line keeps its place (#752) [desktop-1200]"] },
-    { id: "e2e-collection748-badge-base-copies-only", args: "collection --project=desktop-1200 -g \"#748\"", file: "frontend/src/App.tsx", from: "                    ×{copies}", to: "                    ×{item.owned}", kills: ["collection.spec.ts > the Grid tile shows the copies badge on the art, with name, id, price and colours (#752) [desktop-1200]"] },
-    { id: "e2e-collection748-count-line-only-when-narrowed", args: "collection --project=desktop-1200 -g \"#748\"", edits: [
+    { id: "e2e-collection748-type-chip-no-filter", args: "collection --project=desktop-1200 -g \"#752\"", file: "frontend/src/App.tsx", from: "  const type = types.includes(typeChoice) ? typeChoice : \"\";", to: "  const type = \"\";", kills: ["collection.spec.ts > type and colour chips narrow the Collection together, and the count line keeps its place (#752) [desktop-1200]"] },
+    { id: "e2e-collection748-badge-base-copies-only", args: "collection --project=desktop-1200 -g \"#752\"", file: "frontend/src/App.tsx", from: "                    ×{copies}", to: "                    ×{item.owned}", kills: ["collection.spec.ts > the Grid tile shows the copies badge on the art, with name, id, price and colours (#752) [desktop-1200]"] },
+    { id: "e2e-collection748-count-line-only-when-narrowed", args: "collection --project=desktop-1200 -g \"#752\"", edits: [
       { file: "frontend/src/App.tsx", from: "          <p className=\"collection-count muted\" role=\"status\">", to: "          {narrowed && <p className=\"collection-count muted\" role=\"status\">" },
       { file: "frontend/src/App.tsx", from: "{shown.copies} {shown.copies === 1 ? \"copy\" : \"copies\"} · {money(shown.value)}\n          </p>", to: "{shown.copies} {shown.copies === 1 ? \"copy\" : \"copies\"} · {money(shown.value)}\n          </p>}" },
     ], kills: ["collection.spec.ts > type and colour chips narrow the Collection together, and the count line keeps its place (#752) [desktop-1200]"] },
