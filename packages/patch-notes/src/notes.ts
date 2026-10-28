@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", pr: 780, title: "The hand no longer pops up when you point at its buttons", text: "With \"Let the hand tuck away\", the fanned hand now rises only when you point at its cards, not at Hand, Sort or the other buttons above them, so the buttons stay put under your cursor." },
   { date: "2026-10-28", app: "planner", pr: 761, title: "Base cards show their normal price again", text: "About 20 cards, such as Boa Hancock (OP02-059), had switched to a pre-release or promo printing with a much higher price in your shopping list. They show their normal printing, price and art again, and the promo stays available as an alt art." },
   { date: "2026-10-28", app: "both", pr: 767, title: "New Nico Robin and Nami alt arts", text: "Two new Extra Booster 05 alt arts are available: a second alternate art for Nico Robin (EB05-010) and Kentaro Yabuki art for Nami (EB05-055)." },
   { date: "2026-10-28", app: "planner", pr: 765, title: "Multi-card scanning waits for the card finder", text: "Scanning a photo of several cards right after opening the scanner no longer finds almost nothing. It now shows \"Loading card finder…\" until the finder is ready, then scans the whole photo." },

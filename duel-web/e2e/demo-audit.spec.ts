@@ -182,6 +182,52 @@ test("after H tucks a floating hand fan, hovering it raises it again (#312)", as
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
 });
 
+// The tucked fan used to rise on hover of the whole container, so pointing at
+// Sort or Hand moved the buttons up from under the cursor. Only the cards raise
+// it, and once up it stays up while the pointer crosses to the buttons (#780).
+test("hovering the tucked hand fan's buttons doesn't raise it; hovering its cards does (#780)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: false, handLayout: "fan" })),
+  );
+  await preferFan(page);
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  await expect(fan).toHaveClass(/hand-fan-center/);
+  const sort = page.locator(".hand-fan-head .hand-rail-btn");
+  const toggle = page.locator(".hand-fan-toggle");
+  const lift = () => fan.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  const sortY = async () => (await sort.boundingBox())!.y;
+  await page.mouse.move(640, 60);
+  await page.waitForTimeout(600);
+  const tuckedLift = await lift();
+  const tuckedY = await sortY();
+  expect(tuckedLift).toBeGreaterThan(20);
+
+  await sort.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(tuckedLift);
+  expect(await sortY()).toBe(tuckedY);
+  await toggle.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(tuckedLift);
+
+  const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 15); // the visible strip of a tucked card
+  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0);
+  await page.waitForTimeout(600);
+  const raisedLift = await lift();
+  await sort.hover();
+  await toggle.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(raisedLift);
+
+  await page.mouse.move(640, 60);
+  await expect.poll(lift, { timeout: 3000 }).toBe(tuckedLift);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");

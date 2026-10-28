@@ -2025,7 +2025,10 @@ body.is-panel-drag * {
    over the board; dragging a card out tucks it again so the whole board is a
    drop target. Only :focus-visible raises it, not :focus-within: a clicked
    card, Sort or Hand button keeps focus, and the fan would stay up over your
-   DON!! row after the pointer leaves. The container ignores the pointer, so only the cards and the handle
+   DON!! row after the pointer leaves. Hovering the cards (not the handle row)
+   raises it (.is-hover-up, set by DuelBoard): the buttons must not jump up
+   under the cursor (#780). Once up it stays up until the pointer leaves the
+   whole fan. The container ignores the pointer, so only the cards and the handle
    catch clicks. Per-card tilt and drop come from handFan.ts (--rot, --drop). */
 
 .arena.arena-fan-center .playmat {
@@ -2061,7 +2064,7 @@ body.is-panel-drag * {
 }
 
 @media (hover: hover) {
-  .hand-fan:hover {
+  .hand-fan.is-hover-up {
     transform: translateY(var(--fan-raise));
     transition-delay: 0s;
   }
@@ -2203,7 +2206,7 @@ body.is-panel-drag * {
 }
 
 @media (hover: hover) {
-  .hand-fan-center:hover .hand-fan-cards {
+  .hand-fan-center.is-hover-up .hand-fan-cards {
     width: var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2)));
     transition-delay: 0s;
   }
@@ -2245,7 +2248,7 @@ body.is-panel-drag * {
 }
 
 @media (hover: hover) {
-  .hand-fan.hand-fan-docked:hover {
+  .hand-fan.hand-fan-docked.is-hover-up {
     --fan-w: calc(var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2))) + var(--fan-cw) * 0.7);
     transition-delay: 0s;
   }

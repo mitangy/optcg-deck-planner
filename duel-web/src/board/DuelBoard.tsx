@@ -440,6 +440,12 @@ export function DuelBoard({
    * hand, so hover must not raise it again until the pointer has left it.
    */
   const [tuckUnderPointer, setTuckUnderPointer] = useState(false);
+  /**
+   * The pointer is on the fan's cards (not its handle row): a tucked fan rises
+   * on this and stays up until the pointer leaves the whole fan, so moving
+   * from the cards to the buttons doesn't drop it under the cursor (#780).
+   */
+  const [fanHoverUp, setFanHoverUp] = useState(false);
   /** Raised by the player (pin), as the hand button shows it. */
   const handUp = fanFloating ? !floatTucked : handPinned;
   /** Default spot: the board keeps a strip free under it for the tucked cards. */
@@ -955,6 +961,7 @@ export function DuelBoard({
     if (fanFloating) setFloatTucked(handUp);
     else setHandPinned(!handUp);
     if (handUp) {
+      setFanHoverUp(false);
       setHandFilter(null);
       // Only with the pointer on the hand (H works from anywhere): away from
       // it, the next hover raises the hand again.
@@ -2769,7 +2776,7 @@ export function DuelBoard({
                 : fanFloating
                 ? "hand-fan-free hand-fan-float"
                 : "hand-fan-free hand-fan-docked"
-          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}`}
+          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}${fanHoverUp ? " is-hover-up" : ""}`}
           style={
             {
               "--n": Math.max(handCount, 1),
@@ -2779,7 +2786,10 @@ export function DuelBoard({
           }
           aria-label={`Your hand: ${handCount} cards`}
           onClick={dropHandClickFocus}
-          onPointerLeave={() => setTuckUnderPointer(false)}
+          onPointerLeave={() => {
+            setTuckUnderPointer(false);
+            setFanHoverUp(false);
+          }}
         >
           <div className="hand-fan-head">
             {specFans ? (
@@ -2831,7 +2841,17 @@ export function DuelBoard({
             ) : null}
             {specFans ? null : hideHandBtn}
           </div>
-          <div className="hand-fan-cards" ref={handRowRef} inert={handHidden || undefined}>
+          <div
+            className="hand-fan-cards"
+            ref={handRowRef}
+            inert={handHidden || undefined}
+            onPointerEnter={(e) => {
+              if (e.pointerType !== "touch") setFanHoverUp(true);
+            }}
+            onPointerMove={(e) => {
+              if (e.pointerType !== "touch" && !fanHoverUp) setFanHoverUp(true);
+            }}
+          >
             {renderHandCards(true)}
           </div>
         </div>
