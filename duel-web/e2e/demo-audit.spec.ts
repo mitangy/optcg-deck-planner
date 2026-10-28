@@ -182,6 +182,52 @@ test("after H tucks a floating hand fan, hovering it raises it again (#312)", as
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
 });
 
+// The tucked fan used to rise on hover of the whole container, so pointing at
+// Sort or Hand moved the buttons up from under the cursor. Only the cards raise
+// it, and once up it stays up while the pointer crosses to the buttons (#780).
+test("hovering the tucked hand fan's buttons doesn't raise it; hovering its cards does (#780)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
+  await page.addInitScript(() =>
+    localStorage.setItem("optcg-duel:settings", JSON.stringify({ keepHandOpen: false, handLayout: "fan" })),
+  );
+  await preferFan(page);
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  await expect(fan).toHaveClass(/hand-fan-center/);
+  const sort = page.locator(".hand-fan-head .hand-rail-btn");
+  const toggle = page.locator(".hand-fan-toggle");
+  const lift = () => fan.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  const sortY = async () => (await sort.boundingBox())!.y;
+  await page.mouse.move(640, 60);
+  await page.waitForTimeout(600);
+  const tuckedLift = await lift();
+  const tuckedY = await sortY();
+  expect(tuckedLift).toBeGreaterThan(20);
+
+  await sort.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(tuckedLift);
+  expect(await sortY()).toBe(tuckedY);
+  await toggle.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(tuckedLift);
+
+  const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 15); // the visible strip of a tucked card
+  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0);
+  await page.waitForTimeout(600);
+  const raisedLift = await lift();
+  await sort.hover();
+  await toggle.hover();
+  await page.waitForTimeout(600);
+  expect(await lift()).toBe(raisedLift);
+
+  await page.mouse.move(640, 60);
+  await expect.poll(lift, { timeout: 3000 }).toBe(tuckedLift);
+});
+
 // Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");
@@ -937,15 +983,17 @@ for (const vp of [
   }
 }
 
-// The fan and its count sit in the middle of the gutter, vertically on the opponent
-// mat's height rather than stuck to the top (#582).
+// The fan lines up with the top of the opponent mat and hugs the mat's side, with its count
+// under it, however wide the window is (#775; it was centred in the gutter, #582).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+  { width: 2600, height: 900 },
 ]) {
   for (const spot of ["left", "right"] as const) {
     for (const big of [true, false]) {
-      test(`the opponent hand on the ${spot} is centred beside the opponent mat at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#582)`, async ({ page }, info) => {
+      test(`the opponent hand on the ${spot} is top-aligned with the opponent mat and hugs its edge at ${vp.width}x${vp.height} with ${big ? "Bigger playing area" : "the normal board"} (#775)`, async ({ page }, info) => {
         test.skip(info.project.name !== "desktop-1280", "sets its own viewport");
         await page.setViewportSize(vp);
         await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
@@ -961,23 +1009,38 @@ for (const vp of [
           const box = (el: Element) => el.getBoundingClientRect();
           const wrap = box(document.querySelector(".opp-hand-mat-side")!);
           const mat = box(document.querySelector(".side-field.side-opp")!);
-          const kids = [...document.querySelectorAll(".opp-hand-mat-side .opp-hand-corner > *")].map(box);
+          const count = box(document.querySelector(".opp-hand-mat-side .opp-hand-count")!);
           const backs = [...document.querySelectorAll(".opp-hand-mat-side .opp-corner-card")].map(box);
           return {
-            wrapX: wrap.left + wrap.width / 2,
-            matY: mat.top + mat.height / 2,
-            top: Math.min(...kids.map((r) => r.top)),
-            bottom: Math.max(...kids.map((r) => r.bottom)),
+            matT: mat.top,
+            matL: mat.left,
+            matR: mat.right,
+            wrapL: wrap.left,
+            wrapR: wrap.right,
+            countT: count.top,
+            backT: Math.min(...backs.map((r) => r.top)),
+            backB: Math.max(...backs.map((r) => r.bottom)),
             backL: Math.min(...backs.map((r) => r.left)),
             backR: Math.max(...backs.map((r) => r.right)),
-            kids: kids.length,
             backs: backs.length,
           };
         });
-        expect(m.kids).toBeGreaterThan(0);
         expect(m.backs).toBeGreaterThan(0);
-        expect(Math.abs((m.top + m.bottom) / 2 - m.matY)).toBeLessThan(6);
-        expect(Math.abs((m.backL + m.backR) / 2 - m.wrapX)).toBeLessThan(6);
+        // Top of the cards on the top of the mat (not above it, not hanging down the gutter).
+        expect(m.backT - m.matT).toBeLessThan(8);
+        expect(m.backT - m.matT).toBeGreaterThan(-3);
+        // Hugging the mat's side, not centred in a gutter that can be far wider than the fan.
+        if (spot === "right") {
+          expect(m.backL).toBeGreaterThanOrEqual(m.matR);
+          expect(m.backL - m.matR).toBeLessThan(16);
+          expect(m.backR).toBeLessThanOrEqual(m.wrapR + 1);
+        } else {
+          expect(m.backR).toBeLessThanOrEqual(m.matL);
+          expect(m.matL - m.backR).toBeLessThan(16);
+          expect(m.backL).toBeGreaterThanOrEqual(m.wrapL - 1);
+        }
+        // The count is under the cards.
+        expect(m.countT).toBeGreaterThanOrEqual(m.backB - 1);
       });
     }
   }
