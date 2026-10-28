@@ -15,6 +15,7 @@ import {
   type DescriptorManifest,
   type DownloadProgress,
 } from "./descriptorCache";
+import { scanLog } from "./scanLog";
 import { activateCardDetector, ensureCardDetector } from "./cardDetectorCache";
 import { activateCardEmbedder, ensureCardEmbedder, releaseCardEmbedder } from "./cardEmbedCache";
 import {
@@ -63,6 +64,7 @@ export function useScanData(active: boolean) {
   const [state, setState] = useState<ScanDataState>({ kind: "checking" });
   const manifestRef = useRef<DescriptorManifest | null>(null);
   const candidatesRef = useRef<ScanCandidate[] | null>(null);
+  const modelsRef = useRef<Promise<void> | null>(null);
 
   // Free the WASM matrices when the scanner closes; they are not garbage
   // collected with the JS objects that reference them.
@@ -82,19 +84,31 @@ export function useScanData(active: boolean) {
     candidatesRef.current = candidates;
     // The art embedder orders the search (see cardEmbed.ts); same pattern as the
     // detector below: stored copy first, fetch if missing, never block on it.
-    void (async () => {
+    const started = Date.now();
+    const embedder = (async () => {
       const had = await activateCardEmbedder(candidates);
       await ensureCardEmbedder(SCAN_DATA_BASE);
-      if (!had) await activateCardEmbedder(candidates);
-    })();
+      return had || (await activateCardEmbedder(candidates));
+    })().catch((err) => {
+      scanLog("scan:embedder-error", err);
+      return false;
+    });
     // The learned card detector is an optional upgrade over the OpenCV one:
     // load it in the background (offline copy first, then fetch it for people
     // who downloaded the descriptors before it existed); never block on it.
-    void (async () => {
+    const detector = (async () => {
       const had = await activateCardDetector();
       await ensureCardDetector(SCAN_DATA_BASE);
-      if (!had) await activateCardDetector();
-    })();
+      return had || (await activateCardDetector());
+    })().catch((err) => {
+      scanLog("scan:detector-error", err);
+      return false;
+    });
+    // Kept so a multi-card scan can wait for both (#764): without the learned
+    // detector it falls back to OpenCV, which misses most cards on a real photo.
+    modelsRef.current = Promise.all([detector, embedder]).then(([d, e]) => {
+      scanLog("scan:models", `detector=${d} embedder=${e} ms=${Date.now() - started}`);
+    });
     setState({ kind: "ready", candidates, totalBytes: manifest.totalBytes });
   }, []);
 
@@ -136,5 +150,8 @@ export function useScanData(active: boolean) {
     }
   }, [prepare]);
 
-  return { state, download };
+  /** Resolves when the background detector and embedder loads have settled (immediately if none started). */
+  const whenModelsReady = useCallback((): Promise<void> => modelsRef.current ?? Promise.resolve(), []);
+
+  return { state, download, whenModelsReady };
 }
