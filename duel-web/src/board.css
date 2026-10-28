@@ -1677,6 +1677,9 @@ body.is-panel-drag * {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgb(var(--deep-rgb) / 0.55);
+  /* The heading sizes from this card's width, not the window's: a column dragged to its narrowest is
+     250px wide in a 1920px window (#774). The banner is a stretched child of .turn-panel, so it has a width. */
+  container-type: inline-size;
 }
 
 .turn-banner-kicker {
@@ -1694,7 +1697,10 @@ body.is-panel-drag * {
 
 .turn-banner-title {
   font-family: var(--font-display);
-  font-size: clamp(1.1rem, 1.45vw, 1.65rem);
+  /* The cap keeps the longest word ("OPPONENT'S") inside the card at the narrowest column; wide columns keep the clamp. */
+  font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 11cqi);
+  max-width: 100%;
+  overflow-wrap: break-word;
   line-height: 1.15;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -2798,7 +2804,7 @@ body.is-panel-resize-row .col-cut {
   }
 
   .turn-banner-title {
-    font-size: 0.95rem;
+    font-size: min(0.95rem, 11cqi);
   }
 
   .turn-player-stats {
@@ -4639,7 +4645,7 @@ body.is-panel-resize-row .col-cut {
   }
 
   .arena.arena-lp .turn-banner-title {
-    font-size: 0.9rem;
+    font-size: min(0.9rem, 11cqi);
   }
 
   .arena.arena-lp .arena-rail .intent-bar {
