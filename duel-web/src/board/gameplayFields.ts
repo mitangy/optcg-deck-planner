@@ -6,6 +6,8 @@ export type FieldDevice = {
   tiltFits: boolean;
   /** A mouse or trackpad is the main pointer: not a phone or tablet. */
   finePointer: boolean;
+  /** Portrait phone layout (PORTRAIT_MAT_QUERY): the tall board with the hand under it. */
+  portrait: boolean;
 };
 
 /** The "Show on screen" switches: each hides one non-core element (the Battle log has none). */
@@ -203,6 +205,31 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
       return true;
     default:
       return toggleShown(key, d);
+  }
+}
+
+/**
+ * Why a listed row does nothing in the current layout, or null when it works. The row stays in the
+ * list (turning the phone flips this, and hiding it would make rows jump) but its input is disabled;
+ * the saved value is never touched.
+ */
+export function rowDisabledNote(
+  key: RowKey,
+  d: FieldDevice,
+  s: { compactOwnBoard: boolean },
+): string | null {
+  const sideways = !d.desktop && !d.portrait;
+  switch (key) {
+    case "handLayout":
+      return sideways ? "Sideways, your hand is always the grid on the right." : null;
+    case "compactOwnBoard":
+      return sideways ? "Only for phones held upright." : null;
+    case "lifeFan":
+      return d.portrait && s.compactOwnBoard
+        ? "Simple board shows Life as a count. Turn it off to use this."
+        : null;
+    default:
+      return null;
   }
 }
 

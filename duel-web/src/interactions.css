@@ -716,6 +716,12 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   cursor: pointer;
 }
 
+/* A setting that does nothing in this layout: dimmed, with a note saying why. */
+.gameplay-toggle .switch:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Setting note that only appears when a choice cannot take effect. */
 .field-hint.field-note {
   color: #f0b45a;

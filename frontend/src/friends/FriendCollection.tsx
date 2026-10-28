@@ -1,3 +1,4 @@
+import { Select } from "@optcg/ui/popups";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { money } from "../api";
@@ -49,21 +50,20 @@ export function FriendCollection({ friendId, username }: { friendId: number; use
     <section aria-label={`${username}'s collection`}>
       <div className="friend-toolbar">
         <CardSearchInput value={search} onChange={setSearch} />
-        <select aria-label="Color" value={color} onChange={(e) => setColor(e.target.value)}>
-          <option value="">All colors</option>
-          {COLOR_ORDER.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-          {sortOptions.map((s) => (
-            <option key={s.key} value={s.key}>
-              Sort: {s.label}
-            </option>
-          ))}
-        </select>
+        <Select
+          className="friend-select"
+          aria-label="Color"
+          value={color}
+          onChange={setColor}
+          options={[{ value: "", label: "All colors" }, ...COLOR_ORDER.map((c) => ({ value: c, label: c }))]}
+        />
+        <Select
+          className="friend-select"
+          aria-label="Sort by"
+          value={sort}
+          onChange={setSort}
+          options={sortOptions.map((s) => ({ value: s.key, label: `Sort: ${s.label}` }))}
+        />
         <CardLayoutToggle layout={layout} onChange={setLayout} />
       </div>
       {items.length === 0 ? (

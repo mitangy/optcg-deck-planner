@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Select } from "@optcg/ui/popups";
 import { type AdminUser, type AdminUsers, type Role, banUser, deleteUser, fetchAdminUsers, setUserRole, unbanUser } from "./adminApi";
 import { canBanUser, canDeleteUser, dateOf } from "./adminLogic";
 
@@ -130,16 +131,17 @@ export function UsersTab({ actor }: { actor: Actor }) {
               </span>
               <span className="adm-ucell adm-urole">
                 {actor.role === "admin" ? (
-                  <select
+                  <Select<string>
                     aria-label={`Role for ${label(u)}`}
                     value={u.role}
                     disabled={u.role === "admin" || u.id === actor.id || busy}
-                    onChange={(e) => void act(u, () => setUserRole(u.id, e.target.value as "user" | "moderator"))}
-                  >
-                    {u.role === "admin" ? <option value="admin">admin</option> : null}
-                    <option value="user">user</option>
-                    <option value="moderator">moderator</option>
-                  </select>
+                    onChange={(role) => void act(u, () => setUserRole(u.id, role as "user" | "moderator"))}
+                    options={[
+                      ...(u.role === "admin" ? [{ value: "admin", label: "admin" }] : []),
+                      { value: "user", label: "user" },
+                      { value: "moderator", label: "moderator" },
+                    ]}
+                  />
                 ) : (
                   <span className={`adm-pill adm-pill-${u.role === "user" ? "mid" : "ok"}`}>{u.role}</span>
                 )}

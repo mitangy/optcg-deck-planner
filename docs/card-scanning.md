@@ -230,6 +230,23 @@ detector stays as the fallback.
   cards on purpose (`--non-op-piles`, `--hard-negatives`) as negatives. The
   model still often returns the strips of stacked toploaders as extra cards;
   those read as "none" or "check" in the tray.
+- **Labelling rule for the frame and for look-alikes (#789).** A card cut by
+  the photo's edge is labelled with its FULL quad, corners outside the photo
+  included (keypoint flag 1), when at least 55% of it is inside the photo and
+  at least 35% of it is visible (`gen_scenes.py --crop-prob`: that share of
+  scenes is a smaller window onto the generated scene, so cards run over the
+  frame). The runtime keeps such quads (`isPlausibleCard` only needs 40% of the
+  quad inside the photo) and rectification fills the part outside with black;
+  identification still reads the visible part (Pudding, cut by the left edge
+  of photo 5, is identified "sure" from her labelled quad). Not labelled, and
+  generated as negatives on purpose: other games' cards (Pokemon-, Magic-,
+  Yu-Gi-Oh-, sports-card and modern full-art layouts and card backs, drawn
+  procedurally by `fake_card`: art box, name bar, text box, borders; art is
+  recoloured One Piece art crops, plasma or landscapes, never One Piece's own
+  frame) alone, in binder pockets, sleeves and toploaders next to real cards;
+  and product box fronts (`box_face`: a coloured panel with a logo band, tags,
+  a barcode and a smaller, slightly crooked printed One Piece card) at card
+  size, behind acrylic cases, or as loose rectangles.
 - **Overlapped cards are never "sure" unless they are the best read (#769).**
   A covered card's crop includes the card in front of it, and a printed box or
   a neighbour's art can read as a real card, so `capOverlappedConfidence`
@@ -253,6 +270,9 @@ for i in 1 2 3 4; do python scripts/train-detector/gen_scenes.py --cards .scan-b
 # --non-op-piles 0.2 --hard-negatives 0.4
 # rounds chain: each starts from the previous round's weights (the first from COCO).
 # The shipped model was ~10 epochs at 512 px over three rounds, then 5 at 640 px.
+# #789: label files store keypoints as (v + 0.5) / 2 (ultralytics rejects coordinates outside
+# [0, 1]); train.py undoes that and stops ultralytics zeroing/clipping off-frame keypoints, and
+# turns mosaic/translate off. Add --crop-prob 0.3-0.6 and --non-op-piles 0.25-0.35.
 python scripts/train-detector/train.py --rounds /tmp/det-r1 /tmp/det-r2 /tmp/det-r3 --epochs 4 --out /tmp/det-runs
 python scripts/train-detector/train.py --rounds /tmp/det-r4 --epochs 5 --imgsz 640 \
     --resume-from /tmp/det-runs/round3.pt --out /tmp/det-runs-hi
@@ -287,14 +307,21 @@ is found when a detected quad overlaps the
 labelled printed card by IoU >= 0.5; the pipeline column runs detection plus
 identification against all 6,774 printings.
 
-| photo | model found, before -> after #769 | extras after (what, confidence) | piles identified, before -> after |
+| photo | model found (before #769 -> #788 -> #789) | extras after #789 (what, confidence) | piles identified (before #769 -> #788 -> #789) |
 |---|---|---|---|
-| binder (2 cards, non-One-Piece pockets around them) | 2/2 -> 2/2 | 2 non-One-Piece binder cards, none | 2/2 -> 2/2 |
-| store shelf (acrylic cases in front of printed boxes) | 2/2 -> 2/2 | 2 box-art cards, none | 2/2 -> 2/2 |
-| pink sleeves, fanned piles on a glass table | 5/5 -> 5/5 | 1 real back card, check; 2 stack strips, none | 4/5 -> 5/5 |
-| toploaders, PSA slab, stacks | 10/10 -> 9/10 | 1 real back card of a stack, sure; 4 stack strips, none | 8/10 -> 8/10 |
-| Big Mom spread, 23 cards incl. fanned and overlapped | 17/23 -> 21/23 | none | 16/23 -> 21-22/23 |
-| **total** | **36/42 -> 39/42** | 12 (9 "none") | **32/42 -> 38-39/42** |
+| binder (2 cards, non-One-Piece pockets around them) | 2/2 -> 2/2 -> 2/2 | 1 covered card read as OP10-085, check (was 2 fully visible non-One-Piece cards, none) | 2/2 -> 2/2 -> 2/2 |
+| store shelf (acrylic cases in front of printed boxes) | 2/2 -> 2/2 -> 2/2 | none (was 2 box-art cards) | 2/2 -> 2/2 -> 2/2 |
+| pink sleeves, fanned piles on a glass table | 5/5 -> 5/5 -> 4/5 | 2 stack strips, none; 1 real back card, sure | 4/5 -> 5/5 -> 4/5 |
+| toploaders, PSA slab, stacks | 10/10 -> 9/10 -> 10/10 | 4 stack strips, none; 1 real back card, check | 8/10 -> 8/10 -> 9/10 |
+| Big Mom spread, 23 cards incl. fanned and overlapped | 17/23 -> 21/23 -> 23/23 (raw detector) | none | 16/23 -> 21/23 -> 22/23 |
+| **total** | **36/42 -> 39/42 -> 41/42** (raw detector 42/42) | 9 (6 "none") | **32/42 -> 38/42 -> 39/42** |
+
+Before the #789 retrain the extras were 12 (9 "none"); the raw detector (before
+the runtime filters) had 18 false positives and now has 14. Pudding, cut by the
+photo's left edge, is found by the raw detector now (IoU >= 0.5 with her
+labelled quad, whose corner is 40 px outside the photo); the pipeline's
+`dropHiddenUnnamed` can still drop an unnamed covered card, which is why photo 3
+reads 4/5 found.
 
 Identification varies by a card between runs (its walk is time-budgeted).
 Before #769 the model had 3 extras on these photos, one each on photos 3-5.
@@ -307,8 +334,8 @@ also why photo 4 reads 9/10 (one top card, EB04-018, was unnamed and mostly
 overlapped by another detection) and photo 5 21/23. No labelled card was read as "sure"
 and wrong (0 of 39). The covered Katakuri fan, the overlapping foil pair,
 Daifuku and the gold-border Mamaragan (before: found at score 0.05) are
-found now; Pudding at the frame's left edge is missed (part of its quad
-leaves the photo, and the generator never labels such cards). The score
+found now; Pudding at the frame's left edge was missed by #788 (part of her quad
+leaves the photo, and the generator never labelled such cards) and is found since #789. The score
 threshold (0.25) was chosen on these photos, so treat the numbers as tuned,
 not blind. A higher threshold does not separate the leftovers: the non-One-Piece
 binder cards score 0.34-0.50, while real cards score as low as 0.42 (photo 4)
@@ -321,7 +348,7 @@ identification tolerates that.
 
 On the 30 synthetic harness scenes (flat, high contrast: the OpenCV
 detector's best case) the model reaches 99.5% recall (217/218), 100%
-precision and 0.91 mean IoU (96.8% / 100% / 0.89 before #769), against OpenCV's 98.2%, 100% and 0.94. The reference art is
+precision and 0.91 mean IoU (96.8% / 100% / 0.89 before #769; after #789 99.5% / 99.5% / 0.93), against OpenCV's 98.2%, 100% and 0.94. The reference art is
 shared with the training set, though the scenes are not.
 
 Speed: 0.2-0.35 s per photo in headless Chromium on a 4-core server CPU with
@@ -335,6 +362,14 @@ The #769 retrain (covered cards) fine-tuned the previous weights for 3.5 hours
 wall clock on 4 CPUs: 8 rounds of 2,000 fresh scenes, 4 epochs each (512 px for
 rounds 1-4 and 6-7, 640 px for 5 and 8; lr 0.001, AdamW), the last three with
 the hard negatives.
+The #789 retrain (other games' cards, box art, cards cut by the frame) fine-tuned
+those weights for about 3.5 hours wall clock on 4 CPUs: eight rounds of 2,000
+(the last of 1,600) fresh scenes, 4 epochs each at 512 px (rounds 1-4, 6) and
+640 px (5, 7, 8), lr 0.001; the shipped file is the weight average of rounds 5,
+7 and 8 (rounds 6 and 8 each lost a real card of photo 4, round 7 lost 2 harness
+cards; the average kept all three gains). Per-round raw detector false
+positives on the five photos: 18 (before), 13, 15, 11, 14, 13, 8 (round 6, with
+2 real cards lost), 14 (round 7).
 
 Open problems: a stack of toploaders where only the front card is fully
 visible is the weakest case, and recall there varied between training rounds

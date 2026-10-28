@@ -29,6 +29,8 @@ import numpy as np
 
 SIZE = 640
 VISIBLE_MIN = 0.35
+OOF_MIN = 0.55  # a card cut by the photo's edge is labelled when this much of it is inside
+CROP_PROB = 0.3  # share of scenes shown through a smaller window (cards run over the frame)
 NON_OP_PILE = 0.07  # share of table piles made of non-One-Piece cards (--non-op-piles)
 DISTRACTOR_ON_CARDS = 0.0  # share of distractors dropped right next to / under a card (--hard-negatives)
 CARD_ASPECT = 63.0 / 88.0
@@ -174,50 +176,326 @@ def watermark(img, strength=None):
     return img * (1 - a) + 255 * a
 
 
-def fake_card(cards, cw, ch):
-    """A card-like thing that is NOT a One Piece card (other TCGs, fan cards)."""
-    a = read(rng.choice(cards))
-    b = read(rng.choice(cards))
+# ------------------------------------------------- non-One-Piece faces (#789)
+# Procedural stand-ins for other games' cards and for product box art. They
+# have to look like the real thing at phone-photo size (art box, name bar, text
+# box, borders, icons), vary a lot, and never reuse One Piece's own frame.
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+
+def _col(lo=0, hi=255):
+    return np.array([U(lo, hi), U(lo, hi), U(lo, hi)], np.float32)
+
+
+def _blend(out, x0, y0, x1, y1, col, a=1.0):
+    x0, y0, x1, y1 = max(int(x0), 0), max(int(y0), 0), min(int(x1), out.shape[1]), min(int(y1), out.shape[0])
+    if x1 > x0 and y1 > y0:
+        out[y0:y1, x0:x1] = out[y0:y1, x0:x1] * (1 - a) + np.asarray(col, np.float32) * a
+
+
+def _vgrad(w, h, c1, c2):
+    t = np.linspace(0, 1, max(h, 1), dtype=np.float32)[:, None, None]
+    return np.asarray(c1, np.float32) * (1 - t) + np.asarray(c2, np.float32) * t + np.zeros((h, w, 3), np.float32)
+
+
+def para(out, x0, y0, x1, y1, col, lh, alpha=0.75):
+    """Lines of 'text' (word-shaped bars) filling a box."""
+    h, w = out.shape[:2]
+    m = np.zeros((h, w), np.uint8)
+    lh = max(int(lh), 3)
+    y = int(y0)
+    while y + lh <= y1:
+        xe = x1 - (rng.random() < 0.3) * U(0.05, 0.6) * (x1 - x0)
+        x = x0
+        while x < xe:
+            wl = int(U(2.0, 6.5) * lh * 0.55)
+            e = min(xe, x + wl)
+            if e - x > 1:
+                cv2.rectangle(m, (int(x), int(y + lh * 0.2)), (int(e), int(y + lh * 0.7)), 255, -1)
+            x = e + lh * 0.35
+        y += int(lh * 1.25)
+    m = cv2.GaussianBlur(m, (0, 0), 0.6).astype(np.float32)[..., None] / 255 * alpha
+    out[:] = out * (1 - m) + np.asarray(col, np.float32) * m
+
+
+def label_text(out, text, x, y, scale, col, thick=1):
+    h, w = out.shape[:2]
+    m = np.zeros((h, w), np.uint8)
+    cv2.putText(m, text[:14], (int(x), int(y)), FONT, scale * 0.55, 255, thick, cv2.LINE_AA)
+    a = m.astype(np.float32)[..., None] / 255
+    out[:] = out * (1 - a) + np.asarray(col, np.float32) * a
+
+
+def proc_art(cards, aw, ah):
+    """Art that is not One Piece's: recoloured crops, plasma, landscapes."""
+    aw, ah = max(aw, 4), max(ah, 4)
+    r = rng.random()
+    if r < 0.4:
+        b = read(rng.choice(cards))
+        bh, bw = b.shape[:2]
+        hh, ww = int(bh * U(0.2, 0.4)), int(bw * U(0.3, 0.6))
+        y0, x0 = int(bh * U(0.1, 0.45)), int(bw * U(0.05, 0.4))
+        art = cv2.resize(b[y0 : y0 + hh, x0 : x0 + ww], (aw, ah), interpolation=cv2.INTER_AREA).astype(np.float32)
+        v = rng.random()
+        if v < 0.4:
+            hsv = cv2.cvtColor(art.astype(np.uint8), cv2.COLOR_BGR2HSV)
+            hsv[..., 0] = (hsv[..., 0].astype(int) + rng.randint(25, 155)) % 180
+            art = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).astype(np.float32)
+        elif v < 0.7:
+            art = art[..., rng.choice([(1, 2, 0), (2, 0, 1), (2, 1, 0), (1, 0, 2)])]
+        else:
+            g = art.mean(2, keepdims=True)
+            art = g * _col(120, 255)[None, None] / 200
+        return art
+    if r < 0.7:
+        small = np.random.rand(rng.randint(3, 7), rng.randint(3, 7), 3).astype(np.float32)
+        art = cv2.resize(small, (aw, ah), interpolation=cv2.INTER_CUBIC)
+        art = art * U(120, 255) + U(0, 60)
+        for _ in range(rng.randint(1, 5)):
+            c = (rng.randint(0, aw), rng.randint(0, ah))
+            cv2.circle(art, c, int(U(0.06, 0.3) * aw), tuple(float(v) for v in _col()), -1 if rng.random() < 0.5 else 2, cv2.LINE_AA)
+        return cv2.GaussianBlur(art, (0, 0), U(0.5, 4))
+    art = _vgrad(aw, ah, _col(80, 255), _col(20, 200))
+    cv2.circle(art, (rng.randint(0, aw), int(ah * U(0.1, 0.5))), int(aw * U(0.05, 0.18)), tuple(float(v) for v in _col(200, 255)), -1, cv2.LINE_AA)
+    for k in range(rng.randint(2, 4)):
+        base = ah * (0.55 + 0.12 * k)
+        pts = [(0, ah), (0, base)]
+        n = rng.randint(4, 8)
+        for i in range(n + 1):
+            pts.append((aw * i / n, base - U(0.0, 0.3) * ah))
+        pts.append((aw, ah))
+        cv2.fillPoly(art, [np.int32(pts)], tuple(float(v) for v in _col(10, 150) * (0.6 + 0.2 * k)), cv2.LINE_AA)
+    return art
+
+
+def _art_box(out, x0, y0, x1, y1, cards, edge=None, edge_t=None):
+    aw, ah = int(x1 - x0), int(y1 - y0)
+    if aw < 6 or ah < 6:
+        return
+    art = proc_art(cards, aw, ah)
+    out[int(y0) : int(y0) + ah, int(x0) : int(x0) + aw] = art
+    if edge is not None:
+        cv2.rectangle(out, (int(x0), int(y0)), (int(x1) - 1, int(y1) - 1), tuple(float(c) for c in edge), edge_t or max(1, aw // 60))
+
+
+def _icons(out, cx, cy, r, n, step):
+    for i in range(n):
+        cv2.circle(out, (int(cx + i * step), int(cy)), int(r), tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+        cv2.circle(out, (int(cx + i * step), int(cy)), int(r), (30, 30, 30), 1, cv2.LINE_AA)
+
+
+def style_pokemon(cards, cw, ch):
+    border = rng.choice([(50, 200, 240), (70, 190, 245), (60, 60, 60), (230, 230, 230), (140, 200, 90)]) if rng.random() < 0.8 else _col()
     out = np.zeros((ch, cw, 3), np.float32)
-    frame = np.array([U(0, 255), U(0, 255), U(0, 255)], np.float32)
-    if rng.random() < 0.3:
-        frame = np.array([rng.choice([20, 235])] * 3, np.float32)
-    out[:] = frame
-    bh, bw = b.shape[:2]
-    art = b[int(bh * 0.12) : int(bh * 0.62), int(bw * 0.05) : int(bw * 0.95)]
-    m = int(cw * U(0.03, 0.08))
-    top = int(ch * U(0.07, 0.14))
-    aw, ah = cw - 2 * m, int(ch * U(0.5, 0.75))
-    if rng.random() < 0.4:
-        ah = ch - top - m  # full-bleed art
-    art = cv2.resize(art, (aw, ah), interpolation=cv2.INTER_AREA).astype(np.float32)
-    if rng.random() < 0.5:  # hue shift so it does not read as the same game
-        hsv = cv2.cvtColor(art.astype(np.uint8), cv2.COLOR_BGR2HSV)
-        hsv[..., 0] = (hsv[..., 0].astype(int) + rng.randint(30, 150)) % 180
-        art = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).astype(np.float32)
-    out[top : top + ah, m : m + aw] = art
-    # title bar + body text block
-    bar = np.array([U(0, 255)] * 3, np.float32)
-    out[int(ch * 0.02) : top - 2, m : cw - m] = bar
-    tm = text_mask(cw, ch, rand_words(3), cw / 220.0)
-    out = out * (1 - 0.8 * tm[..., None]) + (255 - bar) * 0.8 * tm[..., None]
-    if top + ah < ch - 4:
-        out[top + ah : ch - m, m : cw - m] = np.array([U(180, 245)] * 3, np.float32)
-        tm2 = text_mask(cw, ch, rand_words(5), cw / 300.0)
-        out = out * (1 - 0.7 * tm2[..., None] * (np.arange(ch)[:, None, None] > top + ah))
+    out[:] = np.asarray(border, np.float32)
+    m = int(cw * U(0.04, 0.065))
+    inner = _vgrad(cw - 2 * m, ch - 2 * m, _col(120, 255), _col(120, 255)) if rng.random() < 0.7 else _col(150, 255)[None, None] + np.zeros((ch - 2 * m, cw - 2 * m, 3), np.float32)
+    out[m : ch - m, m : cw - m] = inner
+    y = m + ch * 0.015
+    nbh = ch * 0.06
+    dark = np.array([30, 30, 30], np.float32)
+    label_text(out, rand_words(1)[0].title(), m + cw * 0.1, y + nbh, cw / 200, dark, 1)
+    label_text(out, "HP%d" % rng.choice([60, 90, 120, 180, 250]), cw * 0.68, y + nbh * 0.85, cw / 300, (40, 40, 220), 1)
+    _icons(out, cw * 0.9, y + nbh * 0.55, cw * 0.03, 1, 0)
+    ya = y + nbh * 1.3
+    ah = ch * U(0.3, 0.38)
+    _art_box(out, m + cw * 0.03, ya, cw - m - cw * 0.03, ya + ah, cards, rng.choice([(150, 190, 200), (200, 200, 200), (60, 160, 210)]), max(2, cw // 40))
+    ytxt = ya + ah + ch * 0.03
+    label_text(out, rand_words(1)[0], m + cw * 0.06, ytxt + ch * 0.015, cw / 330, dark, 1)
+    for k in range(rng.randint(1, 3)):
+        yy = ytxt + ch * (0.05 + 0.11 * k)
+        _icons(out, m + cw * 0.09, yy + ch * 0.02, cw * 0.03, rng.randint(1, 3), cw * 0.07)
+        label_text(out, rand_words(1)[0].title(), m + cw * 0.3, yy + ch * 0.03, cw / 230, dark, 1)
+        label_text(out, str(rng.choice([10, 20, 30, 50, 90, 120])), cw - m - cw * 0.17, yy + ch * 0.03, cw / 200, dark, 1)
+        para(out, m + cw * 0.08, yy + ch * 0.045, cw - m - cw * 0.08, yy + ch * 0.1, dark, ch * 0.022)
+    _blend(out, m, ch - m - ch * 0.075, cw - m, ch - m, dark, 0.15)
+    para(out, m + cw * 0.05, ch - m - ch * 0.06, cw - m - cw * 0.05, ch - m - ch * 0.01, dark, ch * 0.02)
+    return out
+
+
+def style_mtg(cards, cw, ch):
+    out = np.zeros((ch, cw, 3), np.float32)
+    out[:] = np.array([rng.choice([18, 22, 235, 225])] * 3, np.float32) if rng.random() < 0.9 else _col()
+    m = int(cw * U(0.04, 0.06))
+    frame = _col(60, 230)
+    out[m : ch - m, m : cw - m] = frame * U(0.8, 1.1)
+    paper = np.array([U(215, 245), U(225, 248), U(232, 250)], np.float32)
+    dark = np.array([25, 25, 25], np.float32)
+    nb = int(ch * 0.065)
+    y = int(m + ch * 0.012)
+    _blend(out, m + cw * 0.02, y, cw - m - cw * 0.02, y + nb, paper, 0.9)
+    label_text(out, rand_words(1)[0].title(), m + cw * 0.05, y + nb * 0.72, cw / 240, dark, 1)
+    _icons(out, cw - m - cw * 0.12, y + nb * 0.5, cw * 0.022, rng.randint(1, 4), -cw * 0.05)
+    ya = y + nb + ch * 0.008
+    ah = ch * U(0.4, 0.46)
+    _art_box(out, m + cw * 0.04, ya, cw - m - cw * 0.04, ya + ah, cards, (30, 30, 30), 2)
+    yt = ya + ah + ch * 0.008
+    _blend(out, m + cw * 0.02, yt, cw - m - cw * 0.02, yt + nb * 0.85, paper, 0.9)
+    label_text(out, rand_words(1)[0].title() + " - " + rand_words(1)[0].title(), m + cw * 0.05, yt + nb * 0.6, cw / 300, dark, 1)
+    yb = yt + nb * 0.85 + ch * 0.008
+    ybe = ch - m - ch * 0.04
+    _blend(out, m + cw * 0.04, yb, cw - m - cw * 0.04, ybe, paper * U(0.92, 1.0), 0.95)
+    para(out, m + cw * 0.08, yb + ch * 0.015, cw - m - cw * 0.08, ybe - ch * 0.01, dark, ch * 0.027)
     if rng.random() < 0.6:
+        _blend(out, cw - m - cw * 0.26, ybe - ch * 0.02, cw - m - cw * 0.04, ybe + ch * 0.025, paper, 0.95)
+        label_text(out, "%d/%d" % (rng.randint(0, 9), rng.randint(1, 9)), cw - m - cw * 0.22, ybe + ch * 0.016, cw / 300, dark, 1)
+    para(out, m + cw * 0.05, ybe + ch * 0.008, cw - m - cw * 0.3, ch - m - ch * 0.003, paper, ch * 0.016)
+    return out
+
+
+def style_ygo(cards, cw, ch):
+    out = np.zeros((ch, cw, 3), np.float32)
+    frame = rng.choice([(60, 130, 210), (50, 90, 150), (130, 70, 140), (90, 150, 90), (110, 150, 60), (80, 200, 230), (40, 40, 60), (170, 110, 70)])
+    out[:] = _vgrad(cw, ch, np.array(frame) * 1.1, np.array(frame) * 0.8)
+    m = int(cw * 0.035)
+    cv2.rectangle(out, (0, 0), (cw - 1, ch - 1), (15, 15, 15), max(2, m // 2))
+    dark = np.array([20, 20, 20], np.float32)
+    label_text(out, rand_words(1)[0].title(), cw * 0.07, ch * 0.07, cw / 190, dark, 1)
+    cv2.circle(out, (int(cw * 0.89), int(ch * 0.058)), int(cw * 0.05), tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+    _icons(out, cw * 0.86, ch * 0.115, cw * 0.022, rng.randint(3, 8), -cw * 0.05)
+    aw = cw * U(0.78, 0.84)
+    ax = (cw - aw) / 2
+    ay = ch * 0.145
+    _art_box(out, ax, ay, ax + aw, ay + aw, cards, (60, 190, 230), max(2, cw // 45))
+    yt = ay + aw + ch * 0.02
+    _blend(out, cw * 0.06, yt, cw * 0.94, ch * 0.955, np.array([U(160, 215), U(195, 235), U(215, 245)], np.float32), 0.95)
+    para(out, cw * 0.09, yt + ch * 0.015, cw * 0.91, ch * 0.935, dark, ch * 0.024)
+    label_text(out, "ATK/%d DEF/%d" % (rng.randint(0, 40) * 100, rng.randint(0, 40) * 100), cw * 0.45, ch * 0.945, cw / 330, dark, 1)
+    return out
+
+
+def style_sports(cards, cw, ch):
+    out = np.zeros((ch, cw, 3), np.float32)
+    out[:] = _col(180, 255) if rng.random() < 0.6 else _col(10, 80)
+    m = int(cw * U(0.03, 0.07))
+    _art_box(out, m, m, cw - m, ch - m, cards)
+    bh = ch * U(0.09, 0.16)
+    y1 = ch - m - ch * U(0.0, 0.05)
+    col = _col(20, 240)
+    _blend(out, m, y1 - bh, cw - m * U(0.0, 3), y1, col, U(0.8, 1.0))
+    label_text(out, rand_words(1)[0].title(), m * 2, y1 - bh * 0.35, cw / U(160, 230), 255 - col, 2)
+    label_text(out, rand_words(1)[0], m * 2, y1 - bh * 0.75, cw / 340, 255 - col, 1)
+    if rng.random() < 0.7:
+        cv2.circle(out, (int(m * 3), int(m * 3)), int(cw * 0.07), tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+    if rng.random() < 0.4:
+        cv2.rectangle(out, (m, m), (cw - m, ch - m), tuple(float(c) for c in _col(150, 255)), max(1, cw // 60))
+    return out
+
+
+def style_fullart(cards, cw, ch):
+    """Modern full-art card: art to the edge, cost orbs, a text panel over it, like the newest games (and a bit like ours)."""
+    out = np.zeros((ch, cw, 3), np.float32)
+    m = int(cw * U(0.02, 0.05))
+    out[:] = _col(10, 240)
+    _art_box(out, m, m, cw - m, ch - m, cards)
+    dark = np.array([20, 20, 20], np.float32)
+    ph = ch * U(0.2, 0.38)
+    y0 = ch - m - ph - ch * U(0, 0.06)
+    _blend(out, m, y0, cw - m, y0 + ph, rng.choice([dark, np.array([235, 235, 235], np.float32), _col(20, 140)]), U(0.55, 0.9))
+    txtc = 240 if out[int(y0 + 2), int(cw / 2)].mean() < 128 else 25
+    para(out, m + cw * 0.06, y0 + ph * 0.28, cw - m - cw * 0.06, y0 + ph * 0.95, np.array([txtc] * 3, np.float32), ch * 0.026)
+    label_text(out, rand_words(1)[0].title(), m + cw * 0.08, y0 + ph * 0.2, cw / 210, np.array([txtc] * 3, np.float32), 1)
+    for k in range(rng.randint(1, 3)):
+        cv2.circle(out, (int(m + cw * (0.09 + 0.14 * k)), int(m + cw * 0.09)), int(cw * 0.065), tuple(float(c) for c in _col(20, 230)), -1, cv2.LINE_AA)
+        cv2.circle(out, (int(m + cw * (0.09 + 0.14 * k)), int(m + cw * 0.09)), int(cw * 0.065), (240, 240, 240), 2, cv2.LINE_AA)
+    cv2.rectangle(out, (m, m), (cw - m, ch - m), tuple(float(c) for c in _col(100, 255)), max(1, cw // 70))
+    if rng.random() < 0.5:
+        _blend(out, 0, 0, cw, m, _col(), 1.0)
+        _blend(out, 0, ch - m, cw, ch, _col(), 1.0)
+        _blend(out, 0, 0, m, ch, _col(), 1.0)
+        _blend(out, cw - m, 0, cw, ch, _col(), 1.0)
+    return out
+
+
+def style_back(cards, cw, ch):
+    out = np.zeros((ch, cw, 3), np.float32)
+    base = _col(15, 200)
+    out[:] = base
+    m = int(cw * U(0.04, 0.08))
+    out[m : ch - m, m : cw - m] = np.clip(base * U(0.5, 1.4), 0, 255)
+    v = rng.random()
+    cx, cy = cw // 2, ch // 2
+    if v < 0.35:  # swirl / oval emblem
+        cv2.ellipse(out, (cx, cy), (int(cw * U(0.2, 0.36)), int(cw * U(0.2, 0.36))), 0, 0, 360, tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+        cv2.circle(out, (cx, cy), int(cw * 0.14), tuple(float(c) for c in _col()), 3, cv2.LINE_AA)
+    elif v < 0.7:  # diamond lattice
+        step = max(6, int(cw * U(0.05, 0.12)))
+        c2 = tuple(float(c) for c in np.clip(base * U(0.3, 1.8) + 20, 0, 255))
+        for k in range(-ch, cw + ch, step):
+            cv2.line(out, (k, 0), (k + ch, ch), c2, 1, cv2.LINE_AA)
+            cv2.line(out, (k + ch, 0), (k, ch), c2, 1, cv2.LINE_AA)
+        cv2.ellipse(out, (cx, cy), (int(cw * 0.3), int(ch * 0.2)), 0, 0, 360, tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+    else:  # logo text band
+        _blend(out, m, ch * 0.4, cw - m, ch * 0.6, _col(), 0.9)
+        label_text(out, rand_words(1)[0], cw * 0.18, ch * 0.54, cw / 130, _col(150, 255), 2)
+    cv2.rectangle(out, (m, m), (cw - m, ch - m), tuple(float(c) for c in _col(150, 255)), max(1, cw // 70))
+    return out
+
+
+STYLES = [style_pokemon, style_mtg, style_ygo, style_sports, style_fullart, style_back]
+
+
+def fake_card(cards, cw, ch):
+    """A card that is NOT a One Piece card: another game's layout, procedurally drawn."""
+    fn = rng.choices(STYLES, [22, 20, 14, 10, 22, 12])[0]
+    out = fn(cards, cw, ch)
+    if rng.random() < 0.12:
+        out = foil(out)
+    if rng.random() < 0.3:
+        out = cv2.GaussianBlur(out, (0, 0), U(0.3, 0.9))
+    if rng.random() < 0.3:
         out = watermark(out)
-    return out, rr(cw, ch, 0, 0, cw, ch, 0.05 * cw)
+    return np.clip(out, 0, 255), rr(cw, ch, 0, 0, cw, ch, U(0.03, 0.06) * cw)
 
 
 def card_back(cw, ch):
-    out = np.zeros((ch, cw, 3), np.float32)
-    base = np.array([U(20, 90), U(20, 60), U(60, 150)], np.float32)
-    out[:] = base
-    cv2.circle(out, (cw // 2, ch // 2), int(cw * U(0.22, 0.34)), (30, 30, 30), -1)
-    cv2.circle(out, (cw // 2, ch // 2), int(cw * 0.2), (40, 150, 230), 3)
-    cv2.rectangle(out, (int(cw * 0.05), int(ch * 0.04)), (int(cw * 0.95), int(ch * 0.96)), (20, 20, 20), max(2, cw // 40))
-    return out, rr(cw, ch, 0, 0, cw, ch, 0.05 * cw)
+    return style_back(None, cw, ch), rr(cw, ch, 0, 0, cw, ch, 0.05 * cw)
+
+
+def box_face(cards, cw, ch):
+    """The front of a product box: a coloured panel with a logo band, a warning
+    tag and a printed (smaller, slightly crooked) card on it, like the starter
+    deck boxes behind the acrylic cases on a shop shelf."""
+    out = _vgrad(cw, ch, _col(10, 230), _col(10, 230))
+    dark = np.array([25, 25, 25], np.float32)
+    lg = int(ch * U(0.06, 0.12))
+    _blend(out, 0, ch * U(0.0, 0.1), cw, ch * U(0.0, 0.1) + lg, _col(0, 255), U(0.6, 1.0))
+    label_text(out, rand_words(1)[0], cw * 0.06, ch * 0.1 + lg * 0.2, cw / U(120, 200), _col(190, 255), 2)
+    pw = int(cw * U(0.5, 0.9))
+    ph = int(pw / CARD_ASPECT)
+    c = read(rng.choice(cards))
+    c = cv2.resize(c, (pw, ph), interpolation=cv2.INTER_AREA).astype(np.float32)
+    c = c * U(0.7, 1.0) + U(0, 25)
+    if rng.random() < 0.5:  # printed art is slightly crooked
+        M = cv2.getRotationMatrix2D((pw / 2, ph / 2), U(-9, 9), 1.0)
+        pm = cv2.warpAffine(np.ones((ph, pw), np.float32), M, (pw, ph))
+        c = cv2.warpAffine(c, M, (pw, ph))
+    else:
+        pm = rr(pw, ph, 0, 0, pw, ph, 0.05 * pw)
+    px = int(U(-0.1, 0.35) * cw + cw * 0.05)
+    py = int(U(0.15, 0.55) * ch)
+    x0, y0 = max(px, 0), max(py, 0)
+    x1, y1 = min(px + pw, cw), min(py + ph, ch)
+    if x1 > x0 and y1 > y0:
+        sub = c[y0 - py : y1 - py, x0 - px : x1 - px]
+        mm = pm[y0 - py : y1 - py, x0 - px : x1 - px][..., None]
+        out[y0:y1, x0:x1] = sub * mm + out[y0:y1, x0:x1] * (1 - mm)
+    # tags, badges, barcode, small print
+    if rng.random() < 0.8:
+        _blend(out, cw * 0.04, ch * U(0.3, 0.5), cw * 0.36, ch * U(0.3, 0.5) + ch * 0.1, (235, 235, 235), 0.95)
+        para(out, cw * 0.06, ch * 0.32, cw * 0.34, ch * 0.42, dark, ch * 0.022)
+    for _ in range(rng.randint(0, 3)):
+        cv2.circle(out, (int(U(0.1, 0.9) * cw), int(U(0.75, 0.95) * ch)), int(cw * U(0.04, 0.08)), tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
+    if rng.random() < 0.5:
+        bx = int(cw * U(0.55, 0.8))
+        _blend(out, bx, ch * 0.9, bx + cw * 0.18, ch * 0.97, (240, 240, 240), 0.95)
+        for k in range(0, int(cw * 0.16), 3):
+            cv2.line(out, (bx + 3 + k, int(ch * 0.91)), (bx + 3 + k, int(ch * 0.96)), (20, 20, 20), 1)
+    if rng.random() < 0.4:
+        out = watermark(out)
+    gl = gloss_mask(cw, ch, U(0.0, 0.35))
+    out = out + gl[..., None] * 255 * 0.5
+    return np.clip(out, 0, 255), rr(cw, ch, 0, 0, cw, ch, U(1, 0.03 * cw))
 
 
 # ----------------------------------------------------------- card sprites
@@ -516,8 +794,11 @@ def make_scene(cards, bg, rngseed):
             g = U(0.88, 1.12)
             c = np.array([U(0.92, 1.08), U(0.92, 1.08), U(0.92, 1.08)], np.float32)
             return (np.clip(f[0] * g * c, 0, 255), f[1])
-        if rng.random() < 0.3:
+        r = rng.random()
+        if r < 0.12:
             return card_back(cw, ch)
+        if r < 0.3:
+            return box_face(cards, cw, ch)
         return fake_card(cards, cw, ch)
 
     def add_pile(cx, cy, hc, rot, kind, n, step_frac, fan_dir, labels_op=True, non_op=False):
@@ -669,7 +950,10 @@ def make_scene(cards, bg, rngseed):
         L = Layer(sw_, sh_)
         body = rr(sw_, sh_, 5, 5, sw_ - 5, sh_ - 5, U(1, 8))
         L.paint(col, body, 1.0)
-        if hard_art or rng.random() < 0.7:  # printed art, sometimes a whole fake printed card
+        if rng.random() < 0.55:  # a printed box front instead (#789)
+            bimg, bmask = box_face(cards, int(ww), int(hh))
+            L.paint_img(bimg, bmask, 5, 5)
+        elif hard_art or rng.random() < 0.7:  # printed art, sometimes a whole fake printed card
             if hard_art or rng.random() < 0.6:
                 art = read(rng.choice(cards))
                 aw = int(hh * CARD_ASPECT * U(0.7, 0.93)) if hard_art else int(ww * U(0.4, 0.8))
@@ -718,7 +1002,20 @@ def make_scene(cards, bg, rngseed):
         L.paint(skin, rr(300, 300, 20, 100, 280, 200, 50), 1.0)
         draw_layer(L, place_homography((300, 300), (U(0, 1) * SIZE, U(0, 1) * SIZE), U(0, 360)) @ np.diag([U(0.4, 1.0), U(0.4, 1.0), 1]), None)
 
-    # ---- labels: full quads of the cards that are visible enough, with per-corner visibility
+    # ---- labels: full quads of the cards that are visible enough, with per-corner visibility.
+    # Frame cut-offs (#789): sometimes the "photo" is a window onto the scene, so
+    # cards run over its edge. A card is labelled when >= OOF_MIN of it is inside
+    # the window and VISIBLE_MIN of it is visible there; its quad keeps the corners
+    # that are outside (flag 1) and the box is the part that is inside.
+    crop = None
+    if rng.random() < CROP_PROB:
+        f = U(0.6, 0.92)
+        crop = (U(0, 1) * (1 - f) * SIZE, U(0, 1) * (1 - f) * SIZE, f * SIZE)
+    wx0, wy0, ws = crop if crop else (0.0, 0.0, float(SIZE))
+    win = np.float32([[wx0, wy0], [wx0 + ws, wy0], [wx0 + ws, wy0 + ws], [wx0, wy0 + ws]])
+    win_mask = np.zeros((SIZE, SIZE), bool)
+    win_mask[int(math.ceil(wy0)) : int(wy0 + ws), int(math.ceil(wx0)) : int(wx0 + ws)] = True
+    k = SIZE / ws
     labels = []
     for i, (sp, H, _) in enumerate(items):
         if not sp.label:
@@ -729,21 +1026,36 @@ def make_scene(cards, bg, rngseed):
         area = m.sum()
         if area < 14 * 14:
             continue
-        vis = (idmap[m > 0] == i).mean()
-        if vis >= VISIBLE_MIN and (q >= 1).all() and (q <= SIZE - 1).all():
-            # a corner is seen when this card is the topmost thing just inside it
-            ctr = q.mean(0)
-            flags = []
-            for p in q:
-                d = ctr - p
-                p_in = p + d / (np.linalg.norm(d) + 1e-6) * 4.0
-                x, y = int(round(p_in[0])), int(round(p_in[1]))
-                flags.append(2 if idmap[min(max(y, 0), SIZE - 1), min(max(x, 0), SIZE - 1)] == i else 1)
-            labels.append((q, flags))
+        inter_area, inter_poly = cv2.intersectConvexConvex(q, win)
+        inframe = inter_area / max(cv2.contourArea(q), 1.0)
+        mw = (m > 0) & win_mask
+        if inframe < OOF_MIN or mw.sum() < 14 * 14 / (k * k):
+            continue
+        vis = (idmap[mw] == i).mean() * inframe
+        if vis < VISIBLE_MIN:
+            continue
+        # a corner is seen when it is in the window and this card is the topmost thing just inside it
+        ctr = q.mean(0)
+        flags = []
+        for p in q:
+            d = ctr - p
+            p_in = p + d / (np.linalg.norm(d) + 1e-6) * 4.0
+            x, y = int(round(p_in[0])), int(round(p_in[1]))
+            inside = wx0 <= p[0] <= wx0 + ws and wy0 <= p[1] <= wy0 + ws
+            flags.append(2 if inside and idmap[min(max(y, 0), SIZE - 1), min(max(x, 0), SIZE - 1)] == i else 1)
+        qn = (q - [wx0, wy0]) * k
+        pn = (inter_poly.reshape(-1, 2) - [wx0, wy0]) * k
+        if (qn < -0.5 * SIZE + 2).any() or (qn > 1.5 * SIZE - 2).any():
+            continue
+        bbox = (np.clip(pn.min(0), 0, SIZE), np.clip(pn.max(0), 0, SIZE))
+        labels.append((qn, flags, bbox))
+    if crop:
+        x0, y0, s_ = int(round(wx0)), int(round(wy0)), int(round(ws))
+        img = cv2.resize(np.asarray(img, np.float32)[y0 : y0 + s_, x0 : x0 + s_], (SIZE, SIZE), interpolation=cv2.INTER_LINEAR)
 
     if scene_kind == "shelf" and labels:
         # glass shelf: everything below the lowest card is a faded mirror image
-        ys = [q[:, 1].max() for q, _ in labels]
+        ys = [q[:, 1].max() for q, _, _ in labels]
         y0 = int(min(SIZE - 40, max(ys) + SIZE * 0.015))
         k = SIZE - y0
         refl = img[max(0, y0 - k) : y0][::-1].astype(np.float32)
@@ -788,24 +1100,27 @@ def make_scene(cards, bg, rngseed):
     return img, labels, scene_kind
 
 
-def label_line(q, flags=(2, 2, 2, 2)):
+def label_line(q, flags=(2, 2, 2, 2), bbox=None):
+    """YOLO-pose label. Ultralytics rejects keypoints outside [0, 1], so they are
+    stored as (v + 0.5) / 2 and `train.py` undoes that when it loads them."""
     q = np.asarray(q, np.float32)
-    x0, y0 = q.min(0)
-    x1, y1 = q.max(0)
+    if bbox is None:
+        bbox = (np.clip(q.min(0), 0, SIZE), np.clip(q.max(0), 0, SIZE))
+    (x0, y0), (x1, y1) = bbox
     cx, cy, w, h = (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0
     s = SIZE
     parts = [0, cx / s, cy / s, w / s, h / s]
     for (x, y), f in zip(q, flags):
-        parts += [x / s, y / s, f]
+        parts += [(x / s + 0.5) / 2, (y / s + 0.5) / 2, f]
     return " ".join(f"{v:.6f}" if isinstance(v, float) or isinstance(v, np.floating) else str(v) for v in parts)
 
 
 _G = {}
 
 
-def _init(cards_dir, tex_dir, visible_min, non_op, hard):
-    global VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS
-    VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS = visible_min, non_op, hard
+def _init(cards_dir, tex_dir, visible_min, non_op, hard, crop_prob):
+    global VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS, CROP_PROB
+    VISIBLE_MIN, NON_OP_PILE, DISTRACTOR_ON_CARDS, CROP_PROB = visible_min, non_op, hard, crop_prob
     cv2.setNumThreads(1)
     cards = sorted(glob.glob(os.path.join(cards_dir, "*.jpg")))
     tex = sorted(glob.glob(os.path.join(tex_dir, "*.jpg")))
@@ -818,7 +1133,7 @@ def _job(args):
     name = f"{split}_{idx:05d}"
     cv2.imwrite(os.path.join(out, "images", split, name + ".jpg"), img, [cv2.IMWRITE_JPEG_QUALITY, 92])
     with open(os.path.join(out, "labels", split, name + ".txt"), "w") as f:
-        f.write("\n".join(label_line(q, fl) for q, fl in labels))
+        f.write("\n".join(label_line(q, fl, bb) for q, fl, bb in labels))
     return len(labels)
 
 
@@ -833,6 +1148,7 @@ def main():
     ap.add_argument("--visible-min", type=float, default=VISIBLE_MIN, help="label cards at least this fraction visible (full quad); 0.85 = top cards only")
     ap.add_argument("--non-op-piles", type=float, default=NON_OP_PILE, help="share of table piles that are non-One-Piece cards (unlabelled)")
     ap.add_argument("--hard-negatives", type=float, default=DISTRACTOR_ON_CARDS, help="share of distractor boxes placed on top of / behind real cards")
+    ap.add_argument("--crop-prob", type=float, default=CROP_PROB, help="share of scenes shown through a smaller window so cards run over the frame (#789)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--val-cards-from", type=float, default=0.0, help="unused; reserved")
     a = ap.parse_args()
@@ -841,7 +1157,7 @@ def main():
         os.makedirs(os.path.join(a.out, "labels", sp), exist_ok=True)
     jobs = [("train", i, a.seed * 1_000_003 + i, a.out) for i in range(a.n)]
     jobs += [("val", i, 777_777_000 + i, a.out) for i in range(a.val)]
-    with Pool(a.workers, initializer=_init, initargs=(a.cards, a.textures, a.visible_min, a.non_op_piles, a.hard_negatives)) as p:
+    with Pool(a.workers, initializer=_init, initargs=(a.cards, a.textures, a.visible_min, a.non_op_piles, a.hard_negatives, a.crop_prob)) as p:
         counts = []
         for k, c in enumerate(p.imap_unordered(_job, jobs, chunksize=8)):
             counts.append(c)

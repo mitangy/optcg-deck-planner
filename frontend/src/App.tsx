@@ -64,6 +64,7 @@ import {
 } from "./CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { nameWithBreaks } from "./cardName";
+import { SHOPPING_DECKS_KEY, loadShoppingDeckFilter, savedShoppingDeckIds, useSavedShoppingDeckIds } from "./shoppingDeckFilter";
 import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import {
   collectionTotals,
@@ -77,7 +78,7 @@ import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useDeckHints, useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { CompassIcon } from "./ThemeIcons";
-import { MenuItem } from "@optcg/ui/popups";
+import { MenuItem, Select } from "@optcg/ui/popups";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
@@ -119,7 +120,6 @@ import {
   ShoppingListSkeleton,
 } from "./Skeleton";
 
-const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 /* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
 const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
 const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
@@ -821,34 +821,6 @@ function sharedUsedIn(item: ShoppingItem): string {
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function loadShoppingDeckFilter(allIds: number[]): number[] | null {
-  try {
-    const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as number[];
-    if (!Array.isArray(parsed)) return null;
-    const allowed = new Set(allIds);
-    const filtered = parsed.filter((id) => allowed.has(id));
-    return filtered.length ? filtered : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The decks ticked under Master Shopping's "Include decks", for views that count the same decks
- * (deck pages, Buying hints). undefined means all decks, so those requests stay unfiltered.
- */
-function savedShoppingDeckIds(allIds: number[]): number[] | undefined {
-  const saved = loadShoppingDeckFilter(allIds);
-  return saved && saved.length < allIds.length ? [...saved].sort((a, b) => a - b) : undefined;
-}
-
-function useSavedShoppingDeckIds(): number[] | undefined {
-  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
-  return decksQ.data ? savedShoppingDeckIds(decksQ.data.map((d) => d.id)) : undefined;
 }
 
 function loadSelectedCardIds(): Set<string> {
@@ -2293,28 +2265,21 @@ function CatalogAddDrawer({
           <div className="deck-editor-filter-row">
             <label className="deck-editor-select">
               <span className="sr-only">Color</span>
-              <select value={color} onChange={(e) => setColor(e.target.value)} aria-label="Filter catalog by color">
-                <option value="">All colors</option>
-                {COLOR_ORDER.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={color}
+                onChange={setColor}
+                aria-label="Filter catalog by color"
+                options={COLOR_OPTIONS}
+              />
             </label>
             <label className="deck-editor-select">
               <span className="sr-only">Card type</span>
-              <select
+              <Select
                 value={cardType}
-                onChange={(e) => setCardType(e.target.value)}
+                onChange={setCardType}
                 aria-label="Filter catalog by card type"
-              >
-                {CATALOG_TYPE_FILTERS.map((t) => (
-                  <option key={t || "all"} value={t}>
-                    {t ? t : "All types"}
-                  </option>
-                ))}
-              </select>
+                options={CARD_TYPE_OPTIONS}
+              />
             </label>
             {onScan && (
               <button type="button" className="ghost scan-open" onClick={onScan}>
@@ -3405,6 +3370,8 @@ function NeededStepper({
 const MAIN_DECK_LIMIT = 51;
 const DON_DECK_LIMIT = 10;
 const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
+const CARD_TYPE_OPTIONS = CATALOG_TYPE_FILTERS.map((t) => ({ value: t as string, label: t || "All types" }));
+const COLOR_OPTIONS = [{ value: "", label: "All colors" }, ...COLOR_ORDER.map((c) => ({ value: c as string, label: c }))];
 
 /** Past-50 decks are allowed; the hints tray flags them as a soft warning instead of a confirm. */
 async function setDeckCardNeeded(
@@ -3561,32 +3528,21 @@ function DeckEditorPanel({
           <div className="deck-editor-filter-row">
             <label className="deck-editor-select">
               <span className="sr-only">Color</span>
-              <select
+              <Select
                 value={color}
-                onChange={(e) => setColor(e.target.value)}
+                onChange={setColor}
                 aria-label="Filter by color"
-              >
-                <option value="">All colors</option>
-                {COLOR_ORDER.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                options={COLOR_OPTIONS}
+              />
             </label>
             <label className="deck-editor-select">
               <span className="sr-only">Card type</span>
-              <select
+              <Select
                 value={cardType}
-                onChange={(e) => setCardType(e.target.value)}
+                onChange={setCardType}
                 aria-label="Filter by card type"
-              >
-                {CATALOG_TYPE_FILTERS.map((t) => (
-                  <option key={t || "all"} value={t}>
-                    {t ? t : "All types"}
-                  </option>
-                ))}
-              </select>
+                options={CARD_TYPE_OPTIONS}
+              />
             </label>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { OppHandSpot } from "./panelLayout";
-import { Dialog } from "@optcg/ui/popups";
+import { Dialog, Select } from "@optcg/ui/popups";
 import {
   updateSettings,
   useDuelSettings,
@@ -20,6 +20,7 @@ import { playTurnChime } from "./turnAlert";
 import {
   showToggleShown,
   turnAlertCopy,
+  rowDisabledNote,
   visibleGroups,
   type FieldDevice,
   type GroupId,
@@ -30,6 +31,7 @@ import {
 import {
   DESKTOP_BOARD_QUERY,
   FINE_POINTER_QUERY,
+  PORTRAIT_MAT_QUERY,
   TILT_BOARD_QUERY,
   useMediaQuery,
 } from "./useMediaQuery";
@@ -245,7 +247,16 @@ export function GameplaySettingsFields() {
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
   // Orientation lock and vibration are for phones and tablets, not a mouse and keyboard.
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
-  const device: FieldDevice = { desktop, tiltFits, finePointer };
+  // Upright phone: some rows do nothing in one orientation, so they are disabled with a note.
+  const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
+  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait };
+  const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
+  const disabledNote = (note: string | null) =>
+    note ? (
+      <p className="field-hint field-note" role="note">
+        {note}
+      </p>
+    ) : null;
   const groups = visibleGroups(device);
   const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
 
@@ -253,6 +264,7 @@ export function GameplaySettingsFields() {
     const toggle = toggleByKey.get(key);
     if (toggle) {
       const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
+      const note = noteFor(t.key);
       return (
         <div className="gameplay-toggle" key={t.key}>
           <label className="switch">
@@ -261,6 +273,7 @@ export function GameplaySettingsFields() {
               checked={
                 t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
               }
+              disabled={note !== null}
               onChange={(e) => {
                 if (t.key === "oppHandTopRight") {
                   updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
@@ -274,6 +287,7 @@ export function GameplaySettingsFields() {
             <span>{t.label}</span>
           </label>
           <p className="field-hint">{t.hint}</p>
+          {disabledNote(note)}
         </div>
       );
     }
@@ -282,17 +296,12 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="end-turn-confirm">Confirm before ending turn</label>
-            <select
+            <Select
               id="end-turn-confirm"
               value={settings.endTurnConfirm}
-              onChange={(e) => updateSettings({ endTurnConfirm: e.target.value as EndTurnConfirm })}
-            >
-              {END_TURN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ endTurnConfirm: v })}
+              options={END_TURN_OPTIONS}
+            />
             <p className="field-hint">
               The middle option asks only while you have active DON!! or a ready attacker.
             </p>
@@ -303,17 +312,12 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="response-stops">Stop for block and counter</label>
-            <select
+            <Select
               id="response-stops"
               value={settings.responseStops}
-              onChange={(e) => updateSettings({ responseStops: e.target.value as ResponseStops })}
-            >
-              {RESPONSE_STOP_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ responseStops: v })}
+              options={RESPONSE_STOP_OPTIONS}
+            />
             <p className="field-hint">
               Auto passes when you can&apos;t block or counter. Smart also passes when your Counters can&apos;t save the card.
             </p>
@@ -324,19 +328,12 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="screen-orientation">Screen orientation</label>
-            <select
+            <Select
               id="screen-orientation"
               value={settings.screenOrientation}
-              onChange={(e) =>
-                updateSettings({ screenOrientation: e.target.value as ScreenOrientationPref })
-              }
-            >
-              {ORIENTATION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ screenOrientation: v })}
+              options={ORIENTATION_OPTIONS}
+            />
             <p className="field-hint">
               Locks rotation during a match where the browser allows it (Android, full screen or installed).
             </p>
@@ -352,22 +349,19 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="hand-layout">Hand layout</label>
-            <select
+            <Select
               id="hand-layout"
+              disabled={noteFor("handLayout") !== null}
               value={settings.handLayout}
-              onChange={(e) => updateSettings({ handLayout: e.target.value as HandLayoutPref })}
-            >
-              {HAND_LAYOUT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ handLayout: v })}
+              options={HAND_LAYOUT_OPTIONS}
+            />
             <p className="field-hint">
               {desktop
                 ? "Automatic uses Grid on tall windows and Fan elsewhere. Fan tucks under the board; Grid is a side panel you can move."
                 : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
             </p>
+            {disabledNote(noteFor("handLayout"))}
           </div>
 
         );
@@ -396,15 +390,16 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="side-columns">Side columns</label>
-            <select
+            <Select
               id="side-columns"
               value={settings.sideColumns}
-              onChange={(e) => updateSettings({ sideColumns: e.target.value as SideColumns })}
-            >
-              <option value="right">One, on the right</option>
-              <option value="left">One, on the left</option>
-              <option value="both">Both</option>
-            </select>
+              onChange={(v) => updateSettings({ sideColumns: v })}
+              options={[
+                { value: "right", label: "One, on the right" },
+                { value: "left", label: "One, on the left" },
+                { value: "both", label: "Both" },
+              ]}
+            />
             <p className="field-hint">
               One column gives the board more room. Both keeps a column on each side.
             </p>
@@ -415,16 +410,17 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="opp-hand-spot">Opponent hand position</label>
-            <select
+            <Select
               id="opp-hand-spot"
               value={settings.oppHandSpot}
-              onChange={(e) => updateSettings({ oppHandSpot: e.target.value as OppHandSpot })}
-            >
-              <option value="">In its side panel</option>
-              <option value="left">Left of the mat</option>
-              <option value="centre">Top centre of the mat</option>
-              <option value="right">Right of the mat</option>
-            </select>
+              onChange={(v) => updateSettings({ oppHandSpot: v })}
+              options={[
+                { value: "", label: "In its side panel" },
+                { value: "left", label: "Left of the mat" },
+                { value: "centre", label: "Top centre of the mat" },
+                { value: "right", label: "Right of the mat" },
+              ]}
+            />
             <p className="field-hint">
               Where the opponent&apos;s hand sits: in a side panel, or pinned to their half of the mat.
             </p>
@@ -435,17 +431,12 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="text-size">Text size</label>
-            <select
+            <Select
               id="text-size"
               value={settings.textSize}
-              onChange={(e) => updateSettings({ textSize: e.target.value as TextSize })}
-            >
-              {TEXT_SIZE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ textSize: v })}
+              options={TEXT_SIZE_OPTIONS}
+            />
             <p className="field-hint">
               Makes text and card power numbers bigger or smaller.
             </p>
@@ -456,37 +447,29 @@ export function GameplaySettingsFields() {
         return (
           <div className="field">
             <label htmlFor="life-fan">Life stack direction</label>
-            <select
+            <Select
               id="life-fan"
+              disabled={noteFor("lifeFan") !== null}
               value={settings.lifeFan}
-              onChange={(e) => updateSettings({ lifeFan: e.target.value as LifeFan })}
-            >
-              {LIFE_FAN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ lifeFan: v })}
+              options={LIFE_FAN_OPTIONS}
+            />
             <p className="field-hint">
               Which way your Life cards fan out. The opponent&apos;s Life mirrors yours.
             </p>
+            {disabledNote(noteFor("lifeFan"))}
           </div>
         );
       case "animationSpeed":
         return (
           <div className="field">
             <label htmlFor="animation-speed">Animation speed</label>
-            <select
+            <Select
               id="animation-speed"
               value={settings.animationSpeed}
-              onChange={(e) => updateSettings({ animationSpeed: e.target.value as AnimationSpeed })}
-            >
-              {ANIMATION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateSettings({ animationSpeed: v })}
+              options={ANIMATION_OPTIONS}
+            />
             <p className="field-hint">
               How fast cards move for draws, plays and K.O.s.
             </p>

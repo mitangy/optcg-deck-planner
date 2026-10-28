@@ -61,15 +61,6 @@
   color-scheme: dark;
 }
 
-/* Native <select> lists are drawn by the browser: Windows Chrome / Edge paint the open list with the
-   control's translucent background, so light text lands on light gray (#772). Give every option an
-   opaque themed colour pair. */
-select option,
-select optgroup {
-  background-color: var(--arena-panel);
-  color: var(--ink);
-}
-
 /* Tokens built from the palette, declared again on every themed element so a
    theme preview chip ([data-theme] on a span) resolves them from its own
    palette rather than inheriting the page's. */
@@ -206,7 +197,7 @@ button {
 }
 
 .lobby-textarea,
-.lobby select {
+.lobby .ui-select-button {
   background: var(--arena-panel);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -730,7 +721,7 @@ button {
   max-width: 28rem;
 }
 
-.deck-config-switcher select {
+.deck-config-switcher .ui-select-button {
   width: 100%;
   background: var(--arena-mid);
   border: 1px solid var(--line);
@@ -1167,7 +1158,7 @@ button {
 }
 
 .deck-search-field input,
-.deck-search-field select {
+.deck-search-field .ui-select-button {
   width: 100%;
   background: var(--arena-mid);
   border: 1px solid var(--line);
@@ -5115,7 +5106,7 @@ details.deck-config-section.deck-collapsible {
   border-color: var(--line-strong);
 }
 
-.duel-deck-stats select {
+.duel-deck-stats .ui-select-button {
   min-height: 40px;
   background: var(--arena-mid);
   border: 1px solid var(--line);

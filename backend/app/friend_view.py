@@ -109,9 +109,13 @@ def total_owned(db: Session, user_id: int) -> dict[str, int]:
     return out
 
 
-def wants(db: Session, user: User) -> dict[str, int]:
-    """card_id -> copies still to buy on the user's shopping list."""
-    return {i.card_id: i.still_need for i in services.shopping_list(db, user).items if i.still_need > 0}
+def wants(db: Session, user: User, deck_ids: list[int] | None = None) -> dict[str, int]:
+    """card_id -> copies still to buy on the user's shopping list (only `deck_ids` when given, #799)."""
+    return {
+        i.card_id: i.still_need
+        for i in services.shopping_list(db, user, deck_ids=deck_ids).items
+        if i.still_need > 0
+    }
 
 
 def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, CatalogCard]]:

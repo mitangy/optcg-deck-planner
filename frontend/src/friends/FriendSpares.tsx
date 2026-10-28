@@ -1,9 +1,13 @@
+import { Select } from "@optcg/ui/popups";
 import { useState } from "react";
 import { money } from "../api";
 import type { SpareItem, TradeSide } from "./friendsApi";
 import { lineCap, lineQty, setLineQty, type TrayCard, type TrayLine } from "./tradeLogic";
 import { CardRow, Empty, LoadError, QtyStepper } from "./ui";
 import { useFriendSpares } from "./useFriendSpares";
+
+/** The "Standard" printing's option value (no TCGplayer product id is 0). */
+const STANDARD_PRINTING = 0;
 
 /** Three lists to build an offer from: what they have that you need, their other spares, and what you have that they need. */
 export function FriendSpares({
@@ -62,19 +66,16 @@ export function FriendSpares({
           .join(" · ")}
       >
         {item.printings.length > 0 && (
-          <select
-            className="friend-printing"
+          <Select<number>
+            buttonClassName="friend-printing"
             aria-label={`Printing of ${item.card_id}`}
-            value={productId ?? ""}
-            onChange={(e) => setPrinting((p) => ({ ...p, [rowKey]: e.target.value === "" ? null : Number(e.target.value) }))}
-          >
-            <option value="">Standard ×{item.base_owned}</option>
-            {item.printings.map((p) => (
-              <option key={p.product_id} value={p.product_id}>
-                {p.label} ×{p.owned}
-              </option>
-            ))}
-          </select>
+            value={productId ?? STANDARD_PRINTING}
+            onChange={(v) => setPrinting((p) => ({ ...p, [rowKey]: v === STANDARD_PRINTING ? null : v }))}
+            options={[
+              { value: STANDARD_PRINTING, label: `Standard ×${item.base_owned}` },
+              ...item.printings.map((p) => ({ value: p.product_id, label: `${p.label} ×${p.owned}` })),
+            ]}
+          />
         )}
         <QtyStepper
           value={lineQty(lines, card)}

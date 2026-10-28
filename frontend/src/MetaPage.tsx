@@ -1,3 +1,4 @@
+import { Select } from "@optcg/ui/popups";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -242,13 +243,11 @@ export function MetaPage({ user }: { user: User | null }) {
         <div className="meta-controls">
           <label className="meta-select">
             <span className="muted">Window</span>
-            <select value={days} onChange={(e) => setParams(search({ days: Number(e.target.value) }).slice(1), { replace: true })}>
-              {META_DAY_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  Last {d} days
-                </option>
-              ))}
-            </select>
+            <Select
+              value={days}
+              onChange={(d) => setParams(search({ days: d }).slice(1), { replace: true })}
+              options={META_DAY_OPTIONS.map((d) => ({ value: d, label: `Last ${d} days` }))}
+            />
           </label>
         </div>
       </div>
