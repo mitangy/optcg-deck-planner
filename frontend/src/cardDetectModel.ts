@@ -17,6 +17,7 @@ import type { Quad } from "./cardRectify";
 import { isCardShaped, quadIoU, quadSides, setCardModelDetector, sortReadingOrder, uprightQuad } from "./cardDetect";
 import type { DetectedCard } from "./cardDetect";
 import { quadArea } from "./cardRectify";
+import { scanLog } from "./scanLog";
 
 export type ModelOptions = {
   /** Long side of the network input. Smaller is faster; cards need ~40 px. */
@@ -283,7 +284,8 @@ export function loadCardDetector(model: Uint8Array, ort?: OrtLike): Promise<bool
       session = { ort: rt, s };
       setCardModelDetector((image) => detectWithModel(image));
       return true;
-    } catch {
+    } catch (err) {
+      scanLog("scan:detector-load-failed", err);
       return false;
     } finally {
       loading = null;

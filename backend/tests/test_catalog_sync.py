@@ -121,3 +121,38 @@ def test_printing_dropped_upstream_is_removed(db, monkeypatch):
 
     remaining = db.query(CatalogPrinting).filter_by(card_id="OP01-001").all()
     assert [r.product_id for r in remaining] == [111]
+
+
+def _perona_product(product_id: int) -> dict[str, Any]:
+    return {
+        "productId": product_id,
+        "name": "Perona (Japanese Version 3rd Anniversary Set)",
+        "imageUrl": f"https://tcgplayer.example/{product_id}.jpg",
+        "url": f"https://tcgplayer.example/product/{product_id}",
+        "extendedData": [
+            {"name": "Number", "value": "OP12-034"},
+            {"name": "Rarity", "value": "C"},
+            {"name": "CardType", "value": "Character"},
+        ],
+    }
+
+
+def test_sync_flags_unmarked_promo_only_when_its_product_is_on_the_alt_list_762(db, monkeypatch):
+    listed, unlisted = 680491, 999999999
+    groups = [{"groupId": 1, "name": "Promo"}]
+    products = {"results": [_perona_product(listed), _perona_product(unlisted)]}
+    prices = {
+        "results": [
+            {"productId": pid, "subTypeName": "Normal", "marketPrice": 3.0, "lowPrice": 2.0}
+            for pid in (listed, unlisted)
+        ]
+    }
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+
+    catalog_sync.sync_catalog(db)
+
+    flags = {
+        r.product_id: r.is_special
+        for r in db.query(CatalogPrinting).filter_by(card_id="OP12-034").all()
+    }
+    assert flags == {listed: 1, unlisted: 0}

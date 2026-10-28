@@ -14,6 +14,7 @@ import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { matchCard } from "./cardScanMatch";
+import { waitForModels } from "./modelsReady";
 import { matchAllCards as defaultMatchAll, type MatchAllCards } from "./cardScanMulti";
 import { ScanAdded, ScanTray } from "./ScanTray";
 import {
@@ -269,6 +270,17 @@ export function CardScanner({
         scanLog("scan-multi:start", `type=${file.type || "?"} size=${file.size}`);
         try {
           const photo = await loadImageForScan(file, MULTI_MAX_WORK_EDGE);
+          if (!injected) {
+            // The learned detector loads in the background and takes a few
+            // seconds the first time; scanning before then used OpenCV and
+            // found almost nothing (#764).
+            setPhase({ kind: "working", label: "Loading card finder…", progress: 0 });
+            const t0 = Date.now();
+            const loaded = await waitForModels(scanData.whenModelsReady());
+            scanLog("scan-multi:models", `${loaded ? "ready" : "timed out"} after ${Date.now() - t0}ms`);
+            if (!liveRef.current) return;
+            setPhase({ kind: "working", label: "Finding cards…", progress: 0 });
+          }
           const matchAll = injected ?? defaultMatchAll;
           const items = await matchAll(photo, candidates, (p) => {
             if (!liveRef.current) return;
@@ -363,7 +375,7 @@ export function CardScanner({
         });
       }
     },
-    [scanData.state, scanReady, multi, injected],
+    [scanData.state, scanData.whenModelsReady, scanReady, multi, injected],
   );
 
   const onPick = (file: File | undefined) => {
