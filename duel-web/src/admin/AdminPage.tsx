@@ -15,6 +15,7 @@ import {
 } from "./adminApi";
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
 import { BotsTab } from "./BotsTab";
+import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
 import { UsersTab, type Actor } from "./UsersTab";
@@ -121,6 +122,7 @@ export default function AdminPage() {
   const refreshing = tabData?.refreshing ?? false;
 
   function body() {
+    if (current === "event") return <EventTab />;
     if (current === "users") return <UsersTab actor={who.status === "ok" ? who.actor : { id: 0, role: "user" }} />;
     const s = tabData!.state;
     if (s.status === "loading") return <p className="panel-copy adm-muted" role="status">Loading…</p>;

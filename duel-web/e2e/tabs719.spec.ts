@@ -40,6 +40,8 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
   await expect(page.getByRole("tabpanel")).toHaveAccessibleName("Users");
 
   await page.keyboard.press("ArrowLeft");
+  await expect(tab("Event")).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
   await expect(tab("Hosting")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Home");
   await expect(tab("Players")).toHaveAttribute("aria-selected", "true");

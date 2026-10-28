@@ -11,6 +11,7 @@ import { DeckListPage } from "./pages/DeckListPage";
 import { MetaDecksPage } from "./pages/MetaDecksPage";
 import { NewDeckPage } from "./pages/NewDeckPage";
 import { DemoPage } from "./pages/DemoPage";
+import { EventRulesPage } from "./pages/EventRulesPage";
 import { DuelPage } from "./pages/DuelPage";
 import { HotseatPage } from "./pages/HotseatPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -87,6 +88,7 @@ export function App() {
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />
         <Route path="/whats-new" element={<WhatsNewPage />} />
+        <Route path="/events/:eventId/rules" element={<EventRulesPage />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />

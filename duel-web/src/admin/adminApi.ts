@@ -179,3 +179,36 @@ export const banUser = (id: number, reason: string) =>
   call<AdminUser>(`/admin/users/${id}/ban`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) || undefined }) });
 export const unbanUser = (id: number) => call<AdminUser>(`/admin/users/${id}/unban`, { method: "POST" });
 export const deleteUser = (id: number) => call<void>(`/admin/users/${id}`, { method: "DELETE" });
+
+export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null };
+export type EventDrawee = { user_id: number; name: string; email: string; forfeited: boolean };
+export type EventDrawState = {
+  seed_hash: string;
+  committed_at: string | null;
+  drawn_at: string | null;
+  /** Null until the draw runs. */
+  seed: string | null;
+  forfeited: number[];
+  ranking: EventDrawee[];
+  winners: EventDrawee[];
+};
+export type AdminEvent = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  status: "upcoming" | "live" | "ended" | "drawn";
+  winners_count: number;
+  min_games: number;
+  min_opponents: number;
+  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number };
+  participants: EventParticipant[];
+  draw: EventDrawState | null;
+};
+
+export const fetchAdminEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`);
+export const commitEventSeed = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/commit`, { method: "POST" });
+export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/draw`, { method: "POST" });
+export const forfeitEventWinner = (id: string, userId: number) =>
+  call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/forfeit`, { method: "POST", body: JSON.stringify({ user_id: userId }) });
+export const eventCsvUrl = (id: string) => `${getApiBaseUrl()}/admin/events/${encodeURIComponent(id)}/participants.csv`;

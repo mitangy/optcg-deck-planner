@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-28
+  { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },
   { date: "2026-10-28", app: "planner", pr: 801, title: "Scanning skips other games' cards and finds cut-off cards", text: "Scanning a photo now ignores cards from other games and the card art printed on boxes, so you get fewer \"No match\" rows. Cards that run off the edge of the photo are found too." },
   { date: "2026-10-28", app: "planner", pr: 799, title: "Friend Spares follows Include decks", text: "A friend's Spares tab now only lists cards you need for the decks ticked under Include decks on Master Shopping." },
   { date: "2026-10-28", app: "both", pr: 800, title: "Dropdowns match the theme everywhere", text: "Every dropdown now opens a list in the app's own colours instead of the gray list your browser draws, in both the planner and the duel app. That includes the printing picker in a friend's spares list, the filters, the settings, the deck editor and the replay controls." },

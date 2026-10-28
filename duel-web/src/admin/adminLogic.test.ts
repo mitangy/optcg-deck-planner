@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun } from "./adminApi";
-import { canBanUser, canDeleteUser, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
+import { canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -11,8 +11,8 @@ const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = 
 });
 
 describe("admin tabs per role (#667)", () => {
-  it("shows the admin all four tabs, a moderator only Users, and anyone else none (#667)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "users"]);
+  it("shows the admin all five tabs, a moderator only Users, and anyone else none (#667)", () => {
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
@@ -150,5 +150,30 @@ describe("Log Pose feedback rows (#679)", () => {
     expect(feedbackMatchPath({ kind: "chat", match_id: null })).toBeNull();
     expect(feedbackMatchPath({ kind: "chat", match_id: "m1" })).toBeNull();
     expect(feedbackMatchPath({ kind: "review", match_id: null })).toBeNull();
+  });
+});
+
+describe("giveaway event tab (#794)", () => {
+  const p = (user_id: number, name: string, games: number, opponents: number, eligible: boolean) =>
+    ({ user_id, name, email: `${name}@x.test`, games, opponents, eligible, excluded: null }) as const;
+  const rows = [p(1, "Zed", 5, 3, true), p(2, "Amy", 2, 1, false), p(3, "Bo", 4, 2, true), p(4, "Cy", 9, 1, false)];
+
+  it("lists eligible players first, then the most games (#794)", () => {
+    expect(sortParticipants(rows, { key: "eligible", dir: "desc" }).map((r) => r.name)).toEqual(["Zed", "Bo", "Cy", "Amy"]);
+  });
+
+  it("sorts by a chosen column in either direction (#794)", () => {
+    expect(sortParticipants(rows, { key: "games", dir: "desc" }).map((r) => r.name)).toEqual(["Cy", "Zed", "Bo", "Amy"]);
+    expect(sortParticipants(rows, { key: "name", dir: "asc" }).map((r) => r.name)).toEqual(["Amy", "Bo", "Cy", "Zed"]);
+  });
+
+  it("offers the seed commit only before the start and the draw only after the end, once (#794)", () => {
+    expect(canCommitSeed({ status: "upcoming", draw: null })).toBe(true);
+    expect(canCommitSeed({ status: "upcoming", draw: {} })).toBe(false);
+    expect(canCommitSeed({ status: "live", draw: null })).toBe(false);
+    expect(canDrawEvent({ status: "ended", draw: { drawn_at: null } })).toBe(true);
+    expect(canDrawEvent({ status: "ended", draw: null })).toBe(false);
+    expect(canDrawEvent({ status: "live", draw: { drawn_at: null } })).toBe(false);
+    expect(canDrawEvent({ status: "drawn", draw: { drawn_at: "2026-11-23T00:00:00Z" } })).toBe(false);
   });
 });
