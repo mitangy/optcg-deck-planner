@@ -1,3 +1,4 @@
+import { Select } from "@optcg/ui/popups";
 import { useEffect, useState } from "react";
 import { getModelSetting, modelCostHint, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 
@@ -37,13 +38,14 @@ export function ModelPicker({ apiBase }: { apiBase: string }) {
     <div className="lp-model">
       <label className="lp-model-row" htmlFor="lp-model-select">
         <span className="lp-model-label">Model</span>
-        <select id="lp-model-select" className="lp-model-select" value={setting.model} disabled={busy} onChange={(e) => void change(e.target.value)}>
-          {setting.options.map((o) => (
-            <option key={o} value={o}>
-              {modelLabel(o)}
-            </option>
-          ))}
-        </select>
+        <Select
+          id="lp-model-select"
+          buttonClassName="lp-model-select"
+          value={setting.model}
+          disabled={busy}
+          onChange={(m) => void change(m)}
+          options={setting.options.map((o) => ({ value: o, label: modelLabel(o) }))}
+        />
       </label>
       {error ? (
         <p className="lp-model-note lp-error" role="alert">

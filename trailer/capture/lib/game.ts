@@ -1,5 +1,6 @@
 /** Getting a vs-Bot match to a chosen moment without the camera rolling (the lobby clips show the lobby). */
 import type { Page } from "playwright";
+import { profileDecks } from "./data";
 import { sleep } from "./util";
 
 /** Lobby -> Play -> Play vs Bot -> Start game, then keep the opening hand. Uses plain clicks: nobody is watching. */
@@ -7,7 +8,12 @@ export async function startBotGame(page: Page, opts: { level?: "Easy" | "Normal"
   await page.getByRole("button", { name: /^Play/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
   if (opts.level) await page.getByRole("radio", { name: opts.level }).click();
-  if (opts.botDeck) await page.getByLabel("Bot's deck").selectOption(opts.botDeck);
+  if (opts.botDeck) {
+    // The bot's deck is a Select: open it and pick the row named after the saved deck.
+    const deck = profileDecks().find((d) => d.id === opts.botDeck);
+    await page.getByLabel("Bot's deck").click();
+    await page.getByRole("option", { name: `${deck?.name ?? opts.botDeck} —` }).click();
+  }
   await page.getByRole("button", { name: "Start game" }).click();
   await page.getByRole("button", { name: "Keep opening hand" }).waitFor({ timeout: 30_000 });
 }

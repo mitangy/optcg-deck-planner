@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { Select } from "@optcg/ui/popups";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   api,
@@ -99,6 +100,9 @@ const MEMBER_COLORS = [
 ];
 
 /** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
+/** The checkout-printing select's value when the line has no preferred product (no product id is 0). */
+const NO_PRODUCT = 0;
+
 function useNarrowLayout() {
   const [narrow, setNarrow] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 800px)").matches : false,
@@ -396,38 +400,35 @@ function LinePrintingSelect({
   }
 
   function altOptionLabel(name: string, price: number | null | undefined): string {
-    // Keep labels short so the native select caret does not cover the text.
+    // Keep labels short so the cell and the list stay narrow.
     const cleaned = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
     const short = cleaned.length > 16 ? `${cleaned.slice(0, 14)}…` : cleaned;
     return `Alt · ${short} · ${money(price)}`;
   }
 
   return (
-    <select
-      className="group-buy-printing"
-      value={currentId ?? ""}
+    <Select<number>
+      buttonClassName="group-buy-printing"
+      value={currentId ?? NO_PRODUCT}
       disabled={disabled || (preferredId == null && alts.length === 0)}
       aria-label={`Checkout printing for ${line.card_id}`}
       title="Default checkout printing when nobody set alt-art wants (mass entry splits AA wants first)"
-      onChange={(e) => {
-        const productId = Number(e.target.value);
+      onChange={(productId) => {
         if (!productId) return;
         onChange(productId);
       }}
-    >
-      {preferredId != null ? (
-        <option value={preferredId}>Preferred · {money(line.preferred_market_price ?? null)}</option>
-      ) : (
-        <option value="">No preferred product</option>
-      )}
-      {alts
-        .filter((alt) => alt.product_id !== preferredId)
-        .map((alt) => (
-          <option key={alt.product_id} value={alt.product_id} title={alt.name}>
-            {altOptionLabel(alt.name, alt.market_price)}
-          </option>
-        ))}
-    </select>
+      options={[
+        preferredId != null
+          ? { value: preferredId, label: `Preferred · ${money(line.preferred_market_price ?? null)}` }
+          : { value: NO_PRODUCT, label: "No preferred product" },
+        ...alts
+          .filter((alt) => alt.product_id !== preferredId)
+          .map((alt) => ({
+            value: alt.product_id,
+            label: <span title={alt.name}>{altOptionLabel(alt.name, alt.market_price)}</span>,
+          })),
+      ]}
+    />
   );
 }
 
@@ -1357,16 +1358,14 @@ export function GroupBuyDetailPage() {
                 </label>
                 <label>
                   Split shipping
-                  <select
+                  <Select
                     value={shippingSplit}
-                    onChange={(e) => setShippingSplit(e.target.value as ShippingSplit)}
-                  >
-                    {(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => (
-                      <option key={key} value={key}>
-                        {SHIPPING_SPLIT_LABELS[key]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setShippingSplit}
+                    options={(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => ({
+                      value: key,
+                      label: SHIPPING_SPLIT_LABELS[key],
+                    }))}
+                  />
                 </label>
                 <label>
                   Tax

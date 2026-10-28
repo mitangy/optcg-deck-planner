@@ -1,3 +1,4 @@
+import { Select } from "@optcg/ui/popups";
 import { useId, useMemo, useState } from "react";
 import {
   cardLabel,
@@ -80,40 +81,44 @@ export function DrawOdds({ entries }: { entries: DeckEntry[] }) {
       <div className="ds-odds-controls">
         <label className="ds-field">
           <span className="muted">Looking for</span>
-          <select aria-label="Looking for" value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
-            {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
-              <option key={m} value={m}>{MODE_LABEL[m]}</option>
-            ))}
-          </select>
+          <Select
+            aria-label="Looking for"
+            value={mode}
+            onChange={setMode}
+            options={(Object.keys(MODE_LABEL) as Mode[]).map((m) => ({ value: m, label: MODE_LABEL[m] }))}
+          />
         </label>
         {mode === "card" ? (
           <label className="ds-field ds-field-wide">
             <span className="muted">Card</span>
-            <select aria-label="Card" value={effCard ?? ""} onChange={(e) => setCardId(e.target.value)}>
-              {sorted.map((e) => (
-                <option key={e.id} value={e.id}>{cardLabel(e.id, e.card, e.copies)}</option>
-              ))}
-            </select>
+            <Select
+              aria-label="Card"
+              value={effCard ?? ""}
+              onChange={setCardId}
+              options={sorted.map((e) => ({ value: e.id, label: cardLabel(e.id, e.card, e.copies) }))}
+            />
           </label>
         ) : null}
         {mode === "costMax" ? (
           <label className="ds-field">
             <span className="muted">Cost</span>
-            <select aria-label="Maximum cost" value={costMax} onChange={(e) => setCostMax(Number(e.target.value))}>
-              {Array.from({ length: 11 }, (_, c) => (
-                <option key={c} value={c}>{c} or less</option>
-              ))}
-            </select>
+            <Select
+              aria-label="Maximum cost"
+              value={costMax}
+              onChange={setCostMax}
+              options={Array.from({ length: 11 }, (_, c) => ({ value: c, label: `${c} or less` }))}
+            />
           </label>
         ) : null}
         {mode === "trait" ? (
           <label className="ds-field">
             <span className="muted">Trait</span>
-            <select aria-label="Trait" value={effTrait ?? ""} onChange={(e) => setTrait(e.target.value)}>
-              {traits.map(([t, n]) => (
-                <option key={t} value={t}>{t} ({n})</option>
-              ))}
-            </select>
+            <Select
+              aria-label="Trait"
+              value={effTrait ?? ""}
+              onChange={setTrait}
+              options={traits.map(([t, n]) => ({ value: t, label: `${t} (${n})` }))}
+            />
           </label>
         ) : null}
       </div>

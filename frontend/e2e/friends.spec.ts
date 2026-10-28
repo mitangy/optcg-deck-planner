@@ -118,7 +118,8 @@ test("a friend's collection can be searched and filtered (#703)", async ({ page,
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("Kid & Killer");
   await page.getByRole("searchbox").fill("");
-  await page.getByLabel("Color").selectOption("Green");
+  await page.getByLabel("Color").click();
+  await page.getByRole("option", { name: "Green", exact: true }).click();
   await expect(page.getByText("No matches")).toBeVisible();
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
@@ -153,7 +154,8 @@ test("building a trade from Spares caps copies at what is spare and sends the of
   await page.evaluate(() => window.scrollTo(0, 0));
 
   await page.getByRole("button", { name: "More EB01-006 to give" }).click();
-  await page.getByLabel("Printing of EB01-002").selectOption({ label: "Alt art ×1" });
+  await page.getByLabel("Printing of EB01-002").click();
+  await page.getByRole("option", { name: "Alt art ×1" }).click();
   await page.getByRole("button", { name: "More EB01-002 to get" }).click();
   await expect(tray).toContainText("Give 1 · Get 4");
 

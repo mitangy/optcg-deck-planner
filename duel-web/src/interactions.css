@@ -722,11 +722,6 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   cursor: not-allowed;
 }
 
-.field select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 /* Setting note that only appears when a choice cannot take effect. */
 .field-hint.field-note {
   color: #f0b45a;
