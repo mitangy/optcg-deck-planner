@@ -373,3 +373,17 @@ describe("Bigger playing area is on unless chosen off (#556)", () => {
     expect(loadSettings().bigBoard).toBe(false);
   });
 });
+
+describe("Show other players' art setting (#812)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows other players' art by default and follows the account when turned off (#812)", () => {
+    stubStored({});
+    expect(loadSettings().showOthersArt).toBe(true);
+    stubStored({ showOthersArt: false });
+    expect(syncedSettings(loadSettings()).showOthersArt).toBe(false);
+    expect(mergeRemoteSettings(loadSettings(), { showOthersArt: true }).showOthersArt).toBe(true);
+  });
+});

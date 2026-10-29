@@ -968,7 +968,7 @@ class DuelCosmeticOut(BaseModel):
     size: int
     created_at: str
     # Signed link anyone can load without a session (relative to the API base),
-    # e.g. "/duel/cosmetics/123/public/<sig>"; immutable and publicly cacheable.
+    # e.g. "/duel/cosmetics/123/public/<sig>"; publicly cacheable for an hour (#812).
     public_path: str
 
 
