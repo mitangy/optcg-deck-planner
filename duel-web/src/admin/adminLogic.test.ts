@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun } from "./adminApi";
-import { canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
+import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -11,9 +11,9 @@ const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = 
 });
 
 describe("admin tabs per role (#667)", () => {
-  it("shows the admin all five tabs, a moderator only Users, and anyone else none (#667)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "users"]);
-    expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["users"]);
+  it("shows the admin all six tabs, a moderator Reports then Users, and anyone else none (#667)", () => {
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "reports", "users"]);
+    expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
   });
@@ -175,5 +175,28 @@ describe("giveaway event tab (#794)", () => {
     expect(canDrawEvent({ status: "ended", draw: null })).toBe(false);
     expect(canDrawEvent({ status: "live", draw: { drawn_at: null } })).toBe(false);
     expect(canDrawEvent({ status: "drawn", draw: { drawn_at: "2026-11-23T00:00:00Z" } })).toBe(false);
+  });
+});
+
+describe("player reports in the admin page (#810)", () => {
+  const reported = (role: "user" | "moderator" | "admin", id = 9) => ({ id, role });
+
+  it("lets a moderator warn or ban a plain user only, and an admin anyone but an admin or themselves (#810)", () => {
+    const mod = { id: 2, role: "moderator" as const };
+    const admin = { id: 1, role: "admin" as const };
+    expect(reportActionBlock(mod, reported("user"))).toBeNull();
+    expect(reportActionBlock(mod, reported("moderator"))).toMatch(/admin can act on staff/);
+    expect(reportActionBlock(mod, reported("admin"))).not.toBeNull();
+    expect(reportActionBlock(admin, reported("moderator"))).toBeNull();
+    expect(reportActionBlock(admin, reported("admin"))).not.toBeNull();
+    expect(reportActionBlock(admin, reported("user", 1))).toMatch(/own account/);
+  });
+
+  it("says what was done, by whom and when on a handled report, and nothing on an open one (#810)", () => {
+    const base = { status: "actioned" as const, action: "warned", handled_by_name: "Zed", handled_at: "2026-10-29T14:03:55Z" };
+    expect(handledLine(base)).toBe("Warned by Zed · 2026-10-29 14:03");
+    expect(handledLine({ ...base, action: "image_removed" })).toBe("Image removed by Zed · 2026-10-29 14:03");
+    expect(handledLine({ ...base, status: "dismissed", action: "" })).toBe("Dismissed by Zed · 2026-10-29 14:03");
+    expect(handledLine({ ...base, status: "open", action: "" })).toBeNull();
   });
 });

@@ -8,6 +8,8 @@ import { fetchMatchDetail, type MatchDetail } from "../history/historyApi";
 import { groupHand, matchLogTurns } from "../history/matchLog";
 import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
+import { openReport } from "../reports/reportDialog";
+import { historyReportTarget } from "../reports/reportTargets";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
 import { useLogPosePage } from "@optcg/analyst-client";
@@ -63,6 +65,7 @@ export function MatchLogPage() {
     document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [detail]);
   const row = useMemo(() => (detail ? matchRow(detail.match, cardName) : null), [detail]);
+  const reportTarget = useMemo(() => (detail ? historyReportTarget(detail.match) : null), [detail]);
   const turns = useMemo(() => (detail?.log ? matchLogTurns(detail.log) : []), [detail]);
   const intro = turns.find((t) => t.turn === 0);
   const playTurns = turns.filter((t) => t.turn > 0);
@@ -195,6 +198,14 @@ export function MatchLogPage() {
             </div>
             {row.bountyDelta ? <span className="history-bounty" title="Bounty change">{row.bountyDelta}</span> : null}
           </section>
+        ) : null}
+
+        {reportTarget ? (
+          <p className="match-report-row">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport(reportTarget)}>
+              Report opponent
+            </button>
+          </p>
         ) : null}
 
         {playTurns.length ? (

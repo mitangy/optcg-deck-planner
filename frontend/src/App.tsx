@@ -4844,6 +4844,7 @@ export default function App() {
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />
+        <Route path="/conduct" element={<LegalPage kind="conduct" />} />
         {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
         <Route
           path="/"

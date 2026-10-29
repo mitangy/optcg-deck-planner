@@ -16,6 +16,8 @@ DEFAULT_MAX_BODY_BYTES = 1024 * 1024
 ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/duel/cosmetics/", 5 * 1024 * 1024),
     ("/duel/matches", 8 * 1024 * 1024),
+    # A report may carry the image the reporter saw as a data URL.
+    ("/duel/reports", 1536 * 1024),
     ("/analyst/bot-games", 8 * 1024 * 1024),
 )
 

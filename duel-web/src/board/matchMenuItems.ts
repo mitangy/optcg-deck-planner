@@ -1,4 +1,4 @@
-export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "fullscreen" | "reload" | "report" | "concede" | "leave";
+export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "fullscreen" | "reload" | "report-player" | "report" | "concede" | "leave";
 
 /**
  * Which entries the phone HUD's ⋯ menu shows, in display order (destructive
@@ -14,6 +14,8 @@ export function matchMenuItems(o: {
   canConcede: boolean;
   /** A recorded game: there is no room to share and nothing to concede. */
   replay?: boolean;
+  /** The other seat is a person who can be reported (online play, not a bot, practice or recording). */
+  canReportPlayer?: boolean;
 }): MatchMenuItemId[] {
   const items: MatchMenuItemId[] = [];
   if (!o.hotseat) items.push("copy-room", "copy-spectate");
@@ -21,6 +23,7 @@ export function matchMenuItems(o: {
   if (o.fullscreenOffered && !o.fullscreenInBar) items.push("fullscreen");
   // A Home Screen app has no browser reload button or pull-to-refresh.
   items.push("reload");
+  if (o.canReportPlayer && !o.replay) items.push("report-player");
   // Every match, hotseat, demo and spectating included: a bug report needs no room.
   items.push("report");
   if (o.canConcede && !o.spectating && !o.over) items.push("concede");

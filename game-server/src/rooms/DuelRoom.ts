@@ -85,7 +85,8 @@ import {
 import { undoLabel } from "../undoLabel.js";
 import { applyHandOrder, idsInHand } from "../handOrder.js";
 import { sharedBotPool } from "../botPool.js";
-import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
+import { presence, type PresenceEntry, type PresenceSource, type Takedown } from "../presence.js";
+import { cosmeticIdOfLink, isTakenDown, skinMatchesTakedown } from "../takedowns.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
 
 type SeatSlot = {
@@ -206,6 +207,7 @@ export class DuelRoom extends Room implements PresenceSource {
   private sentPublicArt: [string, string] = ["{}", "{}"];
   /** Per-seat custom playmat / card back (cosmetics only). */
   private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
+  private stopTakedowns: (() => void) | null = null;
   /**
    * Each player's own hand order (instance ids), shown to spectators of unranked
    * rooms. Never sent to a player: neither seat learns anything it can't see.
@@ -372,6 +374,7 @@ export class DuelRoom extends Room implements PresenceSource {
     });
 
     presence.register(this);
+    this.stopTakedowns = presence.onTakedowns((list) => this.applyTakedowns(list));
     this.log("info", "room_created", {
       matchId: this.matchId,
       seed: this.seed,
@@ -409,6 +412,8 @@ export class DuelRoom extends Room implements PresenceSource {
     releaseCreatorRoom(this.creatorUid);
     this.creatorUid = null;
     presence.unregister(this);
+    this.stopTakedowns?.();
+    this.stopTakedowns = null;
     this.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.matchId });
     // A game closing without a result keeps its log up to the last action.
@@ -1126,9 +1131,31 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, err.code ?? "bad_protocol", err.message);
       return;
     }
+    // An image a moderator already took down must not be relayed again (#810).
+    const blocked = (v: string | null) => {
+      const id = cosmeticIdOfLink(v);
+      return id !== null && isTakenDown(id);
+    };
+    if (blocked(skin.playmat)) skin = { ...skin, playmat: null };
+    if (blocked(skin.cardBack)) skin = { ...skin, cardBack: null };
     this.seatSkins[seat] = skin;
     const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
     this.broadcast("skin", payload);
+  }
+
+  /** A moderator removed an image: blank it in this room's seats at once (#810). */
+  private applyTakedowns(list: readonly Takedown[]) {
+    for (const t of list) {
+      for (const seat of [0, 1] as Seat[]) {
+        const skin = this.seatSkins[seat];
+        if (!skin || this.seats[seat]?.userId !== t.user_id) continue;
+        if (!skinMatchesTakedown(skin[t.kind], t.cosmetic_id)) continue;
+        const next: SeatSkin = { ...skin, [t.kind]: null };
+        this.seatSkins[seat] = next;
+        const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin: next };
+        this.broadcast("skin", payload);
+      }
+    }
   }
 
   private handleChat(client: Client, message: unknown) {

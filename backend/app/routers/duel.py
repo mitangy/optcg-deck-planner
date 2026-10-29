@@ -27,6 +27,7 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
+from app.moderation import recent_takedowns
 from app.models import (
     CardReport,
     DuelMatch,
@@ -74,6 +75,8 @@ log = logging.getLogger(__name__)
 MAX_REPLAY_BYTES = 1_000_000
 # A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
 PROGRESS_STALE_AFTER = timedelta(hours=24)
+# Takedowns the presence answer repeats, so every game-server process hears about each one.
+TAKEDOWN_RELAY_WINDOW = timedelta(minutes=15)
 
 _token_rate = RateLimiter(max_calls=30, period_s=60, name="duel_token_rate")
 _ingest_rate = RateLimiter(max_calls=120, period_s=60, name="duel_ingest_rate")
@@ -531,15 +534,19 @@ def _forget_live_progress(match_id: str, user_ids: tuple[int, int]) -> None:
         redis_client.report_failure("progress delete")
 
 
-@router.put("/presence", status_code=204)
+@router.put("/presence")
 def ingest_presence(
     body: DuelPresenceSnapshot,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     x_duel_ingest_token: Annotated[str | None, Header()] = None,
-) -> None:
-    """Replace one game-server process's presence rows with its latest snapshot."""
+) -> dict:
+    """Replace one game-server process's presence rows with its latest snapshot.
+
+    The answer carries the images moderators took down in the last 15 minutes, so a running
+    game server can blank them in live rooms (#810): ``{"takedowns": [{user_id, kind, cosmetic_id}]}``.
+    """
     _require_ingest_secret(settings, x_duel_ingest_token)
     if not _presence_rate.allow(f"duel-presence:{body.instance_id}"):
         raise HTTPException(status_code=429, detail="Too many presence updates")
@@ -561,7 +568,7 @@ def ingest_presence(
     if r is not None:
         try:
             duel_live.write_presence_snapshot(r, body.instance_id, entries, now)
-            return
+            return {"takedowns": recent_takedowns(db, now - TAKEDOWN_RELAY_WINDOW)}
         except redis_client.RedisError:
             redis_client.report_failure("presence write")
     db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))
@@ -580,6 +587,7 @@ def ingest_presence(
             )
         )
     db.commit()
+    return {"takedowns": recent_takedowns(db, now - TAKEDOWN_RELAY_WINDOW)}
 
 
 @router.get("/rating/me", response_model=DuelRatingOut)

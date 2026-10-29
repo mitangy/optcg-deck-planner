@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-29
+  { date: "2026-10-29", app: "both", pr: 810, title: "Rules of conduct and Report player", text: "There is now a short Rules of conduct page, linked from the footer and the username and image screens. If another player breaks them, use Report player from the match menu, after a match, from your friends list or from your match history. A moderator reviews it, and the other player is never told who reported them. If a moderator warns you, you will see their message when you open the home page." },
   // 2026-10-28
   { date: "2026-10-28", app: "both", pr: 802, title: "The server no longer freezes when many players are online at once", text: "When a lot of players used the site at the same moment, it could lock up and stop answering until it was restarted. Busy times now just queue briefly and keep working." },
   { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },

@@ -347,6 +347,15 @@ def _ensure_user_role_columns() -> None:
     )
 
 
+def _ensure_cosmetic_takedown_columns() -> None:
+    """Add the moderation takedown columns to duel_cosmetics on existing DBs (#810)."""
+    ts = "TIMESTAMP" if engine.dialect.name == "sqlite" else "TIMESTAMP WITH TIME ZONE"
+    _add_columns(
+        "duel_cosmetics",
+        [("taken_down_at", ts), ("taken_down_by", "INTEGER"), ("taken_down_reason", "VARCHAR(200)")],
+    )
+
+
 def _ensure_eval_run_columns() -> None:
     """Add the suite and headline-metric columns to analyst_eval_runs on existing DBs; older runs are the main suite (#679)."""
     false = "FALSE" if engine.dialect.name == "postgresql" else "0"
@@ -429,6 +438,7 @@ def init_db() -> None:
     _ensure_analyst_access_credit_columns()
     _ensure_user_role_columns()
     _ensure_eval_run_columns()
+    _ensure_cosmetic_takedown_columns()
     _ensure_admin_role()
     _seed_eval_runs()
 

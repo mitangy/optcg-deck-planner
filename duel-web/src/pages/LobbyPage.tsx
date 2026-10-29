@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { WarningNotice } from "../warnings/WarningNotice";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Tab, TabGroup, TabList } from "@optcg/ui/tabs";
 import { getOrCreateGuestId } from "../auth/guestId";
@@ -853,6 +854,7 @@ export function LobbyPage() {
 
   return (
     <div className="app-shell home-shell">
+      <WarningNotice signedIn={authUser != null} />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="topbar-left">

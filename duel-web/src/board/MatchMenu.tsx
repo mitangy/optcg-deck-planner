@@ -17,6 +17,7 @@ type Props = {
   /** Defaults to a full page reload; the saved match resumes on boot. */
   onReload?: () => void;
   onReport: () => void;
+  onReportPlayer?: () => void;
   onConcede: () => void;
   onLeave: () => void;
   /**
@@ -50,6 +51,7 @@ export function MatchMenu({
   onToggleFullscreen,
   onReload = () => window.location.reload(),
   onReport,
+  onReportPlayer,
   onConcede,
   onLeave,
   placement = "top",
@@ -157,6 +159,19 @@ export function MatchMenu({
                         onClick={onReload}
                       >
                         Reload game
+                      </button>
+                    </MenuItem>
+                  );
+                case "report-player":
+                  return (
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        title="Report this player to the moderators"
+                        onClick={onReportPlayer}
+                      >
+                        Report player
                       </button>
                     </MenuItem>
                   );
