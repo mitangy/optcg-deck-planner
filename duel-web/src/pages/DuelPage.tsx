@@ -42,6 +42,7 @@ export function DuelPage() {
     ranked,
     firstSeatPickedBy,
     brief,
+    vsBot,
     battleLog,
     timer,
     chat,
@@ -134,6 +135,7 @@ export function DuelPage() {
         battleLog={battleLog}
         firstSeatPickedBy={firstSeatPickedBy}
         vsHuman
+        canReport={!vsBot}
         chat={{ lines: chat, onSend: sendChat }}
         onConcede={connected && role === "player" ? () => concede() : undefined}
         onHandOrder={connected && role === "player" ? sendHandOrder : undefined}

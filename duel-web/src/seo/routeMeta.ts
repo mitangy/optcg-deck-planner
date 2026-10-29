@@ -54,6 +54,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/terms", title: `Terms & credits – ${NAME}`, description: "Terms of use and credits for OPTCG Duel, an unofficial fan-made One Piece Card Game simulator." },
   { pattern: "/privacy", title: `Privacy policy – ${NAME}`, description: "What OPTCG Duel stores about you, why, and how to delete it." },
   { pattern: "/cookies", title: `Cookies – ${NAME}`, description: "The cookies and local storage OPTCG Duel uses and why." },
+  { pattern: "/conduct", title: `Rules of conduct – ${NAME}`, description: "How to treat other players on OPTCG Duel: respect, clean chat and names, all-ages images, fair play, and how reports are handled." },
 
   { pattern: "/duel", title: NAME, noindex: true },
   { pattern: "/hotseat", title: `Practice – ${NAME}`, noindex: true },

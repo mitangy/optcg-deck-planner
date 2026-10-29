@@ -3,7 +3,7 @@ import { FAN_DISCLAIMER, LEGAL_PATHS, LEGAL_TITLES, OWNERSHIP_NOTICE, type Legal
 
 export type FooterLinkProps = { to: string; className?: string; children: ReactNode };
 
-const ORDER: LegalKind[] = ["terms", "privacy", "cookies"];
+const ORDER: LegalKind[] = ["terms", "privacy", "cookies", "conduct"];
 
 /**
  * Page-end footer: legal links, What’s new (and optional feedback button) plus the fan-project blurb. In flow at the end
@@ -53,7 +53,7 @@ export function SiteFooter({
   );
 }
 
-/** Switcher between the three legal pages, shown at the top of each. */
+/** Switcher between the legal pages, shown at the top of each. */
 export function LegalNav({ Link, current }: { Link: ComponentType<FooterLinkProps>; current: LegalKind }) {
   return (
     <nav className="legal-nav" aria-label="Legal pages">

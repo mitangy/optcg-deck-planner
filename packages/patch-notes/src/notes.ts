@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-29
+  { date: "2026-10-29", app: "both", pr: 810, title: "Rules of conduct and Report player", text: "There is now a short Rules of conduct page, linked from the footer and the username and image screens. If another player breaks them, use Report player from the match menu, after a match, from your friends list or from your match history. A moderator reviews it, and the other player is never told who reported them. If a moderator warns you, you will see their message when you open the home page." },
   { date: "2026-10-29", app: "duel", pr: 814, title: "Hide playmats and card backs from other players", text: "Settings has a new switch, \"Show other players' playmats and card backs\". Turn it off to always see the standard art for opponents and players you watch. In a match, the ⋯ menu also has \"Hide <name>'s art\" to hide one player's art for that match only. Custom art still shows by default." },
   { date: "2026-10-29", app: "planner", pr: 811, title: "The planner header uses our own OPTCG wordmark", text: "The top of every planner page now shows a simple OPTCG name instead of the official card game logo." },
   { date: "2026-10-29", app: "duel", pr: 807, title: "A page that explains how to play online", text: "OPTCG Duel now has a page that shows how to start playing OPTCG in your browser, what you can do in the game and answers to common questions. Find it under How to play online at the bottom of any page." },

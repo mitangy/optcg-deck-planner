@@ -1,19 +1,20 @@
-import type { AdminUser, EventFlag, EventParticipant, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "hosting" | "event" | "users";
+export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
   { id: "bots", label: "Bots & Log Pose" },
   { id: "hosting", label: "Hosting" },
   { id: "event", label: "Event" },
+  { id: "reports", label: "Reports" },
   { id: "users", label: "Users" },
 ];
 
-/** The admin tabs a role may open: the admin sees all five, a moderator only Users, anyone else none. */
+/** The admin tabs a role may open: the admin sees all six, a moderator Reports then Users, anyone else none. */
 export function tabsForRole(role: Role | undefined | null): readonly { id: AdminTab; label: string }[] {
   if (role === "admin") return ADMIN_TABS;
-  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "users");
+  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "users");
   return [];
 }
 
@@ -365,3 +366,45 @@ export function canDrawEvent(event: { status: string; draw: { drawn_at: string |
 export function canCommitSeed(event: { status: string; draw: unknown | null }): boolean {
   return event.status === "upcoming" && event.draw === null;
 }
+
+// ---------------------------------------------------------------- player reports
+
+export const DEFAULT_WARNING = "Please follow the Rules of conduct.";
+
+/** Why Warn and Ban are off for this report's player, or null when the actor may act. Mirrors the server's ban rule. */
+export function reportActionBlock(actor: { id: number; role: Role }, reported: Pick<ReportRow["reported"], "id" | "role">): string | null {
+  if (canBanUser(actor, reported)) return null;
+  if (actor.id === reported.id) return "You cannot act on your own account.";
+  if (reported.role === "admin") return "Admin accounts cannot be warned or banned.";
+  return "Only an admin can act on staff accounts.";
+}
+
+/** "2026-10-29 14:03", UTC. */
+export function stampOf(iso: string): string {
+  return iso.slice(0, 16).replace("T", " ");
+}
+
+const ACTION_WORDS: Record<string, string> = { image_removed: "Image removed", warned: "Warned", banned: "Banned" };
+
+/** The line under a handled report: what was done, by whom, when. Null while it is open. */
+export function handledLine(r: Pick<ReportRow, "status" | "action" | "handled_by_name" | "handled_at">): string | null {
+  if (r.status === "open") return null;
+  const what = r.status === "dismissed" ? "Dismissed" : (ACTION_WORDS[r.action] ?? "Actioned");
+  const who = r.handled_by_name ? ` by ${r.handled_by_name}` : "";
+  const when = r.handled_at ? ` · ${stampOf(r.handled_at)}` : "";
+  return `${what}${who}${when}`;
+}
+
+export const REPORT_REASON_LABELS: Record<string, string> = {
+  conduct: "Rules of conduct",
+  toxic: "Toxic or abusive",
+  image: "Inappropriate image",
+};
+
+export const REPORT_SOURCE_LABELS: Record<string, string> = {
+  match: "In a match",
+  spectate: "Spectating",
+  postmatch: "After a match",
+  history: "From match history",
+  friends: "Friends list",
+};

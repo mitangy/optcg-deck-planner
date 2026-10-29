@@ -28,10 +28,15 @@ from app.models import (
     Base,
     BotMatch,
     Deck,
+    DuelCosmetic,
     DuelMatch,
     DuelMatchSeat,
+    DuelUserSettings,
+    PlayerReport,
+    PlayerWarning,
     User,
 )
+from app.moderation import restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
 from app.routers.analyst import require_service
@@ -551,10 +556,16 @@ class BanIn(BaseModel):
 @router.post("/users/{user_id}/ban")
 def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     target = _target(db, user_id)
+    _apply_ban(db, actor, target, (body.reason if body else None) or "")
+    return _user_row(target)
+
+
+def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
+    """Ban ``target`` as ``actor`` (403 when the roles forbid it); shared with report handling."""
     refusal = can_ban(actor, target)
     if refusal:
         raise HTTPException(status_code=403, detail=refusal)
-    reason = ((body.reason if body else None) or "").strip()
+    reason = reason.strip()
     target.banned_at = datetime.now(timezone.utc)
     target.ban_reason = reason or None
     target.banned_by = actor.id
@@ -562,7 +573,6 @@ def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> d
     target.session_version = int(target.session_version or 0) + 1
     db.commit()
     db.refresh(target)
-    return _user_row(target)
 
 
 @router.post("/users/{user_id}/unban")
@@ -600,3 +610,218 @@ def delete_user(user_id: int, actor: Admin, db: DB) -> Response:
                 db.execute(update(table).where(fk.parent == user_id).values({fk.parent.name: None}))
     db.commit()
     return Response(status_code=204)
+
+
+# ---------------------------------------------------------------- player reports (#810)
+
+class ReportNoteIn(BaseModel):
+    note: str | None = Field(default=None, max_length=300)
+
+
+class ReportWarnIn(BaseModel):
+    message: str = Field(min_length=1, max_length=300)
+
+
+def _report_rows(db: Session, reports: list[PlayerReport]) -> list[dict]:
+    """ReportRows for these reports, with the per-player counts fetched in a few grouped queries."""
+    if not reports:
+        return []
+    reported_ids = {r.reported_id for r in reports}
+    user_ids = reported_ids | {r.reporter_id for r in reports if r.reporter_id} | {
+        r.handled_by for r in reports if r.handled_by
+    }
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))}
+    totals = dict(
+        db.execute(
+            select(PlayerReport.reported_id, func.count())
+            .where(PlayerReport.reported_id.in_(reported_ids))
+            .group_by(PlayerReport.reported_id)
+        ).all()
+    )
+    opens = dict(
+        db.execute(
+            select(PlayerReport.reported_id, func.count())
+            .where(PlayerReport.reported_id.in_(reported_ids), PlayerReport.status == "open")
+            .group_by(PlayerReport.reported_id)
+        ).all()
+    )
+    warnings = dict(
+        db.execute(
+            select(PlayerWarning.user_id, func.count())
+            .where(PlayerWarning.user_id.in_(reported_ids))
+            .group_by(PlayerWarning.user_id)
+        ).all()
+    )
+    cosmetic_ids = {r.cosmetic_id for r in reports if r.cosmetic_id}
+    down = (
+        set(
+            db.scalars(
+                select(DuelCosmetic.id).where(DuelCosmetic.id.in_(cosmetic_ids), DuelCosmetic.taken_down_at.is_not(None))
+            )
+        )
+        if cosmetic_ids
+        else set()
+    )
+    match_ids = {r.match_id for r in reports if r.match_id}
+    finished = (
+        set(db.scalars(select(DuelMatch.match_id).where(DuelMatch.match_id.in_(match_ids)))) if match_ids else set()
+    )
+    out = []
+    for r in reports:
+        reported = users.get(r.reported_id)
+        reporter = users.get(r.reporter_id) if r.reporter_id else None
+        handler = users.get(r.handled_by) if r.handled_by else None
+        out.append(
+            {
+                "id": r.id,
+                "created_at": _iso(r.created_at),
+                "status": r.status,
+                "action": r.action,
+                "staff_note": r.staff_note,
+                "handled_by_name": duel_display_name(handler) if handler else None,
+                "handled_at": _iso(r.handled_at),
+                "reason": r.reason,
+                "image_kind": r.image_kind,
+                "note": r.note,
+                "match_id": r.match_id,
+                "source": r.source,
+                "match_finished": bool(r.match_id) and r.match_id in finished,
+                "has_image": r.image_data is not None,
+                "cosmetic_id": r.cosmetic_id,
+                "image_taken_down": r.cosmetic_id in down,
+                "reporter": {"id": reporter.id, "name": duel_display_name(reporter)} if reporter else None,
+                "reported": {
+                    "id": r.reported_id,
+                    "name": duel_display_name(reported) if reported else "Player",
+                    "role": reported.role if reported else "user",
+                    "banned": bool(reported and reported.banned_at is not None),
+                    "open_reports": int(opens.get(r.reported_id, 0)),
+                    "total_reports": int(totals.get(r.reported_id, 0)),
+                    "warnings": int(warnings.get(r.reported_id, 0)),
+                },
+            }
+        )
+    return out
+
+
+def _report_row(db: Session, report: PlayerReport) -> dict:
+    return _report_rows(db, [report])[0]
+
+
+def _open_report(db: Session, report_id: int) -> PlayerReport:
+    report = db.get(PlayerReport, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if report.status != "open":
+        raise HTTPException(status_code=409, detail="This report was already handled")
+    return report
+
+
+def _close_report(report: PlayerReport, actor: User, status: str, action: str, note: str | None) -> None:
+    report.status = status
+    report.action = action
+    report.staff_note = (note or "").strip()[:300]
+    report.handled_by = actor.id
+    report.handled_at = datetime.now(timezone.utc)
+
+
+@router.get("/reports")
+def list_reports(
+    _: Staff,
+    db: DB,
+    status: Annotated[Literal["open", "all"], Query()] = "open",
+    limit: Annotated[int, Query(ge=1, le=200)] = 200,
+) -> dict:
+    query = select(PlayerReport)
+    if status == "open":
+        query = query.where(PlayerReport.status == "open")
+    reports = db.scalars(query.order_by(PlayerReport.id.desc()).limit(limit)).all()
+    return {"reports": _report_rows(db, list(reports))}
+
+
+@router.get("/reports/{report_id}/image")
+def report_image(report_id: int, _: Staff, db: DB) -> Response:
+    report = db.get(PlayerReport, report_id)
+    if report is None or report.image_data is None:
+        raise HTTPException(status_code=404, detail="No image")
+    return Response(
+        content=report.image_data,
+        media_type=report.image_mime or "application/octet-stream",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post("/reports/{report_id}/dismiss")
+def dismiss_report(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
+    report = _open_report(db, report_id)
+    _close_report(report, actor, "dismissed", "", body.note if body else None)
+    db.commit()
+    return _report_row(db, report)
+
+
+@router.post("/reports/{report_id}/remove-image")
+def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
+    report = _open_report(db, report_id)
+    note = body.note if body else None
+    cosmetic: DuelCosmetic | None = None
+    if report.cosmetic_id is not None:
+        cosmetic = db.get(DuelCosmetic, report.cosmetic_id)
+    elif report.image_kind:
+        prefs = db.get(DuelUserSettings, report.reported_id)
+        active = (
+            prefs.active_playmat_id if report.image_kind == "playmat" else prefs.active_card_back_id
+        ) if prefs else None
+        cosmetic = db.get(DuelCosmetic, active) if active else None
+    if cosmetic is None:
+        raise HTTPException(status_code=409, detail="There is no image to remove")
+    take_down_cosmetic(db, cosmetic, actor.id, note or f"Report #{report.id}")
+    _close_report(report, actor, "actioned", "image_removed", note)
+    # Everyone else who reported the same image is answered by the same removal.
+    siblings = db.scalars(
+        select(PlayerReport).where(
+            PlayerReport.id != report.id,
+            PlayerReport.status == "open",
+            PlayerReport.cosmetic_id == cosmetic.id,
+        )
+    ).all()
+    for other in siblings:
+        _close_report(other, actor, "actioned", "image_removed", note)
+    db.commit()
+    return _report_row(db, report)
+
+
+@router.post("/reports/{report_id}/warn")
+def warn_reported_player(report_id: int, body: ReportWarnIn, actor: Staff, db: DB) -> dict:
+    report = _open_report(db, report_id)
+    target = _target(db, report.reported_id)
+    refusal = can_ban(actor, target)
+    if refusal:
+        raise HTTPException(status_code=403, detail=refusal)
+    db.add(
+        PlayerWarning(user_id=target.id, report_id=report.id, message=body.message.strip(), issued_by=actor.id)
+    )
+    _close_report(report, actor, "actioned", "warned", body.message)
+    db.commit()
+    return _report_row(db, report)
+
+
+@router.post("/reports/{report_id}/ban")
+def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
+    report = _open_report(db, report_id)
+    target = _target(db, report.reported_id)
+    reason = (body.reason if body else None) or ""
+    _apply_ban(db, actor, target, reason)
+    _close_report(report, actor, "actioned", "banned", reason)
+    db.commit()
+    return _report_row(db, report)
+
+
+@router.post("/cosmetics/{cosmetic_id}/restore")
+def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
+    """Undo an image takedown. The owner has to choose it as active again."""
+    cosmetic = db.get(DuelCosmetic, cosmetic_id)
+    if cosmetic is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    restore_cosmetic(db, cosmetic)
+    db.commit()
+    return {"id": cosmetic.id, "user_id": cosmetic.user_id, "kind": cosmetic.kind, "taken_down": False}

@@ -173,6 +173,8 @@ import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
+import { openReport } from "../reports/reportDialog";
+import { matchReportTarget } from "../reports/reportTargets";
 import { isPromptHidden, promptOpenFor } from "./promptHide";
 import { promptShortLine } from "./promptLine";
 import { HideablePrompt, promptSourceName } from "./HideablePrompt";
@@ -192,6 +194,8 @@ type Props = {
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
   /** The opponent is a person on another device (online play): automatic passes wait like a person would. */
   vsHuman?: boolean;
+  /** Online play against another person: "Report player" is offered (not for bots, practice, hotseat or replays). */
+  canReport?: boolean;
   /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
   chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
   /** Online players: concede sits next to Leave in the HUD. */
@@ -314,6 +318,7 @@ export function DuelBoard({
   battleLog = [],
   hotseatPass,
   vsHuman = false,
+  canReport = false,
   chat,
   onConcede,
   onHandOrder,
@@ -2063,6 +2068,15 @@ export function DuelBoard({
     </>
   );
   const reportProblem = () => openFeedback("Report a problem");
+  const reportTargetFor = (source: "match" | "spectate" | "postmatch") =>
+    canReport && !isReplay && !hotseatPass
+      ? matchReportTarget({ source, matchId, spectating, mySeat, players, seatSkins })
+      : null;
+  const canReportPlayer = reportTargetFor("match") !== null;
+  const reportPlayer = () => {
+    const target = reportTargetFor(spectating ? "spectate" : "match");
+    if (target) openReport(target);
+  };
   const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
@@ -2075,6 +2089,7 @@ export function DuelBoard({
         fullscreenInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
         replay: isReplay,
+        canReportPlayer,
         hideArtOffered: artToggles.length > 0,
       })}
       artToggles={artToggles}
@@ -2095,6 +2110,7 @@ export function DuelBoard({
       onSettings={() => setSettingsOpen(true)}
       onToggleFullscreen={toggleFullscreen}
       onReport={reportProblem}
+      onReportPlayer={reportPlayer}
       onConcede={() => onConcede?.()}
       onLeave={onLeave}
     />
@@ -2345,6 +2361,17 @@ export function DuelBoard({
             >
               ⚑
             </button>
+            {canReportPlayer ? (
+              <button
+                type="button"
+                className="hud-undo-btn hud-settings-btn"
+                aria-label="Report player"
+                title="Report player"
+                onClick={reportPlayer}
+              >
+                ⚠
+              </button>
+            ) : null}
             <button type="button" className="leave-btn" onClick={onLeave}>
               {leaveLabel}
             </button>
@@ -3142,6 +3169,18 @@ export function DuelBoard({
               deckOptions={rematch.deckOptions}
               onAction={rematch.onAction}
             />
+          ) : null}
+          {!spectating && canReportPlayer ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm match-result-report"
+              onClick={() => {
+                const target = reportTargetFor("postmatch");
+                if (target) openReport(target);
+              }}
+            >
+              Report player
+            </button>
           ) : null}
           <button type="button" className="leave-btn" onClick={onLeave}>
             Return home

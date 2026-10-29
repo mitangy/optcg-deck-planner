@@ -214,3 +214,47 @@ export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encod
 export const forfeitEventWinner = (id: string, userId: number) =>
   call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/forfeit`, { method: "POST", body: JSON.stringify({ user_id: userId }) });
 export const eventCsvUrl = (id: string) => `${getApiBaseUrl()}/admin/events/${encodeURIComponent(id)}/participants.csv`;
+
+// ---------------------------------------------------------------- player reports
+
+export type ReportStatus = "open" | "dismissed" | "actioned";
+
+export type ReportRow = {
+  id: number;
+  created_at: string;
+  status: ReportStatus;
+  action: string;
+  staff_note: string;
+  handled_by_name: string | null;
+  handled_at: string | null;
+  reason: "conduct" | "toxic" | "image";
+  image_kind: "playmat" | "cardBack" | null;
+  note: string;
+  match_id: string;
+  source: string;
+  /** The saved match exists, so /replay/:id opens. */
+  match_finished: boolean;
+  has_image: boolean;
+  cosmetic_id: number | null;
+  image_taken_down: boolean;
+  reporter: { id: number; name: string } | null;
+  reported: { id: number; name: string; role: Role; banned: boolean; open_reports: number; total_reports: number; warnings: number };
+};
+
+export const fetchAdminReports = (status: "open" | "all") =>
+  call<{ reports: ReportRow[] }>(`/admin/reports?status=${status}`).then((r) => r.reports);
+export const dismissReport = (id: number, note = "") =>
+  call<ReportRow>(`/admin/reports/${id}/dismiss`, { method: "POST", body: JSON.stringify({ note: note.trim() || undefined }) });
+export const removeReportImage = (id: number, note = "") =>
+  call<ReportRow>(`/admin/reports/${id}/remove-image`, { method: "POST", body: JSON.stringify({ note: note.trim() || undefined }) });
+export const warnReport = (id: number, message: string) =>
+  call<ReportRow>(`/admin/reports/${id}/warn`, { method: "POST", body: JSON.stringify({ message: message.trim().slice(0, 300) }) });
+export const banReport = (id: number, reason: string) =>
+  call<ReportRow>(`/admin/reports/${id}/ban`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) || undefined }) });
+
+/** The reported image as a blob URL (the snapshot needs the staff cookie, so an <img src> cannot fetch it). Revoke it when done. */
+export async function fetchReportImageUrl(id: number): Promise<string> {
+  const res = await fetch(`${getApiBaseUrl()}/admin/reports/${id}/image`, { credentials: "include" });
+  if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}

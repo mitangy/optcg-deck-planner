@@ -25,6 +25,7 @@ import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
+import { ReportHost } from "./reports/ReportHost";
 import { openFeedback } from "./feedbackDialog";
 import { RouteMeta } from "./seo/RouteMeta";
 import { showsSiteFooter } from "./siteFooter";
@@ -99,10 +100,12 @@ export function App() {
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />
+        <Route path="/conduct" element={<LegalPage kind="conduct" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" extraLinks={FOOTER_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
       <FeedbackHost />
+      <ReportHost />
       <LeaveGameDialog
         open={leaving !== null}
         onStay={() => setLeaving(null)}

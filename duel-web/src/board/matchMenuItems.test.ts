@@ -75,6 +75,13 @@ describe("match menu items", () => {
     expect(items.indexOf("concede")).toBeLessThan(items.indexOf("leave"));
   });
 
+  it("offers Report player only when the other seat is a person and the match is live (#810)", () => {
+    expect(matchMenuItems({ ...live, canReportPlayer: true })).toContain("report-player");
+    expect(matchMenuItems(live)).not.toContain("report-player");
+    // A recording has nobody to report.
+    expect(matchMenuItems({ ...live, spectating: true, replay: true, canReportPlayer: true })).not.toContain("report-player");
+  });
+
   it("Hide art is offered only when asked, never in practice, and sits before Report (#812)", () => {
     expect(matchMenuItems(live)).not.toContain("hide-art");
     const items = matchMenuItems({ ...live, hideArtOffered: true });
