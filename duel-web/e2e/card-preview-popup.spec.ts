@@ -45,6 +45,17 @@ async function dragHead(page: Page, dx: number, dy: number) {
   await page.mouse.up();
 }
 
+/**
+ * Dragged past an edge, the pop-up stops 8px short, so the pointer is let go off it and it hides
+ * like any hover pop-up; hovering the card brings it back where it was left.
+ */
+async function dragHeadPastEdge(page: Page, dx: number, dy: number) {
+  await dragHead(page, dx, dy);
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await hoverLeader(page);
+  await expect(page.locator(POPUP)).toBeVisible();
+}
+
 test("hovering a card opens a large pop-up, and the side column no longer holds the preview (#529)", async ({ page }) => {
   desktopOnly();
   await openDemo(page);
@@ -72,18 +83,20 @@ test("the pop-up drags by its header, stays on screen, and is where it was left 
   expect(after.x).toBeCloseTo(before.x - 300, 0);
   expect(after.y).toBeCloseTo(before.y - 50, 0);
 
-  // Dragged off every edge, it stops 8px short of each.
-  await dragHead(page, -3000, -3000);
+  // Dragged off every edge, it stops 8px short of each (and, let go off it, hides until a card is hovered again).
+  await dragHeadPastEdge(page, -3000, -3000);
   const corner = (await page.locator(POPUP).boundingBox())!;
   expect(corner.x).toBeCloseTo(8, 0);
   expect(corner.y).toBeCloseTo(8, 0);
-  await dragHead(page, 3000, 3000);
+  await dragHeadPastEdge(page, 3000, 3000);
   const far = (await page.locator(POPUP).boundingBox())!;
   const vp = page.viewportSize()!;
   expect(far.x + far.width).toBeCloseTo(vp.width - 8, 0);
   expect(far.y + far.height).toBeCloseTo(vp.height - 8, 0);
 
-  await dragHead(page, -400, -100);
+  // Sideways only: the placed pop-up is nearly as tall as the window, so a move up would hit the top edge
+  // and leave the pointer off it, and it would hide before it is measured.
+  await dragHead(page, -400, 0);
   const placed = (await page.locator(POPUP).boundingBox())!;
   await page.reload();
   await page.locator(".board-root").waitFor();

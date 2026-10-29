@@ -215,6 +215,8 @@ test("a hover card pop-up dragged to the right edge stays on screen when it is m
   desktopOnly();
   await openDemo(page);
   await page.locator(YOU("y-leader")).hover();
+  // Pinned: the drag ends past the edge, off the pop-up, and an unpinned hover pop-up would hide 250ms later (#819).
+  await page.getByRole("button", { name: "Pin card preview" }).click();
   const h = await rect(page.locator(".card-preview-popup-head"));
   await drag(page, { x: h.x + 30, y: h.y + h.height / 2 }, 900, 400);
   const vp = page.viewportSize()!;
