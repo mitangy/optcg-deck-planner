@@ -1,3 +1,4 @@
+import { BrandWordmark } from "./BrandWordmark";
 import { Link } from "react-router-dom";
 import { LEGAL_TITLES, LegalDocument, LegalNav, type LegalKind } from "@optcg/site-legal";
 import { ThemeToggle } from "./ThemeToggle";
@@ -10,13 +11,7 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/">
-              <img
-                className="brand-logo"
-                src="/optcg-logo.png"
-                alt="ONE PIECE CARD GAME"
-                width={562}
-                height={145}
-              />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>

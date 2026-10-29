@@ -5,8 +5,8 @@ export const LEGAL_DRAFT = true;
 
 export const LEGAL_UPDATED = "6 October 2026";
 
-/** Contact for privacy requests. Empty until one is chosen; the pages say so. */
-export const LEGAL_CONTACT_EMAIL = "";
+/** Contact for privacy requests and rights-holder notices. If emptied, the pages say a contact is coming. */
+export const LEGAL_CONTACT_EMAIL = "optcgduel@gmail.com";
 
 export type LegalKind = "terms" | "privacy" | "cookies" | "conduct";
 
@@ -59,7 +59,27 @@ const terms: ReactNode = (
     <p>{FAN_DISCLAIMER}</p>
     <p>{OWNERSHIP_NOTICE}</p>
     <p>
-      If you hold rights in any of this content and want something changed or removed, contact <Contact /> and we will act on it promptly.
+      If you hold rights in any of this content and want something changed or removed, email <Contact /> and we will act on it promptly.
+    </p>
+
+    <h2>Copyright and content reports</h2>
+    <p>
+      If you believe something on the sites, including a player’s uploaded playmat or card back,
+      infringes your copyright or breaks these terms, email <Contact /> with:
+    </p>
+    <ul>
+      <li>the item (a screenshot and the player’s name or match link);</li>
+      <li>your contact details;</li>
+      <li>the work you own;</li>
+      <li>
+        a statement that you believe in good faith the use is not authorised and that your notice
+        is accurate.
+      </li>
+    </ul>
+    <p>
+      We remove reported content promptly while we look into it. Accounts that repeatedly upload
+      infringing content lose upload rights or are suspended. Use the in-game Report button for
+      conduct problems.
     </p>
 
     <h2>Using the sites</h2>
@@ -263,7 +283,7 @@ const privacy: ReactNode = (
     <h2>Your choices</h2>
     <p>
       You can see and change most of your data in the apps. To get a copy of your data, correct
-      it, or delete your account and everything linked to it, contact <Contact />. Depending
+      it, or delete your account and everything linked to it, email <Contact />. Depending
       on where you live you may have further rights, such as objecting to processing or
       complaining to a data protection authority.
     </p>
