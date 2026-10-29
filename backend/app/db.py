@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+import anyio.to_thread
 from sqlalchemy import Engine, create_engine, func, inspect, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -466,4 +467,10 @@ async def get_db() -> AsyncGenerator[Session, None]:
         try:
             yield db
         finally:
-            db.close()
+            # close() rolls back over the network, so it runs off the event loop (on
+            # the loop it stalled every request, one round trip each). Shielded so a
+            # client that disconnects mid-request still returns its connection, and
+            # on its own limiter (as FastAPI's own teardown) so it never queues
+            # behind busy routes.
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(db.close, limiter=anyio.CapacityLimiter(1))
