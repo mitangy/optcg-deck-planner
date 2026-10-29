@@ -1752,3 +1752,59 @@
     flex: 1 1 calc(50% - 0.4rem);
   }
 }
+
+/* —— Uploads (#812) —— */
+
+.upl-filter {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.upl-filter button {
+  padding: 0 0.7rem;
+  white-space: nowrap;
+}
+
+.upl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.upl-card {
+  align-content: start;
+}
+
+.upl-image {
+  align-items: flex-end;
+}
+
+/* A card back is narrower than a playmat; the frame keeps the same height either way. */
+.upl-frame {
+  height: 9rem;
+}
+
+/* Reserved so taking down or restoring never changes the card's height. */
+.upl-down {
+  min-height: 2.4em;
+  color: var(--crimson-bright);
+}
+
+.upl-more {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 40px;
+}
+
+.upl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.upl-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}

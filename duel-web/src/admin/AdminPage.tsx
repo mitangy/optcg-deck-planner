@@ -19,6 +19,7 @@ import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
 import { ReportsTab } from "./ReportsTab";
+import { UploadsTab } from "./UploadsTab";
 import { UsersTab, type Actor } from "./UsersTab";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
@@ -125,6 +126,7 @@ export default function AdminPage() {
   function body() {
     if (current === "event") return <EventTab />;
     if (current === "reports") return <ReportsTab actor={who.status === "ok" ? who.actor : { id: 0, role: "user" }} />;
+    if (current === "uploads") return <UploadsTab actor={who.status === "ok" ? who.actor : { id: 0, role: "user" }} />;
     if (current === "users") return <UsersTab actor={who.status === "ok" ? who.actor : { id: 0, role: "user" }} />;
     const s = tabData!.state;
     if (s.status === "loading") return <p className="panel-copy adm-muted" role="status">Loading…</p>;
