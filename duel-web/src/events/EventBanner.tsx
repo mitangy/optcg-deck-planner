@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
-import { bannerCta, eventPhase, formatWindow, progressLabel, statusLine } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, formatWindow, progressLabel, statusLine } from "./eventLogic";
 
 /** The current time. Re-armed after every tick: every 15 seconds, every second in the last two minutes before a change, and not at all once the event has ended. */
 function useNow(event: DuelEvent | null): number {
@@ -134,7 +134,7 @@ export function EventBanner() {
             {progress ? <span>{progressLabel(progress, event)}</span> : null}
           </span>
         ) : (
-          <span className="event-progress event-muted">{event.viewer === "guest" ? "Guests can't enter" : "Entries closed"}</span>
+          <span className="event-progress event-muted">{closedNote(event, now)}</span>
         )}
         <Link to={rulesPath(event.id)} className="event-rules-link">
           Official rules
