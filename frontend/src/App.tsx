@@ -35,6 +35,8 @@ import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
+import { PlannerLandingPage } from "./LandingPage";
+import { RouteMeta } from "./seo/RouteMeta";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
@@ -4508,6 +4510,27 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+/** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
+function HomeRoute() {
+  const { data: user, isLoading, refetch } = useMe();
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (!user) {
+    return (
+      <PlannerLandingPage
+        onDevLogin={async () => {
+          await api.devLogin();
+          await refetch();
+        }}
+      />
+    );
+  }
+  return (
+    <Shell user={user}>
+      <ShoppingPage />
+    </Shell>
+  );
+}
+
 /** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 function MetaRoute() {
   const { data: user, isLoading } = useMe();
@@ -4816,6 +4839,7 @@ export default function App() {
   const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
+      <RouteMeta signedIn={!!me} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -4827,14 +4851,7 @@ export default function App() {
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />
         {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <ShoppingPage />
-            </RequireAuth>
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
         <Route
           path="/decks"
           element={

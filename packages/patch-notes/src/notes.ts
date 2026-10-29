@@ -12,6 +12,9 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-29
   { date: "2026-10-29", app: "planner", pr: 811, title: "The planner header uses our own OPTCG wordmark", text: "The top of every planner page now shows a simple OPTCG name instead of the official card game logo." },
+  { date: "2026-10-29", app: "duel", pr: 807, title: "A page that explains how to play online", text: "OPTCG Duel now has a page that shows how to start playing OPTCG in your browser, what you can do in the game and answers to common questions. Find it under How to play online at the bottom of any page." },
+  { date: "2026-10-29", app: "planner", pr: 807, title: "A home page for visitors who aren't signed in", text: "Anyone who opens the planner without being signed in now sees a home page that explains what it does, with a button to sign in and a link to browse meta decks, instead of going straight to the sign-in screen." },
+  { date: "2026-10-29", app: "both", pr: 807, title: "Links to the apps show a preview card", text: "Sharing a link to the planner or OPTCG Duel in a chat or social post now shows a title, a short description and a picture." },
   { date: "2026-10-29", app: "both", pr: 806, title: "Two OP18 events and 10 alt arts", text: "Let's Go, Karoo!! (OP18-018) and Diable Jambe Flambe Shot (OP18-040) are now in the duel app. New alt arts are available for Boa Hancock, Shanks and Luffy (Mini Case Vol. 3) and for Miss Buckingham Stussy, Alvida, Nami and Baby 5 (Extra Booster 05)." },
   // 2026-10-28
   { date: "2026-10-28", app: "both", pr: 802, title: "The server no longer freezes when many players are online at once", text: "When a lot of players used the site at the same moment, it could lock up and stop answering until it was restarted. Busy times now just queue briefly and keep working." },
