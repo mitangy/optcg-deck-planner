@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "./api";
+import { BrandWordmark } from "./BrandWordmark";
 import { BuildTag } from "./BuildTag";
 import { DUEL_URL } from "./duelLink";
 import { ThemeToggle } from "./ThemeToggle";
@@ -50,7 +51,7 @@ export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<v
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/">
-              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>

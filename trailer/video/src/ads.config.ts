@@ -40,10 +40,10 @@ const endCard = (start: number, dur: number): Edit['endCard'] => ({
 // ---------------------------------------------------------------------------------------------------------------
 const hook = (): SceneDef =>
   pick('turn', {
-    start: 0, dur: 3, trimStart: 8.3, rate: 1.2, transition: 'cut', eyebrow: undefined,
+    start: 0, dur: 3, trimStart: 8.3, rate: 1.2, transition: 'cut', eyebrow: 'Unofficial fan-made sim',
     focus: [f(0, v(0.4, 0.6, 1.0)), f(1.2, v(0.4, 0.45, 1.15))],
   });
-const hookCaption = (end: number) => cap(0, end, {t: 'The One Piece', br: true}, {t: 'Card Game,'}, em('online.'));
+const hookCaption = (end: number) => cap(0, end, {t: 'Play OPTCG', br: true}, em('online, free.'));
 
 // ---------------------------------------------------------------------------------------------------------------
 // 15s: hook 0-3, phone 3-7, make it yours 7-10, friends 10-12.5, end card 12.5-15
