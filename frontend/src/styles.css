@@ -7315,7 +7315,7 @@ button.ghost.scan-tray-fix {
 
 .landing-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -7342,4 +7342,11 @@ button.ghost.scan-tray-fix {
 .landing-cta .btn {
   width: auto;
   margin: 0;
+}
+
+/* Five cards: one row once the page is wide enough, otherwise they wrap evenly. */
+@media (min-width: 1100px) {
+  .landing-features {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
