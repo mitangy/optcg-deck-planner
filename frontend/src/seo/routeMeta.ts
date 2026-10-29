@@ -15,7 +15,7 @@ export type RouteMetaEntry = {
 const NAME = "OPTCG Deck Planner";
 
 const HOME_DESCRIPTION =
-  "Plan One Piece Card Game decks, track the cards you own and see what you still need to buy, with live TCGPlayer market prices and recent sales. Free with a Google account.";
+  "Plan One Piece TCG decks, track the cards you own and see what you still need to buy, with live TCGPlayer prices. An unofficial fan-made tool, free with a Google account.";
 
 /** First match wins. */
 export const ROUTE_META: readonly RouteMetaEntry[] = [
@@ -28,7 +28,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
     pattern: "/meta",
     title: "One Piece TCG meta decks and prices – OPTCG Deck Planner",
     description:
-      "See which leaders and decklists are winning in the One Piece Card Game, with the TCGPlayer price of each list, and copy one into your planner.",
+      "See which leaders and decklists are winning in the One Piece TCG, with the TCGPlayer price of each list, and copy one into your planner. Unofficial fan-made tool.",
   },
   { pattern: "/whats-new", title: `What’s new – ${NAME}`, description: "Everything that changed in the OPTCG Deck Planner recently, newest first." },
   { pattern: "/terms", title: `Terms & credits – ${NAME}`, description: "Terms of use and credits for the OPTCG Deck Planner, an unofficial fan-made One Piece Card Game tool." },

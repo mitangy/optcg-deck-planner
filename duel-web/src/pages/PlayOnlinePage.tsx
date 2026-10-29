@@ -16,7 +16,7 @@ export const PLAY_ONLINE_FAQ: readonly { q: string; a: string }[] = [
     a: "No. It runs in your browser on a computer, tablet or phone. You can add it to your Home Screen if you want an app icon.",
   },
   {
-    q: "Can I play the One Piece Card Game on my phone?",
+    q: "Can I play OPTCG on my phone?",
     a: "Yes. The board has a layout made for phones, and you can drag cards with your finger.",
   },
   {
@@ -60,7 +60,7 @@ const FEATURES: readonly { title: string; body: string }[] = [
   { title: "Phone layout", body: "A board built for small screens, not a shrunken desktop page." },
 ];
 
-/** Public landing page for people searching how to play the One Piece Card Game online. */
+/** Public landing page for people searching how to play OPTCG online. */
 export function PlayOnlinePage() {
   useFaqJsonLd();
   return (
@@ -72,10 +72,14 @@ export function PlayOnlinePage() {
         </header>
 
         <section className="play-online-hero">
-          <h1 className="page-title play-online-title">Play the One Piece Card Game online — free, in your browser</h1>
+          <h1 className="page-title play-online-title">Play OPTCG online, free in your browser</h1>
+          <p className="play-online-notice" role="note">
+            <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
+          </p>
           <p className="play-online-lede">
-            OPTCG Duel is a free place to play the One Piece Card Game with no download and no sign-up to start. It works on
-            desktop and on your phone, and the rules engine runs the game for you, from attacks and blocks to card effects.
+            OPTCG Duel is a free, unofficial simulator for the One Piece Trading Card Game. There is no download and no sign-up
+            to start. It works on desktop and on your phone, and the rules engine runs the game for you, from attacks and
+            blocks to card effects.
           </p>
           <div className="play-online-cta">
             <Link to="/" className="btn btn-primary btn-lg">

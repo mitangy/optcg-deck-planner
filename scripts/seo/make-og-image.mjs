@@ -25,8 +25,8 @@ const CARDS = [
     ink: "#f1e9d6",
     muted: "#95a4ad",
     name: "OPTCG Duel",
-    tagline: "Play the One Piece Card Game online",
-    sub: "Free in your browser. No download. Ranked, bots and friends.",
+    tagline: "Play OPTCG online",
+    sub: "Free, unofficial fan sim in your browser.",
   },
   {
     out: "frontend/public/og-image.png",
@@ -38,7 +38,7 @@ const CARDS = [
     muted: "#a3afb3",
     name: "OPTCG Deck Planner",
     tagline: "One Piece TCG deck builder",
-    sub: "Live TCGPlayer prices. See what you still need to buy.",
+    sub: "Unofficial fan project. Live TCGPlayer prices.",
   },
 ];
 

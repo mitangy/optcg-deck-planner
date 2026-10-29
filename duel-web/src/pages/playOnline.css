@@ -113,3 +113,21 @@
   font-size: 0.88rem;
   line-height: 1.55;
 }
+
+.play-online-notice {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--chrome);
+  border-radius: 8px;
+  background: rgb(var(--panel-rgb) / 0.5);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+
+.play-online-notice b {
+  color: var(--ink);
+  font-size: inherit;
+}

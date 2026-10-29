@@ -73,6 +73,9 @@ export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<v
             Plan your decks, keep track of the cards you own, and see exactly what is left to buy at today’s TCGPlayer
             prices. Free with a Google account.
           </p>
+          <p className="landing-notice" role="note">
+            <b>Unofficial fan project.</b> Not affiliated with or endorsed by Bandai.
+          </p>
           <div className="landing-cta">
             <a className="btn primary" href={api.googleLoginUrl()}>
               Sign in with Google

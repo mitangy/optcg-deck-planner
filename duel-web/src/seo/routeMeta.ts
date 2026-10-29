@@ -15,26 +15,26 @@ export type RouteMetaEntry = {
 const NAME = "OPTCG Duel";
 
 const HOME_DESCRIPTION =
-  "Play the One Piece Card Game online for free in your browser. No download. Ranked matches, bots to practice against, friends, and your own decks from the OPTCG Deck Planner.";
+  "Play OPTCG online, free in your browser. An unofficial fan-made One Piece TCG simulator with ranked matches, bots, friends and your own decks. No download.";
 
 /** First match wins, so list a literal path before a parameterized one that would also match it (/decks/meta before /decks/:deckId/...). */
 export const ROUTE_META: readonly RouteMetaEntry[] = [
   {
     pattern: "/",
-    title: "OPTCG Duel – Play the One Piece Card Game online, free in your browser",
+    title: "OPTCG Duel – free unofficial One Piece TCG simulator",
     description: HOME_DESCRIPTION,
   },
   {
     pattern: "/play-one-piece-tcg-online",
-    title: "Play the One Piece Card Game online – free, no download | OPTCG Duel",
+    title: "Play OPTCG online free – unofficial One Piece TCG sim | OPTCG Duel",
     description:
-      "How to play the One Piece Card Game online in your browser: pick a deck, play ranked, practice against a bot or invite a friend. Free, works on phone and desktop.",
+      "How to play OPTCG online in your browser with this unofficial fan-made One Piece TCG simulator: pick a deck, play ranked, practice against a bot or invite a friend. Free.",
   },
   {
     pattern: "/decks/meta",
     title: "One Piece TCG meta decks – try them free | OPTCG Duel",
     description:
-      "Browse the leaders and decklists doing well in the One Piece Card Game right now, then copy one and play it online against a bot or a friend.",
+      "Browse the leaders and decklists doing well in the One Piece TCG right now, then copy one and try it online in this unofficial fan-made simulator.",
   },
   {
     pattern: "/leaderboard",
