@@ -36,8 +36,109 @@
       "status": 404
     },
     {
-      "src": "/(.*)",
+      "src": "/index\\.html",
       "dest": "/index.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/play-one-piece-tcg-online/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/watch/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/meta/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/new/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/[^/]+/configure/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/configure/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/duel/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/hotseat/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/settings/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/leaderboard/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/history/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/history/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/replay/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/admin/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/auth/complete/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/welcome/username/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/demo/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/whats-new/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/events/[^/]+/rules/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/terms/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/privacy/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/cookies/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "status": 404
     }
   ]
 }
