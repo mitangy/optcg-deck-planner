@@ -10,12 +10,25 @@ import {
   fetchAdminEvent,
   forfeitEventWinner,
 } from "./adminApi";
-import { ariaSort, canCommitSeed, canDrawEvent, nextSort, type ParticipantSortKey, type SortState, sortParticipants } from "./adminLogic";
+import { ariaSort, canCommitSeed, canDrawEvent, eventFlagInfo, nextSort, type ParticipantSortKey, type SortState, sortParticipants } from "./adminLogic";
 
 const n = (v: number) => v.toLocaleString("en-US");
 
 function when(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";
+}
+
+/** Advisory flag pills (#809). On phones they sit under the name so they show without side-scrolling. */
+function FlagPills({ flags, className }: { flags: readonly string[]; className?: string }) {
+  return (
+    <span className={className ? `adm-evt-flags ${className}` : "adm-evt-flags"}>
+      {flags.map((f) => (
+        <span key={f} className="adm-pill adm-pill-warn" title={eventFlagInfo(f).title}>
+          {eventFlagInfo(f).label}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function SortHead({ label, k, sort, onSort, className }: { label: string; k: ParticipantSortKey; sort: SortState<ParticipantSortKey>; onSort: (k: ParticipantSortKey) => void; className?: string }) {
@@ -56,17 +69,24 @@ function Participants({ event }: { event: AdminEvent }) {
                 <SortHead label="Games" k="games" sort={sort} onSort={onSort} className="num" />
                 <SortHead label="Opponents" k="opponents" sort={sort} onSort={onSort} className="num" />
                 <SortHead label="Eligible" k="eligible" sort={sort} onSort={onSort} />
+                <SortHead label="Flags" k="flags" sort={sort} onSort={onSort} className="adm-evt-flagcol" />
               </tr>
             </thead>
             <tbody>
               {rows.map((p) => (
                 <tr key={p.user_id}>
-                  <td>{p.name}</td>
+                  <td>
+                    {p.name}
+                    {p.flags.length > 0 ? <FlagPills flags={p.flags} className="adm-evt-flags-inline" /> : null}
+                  </td>
                   <td>{p.email}</td>
                   <td className="num">{p.games}</td>
                   <td className="num">{p.opponents}</td>
                   <td>
                     {p.eligible ? <span className="adm-pill adm-pill-ok">yes</span> : <span className="adm-pill adm-pill-mid">{p.excluded ?? "no"}</span>}
+                  </td>
+                  <td className="adm-evt-flagcol">
+                    {p.flags.length === 0 ? <span className="adm-muted">—</span> : <FlagPills flags={p.flags} />}
                   </td>
                 </tr>
               ))}
@@ -183,6 +203,7 @@ export function EventTab() {
         <Tile label="Games in window" value={n(event.counters.games_in_window)} />
         <Tile label="Players with a game" value={n(event.counters.players_with_game)} />
         <Tile label="Eligible" value={n(event.counters.eligible)} />
+        <Tile label="Flagged eligible" value={n(event.counters.flagged_eligible)} sub="check these before the draw" />
       </div>
 
       <section className="panel" aria-label="Seed and draw">
