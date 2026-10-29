@@ -14,9 +14,12 @@ export function SiteFooter({
   Link,
   className,
   onFeedback,
+  extraLinks,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
+  /** Extra internal links after What’s new, e.g. a landing page that should be reachable from every page. */
+  extraLinks?: readonly { to: string; label: string }[];
   /** When set, a "Send feedback" button follows the legal links. */
   onFeedback?: () => void;
 }) {
@@ -32,6 +35,11 @@ export function SiteFooter({
           <Link to="/whats-new" className="site-footer-link">
             What’s new
           </Link>
+          {extraLinks?.map((l) => (
+            <Link key={l.to} to={l.to} className="site-footer-link">
+              {l.label}
+            </Link>
+          ))}
           {onFeedback ? (
             <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
               Send feedback

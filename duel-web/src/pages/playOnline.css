@@ -1,0 +1,133 @@
+/* /play-one-piece-tcg-online: public how-to-play page (#804). Colours come from the theme variables. */
+
+.play-online {
+  max-width: 760px;
+}
+
+.play-online-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.play-online-title {
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.play-online-lede {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+.play-online-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.play-online-cta .btn {
+  flex: 1 1 11rem;
+  min-width: 0;
+  text-decoration: none;
+  justify-content: center;
+}
+
+.play-online-cta-end {
+  padding-bottom: 0.5rem;
+}
+
+.play-online-steps,
+.play-online-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.play-online-steps {
+  counter-reset: po-step;
+}
+
+.play-online-steps li,
+.play-online-features li {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.play-online-steps li {
+  grid-template-columns: 1.8rem minmax(0, 1fr);
+  column-gap: 0.7rem;
+  counter-increment: po-step;
+}
+
+.play-online-steps li::before {
+  content: counter(po-step);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--chrome-bright);
+}
+
+.play-online b {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.play-online-features {
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+}
+
+.play-online-faq {
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.play-online-faq dt {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.play-online-faq dd {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.play-online-notice {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--chrome);
+  border-radius: 8px;
+  background: rgb(var(--panel-rgb) / 0.5);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+
+.play-online-notice b {
+  color: var(--ink);
+  font-size: inherit;
+}
