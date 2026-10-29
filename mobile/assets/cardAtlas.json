@@ -42738,6 +42738,22 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-018": {
+    "id": "OP18-018",
+    "name": "Let's Go, Karoo!!",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/726144_400w.jpg",
+    "effectText": "[Main] All of your {Alabasta} type Characters gain +1000 power during this turn.\n\n[Trigger] Up to 1 of your Leader or Characters gains +2000 power during this turn.",
+    "traits": [
+      "Alabasta"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "OP18-021": {
     "id": "OP18-021",
     "name": "Franky",
@@ -42918,6 +42934,23 @@
       "Water Seven"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-040": {
+    "id": "OP18-040",
+    "name": "Diable Jambe Flambe Shot",
+    "type": "event",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/726787_400w.jpg",
+    "effectText": "[Main] K.O. up to 1 of your opponent's rested Characters with a cost of 7 or less.\n\n[Trigger] Rest up to 1 of your opponent's Characters with a cost of 7 or less.",
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "hasTrigger": true,
     "abilitySupport": "ok"
   },
   "OP18-041": {
