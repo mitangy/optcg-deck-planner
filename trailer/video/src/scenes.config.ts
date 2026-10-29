@@ -136,7 +136,7 @@ export const SCENES: SceneDef[] = [
 
 /** On-screen lines. `em: true` words get the gold/bold treatment. Times in seconds. */
 export const CAPTIONS: CaptionDef[] = [
-  {start: 1.5, end: 5, words: [{t: 'The One Piece'}, {t: 'Card Game,'}, {t: 'online.', em: true}]},
+  {start: 1.5, end: 5, words: [{t: 'Play OPTCG'}, {t: 'online, free.', em: true}]},
   {start: 5, end: 13.5, words: [{t: 'Built to feel like'}, {t: 'the table.', em: true}]},
   {start: 13.5, end: 20, words: [{t: 'Plays great on'}, {t: 'your phone.', em: true}]},
   {start: 20, end: 24, words: [{t: 'Play it'}, {t: 'on the go.', em: true}]},

@@ -30,7 +30,6 @@
   --primary-bg: var(--accent);
   --primary-bg-hover: var(--accent-ink);
   --primary-ink: #fffaf0;
-  --logo-filter: none;
   color-scheme: light;
   /* Primary = deep sea. */
   --accent: #1d5566;
@@ -107,7 +106,6 @@
     --primary-bg: var(--gold);
     --primary-bg-hover: var(--gold-bright);
     --primary-ink: #1b1405;
-    --logo-filter: invert(1) sepia(0.35) brightness(0.97);
     --compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23d2a54d' stroke-opacity='.08'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3Cpath d='M100 14l9 77 77 9-77 9-9 77-9-77-77-9 77-9z' fill='%23d2a54d' fill-opacity='.03'/%3E%3C/svg%3E");
     --page-bg:
       var(--compass) right -140px top -120px / 520px 520px no-repeat,
@@ -155,7 +153,6 @@
   --primary-bg: var(--gold);
   --primary-bg-hover: var(--gold-bright);
   --primary-ink: #1b1405;
-  --logo-filter: invert(1) sepia(0.35) brightness(0.97);
   --compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23d2a54d' stroke-opacity='.08'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3Cpath d='M100 14l9 77 77 9-77 9-9 77-9-77-77-9 77-9z' fill='%23d2a54d' fill-opacity='.03'/%3E%3C/svg%3E");
   --page-bg:
     var(--compass) right -140px top -120px / 520px 520px no-repeat,
@@ -336,13 +333,16 @@ h1 {
   min-width: 0;
 }
 
-.brand-logo {
-  height: 2rem;
-  width: auto;
+.brand-wordmark {
+  /* Our own text mark (replaces the card game logo image); line-height keeps the bar as tall as it was with the image. */
   display: block;
   flex: 0 0 auto;
-  /* Black wordmark → warm parchment on the night-sea bar. */
-  filter: invert(1) sepia(0.35) brightness(0.97);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.55rem;
+  line-height: 2.39rem;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
 }
 
 .brand a span {
@@ -713,14 +713,6 @@ h1 {
   border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
   border-radius: 3px;
   pointer-events: none;
-}
-
-.login-logo {
-  filter: var(--logo-filter);
-  display: block;
-  width: min(220px, 70%);
-  height: auto;
-  margin: 0 auto 1rem;
 }
 
 .login-card h1 {
@@ -2557,8 +2549,9 @@ tr.done td {
     font-size: 1rem;
   }
 
-  .brand-logo {
-    height: 1.45rem;
+  .brand-wordmark {
+    font-size: 1.15rem;
+    line-height: 1.45rem;
   }
 
   /* The title wraps onto a clipped second line whenever it doesn't fit beside
@@ -5309,14 +5302,6 @@ button.ghost.scan-open:hover {
 
   .topbar .brand a {
     align-items: center;
-  }
-
-  .topbar .brand-logo {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    height: auto;
-    max-height: 1.45rem;
   }
 }
 

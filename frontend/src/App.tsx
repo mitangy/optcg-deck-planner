@@ -1,3 +1,4 @@
+import { BrandWordmark } from "./BrandWordmark";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -632,13 +633,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/">
-              <img
-                className="brand-logo"
-                src="/optcg-logo.png"
-                alt="ONE PIECE CARD GAME"
-                width={562}
-                height={145}
-              />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
@@ -742,13 +737,6 @@ function LoginPage() {
   return (
     <div className="login">
       <div className="login-card">
-        <img
-          className="login-logo"
-          src="/optcg-logo.png"
-          alt="ONE PIECE CARD GAME"
-          width={562}
-          height={145}
-        />
         <h1>OPTCG Tracker</h1>
         <p className="lede">
           Chart your decks, track what you own, and see what’s left to buy at market price.
@@ -4560,7 +4548,7 @@ function MetaRoute() {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/login">
-              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
@@ -4632,13 +4620,7 @@ function PublicSharePage() {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/login">
-              <img
-                className="brand-logo"
-                src="/optcg-logo.png"
-                alt="ONE PIECE CARD GAME"
-                width={562}
-                height={145}
-              />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
