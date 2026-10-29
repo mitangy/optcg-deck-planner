@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
-from collections.abc import Generator, Iterator
+import weakref
+from collections.abc import AsyncGenerator, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+import anyio.to_thread
 from sqlalchemy import Engine, create_engine, func, inspect, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -430,9 +433,44 @@ def init_db() -> None:
     _seed_eval_runs()
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Connections kept free for background jobs (advisory locks pin one for a whole run).
+_POOL_HEADROOM = 3
+_request_slots: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore]" = weakref.WeakKeyDictionary()
+
+
+def _request_slot_count() -> int:
+    """How many requests may hold a Session at once: the pool's capacity minus headroom."""
+    pool = engine.pool
+    size = getattr(pool, "size", None)
+    if not callable(size):  # SQLite in memory / NullPool: no queue to protect
+        return 1_000_000
+    return max(1, size() + getattr(pool, "_max_overflow", 0) - _POOL_HEADROOM)
+
+
+async def get_db() -> AsyncGenerator[Session, None]:
+    """One Session per request, admitted only while a pool connection is certain to be free (#802).
+
+    A request holds its connection from the first query (auth) to the end, but needs
+    a fresh worker thread for each sync dependency and for the route itself. With
+    more requests than pool connections, the extra requests sat in worker threads
+    waiting for a connection while the requests holding every connection waited
+    for a thread: nothing could finish, the pool never refilled, and the whole API
+    froze. Waiting here, on the event loop, costs no thread, so a request that holds
+    a connection can always get one.
+    """
+    loop = asyncio.get_running_loop()
+    slots = _request_slots.get(loop)
+    if slots is None:
+        slots = _request_slots[loop] = asyncio.Semaphore(_request_slot_count())
+    async with slots:
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            # close() rolls back over the network, so it runs off the event loop (on
+            # the loop it stalled every request, one round trip each). Shielded so a
+            # client that disconnects mid-request still returns its connection, and
+            # on its own limiter (as FastAPI's own teardown) so it never queues
+            # behind busy routes.
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(db.close, limiter=anyio.CapacityLimiter(1))
