@@ -7269,3 +7269,77 @@ button.ghost.scan-tray-fix {
     padding-inline: 0.7rem;
   }
 }
+
+/* —— Public landing page at / for visitors who are not signed in (#804) —— */
+
+.landing-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-width: 0;
+}
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+  max-width: 44rem;
+  min-width: 0;
+}
+
+.landing-hero h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 6vw, 3rem);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.landing-hero .lede {
+  margin: 0;
+  max-width: 38rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.landing-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.landing-duel {
+  margin: 0;
+  color: var(--muted);
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 1rem;
+}
+
+.landing-feature {
+  min-width: 0;
+  padding: 1rem 1.1rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.landing-feature h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.landing-feature p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.landing-cta .btn {
+  width: auto;
+  margin: 0;
+}

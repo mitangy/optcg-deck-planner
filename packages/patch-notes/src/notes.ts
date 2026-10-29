@@ -10,6 +10,10 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-29
+  { date: "2026-10-29", app: "duel", pr: 804, title: "A page that explains how to play online", text: "OPTCG Duel now has a page that shows how to start playing the One Piece Card Game in your browser, what you can do in the game and answers to common questions. Find it under How to play online at the bottom of any page." },
+  { date: "2026-10-29", app: "planner", pr: 804, title: "A home page for visitors who aren't signed in", text: "Anyone who opens the planner without being signed in now sees a home page that explains what it does, with a button to sign in and a link to browse meta decks, instead of going straight to the sign-in screen." },
+  { date: "2026-10-29", app: "both", pr: 804, title: "Links to the apps show a preview card", text: "Sharing a link to the planner or OPTCG Duel in a chat or social post now shows a title, a short description and a picture." },
   // 2026-10-28
   { date: "2026-10-28", app: "both", pr: 802, title: "The server no longer freezes when many players are online at once", text: "When a lot of players used the site at the same moment, it could lock up and stop answering until it was restarted. Busy times now just queue briefly and keep working." },
   { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },
