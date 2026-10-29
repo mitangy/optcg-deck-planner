@@ -52,6 +52,8 @@ import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
+import { OnlyOnDuel } from "../home/OnlyOnDuel";
+import { BrandWordmark } from "../BrandMark";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
@@ -858,7 +860,7 @@ export function LobbyPage() {
           <div className="topbar-left">
             <NavMenu />
             <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-              OPTCG Duel
+              <BrandWordmark />
             </Link>
           </div>
           <div className="topbar-right">
@@ -1044,6 +1046,8 @@ export function LobbyPage() {
               })}
             </div>
           </div>
+
+          <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
 
           {showIosHint ? (
             <div className="install-hint" role="note" aria-label="Install on your iPhone">
