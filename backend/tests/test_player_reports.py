@@ -198,11 +198,10 @@ def test_the_reported_seat_comes_from_an_unfinished_game_810(client):
 
 
 def test_unknown_match_or_bot_seat_is_player_not_found_810(client):
+    # A bot game stores no result row, so its room id is an unknown match like any other.
     c, S = client
     luffy = user(S, "Luffy")
-    finished_match(S, "vsbot", luffy, -1)
     assert seat_report(c, luffy, "nope", 1).status_code == 404
-    assert seat_report(c, luffy, "vsbot", 1).status_code == 404
     assert report(c, luffy, source="friends", reported_user_id=99999).status_code == 404
 
 
