@@ -44,4 +44,37 @@ describe("sideSkins", () => {
     const s = sideSkins({ own, seatSkins: old, nearSeat: 1, farSeat: 0, hotseat: false, spectating: false });
     expect(s.far.donArt).toBeNull();
   });
+
+  const base = { own, seatSkins, nearSeat: 0 as const, farSeat: 1 as const, hotseat: false, spectating: false };
+  const standardKeepingDon = (donArt: number) => ({ playmat: null, cardBack: null, donArt });
+
+  it("hides the opponent's playmat and card back when showOthersArt is off, keeping their DON!! art (#812)", () => {
+    const s = sideSkins({ ...base, showOthersArt: false });
+    expect(s.far).toEqual(standardKeepingDon(201));
+    expect(s.near).toEqual(own);
+  });
+
+  it("hides both seats' playmats and card backs when spectating with showOthersArt off (#812)", () => {
+    const s = sideSkins({ ...base, spectating: true, nearSeat: 1, farSeat: 0, showOthersArt: false });
+    expect(s.near).toEqual(standardKeepingDon(201));
+    expect(s.far).toEqual(standardKeepingDon(200));
+  });
+
+  it("practice keeps your art on both halves even with showOthersArt off (#812)", () => {
+    const s = sideSkins({ ...base, hotseat: true, showOthersArt: false });
+    expect(s.near).toEqual(own);
+    expect(s.far).toEqual(own);
+  });
+
+  it("a hidden seat loses its art for the match while the other spectated seat keeps theirs (#812)", () => {
+    const s = sideSkins({ ...base, spectating: true, nearSeat: 1, farSeat: 0, hiddenSeats: new Set([0]) });
+    expect(s.far).toEqual(standardKeepingDon(200));
+    expect(s.near).toEqual({ playmat: "seat1-mat", cardBack: "seat1-back", donArt: 201 });
+  });
+
+  it("hiding your own seat's number does not touch your own half (#812)", () => {
+    const s = sideSkins({ ...base, hiddenSeats: new Set([0]) });
+    expect(s.near).toEqual(own);
+    expect(s.far.playmat).toBe("seat1-mat");
+  });
 });

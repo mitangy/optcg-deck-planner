@@ -74,4 +74,13 @@ describe("match menu items", () => {
     expect(items[items.length - 1]).toBe("leave");
     expect(items.indexOf("concede")).toBeLessThan(items.indexOf("leave"));
   });
+
+  it("Hide art is offered only when asked, never in practice, and sits before Report (#812)", () => {
+    expect(matchMenuItems(live)).not.toContain("hide-art");
+    const items = matchMenuItems({ ...live, hideArtOffered: true });
+    expect(items).toContain("hide-art");
+    expect(items.indexOf("hide-art")).toBeLessThan(items.indexOf("report"));
+    expect(matchMenuItems({ ...live, hideArtOffered: true, hotseat: true })).not.toContain("hide-art");
+    expect(matchMenuItems({ ...live, hideArtOffered: true, spectating: true })).toContain("hide-art");
+  });
 });

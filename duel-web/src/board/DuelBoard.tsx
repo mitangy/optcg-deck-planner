@@ -165,6 +165,7 @@ import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview }
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
 import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
+import type { ArtToggle } from "./HideArtItems";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
 import { fitDock, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
@@ -350,6 +351,14 @@ export function DuelBoard({
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
+  /** Seats whose custom art this viewer hid; lives and dies with the board, never saved (#812). */
+  const [hiddenArtSeats, setHiddenArtSeats] = useState<ReadonlySet<Seat>>(() => new Set());
+  const toggleHiddenArt = (seat: Seat) =>
+    setHiddenArtSeats((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(seat)) next.add(seat);
+      return next;
+    });
   const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   /**
    * Keep hand open: the player tucked the hand fully away (H or its Hide
@@ -1808,7 +1817,15 @@ export function DuelBoard({
     farSeat: oppSeat,
     hotseat: Boolean(hotseatPass),
     spectating,
+    showOthersArt: prefs.showOthersArt,
+    hiddenSeats: hiddenArtSeats,
   });
+  // One row per other seat that has custom art to hide (both seats when spectating); none in practice.
+  const artToggles: ArtToggle[] = hotseatPass || !prefs.showOthersArt
+    ? []
+    : (spectating ? [boardSeat, oppSeat] : [oppSeat])
+        .filter((s) => seatSkins?.[s]?.playmat || seatSkins?.[s]?.cardBack)
+        .map((s) => ({ seat: s, name: spectating ? seatLabel(players, s) : seatName(players, s), hidden: hiddenArtSeats.has(s) }));
   const oppMatUrl = skins.far.playmat;
   const oppCardBackUrl = skins.far.cardBack;
   const nearDonUrl = donArtUrl(skins.near.donArt);
@@ -2058,7 +2075,10 @@ export function DuelBoard({
         fullscreenInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
         replay: isReplay,
+        hideArtOffered: artToggles.length > 0,
       })}
+      artToggles={artToggles}
+      onToggleArt={toggleHiddenArt}
       info={{
         matchup: players
           ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
