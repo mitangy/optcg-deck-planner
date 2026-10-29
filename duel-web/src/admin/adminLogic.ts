@@ -1,6 +1,6 @@
-import type { AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "users";
+export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
@@ -8,13 +8,14 @@ export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "hosting", label: "Hosting" },
   { id: "event", label: "Event" },
   { id: "reports", label: "Reports" },
+  { id: "uploads", label: "Uploads" },
   { id: "users", label: "Users" },
 ];
 
-/** The admin tabs a role may open: the admin sees all six, a moderator Reports then Users, anyone else none. */
+/** The admin tabs a role may open: the admin sees all seven, a moderator Reports, Uploads then Users, anyone else none. */
 export function tabsForRole(role: Role | undefined | null): readonly { id: AdminTab; label: string }[] {
   if (role === "admin") return ADMIN_TABS;
-  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "users");
+  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "uploads" || t.id === "users");
   return [];
 }
 
@@ -408,3 +409,32 @@ export const REPORT_SOURCE_LABELS: Record<string, string> = {
   history: "From match history",
   friends: "Friends list",
 };
+
+// ---------------------------------------------------------------- uploaded images (#812)
+
+export const TAKE_DOWN_CHOICES = ["Copyright notice", "Explicit", "Hateful", "Other"] as const;
+export type TakeDownChoice = (typeof TAKE_DOWN_CHOICES)[number];
+const TAKE_DOWN_MAX = 200;
+
+/** The reason sent with a take-down: the choice, then the note after a colon. "Other" has to say what; null while it does not. */
+export function takeDownReason(choice: TakeDownChoice, note: string): string | null {
+  const extra = note.trim();
+  if (choice === "Other") return extra ? extra.slice(0, TAKE_DOWN_MAX) : null;
+  return (extra ? `${choice}: ${extra}` : choice).slice(0, TAKE_DOWN_MAX);
+}
+
+/** "812 B", "48 KB", "1.4 MB". */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Only the admin undoes a take-down; the server refuses a moderator. */
+export function canRestoreUpload(actor: { role: Role }, row: Pick<UploadRow, "taken_down_at">): boolean {
+  return actor.role === "admin" && row.taken_down_at !== null;
+}
+
+export function uploadKindLabel(kind: UploadRow["kind"]): string {
+  return kind === "cardBack" ? "Card back" : "Playmat";
+}

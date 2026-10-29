@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
+import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -11,9 +11,9 @@ const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = 
 });
 
 describe("admin tabs per role (#667)", () => {
-  it("shows the admin all six tabs, a moderator Reports then Users, and anyone else none (#667)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "reports", "users"]);
-    expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "users"]);
+  it("shows the admin all seven tabs, a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "reports", "uploads", "users"]);
+    expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
   });
@@ -205,5 +205,33 @@ describe("player reports in the admin page (#810)", () => {
     expect(handledLine({ ...base, action: "image_removed" })).toBe("Image removed by Zed · 2026-10-29 14:03");
     expect(handledLine({ ...base, status: "dismissed", action: "" })).toBe("Dismissed by Zed · 2026-10-29 14:03");
     expect(handledLine({ ...base, status: "open", action: "" })).toBeNull();
+  });
+});
+
+describe("uploaded images in the admin page (#812)", () => {
+  it("builds the take-down reason from the choice and note, and makes Other say why (#812)", () => {
+    expect(takeDownReason("Copyright notice", "")).toBe("Copyright notice");
+    expect(takeDownReason("Explicit", "  nudity on the mat ")).toBe("Explicit: nudity on the mat");
+    expect(takeDownReason("Other", "   ")).toBeNull();
+    expect(takeDownReason("Other", "Spam links")).toBe("Spam links");
+  });
+
+  it("never sends a reason longer than the server accepts (#812)", () => {
+    expect(takeDownReason("Hateful", "x".repeat(300))).toHaveLength(200);
+    expect(takeDownReason("Other", "y".repeat(300))).toHaveLength(200);
+  });
+
+  it("writes sizes in B, KB and MB with the unit changing at 1024 (#812)", () => {
+    expect(formatBytes(1023)).toBe("1023 B");
+    expect(formatBytes(1024)).toBe("1 KB");
+    expect(formatBytes(48 * 1024)).toBe("48 KB");
+    expect(formatBytes(1.5 * 1024 * 1024)).toBe("1.5 MB");
+  });
+
+  it("offers Restore to the admin on a taken-down image only, never to a moderator (#812)", () => {
+    const down = { taken_down_at: "2026-10-29T14:03:00Z" };
+    expect(canRestoreUpload({ role: "admin" }, down)).toBe(true);
+    expect(canRestoreUpload({ role: "moderator" }, down)).toBe(false);
+    expect(canRestoreUpload({ role: "admin" }, { taken_down_at: null })).toBe(false);
   });
 });
