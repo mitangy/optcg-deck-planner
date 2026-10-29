@@ -2933,6 +2933,9 @@ img.zone-pile-face {
 .match-result-board {
   align-self: stretch;
 }
+.match-result-report {
+  align-self: center;
+}
 
 /* "View board": the result steps aside to a slim pill under the top bar. */
 .match-result-pill {

@@ -1041,6 +1041,56 @@ class DuelCosmetic(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Moderation takedown (#810): a soft delete. The bytes stay (possible illegal content is
+    # preserved, not destroyed); the image is no longer served, listed, or selectable.
+    taken_down_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    taken_down_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    taken_down_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class PlayerReport(Base):
+    """A player's report of another player's conduct or image (#810)."""
+
+    __tablename__ = "player_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    reporter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reported_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reason: Mapped[str] = mapped_column(String(16))  # conduct | toxic | image
+    image_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)  # playmat | cardBack
+    note: Mapped[str] = mapped_column(Text, default="")
+    match_id: Mapped[str] = mapped_column(String(64), default="")
+    source: Mapped[str] = mapped_column(String(16))  # match | spectate | postmatch | history | friends
+    # The DuelCosmetic the snapshot came from. No foreign key: the owner may delete it later.
+    cosmetic_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    image_mime: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    image_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open | dismissed | actioned
+    action: Mapped[str] = mapped_column(String(32), default="")  # image_removed | warned | banned
+    staff_note: Mapped[str] = mapped_column(String(300), default="")
+    handled_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PlayerWarning(Base):
+    """A moderator's warning, shown to the player until they acknowledge it (#810)."""
+
+    __tablename__ = "player_warnings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    report_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    message: Mapped[str] = mapped_column(String(300))
+    issued_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AnalystEvalRun(Base):

@@ -764,6 +764,9 @@ module.exports = {
     { id: "e2e-popup-edge-gap", args: "card-preview-popup --project=desktop-1280 -g \"drags by its header\"", file: "duel-web/src/board/previewPopupPos.ts", from: "export const POPUP_EDGE = 8;", to: "export const POPUP_EDGE = 0;", kills: [
       "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]"
     ] },
+    { id: "e2e-popup-stays-after-release-off-it", args: "card-preview-popup --project=desktop-1280 -g \"drags by its header\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "      setDrag(null);\n", to: "", kills: [
+      "card-preview-popup.spec.ts > the pop-up drags by its header, stays on screen, and is where it was left after a reload (#529) [desktop-1280]"
+    ] },
     { id: "e2e-popup-double-click-ignored", args: "card-preview-popup --project=desktop-1280 -g \"puts the pop-up back\"", file: "duel-web/src/board/CardPreviewPopup.tsx", from: "if (saved) updateSettings({ previewPopupPos: \"\" });", to: "void 0;", kills: [
       "card-preview-popup.spec.ts > double-clicking the header puts the pop-up back (#529) [desktop-1280]"
     ] },

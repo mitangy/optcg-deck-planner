@@ -136,6 +136,10 @@
       "dest": "/index.html"
     },
     {
+      "src": "/conduct/?",
+      "dest": "/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html",
       "status": 404

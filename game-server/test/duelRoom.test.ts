@@ -875,6 +875,81 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("a taken-down image is blanked in the live room for its owner's seat only (#810)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    type SkinMsg = { seat: number; skin: { playmat: string | null; cardBack: string | null } };
+    const skins: SkinMsg[] = [];
+    const link = (id: number) => `/duel/cosmetics/${id}/public/${"a".repeat(32)}`;
+    const inline = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+    const c0 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(801), preferredSeat: 0 });
+    const c1 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(802), preferredSeat: 1 });
+    c1.onMessage("skin", (m: SkinMsg) => skins.push(m));
+    c0.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: link(77), cardBack: link(78) } });
+    c1.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: link(77), cardBack: inline } });
+    await waitUntil(() => skins.some((m) => m.seat === 0) && skins.some((m) => m.seat === 1), 5000);
+    skins.length = 0;
+
+    // Card back 99 is not what seat 0 shows; playmat 77 is. Seat 1 shows the same playmat link but is another user.
+    presence.deliverTakedowns([
+      { user_id: 801, kind: "cardBack", cosmetic_id: 99 },
+      { user_id: 801, kind: "playmat", cosmetic_id: 77 },
+    ]);
+    await waitUntil(() => skins.length > 0, 5000);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.deepEqual(skins, [
+      { protocolVersion: PROTOCOL_VERSION, seat: 0, skin: { playmat: null, cardBack: link(78), donArt: null } },
+    ]);
+
+    // An inline image has no id to compare, so any takedown of that kind for its owner removes it.
+    skins.length = 0;
+    presence.deliverTakedowns([{ user_id: 802, kind: "cardBack", cosmetic_id: 5 }]);
+    await waitUntil(() => skins.length > 0, 5000);
+    assert.deepEqual(skins, [
+      { protocolVersion: PROTOCOL_VERSION, seat: 1, skin: { playmat: link(77), cardBack: null, donArt: null } },
+    ]);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("a taken-down image is not relayed again when a seat re-sends it (#810)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    type SkinMsg = { seat: number; skin: { playmat: string | null; cardBack: string | null } };
+    const skins: SkinMsg[] = [];
+    const link = (id: number) => `/duel/cosmetics/${id}/public/${"b".repeat(32)}`;
+    const inline = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+    const c0 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(811), preferredSeat: 0 });
+    const c1 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(812), preferredSeat: 1 });
+    c1.onMessage("skin", (m: SkinMsg) => skins.push(m));
+    // Heard before the seat sent anything, so there is no seat skin to blank yet.
+    presence.deliverTakedowns([
+      { user_id: 811, kind: "playmat", cosmetic_id: 91 },
+      { user_id: 811, kind: "cardBack", cosmetic_id: 92 },
+    ]);
+    c0.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: link(91), cardBack: inline } });
+    await waitUntil(() => skins.length === 1, 5000);
+    c0.send("skin", { protocolVersion: PROTOCOL_VERSION, skin: { playmat: link(95), cardBack: link(92) } });
+    await waitUntil(() => skins.length === 2, 5000);
+    assert.deepEqual(
+      skins.map((m) => m.skin),
+      [
+        { playmat: null, cardBack: inline, donArt: null },
+        { playmat: link(95), cardBack: null, donArt: null },
+      ],
+    );
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("relays a cap-sized playmat and card back in one skin message", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

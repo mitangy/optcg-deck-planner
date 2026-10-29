@@ -4,6 +4,7 @@ import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
 import { spectateUrl } from "./clipboard";
 import { useCopyFlash } from "./RoomShare";
+import { HideArtItems, type ArtToggle } from "./HideArtItems";
 import type { MatchMenuItemId } from "./matchMenuItems";
 
 type Props = {
@@ -17,6 +18,10 @@ type Props = {
   /** Defaults to a full page reload; the saved match resumes on boot. */
   onReload?: () => void;
   onReport: () => void;
+  onReportPlayer?: () => void;
+  /** Seats whose art the "hide-art" entry can hide, and its handler (#812). */
+  artToggles?: ArtToggle[];
+  onToggleArt?: (seat: import("../net/protocol").Seat) => void;
   onConcede: () => void;
   onLeave: () => void;
   /**
@@ -50,6 +55,9 @@ export function MatchMenu({
   onToggleFullscreen,
   onReload = () => window.location.reload(),
   onReport,
+  onReportPlayer,
+  artToggles = [],
+  onToggleArt = () => {},
   onConcede,
   onLeave,
   placement = "top",
@@ -160,6 +168,19 @@ export function MatchMenu({
                       </button>
                     </MenuItem>
                   );
+                case "report-player":
+                  return (
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        title="Report this player to the moderators"
+                        onClick={onReportPlayer}
+                      >
+                        Report player
+                      </button>
+                    </MenuItem>
+                  );
                 case "report":
                   return (
                     <MenuItem key={id}>
@@ -173,6 +194,8 @@ export function MatchMenu({
                       </button>
                     </MenuItem>
                   );
+                case "hide-art":
+                  return <HideArtItems key={id} toggles={artToggles} onToggle={onToggleArt} />;
                 case "concede":
                   // Two steps: the first press arms it and the menu stays open (also for Enter / Space).
                   return (

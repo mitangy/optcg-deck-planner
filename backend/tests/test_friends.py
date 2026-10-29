@@ -121,7 +121,7 @@ def test_friend_status_follows_presence_snapshots(client):
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
 
-    assert _snapshot(c, [{"user_id": zoro, "room_id": "room-a", "phase": "playing"}]).status_code == 204
+    assert _snapshot(c, [{"user_id": zoro, "room_id": "room-a", "phase": "playing"}]).status_code == 200
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("in_game", "room-a")
 
@@ -231,7 +231,7 @@ def test_presence_lives_in_redis_when_configured_389(client, fake_redis):
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
 
-    assert _snapshot(c, [{"user_id": zoro, "room_id": "room-a", "phase": "playing"}]).status_code == 204
+    assert _snapshot(c, [{"user_id": zoro, "room_id": "room-a", "phase": "playing"}]).status_code == 200
     with S() as db:
         assert db.query(DuelPresence).count() == 0
     f = _as(c, luffy).get("/friends").json()["friends"][0]
@@ -263,13 +263,13 @@ def test_friend_in_a_game_carries_the_pool_their_room_is_on_682(client):
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
     entry = {"user_id": zoro, "room_id": "room-a", "phase": "playing", "server_url": "https://gs-blue.example.com/"}
-    assert _snapshot(c, [entry]).status_code == 204
+    assert _snapshot(c, [entry]).status_code == 200
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["room_id"], f["server_url"]) == ("room-a", "https://gs-blue.example.com")
 
     # A game server cannot point friends at an address the pool pointer would refuse; the rest of its snapshot still counts.
     for bad in ("http://evil.example.com", "https://user:pw@evil.example.com", "https://evil.example.com/?x=1", "javascript:alert(1)"):
-        assert _snapshot(c, [{**entry, "server_url": bad}]).status_code == 204, bad
+        assert _snapshot(c, [{**entry, "server_url": bad}]).status_code == 200, bad
         f = _as(c, luffy).get("/friends").json()["friends"][0]
         assert (f["room_id"], f["server_url"]) == ("room-a", None), bad
 

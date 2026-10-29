@@ -12,6 +12,8 @@ import {
   type FriendInvite,
   type FriendsState,
 } from "./friendsApi";
+import { Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
+import { openReport } from "../reports/reportDialog";
 import "./friends.css";
 
 const POLL_MS = 10_000;
@@ -139,6 +141,24 @@ function FriendRow({
             Watch
           </button>
         ) : null}
+        <Menu>
+          <MenuButton type="button" className="icon-btn friend-more" aria-label={`More for ${friend.username}`} title="More">
+            ⋯
+          </MenuButton>
+          <MenuList anchor={{ to: "bottom end", gap: 4, padding: 8 }} className="match-menu friend-menu">
+            <MenuItem>
+              <button
+                type="button"
+                className="match-menu-item"
+                onClick={() =>
+                  openReport({ source: "friends", players: [{ name: friend.username, userId: friend.user_id }] })
+                }
+              >
+                Report player
+              </button>
+            </MenuItem>
+          </MenuList>
+        </Menu>
         <button
           type="button"
           className="icon-btn friend-remove"

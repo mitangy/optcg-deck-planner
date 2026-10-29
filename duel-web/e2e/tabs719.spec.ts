@@ -14,6 +14,8 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
     if (path === "/admin/me") return route.fulfill({ json: { role: "admin", can: { analytics: true, set_roles: true, ban: true, delete: true } } });
     if (path === "/admin/hosting") return route.fulfill({ json: { vercel: { configured: false }, render: { configured: false }, github: { configured: false } } });
     if (path === "/admin/users") return route.fulfill({ json: { total: 0, users: [] } });
+    if (path === "/admin/reports") return route.fulfill({ json: { reports: [] } });
+    if (path === "/admin/cosmetics") return route.fulfill({ json: { total: 0, items: [] } });
     return route.fulfill({ status: 500, json: { detail: "faked failure" } });
   });
   await page.goto("/admin");
@@ -39,6 +41,11 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
   await expect(page.getByRole("tabpanel")).not.toContainText("Could not load this tab");
   await expect(page.getByRole("tabpanel")).toHaveAccessibleName("Users");
 
+  await page.keyboard.press("ArrowLeft");
+  await expect(tab("Uploads")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toHaveAccessibleName("Uploads");
+  await page.keyboard.press("ArrowLeft");
+  await expect(tab("Reports")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
   await expect(tab("Event")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");

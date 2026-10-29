@@ -8,18 +8,20 @@ export const LEGAL_UPDATED = "6 October 2026";
 /** Contact for privacy requests and rights-holder notices. If emptied, the pages say a contact is coming. */
 export const LEGAL_CONTACT_EMAIL = "optcgduel@gmail.com";
 
-export type LegalKind = "terms" | "privacy" | "cookies";
+export type LegalKind = "terms" | "privacy" | "cookies" | "conduct";
 
 export const LEGAL_PATHS: Record<LegalKind, string> = {
   terms: "/terms",
   privacy: "/privacy",
   cookies: "/cookies",
+  conduct: "/conduct",
 };
 
 export const LEGAL_TITLES: Record<LegalKind, string> = {
   terms: "Terms & credits",
   privacy: "Privacy policy",
   cookies: "Cookies",
+  conduct: "Rules of conduct",
 };
 
 export const FAN_DISCLAIMER =
@@ -114,6 +116,9 @@ const terms: ReactNode = (
       </li>
       <li>
         Do not cheat, attack or overload the sites or the game server, or scrape them at volume.
+      </li>
+      <li>
+        You agree to follow our <a href="/conduct">Rules of conduct</a>. We may remove images, warn, suspend or ban accounts that break them.
       </li>
       <li>
         We may remove content or suspend accounts that break these terms. You can stop using the
@@ -214,6 +219,14 @@ const privacy: ReactNode = (
         server can recognise you between matches.
       </li>
     </ul>
+
+    <h3>Player reports</h3>
+    <p>
+      When you report a player we store who reported, who was reported, the reason you chose, your
+      note, the match ID and, for an image report, a copy of the reported image. Only moderators
+      see reports. The reported player is not told who reported them. Reports are kept for as long
+      as moderation needs them.
+    </p>
 
     <h3>Feedback</h3>
     <p>
@@ -363,4 +376,51 @@ const cookies: ReactNode = (
   </>
 );
 
-export const LEGAL_CONTENT: Record<LegalKind, ReactNode> = { terms, privacy, cookies };
+const conduct: ReactNode = (
+  <>
+    <p>
+      OPTCG Duel is a friendly place to play. These rules apply to usernames, chat, images and how
+      you play. They are short on purpose.
+    </p>
+
+    <h2>Be respectful</h2>
+    <p>
+      No harassment, hate speech, slurs, threats, or going after someone for who they are.
+    </p>
+
+    <h2>Keep chat and names clean</h2>
+    <p>
+      No sexual content, spam, scams, advertising, or pretending to be staff or another player.
+    </p>
+
+    <h2>Keep images all-ages</h2>
+    <p>
+      Playmats and card backs must not show nudity or sexual content, gore, hate symbols,
+      anyone’s personal info, or images you have no right to use.
+    </p>
+
+    <h2>Play fair</h2>
+    <p>
+      No cheating, deliberately abusing bugs (report them instead), win-trading, colluding, or
+      extra accounts to change rankings.
+    </p>
+
+    <h2>Don’t grief</h2>
+    <p>
+      No stalling the clock on purpose or leaving games just to waste the other player’s time.
+    </p>
+
+    <h2>Report, don’t retaliate</h2>
+    <p>
+      Use Report player. False or spam reports also break these rules.
+    </p>
+
+    <h2>What happens</h2>
+    <p>
+      Moderators review reports. Outcomes range from removing an image, to a warning, to a ban.
+      Questions or appeals: <a href="mailto:optcgduel@gmail.com">optcgduel@gmail.com</a>.
+    </p>
+  </>
+);
+
+export const LEGAL_CONTENT: Record<LegalKind, ReactNode> = { terms, privacy, cookies, conduct };

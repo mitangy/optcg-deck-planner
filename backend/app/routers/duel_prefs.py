@@ -87,7 +87,8 @@ def _check_kind(kind: str) -> str:
 
 def _own_cosmetic(db: Session, user: User, cosmetic_id: int) -> DuelCosmetic:
     row = db.get(DuelCosmetic, cosmetic_id)
-    if row is None or row.user_id != user.id:
+    # A taken-down image (#810) is evidence: the owner can neither use nor delete it.
+    if row is None or row.user_id != user.id or row.taken_down_at is not None:
         raise HTTPException(status_code=404, detail="Image not found")
     return row
 
@@ -129,7 +130,7 @@ def put_settings_for_me(
 def _cosmetics_out(db: Session, user_id: int) -> DuelCosmeticsOut:
     rows = db.scalars(
         select(DuelCosmetic)
-        .where(DuelCosmetic.user_id == user_id)
+        .where(DuelCosmetic.user_id == user_id, DuelCosmetic.taken_down_at.is_(None))
         .order_by(DuelCosmetic.created_at.desc(), DuelCosmetic.id.desc())
     ).all()
     prefs = db.get(DuelUserSettings, user_id)
@@ -200,7 +201,12 @@ async def upload_cosmetic(
     active_id = getattr(prefs, _active_attr(kind))
     ids = db.scalars(
         select(DuelCosmetic.id)
-        .where(DuelCosmetic.user_id == user.id, DuelCosmetic.kind == kind)
+        .where(
+            DuelCosmetic.user_id == user.id,
+            DuelCosmetic.kind == kind,
+            # Taken-down images are evidence: pruning must never delete them (#810).
+            DuelCosmetic.taken_down_at.is_(None),
+        )
         .order_by(DuelCosmetic.created_at.desc(), DuelCosmetic.id.desc())
     ).all()
     keep = MAX_PER_KIND - (1 if active_id in ids else 0)
@@ -272,14 +278,15 @@ def public_cosmetic_image(
     if not hmac.compare_digest(sig.encode(), public_sig(cosmetic_id, settings).encode()):
         raise HTTPException(status_code=404, detail="Image not found")
     row = db.get(DuelCosmetic, cosmetic_id)
-    if row is None:
+    if row is None or row.taken_down_at is not None:
         raise HTTPException(status_code=404, detail="Image not found")
     return Response(
         content=row.data,
         media_type=row.mime,
         headers={
-            # Ids are never reused for different bytes, so the link is immutable.
-            "Cache-Control": "public, max-age=31536000, immutable",
+            # Short and not immutable: when a moderator takes an image down, caches
+            # and CDNs must stop serving it within about an hour (#812).
+            "Cache-Control": "public, max-age=3600",
             "X-Content-Type-Options": "nosniff",
             "Cross-Origin-Resource-Policy": "cross-origin",
         },

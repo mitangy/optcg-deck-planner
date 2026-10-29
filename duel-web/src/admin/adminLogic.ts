@@ -1,19 +1,21 @@
-import type { AdminUser, EventFlag, EventParticipant, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "hosting" | "event" | "users";
+export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
   { id: "bots", label: "Bots & Log Pose" },
   { id: "hosting", label: "Hosting" },
   { id: "event", label: "Event" },
+  { id: "reports", label: "Reports" },
+  { id: "uploads", label: "Uploads" },
   { id: "users", label: "Users" },
 ];
 
-/** The admin tabs a role may open: the admin sees all five, a moderator only Users, anyone else none. */
+/** The admin tabs a role may open: the admin sees all seven, a moderator Reports, Uploads then Users, anyone else none. */
 export function tabsForRole(role: Role | undefined | null): readonly { id: AdminTab; label: string }[] {
   if (role === "admin") return ADMIN_TABS;
-  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "users");
+  if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "uploads" || t.id === "users");
   return [];
 }
 
@@ -364,4 +366,75 @@ export function canDrawEvent(event: { status: string; draw: { drawn_at: string |
 /** The seed can be committed only while the event is upcoming and none exists. */
 export function canCommitSeed(event: { status: string; draw: unknown | null }): boolean {
   return event.status === "upcoming" && event.draw === null;
+}
+
+// ---------------------------------------------------------------- player reports
+
+export const DEFAULT_WARNING = "Please follow the Rules of conduct.";
+
+/** Why Warn and Ban are off for this report's player, or null when the actor may act. Mirrors the server's ban rule. */
+export function reportActionBlock(actor: { id: number; role: Role }, reported: Pick<ReportRow["reported"], "id" | "role">): string | null {
+  if (canBanUser(actor, reported)) return null;
+  if (actor.id === reported.id) return "You cannot act on your own account.";
+  if (reported.role === "admin") return "Admin accounts cannot be warned or banned.";
+  return "Only an admin can act on staff accounts.";
+}
+
+/** "2026-10-29 14:03", UTC. */
+export function stampOf(iso: string): string {
+  return iso.slice(0, 16).replace("T", " ");
+}
+
+const ACTION_WORDS: Record<string, string> = { image_removed: "Image removed", warned: "Warned", banned: "Banned" };
+
+/** The line under a handled report: what was done, by whom, when. Null while it is open. */
+export function handledLine(r: Pick<ReportRow, "status" | "action" | "handled_by_name" | "handled_at">): string | null {
+  if (r.status === "open") return null;
+  const what = r.status === "dismissed" ? "Dismissed" : (ACTION_WORDS[r.action] ?? "Actioned");
+  const who = r.handled_by_name ? ` by ${r.handled_by_name}` : "";
+  const when = r.handled_at ? ` · ${stampOf(r.handled_at)}` : "";
+  return `${what}${who}${when}`;
+}
+
+export const REPORT_REASON_LABELS: Record<string, string> = {
+  conduct: "Rules of conduct",
+  toxic: "Toxic or abusive",
+  image: "Inappropriate image",
+};
+
+export const REPORT_SOURCE_LABELS: Record<string, string> = {
+  match: "In a match",
+  spectate: "Spectating",
+  postmatch: "After a match",
+  history: "From match history",
+  friends: "Friends list",
+};
+
+// ---------------------------------------------------------------- uploaded images (#812)
+
+export const TAKE_DOWN_CHOICES = ["Copyright notice", "Explicit", "Hateful", "Other"] as const;
+export type TakeDownChoice = (typeof TAKE_DOWN_CHOICES)[number];
+const TAKE_DOWN_MAX = 200;
+
+/** The reason sent with a take-down: the choice, then the note after a colon. "Other" has to say what; null while it does not. */
+export function takeDownReason(choice: TakeDownChoice, note: string): string | null {
+  const extra = note.trim();
+  if (choice === "Other") return extra ? extra.slice(0, TAKE_DOWN_MAX) : null;
+  return (extra ? `${choice}: ${extra}` : choice).slice(0, TAKE_DOWN_MAX);
+}
+
+/** "812 B", "48 KB", "1.4 MB". */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Only the admin undoes a take-down; the server refuses a moderator. */
+export function canRestoreUpload(actor: { role: Role }, row: Pick<UploadRow, "taken_down_at">): boolean {
+  return actor.role === "admin" && row.taken_down_at !== null;
+}
+
+export function uploadKindLabel(kind: UploadRow["kind"]): string {
+  return kind === "cardBack" ? "Card back" : "Playmat";
 }

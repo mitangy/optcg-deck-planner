@@ -80,6 +80,10 @@
       "dest": "/index.html"
     },
     {
+      "src": "/conduct/?",
+      "dest": "/index.html"
+    },
+    {
       "src": "/decks/?",
       "dest": "/index.html"
     },
