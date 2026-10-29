@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-29
-  { date: "2026-10-29", app: "duel", pr: 818, title: "A new logo and new fonts", text: "OPTCG Duel has its own logo, a straw hat card, and new fonts that are easier to tell apart. The home page also lists the things you can only do here, like Ranked bounties, the Log Pose coach, spectating and replays." },
+  { date: "2026-10-29", app: "duel", pr: 820, title: "A new logo and new fonts", text: "OPTCG Duel has its own logo, a straw hat card, and new fonts that are easier to tell apart. The home page also lists the things you can only do here, like Ranked bounties, the Log Pose coach, spectating and replays." },
   { date: "2026-10-29", app: "planner", pr: 811, title: "The planner header uses our own OPTCG wordmark", text: "The top of every planner page now shows a simple OPTCG name instead of the official card game logo." },
   { date: "2026-10-29", app: "duel", pr: 807, title: "A page that explains how to play online", text: "OPTCG Duel now has a page that shows how to start playing OPTCG in your browser, what you can do in the game and answers to common questions. Find it under How to play online at the bottom of any page." },
   { date: "2026-10-29", app: "planner", pr: 807, title: "A home page for visitors who aren't signed in", text: "Anyone who opens the planner without being signed in now sees a home page that explains what it does, with a button to sign in and a link to browse meta decks, instead of going straight to the sign-in screen." },
