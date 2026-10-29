@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-29
   { date: "2026-10-29", app: "planner", pr: 811, title: "The planner header uses our own OPTCG wordmark", text: "The top of every planner page now shows a simple OPTCG name instead of the official card game logo." },
+  { date: "2026-10-29", app: "both", pr: 806, title: "Two OP18 events and 10 alt arts", text: "Let's Go, Karoo!! (OP18-018) and Diable Jambe Flambe Shot (OP18-040) are now in the duel app. New alt arts are available for Boa Hancock, Shanks and Luffy (Mini Case Vol. 3) and for Miss Buckingham Stussy, Alvida, Nami and Baby 5 (Extra Booster 05)." },
   // 2026-10-28
   { date: "2026-10-28", app: "both", pr: 802, title: "The server no longer freezes when many players are online at once", text: "When a lot of players used the site at the same moment, it could lock up and stop answering until it was restarted. Busy times now just queue briefly and keep working." },
   { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },

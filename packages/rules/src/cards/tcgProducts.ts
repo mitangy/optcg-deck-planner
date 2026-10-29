@@ -761,6 +761,14 @@ export const TCG_PRODUCTS: Record<
     "productId": 725887,
     "alts": []
   },
+  "OP18-018": {
+    "productId": 726144,
+    "alts": []
+  },
+  "OP18-040": {
+    "productId": 726787,
+    "alts": []
+  },
   "P-152": {
     "productId": 717032,
     "alts": []
