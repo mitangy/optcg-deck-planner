@@ -60,6 +60,26 @@ const terms: ReactNode = (
       If you hold rights in any of this content and want something changed or removed, email <Contact /> and we will act on it promptly.
     </p>
 
+    <h2>Copyright and content reports</h2>
+    <p>
+      If you believe something on the sites, including a player’s uploaded playmat or card back,
+      infringes your copyright or breaks these terms, email <Contact /> with:
+    </p>
+    <ul>
+      <li>the item (a screenshot and the player’s name or match link);</li>
+      <li>your contact details;</li>
+      <li>the work you own;</li>
+      <li>
+        a statement that you believe in good faith the use is not authorised and that your notice
+        is accurate.
+      </li>
+    </ul>
+    <p>
+      We remove reported content promptly while we look into it. Accounts that repeatedly upload
+      infringing content lose upload rights or are suspended. Use the in-game Report button for
+      conduct problems.
+    </p>
+
     <h2>Using the sites</h2>
     <ul>
       <li>

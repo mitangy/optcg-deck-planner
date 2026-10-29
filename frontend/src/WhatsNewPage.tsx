@@ -1,3 +1,4 @@
+import { BrandWordmark } from "./BrandWordmark";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
@@ -16,7 +17,7 @@ export function WhatsNewPage() {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/">
-              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
