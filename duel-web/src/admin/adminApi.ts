@@ -206,7 +206,8 @@ export type AdminEvent = {
   draw: EventDrawState | null;
 };
 
-export const fetchAdminEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`);
+/** The newest event whatever the date (the banner's /current stops after a week, but forfeits come later). */
+export const fetchLatestAdminEvent = () => call<AdminEvent>("/admin/events/latest");
 export const commitEventSeed = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/commit`, { method: "POST" });
 export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/draw`, { method: "POST" });
 export const forfeitEventWinner = (id: string, userId: number) =>

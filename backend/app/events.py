@@ -72,6 +72,11 @@ def current_event(now: datetime | None = None) -> Event | None:
     return max(recent, key=lambda e: e.ends_at) if recent else None
 
 
+def latest_event() -> Event:
+    """The event that ends last, with no time window (admin tools and the rules page need it after the banner is gone)."""
+    return max(EVENTS, key=lambda e: e.ends_at)
+
+
 def event_status(event: Event, now: datetime, drawn: bool) -> str:
     """upcoming | live | ended | drawn."""
     if drawn:

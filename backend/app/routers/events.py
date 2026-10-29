@@ -91,10 +91,22 @@ def _can_join(event: ev.Event, user: User | None, now: datetime) -> tuple[bool, 
 
 @router.get("/current")
 def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
+    """The lobby banner's event: live or upcoming, or one that ended in the last week."""
     now = ev.now_utc()
     event = ev.current_event(now)
     if event is None:
         return {"event": None}
+    return {"event": _public_event(db, user, event, now)}
+
+
+@router.get("/{event_id}")
+def by_id(event_id: str, db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
+    """One event by id at any time, so the rules page keeps the seed and eligible ids through the
+    draw and the reply window long after the banner stops advertising it (#795)."""
+    return {"event": _public_event(db, user, _event_or_404(event_id), ev.now_utc())}
+
+
+def _public_event(db: Session, user: User | None, event: ev.Event, now: datetime) -> dict:
     draw = _draw(db, event.id)
     drawn = draw is not None and draw.drawn_at is not None
     can_join, reason = _can_join(event, user, now)
@@ -123,7 +135,7 @@ def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) ->
         p = ev.user_progress(db, event, user)
         out["opted_in"] = p["opted_in"]
         out["progress"] = {"games": p["games"], "opponents": p["opponents"], "eligible": p["eligible"]}
-    return {"event": out}
+    return out
 
 
 class JoinIn(BaseModel):
@@ -218,6 +230,12 @@ def _admin_state(db: Session, event: ev.Event) -> dict:
             draw_out["winners"] = [row(uid) for uid in _winners(event, draw)]
         state["draw"] = draw_out
     return state
+
+
+@admin_router.get("/latest")
+def admin_latest_event(_: Admin, db: DB) -> dict:
+    """The newest event whatever the date, so the admin tab can still draw and forfeit weeks after the end (#795)."""
+    return _admin_state(db, ev.latest_event())
 
 
 @admin_router.get("/{event_id}")
