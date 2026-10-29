@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { EvalRun } from "./adminApi";
-import { canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
+import type { EvalRun, EventFlag } from "./adminApi";
+import { canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -155,7 +155,7 @@ describe("Log Pose feedback rows (#679)", () => {
 
 describe("giveaway event tab (#794)", () => {
   const p = (user_id: number, name: string, games: number, opponents: number, eligible: boolean) =>
-    ({ user_id, name, email: `${name}@x.test`, games, opponents, eligible, excluded: null }) as const;
+    ({ user_id, name, email: `${name}@x.test`, games, opponents, eligible, excluded: null, flags: [] as EventFlag[] });
   const rows = [p(1, "Zed", 5, 3, true), p(2, "Amy", 2, 1, false), p(3, "Bo", 4, 2, true), p(4, "Cy", 9, 1, false)];
 
   it("lists eligible players first, then the most games (#794)", () => {
@@ -165,6 +165,13 @@ describe("giveaway event tab (#794)", () => {
   it("sorts by a chosen column in either direction (#794)", () => {
     expect(sortParticipants(rows, { key: "games", dir: "desc" }).map((r) => r.name)).toEqual(["Cy", "Zed", "Bo", "Amy"]);
     expect(sortParticipants(rows, { key: "name", dir: "asc" }).map((r) => r.name)).toEqual(["Amy", "Bo", "Cy", "Zed"]);
+  });
+
+  it("sorts flagged players first by flag count, and shows an unknown flag by its own name (#809)", () => {
+    const f = (r: ReturnType<typeof p>, flags: EventFlag[]) => ({ ...r, flags });
+    const flagged = [f(p(1, "Zed", 9, 3, true), []), f(p(2, "Amy", 2, 1, false), ["new_account"]), f(p(3, "Bo", 4, 2, true), ["new_account", "private_only"])];
+    expect(sortParticipants(flagged, { key: "flags", dir: "desc" }).map((r) => r.name)).toEqual(["Bo", "Amy", "Zed"]);
+    expect(eventFlagInfo("from_a_newer_server")).toEqual({ label: "from_a_newer_server", title: "from_a_newer_server" });
   });
 
   it("offers the seed commit only before the start and the draw only after the end, once (#794)", () => {

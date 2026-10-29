@@ -176,6 +176,7 @@ def _admin_state(db: Session, event: ev.Event) -> dict:
             "games_in_window": games,
             "players_with_game": players,
             "eligible": sum(1 for p in parts if p.eligible),
+            "flagged_eligible": sum(1 for p in parts if p.eligible and p.flags),
         },
         "participants": [
             {
@@ -186,6 +187,7 @@ def _admin_state(db: Session, event: ev.Event) -> dict:
                 "opponents": p.opponents,
                 "eligible": p.eligible,
                 "excluded": p.excluded,
+                "flags": list(p.flags),
             }
             for p in parts
         ],
@@ -236,9 +238,9 @@ def admin_event_csv(event_id: str, _: Admin, db: DB) -> Response:
     event = _event_or_404(event_id)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["user_id", "name", "email", "games", "opponents", "eligible", "excluded"])
+    w.writerow(["user_id", "name", "email", "games", "opponents", "eligible", "excluded", "flags"])
     for p in ev.participants(db, event):
-        w.writerow([p.user.id, _csv_cell(_name(p.user)), _csv_cell(p.user.email), p.games, p.opponents, "yes" if p.eligible else "no", p.excluded or ""])
+        w.writerow([p.user.id, _csv_cell(_name(p.user)), _csv_cell(p.user.email), p.games, p.opponents, "yes" if p.eligible else "no", p.excluded or "", ";".join(p.flags)])
     return Response(
         buf.getvalue(),
         media_type="text/csv",
