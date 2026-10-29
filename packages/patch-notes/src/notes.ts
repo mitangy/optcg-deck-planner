@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-29
-  { date: "2026-10-29", app: "duel", pr: 812, title: "Hide other players' playmats and card backs", text: "Settings has a new switch, \"Show other players' playmats and card backs\". Turn it off to always see the standard art for opponents and players you watch. In a match, the ⋯ menu also has \"Hide <name>'s art\" to hide one player's art for that match only. Custom art still shows by default." },
+  { date: "2026-10-29", app: "duel", pr: 812, title: "Hide playmats and card backs from other players", text: "Settings has a new switch, \"Show other players' playmats and card backs\". Turn it off to always see the standard art for opponents and players you watch. In a match, the ⋯ menu also has \"Hide <name>'s art\" to hide one player's art for that match only. Custom art still shows by default." },
   // 2026-10-28
   { date: "2026-10-28", app: "both", pr: 802, title: "The server no longer freezes when many players are online at once", text: "When a lot of players used the site at the same moment, it could lock up and stop answering until it was restarted. Busy times now just queue briefly and keep working." },
   { date: "2026-10-28", app: "duel", pr: 794, title: "Stress Test Sunday on Nov 22", text: "Play 3 finished games against at least 2 different signed-in players between 12:00 and 4:00 PM Eastern on Sunday, Nov 22, and enter a free giveaway for one of three $20 TCGPlayer gift cards. Join from the banner on the home page; US residents aged 13 or older only, see the official rules." },
