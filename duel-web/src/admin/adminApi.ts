@@ -180,7 +180,9 @@ export const banUser = (id: number, reason: string) =>
 export const unbanUser = (id: number) => call<AdminUser>(`/admin/users/${id}/unban`, { method: "POST" });
 export const deleteUser = (id: number) => call<void>(`/admin/users/${id}`, { method: "DELETE" });
 
-export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null };
+/** Advisory cheat-review flags (#809). They never change eligibility. */
+export type EventFlag = "new_account" | "new_opponents" | "isolated_group" | "private_only";
+export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null; flags: EventFlag[] };
 export type EventDrawee = { user_id: number; name: string; email: string; forfeited: boolean };
 export type EventDrawState = {
   seed_hash: string;
@@ -201,7 +203,7 @@ export type AdminEvent = {
   winners_count: number;
   min_games: number;
   min_opponents: number;
-  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number };
+  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number; flagged_eligible: number };
   participants: EventParticipant[];
   draw: EventDrawState | null;
 };
