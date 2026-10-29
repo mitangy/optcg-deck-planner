@@ -1,4 +1,4 @@
-import type { AdminUser, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
 export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "users";
 
@@ -329,7 +329,19 @@ export function timeOf(iso: string): string {
   return iso.slice(11, 16);
 }
 
-export type ParticipantSortKey = "name" | "email" | "games" | "opponents" | "eligible";
+/** Short label and tooltip for each advisory giveaway flag (#809). */
+export const EVENT_FLAG_INFO: Record<EventFlag, { label: string; title: string }> = {
+  new_account: { label: "New account", title: "Account made in the 7 days before the event" },
+  new_opponents: { label: "New opponents", title: "Every counted opponent has an account made in the 7 days before the event" },
+  isolated_group: { label: "Small closed group", title: "Counted games only link this player to a group of 4 accounts or fewer" },
+  private_only: { label: "Private games only", title: "None of the counted games were ranked-queue games" },
+};
+
+export function eventFlagInfo(flag: string): { label: string; title: string } {
+  return EVENT_FLAG_INFO[flag as EventFlag] ?? { label: flag, title: flag };
+}
+
+export type ParticipantSortKey = "name" | "email" | "games" | "opponents" | "eligible" | "flags";
 
 /** Sorts the giveaway participants. Ties fall back to eligible first, then most games, then name, so the order is stable. */
 export function sortParticipants(rows: readonly EventParticipant[], sort: SortState<ParticipantSortKey>): EventParticipant[] {
@@ -339,6 +351,7 @@ export function sortParticipants(rows: readonly EventParticipant[], sort: SortSt
     if (sort.key === "email") return a.email.localeCompare(b.email);
     if (sort.key === "games") return a.games - b.games;
     if (sort.key === "opponents") return a.opponents - b.opponents;
+    if (sort.key === "flags") return a.flags.length - b.flags.length;
     return Number(a.eligible) - Number(b.eligible);
   };
   return [...rows].sort((a, b) => dirSign * primary(a, b) || Number(b.eligible) - Number(a.eligible) || b.games - a.games || a.name.localeCompare(b.name) || a.user_id - b.user_id);
