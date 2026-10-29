@@ -34,6 +34,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/terms", title: `Terms & credits – ${NAME}`, description: "Terms of use and credits for the OPTCG Deck Planner, an unofficial fan-made One Piece Card Game tool." },
   { pattern: "/privacy", title: `Privacy policy – ${NAME}`, description: "What the OPTCG Deck Planner stores about you, why, and how to delete it." },
   { pattern: "/cookies", title: `Cookies – ${NAME}`, description: "The cookies and local storage the OPTCG Deck Planner uses and why." },
+  { pattern: "/conduct", title: `Rules of conduct – ${NAME}`, description: "How to treat other players on the OPTCG Deck Planner: respect, clean chat and names, all-ages images, fair play, and how reports are handled." },
 
   { pattern: "/login", title: `Sign in – ${NAME}`, noindex: true },
   { pattern: "/share/:token", title: `Shared deck – ${NAME}`, noindex: true },
