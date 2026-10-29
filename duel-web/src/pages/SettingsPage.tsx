@@ -364,7 +364,7 @@ export function SettingsPage() {
                   {cardBackUrl
                     ? "Custom card back."
                     : "Official ONE PIECE CARD GAME back."}{" "}
-                  Opponents always see the official back.{" "}
+                  Opponents and spectators see it unless they turn other players' art off.{" "}
                   {savedWhere}
                 </p>
                 <div className="btn-row">
@@ -407,6 +407,19 @@ export function SettingsPage() {
               </div>
             </div>
             <CosmeticHistory kind="cardBack" />
+            <div className="gameplay-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={settings.showOthersArt}
+                  onChange={(e) => update({ showOthersArt: e.target.checked })}
+                />
+                <span>Show other players' playmats and card backs</span>
+              </label>
+              <p className="field-hint">
+                Turn off to always see the standard art for opponents and players you watch. {savedWhere}
+              </p>
+            </div>
           </section>
 
           <section className="panel" id="don-card">

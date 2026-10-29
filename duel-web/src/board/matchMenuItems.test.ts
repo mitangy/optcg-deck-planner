@@ -81,4 +81,13 @@ describe("match menu items", () => {
     // A recording has nobody to report.
     expect(matchMenuItems({ ...live, spectating: true, replay: true, canReportPlayer: true })).not.toContain("report-player");
   });
+
+  it("Hide art is offered only when asked, never in practice, and sits before Report (#812)", () => {
+    expect(matchMenuItems(live)).not.toContain("hide-art");
+    const items = matchMenuItems({ ...live, hideArtOffered: true });
+    expect(items).toContain("hide-art");
+    expect(items.indexOf("hide-art")).toBeLessThan(items.indexOf("report"));
+    expect(matchMenuItems({ ...live, hideArtOffered: true, hotseat: true })).not.toContain("hide-art");
+    expect(matchMenuItems({ ...live, hideArtOffered: true, spectating: true })).toContain("hide-art");
+  });
 });

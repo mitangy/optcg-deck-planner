@@ -284,8 +284,9 @@ def public_cosmetic_image(
         content=row.data,
         media_type=row.mime,
         headers={
-            # Ids are never reused for different bytes, so the link is immutable.
-            "Cache-Control": "public, max-age=31536000, immutable",
+            # Short and not immutable: when a moderator takes an image down, caches
+            # and CDNs must stop serving it within about an hour (#812).
+            "Cache-Control": "public, max-age=3600",
             "X-Content-Type-Options": "nosniff",
             "Cross-Origin-Resource-Policy": "cross-origin",
         },
