@@ -364,7 +364,7 @@ export function SettingsPage() {
                   {cardBackUrl
                     ? "Custom card back."
                     : "Official ONE PIECE CARD GAME back."}{" "}
-                  Opponents always see the official back.{" "}
+                  Opponents and spectators see it unless they turn other players' art off.{" "}
                   {savedWhere}
                 </p>
                 <div className="btn-row">
