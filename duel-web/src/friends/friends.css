@@ -143,6 +143,16 @@
   flex: 0 0 auto;
 }
 
+.friend-more {
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .friend-remove {
   width: 32px;
   height: 32px;

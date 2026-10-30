@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bannerCta, eventPhase, formatCountdown, formatWindow, progressLabel, statusLine } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, formatCountdown, formatWindow, progressLabel, statusLine } from "./eventLogic";
 
 const START = "2026-11-22T17:00:00Z";
 const END = "2026-11-22T21:00:00Z";
@@ -49,5 +49,16 @@ describe("Stress Test Sunday banner (#794)", () => {
     expect(formatWindow(START, END, "en-US", "America/New_York")).toBe("Sun, Nov 22, 12:00 PM – 4:00 PM EST");
     expect(formatWindow(START, END, "en-US", "America/Los_Angeles")).toBe("Sun, Nov 22, 9:00 AM – 1:00 PM PST");
     expect(formatWindow(START, END, "en-US", "UTC")).toBe("Sun, Nov 22, 5:00 PM – 9:00 PM UTC");
+  });
+
+  it("tells staff and guests why they cannot enter, and says closed only once the event is over (#822)", () => {
+    const base = { ...ev, viewer: "staff" as const, can_join: false, opted_in: false, cant_join_reason: "Staff accounts can't enter" };
+    const early = at("2026-11-01T00:00:00Z");
+    expect(closedNote(base, early)).toBe("Staff can't enter");
+    expect(closedNote({ ...base, viewer: "guest", cant_join_reason: "Guests can't enter the giveaway" }, early)).toBe("Guests can't enter");
+    expect(closedNote({ ...base, viewer: "player", cant_join_reason: "Already full" }, early)).toBe("Already full");
+    expect(closedNote({ ...base, viewer: "player", cant_join_reason: null }, early)).toBe("Entries closed");
+    expect(closedNote(base, at(END))).toBe("Entries closed");
+    expect(closedNote({ ...base, viewer: "guest", status: "drawn" }, early)).toBe("Entries closed");
   });
 });

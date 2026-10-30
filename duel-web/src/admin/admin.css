@@ -705,6 +705,11 @@
   color: var(--muted);
 }
 
+.adm-pill-warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
 /* —— Users —— */
 
 .adm-toolbar {
@@ -1494,9 +1499,312 @@
   color: var(--muted);
 }
 
+/* Advisory flag pills (#809): they wrap inside a fixed-width cell so the row never grows sideways. */
+.adm-evt-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 9rem;
+}
+
+.adm-evt-flags-inline {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .adm-evt-flags-inline {
+    display: flex;
+    min-width: 0;
+    margin-top: 0.3rem;
+  }
+
+  .adm-evt-flagcol {
+    display: none;
+  }
+}
+
 /* The table scrolls inside its own box, never the page. */
 .adm-evt-table {
   max-width: 100%;
   max-height: 28rem;
   overflow: auto;
+}
+
+/* —— Reports —— */
+
+.rpt-filter {
+  flex: 0 0 auto;
+  min-width: 10rem;
+}
+
+.rpt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.rpt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--chrome);
+  border-radius: 10px;
+  background: var(--arena-mid);
+}
+
+.rpt-card[data-status="dismissed"],
+.rpt-card[data-status="actioned"] {
+  border-left-color: var(--line-strong);
+  opacity: 0.88;
+}
+
+.rpt-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem 0.8rem;
+  min-width: 0;
+}
+
+.rpt-who {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.rpt-name {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.rpt-counts {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rpt-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.rpt-reason[data-reason="image"] {
+  border-color: var(--chrome);
+  color: var(--chrome-bright);
+}
+
+.rpt-note {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: rgb(var(--abyss-rgb) / 0.35);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.rpt-image {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* The frame keeps its size whether the image has loaded, is blurred or is shown. */
+.rpt-image-frame {
+  display: grid;
+  place-items: center;
+  width: min(100%, 15rem);
+  height: 8.5rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-panel);
+  font-size: 0.78rem;
+}
+
+.rpt-image-frame[data-kind="cardBack"] {
+  width: 6rem;
+}
+
+.rpt-image-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Moderators see an unknown image only on request. */
+  filter: blur(22px);
+  transform: scale(1.15);
+}
+
+.rpt-image-frame[data-shown="true"] img {
+  filter: none;
+  transform: none;
+  object-fit: contain;
+}
+
+.rpt-reveal {
+  min-width: 7.5rem;
+}
+
+.rpt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.rpt-match {
+  overflow-wrap: anywhere;
+}
+
+.rpt-handled {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.rpt-staffnote {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.rpt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rpt-actions .btn {
+  flex: 0 1 auto;
+  min-width: 5.5rem;
+  min-height: 40px;
+}
+
+.rpt-actions .rpt-ban {
+  color: var(--crimson-bright);
+  border-color: var(--crimson-bright);
+}
+
+.rpt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(var(--abyss-rgb) / 0.3);
+}
+
+.rpt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.rpt-field textarea,
+.rpt-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  /* 16px: iOS Safari zooms the page when a smaller field is focused. */
+  font: inherit;
+  font-size: max(16px, 0.9rem);
+}
+
+.rpt-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rpt-ban-confirm {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff6f2;
+}
+
+/* Reserved so an error never resizes the card. */
+.rpt-error {
+  min-height: 1.2em;
+}
+
+@media (max-width: 760px) {
+  .rpt-actions .btn {
+    flex: 1 1 calc(50% - 0.4rem);
+  }
+}
+
+/* —— Uploads (#812) —— */
+
+.upl-filter {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.upl-filter button {
+  padding: 0 0.7rem;
+  white-space: nowrap;
+}
+
+.upl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.upl-card {
+  align-content: start;
+}
+
+.upl-image {
+  align-items: flex-end;
+}
+
+/* A card back is narrower than a playmat; the frame keeps the same height either way. */
+.upl-frame {
+  height: 9rem;
+}
+
+/* Reserved so taking down or restoring never changes the card's height. */
+.upl-down {
+  min-height: 2.4em;
+  color: var(--crimson-bright);
+}
+
+.upl-more {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 40px;
+}
+
+.upl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.upl-hint {
+  margin: 0;
+  font-size: 0.8rem;
 }

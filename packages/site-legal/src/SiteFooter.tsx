@@ -3,7 +3,7 @@ import { FAN_DISCLAIMER, LEGAL_PATHS, LEGAL_TITLES, OWNERSHIP_NOTICE, type Legal
 
 export type FooterLinkProps = { to: string; className?: string; children: ReactNode };
 
-const ORDER: LegalKind[] = ["terms", "privacy", "cookies"];
+const ORDER: LegalKind[] = ["terms", "privacy", "cookies", "conduct"];
 
 /**
  * Page-end footer: legal links, What’s new (and optional feedback button) plus the fan-project blurb. In flow at the end
@@ -14,9 +14,12 @@ export function SiteFooter({
   Link,
   className,
   onFeedback,
+  extraLinks,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
+  /** Extra internal links after What’s new, e.g. a landing page that should be reachable from every page. */
+  extraLinks?: readonly { to: string; label: string }[];
   /** When set, a "Send feedback" button follows the legal links. */
   onFeedback?: () => void;
 }) {
@@ -32,6 +35,11 @@ export function SiteFooter({
           <Link to="/whats-new" className="site-footer-link">
             What’s new
           </Link>
+          {extraLinks?.map((l) => (
+            <Link key={l.to} to={l.to} className="site-footer-link">
+              {l.label}
+            </Link>
+          ))}
           {onFeedback ? (
             <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
               Send feedback
@@ -45,7 +53,7 @@ export function SiteFooter({
   );
 }
 
-/** Switcher between the three legal pages, shown at the top of each. */
+/** Switcher between the legal pages, shown at the top of each. */
 export function LegalNav({ Link, current }: { Link: ComponentType<FooterLinkProps>; current: LegalKind }) {
   return (
     <nav className="legal-nav" aria-label="Legal pages">

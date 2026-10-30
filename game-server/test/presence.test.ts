@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { PresenceReporter, type PresenceEntry } from "../src/presence.js";
+import { PresenceReporter, type PresenceEntry, type Takedown } from "../src/presence.js";
 
 async function waitUntil(pred: () => boolean, timeoutMs = 8000): Promise<void> {
   const start = Date.now();
@@ -115,5 +115,40 @@ describe("PresenceReporter server url", () => {
       assert.deepEqual(await reportedWith(bad), [entry], String(bad));
     }
     assert.deepEqual(await reportedWith("http://localhost:2567"), [{ ...entry, server_url: "http://localhost:2567" }]);
+  });
+});
+
+describe("PresenceReporter takedowns (#810)", () => {
+  function answering(body: BodyInit | null, status: number) {
+    return (async () => new Response(body, { status })) as unknown as typeof fetch;
+  }
+
+  it("hands the takedowns in the API's answer to listeners", async () => {
+    const takedowns = [{ user_id: 5, kind: "playmat", cosmetic_id: 9 }];
+    const reporter = new PresenceReporter(answering(JSON.stringify({ takedowns }), 200), "gs-td");
+    const heard: Takedown[][] = [];
+    reporter.onTakedowns((list) => heard.push(list));
+    await reporter.flush();
+    assert.deepEqual(heard, [takedowns]);
+  });
+
+  it("ignores malformed entries and an older API's empty 204 answer", async () => {
+    const junk = JSON.stringify({ takedowns: [{ user_id: "x", kind: "playmat", cosmetic_id: 1 }, { user_id: 5, kind: "avatar", cosmetic_id: 2 }, null] });
+    const heard: Takedown[][] = [];
+    for (const send of [answering(junk, 200), answering(null, 204), answering("not json", 200)]) {
+      const reporter = new PresenceReporter(send, "gs-td");
+      reporter.onTakedowns((list) => heard.push(list));
+      await reporter.flush();
+    }
+    assert.deepEqual(heard, []);
+  });
+
+  it("does not deliver takedowns from a failed push", async () => {
+    const body = JSON.stringify({ takedowns: [{ user_id: 5, kind: "playmat", cosmetic_id: 9 }] });
+    const reporter = new PresenceReporter(answering(body, 500), "gs-td");
+    const heard: Takedown[][] = [];
+    reporter.onTakedowns((list) => heard.push(list));
+    await reporter.flush();
+    assert.deepEqual(heard, []);
   });
 });

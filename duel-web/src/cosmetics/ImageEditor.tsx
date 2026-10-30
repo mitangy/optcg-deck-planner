@@ -194,6 +194,13 @@ export function ImageEditor({
       <p className="field-hint">
         Drag to reposition · zoom to crop tighter{cx ? ` · source ${cx}` : ""}
       </p>
+      <p className="field-hint">
+        Images must follow the{" "}
+        <a href="/conduct" target="_blank" rel="noopener noreferrer">
+          Rules of conduct
+        </a>
+        . Other players can report them.
+      </p>
       <div className="btn-row">
         <button
           type="button"

@@ -168,10 +168,23 @@ def test_signed_public_link_serves_the_image_without_a_session_389(client):
     assert res.status_code == 200
     assert res.content == JPEG
     assert res.headers["content-type"] == "image/jpeg"
-    assert res.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert res.headers["cache-control"].startswith("public")
     assert res.headers["x-content-type-options"] == "nosniff"
     # The owner-only route still needs the session.
     assert c.get(f"/duel/cosmetics/{mat['id']}/image").status_code == 401
+
+
+def test_public_image_cache_is_short_and_not_immutable_so_takedowns_land_812(client):
+    c, S = client
+    luffy = _user(S, "luffy")
+    mat = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]
+    c.cookies.clear()
+
+    cache = c.get(mat["public_path"]).headers["cache-control"]
+    directives = [d.strip() for d in cache.split(",")]
+    max_age = next(int(d.split("=")[1]) for d in directives if d.startswith("max-age="))
+    assert max_age <= 3600
+    assert "immutable" not in directives
 
 
 def test_public_link_needs_its_exact_signature_389(client):

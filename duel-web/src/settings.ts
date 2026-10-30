@@ -219,6 +219,10 @@ export type DuelSettings = {
   /** Log Pose on the board in casual and practice games: ask about your turn and let it play one you approve. Never in ranked. */
   logPoseCopilot: boolean;
 
+  // —— Other players' art ——
+  /** Show other players' uploaded playmats and card backs (the opponent's, or both seats when spectating). Off: the standard art (#812). */
+  showOthersArt: boolean;
+
   // —— Deck editor ——
   /** Deck stats, draw odds and build hints (shared with the planner) in the deck editor. */
   deckStats: boolean;
@@ -286,6 +290,7 @@ const DEFAULTS: DuelSettings = {
   matchBrief: true,
   matchBriefAuto: false,
   logPoseCopilot: false,
+  showOthersArt: true,
   deckStats: true,
 };
 

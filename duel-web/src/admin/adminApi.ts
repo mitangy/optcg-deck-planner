@@ -180,7 +180,9 @@ export const banUser = (id: number, reason: string) =>
 export const unbanUser = (id: number) => call<AdminUser>(`/admin/users/${id}/unban`, { method: "POST" });
 export const deleteUser = (id: number) => call<void>(`/admin/users/${id}`, { method: "DELETE" });
 
-export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null };
+/** Advisory cheat-review flags (#809). They never change eligibility. */
+export type EventFlag = "new_account" | "new_opponents" | "isolated_group" | "private_only";
+export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null; flags: EventFlag[] };
 export type EventDrawee = { user_id: number; name: string; email: string; forfeited: boolean };
 export type EventDrawState = {
   seed_hash: string;
@@ -201,7 +203,7 @@ export type AdminEvent = {
   winners_count: number;
   min_games: number;
   min_opponents: number;
-  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number };
+  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number; flagged_eligible: number };
   participants: EventParticipant[];
   draw: EventDrawState | null;
 };
@@ -213,3 +215,82 @@ export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encod
 export const forfeitEventWinner = (id: string, userId: number) =>
   call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/forfeit`, { method: "POST", body: JSON.stringify({ user_id: userId }) });
 export const eventCsvUrl = (id: string) => `${getApiBaseUrl()}/admin/events/${encodeURIComponent(id)}/participants.csv`;
+
+// ---------------------------------------------------------------- player reports
+
+export type ReportStatus = "open" | "dismissed" | "actioned";
+
+export type ReportRow = {
+  id: number;
+  created_at: string;
+  status: ReportStatus;
+  action: string;
+  staff_note: string;
+  handled_by_name: string | null;
+  handled_at: string | null;
+  reason: "conduct" | "toxic" | "image";
+  image_kind: "playmat" | "cardBack" | null;
+  note: string;
+  match_id: string;
+  source: string;
+  /** The saved match exists, so /replay/:id opens. */
+  match_finished: boolean;
+  has_image: boolean;
+  cosmetic_id: number | null;
+  image_taken_down: boolean;
+  reporter: { id: number; name: string } | null;
+  reported: { id: number; name: string; role: Role; banned: boolean; open_reports: number; total_reports: number; warnings: number };
+};
+
+export const fetchAdminReports = (status: "open" | "all") =>
+  call<{ reports: ReportRow[] }>(`/admin/reports?status=${status}`).then((r) => r.reports);
+export const dismissReport = (id: number, note = "") =>
+  call<ReportRow>(`/admin/reports/${id}/dismiss`, { method: "POST", body: JSON.stringify({ note: note.trim() || undefined }) });
+export const removeReportImage = (id: number, note = "") =>
+  call<ReportRow>(`/admin/reports/${id}/remove-image`, { method: "POST", body: JSON.stringify({ note: note.trim() || undefined }) });
+export const warnReport = (id: number, message: string) =>
+  call<ReportRow>(`/admin/reports/${id}/warn`, { method: "POST", body: JSON.stringify({ message: message.trim().slice(0, 300) }) });
+export const banReport = (id: number, reason: string) =>
+  call<ReportRow>(`/admin/reports/${id}/ban`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) || undefined }) });
+
+/** The reported image as a blob URL (the snapshot needs the staff cookie, so an <img src> cannot fetch it). Revoke it when done. */
+export async function fetchReportImageUrl(id: number): Promise<string> {
+  const res = await fetch(`${getApiBaseUrl()}/admin/reports/${id}/image`, { credentials: "include" });
+  if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}
+
+// ---------------------------------------------------------------- uploaded images (#812)
+
+export type UploadState = "live" | "taken_down" | "all";
+export type UploadKind = "playmat" | "cardBack";
+
+export type UploadRow = {
+  id: number;
+  kind: UploadKind;
+  mime: string;
+  size: number;
+  created_at: string;
+  /** The owner has it switched on as their playmat / card back. */
+  in_use: boolean;
+  report_count: number;
+  taken_down_at: string | null;
+  taken_down_by_name: string | null;
+  taken_down_reason: string | null;
+  owner: { id: number; name: string; role: Role; banned: boolean };
+};
+
+export type UploadsPage = { total: number; items: UploadRow[] };
+
+export const fetchAdminUploads = (state: UploadState, kind: UploadKind | null, offset: number, limit: number) =>
+  call<UploadsPage>(`/admin/cosmetics?state=${state}${kind ? `&kind=${kind}` : ""}&limit=${limit}&offset=${offset}`);
+export const takeDownUpload = (id: number, reason: string) =>
+  call<UploadRow>(`/admin/cosmetics/${id}/take-down`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) }) });
+export const restoreUpload = (id: number) => call<UploadRow>(`/admin/cosmetics/${id}/restore`, { method: "POST" });
+
+/** An upload as a blob URL (the bytes need the staff cookie, so an <img src> cannot fetch them). Revoke it when done. */
+export async function fetchUploadImageUrl(id: number): Promise<string> {
+  const res = await fetch(`${getApiBaseUrl()}/admin/cosmetics/${id}/image`, { credentials: "include" });
+  if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}

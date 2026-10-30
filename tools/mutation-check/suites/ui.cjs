@@ -74,5 +74,12 @@ module.exports = {
     // Dialog transition prop (#722)
     {"id": "dialog-transition-dropped", "edits": [{"file": "packages/ui/src/popups/Dialog.tsx", "from": "role={role} transition={transition} className", "to": "role={role} className"}, {"file": "packages/ui/src/popups/Dialog.tsx", "from": "<DialogPanel ref={panelRef} transition={transition} className", "to": "<DialogPanel ref={panelRef} className"}], "kills": ["keeps the panel mounted, marked data-closed, while it leaves, then unmounts (#722)"]},
     {"id": "dialog-transition-always-on", "file": "packages/ui/src/popups/Dialog.tsx", "from": "  transition = false,\n  children,", "to": "  transition = true,\n  children,", "kills": ["without transition the panel unmounts at once (#722)"]},
+    // SEO and public pages (#804)
+    {"id": "page-meta-stale-noindex", "file": "packages/ui/src/seo/pageMeta.ts", "from": "  removeAll('meta[name=\"robots\"]');\n", "to": "", "kills": ["removes the noindex a private page left behind when an indexable page opens (#804)"]},
+    {"id": "page-meta-canonical-keeps-query", "file": "packages/ui/src/seo/pageMeta.ts", "from": "const pathname = path.split(/[?#]/)[0] || \"/\";", "to": "const pathname = path || \"/\";", "kills": ["builds the canonical link from the pathname without query or hash (#804)"]},
+    {"id": "page-meta-canonical-on-noindex", "file": "packages/ui/src/seo/pageMeta.ts", "from": "  } else if (url) {", "to": "  }\n  if (url) {", "kills": ["drops the canonical link on a noindex page (#804)"]},
+    {"id": "page-meta-hook-runs-once", "file": "packages/ui/src/seo/pageMeta.ts", "from": "  }, [title, description, path, origin, noindex]);", "to": "  }, []);", "kills": ["applies the meta again when the path changes (#804)"]},
+    {"id": "page-meta-og-url-not-synced", "file": "packages/ui/src/seo/pageMeta.ts", "from": "  if (url) syncIfPresent(\"property\", \"og:url\", url);\n", "to": "", "kills": ["updates the social tags the page already has and does not add new ones (#804)"]},
+    {"id": "page-meta-description-duplicated", "file": "packages/ui/src/seo/pageMeta.ts", "from": "  if (!el) {\n    el = create();", "to": "  if (true) {\n    el = create();", "kills": ["sets the title and description and keeps a single description tag (#804)"]},
   ],
 };

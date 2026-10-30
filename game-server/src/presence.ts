@@ -12,6 +12,9 @@ export type PresenceEntry = {
   server_url?: string;
 };
 
+/** A cosmetic a moderator took down; the API repeats these in the presence answer for 15 minutes (#810). */
+export type Takedown = { user_id: number; kind: "playmat" | "cardBack"; cosmetic_id: number };
+
 export interface PresenceSource {
   presenceEntries(): PresenceEntry[];
 }
@@ -30,6 +33,7 @@ export class PresenceReporter {
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   /** The API already holds an empty snapshot for this process. */
   private lastSentEmpty = false;
+  private takedownListeners = new Set<(list: Takedown[]) => void>();
 
   constructor(
     private send: typeof fetch = fetch,
@@ -46,6 +50,12 @@ export class PresenceReporter {
   unregister(source: PresenceSource): void {
     this.sources.delete(source);
     this.markDirty();
+  }
+
+  /** Called with the API's recent takedowns after every successful push (older APIs answer without any). */
+  onTakedowns(listener: (list: Takedown[]) => void): () => void {
+    this.takedownListeners.add(listener);
+    return () => this.takedownListeners.delete(listener);
   }
 
   /** Something about seats or phase changed; push soon (no-op until started). */
@@ -81,9 +91,42 @@ export class PresenceReporter {
       });
       this.lastSentEmpty = res.ok && entries.length === 0;
       if (!res.ok) console.warn(`Presence push failed: HTTP ${res.status}`);
+      else await this.relayTakedowns(res);
     } catch {
       // A cold or unreachable API just means friends see stale status until the next beat.
       console.warn("Presence push failed; will retry on the next heartbeat");
+    }
+  }
+
+  private async relayTakedowns(res: Response): Promise<void> {
+    if (this.takedownListeners.size === 0) return;
+    let list: Takedown[] = [];
+    try {
+      const body = (await res.json()) as { takedowns?: unknown };
+      if (Array.isArray(body.takedowns)) {
+        list = body.takedowns.filter(
+          (t): t is Takedown =>
+            !!t &&
+            typeof t.user_id === "number" &&
+            typeof t.cosmetic_id === "number" &&
+            (t.kind === "playmat" || t.kind === "cardBack"),
+        );
+      }
+    } catch {
+      return; // 204 / empty / not JSON: an API from before takedowns
+    }
+    this.deliverTakedowns(list);
+  }
+
+  /** Hand takedowns to every listener (a throwing listener never blocks the others). */
+  deliverTakedowns(list: Takedown[]): void {
+    if (list.length === 0) return;
+    for (const listener of this.takedownListeners) {
+      try {
+        listener(list);
+      } catch (e) {
+        console.warn("Takedown listener failed", e);
+      }
     }
   }
 

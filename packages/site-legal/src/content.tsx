@@ -5,21 +5,23 @@ export const LEGAL_DRAFT = true;
 
 export const LEGAL_UPDATED = "6 October 2026";
 
-/** Contact for privacy requests. Empty until one is chosen; the pages say so. */
-export const LEGAL_CONTACT_EMAIL = "";
+/** Contact for privacy requests and rights-holder notices. If emptied, the pages say a contact is coming. */
+export const LEGAL_CONTACT_EMAIL = "optcgduel@gmail.com";
 
-export type LegalKind = "terms" | "privacy" | "cookies";
+export type LegalKind = "terms" | "privacy" | "cookies" | "conduct";
 
 export const LEGAL_PATHS: Record<LegalKind, string> = {
   terms: "/terms",
   privacy: "/privacy",
   cookies: "/cookies",
+  conduct: "/conduct",
 };
 
 export const LEGAL_TITLES: Record<LegalKind, string> = {
   terms: "Terms & credits",
   privacy: "Privacy policy",
   cookies: "Cookies",
+  conduct: "Rules of conduct",
 };
 
 export const FAN_DISCLAIMER =
@@ -57,7 +59,27 @@ const terms: ReactNode = (
     <p>{FAN_DISCLAIMER}</p>
     <p>{OWNERSHIP_NOTICE}</p>
     <p>
-      If you hold rights in any of this content and want something changed or removed, contact <Contact /> and we will act on it promptly.
+      If you hold rights in any of this content and want something changed or removed, email <Contact /> and we will act on it promptly.
+    </p>
+
+    <h2>Copyright and content reports</h2>
+    <p>
+      If you believe something on the sites, including a player’s uploaded playmat or card back,
+      infringes your copyright or breaks these terms, email <Contact /> with:
+    </p>
+    <ul>
+      <li>the item (a screenshot and the player’s name or match link);</li>
+      <li>your contact details;</li>
+      <li>the work you own;</li>
+      <li>
+        a statement that you believe in good faith the use is not authorised and that your notice
+        is accurate.
+      </li>
+    </ul>
+    <p>
+      We remove reported content promptly while we look into it. Accounts that repeatedly upload
+      infringing content lose upload rights or are suspended. Use the in-game Report button for
+      conduct problems.
     </p>
 
     <h2>Using the sites</h2>
@@ -96,6 +118,9 @@ const terms: ReactNode = (
         Do not cheat, attack or overload the sites or the game server, or scrape them at volume.
       </li>
       <li>
+        You agree to follow our <a href="/conduct">Rules of conduct</a>. We may remove images, warn, suspend or ban accounts that break them.
+      </li>
+      <li>
         We may remove content or suspend accounts that break these terms. You can stop using the
         sites at any time and ask us to delete your account (see the{" "}
         <a href="/privacy">Privacy policy</a>).
@@ -113,7 +138,10 @@ const terms: ReactNode = (
         </a>
         .
       </li>
-      <li>Fonts: Fraunces and IBM Plex Sans, served by Google Fonts.</li>
+      <li>
+        Fonts: Fraunces and IBM Plex Sans in the planner; Bricolage Grotesque, Outfit and Chakra Petch in
+        OPTCG Duel. All served by Google Fonts.
+      </li>
       <li>
         Built with open-source software including React, Vite, FastAPI, SQLAlchemy and Colyseus.
         Thank you to their authors.
@@ -192,6 +220,14 @@ const privacy: ReactNode = (
       </li>
     </ul>
 
+    <h3>Player reports</h3>
+    <p>
+      When you report a player we store who reported, who was reported, the reason you chose, your
+      note, the match ID and, for an image report, a copy of the reported image. Only moderators
+      see reports. The reported player is not told who reported them. Reports are kept for as long
+      as moderation needs them.
+    </p>
+
     <h3>Feedback</h3>
     <p>
       When you use “Report a problem” or “Send feedback” on either site we store your message and
@@ -250,7 +286,7 @@ const privacy: ReactNode = (
     <h2>Your choices</h2>
     <p>
       You can see and change most of your data in the apps. To get a copy of your data, correct
-      it, or delete your account and everything linked to it, contact <Contact />. Depending
+      it, or delete your account and everything linked to it, email <Contact />. Depending
       on where you live you may have further rights, such as objecting to processing or
       complaining to a data protection authority.
     </p>
@@ -340,4 +376,51 @@ const cookies: ReactNode = (
   </>
 );
 
-export const LEGAL_CONTENT: Record<LegalKind, ReactNode> = { terms, privacy, cookies };
+const conduct: ReactNode = (
+  <>
+    <p>
+      OPTCG Duel is a friendly place to play. These rules apply to usernames, chat, images and how
+      you play. They are short on purpose.
+    </p>
+
+    <h2>Be respectful</h2>
+    <p>
+      No harassment, hate speech, slurs, threats, or going after someone for who they are.
+    </p>
+
+    <h2>Keep chat and names clean</h2>
+    <p>
+      No sexual content, spam, scams, advertising, or pretending to be staff or another player.
+    </p>
+
+    <h2>Keep images all-ages</h2>
+    <p>
+      Playmats and card backs must not show nudity or sexual content, gore, hate symbols,
+      anyone’s personal info, or images you have no right to use.
+    </p>
+
+    <h2>Play fair</h2>
+    <p>
+      No cheating, deliberately abusing bugs (report them instead), win-trading, colluding, or
+      extra accounts to change rankings.
+    </p>
+
+    <h2>Don’t grief</h2>
+    <p>
+      No stalling the clock on purpose or leaving games just to waste the other player’s time.
+    </p>
+
+    <h2>Report, don’t retaliate</h2>
+    <p>
+      Use Report player. False or spam reports also break these rules.
+    </p>
+
+    <h2>What happens</h2>
+    <p>
+      Moderators review reports. Outcomes range from removing an image, to a warning, to a ban.
+      Questions or appeals: <a href="mailto:optcgduel@gmail.com">optcgduel@gmail.com</a>.
+    </p>
+  </>
+);
+
+export const LEGAL_CONTENT: Record<LegalKind, ReactNode> = { terms, privacy, cookies, conduct };

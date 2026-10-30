@@ -52,6 +52,18 @@ export function bannerCta(event: Pick<DuelEvent, "starts_at" | "ends_at" | "stat
   return event.can_join ? "join" : "none";
 }
 
+/** The muted line shown instead of a button. "Entries closed" is only true once the event is over; before that, say why this viewer cannot enter. */
+export function closedNote(
+  event: Pick<DuelEvent, "starts_at" | "ends_at" | "status" | "viewer" | "cant_join_reason">,
+  now: number,
+): string {
+  const phase = eventPhase(event, now);
+  if (phase === "ended" || phase === "drawn") return "Entries closed";
+  if (event.viewer === "guest") return "Guests can't enter";
+  if (event.viewer === "staff") return "Staff can't enter";
+  return event.cant_join_reason || "Entries closed";
+}
+
 /**
  * "Sun, Nov 22, 12:00 – 4:00 PM EST" in the viewer's time zone (or `timeZone`). One day: the date once, then the two times.
  */

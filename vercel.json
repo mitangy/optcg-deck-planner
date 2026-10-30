@@ -36,8 +36,93 @@
       "status": 404
     },
     {
-      "src": "/(.*)",
+      "src": "/index\\.html",
       "dest": "/index.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/login/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/share/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/meta/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/group-buy/join/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/group-buy/view/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/whats-new/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/terms/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/privacy/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/cookies/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/conduct/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/decks/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/collection/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/friends/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/friends/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/friends/[^/]+/decks/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/group-buys/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/group-buys/[^/]+/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/import/?",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html",
+      "status": 404
     }
   ]
 }

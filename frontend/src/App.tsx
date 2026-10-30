@@ -1,3 +1,4 @@
+import { BrandWordmark } from "./BrandWordmark";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -34,6 +35,8 @@ import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
+import { PlannerLandingPage } from "./LandingPage";
+import { RouteMeta } from "./seo/RouteMeta";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
@@ -630,13 +633,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/">
-              <img
-                className="brand-logo"
-                src="/optcg-logo.png"
-                alt="ONE PIECE CARD GAME"
-                width={562}
-                height={145}
-              />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
@@ -740,13 +737,6 @@ function LoginPage() {
   return (
     <div className="login">
       <div className="login-card">
-        <img
-          className="login-logo"
-          src="/optcg-logo.png"
-          alt="ONE PIECE CARD GAME"
-          width={562}
-          height={145}
-        />
         <h1>OPTCG Tracker</h1>
         <p className="lede">
           Chart your decks, track what you own, and see what’s left to buy at market price.
@@ -4520,6 +4510,27 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
+/** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
+function HomeRoute() {
+  const { data: user, isLoading, refetch } = useMe();
+  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (!user) {
+    return (
+      <PlannerLandingPage
+        onDevLogin={async () => {
+          await api.devLogin();
+          await refetch();
+        }}
+      />
+    );
+  }
+  return (
+    <Shell user={user}>
+      <ShoppingPage />
+    </Shell>
+  );
+}
+
 /** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 function MetaRoute() {
   const { data: user, isLoading } = useMe();
@@ -4537,7 +4548,7 @@ function MetaRoute() {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/login">
-              <img className="brand-logo" src="/optcg-logo.png" alt="ONE PIECE CARD GAME" width={562} height={145} />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
@@ -4609,13 +4620,7 @@ function PublicSharePage() {
         <div className="topbar-inner">
           <div className="brand">
             <Link to="/login">
-              <img
-                className="brand-logo"
-                src="/optcg-logo.png"
-                alt="ONE PIECE CARD GAME"
-                width={562}
-                height={145}
-              />
+              <BrandWordmark />
               <span>Planner</span>
             </Link>
           </div>
@@ -4834,6 +4839,7 @@ export default function App() {
   const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
+      <RouteMeta signedIn={!!me} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -4844,15 +4850,9 @@ export default function App() {
         <Route path="/terms" element={<LegalPage kind="terms" />} />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/cookies" element={<LegalPage kind="cookies" />} />
+        <Route path="/conduct" element={<LegalPage kind="conduct" />} />
         {import.meta.env.DEV && <Route path="/dev/scan-validate" element={<ScanValidatePage />} />}
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <ShoppingPage />
-            </RequireAuth>
-          }
-        />
+        <Route path="/" element={<HomeRoute />} />
         <Route
           path="/decks"
           element={

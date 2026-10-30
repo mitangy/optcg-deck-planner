@@ -208,12 +208,32 @@
 }
 
 .topbar-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--chrome-bright);
-  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-size: 1.45rem;
   white-space: nowrap;
+}
+
+.topbar-mark:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: 8px;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+.brand-word span {
+  color: var(--chrome);
 }
 
 .topbar-right {
@@ -655,12 +675,32 @@ html {
 .home-brand {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: clamp(2rem, 9vw, 2.6rem);
   line-height: 1;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   color: var(--chrome-bright);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 32px rgb(var(--chrome-rgb) / 0.18);
+}
+
+/* Phones: the logo sits in front of the title. Hidden once the top bar carries it. */
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+}
+
+.home-brand-mark {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+
+@media (min-width: 480px) {
+  .home-brand-mark {
+    display: none;
+  }
 }
 
 /* Rope-and-knot divider under the wordmark. */
@@ -1485,6 +1525,7 @@ label.btn.is-busy {
 /* —— Bounty (ranked rating) —— */
 
 .bounty-amount {
+  font-family: var(--font-num);
   display: inline-flex;
   align-items: center;
   gap: 0.1em;
@@ -1818,6 +1859,10 @@ label.btn.is-busy {
     order: 3;
   }
 
+  .home-primary > .only-duel {
+    order: 4;
+  }
+
   .home-deck {
     --leader-w: 56px;
     gap: 0.75rem;
@@ -2131,12 +2176,18 @@ label.btn.is-busy {
 
 /* No room for the wordmark next to the account chip and three labelled icons. */
 @media (max-width: 479px) {
-  .topbar-mark {
+  .brand-word {
     display: none;
   }
 
-  .topbar-inner {
-    justify-content: flex-end;
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* The logo moves into the home hero, next to the title. */
+  .topbar-mark {
+    display: none;
   }
 }
 
@@ -2628,4 +2679,336 @@ label.btn.is-busy {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--chrome);
+}
+
+/* —— Only on OPTCG Duel —— */
+
+.only-duel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.only-duel-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.only-duel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.only-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.8rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(var(--panel-rgb) / 0.6);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.only-tile:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
+}
+
+.only-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.only-tile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.only-tile-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.only-tile-blurb {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+@media (max-width: 479px) {
+  .only-duel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* Phones: compact title-only buttons. */
+  .only-tile {
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .only-tile-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+    line-height: 1.2;
+  }
+
+  .only-tile-blurb {
+    display: none;
+  }
+
+  /* Spectate duplicates the Spectate mode button right above. */
+  .only-tile-dup {
+    display: none;
+  }
+
+  .only-tile:nth-child(n + 5 of :not(.only-tile-dup)) {
+    display: none;
+  }
+}
+
+/* —— Report player dialog (reports/ReportPlayerDialog) — reuses the feedback dialog shell above —— */
+.report-card {
+  max-width: 480px;
+}
+
+.report-group {
+  margin: 0 0 0.75rem;
+}
+
+.report-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.report-players,
+.report-images {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.report-card .report-player {
+  min-height: 44px;
+  border: 1px solid var(--fb-line, var(--line-strong));
+  background: var(--fb-field-bg, transparent);
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.report-reason,
+.report-image {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0 0 0.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--fb-line, var(--line-strong));
+  border-radius: 10px;
+  background: var(--fb-field-bg, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-image {
+  margin: 0;
+}
+
+.report-card .report-reason[aria-checked="true"],
+.report-card .report-image[aria-checked="true"],
+.report-card .report-player[aria-checked="true"] {
+  border-color: var(--fb-accent, var(--chrome));
+  background: rgb(var(--chrome-bright-rgb) / 0.16);
+  color: inherit;
+}
+
+.report-reason:disabled,
+.report-image:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.report-reason:focus-visible,
+.report-image:focus-visible,
+.report-player:focus-visible {
+  outline: 2px solid var(--fb-accent, var(--chrome));
+  outline-offset: 2px;
+}
+
+.report-radio {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+[aria-checked="true"] > .report-radio {
+  border-color: var(--fb-accent, var(--chrome));
+  background: radial-gradient(circle, var(--fb-accent, var(--chrome)) 0 40%, transparent 45%);
+}
+
+.report-reason-text,
+.report-image-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.report-reason-text small,
+.report-image-text small {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.report-thumb {
+  flex: 0 0 auto;
+  display: block;
+  width: 56px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--arena-mid);
+}
+
+.report-thumb-cardBack {
+  width: 30px;
+  height: 42px;
+}
+
+.report-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.report-note-label {
+  display: block;
+  margin: 0.2rem 0 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.report-optional {
+  font-weight: 400;
+}
+
+.report-note {
+  min-height: 4.5rem;
+}
+
+.report-count {
+  margin: 0.2rem 0 0;
+  text-align: right;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.report-rules {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.report-rules a {
+  color: var(--chrome-bright);
+}
+
+/* The buttons stay in reach while a long form scrolls inside a short window. */
+.report-card .feedback-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 0.5rem;
+  background: var(--fb-bg, var(--arena-panel));
+}
+
+@media (max-height: 480px) {
+  .report-card {
+    padding: 0.65rem 0.9rem 0.7rem;
+  }
+
+  .report-card .feedback-title {
+    margin-bottom: 0.4rem;
+    font-size: 1.05rem;
+  }
+
+  .report-reasons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .report-reasons .report-reason small {
+    display: none;
+  }
+
+  .report-reasons .report-reason {
+    margin: 0;
+    min-height: 44px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .report-card .report-group {
+    margin-bottom: 0.45rem;
+  }
+
+  .report-card .report-note {
+    min-height: 2.6rem;
+  }
+}
+
+/* Moderator warning notice (warnings/WarningNotice) — builds on the .moved-card shell. */
+.warning-card .warning-message {
+  margin: 0 0 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--arena-mid);
+  color: var(--ink);
+  font-size: 0.92rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.warning-card .warning-rules a {
+  color: var(--chrome-bright);
 }

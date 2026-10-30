@@ -29,14 +29,14 @@ def clock(monkeypatch: pytest.MonkeyPatch):
     return state
 
 
-def play(S, a: int, b: int, at: datetime = MID, turns: int | None = 6) -> None:
+def play(S, a: int, b: int, at: datetime = MID, turns: int | None = 6, ranked: bool = True) -> None:
     _n[0] += 1
     with S() as db:
         db.add(
             DuelMatch(
                 match_id=f"m{_n[0]}", seat0_user_id=a, seat1_user_id=b, winner_seat=0, turns=turns,
                 seat0_rating_before=1000, seat1_rating_before=1000, seat0_rating_after=1000,
-                seat1_rating_after=1000, created_at=at,
+                seat1_rating_after=1000, created_at=at, ranked=ranked,
             )
         )
         db.commit()
@@ -295,7 +295,7 @@ def test_admin_counters_count_the_window_and_eligible_players_794(api, clock):
     play(S, guest, ids[0])
     admin_login(c, S)
     out = c.get(f"/admin/events/{EVENT.id}").json()
-    assert out["counters"] == {"opted_in": 4, "games_in_window": 12 + 2, "players_with_game": 5, "eligible": 4}
+    assert out["counters"] == {"opted_in": 4, "games_in_window": 12 + 2, "players_with_game": 5, "eligible": 4, "flagged_eligible": 0}
     assert len(out["participants"]) == 4
     assert all(p["eligible"] for p in out["participants"])
     csv_text = c.get(f"/admin/events/{EVENT.id}/participants.csv").text
@@ -442,3 +442,144 @@ def test_event_lookup_by_id_is_public_and_404s_for_unknown_ids_795(api, clock):
     assert c.get("/duel/events/nope").status_code == 404
     assert c.get(f"/duel/events/{EVENT.id}").json()["event"]["id"] == EVENT.id
     assert c.get("/admin/events/latest").status_code == 401
+
+
+# ------------------------------------------------------------------ advisory flags (#809)
+
+OLD = START - timedelta(days=60)
+
+
+def acct(S, email: str, created=OLD) -> int:
+    uid = mk(S, email, created_at=created)
+    optin(S, uid)
+    return uid
+
+
+def flags_by_id(S) -> dict[int, tuple[str, ...]]:
+    with S() as db:
+        return {p.user.id: p.flags for p in ev.participants(db, EVENT)}
+
+
+def ring(S, ids: list[int], **kw) -> None:
+    for i, uid in enumerate(ids):
+        play(S, uid, ids[(i + 1) % len(ids)], **kw)
+
+
+def test_new_account_flag_uses_the_seven_days_before_the_start_809(api):
+    c, S = api
+    old = acct(S, "old@x.test", START - timedelta(days=7, minutes=1))
+    edge = acct(S, "edge@x.test", START - timedelta(days=7))
+    fresh = acct(S, "fresh@x.test", START - timedelta(days=6))
+    naive = acct(S, "naive@x.test", (START - timedelta(days=1)).replace(tzinfo=None))
+    f = flags_by_id(S)
+    assert f[old] == ()
+    assert f[edge] == ("new_account",)
+    assert f[fresh] == ("new_account",)
+    assert f[naive] == ("new_account",)
+
+
+def test_new_opponents_flag_needs_every_counted_opponent_to_be_new_809(api):
+    c, S = api
+    fresh = START - timedelta(days=2)
+    all_new = acct(S, "all-new@x.test")
+    mixed = acct(S, "mixed@x.test")
+    quiet = acct(S, "quiet@x.test")
+    alt1, alt2 = acct(S, "alt1@x.test", fresh), acct(S, "alt2@x.test", fresh)
+    veteran = acct(S, "veteran@x.test")
+    for alt in (alt1, alt2):
+        play(S, all_new, alt)
+    play(S, mixed, alt1)
+    play(S, mixed, veteran)
+    play(S, quiet, alt1, turns=2)  # does not count, so no counted opponents
+    f = flags_by_id(S)
+    assert "new_opponents" in f[all_new]
+    assert "new_opponents" not in f[mixed]
+    assert "new_opponents" not in f[quiet]
+    assert "new_opponents" not in f[veteran]
+
+
+def test_isolated_group_flag_is_a_small_closed_cluster_of_counted_games_809(api):
+    c, S = api
+    alts = [acct(S, f"alt{i}@x.test") for i in range(3)]
+    ring(S, alts)
+    four = [acct(S, f"four{i}@x.test") for i in range(4)]
+    ring(S, four)
+    five = [acct(S, f"five{i}@x.test") for i in range(5)]
+    ring(S, five)
+    # A 3-ring bridged to the big group only by a game that does not count stays isolated.
+    shaky = [acct(S, f"shaky{i}@x.test") for i in range(3)]
+    ring(S, shaky)
+    play(S, shaky[0], five[0], turns=2)
+    guest = mk(S, "guest-z@localhost")  # a guest between the ring and the big group is no bridge
+    play(S, shaky[1], guest)
+    play(S, guest, five[1])
+    lone = acct(S, "lone@x.test")
+    f = flags_by_id(S)
+    assert all("isolated_group" in f[u] for u in alts + four + shaky)
+    assert all("isolated_group" not in f[u] for u in five)
+    assert "isolated_group" not in f[lone]  # no counted game
+
+
+def test_a_counted_game_into_a_big_group_ends_the_isolation_809(api):
+    c, S = api
+    five = [acct(S, f"five{i}@x.test") for i in range(5)]
+    ring(S, five)
+    pair = [acct(S, f"pair{i}@x.test") for i in range(2)]
+    ring(S, pair)
+    assert all("isolated_group" in flags_by_id(S)[u] for u in pair)
+    play(S, pair[0], five[0])
+    f = flags_by_id(S)
+    assert all("isolated_group" not in f[u] for u in pair + five)
+
+
+def test_private_only_flag_clears_with_one_ranked_game_809(api):
+    c, S = api
+    big = [acct(S, f"big{i}@x.test") for i in range(6)]
+    ring(S, big, ranked=True)
+    private = acct(S, "private@x.test")
+    mix = acct(S, "mix@x.test")
+    quiet = acct(S, "quiet@x.test")
+    play(S, private, big[0], ranked=False)
+    play(S, private, big[1], ranked=False)
+    play(S, mix, big[2], ranked=False)
+    play(S, mix, big[3], ranked=True)
+    f = flags_by_id(S)
+    assert "private_only" in f[private]
+    assert "private_only" not in f[mix]
+    assert "private_only" not in f[quiet]
+    assert all("private_only" not in f[u] for u in big)
+
+
+def test_flags_come_in_a_fixed_order_809(api):
+    c, S = api
+    fresh = START - timedelta(days=1)
+    alts = [acct(S, f"alt{i}@x.test", fresh) for i in range(3)]
+    ring(S, alts, ranked=False)
+    assert flags_by_id(S)[alts[0]] == ("new_account", "new_opponents", "isolated_group", "private_only")
+
+
+def test_admin_json_and_csv_carry_flags_and_flagged_players_still_win_809(api, clock):
+    c, S = api
+    ids = setup_players(S, 4)  # a closed ring of ranked veterans: flagged isolated_group
+    wide = [acct(S, f"w{i}@x.test") for i in range(6)]
+    for i, uid in enumerate(wide):
+        for off in (1, 2, 3):
+            play(S, uid, wide[(i + off) % 6])
+    newbie = acct(S, "newbie@x.test", START - timedelta(days=1))  # flagged but not eligible
+    admin_login(c, S)
+    out = c.get(f"/admin/events/{EVENT.id}").json()
+    rows = {p["user_id"]: p for p in out["participants"]}
+    assert all(rows[u]["flags"] == ["isolated_group"] and rows[u]["eligible"] for u in ids)
+    assert all(rows[u]["flags"] == [] and rows[u]["eligible"] for u in wide)
+    assert rows[newbie]["flags"] == ["new_account"] and not rows[newbie]["eligible"]
+    assert out["counters"]["flagged_eligible"] == 4 and out["counters"]["eligible"] == 10
+    lines = c.get(f"/admin/events/{EVENT.id}/participants.csv").text.splitlines()
+    assert lines[0].endswith(",excluded,flags")
+    by_email = {ln.split(",")[2]: ln for ln in lines[1:]}
+    assert by_email["p0@x.test"].endswith(",yes,,isolated_group")
+    assert by_email["w0@x.test"].endswith(",yes,,")
+    clock["now"] = BEFORE
+    c.post(f"/admin/events/{EVENT.id}/commit")
+    clock["now"] = AFTER
+    draw = c.post(f"/admin/events/{EVENT.id}/draw").json()["draw"]
+    assert sorted(r["user_id"] for r in draw["ranking"]) == sorted(ids + wide)

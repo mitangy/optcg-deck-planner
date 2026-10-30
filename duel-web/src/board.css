@@ -3845,6 +3845,8 @@ body.is-panel-resize-row .col-cut {
 /* —— Per-player (chess) clocks —— */
 
 .hud-seat-clock {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
   opacity: 0.7;
 }
 
@@ -3863,6 +3865,7 @@ body.is-panel-resize-row .col-cut {
 
 .turn-player-clock {
   flex: none;
+  font-family: var(--font-num);
   min-width: 3.2rem;
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--line);

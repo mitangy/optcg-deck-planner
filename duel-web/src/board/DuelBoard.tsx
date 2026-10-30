@@ -165,6 +165,7 @@ import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview }
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
 import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
 import { MatchMenu } from "./MatchMenu";
+import type { ArtToggle } from "./HideArtItems";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
 import { fitDock, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
@@ -172,6 +173,8 @@ import { useLogPoseCopilot } from "./LogPoseCopilot";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
+import { openReport } from "../reports/reportDialog";
+import { matchReportTarget } from "../reports/reportTargets";
 import { isPromptHidden, promptOpenFor } from "./promptHide";
 import { promptShortLine } from "./promptLine";
 import { HideablePrompt, promptSourceName } from "./HideablePrompt";
@@ -191,6 +194,8 @@ type Props = {
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
   /** The opponent is a person on another device (online play): automatic passes wait like a person would. */
   vsHuman?: boolean;
+  /** Online play against another person: "Report player" is offered (not for bots, practice, hotseat or replays). */
+  canReport?: boolean;
   /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
   chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
   /** Online players: concede sits next to Leave in the HUD. */
@@ -313,6 +318,7 @@ export function DuelBoard({
   battleLog = [],
   hotseatPass,
   vsHuman = false,
+  canReport = false,
   chat,
   onConcede,
   onHandOrder,
@@ -350,6 +356,14 @@ export function DuelBoard({
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
+  /** Seats whose custom art this viewer hid; lives and dies with the board, never saved (#812). */
+  const [hiddenArtSeats, setHiddenArtSeats] = useState<ReadonlySet<Seat>>(() => new Set());
+  const toggleHiddenArt = (seat: Seat) =>
+    setHiddenArtSeats((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(seat)) next.add(seat);
+      return next;
+    });
   const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
   /**
    * Keep hand open: the player tucked the hand fully away (H or its Hide
@@ -1808,7 +1822,15 @@ export function DuelBoard({
     farSeat: oppSeat,
     hotseat: Boolean(hotseatPass),
     spectating,
+    showOthersArt: prefs.showOthersArt,
+    hiddenSeats: hiddenArtSeats,
   });
+  // One row per other seat that has custom art to hide (both seats when spectating); none in practice.
+  const artToggles: ArtToggle[] = hotseatPass || !prefs.showOthersArt
+    ? []
+    : (spectating ? [boardSeat, oppSeat] : [oppSeat])
+        .filter((s) => seatSkins?.[s]?.playmat || seatSkins?.[s]?.cardBack)
+        .map((s) => ({ seat: s, name: spectating ? seatLabel(players, s) : seatName(players, s), hidden: hiddenArtSeats.has(s) }));
   const oppMatUrl = skins.far.playmat;
   const oppCardBackUrl = skins.far.cardBack;
   const nearDonUrl = donArtUrl(skins.near.donArt);
@@ -2046,6 +2068,15 @@ export function DuelBoard({
     </>
   );
   const reportProblem = () => openFeedback("Report a problem");
+  const reportTargetFor = (source: "match" | "spectate" | "postmatch") =>
+    canReport && !isReplay && !hotseatPass
+      ? matchReportTarget({ source, matchId, spectating, mySeat, players, seatSkins })
+      : null;
+  const canReportPlayer = reportTargetFor("match") !== null;
+  const reportPlayer = () => {
+    const target = reportTargetFor(spectating ? "spectate" : "match");
+    if (target) openReport(target);
+  };
   const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
@@ -2058,7 +2089,11 @@ export function DuelBoard({
         fullscreenInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
         replay: isReplay,
+        canReportPlayer,
+        hideArtOffered: artToggles.length > 0,
       })}
+      artToggles={artToggles}
+      onToggleArt={toggleHiddenArt}
       info={{
         matchup: players
           ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
@@ -2075,6 +2110,7 @@ export function DuelBoard({
       onSettings={() => setSettingsOpen(true)}
       onToggleFullscreen={toggleFullscreen}
       onReport={reportProblem}
+      onReportPlayer={reportPlayer}
       onConcede={() => onConcede?.()}
       onLeave={onLeave}
     />
@@ -2325,6 +2361,17 @@ export function DuelBoard({
             >
               ⚑
             </button>
+            {canReportPlayer ? (
+              <button
+                type="button"
+                className="hud-undo-btn hud-settings-btn"
+                aria-label="Report player"
+                title="Report player"
+                onClick={reportPlayer}
+              >
+                ⚠
+              </button>
+            ) : null}
             <button type="button" className="leave-btn" onClick={onLeave}>
               {leaveLabel}
             </button>
@@ -3122,6 +3169,18 @@ export function DuelBoard({
               deckOptions={rematch.deckOptions}
               onAction={rematch.onAction}
             />
+          ) : null}
+          {!spectating && canReportPlayer ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm match-result-report"
+              onClick={() => {
+                const target = reportTargetFor("postmatch");
+                if (target) openReport(target);
+              }}
+            >
+              Report player
+            </button>
           ) : null}
           <button type="button" className="leave-btn" onClick={onLeave}>
             Return home

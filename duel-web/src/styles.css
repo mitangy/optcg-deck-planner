@@ -50,8 +50,9 @@
   --glow-top: #1f4a5c55;
   --glow-low: #4a321444;
   --radius: 10px;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-body: "Sora", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --font-num: "Chakra Petch", ui-monospace, sans-serif;
   /* Notch / home-indicator insets (viewport-fit=cover in index.html). 0 on
      desktop and non-notched phones. */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -2931,6 +2932,9 @@ img.zone-pile-face {
 }
 .match-result-board {
   align-self: stretch;
+}
+.match-result-report {
+  align-self: center;
 }
 
 /* "View board": the result steps aside to a slim pill under the top bar. */

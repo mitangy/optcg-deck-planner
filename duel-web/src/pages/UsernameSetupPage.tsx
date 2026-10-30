@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
 import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
@@ -61,6 +61,9 @@ export function UsernameSetupPage() {
               onSaved={() => navigate("/", { replace: true })}
             />
           )}
+          <p className="field-hint">
+            By playing you agree to the <Link to="/conduct">Rules of conduct</Link>.
+          </p>
           <div className="btn-row">
             <button
               type="button"

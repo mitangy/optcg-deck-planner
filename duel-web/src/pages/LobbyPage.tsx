@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { WarningNotice } from "../warnings/WarningNotice";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Tab, TabGroup, TabList } from "@optcg/ui/tabs";
 import { getOrCreateGuestId } from "../auth/guestId";
@@ -52,6 +53,8 @@ import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
+import { OnlyOnDuel } from "../home/OnlyOnDuel";
+import { BrandMark, BrandWordmark } from "../BrandMark";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
@@ -853,12 +856,13 @@ export function LobbyPage() {
 
   return (
     <div className="app-shell home-shell">
+      <WarningNotice signedIn={authUser != null} />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="topbar-left">
             <NavMenu />
             <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-              OPTCG Duel
+              <BrandWordmark />
             </Link>
           </div>
           <div className="topbar-right">
@@ -917,7 +921,10 @@ export function LobbyPage() {
       <main className="home">
         <div className="home-hero">
           <p className="home-kicker">One Piece Card Game</p>
-          <h1 className="home-brand">OPTCG Duel</h1>
+          <h1 className="home-brand">
+            <BrandMark className="home-brand-mark" />
+            OPTCG Duel
+          </h1>
           <div className="home-rule" aria-hidden>
             <span />
           </div>
@@ -1044,6 +1051,8 @@ export function LobbyPage() {
               })}
             </div>
           </div>
+
+          <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
 
           {showIosHint ? (
             <div className="install-hint" role="note" aria-label="Install on your iPhone">

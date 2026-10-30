@@ -939,7 +939,7 @@ export function demoUndoState(kind: string | null): UndoState {
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
- * (shared playmat), `?chat` match chat with sample lines, `?undo` private-room
+ * (shared playmat), `?oppart` the opponent's custom playmat and card back (`&spectate` for both seats), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
  * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen,
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?blocked` your main phase after an effect stopped you playing Characters (Character hand cards say "Can't play"), `?clock` per-player clocks, `?away` a
@@ -956,6 +956,18 @@ const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
   { id: "demo-zoro", name: "Zoro Aggro", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
   { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
 ];
+
+const svgUrl = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
+/** `?oppart`: the opponent shared a custom playmat and card back (#812), to check hiding them. */
+const DEMO_OPP_SKIN = {
+  playmat: svgUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a1fa2"/><stop offset="1" stop-color="#e8590c"/></linearGradient></defs><rect width="1600" height="900" fill="url(#g)"/><text x="800" y="470" font-size="140" fill="#fff" text-anchor="middle" font-family="sans-serif">CUSTOM MAT</text></svg>',
+  ),
+  cardBack: svgUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="630" height="880"><rect width="630" height="880" fill="#c2255c"/><circle cx="315" cy="440" r="200" fill="#ffd43b"/><text x="315" y="460" font-size="70" fill="#222" text-anchor="middle" font-family="sans-serif">CUSTOM</text></svg>',
+  ),
+  donArt: null,
+};
 
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
@@ -1108,6 +1120,9 @@ export function DemoPage() {
         view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
         matchId="demo-playmat"
+        spectator={params.has("spectate")}
+        seatSkins={params.has("oppart") ? [params.has("spectate") ? DEMO_OPP_SKIN : null, DEMO_OPP_SKIN] : undefined}
+        players={params.has("oppart") ? [{ name: "Luffy" }, { name: "Zoro" }] : null}
         firstSeatPickedBy={demoPickedBy(params.get("pickedby"))}
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}

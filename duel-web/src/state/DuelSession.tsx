@@ -129,6 +129,8 @@ type DuelSession = {
   firstSeatPickedBy: Seat | null | undefined;
   /** The key to a Log Pose matchup brief (players of unranked rooms only). */
   brief: BriefTicketWire | null;
+  /** Play vs Bot: the other seat is the server's bot, which cannot be reported. */
+  vsBot: boolean;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
@@ -202,6 +204,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   const [ranked, setRanked] = useState<boolean | null>(null);
   const [firstSeatPickedBy, setFirstSeatPickedBy] = useState<Seat | null | undefined>(undefined);
   const [brief, setBrief] = useState<BriefTicketWire | null>(null);
+  const [vsBot, setVsBot] = useState(false);
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
   const viewRef = useRef<PlayerView | null>(null);
   /** Board instance ids → cards, so log lines can name attackers / blockers. */
@@ -428,6 +431,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       setRanked(null);
       setFirstSeatPickedBy(undefined);
       setBrief(null);
+      setVsBot(false);
       setMatchOver(null);
       setTimer(null);
       setChat([]);
@@ -470,6 +474,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       ranked,
       firstSeatPickedBy,
       brief,
+      vsBot,
       battleLog,
       clearBattleLog: () => setBattleLog([]),
       errorBanner,
@@ -519,6 +524,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setRanked(null);
         setFirstSeatPickedBy(undefined);
         setBrief(null);
+        setVsBot(Boolean(opts.createOptions?.bot));
         setQueueing(false);
         setResuming(false);
         setRole(opts.role ?? "player");
@@ -720,6 +726,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     ranked,
     firstSeatPickedBy,
     brief,
+    vsBot,
     battleLog,
     errorBanner,
     matchOver,

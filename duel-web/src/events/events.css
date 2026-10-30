@@ -24,6 +24,7 @@
 /* Always on its own line, so the text changing between phases never moves the lines below it. */
 .event-status {
   display: block;
+  font-family: var(--font-num);
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--chrome);
