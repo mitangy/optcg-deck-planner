@@ -746,6 +746,9 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
 /** Lines of a game a review reads: whole games, including the board lines each turn adds. */
 export const REVIEW_MAX_LINES = 1500;
 
+/** Output cap of a review; thinking tokens count against it, so it must leave room for the text after the model has thought (#831). */
+export const REVIEW_MAX_TOKENS = 32000;
+
 /** Every card of the game with its printed stats and text: both decks and leaders (the opponent's only once revealed) and each card seen in the log. */
 export function reviewCardReference(catalog: Catalog, game: ReviewGame): string {
   const g = game as { yourLeaderId: string; opponentLeaderId: string; yourDeck: { id: string }[]; opponentDeck?: { id: string }[]; cardsInGame: string[] };
@@ -761,7 +764,7 @@ export function reviewCardReference(catalog: Catalog, game: ReviewGame): string 
 export function reviewRequest(catalog: Catalog, model: string, game: ReviewGame) {
   return {
     model,
-    max_tokens: 6000,
+    max_tokens: REVIEW_MAX_TOKENS,
     system: [{ type: "text" as const, text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" as const } }],
     // One source per turn, so the review can cite the turns it talks about.
     messages: [
@@ -815,7 +818,10 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model, { durationMs: Date.now() - started }).catch(() => undefined);
   const cited = flattenCited(reply.content);
   const final = cited.text || text.trim();
-  if (!final) throw new Error("Log Pose didn't write anything for this game. Try again.");
+  if (!final) {
+    if (reply.stop_reason === "max_tokens") throw new Error("Log Pose ran out of room before writing this review. Try again.");
+    throw new Error("Log Pose didn't write anything for this game. Try again.");
+  }
   const citations = cited.text ? cited.citations : [];
   await plannerCall(api, token, `/analyst/reviews/${encodeURIComponent(body.match_id)}`, true, { text: final, citations }, "PUT");
   emit({ event: "done", data: { cost_usd: cost, saved: true } });
