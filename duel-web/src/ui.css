@@ -683,6 +683,26 @@ html {
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 32px rgb(var(--chrome-rgb) / 0.18);
 }
 
+/* Phones: the logo sits in front of the title. Hidden once the top bar carries it. */
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+}
+
+.home-brand-mark {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+
+@media (min-width: 480px) {
+  .home-brand-mark {
+    display: none;
+  }
+}
+
 /* Rope-and-knot divider under the wordmark. */
 .home-rule {
   position: relative;
@@ -2164,6 +2184,11 @@ label.btn.is-busy {
     width: 30px;
     height: 30px;
   }
+
+  /* The logo moves into the home hero, next to the title. */
+  .topbar-mark {
+    display: none;
+  }
 }
 
 /* Long deck names end in an ellipsis instead of being cut mid-letter. */
@@ -2732,19 +2757,32 @@ label.btn.is-busy {
     gap: 0.5rem;
   }
 
+  /* Phones: compact title-only buttons. */
   .only-tile {
-    padding: 0.7rem 0.75rem;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.55rem 0.75rem;
   }
 
   .only-tile-title {
-    font-size: 1rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+    line-height: 1.2;
   }
 
   .only-tile-blurb {
-    font-size: 0.74rem;
+    display: none;
   }
 
-  .only-tile:nth-child(n + 5) {
+  /* Spectate duplicates the Spectate mode button right above. */
+  .only-tile-dup {
+    display: none;
+  }
+
+  .only-tile:nth-child(n + 5 of :not(.only-tile-dup)) {
     display: none;
   }
 }

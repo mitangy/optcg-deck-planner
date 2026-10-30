@@ -54,7 +54,7 @@ import { IntroStrip } from "../home/IntroStrip";
 import { LiveLine } from "../home/LiveLine";
 import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
-import { BrandWordmark } from "../BrandMark";
+import { BrandMark, BrandWordmark } from "../BrandMark";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
@@ -921,7 +921,10 @@ export function LobbyPage() {
       <main className="home">
         <div className="home-hero">
           <p className="home-kicker">One Piece Card Game</p>
-          <h1 className="home-brand">OPTCG Duel</h1>
+          <h1 className="home-brand">
+            <BrandMark className="home-brand-mark" />
+            OPTCG Duel
+          </h1>
           <div className="home-rule" aria-hidden>
             <span />
           </div>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, type PrintingView } from "./api";
 import { baseTileFor } from "./altArt";
@@ -17,7 +17,15 @@ import {
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+// Unmount every root before jsdom is torn down, so React has no work left to run without a window.
+const mounted: { root: Root; client: QueryClient }[] = [];
+
 afterEach(() => {
+  act(() => {
+    for (const { root } of mounted) root.unmount();
+  });
+  for (const { client } of mounted) client.clear();
+  mounted.length = 0;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
 });
@@ -25,8 +33,11 @@ afterEach(() => {
 function mount(node: React.ReactNode) {
   const host = document.createElement("div");
   document.body.append(host);
+  const root = createRoot(host);
+  const client = new QueryClient();
+  mounted.push({ root, client });
   act(() => {
-    createRoot(host).render(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
+    root.render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
   });
   return host;
 }
