@@ -712,6 +712,29 @@ def test_the_uploads_list_filters_by_state_and_kind_newest_first_and_pages_812(c
     assert as_user(c, mod).get("/admin/cosmetics", params={"state": "bogus"}).status_code == 422
 
 
+def test_cosmetics_list_pages_by_id_so_takedowns_skip_nothing_824(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod = user(S, "Mod", role="moderator")
+    mats = [upload(c, zoro, "playmat", JPEG)["id"] for _ in range(3)]
+    back = upload(c, zoro, "cardBack", PNG)["id"]
+    mats.append(upload(c, zoro, "playmat", PNG)["id"])
+    as_user(c, mod).post(f"/admin/cosmetics/{mats[0]}/take-down", json={"reason": "Copyright notice"})
+
+    def ids(**q):
+        res = as_user(c, mod).get("/admin/cosmetics", params=q).json()
+        return [i["id"] for i in res["items"]], res["total"]
+
+    newest = mats[3]
+    # A take-down since the first page must not shift the next one: keyed on the oldest id seen, nothing is skipped.
+    assert ids(limit=2, before_id=mats[2]) == ([mats[1]], 4)
+    assert ids(limit=2, before_id=newest) == ([back, mats[2]], 4)
+    assert ids(state="all", limit=2, before_id=back) == ([mats[2], mats[1]], 5)
+    assert ids(state="taken_down", before_id=newest) == ([mats[0]], 1)
+    assert ids(state="all", kind="playmat", before_id=back) == ([mats[2], mats[1], mats[0]], 4)
+    assert ids(before_id=mats[1]) == ([], 4)
+
+
 def test_the_uploads_list_marks_the_active_image_report_counts_and_banned_owners_812(client):
     c, S = client
     zoro, luffy = user(S, "Zoro"), user(S, "Luffy")
