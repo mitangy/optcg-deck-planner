@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchCurrentEvent } from "../events/eventApi";
 import { Tile } from "./charts";
 import {
   type AdminEvent,
@@ -7,7 +6,7 @@ import {
   commitEventSeed,
   drawEvent,
   eventCsvUrl,
-  fetchAdminEvent,
+  fetchLatestAdminEvent,
   forfeitEventWinner,
 } from "./adminApi";
 import { ariaSort, canCommitSeed, canDrawEvent, eventFlagInfo, nextSort, type ParticipantSortKey, type SortState, sortParticipants } from "./adminLogic";
@@ -138,12 +137,7 @@ export function EventTab() {
 
   const load = useCallback(async () => {
     try {
-      const current = await fetchCurrentEvent();
-      if (!current) {
-        setError("There is no current event.");
-        return;
-      }
-      setEvent(await fetchAdminEvent(current.id));
+      setEvent(await fetchLatestAdminEvent());
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load the event.");

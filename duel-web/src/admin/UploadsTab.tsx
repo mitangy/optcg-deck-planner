@@ -188,7 +188,7 @@ function UploadCard({ row, actor, onTakeDown, onChange }: { row: UploadRow; acto
 export function UploadsTab({ actor }: { actor: Actor }) {
   const [state, setState] = useState<UploadState>("live");
   const [kind, setKind] = useState<UploadKind | "both">("both");
-  const [data, setData] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready"; total: number; items: UploadRow[] }>({ status: "loading" });
+  const [data, setData] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready"; total: number; hasMore: boolean; items: UploadRow[] }>({ status: "loading" });
   const [refreshing, setRefreshing] = useState(false);
   const [more, setMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
@@ -200,7 +200,7 @@ export function UploadsTab({ actor }: { actor: Actor }) {
     setRefreshing(true);
     setMoreError(null);
     fetchAdminUploads(s, k === "both" ? null : k, 0, PAGE)
-      .then((r) => mine === seq.current && setData({ status: "ready", total: r.total, items: r.items }))
+      .then((r) => mine === seq.current && setData({ status: "ready", total: r.total, hasMore: r.items.length >= PAGE && r.total > r.items.length, items: r.items }))
       .catch((e: Error) => mine === seq.current && setData((d) => (d.status === "ready" ? d : { status: "error", message: e.message })))
       .finally(() => mine === seq.current && setRefreshing(false));
   }, []);
@@ -212,13 +212,15 @@ export function UploadsTab({ actor }: { actor: Actor }) {
     const mine = seq.current;
     setMore(true);
     setMoreError(null);
-    fetchAdminUploads(state, kind === "both" ? null : kind, data.items.length, PAGE)
+    // Page by id, not by count: a take-down keeps its card here but leaves the server's Live list, so an offset would skip a row (#824).
+    const oldest = data.items.reduce((m, i) => Math.min(m, i.id), Infinity);
+    fetchAdminUploads(state, kind === "both" ? null : kind, 0, PAGE, oldest)
       .then((r) =>
         mine === seq.current &&
         setData((d) => {
           if (d.status !== "ready") return d;
           const seen = new Set(d.items.map((i) => i.id));
-          return { status: "ready", total: r.total, items: [...d.items, ...r.items.filter((i) => !seen.has(i.id))] };
+          return { status: "ready", total: r.total, hasMore: r.items.length >= PAGE, items: [...d.items, ...r.items.filter((i) => !seen.has(i.id))] };
         }),
       )
       .catch((e: Error) => setMoreError(e.message))
@@ -248,7 +250,7 @@ export function UploadsTab({ actor }: { actor: Actor }) {
           ))}
         </div>
         <span className="adm-count" aria-live="polite">
-          {data.status === "ready" ? `${items.length} of ${data.total} shown` : " "}
+          {data.status === "ready" ? `${items.length} of ${Math.max(items.length, data.total)} shown` : " "}
         </span>
         <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => load(state, kind)} disabled={refreshing} aria-busy={refreshing}>
           Refresh
@@ -268,7 +270,7 @@ export function UploadsTab({ actor }: { actor: Actor }) {
           <UploadCard key={r.id} row={r} actor={actor} onTakeDown={setPending} onChange={replace} />
         ))}
       </div>
-      {data.status === "ready" && items.length < data.total ? (
+      {data.status === "ready" && data.hasMore ? (
         <div className="upl-more">
           <button type="button" className="btn btn-secondary btn-sm" disabled={more} aria-busy={more} onClick={loadMore}>
             Load more

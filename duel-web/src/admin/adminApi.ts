@@ -208,7 +208,8 @@ export type AdminEvent = {
   draw: EventDrawState | null;
 };
 
-export const fetchAdminEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`);
+/** The newest event whatever the date (the banner's /current stops after a week, but forfeits come later). */
+export const fetchLatestAdminEvent = () => call<AdminEvent>("/admin/events/latest");
 export const commitEventSeed = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/commit`, { method: "POST" });
 export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/draw`, { method: "POST" });
 export const forfeitEventWinner = (id: string, userId: number) =>
@@ -281,8 +282,8 @@ export type UploadRow = {
 
 export type UploadsPage = { total: number; items: UploadRow[] };
 
-export const fetchAdminUploads = (state: UploadState, kind: UploadKind | null, offset: number, limit: number) =>
-  call<UploadsPage>(`/admin/cosmetics?state=${state}${kind ? `&kind=${kind}` : ""}&limit=${limit}&offset=${offset}`);
+export const fetchAdminUploads = (state: UploadState, kind: UploadKind | null, offset: number, limit: number, beforeId?: number) =>
+  call<UploadsPage>(`/admin/cosmetics?state=${state}${kind ? `&kind=${kind}` : ""}&limit=${limit}&offset=${offset}${beforeId === undefined ? "" : `&before_id=${beforeId}`}`);
 export const takeDownUpload = (id: number, reason: string) =>
   call<UploadRow>(`/admin/cosmetics/${id}/take-down`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) }) });
 export const restoreUpload = (id: number) => call<UploadRow>(`/admin/cosmetics/${id}/restore`, { method: "POST" });

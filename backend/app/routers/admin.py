@@ -878,8 +878,12 @@ def list_cosmetics(
     kind: Annotated[Literal["playmat", "cardBack"] | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     offset: Annotated[int, Query(ge=0)] = 0,
+    before_id: Annotated[int | None, Query(ge=1)] = None,
 ) -> dict:
-    """Every uploaded playmat and card back, newest first, for finding one nobody reported. No image bytes."""
+    """Every uploaded playmat and card back, newest first, for finding one nobody reported. No image bytes.
+
+    `before_id` pages by key (rows strictly older than it) so a take-down between pages skips nothing (#824).
+    """
     where = []
     if state == "live":
         where.append(DuelCosmetic.taken_down_at.is_(None))
@@ -888,6 +892,8 @@ def list_cosmetics(
     if kind:
         where.append(DuelCosmetic.kind == kind)
     total = db.scalar(select(func.count()).select_from(DuelCosmetic).where(*where)) or 0
+    if before_id is not None:
+        where.append(DuelCosmetic.id < before_id)
     rows = db.execute(
         select(
             DuelCosmetic.id, DuelCosmetic.user_id, DuelCosmetic.kind, DuelCosmetic.mime, DuelCosmetic.size,

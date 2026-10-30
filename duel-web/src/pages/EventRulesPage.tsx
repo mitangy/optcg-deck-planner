@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LEGAL_CONTACT_EMAIL } from "@optcg/site-legal";
-import { type DuelEvent, fetchCurrentEvent } from "../events/eventApi";
+import { type DuelEvent, fetchEventById } from "../events/eventApi";
 import { NavMenu } from "../nav/NavMenu";
 
 function inZone(iso: string, timeZone: string, withDate = true): string {
@@ -134,8 +134,10 @@ export function EventRulesPage() {
 
   useEffect(() => {
     let live = true;
-    fetchCurrentEvent()
-      .then((event) => live && setState(event && event.id === eventId ? { status: "ready", event } : { status: "none" }))
+    // By id, not "current": the banner drops an ended event after a week, but the rules, seed and
+    // eligible ids must stay readable through the draw and the winner's reply window (#795).
+    fetchEventById(eventId ?? "")
+      .then((event) => live && setState(event ? { status: "ready", event } : { status: "none" }))
       .catch(() => live && setState({ status: "none" }));
     return () => {
       live = false;

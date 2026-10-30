@@ -410,6 +410,40 @@ def test_a_forfeit_moves_the_next_player_up_794(api, clock):
     assert [w["user_id"] for w in out["winners"]] == [ranking[2], ranking[3], ranking[4]]
 
 
+def test_the_event_stays_reachable_through_the_reply_window_795(api, clock):
+    """The rules say a winner has 7 days to reply, so the forfeit lands ~8 days after the end."""
+    c, S = api
+    ids = setup_players(S, 5)
+    admin_login(c, S)
+    clock["now"] = BEFORE
+    c.post(f"/admin/events/{EVENT.id}/commit")
+    clock["now"] = AFTER
+    draw = c.post(f"/admin/events/{EVENT.id}/draw").json()["draw"]
+    ranking = [r["user_id"] for r in draw["ranking"]]
+
+    clock["now"] = END + timedelta(days=8)
+    # The lobby banner still stops showing the ended event after a week, as before.
+    assert c.get("/duel/events/current").json() == {"event": None}
+    # The public rules page loads it by id and still shows the seed and eligible ids.
+    pub = c.get(f"/duel/events/{EVENT.id}")
+    assert pub.status_code == 200
+    body = pub.json()["event"]
+    assert body["id"] == EVENT.id and body["status"] == "drawn"
+    assert body["seed"] == draw["seed"] and sorted(body["eligible_user_ids"]) == sorted(ids)
+    # The admin tab finds the event and can still forfeit a winner.
+    latest = c.get("/admin/events/latest")
+    assert latest.status_code == 200 and latest.json()["id"] == EVENT.id
+    out = c.post(f"/admin/events/{EVENT.id}/forfeit", json={"user_id": ranking[0]}).json()["draw"]
+    assert [w["user_id"] for w in out["winners"]] == ranking[1:4]
+
+
+def test_event_lookup_by_id_is_public_and_404s_for_unknown_ids_795(api, clock):
+    c, _ = api
+    assert c.get("/duel/events/nope").status_code == 404
+    assert c.get(f"/duel/events/{EVENT.id}").json()["event"]["id"] == EVENT.id
+    assert c.get("/admin/events/latest").status_code == 401
+
+
 # ------------------------------------------------------------------ advisory flags (#809)
 
 OLD = START - timedelta(days=60)

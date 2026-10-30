@@ -121,4 +121,40 @@ describe("admin Uploads tab (#812)", () => {
     await render([down], { id: 1, role: "admin" });
     expect(byText("Restore")).toBeTruthy();
   });
+
+  it("Load more after a take-down still shows every live upload (#824)", async () => {
+    const db = Array.from({ length: 25 }, (_, i) => row({ id: 25 - i }));
+    const live = () => db.filter((r) => r.taken_down_at === null);
+    // The server's Live list pages like the real one: newest id first, `beforeId` keeps only older rows, then offset/limit.
+    api.fetchAdminUploads.mockImplementation(async (_s: string, _k: unknown, offset: number, limit: number, beforeId?: number) => {
+      const rows = live().filter((r) => beforeId === undefined || r.id < beforeId);
+      return { total: live().length, items: rows.slice(offset, offset + limit) };
+    });
+    api.takeDownUpload.mockImplementation(async (id: number, reason: string) => {
+      const r = db.find((x) => x.id === id)!;
+      r.taken_down_at = "2026-10-30T00:00:00Z";
+      r.taken_down_reason = reason;
+      return { ...r };
+    });
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(
+        <MemoryRouter>
+          <UploadsTab actor={{ id: 5, role: "moderator" }} />
+        </MemoryRouter>,
+      );
+      await wait();
+    });
+    expect(document.querySelectorAll(".upl-card")).toHaveLength(24);
+    await click(document.querySelector('[aria-label="Upload 25 from Buggy"] .rpt-ban')!);
+    await click(byText("Confirm take down"));
+    await click(byText("Load more"));
+    const shown = Array.from(document.querySelectorAll(".upl-card")).map((e) => e.getAttribute("aria-label"));
+    expect(shown).toContain("Upload 1 from Buggy");
+    expect(shown).toHaveLength(25);
+    expect(document.querySelector(".adm-count")!.textContent).toBe("25 of 25 shown");
+    expect(Array.from(document.querySelectorAll("button")).some((b) => b.textContent === "Load more")).toBe(false);
+  });
 });
