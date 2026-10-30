@@ -60,8 +60,13 @@ export function closedNote(
   const phase = eventPhase(event, now);
   if (phase === "ended" || phase === "drawn") return "Entries closed";
   if (event.viewer === "guest") return "Guests can't enter";
-  if (event.viewer === "staff") return "Staff can't enter";
   return event.cant_join_reason || "Entries closed";
+}
+
+/** Staff may join and play but are never in the draw (#834). Shown until the winners are drawn. */
+export function staffNote(event: Pick<DuelEvent, "starts_at" | "ends_at" | "status" | "viewer">, now: number): string | null {
+  if (event.viewer !== "staff" || eventPhase(event, now) === "drawn") return null;
+  return "You can play, but staff aren't eligible for prizes.";
 }
 
 /**

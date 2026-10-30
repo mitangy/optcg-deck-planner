@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
-import { bannerCta, closedNote, eventPhase, formatWindow, progressLabel, statusLine } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, formatWindow, progressLabel, staffNote, statusLine } from "./eventLogic";
 
 /** The current time. Re-armed after every tick: every 15 seconds, every second in the last two minutes before a change, and not at all once the event has ended. */
 function useNow(event: DuelEvent | null): number {
@@ -73,6 +73,7 @@ function JoinDialog({ event, open, onClose, onJoined }: { event: DuelEvent; open
         It is free: just play. {event.prize}, sent by email. Play {event.min_games} finished games against at least {event.min_opponents} different signed-in
         players during the event to be entered.
       </p>
+      {event.viewer === "staff" ? <p className="event-dialog-copy event-staff-note">You can play, but staff aren't eligible for prizes.</p> : null}
       <label className="event-check" htmlFor={boxId}>
         <input id={boxId} type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
         <span>
@@ -108,6 +109,7 @@ export function EventBanner() {
   const phase = eventPhase(event, now);
   const cta = bannerCta(event, now);
   const progress = event.progress;
+  const staff = staffNote(event, now);
 
   return (
     <section className="event-banner" data-phase={phase} aria-label={event.title}>
@@ -140,6 +142,7 @@ export function EventBanner() {
           Official rules
         </Link>
       </div>
+      {staff ? <p className="event-staff-note">{staff}</p> : null}
       {cta === "join" ? <JoinDialog event={event} open={joining} onClose={() => setJoining(false)} onJoined={reload} /> : null}
     </section>
   );
