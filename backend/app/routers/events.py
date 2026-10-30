@@ -80,8 +80,6 @@ def _can_join(event: ev.Event, user: User | None, now: datetime) -> tuple[bool, 
         return False, "Sign in to join"
     if ev.is_guest_email(user.email):
         return False, "Guest accounts can't enter. Sign in to join"
-    if is_staff(user):
-        return False, "Staff accounts can't enter"
     if now >= event.ends_at:
         return False, "Entries are closed"
     return True, None

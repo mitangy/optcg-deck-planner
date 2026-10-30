@@ -222,7 +222,7 @@ def test_join_needs_accepted_current_rules_and_is_idempotent_794(api, clock):
         assert db.query(EventEntry).count() == 1
 
 
-def test_join_is_refused_after_the_event_ends_and_for_banned_and_staff_794(api, clock):
+def test_join_is_refused_after_the_event_ends_and_for_banned_accounts_794(api, clock):
     c, S = api
     a = mk(S, "a@x.test")
     mod = mk(S, "mod@x.test", "moderator")
@@ -234,10 +234,29 @@ def test_join_is_refused_after_the_event_ends_and_for_banned_and_staff_794(api, 
     clock["now"] = END - timedelta(seconds=1)
     assert c.post(url, json=ok).status_code == 200
     login(c, S, mod)
-    assert c.post(url, json=ok).status_code == 403
+    assert c.post(url, json=ok).status_code == 200
     banned = mk(S, "ban@x.test", banned_at=MID)
     login(c, S, banned)
     assert c.post(url, json=ok).status_code == 403
+
+
+def test_staff_can_join_and_play_but_never_become_eligible_834(api, clock):
+    c, S = api
+    a, b, d = trio(S)
+    mod = mk(S, "mod@x.test", "moderator")
+    clock["now"] = BEFORE
+    login(c, S, mod)
+    body = c.get("/duel/events/current").json()["event"]
+    assert body["viewer"] == "staff" and body["can_join"] is True and body["cant_join_reason"] is None
+    ok = {"accept_rules": True, "rules_version": EVENT.rules_version}
+    assert c.post(f"/duel/events/{EVENT.id}/join", json=ok).status_code == 200
+    for opp in (a, b, d):
+        play(S, mod, opp)
+    p = c.get("/duel/events/current").json()["event"]
+    assert p["opted_in"] is True and p["progress"] == {"games": 3, "opponents": 3, "eligible": False}
+    with S() as db:
+        got = {x.user.id: (x.eligible, x.excluded) for x in ev.participants(db, EVENT)}
+    assert got[mod] == (False, "staff")
 
 
 def test_signed_in_players_see_their_own_progress_794(api, clock):

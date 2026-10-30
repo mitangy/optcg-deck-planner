@@ -37,7 +37,7 @@ function RulesBody({ event }: { event: DuelEvent }) {
       <ul>
         <li>You must be a resident of the United States and at least 13 years old.</li>
         <li>If you are under 18, you need a parent’s or guardian’s permission to enter and to accept a prize.</li>
-        <li>The site’s staff and moderators, and banned accounts, cannot win. Guest accounts cannot enter.</li>
+        <li>The site’s staff and moderators may join and play, but cannot win. Banned accounts cannot win. Guest accounts cannot enter.</li>
         <li>Void where prohibited by law.</li>
       </ul>
 
