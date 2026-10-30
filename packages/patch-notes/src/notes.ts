@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-30
+  { date: "2026-10-30", app: "duel", pr: 832, title: "Log Pose analysis loads again", text: "Opening a past match in History showed no Log Pose analysis, only \"didn't write anything\". Log Pose ran out of room while thinking the game over. It now has room to finish the review, and if it ever runs out again it says so." },
   { date: "2026-10-30", app: "duel", pr: 830, title: "Preview art for Lets Go Karoo", text: "Let's Go, Karoo!! (OP18-018) now shows a preview image until its official art is out." },
   { date: "2026-10-30", app: "duel", pr: 828, title: "Matches work again", text: "Since yesterday's update, the match board showed up without its layout and the Mulligan and Keep buttons were hard to find, so games couldn't really be played. The board looks and works as before again. The Report player window and other screens that lost their styling are fixed too." },
   // 2026-10-29
