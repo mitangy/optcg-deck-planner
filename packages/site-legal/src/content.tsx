@@ -138,7 +138,10 @@ const terms: ReactNode = (
         </a>
         .
       </li>
-      <li>Fonts: Fraunces and IBM Plex Sans, served by Google Fonts.</li>
+      <li>
+        Fonts: Fraunces and IBM Plex Sans in the planner; Bricolage Grotesque, Outfit and Chakra Petch in
+        OPTCG Duel. All served by Google Fonts.
+      </li>
       <li>
         Built with open-source software including React, Vite, FastAPI, SQLAlchemy and Colyseus.
         Thank you to their authors.

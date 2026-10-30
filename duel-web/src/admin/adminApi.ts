@@ -258,3 +258,38 @@ export async function fetchReportImageUrl(id: number): Promise<string> {
   if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
   return URL.createObjectURL(await res.blob());
 }
+
+// ---------------------------------------------------------------- uploaded images (#812)
+
+export type UploadState = "live" | "taken_down" | "all";
+export type UploadKind = "playmat" | "cardBack";
+
+export type UploadRow = {
+  id: number;
+  kind: UploadKind;
+  mime: string;
+  size: number;
+  created_at: string;
+  /** The owner has it switched on as their playmat / card back. */
+  in_use: boolean;
+  report_count: number;
+  taken_down_at: string | null;
+  taken_down_by_name: string | null;
+  taken_down_reason: string | null;
+  owner: { id: number; name: string; role: Role; banned: boolean };
+};
+
+export type UploadsPage = { total: number; items: UploadRow[] };
+
+export const fetchAdminUploads = (state: UploadState, kind: UploadKind | null, offset: number, limit: number) =>
+  call<UploadsPage>(`/admin/cosmetics?state=${state}${kind ? `&kind=${kind}` : ""}&limit=${limit}&offset=${offset}`);
+export const takeDownUpload = (id: number, reason: string) =>
+  call<UploadRow>(`/admin/cosmetics/${id}/take-down`, { method: "POST", body: JSON.stringify({ reason: reason.trim().slice(0, 200) }) });
+export const restoreUpload = (id: number) => call<UploadRow>(`/admin/cosmetics/${id}/restore`, { method: "POST" });
+
+/** An upload as a blob URL (the bytes need the staff cookie, so an <img src> cannot fetch them). Revoke it when done. */
+export async function fetchUploadImageUrl(id: number): Promise<string> {
+  const res = await fetch(`${getApiBaseUrl()}/admin/cosmetics/${id}/image`, { credentials: "include" });
+  if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}

@@ -10,8 +10,11 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-30
+  { date: "2026-10-30", app: "duel", pr: 828, title: "Matches work again", text: "Since yesterday's update, the match board showed up without its layout and the Mulligan and Keep buttons were hard to find, so games couldn't really be played. The board looks and works as before again. The Report player window and other screens that lost their styling are fixed too." },
   // 2026-10-29
   { date: "2026-10-29", app: "duel", pr: 822, title: "The giveaway banner tells staff they cannot enter", text: "Admin and moderator accounts are not eligible for the Stress Test Sunday giveaway. The home page banner now says \"Staff can't enter\" for them instead of \"Entries closed\", which it only says once the event is over." },
+  { date: "2026-10-29", app: "duel", pr: 820, title: "A new logo and new fonts", text: "OPTCG Duel has its own logo, a straw hat card, and new fonts that are easier to tell apart. The home page also lists the things you can only do here, like Ranked bounties, the Log Pose coach, spectating and replays." },
   { date: "2026-10-29", app: "both", pr: 810, title: "Rules of conduct and Report player", text: "There is now a short Rules of conduct page, linked from the footer and the username and image screens. If another player breaks them, use Report player from the match menu, after a match, from your friends list or from your match history. A moderator reviews it, and the other player is never told who reported them. If a moderator warns you, you will see their message when you open the home page." },
   { date: "2026-10-29", app: "duel", pr: 814, title: "Hide playmats and card backs from other players", text: "Settings has a new switch, \"Show other players' playmats and card backs\". Turn it off to always see the standard art for opponents and players you watch. In a match, the ⋯ menu also has \"Hide <name>'s art\" to hide one player's art for that match only. Custom art still shows by default." },
   { date: "2026-10-29", app: "planner", pr: 811, title: "The planner header uses our own OPTCG wordmark", text: "The top of every planner page now shows a simple OPTCG name instead of the official card game logo." },

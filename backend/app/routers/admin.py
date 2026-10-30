@@ -36,7 +36,7 @@ from app.models import (
     PlayerWarning,
     User,
 )
-from app.moderation import restore_cosmetic, take_down_cosmetic
+from app.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
 from app.routers.analyst import require_service
@@ -816,6 +816,119 @@ def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None
     return _report_row(db, report)
 
 
+# ---------------------------------------------------------------- uploaded images (#812)
+
+class TakeDownIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=REASON_MAX)
+
+
+def _cosmetic_rows(db: Session, rows: list) -> list[dict]:
+    """UploadRows for these (DuelCosmetic columns without the bytes) rows, owners and counts in grouped queries."""
+    if not rows:
+        return []
+    owner_ids = {r.user_id for r in rows}
+    ids = {r.id for r in rows}
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(owner_ids | {r.taken_down_by for r in rows if r.taken_down_by})))}
+    active: set[int] = set()
+    for prefs in db.execute(
+        select(DuelUserSettings.active_playmat_id, DuelUserSettings.active_card_back_id).where(
+            DuelUserSettings.user_id.in_(owner_ids)
+        )
+    ).all():
+        active.update(i for i in prefs if i is not None)
+    reports = dict(
+        db.execute(
+            select(PlayerReport.cosmetic_id, func.count())
+            .where(PlayerReport.cosmetic_id.in_(ids))
+            .group_by(PlayerReport.cosmetic_id)
+        ).all()
+    )
+    out = []
+    for r in rows:
+        owner = users.get(r.user_id)
+        by = users.get(r.taken_down_by) if r.taken_down_by else None
+        out.append(
+            {
+                "id": r.id,
+                "kind": r.kind,
+                "mime": r.mime,
+                "size": r.size,
+                "created_at": _iso(r.created_at),
+                "in_use": r.id in active and r.taken_down_at is None,
+                "report_count": int(reports.get(r.id, 0)),
+                "taken_down_at": _iso(r.taken_down_at),
+                "taken_down_by_name": duel_display_name(by) if by else None,
+                "taken_down_reason": r.taken_down_reason,
+                "owner": {
+                    "id": r.user_id,
+                    "name": duel_display_name(owner) if owner else "Player",
+                    "role": owner.role if owner else "user",
+                    "banned": bool(owner and owner.banned_at is not None),
+                },
+            }
+        )
+    return out
+
+
+@router.get("/cosmetics")
+def list_cosmetics(
+    _: Staff,
+    db: DB,
+    state: Annotated[Literal["live", "taken_down", "all"], Query()] = "live",
+    kind: Annotated[Literal["playmat", "cardBack"] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> dict:
+    """Every uploaded playmat and card back, newest first, for finding one nobody reported. No image bytes."""
+    where = []
+    if state == "live":
+        where.append(DuelCosmetic.taken_down_at.is_(None))
+    elif state == "taken_down":
+        where.append(DuelCosmetic.taken_down_at.is_not(None))
+    if kind:
+        where.append(DuelCosmetic.kind == kind)
+    total = db.scalar(select(func.count()).select_from(DuelCosmetic).where(*where)) or 0
+    rows = db.execute(
+        select(
+            DuelCosmetic.id, DuelCosmetic.user_id, DuelCosmetic.kind, DuelCosmetic.mime, DuelCosmetic.size,
+            DuelCosmetic.created_at, DuelCosmetic.taken_down_at, DuelCosmetic.taken_down_by,
+            DuelCosmetic.taken_down_reason,
+        )
+        .where(*where)
+        .order_by(DuelCosmetic.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return {"total": int(total), "items": _cosmetic_rows(db, list(rows))}
+
+
+@router.get("/cosmetics/{cosmetic_id}/image")
+def cosmetic_image(cosmetic_id: int, _: Staff, db: DB) -> Response:
+    """The stored bytes, taken down or not (a takedown keeps them as evidence)."""
+    cosmetic = db.get(DuelCosmetic, cosmetic_id)
+    if cosmetic is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(
+        content=cosmetic.data,
+        media_type=cosmetic.mime or "application/octet-stream",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.post("/cosmetics/{cosmetic_id}/take-down")
+def take_down_uploaded_cosmetic(cosmetic_id: int, body: TakeDownIn, actor: Staff, db: DB) -> dict:
+    """Remove an upload nobody reported (a copyright notice, say). Soft: the bytes stay as evidence."""
+    cosmetic = db.get(DuelCosmetic, cosmetic_id)
+    if cosmetic is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    reason = body.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=422, detail="Say why it is being taken down")
+    take_down_cosmetic(db, cosmetic, actor.id, reason)
+    db.commit()
+    return _cosmetic_rows(db, [cosmetic])[0]
+
+
 @router.post("/cosmetics/{cosmetic_id}/restore")
 def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
     """Undo an image takedown. The owner has to choose it as active again."""
@@ -824,4 +937,7 @@ def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
         raise HTTPException(status_code=404, detail="Image not found")
     restore_cosmetic(db, cosmetic)
     db.commit()
-    return {"id": cosmetic.id, "user_id": cosmetic.user_id, "kind": cosmetic.kind, "taken_down": False}
+    return {
+        "id": cosmetic.id, "user_id": cosmetic.user_id, "kind": cosmetic.kind, "taken_down": False,
+        **_cosmetic_rows(db, [cosmetic])[0],
+    }

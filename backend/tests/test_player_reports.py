@@ -667,3 +667,128 @@ def test_reports_are_limited_per_address_and_across_everyone_810(client, monkeyp
     monkeypatch.setattr(reports._ip_rate, "max_calls", 100)
     monkeypatch.setattr(reports._global_rate, "max_calls", 3)
     assert seat_report(c, others[3], "m3", 1, reason="toxic").status_code == 429
+
+
+def test_the_uploads_list_is_for_staff_and_never_carries_image_bytes_812(client):
+    c, S = client
+    zoro, plain = user(S, "Zoro"), user(S, "Plain")
+    mod = user(S, "Mod", role="moderator")
+    item = upload(c, zoro, "playmat", JPEG)
+    assert as_user(c, plain).get("/admin/cosmetics").status_code == 403
+    assert as_user(c, plain).get(f"/admin/cosmetics/{item['id']}/image").status_code == 403
+    assert as_user(c, plain).post(f"/admin/cosmetics/{item['id']}/take-down", json={"reason": "x"}).status_code == 403
+    c.cookies.clear()
+    assert c.get("/admin/cosmetics").status_code == 401
+    res = as_user(c, mod).get("/admin/cosmetics")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 1
+    row = body["items"][0]
+    assert (row["id"], row["kind"], row["mime"], row["size"]) == (item["id"], "playmat", "image/jpeg", len(JPEG))
+    assert row["owner"] == {"id": zoro, "name": "Zoro", "role": "user", "banned": False}
+    assert row["taken_down_at"] is None
+    assert "data" not in row and "jpeg-bytes" not in res.text
+
+
+def test_the_uploads_list_filters_by_state_and_kind_newest_first_and_pages_812(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod = user(S, "Mod", role="moderator")
+    mat1 = upload(c, zoro, "playmat", JPEG)
+    back = upload(c, zoro, "cardBack", PNG)
+    mat2 = upload(c, zoro, "playmat", PNG)
+    as_user(c, mod).post(f"/admin/cosmetics/{mat1['id']}/take-down", json={"reason": "Copyright notice"})
+
+    def ids(**q):
+        return [i["id"] for i in as_user(c, mod).get("/admin/cosmetics", params=q).json()["items"]]
+
+    assert ids() == [mat2["id"], back["id"]]
+    assert ids(state="taken_down") == [mat1["id"]]
+    assert ids(state="all") == [mat2["id"], back["id"], mat1["id"]]
+    assert ids(state="all", kind="cardBack") == [back["id"]]
+    assert ids(state="all", kind="playmat") == [mat2["id"], mat1["id"]]
+    page = as_user(c, mod).get("/admin/cosmetics", params={"state": "all", "limit": 1, "offset": 1}).json()
+    assert [i["id"] for i in page["items"]] == [back["id"]] and page["total"] == 3
+    assert as_user(c, mod).get("/admin/cosmetics", params={"state": "bogus"}).status_code == 422
+
+
+def test_the_uploads_list_marks_the_active_image_report_counts_and_banned_owners_812(client):
+    c, S = client
+    zoro, luffy = user(S, "Zoro"), user(S, "Luffy")
+    mod = user(S, "Mod", role="moderator")
+    old = upload(c, zoro, "playmat", JPEG)
+    cur = upload(c, zoro, "playmat", PNG)
+    as_user(c, zoro).put("/duel/cosmetics/active", json={"kind": "playmat", "id": cur["id"]})
+    with S() as db:
+        db.add(PlayerReport(reporter_id=luffy, reported_id=zoro, reason="image", image_kind="playmat", cosmetic_id=cur["id"], source="match"))
+        db.add(PlayerReport(reporter_id=mod, reported_id=zoro, reason="image", image_kind="playmat", cosmetic_id=cur["id"], source="match"))
+        db.get(User, zoro).banned_at = datetime.now(timezone.utc)
+        db.commit()
+    rows = {i["id"]: i for i in as_user(c, mod).get("/admin/cosmetics").json()["items"]}
+    assert (rows[cur["id"]]["in_use"], rows[cur["id"]]["report_count"]) == (True, 2)
+    assert (rows[old["id"]]["in_use"], rows[old["id"]]["report_count"]) == (False, 0)
+    assert rows[cur["id"]]["owner"]["banned"] is True
+
+
+def test_staff_can_view_any_upload_even_taken_down_and_it_is_never_cached_812(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod = user(S, "Mod", role="moderator")
+    item = upload(c, zoro, "playmat", JPEG)
+    as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/take-down", json={"reason": "Explicit"})
+    res = as_user(c, mod).get(f"/admin/cosmetics/{item['id']}/image")
+    assert res.status_code == 200 and res.content == JPEG
+    assert res.headers["content-type"] == "image/jpeg"
+    assert res.headers["cache-control"] == "private, no-store"
+    assert res.headers["x-content-type-options"] == "nosniff"
+    assert as_user(c, mod).get("/admin/cosmetics/9999/image").status_code == 404
+
+
+def test_a_moderator_takes_down_an_unreported_upload_and_its_public_link_404s_812(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod = user(S, "Mod", role="moderator")
+    item = upload(c, zoro, "playmat", JPEG)
+    as_user(c, zoro).put("/duel/cosmetics/active", json={"kind": "playmat", "id": item["id"]})
+    c.cookies.clear()
+    assert c.get(item["public_path"]).status_code == 200
+    res = as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/take-down", json={"reason": "  Copyright notice  "})
+    assert res.status_code == 200, res.text
+    assert res.json()["taken_down_reason"] == "Copyright notice" and res.json()["taken_down_by_name"] == "Mod"
+    assert res.json()["in_use"] is False
+    c.cookies.clear()
+    assert c.get(item["public_path"]).status_code == 404
+    with S() as db:
+        row = db.get(DuelCosmetic, item["id"])
+        assert row.data == JPEG and row.taken_down_by == mod and row.taken_down_reason == "Copyright notice"
+        assert db.get(DuelUserSettings, zoro).active_playmat_id is None
+
+
+def test_taking_down_needs_a_reason_and_twice_keeps_the_first_decision_812(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod, admin = user(S, "Mod", role="moderator"), user(S, "Boss", role="admin")
+    item = upload(c, zoro, "playmat", JPEG)
+    url = f"/admin/cosmetics/{item['id']}/take-down"
+    assert as_user(c, mod).post(url, json={}).status_code == 422
+    assert as_user(c, mod).post(url, json={"reason": ""}).status_code == 422
+    assert as_user(c, mod).post(url, json={"reason": "   "}).status_code == 422
+    assert as_user(c, mod).post(url, json={"reason": "x" * 201}).status_code == 422
+    assert as_user(c, mod).post("/admin/cosmetics/9999/take-down", json={"reason": "x"}).status_code == 404
+    assert as_user(c, mod).post(url, json={"reason": "First"}).status_code == 200
+    again = as_user(c, admin).post(url, json={"reason": "Second"})
+    assert again.status_code == 200 and again.json()["taken_down_reason"] == "First"
+    with S() as db:
+        assert db.get(DuelCosmetic, item["id"]).taken_down_by == mod
+
+
+def test_restoring_a_takedown_from_the_uploads_list_stays_admin_only_812(client):
+    c, S = client
+    zoro = user(S, "Zoro")
+    mod, admin = user(S, "Mod", role="moderator"), user(S, "Boss", role="admin")
+    item = upload(c, zoro, "cardBack", PNG)
+    as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/take-down", json={"reason": "Hateful"})
+    assert as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/restore").status_code == 403
+    res = as_user(c, admin).post(f"/admin/cosmetics/{item['id']}/restore")
+    assert res.status_code == 200 and res.json()["taken_down_at"] is None
+    assert [i["id"] for i in as_user(c, mod).get("/admin/cosmetics").json()["items"]] == [item["id"]]
