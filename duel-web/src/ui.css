@@ -2656,7 +2656,6 @@ label.btn.is-busy {
   color: var(--chrome);
 }
 
-<<<<<<< HEAD
 /* —— Only on OPTCG Duel —— */
 
 .only-duel {
@@ -2710,7 +2709,46 @@ label.btn.is-busy {
 }
 
 .only-tile:disabled {
-=======
+  opacity: 0.55;
+  cursor: default;
+}
+
+.only-tile-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.only-tile-blurb {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+@media (max-width: 479px) {
+  .only-duel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .only-tile {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .only-tile-title {
+    font-size: 1rem;
+  }
+
+  .only-tile-blurb {
+    font-size: 0.74rem;
+  }
+
+  .only-tile:nth-child(n + 5) {
+    display: none;
+  }
+}
+
 /* —— Report player dialog (reports/ReportPlayerDialog) — reuses the feedback dialog shell above —— */
 .report-card {
   max-width: 480px;
@@ -2777,47 +2815,10 @@ label.btn.is-busy {
 
 .report-reason:disabled,
 .report-image:disabled {
->>>>>>> origin/main
   opacity: 0.55;
   cursor: default;
 }
 
-<<<<<<< HEAD
-.only-tile-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.05rem;
-  line-height: 1.15;
-}
-
-.only-tile-blurb {
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: var(--muted);
-}
-
-@media (max-width: 479px) {
-  .only-duel-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
-  }
-
-  .only-tile {
-    padding: 0.7rem 0.75rem;
-  }
-
-  .only-tile-title {
-    font-size: 1rem;
-  }
-
-  .only-tile-blurb {
-    font-size: 0.74rem;
-  }
-
-  .only-tile:nth-child(n + 5) {
-    display: none;
-  }
-=======
 .report-reason:focus-visible,
 .report-image:focus-visible,
 .report-player:focus-visible {
@@ -2972,5 +2973,4 @@ label.btn.is-busy {
 
 .warning-card .warning-rules a {
   color: var(--chrome-bright);
->>>>>>> origin/main
 }
