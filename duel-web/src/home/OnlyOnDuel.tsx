@@ -4,7 +4,7 @@ import { deckContext } from "../logPose";
 import { getPlannerUrl } from "../config";
 import type { SavedDeck } from "../decks/storage";
 
-/** Features the other sites don't have. Phones show the first four tiles. */
+/** Features the other sites don't have. Phones show title-only tiles, at most four, and skip Spectate (the Spectate mode button is right above). */
 export function OnlyOnDuel({
   deck,
   onSpectate,
@@ -41,7 +41,7 @@ export function OnlyOnDuel({
             <span className="only-tile-blurb">Ask about your deck, matchups and mistakes.</span>
           </button>
         ) : null}
-        <button type="button" className="only-tile" disabled={disabled} onClick={onSpectate}>
+        <button type="button" className="only-tile only-tile-dup" disabled={disabled} onClick={onSpectate}>
           <span className="only-tile-title">Spectate</span>
           <span className="only-tile-blurb">Watch friends and top players live.</span>
         </button>

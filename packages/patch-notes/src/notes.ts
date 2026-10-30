@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-30
+  { date: "2026-10-30", app: "duel", pr: 826, title: "A tidier home page on phones", text: "The home page styles that went missing after yesterday's update are back, including the event card and the report dialog. On a phone the home page now shows the logo next to the title, and the \"Only on OPTCG Duel\" tiles are short buttons with just a name." },
   // 2026-10-29
   { date: "2026-10-29", app: "duel", pr: 820, title: "A new logo and new fonts", text: "OPTCG Duel has its own logo, a straw hat card, and new fonts that are easier to tell apart. The home page also lists the things you can only do here, like Ranked bounties, the Log Pose coach, spectating and replays." },
   { date: "2026-10-29", app: "both", pr: 810, title: "Rules of conduct and Report player", text: "There is now a short Rules of conduct page, linked from the footer and the username and image screens. If another player breaks them, use Report player from the match menu, after a match, from your friends list or from your match history. A moderator reviews it, and the other player is never told who reported them. If a moderator warns you, you will see their message when you open the home page." },
