@@ -102,7 +102,7 @@ const gameSnapshot = z.object({
   mulliganDone: z.boolean().optional(),
   you: z.object({
     ...board,
-    hand: z.array(z.object({ id: instId, defId, cost: count.optional(), counter: count.optional() })).max(20),
+    hand: z.array(z.object({ id: instId, defId, cost: count.optional(), counter: z.number().int().min(0).max(10000).optional() })).max(20),
     donRested: count,
   }),
   opponent: z.object({
@@ -212,6 +212,8 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
     ].filter(Boolean);
     return `${nameOfDef(catalog, c.defId)} [${c.id}]${bits.length ? ` (${bits.join(", ")})` : ""}`;
   };
+  const powers = boardPowers(s);
+  const powerOf = (id: string) => powers.get(id);
   const side = (label: string, p: GameSnapshot["you"] | GameSnapshot["opponent"]) => [
     `${label} Leader: ${card(p.leader)}`,
     `${label} Characters: ${p.characters.length ? p.characters.map(card).join("; ") : "none"}`,
@@ -228,14 +230,14 @@ export function gameContextBlock(catalog: Catalog, game: GameContext, claims: Ga
       : []),
     ...side("Your", s.you),
     `Your rested DON!!: ${s.you.donRested}`,
-    `Your hand: ${s.you.hand.length ? s.you.hand.map((h) => `${nameOfDef(catalog, h.defId)} [${h.id}] (cost ${h.cost ?? catalog.cards.get(h.defId)?.cost ?? "?"}${h.counter ? `, counter ${h.counter}` : ""})`).join("; ") : "empty"}`,
+    `Your hand: ${s.you.hand.length ? s.you.hand.map((h) => `${nameOfDef(catalog, h.defId)} [${h.id}] (${handBits(catalog, h).join(", ")})`).join("; ") : "empty"}`,
     ...side("Opponent", s.opponent),
     `Opponent hand: ${s.opponent.hand} cards (hidden), DON!! total ${s.opponent.donTotal}`,
-    `Battle: ${s.battle || "none"}`,
+    `Battle: ${s.battle ? `${s.battle}${battleMark(s.battle)}` : "none"}`,
     `Pending choice for you: ${s.choice ? `${s.choice.prompt} (${s.choice.kind})` : "none"}`,
     ...(s.choice ? choiceLines(catalog, s.choice) : []),
     "Legal actions:",
-    ...s.legal.map((a) => `- ${describeLegal(a, named)}`),
+    ...s.legal.map((a) => `- ${describeLegal(a, named, powerOf)}`),
   ];
   if (game.log?.length) lines.push("Recent log:", ...game.log);
   const deck = claims.deck.map((d) => `${d.copies}x ${d.id} ${nameOfDef(catalog, d.id)}`);
@@ -272,7 +274,32 @@ function choiceLines(catalog: Catalog, c: NonNullable<GameSnapshot["choice"]>): 
   return lines;
 }
 
-function describeLegal(a: LegalAction, named: (id: string) => string): string {
+/** Cost, then the counter the hand card can give: the app's value, else the printed one, and "counter event" for a [Counter] Event. */
+function handBits(catalog: Catalog, h: GameSnapshot["you"]["hand"][number]): string[] {
+  const row = catalog.cards.get(h.defId);
+  const counter = h.counter ?? row?.counter;
+  return [`cost ${h.cost ?? row?.cost ?? "?"}`, ...(counter ? [`counter ${counter}`] : []), ...(row?.type === "event" && row.text.includes("[Counter]") ? ["counter event"] : [])];
+}
+
+/** Power of each Leader and Character on the board, by id, as the snapshot shows it. */
+function boardPowers(s: GameSnapshot): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of [s.you.leader, ...s.you.characters, s.opponent.leader, ...s.opponent.characters]) if (c.power !== undefined) m.set(c.id, c.power);
+  return m;
+}
+
+/** An attack wins when the attacker's power is greater than or equal to the target's (ties go to the attacker). */
+const attackWins = (attacker: number, target: number) => attacker >= target;
+
+/** The note after a battle line like "Your Leader 5000 → their Leader 5000": who is ahead before blocks and counters. */
+function battleMark(battle: string): string {
+  const m = /(\d+)\s*→.*?(\d+)\s*$/.exec(battle);
+  if (!m) return "";
+  const [attacker, target] = [Number(m[1]), Number(m[2])];
+  return attackWins(attacker, target) ? " (attacker ahead or tied: hits as is, ties go to the attacker)" : ` (attacker ${target - attacker} short as is)`;
+}
+
+function describeLegal(a: LegalAction, named: (id: string) => string, powerOf: (id: string) => number | undefined): string {
   switch (a.type) {
     case "play_card":
       return `play ${named(a.card)}${a.trash ? ` replacing ${named(a.trash)}` : ""}`;
@@ -280,8 +307,16 @@ function describeLegal(a: LegalAction, named: (id: string) => string): string {
       return `give DON!! to ${named(a.target)}`;
     case "activate_ability":
       return `activate ${named(a.source)} ability ${a.abilityId}${a.target ? ` on ${named(a.target)}` : ""}`;
-    case "declare_attack":
-      return `attack ${named(a.target)} with ${named(a.attacker)}`;
+    case "declare_attack": {
+      const [mine, theirs] = [powerOf(a.attacker), powerOf(a.target)];
+      const mark =
+        mine === undefined || theirs === undefined
+          ? ""
+          : attackWins(mine, theirs)
+            ? ` (${mine} vs ${theirs}: wins as is unless they block or counter)`
+            : ` (${mine} vs ${theirs}: loses as is, ${theirs - mine} short)`;
+      return `attack ${named(a.target)} with ${named(a.attacker)}${mark}`;
+    }
     case "declare_block":
       return `block with ${named(a.blocker)}`;
     case "pass_block":
@@ -317,7 +352,8 @@ You only know what is in the <game> block. Never guess the opponent's hand or de
 Be brief: the player reads this on a phone between moves. Keep in-game answers to about 60 words in at most three short lines, with no headings: the play first in one line (for example "Attack their Leader with Luffy, +2 DON!!"), then one or two sentences of why. Add an alternative, a risk or a number only when it would change their decision. Don't recap the board, their hand or the legal actions, and don't quote card text back; they can see it. Go deeper only when they ask for more.
 When they ask you to plan their turn, call propose_turn_plan once with the whole turn (every step, in order, ending with end_turn when the turn is done), then say in one sentence what the plan does and that they tap Play this turn to run it; don't list the steps again, the plan card shows them. When they ask you to play, take or do their turn for them, call it the same way with play_now true, then say in one sentence that you're playing it now and they can tap Stop to take over. Set play_now only when they asked you to play the turn, never for "plan my turn" or "what should I do". Keep each step's why to a few words, and leave it out when the step is obvious. If the tool refuses, fix the plan and call it again. Never say you made a move you didn't propose: the app runs the plan, nothing else moves.
 In the mulligan step, judge keep or mulligan from Your hand, your deck list and whether they go first; never ask them for their hand, it is in the block.
-Choices that come up mid-turn (searches, targets, triggers) are the player's unless the app is playing the turn for them; otherwise mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.`;
+Choices that come up mid-turn (searches, targets, triggers) are the player's unless the app is playing the turn for them; otherwise mention what you would pick. For defensive questions (block or counter) answer in one or two sentences, without a plan: block or not, which counter, and why.
+Judge an attack by the powers in Legal actions (ties go to the attacker), and treat the opponent's hidden hand as possible counters whatever their DON!!. When there is a pending choice, answer it.`;
 
 const planStep = z.object({
   action: z.enum(["play", "give_don", "activate", "attack", "end_turn"]),
@@ -329,6 +365,7 @@ const planStep = z.object({
   abilityId: z.string().max(60).optional(),
   attacker: z.string().max(40).optional(),
   why: z.string().trim().max(200).optional(),
+  boost: z.string().trim().max(120).optional(),
 });
 type PlanStepInput = z.infer<typeof planStep>;
 
@@ -369,6 +406,8 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
   const targets = new Set<string>([s.opponent.leader.id, ...s.opponent.characters.map((c) => c.id)]);
   const opponents = new Set<string>([...targets, ...(s.opponent.stage ? [s.opponent.stage.id] : [])]);
   const played = new Set<string>();
+  // Power at the moment of each step: the snapshot's, plus DON!! given in the plan; played characters start at their printed power.
+  const power = boardPowers(s);
   let don = 0;
   const steps: Omit<TurnPlan, "id">["steps"] = [];
 
@@ -396,6 +435,8 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
         if (kind === "character") {
           actors.add(st.card);
           sources.add(st.card);
+          const printed = catalog.cards.get(h.defId)?.power;
+          if (printed !== undefined) power.set(st.card, printed);
         } else if (kind === "stage") sources.add(st.card);
         const cost = h.cost ?? catalog.cards.get(h.defId)?.cost;
         // Playing a card rests DON!! for its cost, so it comes out of the same active DON!! as giving it.
@@ -408,6 +449,8 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
         if (!st.target || !st.count) return fail(`${at}: give_don needs "target" and "count".`);
         const bad = own(st.target, actors, "the DON!! target");
         if (bad) return fail(bad);
+        const before = power.get(st.target);
+        if (before !== undefined) power.set(st.target, before + 1000 * st.count);
         don += st.count;
         if (don > s.you.donActive) return fail(spentTooMuch(at, don, s.you.donActive));
         steps.push({ label: `Give ${st.count} DON!! to ${nm(st.target)}`, ...why, action: "give_don", target: st.target, count: st.count });
@@ -436,6 +479,13 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
             actors.has(st.target) || sources.has(st.target)
               ? `${at}: ${st.target} (${nm(st.target)}) is the player's own card; attack the opponent's Leader or one of their characters.`
               : `${at}: ${st.target} isn't the opponent's Leader or one of their characters.`,
+          );
+        }
+        const [mine, theirs] = [power.get(st.attacker), power.get(st.target)];
+        if (!st.boost && mine !== undefined && theirs !== undefined && !attackWins(mine, theirs)) {
+          const need = Math.ceil((theirs - mine) / 1000);
+          return fail(
+            `${at}: ${nm(st.attacker)} (${mine}) attacking ${nm(st.target)} (${theirs}) loses as is (ties go to the attacker, so it needs ${theirs}). Give it ${need} DON!! first, drop the attack, or if an effect earlier in the plan raises its power, set "boost" on this step saying which.`,
           );
         }
         const who = st.target === s.opponent.leader.id ? "the opponent's Leader" : nm(st.target);
@@ -478,6 +528,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
     description:
       "Plan the player's whole turn from the <game> block. Nothing is played: the app shows the steps as a card the player can run with Play this turn. " +
       "Give every step in order. Actions: play (card = hand id, trash = character to replace), give_don (target, count), activate (source, abilityId; the target, if any, is chosen when the ability resolves and is the player's to pick), attack (attacker, target = the opponent's Leader or character id), end_turn (last only). " +
+      "An attack whose power is below its target's (ties go to the attacker) is refused unless you set boost on that step to say which earlier effect raises its power. " +
       "Characters played earlier in the plan can act in later steps by their hand id. The plan is checked against the board and refused with the reason when a step can't work. " +
       "Set play_now only when the player asked you to play their turn for them: the app then starts the plan by itself.",
     inputSchema: {

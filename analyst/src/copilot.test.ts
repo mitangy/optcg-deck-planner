@@ -217,6 +217,50 @@ describe("copilot game block in the mulligan (#620)", () => {
   });
 });
 
+describe("copilot power marks (#835)", () => {
+  it("shows a hand card's printed counter and marks counter events when the app sends none (#835)", () => {
+    const hand = [
+      { id: "h1", defId: "OP01-016", cost: 1 },
+      { id: "h2", defId: "ST01-004", cost: 2 },
+      { id: "h5", defId: "EB01-009" },
+      { id: "h6", defId: "OP01-016", cost: 1, counter: 2000 },
+    ];
+    const text = gameContextBlock(catalog, game({ you: { ...snapshot().you, hand } }), claims);
+    expect(text).toContain("Nami [h1] (cost 1, counter 1000)");
+    expect(text).toContain("Sanji [h2] (cost 2)");
+    expect(text).toContain("[h5] (cost 1, counter event)");
+    // The app's value, when it sends one, wins over the printed one.
+    expect(text).toContain("Nami [h6] (cost 1, counter 2000)");
+  });
+
+  it("marks each legal attack with both powers and whether it wins, a tie counting as a win (#835)", () => {
+    const you = { ...snapshot().you, characters: [{ id: "y-c1", defId: "ST01-006", power: 2000 }] };
+    const g = game({
+      you,
+      legal: [
+        { type: "declare_attack", attacker: "y-l", target: "o-l" },
+        { type: "declare_attack", attacker: "y-c1", target: "o-l" },
+        { type: "declare_attack", attacker: "y-l", target: "o-c1" },
+      ],
+    });
+    const text = gameContextBlock(catalog, g, claims);
+    expect(text).toContain("with Roronoa Zoro [y-l] (5000 vs 5000: wins as is unless they block or counter)");
+    expect(text).toContain("with Tony Tony.Chopper [y-c1] (2000 vs 5000: loses as is, 3000 short)");
+    expect(text).toContain("[o-c1] with Roronoa Zoro [y-l] (5000 vs 6000: loses as is, 1000 short)");
+    // No mark when a power is missing.
+    const unknown = game({ legal: [{ type: "declare_attack", attacker: "y-l", target: "o-l" }], opponent: { ...snapshot().opponent, leader: { id: "o-l", defId: "ST01-001" } } });
+    expect(gameContextBlock(catalog, unknown, claims)).toContain("- attack Monkey.D.Luffy [o-l] with Roronoa Zoro [y-l]\n");
+  });
+
+  it("marks the battle line as hitting on a tie and short when behind (#835)", () => {
+    const block = (battle: string) => gameContextBlock(catalog, game({ battle }), claims);
+    expect(block("Your Leader 5000 → their Leader 5000")).toContain("Battle: Your Leader 5000 → their Leader 5000 (attacker ahead or tied: hits as is");
+    expect(block("Your Leader 8000 → Gloriosa 1000")).toContain("(attacker ahead or tied: hits as is");
+    expect(block("Your Leader 4000 → their Leader 5000")).toContain("(attacker 1000 short as is)");
+    expect(block("something unexpected")).toContain("Battle: something unexpected\n");
+  });
+});
+
 describe("copilot turn plan", () => {
   it("refuses a plan when the game was attached without plans, and says to answer in words (#620)", async () => {
     const g = gameContext.parse({ ticket: TICKET, snapshot: snapshot(), plans: false });
@@ -234,7 +278,7 @@ describe("copilot turn plan", () => {
       PLAY_NAMI,
       { action: "give_don", target: "y-l", count: 2, why: "Zoro hits harder" },
       { action: "attack", attacker: "y-l", target: "o-c1" },
-      { action: "attack", attacker: "y-c1", target: "o-l" },
+      { action: "attack", attacker: "y-c1", target: "o-l", boost: "fixture: label test" },
       { action: "activate", source: "y-c1", abilityId: "a1" },
       { action: "end_turn" },
     ]);
@@ -253,11 +297,31 @@ describe("copilot turn plan", () => {
   });
 
   it("accepts a character played earlier in the plan as an attacker and DON target in later steps (#416)", async () => {
-    const r = await plan(game(), [PLAY_NAMI, { action: "give_don", target: "h1", count: 1 }, { action: "attack", attacker: "h1", target: "o-l" }]);
+    const rich = game({ you: { ...snapshot().you, donActive: 10 } });
+    // Nami (2000) with 3 DON!! reaches the Leader's 5000.
+    const r = await plan(rich, [PLAY_NAMI, { action: "give_don", target: "h1", count: 3 }, { action: "attack", attacker: "h1", target: "o-l" }]);
     expect(r.plan).toBeDefined();
     // A card played from the hand that isn't a character can't act: the event has no body on the board.
-    const rich = game({ you: { ...snapshot().you, donActive: 10 } });
     expect(await refusedWith(rich, [PLAY_NAMI, { action: "play", card: "h3" }, { action: "attack", attacker: "h3", target: "o-l" }])).toMatch(/h3 isn't a card on the board/);
+  });
+
+  it("refuses a plan attack that loses on power, and accepts it after enough DON!! or with a boost (#835)", async () => {
+    const rich = game({ you: { ...snapshot().you, donActive: 10 } });
+    // Chopper (1000) into the Leader (5000): short by 4000.
+    const lose = await refusedWith(rich, [{ action: "attack", attacker: "y-c1", target: "o-l" }]);
+    expect(lose).toMatch(/Tony Tony.Chopper \(1000\) attacking Monkey.D.Luffy \(5000\) loses as is/);
+    expect(lose).toContain("Give it 4 DON!!");
+    expect(lose).toContain('"boost"');
+    // 3 DON!! is still short (4000), 4 DON!! ties at 5000 and a tie goes to the attacker.
+    expect(await refusedWith(rich, [{ action: "give_don", target: "y-c1", count: 3 }, { action: "attack", attacker: "y-c1", target: "o-l" }])).toMatch(/\(4000\) attacking/);
+    expect((await plan(rich, [{ action: "give_don", target: "y-c1", count: 4 }, { action: "attack", attacker: "y-c1", target: "o-l" }])).plan).toBeDefined();
+    const legalChopper = game({ you: { ...snapshot().you, donActive: 10 }, legal: [{ type: "declare_attack", attacker: "y-c1", target: "o-l" }, { type: "end_turn" }] });
+    expect((await plan(legalChopper, [{ action: "attack", attacker: "y-c1", target: "o-l", boost: "Nami gives +4000" }])).plan).toBeDefined();
+    expect(await refusedWith(legalChopper, [{ action: "attack", attacker: "y-c1", target: "o-l" }])).toMatch(/loses as is/);
+    // A character played in the plan starts at its printed power (Nami 2000).
+    expect(await refusedWith(rich, [PLAY_NAMI, { action: "attack", attacker: "h1", target: "o-l" }])).toMatch(/Nami \(2000\) attacking/);
+    // A Leader tying the opponent's Leader may attack as is.
+    expect((await plan(rich, [{ action: "attack", attacker: "y-l", target: "o-l" }])).plan).toBeDefined();
   });
 
   it("refuses a plan when it isn't the player's turn (#416)", async () => {
@@ -324,7 +388,7 @@ describe("copilot turn plan", () => {
 
   it("refuses a first step that matches the action but not the card it names (#416)", async () => {
     const g = game({ legal: [{ type: "declare_attack", attacker: "y-l", target: "o-l" }, { type: "end_turn" }] });
-    expect(await refusedWith(g, [{ action: "attack", attacker: "y-l", target: "o-c1" }])).toMatch(/first step isn't a legal action/);
+    expect(await refusedWith(g, [{ action: "attack", attacker: "y-l", target: "o-c1", boost: "fixture: legality test" }])).toMatch(/first step isn't a legal action/);
   });
 
   it("accepts a plan that opens with a targeted activate: legal activations carry no target, the player picks it when the ability resolves (#419)", async () => {
