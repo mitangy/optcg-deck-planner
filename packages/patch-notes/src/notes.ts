@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-30
-  { date: "2026-10-30", app: "duel", pr: 837, title: "Log Pose stops suggesting attacks that can't win", text: "Log Pose now compares power before it suggests an attack, knows that a tie goes to the attacker, and no longer says you can't be countered just because the opponent has no active DON!!. It also sees the counter value printed on the cards in your hand." },
+  { date: "2026-10-30", app: "duel", pr: 837, title: "Log Pose stops suggesting losing attacks", text: "Log Pose now compares power before it suggests an attack, knows that a tie goes to the attacker, and no longer says you can't be countered just because the opponent has no active DON!!. It also sees the counter value printed on the cards in your hand." },
   { date: "2026-10-30", app: "duel", pr: 832, title: "Log Pose analysis loads again", text: "Opening a past match in History showed no Log Pose analysis, only \"didn't write anything\". Log Pose ran out of room while thinking the game over. It now has room to finish the review, and if it ever runs out again it says so." },
   { date: "2026-10-30", app: "duel", pr: 826, title: "A tidier home page on phones", text: "On a phone the home page now shows the logo next to the title, and the \"Only on OPTCG Duel\" tiles are short buttons with just a name." },
   { date: "2026-10-30", app: "duel", pr: 830, title: "Preview art for Lets Go Karoo", text: "Let's Go, Karoo!! (OP18-018) now shows a preview image until its official art is out." },
