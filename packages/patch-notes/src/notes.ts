@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-10-30
+  { date: "2026-10-30", app: "duel", pr: 830, title: "Preview art for Lets Go Karoo", text: "Let's Go, Karoo!! (OP18-018) now shows a preview image until its official art is out." },
   { date: "2026-10-30", app: "duel", pr: 828, title: "Matches work again", text: "Since yesterday's update, the match board showed up without its layout and the Mulligan and Keep buttons were hard to find, so games couldn't really be played. The board looks and works as before again. The Report player window and other screens that lost their styling are fixed too." },
   // 2026-10-29
   { date: "2026-10-29", app: "duel", pr: 822, title: "The giveaway banner tells staff they cannot enter", text: "Admin and moderator accounts are not eligible for the Stress Test Sunday giveaway. The home page banner now says \"Staff can't enter\" for them instead of \"Entries closed\", which it only says once the event is over." },
