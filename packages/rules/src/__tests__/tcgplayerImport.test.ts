@@ -49,6 +49,12 @@ describe("TCGPlayer description conversion (#458)", () => {
     expect(convertDescription("Draw 1 card!\r\n<br>(Reminder text)\r\n<br>[On Play] Draw 1 card.").text).toBe("Draw 1 card! (Reminder text) [On Play] Draw 1 card.");
   });
 
+  it("convertDescription restores the brackets TCGPlayer drops from \"this card's [Main] effect\" (#NEW)", () => {
+    expect(convertDescription("[Main] Draw 1 card.\r\n<br>[Trigger] Activate this card's Main effect.").trigger).toBe("[Trigger] Activate this card's [Main] effect.");
+    expect(convertDescription("[Trigger] Activate this card's On K.O. effect.").trigger).toBe("[Trigger] Activate this card's [On K.O.] effect.");
+    expect(convertDescription("[Trigger] Activate this card's [Counter] effect.").trigger).toBe("[Trigger] Activate this card's [Counter] effect.");
+  });
+
   it("convertDescription restores the minus signs TCGPlayer drops from DON!! costs and give clauses (#670)", () => {
     const hornet = "[Main] <strong>DON!! 1:</strong> If your Leader has the {The Vinsmoke Family} type, give up to 1 of your opponent's Characters 4000 power during this turn.<br>[Counter] <strong>DON!! 1:</strong> Your Leader gains +4000 power during this battle.";
     expect(convertDescription(hornet).text).toBe("[Main] DON!! −1: If your Leader has the {The Vinsmoke Family} type, give up to 1 of your opponent's Characters −4000 power during this turn. [Counter] DON!! −1: Your Leader gains +4000 power during this battle.");

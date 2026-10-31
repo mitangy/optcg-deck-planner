@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { artAfterError, cardImageUrl, isPlaceholderArt } from "./cardImage";
+import previewIds from "./previewArt.json";
+import altIds from "./previewArtAlts.json";
+
+// Read ids from the manifests: the daily art sync retires previews once official art is up.
+const CARD = previewIds[0]!;
+const ALT = altIds[0]!;
 
 const catalog = "https://tcgplayer-cdn.tcgplayer.com/product/453505_200w.jpg";
 
@@ -41,11 +47,11 @@ describe("artAfterError", () => {
     expect(artAfterError(local!, "op01-001")).toBeNull();
   });
 
-  it("EB05 cards fall back to preview art when TCGPlayer art fails (#575)", () => {
+  it("cards with preview art fall back to it when TCGPlayer art fails (#575)", () => {
     const cdn = "https://tcgplayer-cdn.tcgplayer.com/product/123456_400w.jpg";
-    const preview = artAfterError(cdn, "EB05-061");
-    expect(preview).toBe("/cards/preview/EB05-061.webp");
-    expect(artAfterError(preview!, "EB05-061")).toBeNull();
+    const preview = artAfterError(cdn, CARD);
+    expect(preview).toBe(`/cards/preview/${CARD}.webp`);
+    expect(artAfterError(preview!, CARD)).toBeNull();
     expect(artAfterError(cdn, "OP01-016")).toBe("/cards/OP01-016.png");
   });
 
@@ -59,18 +65,18 @@ describe("artAfterError", () => {
   });
 
   it("a failed alt printing shows its own preview, not the card's (#581)", () => {
-    // 723148 is EB05-061's alt. Both have previews, so the alt's own must win.
-    const alt = "https://tcgplayer-cdn.tcgplayer.com/product/723148_400w.jpg";
-    const preview = artAfterError(alt, "EB05-061");
-    expect(preview).toBe("/cards/preview/p723148.webp");
-    expect(artAfterError(preview!, "EB05-061")).toBeNull();
+    // Both the card and the alt printing have previews, so the alt's own must win.
+    const alt = `https://tcgplayer-cdn.tcgplayer.com/product/${ALT}_400w.jpg`;
+    const preview = artAfterError(alt, CARD);
+    expect(preview).toBe(`/cards/preview/p${ALT}.webp`);
+    expect(artAfterError(preview!, CARD)).toBeNull();
     // Large (_in_1000x1000) urls resolve the same product.
-    expect(artAfterError("https://tcgplayer-cdn.tcgplayer.com/product/723148_in_1000x1000.jpg", "EB05-061")).toBe(
-      "/cards/preview/p723148.webp",
+    expect(artAfterError(`https://tcgplayer-cdn.tcgplayer.com/product/${ALT}_in_1000x1000.jpg`, CARD)).toBe(
+      `/cards/preview/p${ALT}.webp`,
     );
     // A product without an alt preview keeps the card-level chain.
     const other = "https://tcgplayer-cdn.tcgplayer.com/product/999999_400w.jpg";
-    expect(artAfterError(other, "EB05-061")).toBe("/cards/preview/EB05-061.webp");
+    expect(artAfterError(other, CARD)).toBe(`/cards/preview/${CARD}.webp`);
     expect(artAfterError(other, "OP01-016")).toBe("/cards/OP01-016.png");
   });
 });
