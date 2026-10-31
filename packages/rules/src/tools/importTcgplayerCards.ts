@@ -94,6 +94,8 @@ export function convertDescription(html: string): { text: string; trigger: strin
     .replace(/(\S)-(\d+)(?= (?:power|cost)\b)/g, `$1 ${MINUS}$2`)
     .replace(/(^|\s)-(\d+)(?= (?:power|cost)\b)/g, `$1${MINUS}$2`)
     .replace(/DON!! -(\d)/g, `DON!! ${MINUS}$1`)
+    // TCGPlayer also drops the brackets in "Activate this card's [Main] effect"; Bandai (and the card-text grammar) keep them.
+    .replace(/\b(this card['’]s) (Main|On Play|On K\.?O\.?|Counter|When Attacking) effect/gi, (_m, head: string, timing: string) => `${head} [${/^on k/i.test(timing) ? "On K.O." : timing}] effect`)
     // TCGPlayer drops minus signs: "DON!! 1:" is "DON!! −1:", and positive grants are always
     // printed "+N", so an unsigned "give … 4000 power" is a lost minus.
     .replace(/DON!! (\d+)(?=:)/g, `DON!! ${MINUS}$1`)

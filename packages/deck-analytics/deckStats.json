@@ -2363,6 +2363,7 @@
 "OP18-052":{"n":"Mr. 5 & Miss.Valentine","t":"character","col":["blue"],"cost":5,"pow":4000,"ctr":2000,"tr":["Baroque Works"],"at":["Special","Strike"],"tm":["On Play"]},
 "OP18-055":{"n":"Mr.9 & Ms. Wednesday","t":"character","col":["blue"],"cost":3,"pow":4000,"ctr":1000,"tr":["Baroque Works"],"at":["Slash","Strike"],"tm":["On Play"],"rl":["removal"]},
 "OP18-056":{"n":"Mr.13 & Ms.Friday","t":"character","col":["blue"],"cost":2,"pow":3000,"ctr":1000,"tr":["Animal","Baroque Works"],"at":["Wisdom"],"tm":["On Play"]},
+"OP18-058":{"n":"This Kingdom is Doomed. You Can't Save It!","t":"event","col":["blue"],"cost":3,"tr":["Baroque Works","The Seven Warlords of the Sea"],"trg":1,"tm":["Main"],"rl":["removal"]},
 "OP18-060":{"n":"Saint Gunko","t":"leader","col":["purple","black"],"pow":5000,"life":4,"tr":["Celestial Dragons","Holy Knights of God"],"at":["Special"],"tm":["Activate: Main"],"rl":["draw","ramp"]},
 "OP18-063":{"n":"Kiwi & Mozu","t":"character","col":["purple"],"cost":3,"pow":1000,"ctr":2000,"tr":["Water Seven","The Franky Family"],"at":["Slash"],"tm":["On Play"],"rl":["ramp"]},
 "OP18-066":{"n":"Zambai","t":"character","col":["purple"],"cost":5,"pow":6000,"ctr":1000,"tr":["Water Seven","The Franky Family"],"at":["Slash"],"tm":["Activate: Main"]},
