@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-10-31
+  { date: "2026-10-31", app: "planner", pr: 0, title: "New sets' prices update every hour", text: "Prices for newly released and upcoming sets, like Extra Booster 05, now update every hour instead of once a day. Older sets still update daily." },
   // 2026-10-30
   { date: "2026-10-30", app: "duel", pr: 837, title: "Log Pose stops suggesting losing attacks", text: "Log Pose now compares power before it suggests an attack, knows that a tie goes to the attacker, and no longer says you can't be countered just because the opponent has no active DON!!. It also sees the counter value printed on the cards in your hand." },
   { date: "2026-10-30", app: "duel", pr: 834, title: "Staff can join Stress Test Sunday", text: "Admins and moderators can now join Stress Test Sunday and play like everyone else. The banner reminds them that staff are not eligible for the prizes." },

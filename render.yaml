@@ -74,6 +74,9 @@ services:
       # per worker and presence / live-game progress stay in Postgres.
       - key: REDIS_URL
         sync: false
+      # Optional: hourly prices for new/upcoming sets (default on in production). Defaults are fine:
+      # NEW_RELEASE_PRICES=false turns it off, NEW_RELEASE_PRICE_DAYS=30 (how far back a set counts as new),
+      # NEW_RELEASE_PRICE_INTERVAL_MINUTES=60 (minimum 15).
       # Admin page Hosting tab (#667): read-only tokens, each optional. Unset: that card says
       # "Not connected". ADMIN_EMAIL defaults to the owner (backend/app/config.py).
       - key: VERCEL_TOKEN
