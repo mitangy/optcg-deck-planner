@@ -49,7 +49,7 @@ describe("TCGPlayer description conversion (#458)", () => {
     expect(convertDescription("Draw 1 card!\r\n<br>(Reminder text)\r\n<br>[On Play] Draw 1 card.").text).toBe("Draw 1 card! (Reminder text) [On Play] Draw 1 card.");
   });
 
-  it("convertDescription restores the brackets TCGPlayer drops from \"this card's [Main] effect\" (#NEW)", () => {
+  it("convertDescription restores the brackets TCGPlayer drops from \"this card's [Main] effect\" (#839)", () => {
     expect(convertDescription("[Main] Draw 1 card.\r\n<br>[Trigger] Activate this card's Main effect.").trigger).toBe("[Trigger] Activate this card's [Main] effect.");
     expect(convertDescription("[Trigger] Activate this card's On K.O. effect.").trigger).toBe("[Trigger] Activate this card's [On K.O.] effect.");
     expect(convertDescription("[Trigger] Activate this card's [Counter] effect.").trigger).toBe("[Trigger] Activate this card's [Counter] effect.");
