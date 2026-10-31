@@ -203,13 +203,18 @@ def _special_flags(printings: list[tuple[int, str, float | None]]) -> dict[int, 
     }
 
 
-def refresh_special_flags(db: Session) -> dict[str, int]:
+def refresh_special_flags(db: Session, card_ids: set[str] | None = None) -> dict[str, int]:
     """Recompute is_special from stored names and re-pick preferred catalog rows.
 
     Lets deploys that only widen SPECIAL_NAME_MARKERS update alt-art visibility
-    without waiting on a full TCGCSV pull.
+    without waiting on a full TCGCSV pull. `card_ids` limits it to those cards.
     """
-    printings = list(db.scalars(select(CatalogPrinting)).all())
+    query = select(CatalogPrinting)
+    if card_ids is not None:
+        if not card_ids:
+            return {"printings_updated": 0, "cards_updated": 0}
+        query = query.where(CatalogPrinting.card_id.in_(card_ids))
+    printings = list(db.scalars(query).all())
     if not printings:
         return {"printings_updated": 0, "cards_updated": 0}
 
