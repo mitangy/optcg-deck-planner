@@ -20,6 +20,10 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Group buy base tile + total across picked arts (#850)
+    { id: "e2e-gb850-base-tile-count-hidden", args: "groupBuyArt850 --project=desktop-1200 -g \"#850\"", file: "frontend/src/GroupBuys.tsx", from: "        baseOwnedControl={baseControl}\n", to: "", kills: ["groupBuyArt850.spec.ts > Group buy shows the Base tile and prices the card as the total across picked arts (#850) [desktop-1200]"] },
+    { id: "e2e-gb850-price-stays-unit-price", args: "groupBuyArt850 --project=desktop-1200 -g \"#850\"", file: "frontend/src/GroupBuys.tsx", from: "  if (line.my_qty <= 0) {\n    return", to: "  if (true) {\n    return", kills: ["groupBuyArt850.spec.ts > Group buy shows the Base tile and prices the card as the total across picked arts (#850) [desktop-1200]"] },
+    { id: "e2e-gb850-base-tile-shows-checkout-price", args: "groupBuyArt850 --project=desktop-1200 -g \"#850\"", file: "frontend/src/GroupBuys.tsx", from: "          market_price: line.preferred_market_price ?? null,\n          product_id: line.preferred_product_id ?? null,", to: "          market_price: line.market_price,\n          product_id: line.product_id,", kills: ["groupBuyArt850.spec.ts > Group buy shows the Base tile and prices the card as the total across picked arts (#850) [desktop-1200]"] },
     // Collection redesign (#752)
     { id: "e2e-collection748-type-chip-no-filter", args: "collection --project=desktop-1200 -g \"#752\"", file: "frontend/src/App.tsx", from: "  const type = types.includes(typeChoice) ? typeChoice : \"\";", to: "  const type = \"\";", kills: ["collection.spec.ts > type and colour chips narrow the Collection together, and the count line keeps its place (#752) [desktop-1200]"] },
     { id: "e2e-collection748-badge-base-copies-only", args: "collection --project=desktop-1200 -g \"#752\"", file: "frontend/src/App.tsx", from: "                    ×{copies}", to: "                    ×{item.owned}", kills: ["collection.spec.ts > the Grid tile shows the copies badge on the art, with name, id, price and colours (#752) [desktop-1200]"] },
