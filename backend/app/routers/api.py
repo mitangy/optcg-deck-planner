@@ -545,7 +545,7 @@ def public_group_buy_view(
     token: str,
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Unauthenticated read-only group buy when the host enabled public view."""
+    """Unauthenticated read-only group buy for anyone with the invite token."""
     try:
         return group_buy.public_group_buy_view(db, token)
     except LookupError as exc:

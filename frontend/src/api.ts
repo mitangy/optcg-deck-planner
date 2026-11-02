@@ -737,11 +737,6 @@ export const api = {
     request<GroupBuyInvitePreview>(`/public/group-buys/${encodeURIComponent(token)}`),
   publicGroupBuy: (token: string) =>
     request<GroupBuyDetail>(`/public/group-buys/${encodeURIComponent(token)}/view`),
-  setGroupBuyPublic: (id: number, is_public: boolean) =>
-    request<GroupBuyDetail>(`/group-buys/${id}/public`, {
-      method: "PUT",
-      body: JSON.stringify({ is_public }),
-    }),
   setGroupBuyTitle: (id: number, title: string) =>
     request<GroupBuyDetail>(`/group-buys/${id}/title`, {
       method: "PUT",
