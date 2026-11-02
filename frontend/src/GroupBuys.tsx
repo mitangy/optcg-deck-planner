@@ -32,7 +32,14 @@ import {
 import { CardThumb } from "./CardThumb";
 import { AltArtsRow, AltStepper, MarketPrice } from "./MarketPrice";
 import { GridCard, MobileCard } from "./PlannerCard";
-import { myArtSplit, mySelectedArtsTotal, qtyForBase } from "./groupBuyArt";
+import {
+  isLineExcluded,
+  myArtSplit,
+  mySelectedArtsTotal,
+  qtyForAltWant,
+  qtyForBase,
+  visibleGroupBuyLines,
+} from "./groupBuyArt";
 import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
 import { invalidateOwnedViews } from "./ownedCollection";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
@@ -103,9 +110,6 @@ const MEMBER_COLORS = [
 ];
 
 /** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
-/** The checkout-printing select's value when the line has no preferred product (no product id is 0). */
-const NO_PRODUCT = 0;
-
 function useNarrowLayout() {
   const [narrow, setNarrow] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 800px)").matches : false,
@@ -296,11 +300,6 @@ function cardShellClass(
   return `${base}${excluded ? " excluded" : ""}${sole}`;
 }
 
-/** Viewer opted out of this card (custom qty 0 / Exclude). */
-function isLineExcluded(line: GroupBuyLine): boolean {
-  return Boolean(line.my_excluded ?? (line.my_qty === 0 && line.my_is_custom));
-}
-
 /** Earliest member (member-list order) who still wants copies of this card. */
 function primaryWantingMember(
   line: GroupBuyLine,
@@ -403,55 +402,6 @@ function UserGroupHeading({
       {userId >= 0 ? <MemberSwatch userId={userId} members={members} title={displayName} /> : null}
       <span>{displayName}</span>
     </div>
-  );
-}
-
-function LinePrintingSelect({
-  line,
-  disabled,
-  onChange,
-}: {
-  line: GroupBuyLine;
-  disabled: boolean;
-  onChange: (productId: number) => void;
-}) {
-  const preferredId = line.preferred_product_id ?? null;
-  const alts = line.alt_arts ?? [];
-  const currentId = line.product_id ?? preferredId;
-  if (!preferredId && alts.length === 0) {
-    return <span className="muted">—</span>;
-  }
-
-  function altOptionLabel(name: string, price: number | null | undefined): string {
-    // Keep labels short so the cell and the list stay narrow.
-    const cleaned = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
-    const short = cleaned.length > 16 ? `${cleaned.slice(0, 14)}…` : cleaned;
-    return `Alt · ${short} · ${money(price)}`;
-  }
-
-  return (
-    <Select<number>
-      buttonClassName="group-buy-printing"
-      value={currentId ?? NO_PRODUCT}
-      disabled={disabled || (preferredId == null && alts.length === 0)}
-      aria-label={`Checkout printing for ${line.card_id}`}
-      title="Default checkout printing when nobody set alt-art wants (mass entry splits AA wants first)"
-      onChange={(productId) => {
-        if (!productId) return;
-        onChange(productId);
-      }}
-      options={[
-        preferredId != null
-          ? { value: preferredId, label: `Preferred · ${money(line.preferred_market_price ?? null)}` }
-          : { value: NO_PRODUCT, label: "No preferred product" },
-        ...alts
-          .filter((alt) => alt.product_id !== preferredId)
-          .map((alt) => ({
-            value: alt.product_id,
-            label: <span title={alt.name}>{altOptionLabel(alt.name, alt.market_price)}</span>,
-          })),
-      ]}
-    />
   );
 }
 
@@ -664,6 +614,10 @@ export function GroupBuyDetailPage() {
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [publicMsg, setPublicMsg] = useState<string | null>(null);
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
+  // Cards edited on this page stay listed even at 0, so you can still pick an alt (#868).
+  const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
+  const keepCardVisible = (cardId: string) =>
+    setKeepVisible((prev) => (prev.has(cardId) ? prev : new Set(prev).add(cardId)));
   const [orderId, setOrderId] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
@@ -687,13 +641,7 @@ export function GroupBuyDetailPage() {
   const members = detail?.members ?? [];
 
   const lines = useMemo(() => {
-    let list = detail?.lines ?? [];
-    // Always still-needed only. Excluded (my qty 0) lines with no remaining group total
-    // stay hidden unless "Show excluded" is on. Excluded lines others still need stay visible.
-    if (!showExcluded) {
-      list = list.filter((l) => !isLineExcluded(l) || l.total_qty > 0);
-    }
-    list = list.filter((l) => l.total_qty > 0 || (showExcluded && isLineExcluded(l)));
+    let list = visibleGroupBuyLines(detail?.lines ?? [], { showExcluded, keepVisible });
     if (search.trim()) {
       list = list.filter((l) =>
         matchesCardSearch(
@@ -729,7 +677,7 @@ export function GroupBuyDetailPage() {
         effectiveSorts,
       ),
     );
-  }, [detail, showExcluded, effectiveSorts, search]);
+  }, [detail, showExcluded, keepVisible, effectiveSorts, search]);
 
   const displayRows = useMemo(
     () => buildGroupBuyDisplayRows(lines, members, groupingByUser),
@@ -881,16 +829,10 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
-  const setProduct = useMutation({
-    mutationFn: ({ cardId, productId }: { cardId: string; productId: number }) =>
-      api.setGroupBuyLineProduct(groupId, cardId, productId),
-    onSuccess: (d) => qc.setQueryData(["group-buy", groupId], d),
-    onError: (e: Error) => setMsg(e.message),
-  });
-
   const setQty = useMutation({
     mutationFn: ({ cardId, qty }: { cardId: string; qty: number }) =>
       api.setGroupBuyQty(groupId, cardId, qty),
+    onMutate: ({ cardId }) => keepCardVisible(cardId),
     onSuccess: async (d) => {
       qc.setQueryData(["group-buy", groupId], d);
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
@@ -918,22 +860,28 @@ export function GroupBuyDetailPage() {
   });
 
   const setAltWant = useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       cardId,
       productId,
       qty,
+      buyQty,
     }: {
       cardId: string;
       productId: number;
       qty: number;
-    }) =>
-      api.setCardPrinting(
+      /** Your buy after this change: Base count + every alt want (#868). */
+      buyQty: number;
+    }) => {
+      await api.setCardPrinting(
         cardId,
         productId,
         qty,
         activeDeckIds && activeDeckIds.length ? activeDeckIds : undefined,
-      ),
-    onMutate: async ({ cardId, productId, qty }) => {
+      );
+      return api.setGroupBuyQty(groupId, cardId, buyQty);
+    },
+    onMutate: async ({ cardId, productId, qty, buyQty }) => {
+      keepCardVisible(cardId);
       setAltWantBusyKey(`${cardId}:${productId}`);
       await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
       const prev = qc.getQueryData<GroupBuyDetail>(["group-buy", groupId]);
@@ -944,6 +892,7 @@ export function GroupBuyDetailPage() {
             line.card_id === cardId
               ? {
                   ...line,
+                  my_qty: buyQty,
                   alt_arts: line.alt_arts.map((a) =>
                     a.product_id === productId ? { ...a, wanted: qty } : a,
                   ),
@@ -958,24 +907,9 @@ export function GroupBuyDetailPage() {
       if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
       setMsg(e.message);
     },
-    onSuccess: async (res, vars) => {
-      qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          lines: old.lines.map((line) =>
-            line.card_id === vars.cardId
-              ? {
-                  ...line,
-                  alt_arts: line.alt_arts.map((a) =>
-                    a.product_id === vars.productId ? { ...a, wanted: res.qty } : a,
-                  ),
-                }
-              : line,
-          ),
-        };
-      });
-      await qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
       await qc.invalidateQueries({ queryKey: ["shopping"] });
       await qc.invalidateQueries({ queryKey: ["deck"] });
       await qc.invalidateQueries({ queryKey: ["decks"] });
@@ -1048,7 +982,12 @@ export function GroupBuyDetailPage() {
         editable={canEditWants}
         onWantChange={
           canEditWants
-            ? (productId, qty) => setAltWant.mutate({ cardId: line.card_id, productId, qty })
+            ? (productId, qty) => setAltWant.mutate({
+                  cardId: line.card_id,
+                  productId,
+                  qty,
+                  buyQty: qtyForAltWant(line, productId, qty),
+                })
             : undefined
         }
         busyProductId={
@@ -1119,14 +1058,12 @@ export function GroupBuyDetailPage() {
   if (detailQ.error) return <p className="error">{(detailQ.error as Error).message}</p>;
   if (!detail) return <p className="error">Group buy not found.</p>;
 
-  const canEditPrintings = detail.is_host && (detail.status === "open" || detail.status === "locked");
   const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
   const receiptReady = Boolean(receiptDraft?.canApply);
   const tableColSpan =
     5 +
     (detail.status === "open" ? 1 : 0) +
-    (detail.is_host ? 1 : 0) +
     (showAltArts ? 1 : 0);
 
   function setContributionDecks(next: number[] | null) {
@@ -1668,18 +1605,6 @@ export function GroupBuyDetailPage() {
                           />
                         </div>
                       ) : null}
-                      {detail.is_host ? (
-                        <div className="grid-card-owned">
-                          <span>Printing</span>
-                          <LinePrintingSelect
-                            line={line}
-                            disabled={!canEditPrintings || setProduct.isPending}
-                            onChange={(productId) =>
-                              setProduct.mutate({ cardId: line.card_id, productId })
-                            }
-                          />
-                        </div>
-                      ) : null}
                       {line.tcgplayer_url ? (
                         <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
@@ -1753,18 +1678,6 @@ export function GroupBuyDetailPage() {
                         />
                       </div>
                     ) : null}
-                    {detail.is_host && (line.product_id || line.alt_arts.length) ? (
-                      <div className="mobile-card-owned">
-                        <span>Printing</span>
-                        <LinePrintingSelect
-                          line={line}
-                          disabled={!canEditPrintings || setProduct.isPending}
-                          onChange={(productId) =>
-                            setProduct.mutate({ cardId: line.card_id, productId })
-                          }
-                        />
-                      </div>
-                    ) : null}
                     {showAltArts ? (
                       <div className="mobile-card-alts">{groupBuyAltRow(line)}</div>
                     ) : null}
@@ -1785,9 +1698,6 @@ export function GroupBuyDetailPage() {
                     <SortableTh label="Who" colKey="who" firstDir="asc" sort={cardsSort} onSort={onCardsSort} />
                     <SortableTh label="Market" colKey="market" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
                     <SortableTh label="Est." colKey="est" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
-                    {detail.is_host ? (
-                      <th title="Default printing when no alt-art wants are set">Printing</th>
-                    ) : null}
                     {showAltArts ? <th>Alt arts</th> : null}
                   </tr>
                 </thead>
@@ -1857,17 +1767,6 @@ export function GroupBuyDetailPage() {
                           <MarketPrice price={line.market_price} productId={line.product_id} />
                         </td>
                         <td>{money(line.remaining_cost)}</td>
-                        {detail.is_host ? (
-                          <td>
-                            <LinePrintingSelect
-                              line={line}
-                              disabled={!canEditPrintings || setProduct.isPending}
-                              onChange={(productId) =>
-                                setProduct.mutate({ cardId: line.card_id, productId })
-                              }
-                            />
-                          </td>
-                        ) : null}
                         {showAltArts ? (
                           <td className="alt-arts-cell">{groupBuyAltRow(line)}</td>
                         ) : null}

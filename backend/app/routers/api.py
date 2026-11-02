@@ -34,7 +34,6 @@ from app.schemas import (
     GroupBuyDetail,
     GroupBuyExport,
     GroupBuyInvitePreview,
-    GroupBuyLineOverrideUpdate,
     GroupBuyOrderUpdate,
     GroupBuyPublicUpdate,
     GroupBuyQtyUpdate,
@@ -720,24 +719,6 @@ def undo_group_buy_receipt_apply(
     """Undo the latest Mark purchased — restore snapshot, Owned, and status."""
     try:
         return group_buy.undo_last_receipt_apply(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.put("/group-buys/{group_id}/lines/{card_id}", response_model=GroupBuyDetail)
-def put_group_buy_line_override(
-    group_id: int,
-    card_id: str,
-    body: GroupBuyLineOverrideUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.set_line_override(db, user, group_id, card_id, body.product_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:

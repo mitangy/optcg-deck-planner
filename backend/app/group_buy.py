@@ -16,7 +16,6 @@ from app.models import (
     CatalogCard,
     CatalogPrinting,
     GroupBuy,
-    GroupBuyLineOverride,
     GroupBuyMember,
     GroupBuyQtyOverride,
     GroupBuyReceiptApply,
@@ -85,7 +84,6 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
             selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
-            selectinload(GroupBuy.line_overrides),
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
         )
@@ -236,7 +234,6 @@ def _build_lines(
         _viewer_zero_customs(db, group, viewer_user_id) if viewer_user_id is not None else {}
     )
     merged = merge_member_needs(needs)
-    product_overrides = {o.card_id.upper(): o.product_id for o in group.line_overrides}
     card_ids = {line.card_id for line in merged} | set(zero_customs)
 
     viewer_wants: dict[str, dict[int, int]] = {}
@@ -289,10 +286,8 @@ def _build_lines(
         if preferred_product_id and preferred_product_id in printings:
             base_image_url = printings[preferred_product_id].image_url or base_image_url
         product_id = (
-            product_overrides.get(card_id)
-            or (line.suggested_product_id if line else None)
-            or preferred_product_id
-        )
+            line.suggested_product_id if line else None
+        ) or preferred_product_id
         market = None
         image_url = cat.image_url if cat else ""
         tcgplayer_url = cat.tcgplayer_url if cat else ""
@@ -503,7 +498,6 @@ def list_group_buys(db: Session, user: User) -> list[GroupBuySummary]:
             selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
-            selectinload(GroupBuy.line_overrides),
             selectinload(GroupBuy.qty_overrides),
         )
         .order_by(GroupBuy.id.desc())
@@ -556,7 +550,6 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
             selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
-            selectinload(GroupBuy.line_overrides),
             selectinload(GroupBuy.qty_overrides),
         )
     )
@@ -629,7 +622,6 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
             selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
-            selectinload(GroupBuy.line_overrides),
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
         )
@@ -921,63 +913,14 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
     )
 
 
-def set_line_override(
-    db: Session,
-    user: User,
-    group_id: int,
-    card_id: str,
-    product_id: int,
-) -> GroupBuyDetail:
-    group = _get_group(db, group_id)
-    _require_host(group, user)
-    if group.status in ("ordered", "completed"):
-        raise PermissionError(f"{group.status.capitalize()} group buys cannot change printings")
-    card_id = card_id.upper().strip()
-    printing = db.scalar(
-        select(CatalogPrinting).where(
-            CatalogPrinting.card_id == card_id,
-            CatalogPrinting.product_id == product_id,
-        )
-    )
-    if printing is None:
-        raise ValueError("Unknown printing for this card")
-
-    preferred = services._primary_product_ids(db, {card_id}).get(card_id)
-    existing = db.scalar(
-        select(GroupBuyLineOverride).where(
-            GroupBuyLineOverride.group_buy_id == group.id,
-            GroupBuyLineOverride.card_id == card_id,
-        )
-    )
-    # Selecting the catalog preferred printing clears any host override.
-    if preferred is not None and product_id == preferred:
-        if existing is not None:
-            db.delete(existing)
-            db.commit()
-        return get_group_buy(db, user, group_id)
-
-    if existing is None:
-        db.add(
-            GroupBuyLineOverride(
-                group_buy_id=group.id,
-                card_id=card_id,
-                product_id=product_id,
-            )
-        )
-    else:
-        existing.product_id = product_id
-    db.commit()
-    return get_group_buy(db, user, group_id)
-
-
 def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     """Build TCGPlayer Mass Entry paste/URL for a group buy.
 
     Allocates each member's alt-art wants first (same as pricing), then the
-    remainder at Preferred. Host printing overrides only apply when nobody on
-    the line requested a specific alt — legacy "buy the whole line as this
-    printing". Dumping total_qty onto one product_id was the disconnect that
-    turned "1 AA + 3 base" into "4× checkout printing".
+    remainder at Preferred. Checkout follows only what members picked on the
+    art tiles; there is no host printing override. Dumping total_qty onto one
+    product_id was the disconnect that turned "1 AA + 3 base" into "4× checkout
+    printing".
     """
     group = _get_group(db, group_id)
     _require_member(group, user)
@@ -1005,23 +948,8 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
             continue
         copy_count += line.total_qty
 
-        any_alt_wants = False
-        for mem in line.members:
-            if mem.qty <= 0:
-                continue
-            for alt in member_shop_alts.get(mem.user_id, {}).get(line.card_id, []):
-                if (alt.wanted or 0) > 0:
-                    any_alt_wants = True
-                    break
-            if any_alt_wants:
-                break
-
-        # Match pricing: AA wants → preferred remainder. Otherwise host override.
-        standard_pid = (
-            line.preferred_product_id
-            if any_alt_wants
-            else (line.product_id or line.preferred_product_id)
-        )
+        # Match pricing: AA wants first, remainder at Preferred.
+        standard_pid = line.preferred_product_id or line.product_id
 
         qty_by_product: dict[int, int] = {}
         fallback_qty = 0
