@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
-  { date: "2026-11-02", app: "planner", pr: 0, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
+  { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-30
   { date: "2026-10-30", app: "duel", pr: 837, title: "Log Pose stops suggesting losing attacks", text: "Log Pose now compares power before it suggests an attack, knows that a tie goes to the attacker, and no longer says you can't be countered just because the opponent has no active DON!!. It also sees the counter value printed on the cards in your hand." },
   { date: "2026-10-30", app: "duel", pr: 834, title: "Staff can join Stress Test Sunday", text: "Admins and moderators can now join Stress Test Sunday and play like everyone else. The banner reminds them that staff are not eligible for the prizes." },
