@@ -4898,6 +4898,11 @@ button.ghost.scan-open:hover {
   margin-top: 0.5rem;
 }
 
+/* Closed: take the log out of layout, so its rows never sit under the form below. */
+.scan-diag:not([open]) .scan-diag-body {
+  display: none;
+}
+
 .scan-diag-empty {
   margin: 0;
   color: var(--muted);
@@ -5965,6 +5970,21 @@ tr.row-flash > td {
   font-size: 0.85rem;
 }
 
+/* Inline tag on alt-art search rows; sits on the card-id line so rows keep their height. */
+.alt-art-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 /* Used-in text with a small Remove beside it; the button keeps its size as the text wraps. */
 .used-in-cell {
   display: flex;
@@ -6604,6 +6624,19 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
+.scan-tray-need {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-tray-need.wanted {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
 .scan-tray-tags {
   display: flex;
   align-items: center;
@@ -6688,6 +6721,70 @@ button.ghost.scan-tray-fix {
   flex: none;
   padding-top: 0.6rem;
   background: var(--card);
+}
+
+/* Sharing switch + delete line (#852). Fixed-size controls; nothing here changes size while saving. */
+.scan-share {
+  flex: none;
+  padding-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.scan-share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scan-share-toggle input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+}
+
+.scan-share-toggle span {
+  min-width: 0;
+}
+
+.scan-share-note,
+.scan-share-delete {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.scan-share-delete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-height: 2rem;
+}
+
+.scan-share-delete button {
+  min-height: 2rem;
+  padding-block: 0;
+}
+
+.scan-share-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.scan-share-danger {
+  color: var(--danger);
+}
+
+.scan-share-err {
+  color: var(--danger);
 }
 
 .scan-tray-error {

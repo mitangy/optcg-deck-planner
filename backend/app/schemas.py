@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     # Public duel handle; None until the user picks one (duel-web prompts after sign-in).
     username: str | None = None
     sum_across_leaders: bool = False
+    share_scans: bool = True
     role: str = "user"
 
     model_config = {"from_attributes": True}
@@ -32,6 +33,7 @@ class UsernameSuggestionOut(BaseModel):
 
 class UserPreferencesUpdate(BaseModel):
     sum_across_leaders: bool | None = None
+    share_scans: bool | None = None
 
 
 class DeckCreate(BaseModel):
@@ -96,6 +98,10 @@ class CatalogCardResult(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     group_name: str = ""
+    # Set on alt-art rows (search with alts=true); None = the base card row.
+    alt_product_id: int | None = None
+    # Viewer's owned copies of that alt printing (alt rows only).
+    owned: int = 0
 
 
 class PrintingView(BaseModel):

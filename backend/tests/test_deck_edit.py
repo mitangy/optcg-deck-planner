@@ -9,7 +9,7 @@ from app.domain import (
     is_don_type,
     is_leader_type,
 )
-from app.models import CatalogCard, CatalogPrinting
+from app.models import CatalogCard, CatalogPrinting, OwnedPrinting
 from app.services import (
     DeckOversizeError,
     get_deck_detail,
@@ -138,6 +138,118 @@ def test_search_finds_a_card_by_a_reprint_printings_name_and_set_843(db):
 
     by_printing_set = search_catalog(db, q="Heroines Edition Vol. 2")
     assert [c.card_id for c in by_printing_set] == ["OP14-041"]
+
+
+def _seed_alt_search_848(db):
+    db.add_all(
+        [
+            CatalogCard(card_id="OP01-016", name="Nami", color="Red", card_type="Character", rarity="R", group_name="Romance Dawn", image_url="base.png", market_price=1.0),
+            CatalogPrinting(card_id="OP01-016", product_id=1, name="Nami (016)", group_name="Romance Dawn", image_url="base.png", market_price=1.0, is_special=0),
+            CatalogPrinting(card_id="OP01-016", product_id=2, name="Nami (016) (Parallel)", group_name="Romance Dawn", image_url="par.png", market_price=9.0, is_special=1),
+            CatalogPrinting(card_id="OP01-016", product_id=3, name="Nami (016) (Manga)", group_name="Romance Dawn", image_url="manga.png", market_price=50.0, is_special=1),
+        ]
+    )
+    db.commit()
+
+
+def test_search_alts_lists_base_then_alt_rows_and_plain_search_stays_base_only_848(db):
+    _seed_alt_search_848(db)
+
+    plain = search_catalog(db, q="Nami")
+    assert [(c.card_id, c.alt_product_id) for c in plain] == [("OP01-016", None)]
+
+    rows = search_catalog(db, q="Nami", alts=True)
+    assert [(c.alt_product_id, c.market_price, c.image_url) for c in rows] == [
+        (None, 1.0, "base.png"),
+        (2, 9.0, "par.png"),
+        (3, 50.0, "manga.png"),
+    ]
+    assert rows[2].name == "Nami (016) (Manga)"
+    assert all(c.card_id == "OP01-016" and c.color == "Red" for c in rows)
+
+
+def test_search_alts_text_only_in_one_alt_returns_just_that_alt_848(db):
+    _seed_alt_search_848(db)
+
+    rows = search_catalog(db, q="Manga", alts=True)
+    assert [(c.card_id, c.alt_product_id) for c in rows] == [("OP01-016", 3)]
+
+
+def test_search_alts_owned_count_is_the_viewers_own_printing_848(db):
+    _seed_alt_search_848(db)
+    me = make_user(db, email="me@test", name="Me", sub="sub-me")
+    other = make_user(db, email="o@test", name="O", sub="sub-o")
+    db.add_all(
+        [
+            OwnedPrinting(user_id=me.id, card_id="OP01-016", product_id=3, qty=2),
+            OwnedPrinting(user_id=other.id, card_id="OP01-016", product_id=2, qty=7),
+        ]
+    )
+    db.commit()
+
+    rows = search_catalog(db, q="Nami", alts=True, user_id=me.id)
+    assert {c.alt_product_id: c.owned for c in rows} == {None: 0, 2: 0, 3: 2}
+
+
+def _seed_fuzzy_848(db):
+    db.add_all(
+        [
+            CatalogCard(card_id="OP01-001", name="Monkey.D.Luffy", group_name="Romance Dawn", market_price=3.0),
+            CatalogPrinting(card_id="OP01-001", product_id=1, name="Monkey.D.Luffy", group_name="Romance Dawn", market_price=3.0),
+            CatalogCard(card_id="OP02-002", name="Roronoa Zoro", group_name="Paramount War", market_price=2.0),
+            CatalogPrinting(card_id="OP02-002", product_id=2, name="Roronoa Zoro", group_name="Paramount War", market_price=2.0),
+            CatalogCard(card_id="OP03-003", name="Nami", group_name="Pillars of Strength", market_price=1.0),
+            CatalogPrinting(card_id="OP03-003", product_id=3, name="Nami", group_name="Pillars of Strength", market_price=1.0),
+        ]
+    )
+    db.commit()
+
+
+def test_search_tolerates_typos_and_punctuation_in_card_names_848(db):
+    _seed_fuzzy_848(db)
+
+    assert [c.card_id for c in search_catalog(db, q="lufy")] == ["OP01-001"]
+    assert [c.card_id for c in search_catalog(db, q="Monkey D Luffy")] == ["OP01-001"]
+    assert [c.card_id for c in search_catalog(db, q="luffy monkey")] == ["OP01-001"]
+    assert [c.card_id for c in search_catalog(db, q="roronoa zoro")] == ["OP02-002"]
+
+
+def test_search_tolerates_a_typo_in_a_set_name_848(db):
+    _seed_fuzzy_848(db)
+
+    assert [c.card_id for c in search_catalog(db, q="Romance Dwan")] == ["OP01-001"]
+
+
+def test_search_does_not_fuzzy_match_unrelated_words_848(db):
+    _seed_fuzzy_848(db)
+
+    assert search_catalog(db, q="xylophone") == []
+    assert search_catalog(db, q="zzzz") == []
+    # Two typos away from "Nami": too far for a 4-letter token.
+    assert search_catalog(db, q="xamu") == []
+    # A short token must match a word's start; one typo is not allowed there.
+    assert search_catalog(db, q="nmi") == []
+
+
+def test_search_ranks_substring_matches_above_fuzzy_only_ones_848(db):
+    # "Lufy Sword" is an exact substring hit but pricier; the fuzzy hit is cheaper.
+    db.add_all(
+        [
+            CatalogCard(card_id="OP01-001", name="Luffy", group_name="Romance Dawn", market_price=1.0),
+            CatalogCard(card_id="OP09-009", name="Lufy Sword", group_name="Wings", market_price=50.0),
+        ]
+    )
+    db.commit()
+
+    assert [c.card_id for c in search_catalog(db, q="lufy")] == ["OP09-009", "OP01-001"]
+
+
+def test_search_fuzzy_results_still_obey_color_filter_848(db):
+    _seed_fuzzy_848(db)
+    db.get(CatalogCard, "OP01-001").color = "Red"
+    db.commit()
+
+    assert search_catalog(db, q="lufy", color="Blue") == []
 
 
 def test_upsert_deck_card_add_and_remove(db):

@@ -41,6 +41,8 @@ class User(Base):
     sum_across_leaders: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false()
     )
+    # Scanner training samples (#852): on by default; PATCH /preferences turns it off.
+    share_scans: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # "user" | "moderator" | "admin" (see app/roles.py). Only ADMIN_EMAIL is ever admin.
     role: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
     # Set while the account is banned (#667); the ban also bumps session_version.
@@ -1092,6 +1094,30 @@ class DuelCosmetic(Base):
     taken_down_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     taken_down_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     taken_down_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class ScanSample(Base):
+    """A 200x280 JPEG crop of a card the user confirmed in the scanner, plus its final label (#852).
+
+    Used to retrain the scanner. ``split`` is fixed at insert and never changes.
+    """
+
+    __tablename__ = "scan_samples"
+    __table_args__ = (Index("ix_scan_samples_created_at", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    final_id: Mapped[str] = mapped_column(String(32))
+    predicted_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[str] = mapped_column(String(8))  # sure | check | none
+    label: Mapped[str] = mapped_column(String(12))  # confirmed | corrected
+    split: Mapped[str] = mapped_column(String(8))  # train | test
+    mime: Mapped[str] = mapped_column(String(32))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    size: Mapped[int] = mapped_column(Integer)
 
 
 class PlayerReport(Base):

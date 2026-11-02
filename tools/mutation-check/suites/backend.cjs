@@ -5,6 +5,7 @@ const sync = "backend/app/catalog_sync.py";
 const prefresh = "backend/app/price_refresh.py";
 const domain = "backend/app/domain.py";
 const services = "backend/app/services.py";
+const fuzzyPy = "backend/app/fuzzy.py";
 const duel = "backend/app/routers/duel.py";
 const reporter = "backend/app/reporter.py";
 const feedback = "backend/app/routers/feedback.py";
@@ -40,6 +41,30 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // Scanner training samples (#852)
+    {"id": "scan-share-default-off", "file": "backend/app/models.py", "from": "mapped_column(Boolean, default=True, server_default=true())", "to": "mapped_column(Boolean, default=False, server_default=false())", "kills": ["test_sharing_is_on_by_default_and_the_preference_turns_it_off_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-pref-ignored", "file": "backend/app/routers/api.py", "from": "    if body.share_scans is not None:\n        user.share_scans = body.share_scans\n", "to": "", "kills": ["test_sharing_is_on_by_default_and_the_preference_turns_it_off_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-off-switch-ignored", "file": "backend/app/routers/scan_samples.py", "from": "    if not user.share_scans:\n        raise HTTPException(status_code=403, detail=\"Scan sharing is turned off\")\n", "to": "", "kills": ["test_uploads_are_refused_when_the_user_turned_sharing_off_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-jpeg-magic-unchecked", "file": "backend/app/routers/scan_samples.py", "from": "    if not data.startswith(JPEG_MAGIC):\n        raise HTTPException(status_code=400, detail=\"Image must be a JPEG\")\n", "to": "", "kills": ["test_only_small_jpegs_are_accepted_and_one_bad_image_rejects_the_batch_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-image-size-unchecked", "file": "backend/app/routers/scan_samples.py", "from": "    if len(data) > MAX_IMAGE_BYTES:\n        raise HTTPException(status_code=400, detail=\"Image is too large\")\n", "to": "", "kills": ["test_only_small_jpegs_are_accepted_and_one_bad_image_rejects_the_batch_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-base64-lenient", "file": "backend/app/routers/scan_samples.py", "from": "base64.b64decode(raw, validate=True)", "to": "base64.b64decode(raw)", "kills": ["test_only_small_jpegs_are_accepted_and_one_bad_image_rejects_the_batch_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-card-id-unchecked", "file": "backend/app/routers/scan_samples.py", "from": "    if not _CARD_ID.match(card_id):\n        raise HTTPException(status_code=400, detail=\"Invalid card id\")\n", "to": "", "kills": ["test_card_ids_must_look_like_card_numbers_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-ids-not-normalised", "file": "backend/app/routers/scan_samples.py", "from": "    card_id = value.strip().upper()", "to": "    card_id = value", "kills": ["test_saved_rows_carry_the_normalised_ids_and_label_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-predicted-id-dropped", "file": "backend/app/routers/scan_samples.py", "from": "                predicted_id=predicted_id,", "to": "                predicted_id=None,", "kills": ["test_saved_rows_carry_the_normalised_ids_and_label_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-label-always-confirmed", "file": "backend/app/routers/scan_samples.py", "from": "                label=item.label,", "to": "                label=\"confirmed\",", "kills": ["test_saved_rows_carry_the_normalised_ids_and_label_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-split-inverted", "file": "backend/app/routers/scan_samples.py", "from": "\"test\" if secrets.randbelow(5) == 0 else \"train\"", "to": "\"train\" if secrets.randbelow(5) == 0 else \"test\"", "kills": ["test_one_draw_in_five_lands_in_the_test_split_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-daily-cap-off", "file": "backend/app/routers/scan_samples.py", "from": "    if recent + len(prepared) > DAILY_CAP_PER_USER:", "to": "    if False:", "kills": ["test_the_daily_cap_counts_only_the_last_24_hours_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-daily-cap-counts-all-time", "file": "backend/app/routers/scan_samples.py", "from": "ScanSample.user_id == user.id, ScanSample.created_at >= since", "to": "ScanSample.user_id == user.id", "kills": ["test_the_daily_cap_counts_only_the_last_24_hours_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-prune-age-off", "file": "backend/app/routers/scan_samples.py", "from": "    db.execute(delete(ScanSample).where(ScanSample.created_at < cutoff))\n", "to": "", "kills": ["test_old_rows_are_pruned_on_upload_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-prune-size-cap-off", "file": "backend/app/routers/scan_samples.py", "from": "    if total <= MAX_TOTAL_BYTES:\n        return\n", "to": "    return\n", "kills": ["test_the_oldest_rows_go_first_when_storage_is_over_the_cap_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-prune-drops-newest", "file": "backend/app/routers/scan_samples.py", "from": "select(ScanSample.id, ScanSample.size).order_by(ScanSample.id)", "to": "select(ScanSample.id, ScanSample.size).order_by(ScanSample.id.desc())", "kills": ["test_the_oldest_rows_go_first_when_storage_is_over_the_cap_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-export-token-unchecked", "file": "backend/app/routers/scan_samples.py", "from": "    if not expected or not hmac.compare_digest(x_scan_training_token or \"\", expected):", "to": "    if False:", "kills": ["test_export_needs_the_training_token_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-export-empty-token-open", "file": "backend/app/routers/scan_samples.py", "from": "    if not expected or not hmac.compare_digest(x_scan_training_token or \"\", expected):", "to": "    if not hmac.compare_digest(x_scan_training_token or \"\", expected):", "kills": ["test_export_needs_the_training_token_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-export-after-id-inclusive", "file": "backend/app/routers/scan_samples.py", "from": ".where(ScanSample.id > after_id)", "to": ".where(ScanSample.id >= after_id)", "kills": ["test_export_pages_by_after_id_without_user_details_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-export-leaks-user-id", "file": "backend/app/routers/scan_samples.py", "from": "                \"id\": r.id,\n", "to": "                \"id\": r.id,\n                \"user_id\": r.user_id,\n", "kills": ["test_export_pages_by_after_id_without_user_details_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-export-limit-uncapped", "file": "backend/app/routers/scan_samples.py", "from": "limit(min(limit, EXPORT_MAX_LIMIT))", "to": "limit(limit)", "kills": ["test_export_caps_the_page_size_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-delete-mine-deletes-all", "file": "backend/app/routers/scan_samples.py", "from": "delete(ScanSample).where(ScanSample.user_id == user.id)", "to": "delete(ScanSample)", "kills": ["test_users_can_count_and_delete_only_their_own_samples_852"], "args": "tests/test_scan_samples.py"},
+    {"id": "scan-count-mine-counts-all", "file": "backend/app/routers/scan_samples.py", "from": ".where(ScanSample.user_id == user.id)\n    )\n    return {\"count\"", "to": ")\n    return {\"count\"", "kills": ["test_users_can_count_and_delete_only_their_own_samples_852"], "args": "tests/test_scan_samples.py"},
     // Log Pose feedback and eval suites (#679)
     {"id": "fb-suite-unvalidated", "file": "backend/app/routers/admin.py", "from": "EvalSuite = Literal[\"main\", \"review_facts\", \"puzzles\", \"deck_advice\"]", "to": "EvalSuite = str", "kills": ["test_an_eval_suite_must_be_one_we_know_679"], "args": "tests/test_admin.py"},
     {"id": "fb-suite-default-not-main", "file": "backend/app/routers/admin.py", "from": "    suite: EvalSuite = \"main\"", "to": "    suite: EvalSuite = \"puzzles\"", "kills": ["test_an_eval_run_without_a_suite_is_the_main_suite_679"], "args": "tests/test_admin.py"},
@@ -164,11 +189,38 @@ module.exports = {
     { id: "leader-rarity-ignored", file: domain, from: "    return normalized == \"leader\" or rarity_u == \"L\"", to: "    return normalized == \"leader\"", kills: ["test_don_and_leader_type_helpers"] },
     { id: "numberless-don-skipped", file: sync, from: "    if is_don_product(name=name, card_type=card_type, rarity=rarity):\n        return synthetic_don_card_id(product_id)", to: "", kills: ["test_don_and_leader_type_helpers"] },
     { id: "don-counted-in-main", file: domain, from: "            don += needed", to: "            main += needed", kills: ["test_deck_size_counts_split_don"] },
-    { id: "search-name-ignored", file: services, from: "                CatalogCard.name.ilike(like),\n", to: "", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-color-ignored", file: services, from: "        filters.append(CatalogCard.color.ilike(f\"%{color_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-type-ignored", file: services, from: "        filters.append(CatalogCard.card_type.ilike(f\"%{type_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-printing-name-ignored", file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "", args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
-    { id: "search-printing-set-ignored", file: services, from: "                            CatalogPrinting.group_name.ilike(like),\n", to: "", args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "search-name-ignored", edits: [
+      { file: services, from: "                CatalogCard.name.ilike(like),\n", to: "" },
+      { file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-color-ignored", file: services, from: "        other_filters.append(CatalogCard.color.ilike(f\"%{color_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-type-ignored", file: services, from: "        other_filters.append(CatalogCard.card_type.ilike(f\"%{type_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-printing-name-ignored", edits: [
+      { file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "search-printing-set-ignored", edits: [
+      { file: services, from: "                            CatalogPrinting.group_name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "fuzzy848-skip-normalization", file: fuzzyPy, from: "    return _NON_WORD.sub(\" \", folded).strip()", to: "    return folded", args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_typos_and_punctuation_in_card_names_848"] },
+    { id: "fuzzy848-one-more-typo-allowed", file: fuzzyPy, from: "    return 1 if len(token) <= 6 else 2", to: "    return 2 if len(token) <= 6 else 3", args: "tests/test_deck_edit.py", kills: ["test_search_does_not_fuzzy_match_unrelated_words_848"] },
+    { id: "fuzzy848-short-tokens-get-typos", file: fuzzyPy, from: "    if len(token) < 4:\n        return 0", to: "    if len(token) < 3:\n        return 0", args: "tests/test_deck_edit.py", kills: ["test_search_does_not_fuzzy_match_unrelated_words_848"] },
+    { id: "fuzzy848-no-typo-tolerance", file: fuzzyPy, from: "        if allowed:\n            d = min", to: "        if False:\n            d = min", args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_typos_and_punctuation_in_card_names_848", "test_search_tolerates_a_typo_in_a_set_name_848"] },
+    { id: "fuzzy848-fuzzy-ahead-of-substring", file: services, from: "            rows.extend(extra[: limit - len(rows)])", to: "            rows[0:0] = extra[: limit - len(rows)]", args: "tests/test_deck_edit.py", kills: ["test_search_ranks_substring_matches_above_fuzzy_only_ones_848"] },
+    { id: "fuzzy848-ignores-color-filter", file: services, from: "CatalogCard.card_id.in_(costs), *other_filters)", to: "CatalogCard.card_id.in_(costs))", args: "tests/test_deck_edit.py", kills: ["test_search_fuzzy_results_still_obey_color_filter_848"] },
+    { id: "fuzzy848-set-name-not-indexed", edits: [
+      { file: services, from: "        texts[cid].append(f\"{name or ''} {group or ''}\")\n    for cid, name, group in db.execute(\n        select(CatalogPrinting", to: "        texts[cid].append(f\"{name or ''}\")\n    for cid, name, group in db.execute(\n        select(CatalogPrinting" },
+      { file: services, from: "        texts[cid].append(f\"{name or ''} {group or ''}\")\n    built", to: "        texts[cid].append(f\"{name or ''}\")\n    built" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_a_typo_in_a_set_name_848"] },
+    { id: "search-alts-always-includes-base", file: services, from: "        if card_hit or row.card_id in plain_text_hit:\n", to: "        if True:\n", args: "tests/test_deck_edit.py", kills: ["test_search_alts_text_only_in_one_alt_returns_just_that_alt_848"] },
+    { id: "search-alts-ignores-per-alt-text", file: services, from: "            if not card_hit and not text_hit(alt.name, alt.group_name):", to: "            if False and not text_hit(alt.name, alt.group_name):", args: "tests/test_deck_edit.py", kills: ["test_search_alts_text_only_in_one_alt_returns_just_that_alt_848"] },
+    { id: "search-alts-owned-always-zero", file: services, from: "\"owned\": int(alt_owned.get(row.card_id, {}).get(alt.product_id, 0)),", to: "\"owned\": 0,", args: "tests/test_deck_edit.py", kills: ["test_search_alts_owned_count_is_the_viewers_own_printing_848"] },
+    { id: "search-alts-flag-ignored", file: services, from: "    if not alts:\n        return [base_result(row) for row in rows]", to: "    if False:\n        return [base_result(row) for row in rows]", args: "tests/test_deck_edit.py", kills: ["test_search_alts_lists_base_then_alt_rows_and_plain_search_stays_base_only_848"] },
     { id: "upsert-add-dropped", file: services, from: "        db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))", to: "        pass", kills: ["test_upsert_deck_card_add_and_remove"] },
     { id: "upsert-remove-noop", file: services, from: "        if existing is not None:\n            db.delete(existing)\n        _clear_deck_card_printings", to: "        _clear_deck_card_printings", kills: ["test_upsert_deck_card_add_and_remove"] },
     { id: "reset-owned-all-cards", file: services, from: "            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(card_ids))", to: "            select(Owned).where(Owned.user_id == user.id)", kills: ["test_reset_deck_owned_zeros_cards_in_deck"] },

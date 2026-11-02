@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     allowed_emails: str = ""
     catalog_sync_token: str = "dev-sync-token"
+    # Guards GET /scan-samples/export (#852). Empty means the export is closed.
+    scan_training_token: str = ""
     # Shared HMAC secret for short-lived Colyseus join tokens (defaults to session_secret).
     game_token_secret: str = ""
     # Game-server → API match ingest header secret.

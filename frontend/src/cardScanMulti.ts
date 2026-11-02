@@ -20,6 +20,11 @@ export type MultiScanItem = {
   quad: Quad;
   /** Small upright crop of the card for the review tray (JPEG/PNG data URL). */
   thumbUrl: string;
+  /**
+   * 200x280 upright JPEG data URL of the card, rectified from the full-res photo.
+   * Uploaded (with the user's final label) only when they share scan crops; "" when it could not be cut.
+   */
+  sampleUrl: string;
   /** Matched card number, e.g. "OP01-120", or null when nothing verified. */
   cardId: string | null;
   inliers: number;
@@ -121,21 +126,31 @@ export function dropHiddenUnnamed<T extends Pick<MultiScanItem, "quad" | "confid
 const THUMB_HEIGHT = 160;
 const THUMB_WIDTH = Math.round((THUMB_HEIGHT * RECTIFIED_WIDTH) / RECTIFIED_HEIGHT);
 
-function thumbnailUrl(photo: ImageData, quad: Quad): string {
-  const thumb = rectifyToImageData(photo, quad, THUMB_WIDTH, THUMB_HEIGHT);
-  if (!thumb) return "";
+function cropUrl(photo: ImageData, quad: Quad, width: number, height: number, quality: number): string {
+  if (typeof document === "undefined") return "";
+  const crop = rectifyToImageData(photo, quad, width, height);
+  if (!crop) return "";
   const canvas = document.createElement("canvas");
-  canvas.width = THUMB_WIDTH;
-  canvas.height = THUMB_HEIGHT;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
-  ctx.putImageData(new ImageData(thumb.data, THUMB_WIDTH, THUMB_HEIGHT), 0, 0);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  ctx.putImageData(new ImageData(crop.data, width, height), 0, 0);
+  return canvas.toDataURL("image/jpeg", quality);
 }
+
+const thumbnailUrl = (photo: ImageData, quad: Quad) => cropUrl(photo, quad, THUMB_WIDTH, THUMB_HEIGHT, 0.8);
+
+export const SAMPLE_WIDTH = 200;
+export const SAMPLE_HEIGHT = 280;
+
+const sampleUrl = (photo: ImageData, quad: Quad) => cropUrl(photo, quad, SAMPLE_WIDTH, SAMPLE_HEIGHT, 0.85);
 
 export type MultiScanHooks = {
   /** Replace the browser thumbnail (Node has no canvas). */
   thumbnail?: (photo: ImageData, quad: Quad) => string;
+  /** Replace the upload-sized crop (same reason). */
+  sample?: (photo: ImageData, quad: Quad) => string;
   detect?: DetectOptions;
 };
 
@@ -150,6 +165,7 @@ export async function matchAllCardsWith(
   const cards = await detectCardsAsync(cv, photo, hooks.detect);
   scanLog("scan:multi", `${cards.length} card outline(s)`);
   const thumbnail = hooks.thumbnail ?? thumbnailUrl;
+  const sample = hooks.sample ?? sampleUrl;
 
   const identify = async (quad: Quad): Promise<MultiScanItem> => {
     // Rectify from the full-resolution photo, not the detection copy.
@@ -158,6 +174,7 @@ export async function matchAllCardsWith(
     return {
       quad,
       thumbUrl: thumbnail(photo, quad),
+      sampleUrl: sample(photo, quad),
       cardId: match?.cardId ?? null,
       inliers: match?.inliers ?? 0,
       runnerUp: match?.runnerUp ?? 0,

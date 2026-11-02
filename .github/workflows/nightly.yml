@@ -55,7 +55,10 @@ jobs:
     # that turns real ones into tests (see tools/mutation-check/README.md).
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '17 7 * * 0' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    # A shard that times out saves no incremental file, so it starts from
+    # scratch again the next week. runtime.ts alone (~3,700 mutants) needs
+    # about 4h20m from scratch, so allow close to the 6 h hosted-runner cap.
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:

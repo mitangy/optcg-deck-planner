@@ -77,7 +77,7 @@ test("Escape steps back out of the camera, which stops, and a second Escape clos
   );
   await planner.open("/");
   await page.locator(".scan-open").first().click();
-  const scanner = page.getByRole("dialog", { name: "Scan a card" });
+  const scanner = page.getByRole("dialog", { name: "Scan cards" });
   await scanner.getByRole("button", { name: "Scan with camera" }).click();
   const camera = page.getByRole("dialog", { name: "Scan with camera" });
   await expect(page.getByRole("button", { name: "Capture" })).toBeEnabled();

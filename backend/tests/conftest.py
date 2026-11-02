@@ -43,6 +43,15 @@ def _fresh_rate_limits():
 
 
 @pytest.fixture(autouse=True)
+def _fresh_fuzzy_index():
+    # The catalog search index is cached per process; each test builds its own catalog.
+    from app.services import _FUZZY_INDEX
+
+    _FUZZY_INDEX.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _no_redis(monkeypatch: pytest.MonkeyPatch):
     # Tests run without Redis (today's behaviour) unless they ask for fake_redis.
     monkeypatch.delenv("REDIS_URL", raising=False)
