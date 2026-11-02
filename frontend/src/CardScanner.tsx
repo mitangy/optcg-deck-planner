@@ -344,7 +344,7 @@ export function CardScanner({
           setPhase({
             kind: "miss",
             message:
-              "No match. Fill the frame with the card and avoid glare, or type the number below.",
+              "No match. Get closer to the card and avoid glare, or type the number below.",
           });
           return;
         }
