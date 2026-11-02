@@ -87,6 +87,8 @@ type Planner = {
   displayArt: Map<string, number>;
   /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
   extras: Map<string, number>;
+  /** Give a card `count` extra alt arts in every view, deck, Shopping, Collection and group buy (call before `open`). */
+  manyAlts(cardId: string, count: number): void;
   /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
   noDecks(): void;
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
@@ -123,9 +125,18 @@ export const test = base.extend<{ planner: Planner }>({
     const displayArt = new Map<string, number>();
     let hasDecks = true;
     let deckHidden = false;
+    const extraAlts = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
-      const alt_arts = (c.alt_arts ?? []).map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
+      const synthetic = Array.from({ length: extraAlts.get(c.card_id) ?? 0 }, (_, i) => ({
+        product_id: 9000 + i,
+        name: `${c.name} (Alt ${i + 1})`,
+        market_price: 3 + i,
+        low_price: 2 + i,
+        group_name: "Extra Booster: Memorial Collection",
+        is_special: false,
+      }));
+      const alt_arts = [...(c.alt_arts ?? []), ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
       const altsOwned = alt_arts.reduce((n, a) => n + a.owned, 0);
       return {
         card_id: c.card_id,
@@ -248,7 +259,7 @@ export const test = base.extend<{ planner: Planner }>({
             tcgplayer_url: kid.tcgplayer_url,
             image_url: kid.image_url,
             members: [{ user_id: 1, display_name: "Nami", qty }],
-            alt_arts: [],
+            alt_arts: kid.alt_arts,
             my_qty: qty,
             my_suggested_qty: qty,
             my_is_custom: false,
@@ -469,6 +480,9 @@ export const test = base.extend<{ planner: Planner }>({
       displayArt,
       extras,
       ownedAdds,
+      manyAlts(cardId, count) {
+        extraAlts.set(cardId, count);
+      },
       noDecks() {
         hasDecks = false;
       },

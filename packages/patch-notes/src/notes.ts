@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 884, title: "Alt arts line up the same on every card list", text: "On Shopping, Collection and your decks, the List view now puts alt arts in their own column on the right, like group buys, and Grid cards in a row are all the same height. A card with lots of alt arts shows about five and scrolls for the rest. On the deck page at narrower desktop widths the deck Type column and the Shopping Cost column hide to make room for the alt arts." },
   { date: "2026-11-02", app: "planner", pr: 886, title: "Leave a group buy", text: "If you joined a group buy and no longer want in, open it and press Leave group buy. Your quantities come off the list. You can leave while the group buy is open; once the host locks it, ask them to unlock first." },
   { date: "2026-11-02", app: "planner", pr: 886, title: "Preview a group buy before you join", text: "A group buy invite link now shows the whole group buy, read-only: the cards, who wants what and the prices. Sign in to join, or press Join group buy if you are already signed in. Hosts no longer need to turn on a Public link." },
   { date: "2026-11-02", app: "planner", pr: 885, title: "Group buy shows the alt art members picked", text: "In a group buy, a card now shows the alt art the group wants most as its main image, even when you did not pick one yourself." },

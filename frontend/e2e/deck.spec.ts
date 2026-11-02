@@ -306,28 +306,41 @@ test("Show picks the card's art, an unowned alt or the base over an owned alt, w
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
 });
 
-test("alt arts sit beside the card on wide screens and under it below 1440px (#734)", async ({ page, planner }, testInfo) => {
+test("alt arts sit in the list's own last column and the table still fits beside the dock and the editor (#877)", async ({ page, planner }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1200", "the table layout is desktop only");
-  const geometry = () =>
-    page.evaluate(() => {
-      const row = document.querySelector('.desktop-table [data-card-id="EB01-002"]')!;
-      const art = row.querySelector(".card-cell-inner .thumb")!.getBoundingClientRect();
-      const text = row.querySelector(".card-cell-inner > div:not(.thumb):not(.thumb-btn)")!.getBoundingClientRect();
-      const tile = row.querySelector(".card-cell-alts .alt-art")!.getBoundingClientRect();
-      return { art: { top: art.top, bottom: art.bottom }, textRight: text.right, tile: { top: tile.top, bottom: tile.bottom, left: tile.left } };
+  const check = async (label: string) => {
+    const table = page.locator(".desktop-table table");
+    await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+    const g = await table.evaluate((t) => {
+      const wrap = t.parentElement!;
+      const rowOf = (id: string) => t.querySelector(`[data-card-id="${id}"]`)!;
+      const geometry = (id: string) => {
+        const row = rowOf(id);
+        const last = row.lastElementChild as HTMLElement;
+        return {
+          lastIsAlt: last.classList.contains("alt-arts-cell"),
+          tilesInAltCell: last.querySelectorAll(".alt-art").length,
+          tilesInCardCell: row.querySelector(".card-cell")!.querySelectorAll(".alt-art").length,
+          altLeft: last.getBoundingClientRect().left,
+          cardRight: row.querySelector(".card-cell")!.getBoundingClientRect().right,
+        };
+      };
+      return { fits: wrap.scrollWidth <= wrap.clientWidth, izo: geometry("EB01-002"), kid: geometry("EB01-003") };
     });
-
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.locator(IZO).locator(".card-cell-alts .alt-art").first()).toBeVisible();
-  const wide = await geometry();
-  // Same row: the tile overlaps the art's vertical span (it can be taller than the art, with its Owned stepper).
-  expect(wide.tile.top).toBeLessThan(wide.art.bottom);
-  expect(wide.tile.bottom).toBeGreaterThan(wide.art.top);
-  expect(wide.tile.left).toBeGreaterThanOrEqual(wide.textRight);
-  const issues = await planner.audit();
-  expect(issues, formatIssues(issues)).toEqual([]);
-
-  await page.setViewportSize({ width: 1200, height: 900 });
-  const narrow = await geometry();
-  expect(narrow.tile.top).toBeGreaterThanOrEqual(narrow.art.bottom);
+    expect(g.fits, `${label}: the table scrolls sideways`).toBe(true);
+    expect(g.izo.lastIsAlt).toBe(true);
+    expect(g.izo.tilesInAltCell).toBeGreaterThan(0);
+    expect(g.izo.tilesInCardCell).toBe(0);
+    expect(g.izo.altLeft).toBeGreaterThanOrEqual(g.izo.cardRight);
+    // A card without alts keeps the cell, so the column lines up.
+    expect(g.kid.lastIsAlt).toBe(true);
+    expect(g.kid.tilesInAltCell).toBe(0);
+    expect(g.kid.altLeft).toBe(g.izo.altLeft);
+    const issues = await planner.audit();
+    expect(issues, `${label}:\n${formatIssues(issues)}`).toEqual([]);
+  };
+  await check("viewing");
+  await page.getByRole("button", { name: "Edit deck" }).click();
+  await expect(page.locator(".deck-layout-editing")).toBeVisible();
+  await check("editing");
 });
