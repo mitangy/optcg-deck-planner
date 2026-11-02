@@ -220,6 +220,18 @@ def _viewer_zero_customs(
     return out
 
 
+def _group_wanted_alt(card_id: str, member_shop_alts: dict[int, dict[str, list]]) -> int | None:
+    """Product id of the alt with the most wanted copies across all members (ties: lowest id)."""
+    totals: dict[int, int] = {}
+    for by_card in member_shop_alts.values():
+        for a in by_card.get(card_id, []):
+            if (a.wanted or 0) > 0:
+                totals[a.product_id] = totals.get(a.product_id, 0) + a.wanted
+    if not totals:
+        return None
+    return min(totals, key=lambda pid: (-totals[pid], pid))
+
+
 def _build_lines(
     db: Session,
     group: GroupBuy,
@@ -330,6 +342,16 @@ def _build_lines(
                 bucket[1] += cost
         remaining = round(line_remaining, 2) if any_buy and priced_ok else (0.0 if not any_buy else None)
 
+        line_alt_arts = list(viewer_shop_alts.get(card_id) or alts.get(card_id, []))
+        line_display_art = viewer_display.get(card_id)
+        if line_display_art is None and not viewer_wants.get(card_id):
+            # Viewer has no art preference of their own: show the alt the group wants most (#882).
+            group_pick = _group_wanted_alt(card_id, member_shop_alts)
+            if group_pick is not None:
+                line_display_art = group_pick
+                if all(a.product_id != group_pick for a in line_alt_arts):
+                    line_alt_arts.extend(a for a in alts.get(card_id, []) if a.product_id == group_pick)
+
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
         my_qty = mine.qty if mine else 0
         my_is_custom = mine.is_custom if mine else False
@@ -361,8 +383,8 @@ def _build_lines(
                     for m in members
                     if m.qty > 0 or m.user_id == viewer_user_id
                 ],
-                alt_arts=list(viewer_shop_alts.get(card_id) or alts.get(card_id, [])),
-                display_art=viewer_display.get(card_id),
+                alt_arts=line_alt_arts,
+                display_art=line_display_art,
                 my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
                 my_is_custom=my_is_custom,
@@ -587,15 +609,14 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
     )
     if group is None:
         raise LookupError("Invite link not found")
-    is_public = bool(getattr(group, "is_public", False))
     return GroupBuyInvitePreview(
         title=group.title,
         host_name=_display_name(group.host),
         member_count=len(group.members),
         status=group.status,
         invite_token=group.invite_token,
-        is_public=is_public,
-        public_path=f"/group-buy/view/{group.invite_token}" if is_public else None,
+        is_public=bool(getattr(group, "is_public", False)),
+        public_path=f"/group-buy/view/{group.invite_token}",
     )
 
 
@@ -613,8 +634,25 @@ def set_public(
     return get_group_buy(db, user, group_id)
 
 
+def set_title(
+    db: Session,
+    user: User,
+    group_id: int,
+    title: str,
+) -> GroupBuyDetail:
+    """Host renames the group buy. Allowed in any status (open, locked, ordered)."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    cleaned = (title or "").strip()
+    if not cleaned:
+        raise ValueError("Group buy name cannot be empty")
+    group.title = cleaned[:200]
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
 def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
-    """Unauthenticated read-only detail when the host has enabled public view."""
+    """Unauthenticated read-only detail for anyone holding the invite token (#880)."""
     group = db.scalar(
         select(GroupBuy)
         .where(GroupBuy.invite_token == token)
@@ -628,8 +666,6 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
     )
     if group is None:
         raise LookupError("Group buy not found")
-    if not bool(getattr(group, "is_public", False)):
-        raise PermissionError("This group buy is not public")
     return _detail_from_group(db, group, user=None, read_only=True)
 
 
@@ -1005,6 +1041,21 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
         missing_product_id=cards_missing,
         status=group.status,
     )
+
+
+def leave_group_buy(db: Session, user: User, group_id: int) -> None:
+    """A non-host member leaves an open group buy; their per-group rows go with them (#881)."""
+    group = _get_group(db, group_id)
+    member = _require_member(group, user)
+    if group.host_user_id == user.id:
+        raise ValueError("Host can't leave; delete the group buy instead")
+    if group.status != "open":
+        raise ValueError("Ask the host to unlock first")
+    for row in list(group.qty_overrides):
+        if row.user_id == user.id:
+            db.delete(row)
+    db.delete(member)
+    db.commit()
 
 
 def delete_group_buy(db: Session, user: User, group_id: int) -> None:

@@ -36,6 +36,7 @@ from app.schemas import (
     GroupBuyInvitePreview,
     GroupBuyOrderUpdate,
     GroupBuyPublicUpdate,
+    GroupBuyTitleUpdate,
     GroupBuyQtyUpdate,
     GroupBuyReceiptApplyRequest,
     GroupBuyReceiptMatchReport,
@@ -514,6 +515,23 @@ def delete_group_buy(
     return {"ok": True}
 
 
+@router.post("/group-buys/{group_id}/leave")
+def leave_group_buy(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        group_buy.leave_group_buy(db, user, group_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
+
+
 @router.post("/group-buys/join/{token}", response_model=GroupBuyDetail)
 def join_group_buy(
     token: str,
@@ -544,7 +562,7 @@ def public_group_buy_view(
     token: str,
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Unauthenticated read-only group buy when the host enabled public view."""
+    """Unauthenticated read-only group buy for anyone with the invite token."""
     try:
         return group_buy.public_group_buy_view(db, token)
     except LookupError as exc:
@@ -566,6 +584,23 @@ def put_group_buy_public(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/title", response_model=GroupBuyDetail)
+def put_group_buy_title(
+    group_id: int,
+    body: GroupBuyTitleUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.set_title(db, user, group_id, body.title)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/group-buys/{group_id}/contribution", response_model=GroupBuyDetail)

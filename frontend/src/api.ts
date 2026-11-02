@@ -729,6 +729,8 @@ export const api = {
     }),
   deleteGroupBuy: (id: number) =>
     request<{ ok: boolean }>(`/group-buys/${id}`, { method: "DELETE" }),
+  leaveGroupBuy: (id: number) =>
+    request<{ ok: boolean }>(`/group-buys/${id}/leave`, { method: "POST" }),
   joinGroupBuy: (token: string) =>
     request<GroupBuyDetail>(`/group-buys/join/${encodeURIComponent(token)}`, {
       method: "POST",
@@ -737,10 +739,10 @@ export const api = {
     request<GroupBuyInvitePreview>(`/public/group-buys/${encodeURIComponent(token)}`),
   publicGroupBuy: (token: string) =>
     request<GroupBuyDetail>(`/public/group-buys/${encodeURIComponent(token)}/view`),
-  setGroupBuyPublic: (id: number, is_public: boolean) =>
-    request<GroupBuyDetail>(`/group-buys/${id}/public`, {
+  setGroupBuyTitle: (id: number, title: string) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/title`, {
       method: "PUT",
-      body: JSON.stringify({ is_public }),
+      body: JSON.stringify({ title }),
     }),
   updateGroupBuyContribution: (id: number, deck_ids: number[] | null | undefined) =>
     request<GroupBuyDetail>(`/group-buys/${id}/contribution`, {
