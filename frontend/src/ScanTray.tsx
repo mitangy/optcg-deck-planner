@@ -1,11 +1,13 @@
 /** Review tray for a multi-card photo scan: confirm, fix or skip each card before adding. */
 
 import { useState } from "react";
-import type { CatalogCardResult } from "./api";
+import type { CatalogCardResult, ShoppingItem } from "./api";
 import { CardArtImg } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { ScanShare } from "./ScanShare";
-import { MAX_ROW_QTY, trayReadyCount, type TrayRow } from "./scanTray";
+import { MAX_ROW_QTY, trayNeedText, trayReadyCount, type TrayRow } from "./scanTray";
+
+export type ScanTarget = "collection" | "shopping";
 
 const CHIP: Record<string, string> = {
   sure: "Sure",
@@ -17,11 +19,16 @@ const CHIP: Record<string, string> = {
 function TrayRowView({
   row,
   card,
+  needItem,
+  showNeed,
   onQty,
   onFix,
 }: {
   row: TrayRow;
   card: CatalogCardResult | undefined;
+  /** The shopping-list entry for this card, if it is on the list. */
+  needItem: ShoppingItem | undefined;
+  showNeed: boolean;
   onQty: (qty: number) => void;
   /** Resolves to an error message, or null when the number was accepted. */
   onFix: (cardId: string) => Promise<string | null>;
@@ -69,6 +76,13 @@ function TrayRowView({
             </>
           )}
         </p>
+        {showNeed && row.cardId && (
+          <p
+            className={`scan-tray-need${needItem && needItem.still_need > 0 ? " wanted" : ""}`}
+          >
+            {trayNeedText(needItem)}
+          </p>
+        )}
         <div className="scan-tray-tags">
           <span className={`scan-chip ${kind}`}>{CHIP[kind]}</span>
           {canFix && row.confidence !== "none" && (
@@ -135,6 +149,9 @@ export function ScanTray({
   rows,
   found,
   cards,
+  items = [],
+  showNeed = false,
+  target = "collection",
   adding,
   addError,
   onQty,
@@ -146,6 +163,10 @@ export function ScanTray({
   /** Cards detected in the photo (before merging). */
   found: number;
   cards: ReadonlyMap<string, CatalogCardResult>;
+  /** Shopping list, used for the need line when `showNeed` is on. */
+  items?: ShoppingItem[];
+  showNeed?: boolean;
+  target?: ScanTarget;
   adding: boolean;
   addError: string | null;
   onQty: (key: string, qty: number) => void;
@@ -165,6 +186,8 @@ export function ScanTray({
             key={row.key}
             row={row}
             card={row.cardId ? cards.get(row.cardId) : undefined}
+            needItem={row.cardId ? items.find((i) => i.card_id.toUpperCase() === row.cardId) : undefined}
+            showNeed={showNeed}
             onQty={(q) => onQty(row.key, q)}
             onFix={(id) => onFix(row.key, id)}
           />
@@ -185,7 +208,13 @@ export function ScanTray({
             onClick={onAdd}
             disabled={adding || ready === 0}
           >
-            {adding ? "Adding…" : `Add ${ready} ${ready === 1 ? "card" : "cards"} to collection`}
+            {adding
+              ? target === "shopping"
+                ? "Marking…"
+                : "Adding…"
+              : target === "shopping"
+                ? `Mark ${ready} as owned`
+                : `Add ${ready} ${ready === 1 ? "card" : "cards"} to collection`}
           </button>
         </div>
       </div>
@@ -195,19 +224,25 @@ export function ScanTray({
 
 export function ScanAdded({
   count,
+  target = "collection",
   onMore,
   onClose,
 }: {
   count: number;
+  target?: ScanTarget;
   onMore: () => void;
   onClose: () => void;
 }) {
   return (
     <div className="scan-added">
       <p className="scan-added-title" role="status">
-        Added {count} {count === 1 ? "card" : "cards"}
+        {target === "shopping"
+          ? `Marked ${count} as owned`
+          : `Added ${count} ${count === 1 ? "card" : "cards"}`}
       </p>
-      <p className="muted">They are in your collection now.</p>
+      <p className="muted">
+        {target === "shopping" ? "Your shopping list is updated." : "They are in your collection now."}
+      </p>
       <div className="scan-tray-foot-actions">
         <button type="button" className="ghost" onClick={onClose}>
           Done

@@ -4897,6 +4897,11 @@ button.ghost.scan-open:hover {
   margin-top: 0.5rem;
 }
 
+/* Closed: take the log out of layout, so its rows never sit under the form below. */
+.scan-diag:not([open]) .scan-diag-body {
+  display: none;
+}
+
 .scan-diag-empty {
   margin: 0;
   color: var(--muted);
@@ -6616,6 +6621,19 @@ html[data-lp-dock] .topbar {
 .scan-tray-meta {
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.scan-tray-need {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-tray-need.wanted {
+  color: var(--accent-ink);
+  font-weight: 700;
 }
 
 .scan-tray-tags {
