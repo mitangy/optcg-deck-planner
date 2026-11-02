@@ -93,7 +93,7 @@ export type BaseArt = {
   product_id?: number | null;
 };
 
-function AltStepper({
+export function AltStepper({
   caption,
   verb,
   name,
