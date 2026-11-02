@@ -3,20 +3,25 @@
  * Built for a vendor booth: point the phone at a card in someone else's
  * binder and get the market price plus how many you still need. Nothing is
  * uploaded and nothing is stored — the image never leaves the device.
+ * The one exception is the multi-card photo scan: after the user adds the
+ * cards, small crops of each added card (never the photo) are shared to
+ * improve the scanner, unless they switched that off (`share_scans`).
  */
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@optcg/ui/popups";
 import { api } from "./api";
-import type { CatalogCardResult, ShoppingItem } from "./api";
+import type { CatalogCardResult, ShoppingItem, User } from "./api";
 import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { matchCard } from "./cardScanMatch";
 import { waitForModels } from "./modelsReady";
-import { matchAllCards as defaultMatchAll, type MatchAllCards } from "./cardScanMulti";
+import { matchAllCards as defaultMatchAll, type MatchAllCards, type MultiScanItem } from "./cardScanMulti";
 import { ScanAdded, ScanTray } from "./ScanTray";
+import { uploadScanSamples } from "./scanShare";
 import {
   buildTrayRows,
   dropUnknownCards,
@@ -24,6 +29,7 @@ import {
   setRowQty,
   trayAddPayload,
   trayReadyCount,
+  traySamples,
   type TrayRow,
 } from "./scanTray";
 import { MULTI_MAX_WORK_EDGE, loadImageForScan, readDroppedImage } from "./cardScanImage";
@@ -55,7 +61,7 @@ function testMatcher(): MatchAllCards | undefined {
   return (window as unknown as { __optcgTestMatchAll?: MatchAllCards }).__optcgTestMatchAll;
 }
 
-type Tray = { rows: TrayRow[]; found: number };
+type Tray = { rows: TrayRow[]; found: number; items: MultiScanItem[] };
 
 /** The catalog row whose card number is exactly `cardId`, or null. */
 async function lookupExact(cardId: string, limit = 5): Promise<CatalogCardResult | null> {
@@ -239,6 +245,7 @@ export function CardScanner({
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [added, setAdded] = useState<number | null>(null);
+  const qc = useQueryClient();
   const injected = multi ? (multi.matcher ?? testMatcher()) : undefined;
   const scanReady = scanData.state.kind === "ready" || !!injected;
 
@@ -315,6 +322,7 @@ export function CardScanner({
           setTray({
             rows: dropUnknownCards(buildTrayRows(items), new Set(known.keys())),
             found: items.length,
+            items,
           });
           setPhase({ kind: "idle" });
         } catch (err) {
@@ -439,6 +447,12 @@ export function CardScanner({
     setAddError(null);
     try {
       await api.addOwned(payload);
+      // Fire-and-forget; skipped unless the user's sharing switch is on (#852).
+      if (qc.getQueryData<User | null>(["me"])?.share_scans === true) {
+        void uploadScanSamples(traySamples(tray.rows, tray.items)).then(() =>
+          qc.invalidateQueries({ queryKey: ["scan-samples"] }),
+        );
+      }
       if (!liveRef.current) return;
       setAdded(count);
       setTray(null);
