@@ -533,7 +533,7 @@ def test_marking_read_changes_only_the_ids_given_and_only_my_own_855(client):
 
 @pytest.fixture()
 def mail_env(monkeypatch):
-    for name in ("RESEND_API_KEY", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT"):
+    for name in ("RESEND_API_KEY", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PORT", "EMAIL_FROM"):
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
     yield monkeypatch
@@ -623,3 +623,37 @@ def test_smtp_sends_over_starttls_with_the_login_855(mail_env):
         ("login", "user", "pw"),
         ("send", "a@x.test", "Subj"),
     ]
+
+
+def test_gmail_smtp_sends_from_the_login_address_when_no_sender_is_set_860(mail_env):
+    import smtplib
+
+    mail_env.setenv("SMTP_HOST", "smtp.gmail.com")
+    mail_env.setenv("SMTP_USER", "planner@gmail.com")
+    mail_env.setenv("SMTP_PASSWORD", "app-password")
+    get_settings.cache_clear()
+    sent: list = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def starttls(self, context):
+            pass
+
+        def login(self, user, password):
+            pass
+
+        def send_message(self, msg):
+            sent.append(msg["From"])
+
+    mail_env.setattr(smtplib, "SMTP", FakeSMTP)
+
+    assert mailer.send_email("a@x.test", "Subj", "<p>h</p>", "t") is True
+    assert sent == ["OPTCG Planner <planner@gmail.com>"]

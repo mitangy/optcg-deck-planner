@@ -93,7 +93,8 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    email_from: str = "OPTCG Planner <alerts@optcg-planner.invalid>"
+    # Empty: the SMTP login address (Gmail only sends as the signed-in account).
+    email_from: str = ""
 
     @property
     def analyst_model_admin_email_set(self) -> set[str]:

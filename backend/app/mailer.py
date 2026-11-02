@@ -22,12 +22,21 @@ def email_enabled() -> bool:
     return bool(s.resend_api_key or s.smtp_host)
 
 
+def _sender(s) -> str:
+    """EMAIL_FROM, else the SMTP login (Gmail rewrites any other From to it anyway)."""
+    if s.email_from:
+        return s.email_from
+    if "@" in (s.smtp_user or ""):
+        return f"OPTCG Planner <{s.smtp_user}>"
+    return "OPTCG Planner <alerts@optcg-planner.invalid>"
+
+
 def _send_resend(to: str, subject: str, html: str, text: str) -> bool:
     s = get_settings()
     resp = httpx.post(
         RESEND_URL,
         headers={"Authorization": f"Bearer {s.resend_api_key}"},
-        json={"from": s.email_from, "to": [to], "subject": subject, "html": html, "text": text},
+        json={"from": _sender(s), "to": [to], "subject": subject, "html": html, "text": text},
         timeout=TIMEOUT_S,
     )
     resp.raise_for_status()
@@ -37,7 +46,7 @@ def _send_resend(to: str, subject: str, html: str, text: str) -> bool:
 def _send_smtp(to: str, subject: str, html: str, text: str) -> bool:
     s = get_settings()
     msg = EmailMessage()
-    msg["From"] = s.email_from
+    msg["From"] = _sender(s)
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(text)
