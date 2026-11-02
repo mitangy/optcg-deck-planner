@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
-  { date: "2026-11-02", app: "planner", pr: 0, title: "The scanner camera shows the whole picture", text: "The scanner's camera no longer shows a card-shaped frame or crops your photo to it. You see the full camera view, and every card in it is scanned." },
+  { date: "2026-11-02", app: "planner", pr: 856, title: "The scanner camera shows the whole picture", text: "The scanner's camera no longer shows a card-shaped frame or crops your photo to it. You see the full camera view, and every card in it is scanned." },
   { date: "2026-11-02", app: "planner", pr: 845, title: "Add any card to your shopping list from its enlarged view", text: "Tap a card to enlarge it and press Add to shopping list to put a single card on your Master Shopping list, then use + and − to set how many to buy. You can do the same for cards you scan on the Shopping page." },
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-31
