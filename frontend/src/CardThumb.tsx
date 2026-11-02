@@ -1,4 +1,4 @@
-import { useState, type ImgHTMLAttributes, type ReactNode } from "react";
+import { createContext, useContext, useState, type ImgHTMLAttributes, type ReactNode } from "react";
 import { cardArtChain, type CardImageSize } from "@optcg/ui/cardArt";
 import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "./duelLink";
@@ -42,6 +42,12 @@ export function CardArtImg({
   return <img {...imgProps} src={art.src} alt={alt} onError={art.fail} />;
 }
 
+/**
+ * Lets the app shell put an action (e.g. "Add to shopping list") under the enlarged
+ * card. Null where there is none, such as public pages, so those lightboxes stay plain.
+ */
+export const CardLightboxActionContext = createContext<((cardId: string) => ReactNode) | null>(null);
+
 export function CardThumb({
   src,
   cardId,
@@ -52,6 +58,7 @@ export function CardThumb({
   alt?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const renderAction = useContext(CardLightboxActionContext);
   const thumb = useCardArt(src, cardId, "thumb");
   const large = useCardArt(src, cardId, "large");
 
@@ -93,6 +100,7 @@ export function CardThumb({
           {large.src && (
             <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
           )}
+          {cardId && renderAction ? <div className="lightbox-action">{renderAction(cardId)}</div> : null}
           <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
             Close
           </button>

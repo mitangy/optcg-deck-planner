@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
   { date: "2026-11-02", app: "planner", pr: 851, title: "Scan several cards on the Shopping page", text: "Scan cards on the Shopping page now takes a photo of several cards at once. It counts the copies of each card and shows how many you still need, and Mark as owned updates your shopping list." },
+  { date: "2026-11-02", app: "planner", pr: 845, title: "Add any card to your shopping list from its enlarged view", text: "Tap a card to enlarge it and press Add to shopping list to put a single card on your Master Shopping list, then use + and − to set how many to buy. You can do the same for cards you scan on the Shopping page." },
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-31
   { date: "2026-10-31", app: "planner", pr: 841, title: "New sets' prices update every hour", text: "Prices for newly released and upcoming sets, like Extra Booster 05, now update every hour instead of once a day. Older sets still update daily." },

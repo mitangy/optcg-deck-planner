@@ -314,10 +314,19 @@ export function CardScanner({
           const known = new Map<string, CatalogCardResult>();
           found.forEach((c, i) => c && known.set(ids[i]!, c));
           setCards(known);
-          setTray({
-            rows: dropUnknownCards(buildTrayRows(items), new Set(known.keys())),
-            found: items.length,
-          });
+          const rows = dropUnknownCards(buildTrayRows(items), new Set(known.keys()));
+          const only = rows.length === 1 && rows[0].cardId ? known.get(rows[0].cardId) : undefined;
+          // Shopping: one copy of one card is a "do I need this?" check, so show the
+          // card itself with its Add to shopping list control (#842) rather than a tray.
+          if (multi.target === "shopping" && only && rows[0].qty === 1) {
+            setPhase({
+              kind: "hit",
+              card: only,
+              note: rows[0].confidence === "sure" ? null : "Close call — check this is the right card.",
+            });
+            return;
+          }
+          setTray({ rows, found: items.length });
           setPhase({ kind: "idle" });
         } catch (err) {
           scanLog("scan-multi:error", err);

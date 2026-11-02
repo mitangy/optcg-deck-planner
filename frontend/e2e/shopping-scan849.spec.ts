@@ -62,3 +62,22 @@ test("a Shopping scan counts copies of each card, shows what is still needed, an
   const copies = page.getByRole("list", { name: "Shopping totals" }).locator("li").nth(1).locator(".stat-value");
   await expect(copies).toHaveText("4");
 });
+
+test("a Shopping scan of one card shows that card and what you still need, not a tray (#849)", async ({ page, planner }) => {
+  await planner.open("/");
+  await page.evaluate(() => {
+    const quad = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+    (window as unknown as Record<string, unknown>).__optcgTestMatchAll = async () => [
+      { quad, thumbUrl: "", cardId: "EB01-011", inliers: 40, runnerUp: 5, confidence: "sure" },
+    ];
+  });
+  await page.locator(".scan-open").first().click();
+  const dialog = page.getByRole("dialog", { name: "Scan cards" });
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await dialog.locator('input[type="file"]').last().setInputFiles({ name: "card.png", mimeType: "image/png", buffer: png });
+  await expect(dialog.locator(".scan-hit-name")).toHaveText("Mini-Merry");
+  await expect(dialog.locator(".scan-hit-need")).toContainText("You still need 1");
+  await expect(dialog.locator(".scan-tray")).toHaveCount(0);
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
