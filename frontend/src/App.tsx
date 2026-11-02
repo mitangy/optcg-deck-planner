@@ -1071,7 +1071,7 @@ function ShoppingItemsView({
               <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} className="col-cost" />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
               {showAltArts ? <th>Alt arts</th> : null}
             </tr>
@@ -1115,7 +1115,7 @@ function ShoppingItemsView({
                     <MarketPrice price={item.market_price} productId={item.product_id} />
                   </td>
                   <td>{money(item.remaining_cost)}</td>
-                  <td>{item.cost ?? "—"}</td>
+                  <td className="col-cost">{item.cost ?? "—"}</td>
                   <td className="used-in">
                     <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
                   </td>

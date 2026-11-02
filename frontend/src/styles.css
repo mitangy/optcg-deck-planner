@@ -3711,7 +3711,7 @@ tr.done td {
 
 /* Below 1440px the Alt arts column has to share the row with the dock/editor beside the table, so the
    deck, Shopping and Collection tables tighten their cells and use smaller tiles; the deck list also
-   drops its Type column (grid and phone cards still show the type). */
+   drops its Type column and Shopping its Cost column (grid and phone cards still show them). */
 @media (max-width: 1439px) {
   :is(.deck-table, .shopping-table, .collection-table):has(td.alt-arts-cell) :is(th, td) {
     padding-inline: 0.5rem;
@@ -3722,7 +3722,8 @@ tr.done td {
     height: 62px;
   }
 
-  .deck-table:has(td.alt-arts-cell) .col-type {
+  .deck-table:has(td.alt-arts-cell) .col-type,
+  .shopping-table:has(td.alt-arts-cell) .col-cost {
     display: none;
   }
 
