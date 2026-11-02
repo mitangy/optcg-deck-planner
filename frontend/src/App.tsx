@@ -1953,6 +1953,7 @@ function ShoppingPage() {
         <CardScanner
           items={data?.items ?? []}
           initialImage={droppedImage}
+          multi={{ target: "shopping", onAdded: () => invalidateOwnedViews(qc) }}
           onClose={() => {
             setScanOpen(false);
             setDroppedImage(null);

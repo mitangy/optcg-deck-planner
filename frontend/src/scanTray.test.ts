@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ShoppingItem } from "./api";
 import type { MultiScanConfidence, MultiScanItem } from "./cardScanMulti";
 import {
   buildTrayRows,
@@ -6,6 +7,7 @@ import {
   fixRow,
   setRowQty,
   trayAddPayload,
+  trayNeedText,
   trayReadyCount,
 } from "./scanTray";
 
@@ -93,5 +95,20 @@ describe("scan review tray rows (#701)", () => {
     );
     expect(trayAddPayload(rows)).toEqual([{ card_id: "OP01-120", add: 1 }]);
     expect(rows[1]).toMatchObject({ cardId: null, confidence: "none", qty: 0 });
+  });
+});
+
+describe("trayNeedText", () => {
+  const entry = (still_need: number, owned: number, need: number) =>
+    ({ still_need, owned, need }) as ShoppingItem;
+
+  it("says how many are still needed when the list wants more (#849)", () => {
+    expect(trayNeedText(entry(2, 1, 3))).toBe("Still need 2");
+  });
+  it("says the card is covered, with owned of need, when nothing is missing (#849)", () => {
+    expect(trayNeedText(entry(0, 4, 3))).toBe("Covered — you own 4 of 3");
+  });
+  it("says the card is not on the shopping list when there is no entry (#849)", () => {
+    expect(trayNeedText(undefined)).toBe("Not on your shopping list");
   });
 });

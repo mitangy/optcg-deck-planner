@@ -1,5 +1,6 @@
 /** Rows of the photo-scan review tray, kept pure so the merge and add rules can be tested. */
 
+import type { ShoppingItem } from "./api";
 import type { MultiScanConfidence, MultiScanItem } from "./cardScanMulti";
 
 export const MAX_ROW_QTY = 99;
@@ -117,4 +118,11 @@ export function trayAddPayload(rows: TrayRow[]): { card_id: string; add: number 
 
 export function trayReadyCount(rows: TrayRow[]): number {
   return trayAddPayload(rows).reduce((n, i) => n + i.add, 0);
+}
+
+/** Shopping-list status shown under a scanned card in the tray. */
+export function trayNeedText(item: ShoppingItem | undefined): string {
+  if (!item) return "Not on your shopping list";
+  if (item.still_need > 0) return `Still need ${item.still_need}`;
+  return `Covered — you own ${item.owned} of ${item.need}`;
 }

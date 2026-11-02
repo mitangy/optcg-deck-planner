@@ -6616,6 +6616,19 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
+.scan-tray-need {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-tray-need.wanted {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
 .scan-tray-tags {
   display: flex;
   align-items: center;

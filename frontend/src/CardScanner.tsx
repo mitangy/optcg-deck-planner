@@ -16,7 +16,7 @@ import { MarketPrice } from "./MarketPrice";
 import { matchCard } from "./cardScanMatch";
 import { waitForModels } from "./modelsReady";
 import { matchAllCards as defaultMatchAll, type MatchAllCards } from "./cardScanMulti";
-import { ScanAdded, ScanTray } from "./ScanTray";
+import { ScanAdded, ScanTray, type ScanTarget } from "./ScanTray";
 import {
   buildTrayRows,
   dropUnknownCards,
@@ -48,6 +48,8 @@ export type ScanMulti = {
   onAdded?: () => void;
   /** Replaces the detector (tests). */
   matcher?: MatchAllCards;
+  /** Where the cards go: the collection (default) or the shopping list, marked as owned. */
+  target?: ScanTarget;
 };
 
 /** Test-only: e2e sets this before load to stand in for the detector and the scan data. */
@@ -491,6 +493,9 @@ export function CardScanner({
           rows={tray.rows}
           found={tray.found}
           cards={cards}
+          items={items}
+          showNeed={showNeed}
+          target={multi?.target}
           adding={adding}
           addError={addError}
           onQty={(key, qty) =>
@@ -502,7 +507,7 @@ export function CardScanner({
         />
       )}
       {reviewing && added !== null && (
-        <ScanAdded count={added} onMore={resetScan} onClose={onClose} />
+        <ScanAdded count={added} target={multi?.target} onMore={resetScan} onClose={onClose} />
       )}
 
       {!reviewing && (
