@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 0, title: "Group buys show the base art and total each card", text: "In a group buy the alt arts now start with the base art, so you can choose how many copies you want of it too. The price under each card is the total for the arts you picked, like 2 base copies plus 1 alt." },
   { date: "2026-11-02", app: "planner", pr: 845, title: "Add any card to your shopping list from its enlarged view", text: "Tap a card to enlarge it and press Add to shopping list to put a single card on your Master Shopping list, then use + and − to set how many to buy. You can do the same for cards you scan on the Shopping page." },
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-31

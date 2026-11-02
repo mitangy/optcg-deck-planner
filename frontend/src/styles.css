@@ -7406,3 +7406,29 @@ button.ghost.scan-tray-fix {
 .landing-notice b {
   color: var(--ink);
 }
+
+/* Group buy: total across the arts the viewer picked (#850). Same box as the clickable market price so swapping states never shifts the card. */
+.gb-arts-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.gb-arts-total-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-arts-total-cap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+}

@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from app import group_buy, services
-from app.models import Deck, Owned
+from app.models import CatalogPrinting, Deck, Owned
 from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
@@ -509,6 +509,23 @@ def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players)
     assert line.remaining_cost == 21.5
     # Header total includes OP01-002 as well (host 2×$1 + friend 3×$1 = 5).
     assert detail.remaining_market == round(21.5 + 5.0, 2)
+
+
+def test_group_buy_line_exposes_base_art_when_checkout_is_overridden_to_alt(db, two_players):
+    """The alt selector's Base tile must show the standard art, not the host's AA pick (#850)."""
+    host, friend = two_players
+    for pid, url in ((1001, "https://img.test/base.jpg"), (1009, "https://img.test/aa.jpg")):
+        row = db.scalar(select(CatalogPrinting).where(CatalogPrinting.product_id == pid))
+        row.image_url = url
+    db.commit()
+    created = group_buy.create_group_buy(db, host, "Base art")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    line = next(l for l in detail.lines if l.card_id == "OP01-001")
+    assert line.image_url == "https://img.test/aa.jpg"
+    assert line.base_image_url == "https://img.test/base.jpg"
 
 
 def test_public_view_requires_toggle_and_is_read_only(db, two_players):
