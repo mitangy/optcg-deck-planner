@@ -20,7 +20,7 @@ import { MarketPrice } from "./MarketPrice";
 import { matchCard } from "./cardScanMatch";
 import { waitForModels } from "./modelsReady";
 import { matchAllCards as defaultMatchAll, type MatchAllCards, type MultiScanItem } from "./cardScanMulti";
-import { ScanAdded, ScanTray } from "./ScanTray";
+import { ScanAdded, ScanTray, type ScanTarget } from "./ScanTray";
 import { uploadScanSamples } from "./scanShare";
 import {
   buildTrayRows,
@@ -54,6 +54,8 @@ export type ScanMulti = {
   onAdded?: () => void;
   /** Replaces the detector (tests). */
   matcher?: MatchAllCards;
+  /** Where the cards go: the collection (default) or the shopping list, marked as owned. */
+  target?: ScanTarget;
 };
 
 /** Test-only: e2e sets this before load to stand in for the detector and the scan data. */
@@ -319,11 +321,19 @@ export function CardScanner({
           const known = new Map<string, CatalogCardResult>();
           found.forEach((c, i) => c && known.set(ids[i]!, c));
           setCards(known);
-          setTray({
-            rows: dropUnknownCards(buildTrayRows(items), new Set(known.keys())),
-            found: items.length,
-            items,
-          });
+          const rows = dropUnknownCards(buildTrayRows(items), new Set(known.keys()));
+          const only = rows.length === 1 && rows[0].cardId ? known.get(rows[0].cardId) : undefined;
+          // Shopping: one copy of one card is a "do I need this?" check, so show the
+          // card itself with its Add to shopping list control (#842) rather than a tray.
+          if (multi.target === "shopping" && only && rows[0].qty === 1) {
+            setPhase({
+              kind: "hit",
+              card: only,
+              note: rows[0].confidence === "sure" ? null : "Close call — check this is the right card.",
+            });
+            return;
+          }
+          setTray({ rows, found: items.length, items });
           setPhase({ kind: "idle" });
         } catch (err) {
           scanLog("scan-multi:error", err);
@@ -505,6 +515,9 @@ export function CardScanner({
           rows={tray.rows}
           found={tray.found}
           cards={cards}
+          items={items}
+          showNeed={showNeed}
+          target={multi?.target}
           adding={adding}
           addError={addError}
           onQty={(key, qty) =>
@@ -516,7 +529,7 @@ export function CardScanner({
         />
       )}
       {reviewing && added !== null && (
-        <ScanAdded count={added} onMore={resetScan} onClose={onClose} />
+        <ScanAdded count={added} target={multi?.target} onMore={resetScan} onClose={onClose} />
       )}
 
       {!reviewing && (

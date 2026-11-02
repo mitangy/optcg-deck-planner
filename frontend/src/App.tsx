@@ -1955,6 +1955,7 @@ function ShoppingPage() {
         <CardScanner
           items={data?.items ?? []}
           initialImage={droppedImage}
+          multi={{ target: "shopping", onAdded: () => invalidateOwnedViews(qc) }}
           renderHitAction={(card) => <ShoppingScanHitAction cardId={card.card_id} />}
           onClose={() => {
             setScanOpen(false);
