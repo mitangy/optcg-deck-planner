@@ -742,6 +742,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ is_public }),
     }),
+  setGroupBuyTitle: (id: number, title: string) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/title`, {
+      method: "PUT",
+      body: JSON.stringify({ title }),
+    }),
   updateGroupBuyContribution: (id: number, deck_ids: number[] | null | undefined) =>
     request<GroupBuyDetail>(`/group-buys/${id}/contribution`, {
       method: "PUT",

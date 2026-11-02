@@ -613,6 +613,23 @@ def set_public(
     return get_group_buy(db, user, group_id)
 
 
+def set_title(
+    db: Session,
+    user: User,
+    group_id: int,
+    title: str,
+) -> GroupBuyDetail:
+    """Host renames the group buy. Allowed in any status (open, locked, ordered)."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    cleaned = (title or "").strip()
+    if not cleaned:
+        raise ValueError("Group buy name cannot be empty")
+    group.title = cleaned[:200]
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
 def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
     """Unauthenticated read-only detail when the host has enabled public view."""
     group = db.scalar(

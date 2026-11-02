@@ -746,6 +746,24 @@ export function GroupBuyDetailPage() {
     );
   }, [detail]);
 
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const rename = useMutation({
+    mutationFn: (title: string) => api.setGroupBuyTitle(groupId, title),
+    onSuccess: async (d) => {
+      qc.setQueryData(["group-buy", groupId], d);
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      setRenaming(false);
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  function saveTitle() {
+    const next = titleDraft.trim();
+    if (!next || rename.isPending) return;
+    rename.mutate(next);
+  }
+
   const lock = useMutation({
     mutationFn: () => api.lockGroupBuy(groupId),
     onSuccess: async (d) => {
@@ -1141,7 +1159,57 @@ export function GroupBuyDetailPage() {
           <p className="muted">
             <Link to="/group-buys">Group buys</Link>
           </p>
-          <h1>{detail.title}</h1>
+          {detail.is_host && renaming ? (
+            <div className="gb-title-edit">
+              <input
+                type="text"
+                className="gb-title-input"
+                data-testid="gb-title-input"
+                aria-label="Group buy name"
+                value={titleDraft}
+                maxLength={200}
+                autoFocus
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveTitle();
+                  } else if (e.key === "Escape") {
+                    setRenaming(false);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn primary"
+                data-testid="gb-title-save"
+                disabled={!titleDraft.trim() || rename.isPending}
+                onClick={saveTitle}
+              >
+                Save
+              </button>
+              <button type="button" className="btn secondary" onClick={() => setRenaming(false)}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="gb-title-row">
+              <h1>{detail.title}</h1>
+              {detail.is_host && (
+                <button
+                  type="button"
+                  className="ghost"
+                  data-testid="gb-rename"
+                  onClick={() => {
+                    setTitleDraft(detail.title);
+                    setRenaming(true);
+                  }}
+                >
+                  Rename
+                </button>
+              )}
+            </div>
+          )}
           <p className="muted">
             <span className={`group-buy-status status-${detail.status}`}>{detail.status}</span>
             {" · "}
