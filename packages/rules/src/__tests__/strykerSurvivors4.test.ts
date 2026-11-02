@@ -22,17 +22,17 @@ describe("legal intents in the counter step", () => {
     return { intents: h.legal(1), hand: h.state.players[1].hand.map((c) => c.defId) };
   }
 
-  it("offers a Counter Event when the active DON!! exactly cover its cost (#859)", () => {
+  it("offers a Counter Event when the active DON!! exactly cover its cost (#861)", () => {
     const { intents, hand } = counterStep(2);
     expect(intents.filter((i) => i.type === "counter_event")).toEqual([{ type: "counter_event", handIndex: hand.indexOf(REPEL) }]);
   });
 
-  it("does not offer a Counter Event when the active DON!! are one short of its cost, however many are rested (#859)", () => {
+  it("does not offer a Counter Event when the active DON!! are one short of its cost, however many are rested (#861)", () => {
     const { intents } = counterStep(1, 5);
     expect(intents.filter((i) => i.type === "counter_event")).toEqual([]);
   });
 
-  it("offers only Characters with a Counter value as counters, and never an Event without a [Counter] (#859)", () => {
+  it("offers only Characters with a Counter value as counters, and never an Event without a [Counter] (#861)", () => {
     const { intents, hand } = counterStep(10);
     expect(intents.filter((i) => i.type === "counter_from_hand")).toEqual([{ type: "counter_from_hand", handIndex: hand.indexOf(KAROO) }]);
     expect(intents.filter((i) => i.type === "counter_event")).toEqual([{ type: "counter_event", handIndex: hand.indexOf(REPEL) }]);
@@ -52,7 +52,7 @@ describe("a negated Character's own static abilities", () => {
     return powerOf(h.state, 0, sanji!);
   }
 
-  it("keep applying while the Character is not negated and stop once it is (#859)", () => {
+  it("keep applying while the Character is not negated and stop once it is (#861)", () => {
     expect(sanjiPower(false)).toBe(6000);
     expect(sanjiPower(true)).toBe(5000);
   });
