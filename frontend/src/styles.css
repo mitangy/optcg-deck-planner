@@ -1855,7 +1855,9 @@ tr.done td {
 
 .lightbox-action .shopping-extra-control {
   justify-content: center;
-  min-width: 11.5rem;
+  /* Fixed width that fits "Add to shopping list" in any font, so Add and the stepper share one footprint. */
+  width: 14rem;
+  max-width: 100%;
   min-height: 2.5rem;
 }
 
@@ -1863,13 +1865,17 @@ tr.done td {
 .lightbox-action .shopping-extra-control .btn,
 .scan-hit-owned .shopping-extra-control .btn {
   height: 2.5rem;
+  width: 100%;
   margin: 0;
   padding-block: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .scan-hit-owned .shopping-extra-control {
-  min-width: 11.5rem;
+  width: 14rem;
+  max-width: 100%;
   min-height: 2.5rem;
   justify-content: flex-end;
 }
