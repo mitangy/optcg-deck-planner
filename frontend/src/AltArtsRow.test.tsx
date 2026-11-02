@@ -5,10 +5,12 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 import type { PrintingView } from "./api";
 import { AltArtsRow } from "./MarketPrice";
+import previewIds from "../../packages/ui/src/cardArt/previewArt.json";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const CARD_ID = "EB05-061";
+// A card id from the preview manifest (the daily art sync retires old ones).
+const CARD_ID = previewIds[0]!;
 const PREVIEW = `https://optcgduel.app/cards/preview/${CARD_ID}.webp`;
 const alt: PrintingView = {
   product_id: 700001,

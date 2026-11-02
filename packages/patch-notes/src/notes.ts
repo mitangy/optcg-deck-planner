@@ -12,6 +12,9 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
+  // 2026-10-31
+  { date: "2026-10-31", app: "planner", pr: 841, title: "New sets' prices update every hour", text: "Prices for newly released and upcoming sets, like Extra Booster 05, now update every hour instead of once a day. Older sets still update daily." },
+  { date: "2026-10-31", app: "both", pr: 839, title: "A new OP18 event and 2 alt arts", text: "This Kingdom is Doomed. You Can't Save It! (OP18-058) is now in the duel app, and its [Trigger] plays its [Main] effect. New alt arts are available for Rebecca (OP15-039) and Jewelry Bonney (OP13-100). 23 cards that showed preview art now show their official art." },
   // 2026-10-30
   { date: "2026-10-30", app: "duel", pr: 837, title: "Log Pose stops suggesting losing attacks", text: "Log Pose now compares power before it suggests an attack, knows that a tie goes to the attacker, and no longer says you can't be countered just because the opponent has no active DON!!. It also sees the counter value printed on the cards in your hand." },
   { date: "2026-10-30", app: "duel", pr: 834, title: "Staff can join Stress Test Sunday", text: "Admins and moderators can now join Stress Test Sunday and play like everyone else. The banner reminds them that staff are not eligible for the prizes." },

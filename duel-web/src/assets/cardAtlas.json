@@ -43081,6 +43081,23 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-058": {
+    "id": "OP18-058",
+    "name": "This Kingdom is Doomed. You Can't Save It!",
+    "type": "event",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/727044_400w.jpg",
+    "effectText": "[Main] You may return 1 of your Characters to the owner's hand: Place up to 1 Character with a cost of 4 or less at the bottom of the owner's deck.\n\n[Trigger] Activate this card's [Main] effect.",
+    "traits": [
+      "Baroque Works",
+      "The Seven Warlords of the Sea"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "OP18-060": {
     "id": "OP18-060",
     "name": "Saint Gunko",

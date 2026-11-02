@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     # production, off everywhere else (tests, local dev). TOURNAMENT_SYNC=true/false overrides.
     tournament_sync: bool | None = None
     tournament_sync_days: int = 30
+    # Hourly prices for new and upcoming sets from TCGPlayer's search API (the daily
+    # TCGCSV pull is a day behind). Unset: on in production only.
+    new_release_prices: bool | None = None
+    new_release_price_days: int = 30
+    new_release_price_interval_minutes: int = 60
 
     @property
     def analyst_model_admin_email_set(self) -> set[str]:
@@ -121,6 +126,15 @@ class Settings(BaseSettings):
     @property
     def tournament_sync_enabled(self) -> bool:
         return self.is_production if self.tournament_sync is None else self.tournament_sync
+
+    @property
+    def new_release_prices_enabled(self) -> bool:
+        return self.is_production if self.new_release_prices is None else self.new_release_prices
+
+    @property
+    def new_release_price_interval_s(self) -> int:
+        # Never faster than every 15 minutes, so a typo can't hammer TCGPlayer.
+        return max(15, self.new_release_price_interval_minutes) * 60
 
     @property
     def is_production(self) -> bool:

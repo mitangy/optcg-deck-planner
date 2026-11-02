@@ -1,30 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { cardArtChain } from "./cardImage";
 import { previewArtUrl } from "./previewArt";
+import previewIds from "./previewArt.json";
+import altIds from "./previewArtAlts.json";
 
 const ORIGIN = "https://duel.example.test";
 const PREVIEW = `${ORIGIN}/cards/preview`;
-// 712884 is in previewArtAlts.json; EB05-061 is in previewArt.json.
-const altUrl = "https://tcgplayer-cdn.tcgplayer.com/product/712884_200w.jpg";
+// Read ids from the manifests: the daily art sync retires previews once official art is up.
+const CARD = previewIds[0]!;
+const ALT = altIds[0]!;
+const altUrl = `https://tcgplayer-cdn.tcgplayer.com/product/${ALT}_200w.jpg`;
 const plainUrl = "https://tcgplayer-cdn.tcgplayer.com/product/1_200w.jpg";
 
 describe("previewArtUrl", () => {
   it("uses the card-id preview for a new card (#613)", () => {
-    expect(previewArtUrl("EB05-061", plainUrl, ORIGIN)).toBe(`${PREVIEW}/EB05-061.webp`);
-    expect(previewArtUrl(" eb05-061 ", undefined, ORIGIN)).toBe(`${PREVIEW}/EB05-061.webp`);
+    expect(previewArtUrl(CARD, plainUrl, ORIGIN)).toBe(`${PREVIEW}/${CARD}.webp`);
+    expect(previewArtUrl(` ${CARD.toLowerCase()} `, undefined, ORIGIN)).toBe(`${PREVIEW}/${CARD}.webp`);
   });
 
   it("prefers the alt-printing preview over the card-id preview (#613)", () => {
-    expect(previewArtUrl("EB05-061", altUrl, ORIGIN)).toBe(`${PREVIEW}/p712884.webp`);
+    expect(previewArtUrl(CARD, altUrl, ORIGIN)).toBe(`${PREVIEW}/p${ALT}.webp`);
   });
 
   it("uses the alt preview even when the card id has none (#613)", () => {
-    expect(previewArtUrl("OP01-001", altUrl, ORIGIN)).toBe(`${PREVIEW}/p712884.webp`);
+    expect(previewArtUrl("OP01-001", altUrl, ORIGIN)).toBe(`${PREVIEW}/p${ALT}.webp`);
   });
 
   it("builds relative paths when no origin is given (#700)", () => {
-    expect(previewArtUrl("EB05-061")).toBe("/cards/preview/EB05-061.webp");
-    expect(previewArtUrl("OP01-001", altUrl)).toBe("/cards/preview/p712884.webp");
+    expect(previewArtUrl(CARD)).toBe(`/cards/preview/${CARD}.webp`);
+    expect(previewArtUrl("OP01-001", altUrl)).toBe(`/cards/preview/p${ALT}.webp`);
   });
 
   it("has no preview for a card with real art (#613)", () => {
@@ -35,15 +39,15 @@ describe("previewArtUrl", () => {
 
 describe("cardArtChain", () => {
   it("tries the resized art, the original, then the preview (#613)", () => {
-    expect(cardArtChain(plainUrl, "EB05-061", "thumb", ORIGIN)).toEqual([
+    expect(cardArtChain(plainUrl, CARD, "thumb", ORIGIN)).toEqual([
       "https://tcgplayer-cdn.tcgplayer.com/product/1_400w.jpg",
       plainUrl,
-      `${PREVIEW}/EB05-061.webp`,
+      `${PREVIEW}/${CARD}.webp`,
     ]);
   });
 
   it("shows the preview when the card has no image URL (#613)", () => {
-    expect(cardArtChain(undefined, "EB05-061", "large", ORIGIN)).toEqual([`${PREVIEW}/EB05-061.webp`]);
+    expect(cardArtChain(undefined, CARD, "large", ORIGIN)).toEqual([`${PREVIEW}/${CARD}.webp`]);
   });
 
   it("ends at the original when there is no preview (#613)", () => {

@@ -33,10 +33,11 @@ async def lifespan(_app: FastAPI):
             db.close()
     from app.tournament_sync import start_background
 
-    from app import progress_sweep
+    from app import price_refresh, progress_sweep
 
     sync_task = start_background(settings)
     sweep_task = progress_sweep.start_background(settings)
+    price_task = price_refresh.start_background(settings)
     try:
         yield
     finally:
@@ -45,6 +46,10 @@ async def lifespan(_app: FastAPI):
             with contextlib.suppress(asyncio.CancelledError):
                 await sync_task
         await progress_sweep.stop(sweep_task)
+        if price_task is not None:
+            price_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await price_task
 
 
 _docs = None if settings.is_production else "/docs"
