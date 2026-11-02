@@ -36,7 +36,10 @@ jobs:
       BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
       GH_TOKEN: ${{ github.token }}
       API_URL: ${{ secrets.API_URL }}
-      BLOB_BASE: https://2jesjagi5xofv6e6.public.blob.vercel-storage.com/scan-data
+      # Root of the scan-data blob store the app reads (same value as the planner's
+      # VITE_SCAN_DATA_BASE + /scan-data). Set the SCAN_DATA_BASE repo variable when the
+      # store moves; it must be the store BLOB_READ_WRITE_TOKEN writes to.
+      BLOB_BASE: ${{ vars.SCAN_DATA_BASE || 'https://2jesjagi5xofv6e6.public.blob.vercel-storage.com/scan-data' }}
       MAX_MINUTES: ${{ inputs.max_minutes || '240' }}
     defaults:
       run:
