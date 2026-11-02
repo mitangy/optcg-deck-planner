@@ -567,3 +567,73 @@ def test_group_buy_alt_pick_saves_for_a_master_shopping_card_872(db):
     line = next(l for l in detail.lines if l.card_id == "OP01-002")
     assert next(a.wanted for a in line.alt_arts if a.product_id == 1019) == 1
     assert line.remaining_cost == pytest.approx(8.0 + 1.0)
+
+
+def _three_players_with_alt_want(db):
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1009, market=9.0, special=True)
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1007, market=7.0, special=True)
+    host = make_user(db, email="h882@example.com", name="Host", sub="sub-h882")
+    wanter = make_user(db, email="w882@example.com", name="Wanter", sub="sub-w882")
+    viewer = make_user(db, email="v882@example.com", name="Viewer", sub="sub-v882")
+    add_deck_with_cards(db, host, "H", {"OP01-001": 2})
+    add_deck_with_cards(db, wanter, "W", {"OP01-001": 3})
+    add_deck_with_cards(db, viewer, "V", {"OP01-001": 1})
+    services.set_user_card_printing(db, wanter, "OP01-001", 1009, 2)
+    return host, wanter, viewer
+
+
+def _line(detail, card_id="OP01-001"):
+    return next(l for l in detail.lines if l.card_id == card_id)
+
+
+def test_group_buy_main_art_follows_other_members_alt_wants_882(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+
+    line = _line(group_buy.get_group_buy(db, viewer, created.id))
+    assert line.display_art == 1009
+    assert any(a.product_id == 1009 for a in line.alt_arts)
+    # The viewer's own wanted counts are untouched.
+    assert next(a.wanted for a in line.alt_arts if a.product_id == 1009) == 0
+
+
+def test_group_buy_group_alt_pick_uses_most_copies_then_lowest_id_882(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+
+    services.set_user_card_printing(db, host, "OP01-001", 1007, 1)
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1009  # 2 > 1
+    services.set_user_card_printing(db, host, "OP01-001", 1007, 2)
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1007  # tie -> lowest
+
+
+def test_group_buy_viewer_own_art_choice_beats_group_pick_882(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+
+    # Viewer wants a different alt of their own.
+    services.set_user_card_printing(db, viewer, "OP01-001", 1007, 1)
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art != 1009
+
+    # Viewer explicitly chooses the base art (0).
+    services.set_user_card_printing(db, viewer, "OP01-001", 1007, 0)
+    services.set_display_art(db, viewer, "OP01-001", 0)
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 0
+
+
+def test_public_group_buy_shows_group_alt_art_882(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.set_public(db, host, created.id, True)
+
+    line = _line(group_buy.public_group_buy_view(db, created.invite_token))
+    assert line.display_art == 1009
+    assert any(a.product_id == 1009 for a in line.alt_arts)

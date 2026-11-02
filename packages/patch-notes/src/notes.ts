@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 885, title: "Group buy shows the alt art members picked", text: "In a group buy, a card now shows the alt art the group wants most as its main image, even when you did not pick one yourself." },
   { date: "2026-11-02", app: "planner", pr: 883, title: "Rename a group buy", text: "If you host a group buy, you can now rename it: press Rename next to the title, type a new name, and press Save." },
   { date: "2026-11-02", app: "planner", pr: 878, title: "Group buy Price sort follows the price you see", text: "In a group buy, sorting by Price now orders cards by the price shown under each card: your total across the arts you picked, not the base card price." },
   { date: "2026-11-02", app: "planner", pr: 875, title: "Pick the art you see in a group buy", text: "Group buy art tiles now have a Show button, like Master Shopping, to choose which art each card displays." },
