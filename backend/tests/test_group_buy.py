@@ -673,6 +673,8 @@ def test_group_buy_show_picks_count_by_members_then_host_893(db):
     # Two members pick 1007: more picks beat the host's.
     services.set_display_art(db, viewer, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
+
+
 def _art_wants(line):
     return sorted((w.user_id, w.product_id, w.qty) for w in line.art_wants)
 
