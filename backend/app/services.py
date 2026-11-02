@@ -33,6 +33,7 @@ from app.models import (
     OwnedPrinting,
     ShareLink,
     ShoppingExtra,
+    ShoppingExtraPrinting,
     User,
 )
 from app.schemas import (
@@ -1128,7 +1129,14 @@ def set_user_card_printing(
         deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
         if deck_card is not None:
             groups.setdefault(_leader_group_id(deck), []).append((deck, deck_card))
-    if not groups:
+    extra = db.scalar(
+        select(ShoppingExtra).where(
+            ShoppingExtra.user_id == user.id,
+            ShoppingExtra.card_id == card_id,
+            ShoppingExtra.qty > 0,
+        )
+    )
+    if not groups and extra is None:
         raise LookupError("Card not in any selected deck")
 
     sum_leaders = bool(getattr(user, "sum_across_leaders", False))
@@ -1156,8 +1164,46 @@ def set_user_card_printing(
         else:
             shown = max(shown, group_stored)
 
+    if extra is not None:
+        stored = _write_extra_printing_qty(db, user.id, card_id, product_id, qty, extra.qty)
+        shown = max(shown, stored)
+
     db.commit()
     return shown, updated
+
+
+def _write_extra_printing_qty(
+    db: Session, user_id: int, card_id: str, product_id: int, qty: int, extra_qty: int
+) -> int:
+    """Write the alt want of a Master Shopping card, clamped to the extra's qty. Returns qty stored."""
+    others = db.scalars(
+        select(ShoppingExtraPrinting).where(
+            ShoppingExtraPrinting.user_id == user_id,
+            ShoppingExtraPrinting.card_id == card_id,
+            ShoppingExtraPrinting.product_id != product_id,
+        )
+    ).all()
+    qty = max(0, min(qty, extra_qty - sum(r.qty for r in others)))
+    row = db.scalar(
+        select(ShoppingExtraPrinting).where(
+            ShoppingExtraPrinting.user_id == user_id,
+            ShoppingExtraPrinting.card_id == card_id,
+            ShoppingExtraPrinting.product_id == product_id,
+        )
+    )
+    if qty <= 0:
+        if row is not None:
+            db.delete(row)
+        return 0
+    if row is None:
+        db.add(
+            ShoppingExtraPrinting(
+                user_id=user_id, card_id=card_id, product_id=product_id, qty=qty
+            )
+        )
+    else:
+        row.qty = qty
+    return qty
 
 
 def _assert_special_printing(db: Session, card_id: str, product_id: int) -> None:
@@ -1331,6 +1377,18 @@ def shopping_list(
         }
         for card_id, by_pid in group_wants.items()
     }
+    if extras:
+        extra_rows = db.scalars(
+            select(ShoppingExtraPrinting).where(
+                ShoppingExtraPrinting.user_id == user.id,
+                ShoppingExtraPrinting.card_id.in_(list(extras)),
+            )
+        ).all()
+        for row in extra_rows:
+            if row.qty <= 0:
+                continue
+            by_pid = merged_wants.setdefault(row.card_id, {})
+            by_pid[row.product_id] = max(by_pid.get(row.product_id, 0), row.qty)
     for card_id, by_pid in list(merged_wants.items()):
         merged_wants[card_id] = clamp_alt_want_map(by_pid, need.get(card_id, 0))
 
@@ -1646,7 +1704,14 @@ def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
     if qty == 0:
         if row is not None:
             db.delete(row)
-            db.commit()
+        for printing in db.scalars(
+            select(ShoppingExtraPrinting).where(
+                ShoppingExtraPrinting.user_id == user.id,
+                ShoppingExtraPrinting.card_id == card_id,
+            )
+        ).all():
+            db.delete(printing)
+        db.commit()
         return 0
     if db.get(CatalogCard, card_id) is None:
         raise LookupError("Card not found in catalog")
