@@ -8,7 +8,8 @@ on:
 
 jobs:
   update-snapshots:
-    runs-on: ubuntu-latest
+    # Must match the ci.yml frontend job's runner so the baselines line up.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
