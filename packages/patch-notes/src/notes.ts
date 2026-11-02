@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 875, title: "Pick the art you see in a group buy", text: "Group buy art tiles now have a Show button, like Master Shopping, to choose which art each card displays." },
   { date: "2026-11-02", app: "planner", pr: 873, title: "Alt art picks save for Master Shopping cards", text: "In a group buy, alt art picks now save for cards you added from Master Shopping. No more \"Card not in any selected deck\"." },
   { date: "2026-11-02", app: "planner", pr: 871, title: "Alt arts in a group buy move a copy from the base art", text: "In a group buy, + on an alt art now moves a copy from the base art. Your buy stays at your shopping number, and your alt picks stay synced with your shopping list." },
   { date: "2026-11-02", app: "planner", pr: 869, title: "Group buys follow the art you pick", text: "The group buy page no longer has a Printing dropdown. Pick how many copies of each art you want on the art tiles: + on an alt adds a copy to Your buy, and checkout buys exactly what everyone picked." },
