@@ -92,3 +92,33 @@ test("Shopping remembers Still need only and the Add cards color after a reload 
   await expect(page.getByLabel("Still need only")).not.toBeChecked();
   await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveText(/Blue/);
 });
+
+test("the Want stepper raises a card over its decks, stops at the deck need, and Reset goes back (#867)", async ({ page, planner }) => {
+  await planner.open("/");
+  // Mini-Merry: the deck needs 1, nothing owned, nothing added directly.
+  const fewer = page.getByRole("button", { name: "Want fewer of Mini-Merry" }).filter({ visible: true }).first();
+  const more = page.getByRole("button", { name: "Want more of Mini-Merry" }).filter({ visible: true }).first();
+  await expect(fewer).toBeDisabled();
+
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(3);
+  await expect(page.getByText("+2 over decks").filter({ visible: true }).first()).toBeVisible();
+
+  // − steps back down to the deck need, then stops there.
+  await fewer.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await fewer.click();
+  await expect.poll(() => planner.extras.has("EB01-011")).toBe(false);
+  await expect(fewer).toBeDisabled();
+
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await page.getByRole("button", { name: "Reset want for EB01-011 to decks" }).filter({ visible: true }).first().click();
+  await expect.poll(() => planner.extras.has("EB01-011")).toBe(false);
+  await expect(page.getByText("+1 over decks")).toHaveCount(0);
+
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+});
