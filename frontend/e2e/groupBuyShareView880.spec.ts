@@ -145,3 +145,26 @@ test("The old /group-buy/view link lands on the invite page (#880)", async ({ pa
 test.afterEach(({ planner }) => {
   expect(planner.errors).toEqual([]);
 });
+
+test("The view-only invite page shows the alt art the group picked as the main image (#887)", async ({ page, planner }) => {
+  planner.signOut();
+  const altImg = "https://tcgplayer-cdn.tcgplayer.com/product/99_200w.jpg";
+  await page.route(`**/api/public/group-buys/${TOKEN}`, (route) =>
+    route.fulfill({
+      json: { title: "Friday night pool", host_name: "Nami", member_count: 2, status: "open", invite_token: TOKEN, is_public: false, public_path: `/group-buy/view/${TOKEN}` },
+    }),
+  );
+  await page.route(`**/api/public/group-buys/${TOKEN}/view`, (route) => {
+    const v = view();
+    // The server picks the group's most-wanted alt as display_art (#882).
+    v.lines[0] = {
+      ...v.lines[0],
+      alt_arts: [{ product_id: 99, name: "Zoro (Alternate Art)", image_url: altImg, market_price: 30, owned: 0, wanted: 0 }],
+      display_art: 99,
+    } as (typeof v.lines)[number];
+    return route.fulfill({ json: v });
+  });
+  await planner.open(`/group-buy/join/${TOKEN}`);
+  await expect(page.getByText("OP01-001").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: "Zoro", exact: true }).first()).toHaveAttribute("src", /\/99_/);
+});
