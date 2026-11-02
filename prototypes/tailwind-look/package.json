@@ -1,0 +1,26 @@
+{
+  "name": "optcg-tailwind-look",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Throwaway visual prototype: planner + duel-web screens restyled with Tailwind CSS v4 + Headless UI. Not shipped.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "shots": "node shots.mjs"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.0"
+  }
+}

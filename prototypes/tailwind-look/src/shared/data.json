@@ -1,0 +1,1100 @@
+{
+ "planner": {
+  "deck": {
+   "name": "Xebec Blue",
+   "leader": {
+    "id": "OP17-039",
+    "name": "Rocks.D.Xebec",
+    "type": "leader",
+    "colors": [
+     "blue"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
+    "text": "[When Attacking]  You may trash 1 card from your hand:  Reveal 1 card from the top of your deck. If the revealed card's type includes \"Rocks Pirates\", draw 2 cards."
+   },
+   "cards": [
+    {
+     "id": "OP17-055",
+     "name": "There's No Authority in the World That Lasts Forever!!!",
+     "type": "event",
+     "colors": [
+      "blue"
+     ],
+     "cost": 0,
+     "power": null,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712623_400w.jpg",
+     "text": "[Main] You may rest 1 of your DON!! cards: Up to 1 of your [Rocks.D.Xebec] gains [Unblockable] during this turn. [Counter] Up to 1 of your Leader with a type including \"Rocks Pirates\" or up to 1 of your Character with a type including \"Rocks Pirates\" gains +2000 power during this battle.",
+     "count": 4,
+     "owned": 2,
+     "price": 0.4
+    },
+    {
+     "id": "OP17-056",
+     "name": "Rocks Pirates",
+     "type": "event",
+     "colors": [
+      "blue"
+     ],
+     "cost": 0,
+     "power": null,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712624_400w.jpg",
+     "text": "[Main] You may rest 5 of your DON!! cards: Return up to 1 Character with a cost of 6 or less to the owner's hand. [Counter] Up to 1 of your Leader with a type including \"Rocks Pirates\" or up to 1 of your Characters with a type including \"Rocks Pirates\" gains +2000 power during this battle.",
+     "count": 4,
+     "owned": 4,
+     "price": 0.15
+    },
+    {
+     "id": "OP08-051",
+     "name": "Buckin",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 1,
+     "power": 2000,
+     "counter": 1000,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/558079_400w.jpg",
+     "text": "[Your Turn] [On Play] Up to 1 of your [Edward Weevil] cards gains +2000 power during this turn.",
+     "count": 4,
+     "owned": 0,
+     "price": 3.2
+    },
+    {
+     "id": "OP17-050",
+     "name": "Streusen",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 1,
+     "power": 2000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712619_400w.jpg",
+     "text": "[On Play] Look at 2 cards from the top of your deck, reorganize them in any order and place them at the top or bottom of your deck. Then, draw 1 card.",
+     "count": 4,
+     "owned": 0,
+     "price": 6.5
+    },
+    {
+     "id": "OP17-045",
+     "name": "Kyo",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 2,
+     "power": 4000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712616_400w.jpg",
+     "text": "If one of your Characters would be removed from the field by your opponent's effect, you may trash 2 cards from your hand instead. [On Play] Draw 1 card.",
+     "count": 4,
+     "owned": 4,
+     "price": 0.15
+    },
+    {
+     "id": "OP17-052",
+     "name": "Don Marlon",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 3,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712621_400w.jpg",
+     "text": "[On Play] Add up to 1 blue Event with a cost of 0 from your trash to your hand.",
+     "count": 4,
+     "owned": 4,
+     "price": 1.25
+    },
+    {
+     "id": "OP17-054",
+     "name": "Miss Buckingham Stussy",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 3,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712089_400w.jpg",
+     "text": "[On Play] Up to 1 of your opponent's Characters with a base cost of 6 or less cannot attack until the end of your opponent's next End Phase. [Activate: Main] You may rest 3 of your DON!! cards and this Character: Up to 1 of your opponent's Characters cannot attack until the end of your opponent's next End Phase.",
+     "count": 4,
+     "owned": 0,
+     "price": 0.25
+    },
+    {
+     "id": "OP17-044",
+     "name": "Captain John",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 4,
+     "power": 6000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712615_400w.jpg",
+     "text": "If your Leader's type includes \"Rocks Pirates\" and this Character is rested, your opponent cannot attack any card other than the Character [Captain John]. [Activate: Main] You may rest this Character: Draw 1 card and trash 1 card from your hand.",
+     "count": 2,
+     "owned": 2,
+     "price": 14.0
+    },
+    {
+     "id": "OP17-046",
+     "name": "Gloriosa",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 4,
+     "power": 1000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/710541_400w.jpg",
+     "text": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] Place up to 1 Character with a cost of 5 or less at the bottom of the owner's deck.",
+     "count": 4,
+     "owned": 0,
+     "price": 1.25,
+     "blocker": true
+    },
+    {
+     "id": "OP17-049",
+     "name": "Charlotte Linlin",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 5,
+     "power": 7000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712088_400w.jpg",
+     "text": "[On Play] Your opponent chooses one: \u2022 Draw 2 cards. \u2022 Your opponent trashes 2 cards from their hand. [On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +1000 power during this battle.",
+     "count": 4,
+     "owned": 0,
+     "price": 3.2
+    },
+    {
+     "id": "OP17-040",
+     "name": "Edward.Newgate (040) (TR)",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 6,
+     "power": 8000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/710858_400w.jpg",
+     "text": "[On Play] Draw 1 card. [Once Per Turn] When your Leader with a type including \"Rocks Pirates\" attacks or is attacked, you may trash 1 card from your hand to activate this effect. Your Leader gains +3000 power during this battle.",
+     "count": 4,
+     "owned": 4,
+     "price": 0.15
+    },
+    {
+     "id": "OP17-048",
+     "name": "Shiki",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 7,
+     "power": 9000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/710542_400w.jpg",
+     "text": "[Rush: Character] [When Attacking]/[On Your Opponent's Attack] [Once Per Turn] You may trash 1 card with a type including \"Rocks Pirates\" from your hand: Give up to 1 of your opponent's Characters \u22123000 power during this turn.",
+     "count": 4,
+     "owned": 3,
+     "price": 0.25
+    },
+    {
+     "id": "OP17-118",
+     "name": "Rocks.D.Xebec",
+     "type": "character",
+     "colors": [
+      "blue"
+     ],
+     "cost": 10,
+     "power": 12000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/709836_400w.jpg",
+     "text": "If you only have Characters without a Counter, this card in your hand has a +2000 Counter. [On Play] Draw 1 card and play up to 2 {Rocks Pirates} type cards with different card names and a total cost of 9 or less from your hand.",
+     "count": 4,
+     "owned": 1,
+     "price": 0.15
+    }
+   ],
+   "event": "[OP17] ChinoizeCup #115 Monday",
+   "placing": 1,
+   "players": 128
+  },
+  "collection": [
+   {
+    "id": "OP12-118",
+    "name": "Jewelry Bonney",
+    "type": "character",
+    "colors": [
+     "green"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/643865_400w.jpg",
+    "text": "[Blocker] [On Play] If you have 8 or more rested cards, draw 2 cards and trash 1 card from your hand. Then, set up to 1 of your DON!! cards as active.",
+    "owned": 3,
+    "price": 42.0,
+    "blocker": true
+   },
+   {
+    "id": "OP03-077",
+    "name": "Charlotte Linlin",
+    "type": "leader",
+    "colors": [
+     "black",
+     "yellow"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/498481_400w.jpg",
+    "text": "[DON!! x2] [When Attacking] \u2461 (You may rest the specified number of DON!! cards in your cost area.) You may trash 1 card from your hand: If you have 1 or less Life cards, add up to 1 card from the top of your deck to the top of your Life cards.",
+    "owned": 2,
+    "price": 0.1
+   },
+   {
+    "id": "OP09-057",
+    "name": "Cross Guild",
+    "type": "event",
+    "colors": [
+     "blue"
+    ],
+    "cost": 1,
+    "power": null,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/596992_400w.jpg",
+    "text": "[Main] Look at 4 cards from the top of your deck; reveal up to 1 {Cross Guild} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Activate this card's [Main] effect.",
+    "owned": 4,
+    "price": 7.0
+   },
+   {
+    "id": "EB04-002",
+    "name": "Jewelry Bonney (EB04-002)",
+    "type": "character",
+    "colors": [
+     "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/685297_400w.jpg",
+    "text": "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 {Egghead} or {Straw Hat Crew} type card other than [Jewelry Bonney] and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "owned": 3,
+    "price": 0.1
+   },
+   {
+    "id": "OP16-051",
+    "name": "Mohji & Cabaji",
+    "type": "character",
+    "colors": [
+     "blue"
+    ],
+    "cost": 6,
+    "power": 7000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/696037_400w.jpg",
+    "text": "[On Play] If you have 5 or less cards in your hand, draw 2 cards.",
+    "owned": 4,
+    "price": 0.2
+   },
+   {
+    "id": "OP01-094",
+    "name": "Kaido",
+    "type": "character",
+    "colors": [
+     "purple"
+    ],
+    "cost": 10,
+    "power": 12000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/453521_400w.jpg",
+    "text": "[On Play] DON!! \u22126 (You may return the specified number of DON!! cards from your field to your DON!! deck.): If your Leader has the {Animal Kingdom Pirates} type, K.O. all Characters other than this Character.",
+    "owned": 4,
+    "price": 1.0
+   },
+   {
+    "id": "OP13-105",
+    "name": "Kouzuki Momonosuke",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 3,
+    "power": null,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/657383_400w.jpg",
+    "text": "[On Play] Look at all of your Life cards and place them back in your Life area in any order.",
+    "owned": 1,
+    "price": 18.0
+   },
+   {
+    "id": "OP08-021",
+    "name": "Carrot",
+    "type": "leader",
+    "colors": [
+     "green"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/558045_400w.jpg",
+    "text": "[Activate: Main] [Once Per Turn] If you have a {Minks} type Character, rest up to 1 of your opponent's Characters with a cost of 5 or less.",
+    "owned": 2,
+    "price": 18.0
+   },
+   {
+    "id": "OP12-076",
+    "name": "Monet",
+    "type": "character",
+    "colors": [
+     "purple"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/643817_400w.jpg",
+    "text": "\u2014",
+    "owned": 4,
+    "price": 0.5
+   },
+   {
+    "id": "OP08-080",
+    "name": "Queen",
+    "type": "character",
+    "colors": [
+     "black"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/558115_400w.jpg",
+    "text": "[On Play] Look at 5 cards from the top of your deck; reveal up to 1 {Animal Kingdom Pirates} type card other than [Queen] and add it to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "owned": 1,
+    "price": 18.0
+   },
+   {
+    "id": "OP15-100",
+    "name": "Kamakiri",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/685455_400w.jpg",
+    "text": "[On Play] You may trash this Character and add 1 card from the top of your Life cards to your hand: K.O. up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "owned": 3,
+    "price": 18.0
+   },
+   {
+    "id": "OP04-028",
+    "name": "Diamante",
+    "type": "character",
+    "colors": [
+     "green"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/512959_400w.jpg",
+    "text": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [DON!! x1] [End of Your Turn] If you have 2 or more active DON!! cards, set this Character as active.",
+    "owned": 3,
+    "price": 7.0,
+    "blocker": true
+   },
+   {
+    "id": "OP13-006",
+    "name": "Woop Slap",
+    "type": "character",
+    "colors": [
+     "red"
+    ],
+    "cost": 1,
+    "power": null,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/657259_400w.jpg",
+    "text": "[On Play] Give up to 2 rested DON!! cards to 1 of your [Monkey.D.Luffy] cards.",
+    "owned": 4,
+    "price": 0.2
+   },
+   {
+    "id": "OP07-072",
+    "name": "Porche",
+    "type": "character",
+    "colors": [
+     "purple"
+    ],
+    "cost": 3,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/545865_400w.jpg",
+    "text": "[On Play] DON!! \u22121 (You may return the specified number of DON!! cards from your field to your DON!! deck.): Look at 5 cards from the top of your deck; reveal up to 1 {Foxy Pirates} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order and play up to 1 purple Character card with 4000 power or less from your hand.",
+    "owned": 1,
+    "price": 7.0
+   },
+   {
+    "id": "OP13-100",
+    "name": "Jewelry Bonney",
+    "type": "leader",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/657377_400w.jpg",
+    "text": "[Your Turn] [Once Per Turn] This effect can be activated when you play a Character with a [Trigger]. Give up to 2 rested DON!! cards to 1 of your Leader or Character cards.",
+    "owned": 2,
+    "price": 7.0
+   },
+   {
+    "id": "OP07-007",
+    "name": "Dice",
+    "type": "character",
+    "colors": [
+     "red"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/545786_400w.jpg",
+    "text": "\u2014",
+    "owned": 1,
+    "price": 2.5
+   },
+   {
+    "id": "OP02-040",
+    "name": "Brook",
+    "type": "character",
+    "colors": [
+     "green"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/486363_400w.jpg",
+    "text": "[On Play] Play up to 1 {FILM} or {Straw Hat Crew} type Character card with a cost of 3 or less from your hand.",
+    "owned": 4,
+    "price": 0.5
+   },
+   {
+    "id": "OP13-088",
+    "name": "Terry Gilteo",
+    "type": "character",
+    "colors": [
+     "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/657361_400w.jpg",
+    "text": "\u2014",
+    "owned": 1,
+    "price": 2.5
+   },
+   {
+    "id": "OP05-099",
+    "name": "Amazon",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 3,
+    "power": 0,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/528661_400w.jpg",
+    "text": "[On Your Opponent's Attack] You may rest this Character: Your opponent may trash 1 card from the top of their Life cards. If they do not, give up to 1 of your opponent's Leader or Character cards \u22122000 power during this turn.",
+    "owned": 4,
+    "price": 7.0
+   },
+   {
+    "id": "OP02-093",
+    "name": "Smoker",
+    "type": "leader",
+    "colors": [
+     "black"
+    ],
+    "cost": 0,
+    "power": 5000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/486462_400w.jpg",
+    "text": "[DON!! x1] [Activate: Main] [Once Per Turn] Give up to 1 of your opponent's Characters \u22121 cost during this turn. Then, if there is a Character with a cost of 0, this Leader gains +1000 power during this turn.",
+    "owned": 4,
+    "price": 18.0
+   },
+   {
+    "id": "OP10-007",
+    "name": "Ceaser Soldier",
+    "type": "character",
+    "colors": [
+     "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/617040_400w.jpg",
+    "text": "[On Play] Play up to 1 {Punk Hazard} type Character card with a cost of 2 or less from your hand.",
+    "owned": 4,
+    "price": 0.5
+   },
+   {
+    "id": "EB02-054",
+    "name": "Sanji",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/629156_400w.jpg",
+    "text": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] If you have 2 or less Life cards, draw 2 cards and trash 1 card from your hand.",
+    "owned": 4,
+    "price": 2.5,
+    "blocker": true
+   },
+   {
+    "id": "OP05-072",
+    "name": "Hone-Kichi",
+    "type": "character",
+    "colors": [
+     "purple"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/528631_400w.jpg",
+    "text": "[On Play] If you have 8 or more DON!! cards on your field, give up to 2 of your opponent's Characters \u22122000 power during this turn.",
+    "owned": 4,
+    "price": 1.0
+   },
+   {
+    "id": "OP16-081",
+    "name": "Otama",
+    "type": "character",
+    "colors": [
+     "black"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/696066_400w.jpg",
+    "text": "[Activate: Main] You may rest this Character: If you have a Character with a cost of 8 or more, give up to 1 of your opponent's Characters \u22122000 power during this turn.",
+    "owned": 4,
+    "price": 1.0
+   },
+   {
+    "id": "EB03-041",
+    "name": "Kujyaku",
+    "type": "character",
+    "colors": [
+     "black"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/672789_400w.jpg",
+    "text": "[Opponent's Turn] All of your {SWORD} type Characters with a cost of 6 or less gain +2000 power. [On Play] You may trash 1 {Navy} type card from your hand: Draw 2 cards.",
+    "owned": 3,
+    "price": 0.5
+   },
+   {
+    "id": "OP11-049",
+    "name": "Carrot",
+    "type": "character",
+    "colors": [
+     "blue"
+    ],
+    "cost": 1,
+    "power": 1000,
+    "counter": 1000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/632415_400w.jpg",
+    "text": "[On Play] Look at 3 cards from the top of your deck and place them at the top or bottom of the deck in any order. [On Your Opponent's Attack] You may trash this Character: Up to 1 of your Leader gains +1000 power during this battle.",
+    "owned": 1,
+    "price": 0.2
+   },
+   {
+    "id": "EB03-040",
+    "name": "Kalifa",
+    "type": "character",
+    "colors": [
+     "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/672788_400w.jpg",
+    "text": "\u2014",
+    "owned": 2,
+    "price": 0.1
+   },
+   {
+    "id": "P-088",
+    "name": "Trafalgar Law (Event Pack Vol. 7)",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/646737_400w.jpg",
+    "text": "[Trigger] If your Leader has the {Supernovas} type and you and your opponent have a total of 5 or less Life cards, play this card.",
+    "owned": 4,
+    "price": 18.0
+   },
+   {
+    "id": "OP08-110",
+    "name": "Wyper",
+    "type": "character",
+    "colors": [
+     "yellow"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 2000,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/558150_400w.jpg",
+    "text": "[On Play] Look at 5 cards from the top of your deck; reveal up to 1 [Upper Yard] and add it to your hand. Then, place the rest at the bottom of your deck in any order and play up to 1 [Upper Yard] from your hand.",
+    "owned": 1,
+    "price": 0.1
+   },
+   {
+    "id": "OP17-007",
+    "name": "Kouzuki Oden",
+    "type": "character",
+    "colors": [
+     "red"
+    ],
+    "cost": 7,
+    "power": 8000,
+    "counter": null,
+    "image": "https://tcgplayer-cdn.tcgplayer.com/product/708065_400w.jpg",
+    "text": "[On Play] If your Leader is [Edward.Newgate] or has the {Land of Wano} type, play up to 1 {Land of Wano} type Character card or Character card with a type including \"Whitebeard Pirates\" with 6000 power or less from your hand.",
+    "owned": 2,
+    "price": 0.1
+   }
+  ]
+ },
+ "duel": {
+  "decks": [
+   {
+    "name": "Xebec Blue",
+    "leader": {
+     "id": "OP17-039",
+     "name": "Rocks.D.Xebec",
+     "type": "leader",
+     "colors": [
+      "blue"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
+     "text": "[When Attacking]  You may trash 1 card from your hand:  Reveal 1 card from the top of your deck. If the revealed card's type includes \"Rocks Pirates\", draw 2 cards."
+    },
+    "size": 50,
+    "wins": 18,
+    "losses": 7,
+    "updated": "4d ago",
+    "valid": true
+   },
+   {
+    "name": "Rob Lucci Black",
+    "leader": {
+     "id": "OP12-061",
+     "name": "Donquixote Rosinante",
+     "type": "leader",
+     "colors": [
+      "purple",
+      "yellow"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/643798_400w.jpg",
+     "text": "[Once Per Turn] If your [Trafalgar Law] would be K.O.'d, you may add 1 card from the top of your Life cards to your hand instead. \r\n[Activate: Main] [Once Per Turn]  DON!! 1:  The next time you play [Trafalgar Law] with "
+    },
+    "size": 50,
+    "wins": 29,
+    "losses": 15,
+    "updated": "3d ago",
+    "valid": true
+   },
+   {
+    "name": "Imu Control",
+    "leader": {
+     "id": "OP11-041",
+     "name": "Nami",
+     "type": "leader",
+     "colors": [
+      "blue",
+      "yellow"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/632405_400w.jpg",
+     "text": "[Your Turn] [Once Per Turn] This effect can be activated when a card is removed from your or your opponent's Life cards. If you have 7 or less cards in your hand, draw 1 card. \r\n[DON!! x1] [On Your Opponent's Attack] [On"
+    },
+    "size": 50,
+    "wins": 24,
+    "losses": 9,
+    "updated": "8d ago",
+    "valid": true
+   },
+   {
+    "name": "Red Luffy Aggro",
+    "leader": {
+     "id": "OP15-039",
+     "name": "Rebecca (OP15-039)",
+     "type": "leader",
+     "colors": [
+      "blue"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/685382_400w.jpg",
+     "text": "This Leader cannot attack. \r\n[Activate: Main]  You may rest this Leader and return 1 of your {Dressrosa} type Characters to the owner's hand:  Play up to 1 {Dressrosa} type Character card with a cost of 3 from your hand."
+    },
+    "size": 50,
+    "wins": 20,
+    "losses": 12,
+    "updated": "9d ago",
+    "valid": true
+   },
+   {
+    "name": "Enel Yellow",
+    "leader": {
+     "id": "OP16-079",
+     "name": "Yamato",
+     "type": "leader",
+     "colors": [
+      "black"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/694067_400w.jpg",
+     "text": "When a {Land of Wano} type Character card is played from your trash, that Character gains [Rush] during this turn.\r\n  (This card can attack on the turn in which it is played.)"
+    },
+    "size": 50,
+    "wins": 9,
+    "losses": 13,
+    "updated": "9d ago",
+    "valid": true
+   },
+   {
+    "name": "Boa Hancock Blue",
+    "leader": {
+     "id": "OP06-080",
+     "name": "Gecko Moria",
+     "type": "leader",
+     "colors": [
+      "black"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/541053_400w.jpg",
+     "text": "[DON!!\u00d71] [When Attacking] 2  (You may rest the specified number of DON!! cards in your cost area.)   You may trash 1 card from your hand:  Trash 2 cards from the top of your deck and play up to 1 \"Thriller Bark Pirates\""
+    },
+    "size": 50,
+    "wins": 8,
+    "losses": 5,
+    "updated": "2d ago",
+    "valid": false
+   },
+   {
+    "name": "Shanks Rush",
+    "leader": {
+     "id": "OP13-004",
+     "name": "Sabo",
+     "type": "leader",
+     "colors": [
+      "red",
+      "black"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/657256_400w.jpg",
+     "text": "If you have 4 or more Life cards, give this Leader 1000 power. \r\n[DON!! x1] If you have a Character with a cost of 8 or more, your Leader and all of your Characters gain +1000 power."
+    },
+    "size": 50,
+    "wins": 23,
+    "losses": 17,
+    "updated": "2d ago",
+    "valid": true
+   },
+   {
+    "name": "Nami Mill",
+    "leader": {
+     "id": "EB01-040",
+     "name": "Kyros",
+     "type": "leader",
+     "colors": [
+      "black",
+      "yellow"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/544573_400w.jpg",
+     "text": "[Activate:Main] [Once Per Turn]  You may turn 1 card from the top of your Life cards face-up : K.O. up to 1 of your opponent's Characters with a cost of 0."
+    },
+    "size": 50,
+    "wins": 19,
+    "losses": 9,
+    "updated": "7d ago",
+    "valid": true
+   }
+  ],
+  "board": {
+   "me": {
+    "name": "Miko",
+    "leader": {
+     "id": "OP17-039",
+     "name": "Rocks.D.Xebec",
+     "type": "leader",
+     "colors": [
+      "blue"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/712086_400w.jpg",
+     "text": "[When Attacking]  You may trash 1 card from your hand:  Reveal 1 card from the top of your deck. If the revealed card's type includes \"Rocks Pirates\", draw 2 cards."
+    },
+    "chars": [
+     {
+      "id": "OP08-051",
+      "name": "Buckin",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 1,
+      "power": 2000,
+      "counter": 1000,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/558079_400w.jpg",
+      "text": "[Your Turn] [On Play] Up to 1 of your [Edward Weevil] cards gains +2000 power during this turn.",
+      "don": 2
+     },
+     {
+      "id": "OP17-050",
+      "name": "Streusen",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 1,
+      "power": 2000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712619_400w.jpg",
+      "text": "[On Play] Look at 2 cards from the top of your deck, reorganize them in any order and place them at the top or bottom of your deck. Then, draw 1 card.",
+      "rested": true
+     },
+     {
+      "id": "OP17-045",
+      "name": "Kyo",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 2,
+      "power": 4000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712616_400w.jpg",
+      "text": "If one of your Characters would be removed from the field by your opponent's effect, you may trash 2 cards from your hand instead. [On Play] Draw 1 card."
+     },
+     {
+      "id": "OP17-052",
+      "name": "Don Marlon",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 3,
+      "power": 5000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712621_400w.jpg",
+      "text": "[On Play] Add up to 1 blue Event with a cost of 0 from your trash to your hand."
+     }
+    ],
+    "hand": [
+     {
+      "id": "OP17-045",
+      "name": "Kyo",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 2,
+      "power": 4000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712616_400w.jpg",
+      "text": "If one of your Characters would be removed from the field by your opponent's effect, you may trash 2 cards from your hand instead. [On Play] Draw 1 card."
+     },
+     {
+      "id": "OP17-052",
+      "name": "Don Marlon",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 3,
+      "power": 5000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712621_400w.jpg",
+      "text": "[On Play] Add up to 1 blue Event with a cost of 0 from your trash to your hand."
+     },
+     {
+      "id": "OP17-054",
+      "name": "Miss Buckingham Stussy",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 3,
+      "power": 5000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712089_400w.jpg",
+      "text": "[On Play] Up to 1 of your opponent's Characters with a base cost of 6 or less cannot attack until the end of your opponent's next End Phase. [Activate: Main] You may rest 3 of your DON!! cards and this Character: Up to 1 of your opponent's Characters cannot attack until the end of your opponent's next End Phase."
+     },
+     {
+      "id": "OP17-044",
+      "name": "Captain John",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 4,
+      "power": 6000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712615_400w.jpg",
+      "text": "If your Leader's type includes \"Rocks Pirates\" and this Character is rested, your opponent cannot attack any card other than the Character [Captain John]. [Activate: Main] You may rest this Character: Draw 1 card and trash 1 card from your hand."
+     },
+     {
+      "id": "OP17-046",
+      "name": "Gloriosa",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 4,
+      "power": 1000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/710541_400w.jpg",
+      "text": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] Place up to 1 Character with a cost of 5 or less at the bottom of the owner's deck.",
+      "blocker": true
+     },
+     {
+      "id": "OP17-049",
+      "name": "Charlotte Linlin",
+      "type": "character",
+      "colors": [
+       "blue"
+      ],
+      "cost": 5,
+      "power": 7000,
+      "counter": null,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/712088_400w.jpg",
+      "text": "[On Play] Your opponent chooses one: \u2022 Draw 2 cards. \u2022 Your opponent trashes 2 cards from their hand. [On Your Opponent's Attack] [Once Per Turn] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +1000 power during this battle."
+     }
+    ],
+    "life": 4,
+    "deck": 31,
+    "trash": 6,
+    "don": {
+     "active": 3,
+     "rested": 2,
+     "deck": 5
+    }
+   },
+   "opp": {
+    "name": "Zoro_main",
+    "leader": {
+     "id": "OP12-061",
+     "name": "Donquixote Rosinante",
+     "type": "leader",
+     "colors": [
+      "purple",
+      "yellow"
+     ],
+     "cost": 0,
+     "power": 5000,
+     "counter": null,
+     "image": "https://tcgplayer-cdn.tcgplayer.com/product/643798_400w.jpg",
+     "text": "[Once Per Turn] If your [Trafalgar Law] would be K.O.'d, you may add 1 card from the top of your Life cards to your hand instead. \r\n[Activate: Main] [Once Per Turn]  DON!! 1:  The next time you play [Trafalgar Law] with "
+    },
+    "chars": [
+     {
+      "id": "OP12-082",
+      "name": "Issho",
+      "type": "character",
+      "colors": [
+       "black"
+      ],
+      "cost": 8,
+      "power": 10000,
+      "counter": 1000,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/643824_400w.jpg",
+      "text": "\u2014",
+      "rested": true
+     },
+     {
+      "id": "OP02-016",
+      "name": "Magura",
+      "type": "character",
+      "colors": [
+       "red"
+      ],
+      "cost": 1,
+      "power": 2000,
+      "counter": 1000,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/486336_400w.jpg",
+      "text": "[On Play] Up to 1 of your red Characters with a cost of 1 gains +3000 power during this turn."
+     },
+     {
+      "id": "OP17-087",
+      "name": "Nico Robin",
+      "type": "character",
+      "colors": [
+       "black"
+      ],
+      "cost": 2,
+      "power": 2000,
+      "counter": 1000,
+      "image": "https://tcgplayer-cdn.tcgplayer.com/product/708399_400w.jpg",
+      "text": "If there is a Character with a cost of 12 or more, this Character gains +3000 power. [On Play] If there is a Character with a cost of 12 or more, give up to 1 of your opponent's Characters \u22123000 power during this turn."
+     }
+    ],
+    "hand": 5,
+    "life": 3,
+    "deck": 29,
+    "trash": 8,
+    "don": {
+     "active": 1,
+     "rested": 5,
+     "deck": 4
+    }
+   },
+   "turn": 6,
+   "phase": "Main",
+   "stage": null
+  }
+ }
+}
