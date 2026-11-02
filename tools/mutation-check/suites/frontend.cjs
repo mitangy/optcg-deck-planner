@@ -80,15 +80,11 @@ module.exports = {
     // AltArtsRow tiles pass the card id so the preview fallback works (#643)
     { id: "alt-row-alt-tile-no-card-id", file: "frontend/src/MarketPrice.tsx", from: "<CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} />", to: "<CardThumb src={alt.image_url || undefined} alt={alt.name} />", kills: ["an alt with no alt preview falls back to the card preview (#643)"] },
     { id: "alt-row-base-tile-no-card-id", file: "frontend/src/MarketPrice.tsx", from: "<CardThumb src={base.image_url || undefined} cardId={cardId} alt=", to: "<CardThumb src={base.image_url || undefined} alt=", kills: ["the Base tile ends on the card preview (#643)"] },
-    // CardCaptureLive guide crop
-    { id: "crop-no-guide-empty", file: capture, from: "!box.width || !box.height) return full;", to: "!box.width || !box.height) return { ...full, width: 0, height: 0 };", kills: ["falls back to the whole frame"] },
-    { id: "crop-y-unscaled", file: capture, from: "  const y = (top + hiddenY) / scale;", to: "  const y = top + hiddenY;", kills: ["maps a centred guide to the centre of the frame"] },
-    { id: "crop-contain-scale", file: capture, from: "  const scale = Math.max(box.width / video.videoWidth", to: "  const scale = Math.min(box.width / video.videoWidth", kills: ["undoes the cover scale"] },
-    { id: "crop-margin-one-side", file: capture, from: "  const width = (g.width + marginX * 2) / scale;", to: "  const width = (g.width + marginX) / scale;", kills: ["undoes the cover scale"] },
-    { id: "crop-ignores-hidden-overflow", file: capture, from: "  const hiddenX = (shownW - box.width) / 2;", to: "  const hiddenX = 0;", kills: ["accounts for the horizontally cropped overflow"] },
-    { id: "crop-ignores-element-offset", file: capture, from: "  const left = g.left - box.left - marginX;", to: "  const left = g.left - marginX;", kills: ["offsets by the element's own position"] },
-    { id: "crop-unclamped-origin", file: capture, from: "  const cy = Math.max(0, Math.min(y, video.videoHeight));", to: "  const cy = y;", kills: ["never asks for pixels outside the frame"] },
-    { id: "crop-unclamped-size", file: capture, from: "    height: Math.max(1, Math.min(height, video.videoHeight - cy)),", to: "    height: Math.max(1, height),", kills: ["never asks for pixels outside the frame"] },
+    // CardCaptureLive captures the whole frame (#854)
+    { id: "capture-crops-frame", edits: [
+      { file: capture, from: "    canvas.width = video.videoWidth;", to: "    canvas.width = Math.round(video.videoWidth / 2);" },
+      { file: capture, from: "    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);", to: "    ctx.drawImage(video, 0, 0, video.videoWidth / 2, canvas.height);" },
+    ], kills: ["Capture sends the whole camera frame, not a cropped box (#854)"] },
     // cardRectify
     { id: "homography-swaps-axes", file: rectify, from: "    x: (h[0] * p.x + h[1] * p.y + h[2]) / d,\n    y: (h[3] * p.x + h[4] * p.y + h[5]) / d,", to: "    y: (h[0] * p.x + h[1] * p.y + h[2]) / d,\n    x: (h[3] * p.x + h[4] * p.y + h[5]) / d,", kills: ["recovers an identity mapping"] },
     { id: "homography-affine-only", edits: [
