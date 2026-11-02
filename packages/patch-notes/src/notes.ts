@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 848, title: "Search for alt arts directly, with typo-tolerant search", text: "Add cards search now lists alt arts as their own rows, with their own art, set and price, so you can add one to your collection, deck or shopping list straight from the result. Search also forgives typos and punctuation in card and set names, like \"lufy\" or \"Romance Dwan\"." },
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-31
   { date: "2026-10-31", app: "planner", pr: 841, title: "New sets' prices update every hour", text: "Prices for newly released and upcoming sets, like Extra Booster 05, now update every hour instead of once a day. Older sets still update daily." },

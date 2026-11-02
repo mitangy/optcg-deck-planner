@@ -95,6 +95,10 @@ class CatalogCardResult(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     group_name: str = ""
+    # Set on alt-art rows (search with alts=true); None = the base card row.
+    alt_product_id: int | None = None
+    # Viewer's owned copies of that alt printing (alt rows only).
+    owned: int = 0
 
 
 class PrintingView(BaseModel):

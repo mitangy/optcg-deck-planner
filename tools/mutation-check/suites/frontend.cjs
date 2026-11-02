@@ -12,6 +12,9 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Alt-art search rows (#848)
+    { id: "alt848-collection-add-saves-base", file: "frontend/src/App.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
+    { id: "alt848-collection-step-ignores-qty", file: "frontend/src/App.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
     // Collection page filters (#752)
     { id: "collection748-type-filter-ignored", file: "frontend/src/collectionView.ts", from: "  if (f.type) list = list.filter((i) => cardHasType(i, f.type));\n", to: "", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)", "colour, type and Not in a deck narrow together (#752)"] },
     { id: "collection748-type-case-sensitive", file: "frontend/src/collectionView.ts", from: "return (card.card_type ?? \"\").trim().toLowerCase() === type.toLowerCase();", to: "return (card.card_type ?? \"\").trim() === type;", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)"] },
