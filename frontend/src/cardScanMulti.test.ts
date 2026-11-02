@@ -46,6 +46,25 @@ const box = (x: number, y: number, w: number, h: number): Quad => [
 const photo = { data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: "srgb" } as unknown as ImageData;
 const run = () => matchAllCardsWith({ thumbnail: () => "" }, photo, []);
 
+describe("matchAllCardsWith sample crops (#852)", () => {
+  it("cuts each card's upload crop from the full photo, apart from its thumbnail (#852)", async () => {
+    state.cards = [{ quad: box(0, 0, 100, 140) }, { quad: box(200, 0, 100, 140) }];
+    state.results = [
+      { cardId: "OP01-001", inliers: 30, runnerUp: 0 },
+      { cardId: "OP01-002", inliers: 30, runnerUp: 0 },
+    ];
+    const items = await matchAllCardsWith(
+      { thumbnail: (_p, q) => `thumb-${q[0].x}`, sample: (p, q) => `sample-${q[0].x}-${p === photo}` },
+      photo,
+      [],
+    );
+    expect(items.map((i) => [i.thumbUrl, i.sampleUrl])).toEqual([
+      ["thumb-0", "sample-0-true"],
+      ["thumb-200", "sample-200-true"],
+    ]);
+  });
+});
+
 describe("matchAllCardsWith touching blocks", () => {
   const order = (results: typeof state.results) => {
     state.results = [...results];

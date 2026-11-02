@@ -204,7 +204,7 @@ export function AltArtsRow({
     <div className="alt-arts">
       {base && (
         <div className="alt-art alt-art-base">
-          <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} />
+          <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} productId={0} />
           <div className="alt-meta">
             <MarketPrice price={base.market_price} productId={base.product_id} />
             {baseOwnedControl}
@@ -219,7 +219,7 @@ export function AltArtsRow({
         const busy = busyProductId === alt.product_id;
         return (
           <div key={alt.product_id} className="alt-art">
-            <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} />
+            <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} productId={alt.product_id} />
             <div className="alt-meta">
               <MarketPrice price={alt.market_price} productId={alt.product_id} />
               {editable && onOwnedChange ? (

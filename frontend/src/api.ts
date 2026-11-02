@@ -64,6 +64,16 @@ export type User = {
   sum_across_leaders?: boolean;
   /** Public handle shared with duel-web; null until picked. */
   username?: string | null;
+  /** Photo-scanner crops of the cards you add are shared to improve the scanner (default on). */
+  share_scans?: boolean;
+};
+
+export type ScanSampleUpload = {
+  image: string;
+  predicted_id: string | null;
+  confidence: "sure" | "check" | "none";
+  final_id: string;
+  label: "confirmed" | "corrected";
 };
 
 export type DeckSummary = {
@@ -100,6 +110,65 @@ export type PrintingView = {
   owned?: number;
 };
 
+export type AlertDirection = "below" | "above";
+
+export type PriceAlert = {
+  id: number;
+  card_id: string;
+  /** 0 = the card's base art; otherwise a specific printing's product id. */
+  product_id: number;
+  card_name: string;
+  /** Printing name for alt arts, "Base" for product 0. */
+  art_name: string;
+  image_url: string;
+  tcgplayer_url: string;
+  is_alt: boolean;
+  current_price: number | null;
+  target_price: number;
+  direction: AlertDirection;
+  notify_email: boolean;
+  notify_app: boolean;
+  paused: boolean;
+  /** True while the alert can still fire; firing disarms it until the price crosses back. */
+  armed: boolean;
+  /** The price already meets the target right now. */
+  met_now: boolean;
+  triggered_at: string | null;
+  /** Price when it last fired. */
+  triggered_price?: number | null;
+  created_at: string;
+};
+
+export type PriceAlertsResponse = { alerts: PriceAlert[]; email_enabled: boolean };
+
+export type PriceAlertInput = {
+  card_id: string;
+  product_id: number;
+  target_price: number;
+  direction: AlertDirection;
+  notify_email?: boolean;
+  notify_app?: boolean;
+};
+
+export type PriceAlertPatch = Partial<
+  Pick<PriceAlert, "target_price" | "direction" | "notify_email" | "notify_app" | "paused">
+>;
+
+export type AppNotification = {
+  id: number;
+  kind: string;
+  title: string;
+  body: string;
+  card_id: string | null;
+  product_id: number | null;
+  price: number | null;
+  link: string | null;
+  created_at: string;
+  read_at: string | null;
+};
+
+export type NotificationsResponse = { items: AppNotification[]; unread: number };
+
 export type CatalogCardResult = {
   card_id: string;
   name: string;
@@ -112,6 +181,10 @@ export type CatalogCardResult = {
   image_url: string;
   tcgplayer_url: string;
   group_name: string;
+  /** Set on alt-art rows (search with alts); null/absent = the base card row. */
+  alt_product_id?: number | null;
+  /** Viewer's owned copies of that alt printing (alt rows only). */
+  owned?: number;
 };
 
 export type CardView = {
@@ -479,7 +552,7 @@ export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
-  updatePreferences: (body: { sum_across_leaders?: boolean }) =>
+  updatePreferences: (body: { sum_across_leaders?: boolean; share_scans?: boolean }) =>
     request<User>("/preferences", { method: "PATCH", body: JSON.stringify(body) }),
   claim: (ticket: string) =>
     request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
@@ -562,14 +635,27 @@ export const api = {
         body: JSON.stringify({ product_id: productId }),
       },
     ),
+  priceAlerts: () => request<PriceAlertsResponse>("/price-alerts"),
+  savePriceAlert: (body: PriceAlertInput) =>
+    request<PriceAlert>("/price-alerts", { method: "POST", body: JSON.stringify(body) }),
+  patchPriceAlert: (id: number, patch: PriceAlertPatch) =>
+    request<PriceAlert>(`/price-alerts/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deletePriceAlert: (id: number) => request<void>(`/price-alerts/${id}`, { method: "DELETE" }),
+  cardPrintings: (cardId: string) =>
+    request<PrintingView[]>(`/catalog/cards/${encodeURIComponent(cardId)}/printings`),
+  notifications: (limit = 30) => request<NotificationsResponse>(`/notifications?limit=${limit}`),
+  markNotificationsRead: (ids?: number[]) =>
+    request<unknown>("/notifications/read", { method: "POST", body: JSON.stringify({ ids }) }),
   searchCatalog: (opts?: {
     q?: string;
     color?: string;
     card_type?: string;
     limit?: number;
+    alts?: boolean;
   }) => {
     const params = new URLSearchParams();
     if (opts?.q) params.set("q", opts.q);
+    if (opts?.alts) params.set("alts", "true");
     if (opts?.color) params.set("color", opts.color);
     if (opts?.card_type) params.set("card_type", opts.card_type);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
@@ -607,6 +693,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ items }),
     }),
+  /** Max 40 items per request; 403 when the user switched sharing off. */
+  uploadScanSamples: (items: ScanSampleUpload[]) =>
+    request<{ saved: number }>("/scan-samples", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  myScanSamples: () => request<{ count: number }>("/scan-samples/mine"),
+  deleteMyScanSamples: () => request<{ deleted: number }>("/scan-samples/mine", { method: "DELETE" }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),

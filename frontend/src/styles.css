@@ -391,8 +391,8 @@ h1 {
 }
 
 /* Tablet widths: brand and account on the first row, the nav on its own row below, so nothing is pushed off the right edge
-   (seven links plus the account buttons need about 1180px in one row, more with wider system fonts). */
-@media (min-width: 761px) and (max-width: 1279px) {
+   (eight links plus the account buttons and alerts bell need about 1330px in one row, more with wider system fonts). */
+@media (min-width: 761px) and (max-width: 1439px) {
   .topbar-inner {
     flex-wrap: wrap;
     row-gap: 0.1rem;
@@ -1817,7 +1817,7 @@ tr.done td {
 
 /* With an action row below, leave room for it so the panel never outgrows the screen. */
 .lightbox-panel:has(.lightbox-action) .lightbox-img {
-  max-height: calc(100dvh - 11rem);
+  max-height: calc(100dvh - 14.5rem);
 }
 
 .lightbox-img {
@@ -1833,6 +1833,7 @@ tr.done td {
 
 /* Shopping action under the enlarged card: same footprint for Add and the stepper, so nothing shifts. */
 .lightbox-action {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4897,6 +4898,11 @@ button.ghost.scan-open:hover {
   margin-top: 0.5rem;
 }
 
+/* Closed: take the log out of layout, so its rows never sit under the form below. */
+.scan-diag:not([open]) .scan-diag-body {
+  display: none;
+}
+
 .scan-diag-empty {
   margin: 0;
   color: var(--muted);
@@ -5964,6 +5970,21 @@ tr.row-flash > td {
   font-size: 0.85rem;
 }
 
+/* Inline tag on alt-art search rows; sits on the card-id line so rows keep their height. */
+.alt-art-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 /* Used-in text with a small Remove beside it; the button keeps its size as the text wraps. */
 .used-in-cell {
   display: flex;
@@ -6603,6 +6624,19 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
+.scan-tray-need {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-tray-need.wanted {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
 .scan-tray-tags {
   display: flex;
   align-items: center;
@@ -6687,6 +6721,70 @@ button.ghost.scan-tray-fix {
   flex: none;
   padding-top: 0.6rem;
   background: var(--card);
+}
+
+/* Sharing switch + delete line (#852). Fixed-size controls; nothing here changes size while saving. */
+.scan-share {
+  flex: none;
+  padding-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.scan-share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scan-share-toggle input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+}
+
+.scan-share-toggle span {
+  min-width: 0;
+}
+
+.scan-share-note,
+.scan-share-delete {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.scan-share-delete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-height: 2rem;
+}
+
+.scan-share-delete button {
+  min-height: 2rem;
+  padding-block: 0;
+}
+
+.scan-share-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.scan-share-danger {
+  color: var(--danger);
+}
+
+.scan-share-err {
+  color: var(--danger);
 }
 
 .scan-tray-error {
@@ -7363,4 +7461,607 @@ button.ghost.scan-tray-fix {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.75rem;
+}
+/* ——— Price alerts (#855) ——— */
+
+/* Bell in the topbar */
+.bell {
+  position: relative;
+  display: inline-flex;
+}
+
+.bell-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: rgba(239, 230, 210, 0.85);
+  background: transparent;
+  border: 1px solid rgba(226, 180, 88, 0.35);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.bell-btn:hover,
+.bell-btn[data-open] {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+/* Absolutely placed so a count appearing never resizes the button. */
+.bell-badge {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--danger);
+  border: 2px solid var(--sea-night);
+  border-radius: 999px;
+  box-sizing: content-box;
+}
+
+.bell-panel {
+  padding: 0.7rem 0.8rem 0.8rem;
+}
+
+.bell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.bell-empty {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.bell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bell-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.bell-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.bell-item.unread .bell-dot {
+  background: var(--gold);
+}
+
+.bell-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.bell-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.bell-body,
+.bell-time {
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.bell-manage {
+  display: block;
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+/* Shared editor (Watch dialog + lightbox) */
+.alert-form {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.alert-form-now {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.alert-form-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.alert-dir {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+.alert-dir .ui-select-button,
+.alert-money {
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.alert-dir .ui-select-button {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+}
+
+.alert-money {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 0 6.5rem;
+  padding: 0 0.6rem;
+}
+
+.alert-money:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.alert-money input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.alert-money:has(input[aria-invalid="true"]) {
+  border-color: var(--danger);
+}
+
+.alert-form-checks {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.alert-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.alert-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+.alert-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.alert-form .btn.primary {
+  margin: 0;
+  min-height: 2.5rem;
+}
+
+.alert-form-msg {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Lightbox: the row is always one button tall; the editor floats over the art, so nothing shifts. */
+.lightbox-alert {
+  position: static;
+  width: 17rem;
+  max-width: 100%;
+}
+
+.lightbox-alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  min-width: 0;
+}
+
+.lightbox-alert-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.lightbox-alert-row .ghost {
+  min-height: 2.5rem;
+  padding: 0 0.15rem;
+  flex: none;
+}
+
+.lightbox-alert .lightbox-alert-btn {
+  width: 100%;
+  height: 2.5rem;
+  margin: 0;
+  padding-block: 0;
+}
+
+.lightbox-alert-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  z-index: 2;
+  width: min(20rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  padding: 0.8rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
+}
+
+/* Watch dialog */
+.alert-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  background: rgba(16, 36, 45, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.alert-dialog-panel {
+  width: min(32rem, 100%);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 1rem 1.1rem 1.1rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lift);
+}
+
+.alert-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.alert-dialog-head h2 {
+  margin: 0.1rem 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.alert-dialog-head .eyebrow {
+  margin: 0;
+}
+
+.alert-dialog-label {
+  margin: 0.25rem 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-dialog-done {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.alert-dialog-done p {
+  margin: 0;
+}
+
+.alert-art-picker {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.6rem;
+  margin: 0 -0.25rem 0.4rem;
+  min-height: 7.5rem;
+  align-items: flex-start;
+}
+
+.alert-art-tile {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  width: 4.9rem;
+  padding: 0.35rem;
+  color: var(--ink);
+  background: var(--card-sunk);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.alert-art-tile.selected {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.alert-art-tile .thumb {
+  width: 3.6rem;
+  height: auto;
+  border-radius: 4px;
+}
+
+.alert-art-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.alert-art-price {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alert-art-loading {
+  align-self: center;
+  font-size: 0.85rem;
+}
+
+/* Page */
+.alerts-explainer {
+  max-width: 44rem;
+}
+
+.alerts-note {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--info-ink);
+  background: var(--info-bg);
+  border: 1px solid var(--info-line);
+  border-radius: 10px;
+}
+
+.alerts-empty {
+  margin-top: 1rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  background: var(--card-sunk);
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+}
+
+.alerts-empty h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.1rem;
+}
+
+.alerts-empty p {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.alert-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.alert-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1.6fr) 5rem minmax(0, 1.5fr) auto auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.alert-row.paused {
+  opacity: 0.8;
+}
+
+.alert-art .thumb {
+  width: 3.5rem;
+  height: auto;
+}
+
+.alert-card {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.alert-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.alert-card-art {
+  font-size: 0.85rem;
+}
+
+.alert-chip {
+  margin-top: 0.25rem;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--card-sunk);
+}
+
+.alert-chip.watching {
+  color: var(--info-ink);
+  background: var(--info-bg);
+  border-color: var(--info-line);
+}
+
+.alert-chip.hit {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+}
+
+.alert-chip.met {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.alert-chip.paused {
+  color: var(--muted);
+}
+
+.alert-now,
+.alert-target {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.alert-now {
+  font-weight: 600;
+}
+
+.alert-col-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-target-controls {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.alert-toggles {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.alert-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.alert-act {
+  min-height: 2.5rem;
+  padding: 0 0.5rem;
+}
+
+.alert-row-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .alert-row {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "art card now"
+      "target target target"
+      "toggles toggles actions";
+  }
+
+  .alert-art {
+    grid-area: art;
+    align-self: start;
+  }
+
+  .alert-card {
+    grid-area: card;
+  }
+
+  .alert-now {
+    grid-area: now;
+    justify-items: end;
+    align-self: start;
+  }
+
+  .alert-target {
+    grid-area: target;
+  }
+
+  .alert-toggles {
+    grid-area: toggles;
+    display: flex;
+    gap: 1rem;
+  }
+
+  .alert-actions {
+    grid-area: actions;
+  }
+
+  .alert-dir {
+    flex: 1 1 8rem;
+  }
+
+  .alert-money {
+    flex: 0 0 6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-art-tile {
+    transition: none;
+  }
 }

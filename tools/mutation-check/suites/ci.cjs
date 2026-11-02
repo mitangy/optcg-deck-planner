@@ -34,5 +34,12 @@ module.exports = {
       ["ci-media-no-snapshots", ' || dir.endsWith("-snapshots")', "", "card art, app assets and Playwright baselines are allowed"],
       ["ci-media-no-assets", 'dir === "public" || dir === "assets"', 'dir === "public"', "card art, app assets and Playwright baselines are allowed"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/pr-media.cjs", from, to, kills: [kill] })),
+    ...[
+      ["retrain-gate-min-test", "if (newM.n < minTest)", "if (newM.n < 0)", "refuses a test set smaller than the minimum"],
+      ["retrain-gate-top1-tie", "!(newM.top1 > oldM.top1)", "newM.top1 < oldM.top1", "refuses a tie on top1"],
+      ["retrain-gate-top5-ignored", "!(newM.top5 >= oldM.top5)", "false", "refuses a top5 regression"],
+      ["retrain-gate-missing-old-is-zero", 'if (!oldM || !newM) return { publish: false, reason: "missing metrics" };', 'oldM = oldM || { top1: 0, top5: 0 }; if (!newM) return { publish: false, reason: "missing metrics" };', "old model's metrics are missing"],
+      ["retrain-gate-never-publishes", 'return { publish: true, reason: "top1 improved, top5 held" }', 'return { publish: false, reason: "top1 improved, top5 held" }', "publishes a model that wins top1"],
+    ].map(([id, from, to, kill]) => ({ id, file: "frontend/scripts/train-embedder/gate.cjs", from, to, kills: [kill], args: '"tools/ci/retrain-gate.test.cjs"' })),
   ],
 };
