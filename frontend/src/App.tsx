@@ -92,6 +92,7 @@ import { FriendPage } from "./friends/FriendPage";
 import { FriendDeckPage } from "./friends/FriendDeckPage";
 import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardLightboxActionContext, CardThumb, MobileCardMedia } from "./CardThumb";
+import { GridCard, MobileCard } from "./PlannerCard";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
@@ -981,17 +982,20 @@ function ShoppingItemsView({
                   />
                 </label>
               )}
-              <div className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}>
-                <div className="grid-card-media" onClick={stopCardSelectBubble}>
-                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
-                </div>
-                <div className="grid-card-body">
-                  <div className="card-id">{item.card_id}</div>
-                  <div className="grid-card-name">{item.name}</div>
-                  <div className="grid-card-meta muted">
+              <GridCard
+                as="div"
+                className={item.still_need > 0 ? "need" : "done"}
+                cardId={item.card_id}
+                name={item.name}
+                imageSrc={mainImageUrl(item)}
+                onMediaClick={stopCardSelectBubble}
+                meta={
+                  <>
                     {stillNeededText(item.still_need, item.need)}
                     {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                  </div>
+                  </>
+                }
+              >
                   {item.used_in.length > 0 && (
                     <div className="grid-card-used-in" onClick={stopCardSelectBubble}>
                       <UsedInCell decks={item.used_in} />
@@ -1025,8 +1029,7 @@ function ShoppingItemsView({
                       {altRow(item)}
                     </div>
                   )}
-                </div>
-              </div>
+              </GridCard>
             </article>
           );
         })}
@@ -1115,66 +1118,63 @@ function ShoppingItemsView({
         {items.map((item: ShoppingItem) => {
           const checked = selectedCardIds.has(item.card_id);
           return (
-            <article
+            <MobileCard
               key={item.card_id}
-              className={`mobile-card selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
-              role="button"
-              tabIndex={0}
-              aria-pressed={checked}
-              aria-label={`${checked ? "Deselect" : "Select"} ${item.card_id}`}
-              onClick={() => onToggleCard(item.card_id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onToggleCard(item.card_id);
-                }
+              className={`selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+              rootProps={{
+                role: "button",
+                tabIndex: 0,
+                "aria-pressed": checked,
+                "aria-label": `${checked ? "Deselect" : "Select"} ${item.card_id}`,
+                onClick: () => onToggleCard(item.card_id),
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onToggleCard(item.card_id);
+                  }
+                },
               }}
+              cardId={item.card_id}
+              name={item.name}
+              imageSrc={mainImageUrl(item)}
+              cost={item.cost}
+              rarity={item.rarity}
+              mediaWrapProps={{ onClick: stopCardSelectBubble, onKeyDown: stopCardSelectBubble }}
+              meta={
+                <>
+                  {[item.color, stillNeededText(item.still_need, item.need)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                </>
+              }
+              info={
+                <div
+                  className="mobile-card-price-row"
+                  onClick={stopCardSelectBubble}
+                  onKeyDown={stopCardSelectBubble}
+                >
+                  <div className="mobile-card-price-main">
+                    <span className="muted">Market</span>
+                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                    {item.tcgplayer_url ? (
+                      <a
+                        href={item.tcgplayer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={stopCardSelectBubble}
+                      >
+                        TCGPlayer
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="mobile-card-owned">
+                    <span>Owned</span>
+                    {ownedCell(item)}
+                  </div>
+                </div>
+              }
             >
-              <div className="mobile-card-top">
-                <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
-                  <MobileCardMedia
-                    src={mainImageUrl(item)}
-                    cardId={item.card_id}
-                    alt={item.name}
-                    cost={item.cost}
-                    rarity={item.rarity}
-                  />
-                </div>
-                <div className="mobile-card-info">
-                  <div className="card-id">{item.card_id}</div>
-                  <div className="mobile-card-name">{item.name}</div>
-                  <div className="mobile-card-meta">
-                    {[item.color, stillNeededText(item.still_need, item.need)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                  </div>
-                  <div
-                    className="mobile-card-price-row"
-                    onClick={stopCardSelectBubble}
-                    onKeyDown={stopCardSelectBubble}
-                  >
-                    <div className="mobile-card-price-main">
-                      <span className="muted">Market</span>
-                      <MarketPrice price={item.market_price} productId={item.product_id} />
-                      {item.tcgplayer_url ? (
-                        <a
-                          href={item.tcgplayer_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={stopCardSelectBubble}
-                        >
-                          TCGPlayer
-                        </a>
-                      ) : null}
-                    </div>
-                    <div className="mobile-card-owned">
-                      <span>Owned</span>
-                      {ownedCell(item)}
-                    </div>
-                  </div>
-                </div>
-              </div>
               {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
                 <div
                   className="mobile-card-alts"
@@ -1194,7 +1194,7 @@ function ShoppingItemsView({
                   />
                 </div>
               )}
-            </article>
+            </MobileCard>
           );
         })}
       </div>
@@ -3282,20 +3282,15 @@ function CardTable({
     return (
       <div className="card-grid">
         {cards.map((c) => (
-          <article
+          <GridCard
             key={`${c.section}-${c.card_id}`}
-            data-card-id={c.card_id}
-            className={`grid-card ${c.still_need > 0 ? "need" : "done"}`}
+            dataCardId={c.card_id}
+            className={c.still_need > 0 ? "need" : "done"}
+            cardId={c.card_id}
+            name={c.name}
+            imageSrc={mainImageUrl(c)}
+            meta={[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
           >
-            <div className="grid-card-media">
-              <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
-            </div>
-            <div className="grid-card-body">
-              <div className="card-id">{c.card_id}</div>
-              <div className="grid-card-name">{c.name}</div>
-              <div className="grid-card-meta muted">
-                {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
-              </div>
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
               </div>
@@ -3323,8 +3318,7 @@ function CardTable({
               {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
                 <div className="grid-card-alts">{altRow(c)}</div>
               )}
-            </div>
-          </article>
+          </GridCard>
         ))}
       </div>
     );
@@ -3399,27 +3393,20 @@ function CardTable({
 
       <div className="mobile-card-list">
         {cards.map((c) => (
-          <article
+          <MobileCard
             key={`${c.section}-${c.card_id}`}
-            data-card-id={c.card_id}
-            className={`mobile-card ${c.still_need > 0 ? "need" : "done"}`}
-          >
-            <div className="mobile-card-top">
-              <MobileCardMedia
-                src={mainImageUrl(c)}
-                cardId={c.card_id}
-                alt={c.name}
-                cost={c.cost}
-                rarity={c.rarity}
-              />
-              <div className="mobile-card-info">
-                <div className="card-id">{c.card_id}</div>
-                <div className="mobile-card-name">{c.name}</div>
-                <div className="mobile-card-meta">
-                  {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </div>
+            dataCardId={c.card_id}
+            className={c.still_need > 0 ? "need" : "done"}
+            cardId={c.card_id}
+            name={c.name}
+            imageSrc={mainImageUrl(c)}
+            cost={c.cost}
+            rarity={c.rarity}
+            meta={[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
+              .filter(Boolean)
+              .join(" · ")}
+            info={
+              <>
                 <div className="mobile-card-price-row">
                   <div className="mobile-card-price-main">
                     <span className="muted">Market</span>
@@ -3436,8 +3423,9 @@ function CardTable({
                   </div>
                 </div>
                 <OwnedClaimNote card={c} />
-              </div>
-            </div>
+              </>
+            }
+          >
             {editing && onNeededChange ? (
               <div className="mobile-card-owned mobile-card-owned-block">
                 <span>In deck</span>
@@ -3452,7 +3440,7 @@ function CardTable({
             {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
               <div className="mobile-card-alts">{altRow(c)}</div>
             )}
-          </article>
+          </MobileCard>
         ))}
       </div>
     </>
@@ -4867,30 +4855,28 @@ function PublicSharePage() {
             {layout === "grid" ? (
               <div className="card-grid">
                 {items.map((item) => (
-                  <article
+                  <GridCard
                     key={item.card_id}
-                    className={`grid-card ${item.still_need > 0 ? "need" : "done"}`}
-                  >
-                    <div className="grid-card-media">
-                      <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
-                    </div>
-                    <div className="grid-card-body">
-                      <div className="card-id">{item.card_id}</div>
-                      <div className="grid-card-name">{item.name}</div>
-                      <div className="grid-card-meta muted">
+                    className={item.still_need > 0 ? "need" : "done"}
+                    cardId={item.card_id}
+                    name={item.name}
+                    imageSrc={item.image_url || undefined}
+                    meta={
+                      <>
                         Owned {totalOwned(item.owned, item.alts_owned)} · {stillNeededText(item.still_need, item.need)}
                         {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                      </div>
-                      <div className="grid-card-price">
-                        <MarketPrice price={item.market_price} productId={item.product_id} />
-                      </div>
-                      {item.tcgplayer_url && (
-                        <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      )}
+                      </>
+                    }
+                  >
+                    <div className="grid-card-price">
+                      <MarketPrice price={item.market_price} productId={item.product_id} />
                     </div>
-                  </article>
+                    {item.tcgplayer_url && (
+                      <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                        TCGPlayer
+                      </a>
+                    )}
+                  </GridCard>
                 ))}
               </div>
             ) : (
@@ -4943,42 +4929,38 @@ function PublicSharePage() {
 
                 <div className="mobile-card-list">
                   {items.map((item) => (
-                    <article
+                    <MobileCard
                       key={item.card_id}
-                      className={`mobile-card ${item.still_need > 0 ? "need" : "done"}`}
-                    >
-                      <div className="mobile-card-top">
-                        <MobileCardMedia
-                          src={item.image_url || undefined}
-                          cardId={item.card_id}
-                          alt={item.name}
-                          cost={item.cost}
-                          rarity={item.rarity}
-                        />
-                        <div className="mobile-card-info">
-                          <div className="card-id">{item.card_id}</div>
-                          <div className="mobile-card-name">{item.name}</div>
-                          <div className="mobile-card-meta">
-                            {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, stillNeededText(item.still_need, item.need)]
-                              .filter(Boolean)
-                              .join(" · ")}
-                            {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
-                          </div>
-                          <div className="mobile-card-price-row">
-                            <div className="mobile-card-price-main">
-                              <span className="muted">Market</span>
-                              <MarketPrice price={item.market_price} productId={item.product_id} />
-                              {item.tcgplayer_url ? (
-                                <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
-                                  TCGPlayer
-                                </a>
-                              ) : null}
-                            </div>
+                      className={item.still_need > 0 ? "need" : "done"}
+                      cardId={item.card_id}
+                      name={item.name}
+                      imageSrc={item.image_url || undefined}
+                      cost={item.cost}
+                      rarity={item.rarity}
+                      meta={
+                        <>
+                          {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, stillNeededText(item.still_need, item.need)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                        </>
+                      }
+                      info={
+                        <div className="mobile-card-price-row">
+                          <div className="mobile-card-price-main">
+                            <span className="muted">Market</span>
+                            <MarketPrice price={item.market_price} productId={item.product_id} />
+                            {item.tcgplayer_url ? (
+                              <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
+                                TCGPlayer
+                              </a>
+                            ) : null}
                           </div>
                         </div>
-                      </div>
+                      }
+                    >
                       {sharedUsedIn(item) && <p className="used-in mobile-used-in">{sharedUsedIn(item)}</p>}
-                    </article>
+                    </MobileCard>
                   ))}
                 </div>
               </>

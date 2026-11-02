@@ -15,6 +15,12 @@ module.exports = {
     // Alt-art search rows (#848)
     { id: "alt848-collection-add-saves-base", file: "frontend/src/App.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
     { id: "alt848-collection-step-ignores-qty", file: "frontend/src/App.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
+    // Group buy: totals across the arts the viewer picked (#850)
+    { id: "gb850-base-qty-ignores-alt-wants", file: "frontend/src/groupBuyArt.ts", from: "  return wanted + Math.max(0, base);", to: "  return Math.max(0, base);", kills: ["puts the base count on top of every alt want"] },
+    { id: "gb850-alt-wants-ignored", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = 0;", kills: ["fills alt wants first"] },
+    { id: "gb850-alt-not-capped-by-qty", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = Math.max(0, alt.wanted ?? 0);", kills: ["caps alt copies by the buy qty"] },
+    { id: "gb850-base-priced-at-checkout", file: "frontend/src/groupBuyArt.ts", from: "line.preferred_market_price ?? null", to: "(line as { market_price?: number | null }).market_price ?? null", kills: ["prices base at the preferred printing"] },
+    { id: "gb850-unpriced-art-counts-as-zero", file: "frontend/src/groupBuyArt.ts", from: "const priced = parts.every((p) => p.price != null);", to: "const priced = true;", kills: ["unknown when a picked art has no price"] },
     // Collection page filters (#752)
     { id: "collection748-type-filter-ignored", file: "frontend/src/collectionView.ts", from: "  if (f.type) list = list.filter((i) => cardHasType(i, f.type));\n", to: "", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)", "colour, type and Not in a deck narrow together (#752)"] },
     { id: "collection748-type-case-sensitive", file: "frontend/src/collectionView.ts", from: "return (card.card_type ?? \"\").trim().toLowerCase() === type.toLowerCase();", to: "return (card.card_type ?? \"\").trim() === type;", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)"] },
