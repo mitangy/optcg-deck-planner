@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Select } from "@optcg/ui/popups";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   api,
   GroupBuyDetail,
@@ -55,7 +55,6 @@ import {
 const NEXT_KEY = "optcg_login_next";
 const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
 const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open";
-const PUBLIC_OPEN_KEY = "optcg_group_buy_public_open";
 
 type ShippingSplit = "equal" | "by_cost" | "by_copies";
 
@@ -192,63 +191,6 @@ function MemberBreakdown({
         </span>
       ))}
     </span>
-  );
-}
-
-function GroupBuyPublicPanel({
-  isPublic,
-  publicPath,
-  busy,
-  msg,
-  onToggle,
-  onCopy,
-}: {
-  isPublic: boolean;
-  publicPath: string | null | undefined;
-  busy: boolean;
-  msg: string | null;
-  onToggle: (next: boolean) => void;
-  onCopy: () => void;
-}) {
-  const summary = isPublic ? "On" : "Off";
-  const publicUrl =
-    isPublic && publicPath ? `${window.location.origin}${publicPath}` : null;
-  return (
-    <CollapsibleDrawer label="Public link" summary={summary} storageKey={PUBLIC_OPEN_KEY}>
-      <div className="share-panel">
-        <p className="muted share-panel-note">
-          Anyone with the link can view this group buy without signing in. They cannot change
-          quantities, printings, or order details.
-        </p>
-        <label className="group-buy-public-toggle">
-          <input
-            type="checkbox"
-            checked={isPublic}
-            disabled={busy}
-            onChange={(e) => onToggle(e.target.checked)}
-          />
-          Publicly viewable
-        </label>
-        <div className="share-panel-actions">
-          {isPublic && publicUrl ? (
-            <button type="button" className="btn secondary" disabled={busy} onClick={onCopy}>
-              Copy public link
-            </button>
-          ) : null}
-        </div>
-        {msg ? (
-          <p className="share-banner" role="status">
-            {msg.startsWith("http") ? (
-              <>
-                Public link: <a href={msg}>{msg}</a>
-              </>
-            ) : (
-              msg
-            )}
-          </p>
-        ) : null}
-      </div>
-    </CollapsibleDrawer>
   );
 }
 
@@ -607,6 +549,7 @@ function lineArtUrl(line: GroupBuyLine): string | undefined {
 
 export function GroupBuyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const groupId = Number(id);
   const qc = useQueryClient();
   const isNarrow = useNarrowLayout();
@@ -619,7 +562,6 @@ export function GroupBuyDetailPage() {
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
-  const [publicMsg, setPublicMsg] = useState<string | null>(null);
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
   // Cards edited on this page stay listed even at 0, so you can still pick an alt (#868).
   const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
@@ -979,6 +921,15 @@ export function GroupBuyDetailPage() {
     onSettled: () => invalidateDisplayArtViews(qc),
   });
 
+  const leave = useMutation({
+    mutationFn: () => api.leaveGroupBuy(groupId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      navigate("/group-buys");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -986,26 +937,6 @@ export function GroupBuyDetailPage() {
       window.location.href = "/group-buys";
     },
     onError: (e: Error) => setMsg(e.message),
-  });
-
-  const setPublic = useMutation({
-    mutationFn: (is_public: boolean) => api.setGroupBuyPublic(groupId, is_public),
-    onSuccess: async (updated) => {
-      await qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      if (updated.is_public && updated.public_path) {
-        const url = `${window.location.origin}${updated.public_path}`;
-        try {
-          await navigator.clipboard.writeText(url);
-          setPublicMsg("Public link copied");
-        } catch {
-          setPublicMsg(url);
-        }
-      } else {
-        setPublicMsg("Public link turned off");
-      }
-    },
-    onError: (e: Error) => setPublicMsg(e.message),
   });
 
   const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
@@ -1328,6 +1259,21 @@ export function GroupBuyDetailPage() {
             Delete
           </button>
         )}
+        {!detail.is_host && (
+          <button
+            type="button"
+            className="ghost danger"
+            disabled={leave.isPending || detail.status !== "open"}
+            title={detail.status !== "open" ? "Ask the host to unlock first" : undefined}
+            onClick={() => {
+              if (window.confirm("Leave this group buy? Your quantities are removed from the pool.")) {
+                leave.mutate();
+              }
+            }}
+          >
+            Leave group buy
+          </button>
+        )}
       </div>
       {detail.is_host &&
       (detail.status === "locked" || detail.status === "ordered") &&
@@ -1343,26 +1289,6 @@ export function GroupBuyDetailPage() {
           {inviteMsg || msg}
         </p>
       )}
-
-      {detail.is_host ? (
-        <GroupBuyPublicPanel
-          isPublic={Boolean(detail.is_public)}
-          publicPath={detail.public_path}
-          busy={setPublic.isPending}
-          msg={publicMsg}
-          onToggle={(next) => setPublic.mutate(next)}
-          onCopy={async () => {
-            if (!detail.public_path) return;
-            const url = `${window.location.origin}${detail.public_path}`;
-            try {
-              await navigator.clipboard.writeText(url);
-              setPublicMsg("Public link copied");
-            } catch {
-              setPublicMsg(url);
-            }
-          }}
-        />
-      ) : null}
 
       <div className="group-buy-members">
         <CollapsibleDrawer
@@ -1892,6 +1818,13 @@ export function GroupBuyDetailPage() {
   );
 }
 
+/** /group-buy/view/:token is the older read-only link; it now shows the invite page (#880). */
+export function PublicGroupBuyPage() {
+  const { token = "" } = useParams();
+  return <Navigate to={`/group-buy/join/${encodeURIComponent(token)}`} replace />;
+}
+
+/** Invite link: a read-only view of the whole group buy, with Join / Sign in on top (#880). */
 export function GroupBuyJoinPage() {
   const { token = "" } = useParams();
   const navigate = useNavigate();
@@ -1899,6 +1832,11 @@ export function GroupBuyJoinPage() {
   const previewQ = useQuery({
     queryKey: ["group-buy-invite", token],
     queryFn: () => api.groupBuyInvitePreview(token),
+    enabled: Boolean(token),
+  });
+  const detailQ = useQuery({
+    queryKey: ["public-group-buy", token],
+    queryFn: () => api.publicGroupBuy(token),
     enabled: Boolean(token),
   });
   const [err, setErr] = useState<string | null>(null);
@@ -1915,74 +1853,96 @@ export function GroupBuyJoinPage() {
   }
   if (previewQ.error) return <p className="error">{(previewQ.error as Error).message}</p>;
   const preview = previewQ.data!;
+  const nextPath = `/group-buy/join/${token}`;
+  const signedIn = Boolean(meQ.data);
+  const loginTo = `/login?next=${encodeURIComponent(nextPath)}`;
 
   return (
-    <section className="group-buy-join">
-      <h1>Join group buy</h1>
-      <p>
-        <strong>{preview.title}</strong>
-      </p>
-      <p className="muted">
-        Hosted by {preview.host_name} · {preview.member_count} member
-        {preview.member_count === 1 ? "" : "s"} · {preview.status}
-      </p>
-      {err && <p className="error">{err}</p>}
-      {meQ.data ? (
-        <button
-          type="button"
-          className="btn primary"
-          disabled={join.isPending || preview.status !== "open"}
-          onClick={() => join.mutate()}
-        >
-          {join.isPending
-            ? "Joining…"
-            : preview.status === "open"
-              ? "Join group buy"
-              : `${preview.status[0].toUpperCase()}${preview.status.slice(1)} — cannot join`}
-        </button>
-      ) : (
-        <Link
-          className="btn primary"
-          to={`/login?next=${encodeURIComponent(`/group-buy/join/${token}`)}`}
-          onClick={() => rememberLoginNext(`/group-buy/join/${token}`)}
-        >
-          Sign in to join
-        </Link>
-      )}
-      {preview.is_public && preview.public_path ? (
-        <p className="muted">
-          Or{" "}
-          <Link to={preview.public_path}>view without joining</Link> (read-only).
-        </p>
-      ) : null}
-      <p className="muted">
-        <Link to="/group-buys">Back to group buys</Link>
-      </p>
-    </section>
+    <div className="app public-app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <Link to={signedIn ? "/group-buys" : "/login"}>
+              <BrandWordmark />
+              <span>Planner</span>
+            </Link>
+          </div>
+          <div className="user">
+            <BuildTag />
+            <ThemeToggle />
+            {signedIn ? (
+              <Link className="btn secondary" to="/group-buys">
+                Group buys
+              </Link>
+            ) : (
+              <Link className="btn secondary" to={loginTo} onClick={() => rememberLoginNext(nextPath)}>
+                Sign in
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+      <main className="app-main">
+        <section className="group-buy-detail group-buy-public-view">
+          <div className="group-buy-invite-banner">
+            <div className="group-buy-invite-info">
+              <p className="eyebrow">Group buy invite · read-only preview</p>
+              <h1>{preview.title}</h1>
+              <p className="muted">
+                <span className={`group-buy-status status-${preview.status}`}>{preview.status}</span>
+                {" · "}
+                Hosted by {preview.host_name} · {preview.member_count} member
+                {preview.member_count === 1 ? "" : "s"}
+              </p>
+              {err && <p className="error">{err}</p>}
+            </div>
+            <div className="group-buy-invite-action">
+              {preview.status !== "open" ? (
+                <button type="button" className="btn primary" disabled>
+                  {`${preview.status[0].toUpperCase()}${preview.status.slice(1)} — cannot join`}
+                </button>
+              ) : signedIn ? (
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={join.isPending}
+                  onClick={() => join.mutate()}
+                >
+                  {join.isPending ? "Joining…" : "Join group buy"}
+                </button>
+              ) : (
+                <Link className="btn primary" to={loginTo} onClick={() => rememberLoginNext(nextPath)}>
+                  Sign in to join
+                </Link>
+              )}
+            </div>
+          </div>
+          {detailQ.isLoading ? (
+            <GroupBuyDetailSkeleton />
+          ) : detailQ.error ? (
+            <p className="error">{(detailQ.error as Error).message}</p>
+          ) : detailQ.data ? (
+            <GroupBuyReadOnlyContent detail={detailQ.data} />
+          ) : null}
+        </section>
+      </main>
+    </div>
   );
 }
 
-export function PublicGroupBuyPage() {
-  const { token = "" } = useParams();
+function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
   const isNarrow = useNarrowLayout();
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
 
-  const detailQ = useQuery({
-    queryKey: ["public-group-buy", token],
-    queryFn: () => api.publicGroupBuy(token),
-    enabled: Boolean(token),
-  });
-
-  const detail = detailQ.data;
-  const members = detail?.members ?? [];
+  const members = detail.members ?? [];
   const showOrderPanel =
-    detail?.status === "locked" || detail?.status === "ordered" || detail?.status === "completed";
+    detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
 
   const lines = useMemo(() => {
-    let list = (detail?.lines ?? []).filter((l) => l.total_qty > 0);
+    let list = (detail.lines ?? []).filter((l) => l.total_qty > 0);
     if (search.trim()) {
       list = list.filter((l) =>
         matchesCardSearch(
@@ -2019,201 +1979,162 @@ export function PublicGroupBuyPage() {
   const { sort, onSort } = useColumnSort("optcg_colsort_gb_public");
   const tableLines = useMemo(() => sortByColumn(lines, sort, groupBuyLineValue), [lines, sort]);
 
-  if (!token) return <p className="error">Missing public link.</p>;
-  if (detailQ.isLoading) return <GroupBuyDetailSkeleton />;
-  if (detailQ.error) return <p className="error">{(detailQ.error as Error).message}</p>;
-  if (!detail) return <p className="error">Group buy not found.</p>;
-
   return (
-    <div className="app public-app">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/login">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <BuildTag />
-            <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main className="app-main">
-        <section className="group-buy-detail group-buy-public-view">
-          <div className="page-head">
-            <div>
-              <p className="eyebrow">Public group buy · read-only</p>
-              <h1>{detail.title}</h1>
-              <p className="muted">
-                <span className={`group-buy-status status-${detail.status}`}>{detail.status}</span>
-                {" · "}
-                Host {detail.host_name} · {detail.member_count} members · {detail.unique_cards} cards ·{" "}
-                {detail.cards_still_needed} copies · {money(detail.remaining_market)}
-              </p>
-            </div>
-          </div>
-
-          <div className="group-buy-members">
-            <CollapsibleDrawer
-              label="Members"
-              summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
-              storageKey={MEMBERS_OPEN_KEY}
-              defaultOpen
-            >
-              <ul>
-                {members.map((m) => (
-                  <li key={m.user_id}>
-                    <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-                    <strong>
-                      {m.display_name}
-                      {m.role === "host" ? " (host)" : ""}
-                    </strong>
-                    <MemberModeTag member={m} />
-                    <span className="muted">
-                      {" "}
-                      · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
-                      {showOrderPanel ? (
-                        <>
-                          {" "}
-                          · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
-                          {" · owes "}
-                          <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
-                        </>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleDrawer>
-          </div>
-
-          {showOrderPanel ? (
-            <div className="group-buy-settlement">
-              <CollapsibleDrawer
-                label="Order & settlement"
-                summary={`${money(detail.grand_total)} total`}
-                storageKey={SETTLEMENT_OPEN_KEY}
-                defaultOpen
-              >
-                <p className="muted">
-                  Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
-                  {money(detail.tax_cost ?? 0)} ={" "}
-                  <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
-                  {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
-                </p>
-                {detail.external_order_id ? (
-                  <p className="muted">Order / receipt id: {detail.external_order_id}</p>
+    <>
+    <div className="group-buy-members">
+      <CollapsibleDrawer
+        label="Members"
+        summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
+        storageKey={MEMBERS_OPEN_KEY}
+        defaultOpen
+      >
+        <ul>
+          {members.map((m) => (
+            <li key={m.user_id}>
+              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+              <strong>
+                {m.display_name}
+                {m.role === "host" ? " (host)" : ""}
+              </strong>
+              <MemberModeTag member={m} />
+              <span className="muted">
+                {" "}
+                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
+                {showOrderPanel ? (
+                  <>
+                    {" "}
+                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
+                    {" · owes "}
+                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
+                  </>
                 ) : null}
-                {detail.order_notes ? <p className="muted">{detail.order_notes}</p> : null}
-              </CollapsibleDrawer>
-            </div>
-          ) : null}
-
-          <div className="list-toolbar">
-            <div className="list-toolbar-row">
-              <CardSearchInput value={search} onChange={setSearch} />
-              <CardLayoutToggle layout={layout} onChange={setLayout} />
-            </div>
-            <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
-              <div className="filters">
-                <SortMenu
-                  sorts={sorts}
-                  onChange={setSorts}
-                  onlyNeed
-                  unavailableKeys={unavailableSorts}
-                />
-              </div>
-            </CollapsibleFilters>
-          </div>
-
-          {layout === "grid" ? (
-            <div className="card-grid">
-              {lines.map((line) => (
-                <GridCard
-                  key={line.card_id}
-                  className="need"
-                  cardId={line.card_id}
-                  name={line.name}
-                  imageSrc={line.image_url || undefined}
-                  meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
-                >
-                  <MemberBreakdown line={line} members={members} />
-                  <div className="grid-card-price">
-                    <MarketPrice price={line.market_price} productId={line.product_id} />
-                  </div>
-                </GridCard>
-              ))}
-            </div>
-          ) : isNarrow ? (
-            <div className="mobile-card-list">
-              {lines.map((line) => (
-                <MobileCard
-                  key={line.card_id}
-                  className="need"
-                  cardId={line.card_id}
-                  name={line.name}
-                  imageSrc={line.image_url || undefined}
-                  cost={line.cost ?? null}
-                  rarity={line.rarity}
-                  meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
-                  info={
-                    <>
-                      <MemberBreakdown line={line} members={members} />
-                      <div className="mobile-card-price-row">
-                        <MarketPrice price={line.market_price} productId={line.product_id} />
-                      </div>
-                    </>
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="table-wrap desktop-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-                    <SortableTh label="Qty" colKey="total" firstDir="desc" sort={sort} onSort={onSort} />
-                    <SortableTh label="Who" colKey="who" firstDir="asc" sort={sort} onSort={onSort} />
-                    <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-                    <SortableTh label="Remaining" colKey="est" firstDir="desc" sort={sort} onSort={onSort} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableLines.map((line) => (
-                    <tr key={line.card_id} className="need">
-                      <td className="card-cell">
-                        <div className="card-cell-inner">
-                          <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
-                          <div>
-                            <div className="card-id">{line.card_id}</div>
-                            <div>{line.name}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{line.total_qty}</td>
-                      <td>
-                        <MemberBreakdown line={line} members={members} />
-                      </td>
-                      <td>
-                        <MarketPrice price={line.market_price} productId={line.product_id} />
-                      </td>
-                      <td>{money(line.remaining_cost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {!lines.length ? <p className="muted">No cards in this group buy.</p> : null}
-        </section>
-      </main>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CollapsibleDrawer>
     </div>
+
+    {showOrderPanel ? (
+      <div className="group-buy-settlement">
+        <CollapsibleDrawer
+          label="Order & settlement"
+          summary={`${money(detail.grand_total)} total`}
+          storageKey={SETTLEMENT_OPEN_KEY}
+          defaultOpen
+        >
+          <p className="muted">
+            Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
+            {money(detail.tax_cost ?? 0)} ={" "}
+            <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
+            {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
+          </p>
+          {detail.external_order_id ? (
+            <p className="muted">Order / receipt id: {detail.external_order_id}</p>
+          ) : null}
+          {detail.order_notes ? <p className="muted">{detail.order_notes}</p> : null}
+        </CollapsibleDrawer>
+      </div>
+    ) : null}
+
+    <div className="list-toolbar">
+      <div className="list-toolbar-row">
+        <CardSearchInput value={search} onChange={setSearch} />
+        <CardLayoutToggle layout={layout} onChange={setLayout} />
+      </div>
+      <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
+        <div className="filters">
+          <SortMenu
+            sorts={sorts}
+            onChange={setSorts}
+            onlyNeed
+            unavailableKeys={unavailableSorts}
+          />
+        </div>
+      </CollapsibleFilters>
+    </div>
+
+    {layout === "grid" ? (
+      <div className="card-grid">
+        {lines.map((line) => (
+          <GridCard
+            key={line.card_id}
+            className="need"
+            cardId={line.card_id}
+            name={line.name}
+            imageSrc={line.image_url || undefined}
+            meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
+          >
+            <MemberBreakdown line={line} members={members} />
+            <div className="grid-card-price">
+              <MarketPrice price={line.market_price} productId={line.product_id} />
+            </div>
+          </GridCard>
+        ))}
+      </div>
+    ) : isNarrow ? (
+      <div className="mobile-card-list">
+        {lines.map((line) => (
+          <MobileCard
+            key={line.card_id}
+            className="need"
+            cardId={line.card_id}
+            name={line.name}
+            imageSrc={line.image_url || undefined}
+            cost={line.cost ?? null}
+            rarity={line.rarity}
+            meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
+            info={
+              <>
+                <MemberBreakdown line={line} members={members} />
+                <div className="mobile-card-price-row">
+                  <MarketPrice price={line.market_price} productId={line.product_id} />
+                </div>
+              </>
+            }
+          />
+        ))}
+      </div>
+    ) : (
+      <div className="table-wrap desktop-table">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Qty" colKey="total" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Who" colKey="who" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Remaining" colKey="est" firstDir="desc" sort={sort} onSort={onSort} />
+            </tr>
+          </thead>
+          <tbody>
+            {tableLines.map((line) => (
+              <tr key={line.card_id} className="need">
+                <td className="card-cell">
+                  <div className="card-cell-inner">
+                    <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
+                    <div>
+                      <div className="card-id">{line.card_id}</div>
+                      <div>{line.name}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{line.total_qty}</td>
+                <td>
+                  <MemberBreakdown line={line} members={members} />
+                </td>
+                <td>
+                  <MarketPrice price={line.market_price} productId={line.product_id} />
+                </td>
+                <td>{money(line.remaining_cost)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {!lines.length ? <p className="muted">No cards in this group buy.</p> : null}
+    </>
   );
 }

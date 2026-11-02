@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 886, title: "Leave a group buy", text: "If you joined a group buy and no longer want in, open it and press Leave group buy. Your quantities come off the list. You can leave while the group buy is open; once the host locks it, ask them to unlock first." },
+  { date: "2026-11-02", app: "planner", pr: 886, title: "Preview a group buy before you join", text: "A group buy invite link now shows the whole group buy, read-only: the cards, who wants what and the prices. Sign in to join, or press Join group buy if you are already signed in. Hosts no longer need to turn on a Public link." },
   { date: "2026-11-02", app: "planner", pr: 885, title: "Group buy shows the alt art members picked", text: "In a group buy, a card now shows the alt art the group wants most as its main image, even when you did not pick one yourself." },
   { date: "2026-11-02", app: "planner", pr: 883, title: "Rename a group buy", text: "If you host a group buy, you can now rename it: press Rename next to the title, type a new name, and press Save." },
   { date: "2026-11-02", app: "planner", pr: 878, title: "Group buy Price sort follows the price you see", text: "In a group buy, sorting by Price now orders cards by the price shown under each card: your total across the arts you picked, not the base card price." },

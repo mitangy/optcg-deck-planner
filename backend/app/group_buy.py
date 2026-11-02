@@ -609,15 +609,14 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
     )
     if group is None:
         raise LookupError("Invite link not found")
-    is_public = bool(getattr(group, "is_public", False))
     return GroupBuyInvitePreview(
         title=group.title,
         host_name=_display_name(group.host),
         member_count=len(group.members),
         status=group.status,
         invite_token=group.invite_token,
-        is_public=is_public,
-        public_path=f"/group-buy/view/{group.invite_token}" if is_public else None,
+        is_public=bool(getattr(group, "is_public", False)),
+        public_path=f"/group-buy/view/{group.invite_token}",
     )
 
 
@@ -653,7 +652,7 @@ def set_title(
 
 
 def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
-    """Unauthenticated read-only detail when the host has enabled public view."""
+    """Unauthenticated read-only detail for anyone holding the invite token (#880)."""
     group = db.scalar(
         select(GroupBuy)
         .where(GroupBuy.invite_token == token)
@@ -667,8 +666,6 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
     )
     if group is None:
         raise LookupError("Group buy not found")
-    if not bool(getattr(group, "is_public", False)):
-        raise PermissionError("This group buy is not public")
     return _detail_from_group(db, group, user=None, read_only=True)
 
 
@@ -1044,6 +1041,21 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
         missing_product_id=cards_missing,
         status=group.status,
     )
+
+
+def leave_group_buy(db: Session, user: User, group_id: int) -> None:
+    """A non-host member leaves an open group buy; their per-group rows go with them (#881)."""
+    group = _get_group(db, group_id)
+    member = _require_member(group, user)
+    if group.host_user_id == user.id:
+        raise ValueError("Host can't leave; delete the group buy instead")
+    if group.status != "open":
+        raise ValueError("Ask the host to unlock first")
+    for row in list(group.qty_overrides):
+        if row.user_id == user.id:
+            db.delete(row)
+    db.delete(member)
+    db.commit()
 
 
 def delete_group_buy(db: Session, user: User, group_id: int) -> None:
