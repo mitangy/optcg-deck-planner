@@ -401,6 +401,10 @@ class GroupBuyPublicUpdate(BaseModel):
     is_public: bool
 
 
+class GroupBuyTitleUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+
 class GroupBuyMemberOut(BaseModel):
     user_id: int
     display_name: str

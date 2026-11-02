@@ -36,6 +36,7 @@ from app.schemas import (
     GroupBuyInvitePreview,
     GroupBuyOrderUpdate,
     GroupBuyPublicUpdate,
+    GroupBuyTitleUpdate,
     GroupBuyQtyUpdate,
     GroupBuyReceiptApplyRequest,
     GroupBuyReceiptMatchReport,
@@ -566,6 +567,23 @@ def put_group_buy_public(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+@router.put("/group-buys/{group_id}/title", response_model=GroupBuyDetail)
+def put_group_buy_title(
+    group_id: int,
+    body: GroupBuyTitleUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return group_buy.set_title(db, user, group_id, body.title)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/group-buys/{group_id}/contribution", response_model=GroupBuyDetail)
