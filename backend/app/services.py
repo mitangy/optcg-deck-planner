@@ -732,7 +732,11 @@ def search_catalog(
     card_type: str = "",
     limit: int = 40,
 ) -> list[CatalogCardResult]:
-    """Search preferred catalog printings by name, id, color, type, rarity, or set."""
+    """Search cards by name, id, color, type, rarity, or set.
+
+    Text also matches any printing's name or set, so a card reprinted in another
+    set is found there (one row per card, shown as its preferred printing).
+    """
     limit = max(1, min(limit, 100))
     stmt = select(CatalogCard)
     filters = []
@@ -747,6 +751,14 @@ def search_catalog(
                 CatalogCard.card_type.ilike(like),
                 CatalogCard.rarity.ilike(like),
                 CatalogCard.group_name.ilike(like),
+                CatalogCard.card_id.in_(
+                    select(CatalogPrinting.card_id).where(
+                        or_(
+                            CatalogPrinting.name.ilike(like),
+                            CatalogPrinting.group_name.ilike(like),
+                        )
+                    )
+                ),
             )
         )
     color_q = (color or "").strip()
