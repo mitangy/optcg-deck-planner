@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrintingView } from "./api";
-import { altIncBlocked, myArtSplit, mySelectedArtsTotal, visibleGroupBuyLines } from "./groupBuyArt";
+import { altIncBlocked, groupBuyShownPrice, myArtSplit, mySelectedArtsTotal, visibleGroupBuyLines } from "./groupBuyArt";
 
 const alt = (product_id: number, name: string, price: number | null, wanted: number): PrintingView => ({
   product_id,
@@ -109,5 +109,23 @@ describe("visibleGroupBuyLines", () => {
     expect(
       visibleGroupBuyLines(lines, { showExcluded: true, keepVisible: new Set() }).map((l) => l.card_id),
     ).toEqual(["OP01-001", "OP01-002", "OP01-003"]);
+  });
+});
+
+describe("groupBuyShownPrice", () => {
+  it("Price sort uses the total across picked arts, not the base price (#876)", () => {
+    // Base order and total order disagree: A's unit price is below B's, but A's picked total is above.
+    const a = { ...line(2, [alt(2, "Manga", 9, 1)]), market_price: 1 };
+    const b = { ...line(1, []), market_price: 4 };
+    expect(groupBuyShownPrice(a)).toBe(10);
+    expect(groupBuyShownPrice(b)).toBe(1);
+    expect(a.market_price < b.market_price).toBe(true);
+    expect([b, a].sort((x, y) => (groupBuyShownPrice(y) ?? 0) - (groupBuyShownPrice(x) ?? 0))[0]).toBe(a);
+  });
+
+  it("shows the unit market price when you buy none, and null when a picked art is unpriced (#876)", () => {
+    expect(groupBuyShownPrice({ ...line(0, [alt(2, "Manga", 9, 1)]), market_price: 7 })).toBe(7);
+    expect(groupBuyShownPrice({ ...line(0, []), market_price: null })).toBeNull();
+    expect(groupBuyShownPrice(line(2, [alt(2, "Manga", null, 1)]))).toBeNull();
   });
 });
