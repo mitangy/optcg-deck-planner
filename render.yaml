@@ -77,6 +77,9 @@ services:
       # Optional: hourly prices for new/upcoming sets (default on in production). Defaults are fine:
       # NEW_RELEASE_PRICES=false turns it off, NEW_RELEASE_PRICE_DAYS=30 (how far back a set counts as new),
       # NEW_RELEASE_PRICE_INTERVAL_MINUTES=60 (minimum 15).
+      # Optional: price-alert emails (#855). Off until one is set; in-app alerts work either way.
+      # Resend: RESEND_API_KEY (secret, sync: false). Or SMTP: SMTP_HOST, SMTP_PORT=587 (STARTTLS),
+      # SMTP_USER, SMTP_PASSWORD (secret). EMAIL_FROM="Name <address@your-domain>" is the sender.
       # Admin page Hosting tab (#667): read-only tokens, each optional. Unset: that card says
       # "Not connected". ADMIN_EMAIL defaults to the owner (backend/app/config.py).
       - key: VERCEL_TOKEN

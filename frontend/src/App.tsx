@@ -85,6 +85,7 @@ import { MenuItem, Select } from "@optcg/ui/popups";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
+import { LightboxPriceAlertControl, NotificationsBell, PriceAlertsPage } from "./PriceAlerts";
 import { MetaPage } from "./MetaPage";
 import { FriendsNavLink } from "./friends/FriendsNavLink";
 import { FriendsPage } from "./friends/FriendsPage";
@@ -629,7 +630,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <CardLightboxActionContext.Provider value={renderLightboxShopping}>
+    <CardLightboxActionContext.Provider value={renderLightboxActions}>
     <div className="app">
       <header className="topbar">
         <div className="topbar-inner">
@@ -646,6 +647,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
             <NavLink to="/decks">Decks</NavLink>
             <NavLink to="/meta">Meta</NavLink>
             <NavLink to="/collection">Collection</NavLink>
+            <NavLink to="/alerts">Alerts</NavLink>
             <FriendsNavLink />
             <NavLink to="/group-buys">Group buys</NavLink>
             <NavLink to="/import">Import</NavLink>
@@ -655,6 +657,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
             <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
               Play Duel
             </a>
+            <NotificationsBell />
             <ThemeToggle />
             <span className="user-name" title={user.email}>
               {shortName}
@@ -2478,7 +2481,12 @@ function ShoppingScanHitAction({ cardId }: { cardId: string }) {
   );
 }
 
-const renderLightboxShopping = (cardId: string) => <LightboxShoppingControl cardId={cardId} />;
+const renderLightboxActions = (cardId: string, productId?: number) => (
+  <>
+    <LightboxShoppingControl cardId={cardId} />
+    <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
+  </>
+);
 
 function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
   const { shoppingById, ownedOf } = useShoppingCardState(deckIds);
@@ -2500,6 +2508,23 @@ function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deck
           cardId={card.card_id}
           item={shoppingById.get(card.card_id)}
           owned={ownedOf(card.card_id)}
+        />
+      )}
+    />
+  );
+}
+
+function AlertsRoute() {
+  return (
+    <PriceAlertsPage
+      renderSearch={(renderAction) => (
+        <CatalogAddDrawer
+          className="alerts-add"
+          summary="Search for a card to watch"
+          storageKey="optcg_alerts_add_open"
+          defaultOpen={false}
+          idleHint="Search the catalog by name or ID to watch a card's price"
+          renderAction={renderAction}
         />
       )}
     />
@@ -4899,6 +4924,14 @@ export default function App() {
           element={
             <RequireAuth>
               <CollectionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/alerts"
+          element={
+            <RequireAuth>
+              <AlertsRoute />
             </RequireAuth>
           }
         />

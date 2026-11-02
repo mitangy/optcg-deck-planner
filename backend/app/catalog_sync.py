@@ -102,6 +102,9 @@ def run_catalog_sync_job(
     try:
         result = sync_catalog(db)
         _sync_state["last_result"] = result
+        from app.price_alerts import check_alerts_safely
+
+        check_alerts_safely(db)
         return result
     except Exception as exc:  # noqa: BLE001 — record and surface via status
         _sync_state["last_error"] = str(exc)

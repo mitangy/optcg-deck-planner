@@ -145,6 +145,9 @@ def refresh_new_release_prices(db: Session, client: httpx.Client, now: datetime,
     summary["products_seen"] = len(prices)
     applied = apply_prices(db, prices, now)
     summary.update(applied)
+    from app.price_alerts import check_alerts_safely
+
+    check_alerts_safely(db)
     summary["seconds"] = round(time.monotonic() - started, 1)
     log.info(json.dumps({"event": "price_refresh", **summary}, separators=(",", ":")))
     return summary
