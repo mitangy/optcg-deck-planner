@@ -333,6 +333,12 @@ def _ensure_duel_server_urls() -> None:
     _add_columns("duel_invites", [("server_url", "VARCHAR(200)")])
 
 
+def _ensure_user_share_scans() -> None:
+    """Add users.share_scans on existing DBs; existing users default to sharing (#852)."""
+    true = "TRUE" if engine.dialect.name == "postgresql" else "1"
+    _add_columns("users", [("share_scans", f"BOOLEAN NOT NULL DEFAULT {true}")])
+
+
 def _ensure_user_role_columns() -> None:
     """Add the role and ban columns to users on existing DBs (#667)."""
     ts = "TIMESTAMP" if engine.dialect.name == "sqlite" else "TIMESTAMP WITH TIME ZONE"
@@ -437,6 +443,7 @@ def init_db() -> None:
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()
     _ensure_user_role_columns()
+    _ensure_user_share_scans()
     _ensure_eval_run_columns()
     _ensure_cosmetic_takedown_columns()
     _ensure_admin_role()

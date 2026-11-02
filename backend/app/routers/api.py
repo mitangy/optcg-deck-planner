@@ -319,6 +319,8 @@ def patch_preferences(
     """Update per-user settings (e.g. how shopping Need combines decks)."""
     if body.sum_across_leaders is not None:
         user.sum_across_leaders = body.sum_across_leaders
+    if body.share_scans is not None:
+        user.share_scans = body.share_scans
     db.commit()
     db.refresh(user)
     return user

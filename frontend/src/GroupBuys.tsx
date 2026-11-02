@@ -29,8 +29,10 @@ import {
   useShowAltArts,
   type SortKey,
 } from "./cardListControls";
-import { CardThumb, MobileCardMedia } from "./CardThumb";
-import { AltArtsRow, MarketPrice } from "./MarketPrice";
+import { CardThumb } from "./CardThumb";
+import { AltArtsRow, AltStepper, MarketPrice } from "./MarketPrice";
+import { GridCard, MobileCard } from "./PlannerCard";
+import { myArtSplit, mySelectedArtsTotal, qtyForBase } from "./groupBuyArt";
 import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
 import { invalidateOwnedViews } from "./ownedCollection";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
@@ -258,6 +260,26 @@ function MemberColorRail({
       {active.map((m) => (
         <span key={m.user_id} style={{ background: memberColor(m.user_id, members) }} />
       ))}
+    </span>
+  );
+}
+
+/**
+ * Price under a group-buy card. With copies in the viewer's buy it is the total
+ * across the arts they picked (breakdown in the tooltip); otherwise the usual
+ * clickable unit price. Both states keep one line of the same height.
+ */
+function GroupBuyCardPrice({ line }: { line: GroupBuyLine }) {
+  if (line.my_qty <= 0) {
+    return <MarketPrice price={line.market_price} productId={line.product_id} />;
+  }
+  const t = mySelectedArtsTotal(line);
+  return (
+    <span className="gb-arts-total" title={t.breakdown} data-testid="gb-arts-total">
+      <span className="gb-arts-total-amount">{money(t.total)}</span>
+      <span className="gb-arts-total-cap muted">
+        Your {t.copies} {t.copies === 1 ? "copy" : "copies"}
+      </span>
     </span>
   );
 }
@@ -995,8 +1017,31 @@ export function GroupBuyDetailPage() {
   const groupBuyAltRow = (line: GroupBuyLine) => {
     const alts = line.alt_arts ?? [];
     const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0;
+    const canEditBase = detail?.status === "open";
+    const baseCount = myArtSplit(line).base;
+    const baseControl = canEditBase ? (
+      <AltStepper
+        caption="Want"
+        verb="want"
+        name={`${line.name} base art`}
+        value={baseCount}
+        busy={qtyBusy}
+        onChange={(base) => setQty.mutate({ cardId: line.card_id, qty: qtyForBase(line, base) })}
+      />
+    ) : baseCount > 0 ? (
+      <span className="alt-want-label" title="Copies you buy as the base art">
+        Buy ×{baseCount}
+      </span>
+    ) : null;
     return (
       <AltArtsRow
+        base={{
+          name: line.name,
+          image_url: line.base_image_url || undefined,
+          market_price: line.preferred_market_price ?? null,
+          product_id: line.preferred_product_id ?? null,
+        }}
+        baseOwnedControl={baseControl}
         alts={alts}
         cardId={line.card_id}
         cardNeeded={line.my_need ?? 0}
@@ -1590,27 +1635,22 @@ export function GroupBuyDetailPage() {
                 const line = row.line;
                 const excluded = isLineExcluded(line);
                 return (
-                  <article
+                  <GridCard
                     key={row.key}
-                    className={cardShellClass("grid-card need", line, members, excluded)}
+                    className={cardShellClass("need", line, members, excluded)}
+                    before={<MemberColorRail line={line} members={members} />}
+                    cardId={line.card_id}
+                    name={line.name}
+                    imageSrc={line.image_url || undefined}
+                    meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
+                      .filter(Boolean)
+                      .join(" · ")}
                   >
-                    <MemberColorRail line={line} members={members} />
-                    <div className="grid-card-media">
-                      <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
-                    </div>
-                    <div className="grid-card-body">
-                      <div className="card-id">{line.card_id}</div>
-                      <div className="grid-card-name">{line.name}</div>
-                      <div className="grid-card-meta muted">
-                        {[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
                       <div className="group-buy-who-row">
                         <MemberBreakdown line={line} members={members} />
                       </div>
                       <div className="grid-card-price">
-                        <MarketPrice price={line.market_price} productId={line.product_id} />
+                        <GroupBuyCardPrice line={line} />
                       </div>
                       {detail.status === "open" ? (
                         <div className="grid-card-owned">
@@ -1648,8 +1688,7 @@ export function GroupBuyDetailPage() {
                       {showAltArts ? (
                         <div className="grid-card-alts">{groupBuyAltRow(line)}</div>
                       ) : null}
-                    </div>
-                  </article>
+                  </GridCard>
                 );
               })}
             </div>
@@ -1670,40 +1709,34 @@ export function GroupBuyDetailPage() {
                 const line = row.line;
                 const excluded = isLineExcluded(line);
                 return (
-                  <article
+                  <MobileCard
                     key={row.key}
-                    className={cardShellClass("mobile-card need", line, members, excluded)}
-                  >
-                    <MemberColorRail line={line} members={members} />
-                    <div className="mobile-card-top">
-                      <MobileCardMedia
-                        src={line.image_url || undefined}
-                        cardId={line.card_id}
-                        alt={line.name}
-                        cost={line.cost ?? null}
-                        rarity={line.rarity}
-                      />
-                      <div className="mobile-card-info">
-                        <div className="card-id">{line.card_id}</div>
-                        <div className="mobile-card-name">{line.name}</div>
-                        <div className="mobile-card-meta">
-                          {[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </div>
+                    className={cardShellClass("need", line, members, excluded)}
+                    before={<MemberColorRail line={line} members={members} />}
+                    cardId={line.card_id}
+                    name={line.name}
+                    imageSrc={line.image_url || undefined}
+                    cost={line.cost ?? null}
+                    rarity={line.rarity}
+                    meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    info={
+                      <>
                         <div className="group-buy-who-row">
                           <MemberBreakdown line={line} members={members} />
                         </div>
                         <div className="mobile-card-price-row">
-                          <MarketPrice price={line.market_price} productId={line.product_id} />
+                          <GroupBuyCardPrice line={line} />
                           {line.tcgplayer_url ? (
                             <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
                               TCGPlayer
                             </a>
                           ) : null}
                         </div>
-                      </div>
-                    </div>
+                      </>
+                    }
+                  >
                     {detail.status === "open" ? (
                       <div className="mobile-card-owned">
                         <span>Your buy</span>
@@ -1735,7 +1768,7 @@ export function GroupBuyDetailPage() {
                     {showAltArts ? (
                       <div className="mobile-card-alts">{groupBuyAltRow(line)}</div>
                     ) : null}
-                  </article>
+                  </MobileCard>
                 );
               })}
             </div>
@@ -2096,45 +2129,42 @@ export function PublicGroupBuyPage() {
           {layout === "grid" ? (
             <div className="card-grid">
               {lines.map((line) => (
-                <article key={line.card_id} className="grid-card need">
-                  <div className="grid-card-media">
-                    <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
+                <GridCard
+                  key={line.card_id}
+                  className="need"
+                  cardId={line.card_id}
+                  name={line.name}
+                  imageSrc={line.image_url || undefined}
+                  meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
+                >
+                  <MemberBreakdown line={line} members={members} />
+                  <div className="grid-card-price">
+                    <MarketPrice price={line.market_price} productId={line.product_id} />
                   </div>
-                  <div className="grid-card-body">
-                    <div className="card-id">{line.card_id}</div>
-                    <div className="grid-card-name">{line.name}</div>
-                    <div className="grid-card-meta muted">
-                      {line.total_qty} copies · {money(line.remaining_cost)}
-                    </div>
-                    <MemberBreakdown line={line} members={members} />
-                    <div className="grid-card-price">
-                      <MarketPrice price={line.market_price} productId={line.product_id} />
-                    </div>
-                  </div>
-                </article>
+                </GridCard>
               ))}
             </div>
           ) : isNarrow ? (
             <div className="mobile-card-list">
               {lines.map((line) => (
-                <article key={line.card_id} className="mobile-card need">
-                  <MobileCardMedia
-                    src={line.image_url || undefined}
-                    cardId={line.card_id}
-                    alt={line.name}
-                    cost={line.cost ?? null}
-                    rarity={line.rarity}
-                  />
-                  <div className="mobile-card-body">
-                    <div className="card-id">{line.card_id}</div>
-                    <div className="mobile-card-name">{line.name}</div>
-                    <div className="muted">
-                      {line.total_qty} copies · {money(line.remaining_cost)}
-                    </div>
-                    <MemberBreakdown line={line} members={members} />
-                    <MarketPrice price={line.market_price} productId={line.product_id} />
-                  </div>
-                </article>
+                <MobileCard
+                  key={line.card_id}
+                  className="need"
+                  cardId={line.card_id}
+                  name={line.name}
+                  imageSrc={line.image_url || undefined}
+                  cost={line.cost ?? null}
+                  rarity={line.rarity}
+                  meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
+                  info={
+                    <>
+                      <MemberBreakdown line={line} members={members} />
+                      <div className="mobile-card-price-row">
+                        <MarketPrice price={line.market_price} productId={line.product_id} />
+                      </div>
+                    </>
+                  }
+                />
               ))}
             </div>
           ) : (

@@ -12,6 +12,12 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Group buy: totals across the arts the viewer picked (#850)
+    { id: "gb850-base-qty-ignores-alt-wants", file: "frontend/src/groupBuyArt.ts", from: "  return wanted + Math.max(0, base);", to: "  return Math.max(0, base);", kills: ["puts the base count on top of every alt want"] },
+    { id: "gb850-alt-wants-ignored", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = 0;", kills: ["fills alt wants first"] },
+    { id: "gb850-alt-not-capped-by-qty", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = Math.max(0, alt.wanted ?? 0);", kills: ["caps alt copies by the buy qty"] },
+    { id: "gb850-base-priced-at-checkout", file: "frontend/src/groupBuyArt.ts", from: "line.preferred_market_price ?? null", to: "(line as { market_price?: number | null }).market_price ?? null", kills: ["prices base at the preferred printing"] },
+    { id: "gb850-unpriced-art-counts-as-zero", file: "frontend/src/groupBuyArt.ts", from: "const priced = parts.every((p) => p.price != null);", to: "const priced = true;", kills: ["unknown when a picked art has no price"] },
     // Collection page filters (#752)
     { id: "collection748-type-filter-ignored", file: "frontend/src/collectionView.ts", from: "  if (f.type) list = list.filter((i) => cardHasType(i, f.type));\n", to: "", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)", "colour, type and Not in a deck narrow together (#752)"] },
     { id: "collection748-type-case-sensitive", file: "frontend/src/collectionView.ts", from: "return (card.card_type ?? \"\").trim().toLowerCase() === type.toLowerCase();", to: "return (card.card_type ?? \"\").trim() === type;", kills: ["a type chip keeps only that type, whatever its capitalisation (#752)"] },
@@ -80,15 +86,11 @@ module.exports = {
     // AltArtsRow tiles pass the card id so the preview fallback works (#643)
     { id: "alt-row-alt-tile-no-card-id", file: "frontend/src/MarketPrice.tsx", from: "<CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} />", to: "<CardThumb src={alt.image_url || undefined} alt={alt.name} />", kills: ["an alt with no alt preview falls back to the card preview (#643)"] },
     { id: "alt-row-base-tile-no-card-id", file: "frontend/src/MarketPrice.tsx", from: "<CardThumb src={base.image_url || undefined} cardId={cardId} alt=", to: "<CardThumb src={base.image_url || undefined} alt=", kills: ["the Base tile ends on the card preview (#643)"] },
-    // CardCaptureLive guide crop
-    { id: "crop-no-guide-empty", file: capture, from: "!box.width || !box.height) return full;", to: "!box.width || !box.height) return { ...full, width: 0, height: 0 };", kills: ["falls back to the whole frame"] },
-    { id: "crop-y-unscaled", file: capture, from: "  const y = (top + hiddenY) / scale;", to: "  const y = top + hiddenY;", kills: ["maps a centred guide to the centre of the frame"] },
-    { id: "crop-contain-scale", file: capture, from: "  const scale = Math.max(box.width / video.videoWidth", to: "  const scale = Math.min(box.width / video.videoWidth", kills: ["undoes the cover scale"] },
-    { id: "crop-margin-one-side", file: capture, from: "  const width = (g.width + marginX * 2) / scale;", to: "  const width = (g.width + marginX) / scale;", kills: ["undoes the cover scale"] },
-    { id: "crop-ignores-hidden-overflow", file: capture, from: "  const hiddenX = (shownW - box.width) / 2;", to: "  const hiddenX = 0;", kills: ["accounts for the horizontally cropped overflow"] },
-    { id: "crop-ignores-element-offset", file: capture, from: "  const left = g.left - box.left - marginX;", to: "  const left = g.left - marginX;", kills: ["offsets by the element's own position"] },
-    { id: "crop-unclamped-origin", file: capture, from: "  const cy = Math.max(0, Math.min(y, video.videoHeight));", to: "  const cy = y;", kills: ["never asks for pixels outside the frame"] },
-    { id: "crop-unclamped-size", file: capture, from: "    height: Math.max(1, Math.min(height, video.videoHeight - cy)),", to: "    height: Math.max(1, height),", kills: ["never asks for pixels outside the frame"] },
+    // CardCaptureLive captures the whole frame (#854)
+    { id: "capture-crops-frame", edits: [
+      { file: capture, from: "    canvas.width = video.videoWidth;", to: "    canvas.width = Math.round(video.videoWidth / 2);" },
+      { file: capture, from: "    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);", to: "    ctx.drawImage(video, 0, 0, video.videoWidth / 2, canvas.height);" },
+    ], kills: ["Capture sends the whole camera frame, not a cropped box (#854)"] },
     // cardRectify
     { id: "homography-swaps-axes", file: rectify, from: "    x: (h[0] * p.x + h[1] * p.y + h[2]) / d,\n    y: (h[3] * p.x + h[4] * p.y + h[5]) / d,", to: "    y: (h[0] * p.x + h[1] * p.y + h[2]) / d,\n    x: (h[3] * p.x + h[4] * p.y + h[5]) / d,", kills: ["recovers an identity mapping"] },
     { id: "homography-affine-only", edits: [
@@ -401,5 +403,22 @@ module.exports = {
     {"id": "seo-planner-vercel-drops-route", "file": "vercel.json", "from": "    {\n      \"src\": \"/collection/?\",\n      \"dest\": \"/index.html\"\n    },\n", "to": "", "kills": ["/collection answers 200 with the app (#804)"]},
     {"id": "seo-planner-vercel-drops-friend-deck", "file": "vercel.json", "from": "    {\n      \"src\": \"/friends/[^/]+/decks/[^/]+/?\",\n      \"dest\": \"/index.html\"\n    },\n", "to": "", "kills": ["/friends/:username/decks/:deckId answers 200 with the app (#804)"]},
     {"id": "seo-planner-vercel-unknown-200", "file": "vercel.json", "from": "      \"dest\": \"/index.html\",\n      \"status\": 404\n", "to": "      \"dest\": \"/index.html\"\n", "kills": ["an unknown path answers 404 and still serves the app (#804)"]},
+    // Sharing confirmed scan crops (#852)
+    {"id": "scan-share-label-always-confirmed", "file": "frontend/src/scanTray.ts", "from": "label: predicted === row.cardId ? \"confirmed\" : \"corrected\",", "to": "label: \"confirmed\",", "kills": ["labels a kept read confirmed and a typed fix corrected, keeping the scanner's own guess (#852)", "a Fix that joins an existing row keeps every crop as its own sample (#852)"]},
+    {"id": "scan-share-predicted-ignores-none", "file": "frontend/src/scanTray.ts", "from": "item.confidence === \"none\" ? null : (item.cardId?.trim().toUpperCase() ?? null)", "to": "(item.cardId?.trim().toUpperCase() ?? null)", "kills": ["labels a kept read confirmed and a typed fix corrected, keeping the scanner's own guess (#852)"]},
+    {"id": "scan-share-short-row-uploaded", "file": "frontend/src/scanTray.ts", "from": "row.qty <= 0 || row.qty < row.sources.length", "to": "row.qty <= 0", "kills": ["skips the whole row when the user added fewer copies than there are crops (#852)"]},
+    {"id": "scan-share-zero-qty-uploaded", "edits": [{"file": "frontend/src/scanTray.ts", "from": "if (!row.cardId || row.qty <= 0 || row.qty < row.sources.length) continue;", "to": "if (false) continue;"}], "kills": ["never shares skipped, unmatched or unknown-card rows (#852)"]},
+    {"id": "scan-share-empty-crop-uploaded", "file": "frontend/src/scanTray.ts", "from": "if (!item?.sampleUrl) continue;", "to": "if (!item) continue;", "kills": ["leaves out a crop that could not be cut (#852)"]},
+    {"id": "scan-share-fix-merge-drops-sources", "file": "frontend/src/scanTray.ts", "from": "sources: [...r.sources, ...target.sources],", "to": "sources: r.sources,", "kills": ["a Fix that joins an existing row keeps every crop as its own sample (#852)"]},
+    {"id": "scan-share-merge-drops-sources", "file": "frontend/src/scanTray.ts", "from": "      row.sources.push(i);\n", "to": "", "kills": ["skips the whole row when the user added fewer copies than there are crops (#852)"]},
+    {"id": "scan-share-upload-ignores-switch", "file": "frontend/src/CardScanner.tsx", "from": "if (qc.getQueryData<User | null>([\"me\"])?.share_scans === true) {", "to": "if (true) {", "kills": ["uploads nothing when the user switched sharing off (#852)"]},
+    {"id": "scan-share-upload-despite-failed-add", "file": "frontend/src/CardScanner.tsx", "from": "await api.addOwned(payload);", "to": "await api.addOwned(payload).catch(() => {});", "kills": ["uploads nothing when adding the cards failed (#852)"]},
+    {"id": "scan-share-upload-blocks-add", "edits": [{"file": "frontend/src/CardScanner.tsx", "from": "void uploadScanSamples(traySamples(tray.rows, tray.items))", "to": "await uploadScanSamples(traySamples(tray.rows, tray.items))"}, {"file": "frontend/src/scanShare.ts", "from": "scanLog(\"scan-share:error\", err);\n      return;", "to": "throw err;"}], "kills": ["a failed upload never blocks the add or shows an error (#852)"]},
+    {"id": "scan-share-chunk-too-big", "file": "frontend/src/scanShare.ts", "from": "export const SAMPLE_UPLOAD_CHUNK = 40;", "to": "export const SAMPLE_UPLOAD_CHUNK = 400;", "kills": ["sends at most 40 crops per request (#852)"]},
+    {"id": "scan-share-toggle-always-on", "file": "frontend/src/ScanShare.tsx", "from": "api.updatePreferences({ share_scans: value })", "to": "api.updatePreferences({ share_scans: true })", "kills": ["the switch shows the setting and saves a change with PATCH /preferences (#852)"]},
+    {"id": "scan-share-switch-ignores-setting", "file": "frontend/src/ScanShare.tsx", "from": "checked={me.data.share_scans === true}", "to": "checked={true}", "kills": ["the switch shows the setting and saves a change with PATCH /preferences (#852)"]},
+    {"id": "scan-share-delete-no-confirm", "file": "frontend/src/ScanShare.tsx", "from": "onClick={() => setConfirming(true)}", "to": "onClick={() => remove.mutate()}", "kills": ["deleting shared crops asks first, then deletes and says Deleted (#852)"]},
+    {"id": "scan-share-delete-always-offered", "file": "frontend/src/ScanShare.tsx", "from": "(count > 0 || deleted) &&", "to": "true &&", "kills": ["offers no delete when nothing was shared (#852)"]},
+    {"id": "scan-share-sample-uses-thumbnail", "file": "frontend/src/cardScanMulti.ts", "from": "sampleUrl: sample(photo, quad),", "to": "sampleUrl: thumbnail(photo, quad),", "kills": ["cuts each card's upload crop from the full photo, apart from its thumbnail (#852)"]},
 ],
 };

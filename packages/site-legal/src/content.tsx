@@ -184,9 +184,19 @@ const privacy: ReactNode = (
         order. Members of the group buy can see these.
       </li>
       <li>
-        The card scanner uses your camera only inside your browser. Camera images are not uploaded.
+        The card scanner reads your photo or camera image inside your browser. The photo itself is
+        never uploaded. See “Scanner crops” below for the one thing that is.
       </li>
     </ul>
+
+    <h3 id="scanner-crops">Scanner crops</h3>
+    <p>
+      When you add cards with the photo scanner, we save a small crop of each recognised card (not
+      the whole photo) together with the card you confirmed, so we can improve the scanner. This is
+      on by default. Switch it off with “Share card crops to improve the scanner” in the scanner’s
+      review screen. You can delete the crops you shared there too, or by deleting your account.
+      Crops older than a year are deleted automatically.
+    </p>
 
     <h3>OPTCG Duel</h3>
     <ul>

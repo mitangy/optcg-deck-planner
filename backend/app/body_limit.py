@@ -18,6 +18,8 @@ ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/duel/matches", 8 * 1024 * 1024),
     # A report may carry the image the reporter saw as a data URL.
     ("/duel/reports", 1536 * 1024),
+    # Up to 40 base64 crops of at most 64 KB each (#852).
+    ("/scan-samples", 4 * 1024 * 1024),
     ("/analyst/bot-games", 8 * 1024 * 1024),
 )
 

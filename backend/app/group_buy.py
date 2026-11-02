@@ -285,6 +285,9 @@ def _build_lines(
             preferred_market = printings[preferred_product_id].market_price
         elif cat is not None:
             preferred_market = cat.market_price
+        base_image_url = cat.image_url if cat else ""
+        if preferred_product_id and preferred_product_id in printings:
+            base_image_url = printings[preferred_product_id].image_url or base_image_url
         product_id = (
             product_overrides.get(card_id)
             or (line.suggested_product_id if line else None)
@@ -351,6 +354,7 @@ def _build_lines(
                 preferred_market_price=preferred_market,
                 tcgplayer_url=tcgplayer_url,
                 image_url=image_url,
+                base_image_url=base_image_url,
                 members=[
                     GroupBuyMemberQtyOut(
                         user_id=m.user_id,

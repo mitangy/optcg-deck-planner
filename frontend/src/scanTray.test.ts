@@ -9,6 +9,7 @@ import {
   trayAddPayload,
   trayNeedText,
   trayReadyCount,
+  traySamples,
 } from "./scanTray";
 
 const quad: MultiScanItem["quad"] = [
@@ -24,6 +25,7 @@ const item = (
 ): MultiScanItem => ({
   quad,
   thumbUrl: thumb,
+  sampleUrl: `crop-${thumb}`,
   cardId,
   inliers: 0,
   runnerUp: 0,
@@ -110,5 +112,54 @@ describe("trayNeedText", () => {
   });
   it("says the card is not on the shopping list when there is no entry (#849)", () => {
     expect(trayNeedText(undefined)).toBe("Not on your shopping list");
+  });
+});
+
+describe("shared scan crops (#852)", () => {
+  const items = (...list: [string | null, MultiScanConfidence][]) =>
+    list.map(([id, c], i) => item(id, c, `t${i}`));
+
+  it("labels a kept read confirmed and a typed fix corrected, keeping the scanner's own guess (#852)", () => {
+    const scan = items(["OP01-120", "sure"], ["OP01-001", "check"], [null, "none"], ["OP01-077", "none"]);
+    let rows = buildTrayRows(scan);
+    rows = fixRow(rows, "OP01-001", "op01-002");
+    rows = fixRow(rows, "none-2", "OP01-003");
+    rows = fixRow(rows, "none-3", "OP01-004");
+    expect(traySamples(rows, scan)).toEqual([
+      { image: "crop-t0", predicted_id: "OP01-120", confidence: "sure", final_id: "OP01-120", label: "confirmed" },
+      { image: "crop-t1", predicted_id: "OP01-001", confidence: "check", final_id: "OP01-002", label: "corrected" },
+      { image: "crop-t2", predicted_id: null, confidence: "none", final_id: "OP01-003", label: "corrected" },
+      { image: "crop-t3", predicted_id: null, confidence: "none", final_id: "OP01-004", label: "corrected" },
+    ]);
+  });
+
+  it("skips the whole row when the user added fewer copies than there are crops (#852)", () => {
+    const scan = items(["OP01-120", "sure"], ["OP01-120", "sure"], ["OP01-001", "sure"], ["OP01-002", "sure"], ["OP01-002", "sure"]);
+    let rows = buildTrayRows(scan);
+    rows = setRowQty(rows, "OP01-120", 1);
+    rows = setRowQty(rows, "OP01-002", 3);
+    expect(traySamples(rows, scan).map((s) => s.image)).toEqual(["crop-t2", "crop-t3", "crop-t4"]);
+  });
+
+  it("never shares skipped, unmatched or unknown-card rows (#852)", () => {
+    const scan = items(["OP01-120", "sure"], ["OP01-001", "check"], [null, "none"], ["ZZ99-999", "sure"]);
+    let rows = dropUnknownCards(buildTrayRows(scan), new Set(["OP01-120", "OP01-001"]));
+    rows = setRowQty(rows, "OP01-001", 0);
+    expect(traySamples(rows, scan).map((s) => s.image)).toEqual(["crop-t0"]);
+  });
+
+  it("a Fix that joins an existing row keeps every crop as its own sample (#852)", () => {
+    const scan = items(["OP01-120", "sure"], [null, "none"]);
+    const rows = fixRow(buildTrayRows(scan), "none-1", "OP01-120");
+    expect(traySamples(rows, scan).map((s) => [s.image, s.label])).toEqual([
+      ["crop-t0", "confirmed"],
+      ["crop-t1", "corrected"],
+    ]);
+  });
+
+  it("leaves out a crop that could not be cut (#852)", () => {
+    const scan = items(["OP01-120", "sure"], ["OP01-120", "sure"]);
+    scan[0] = { ...scan[0]!, sampleUrl: "" };
+    expect(traySamples(buildTrayRows(scan), scan).map((s) => s.image)).toEqual(["crop-t1"]);
   });
 });

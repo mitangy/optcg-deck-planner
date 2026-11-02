@@ -4954,76 +4954,8 @@ button.ghost.scan-open:hover {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-}
-
-.live-guide-layer {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-/* A large box-shadow doubles as a mask: everything outside the rounded rect
-   darkens, without a separate overlay element or a clip-path polygon. */
-.live-guide-box {
-  position: relative;
-  /* Bound by both viewport dimensions, correctly converted through the
-     card's own aspect ratio (0.7159, matching CARD_ASPECT in cardRectify.ts)
-     rather than comparing a height percentage against a width percentage
-     directly. min(70dvh, 78vw) compared raw units with no shared basis: on a
-     typical phone the vw bound is the smaller number by construction (since
-     screens are taller than wide), so the box always clamped to it — visibly
-     smaller than a real card held up to the camera, forcing an awkwardly
-     long working distance to fill it. Converting the width bound through the
-     aspect ratio into an equivalent height keeps the comparison meaningful. */
-  height: min(72dvh, calc(85vw / 0.7159));
-  border-radius: 14px;
-  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.85);
-}
-
-.live-guide-corner {
-  position: absolute;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-style: solid;
-  border-color: #fff;
-  border-width: 0;
-}
-
-.live-guide-corner.tl {
-  top: -2px;
-  left: -2px;
-  border-top-width: 3px;
-  border-left-width: 3px;
-  border-top-left-radius: 10px;
-}
-
-.live-guide-corner.tr {
-  top: -2px;
-  right: -2px;
-  border-top-width: 3px;
-  border-right-width: 3px;
-  border-top-right-radius: 10px;
-}
-
-.live-guide-corner.bl {
-  bottom: -2px;
-  left: -2px;
-  border-bottom-width: 3px;
-  border-left-width: 3px;
-  border-bottom-left-radius: 10px;
-}
-
-.live-guide-corner.br {
-  bottom: -2px;
-  right: -2px;
-  border-bottom-width: 3px;
-  border-right-width: 3px;
-  border-bottom-right-radius: 10px;
+  /* contain, not cover: the preview shows the exact full frame that gets captured. */
+  object-fit: contain;
 }
 
 .live-status {
@@ -6775,6 +6707,70 @@ button.ghost.scan-tray-fix {
   background: var(--card);
 }
 
+/* Sharing switch + delete line (#852). Fixed-size controls; nothing here changes size while saving. */
+.scan-share {
+  flex: none;
+  padding-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.scan-share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scan-share-toggle input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+}
+
+.scan-share-toggle span {
+  min-width: 0;
+}
+
+.scan-share-note,
+.scan-share-delete {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.scan-share-delete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-height: 2rem;
+}
+
+.scan-share-delete button {
+  min-height: 2rem;
+  padding-block: 0;
+}
+
+.scan-share-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.scan-share-danger {
+  color: var(--danger);
+}
+
+.scan-share-err {
+  color: var(--danger);
+}
+
 .scan-tray-error {
   min-height: 1.2rem;
   margin: 0 0 0.35rem;
@@ -7423,4 +7419,30 @@ button.ghost.scan-tray-fix {
 
 .landing-notice b {
   color: var(--ink);
+}
+
+/* Group buy: total across the arts the viewer picked (#850). Same box as the clickable market price so swapping states never shifts the card. */
+.gb-arts-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.gb-arts-total-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-arts-total-cap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
 }
