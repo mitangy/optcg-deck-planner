@@ -234,3 +234,91 @@ def test_share_http_extras_off_hides_them_on_the_public_page_527(client):
     c.post("/share", json={"kind": "shopping", "include_extras": True})
     items = c.get(f"/public/share/{shared['token']}").json()["items"]
     assert [i["card_id"] for i in items] == ["OP01-002"]
+
+
+# ---- Alt picks on Master Shopping cards (#872) ----
+
+
+def _alt_setup(db, email="alt872@example.com"):
+    user = _setup(db, email=email)
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1009, market=9.0, special=True)
+    add_catalog(db, "OP01-002", name="Zoro", product_id=2009, market=7.0, special=True)
+    return user
+
+
+def _wanted(db, user, card_id, pid):
+    alts = _item(services.shopping_list(db, user), card_id).alt_arts
+    return next(a.wanted for a in alts if a.product_id == pid)
+
+
+def test_alt_pick_saves_for_a_card_added_only_from_master_shopping_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})
+    services.set_shopping_extra(db, user, "OP01-002", 2)
+
+    shown, _ = services.set_user_card_printing(
+        db, user, "OP01-002", 2009, 1, deck_ids=[deck.id]
+    )
+
+    assert shown == 1
+    assert _wanted(db, user, "OP01-002", 2009) == 1
+
+
+def test_alt_pick_above_the_deck_count_sticks_when_master_shopping_wants_more_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 2})
+    services.set_shopping_extra(db, user, "OP01-001", 4)
+
+    shown, _ = services.set_user_card_printing(
+        db, user, "OP01-001", 1009, 3, deck_ids=[deck.id]
+    )
+
+    assert shown == 3
+    assert _wanted(db, user, "OP01-001", 1009) == 3
+
+
+def test_alt_pick_never_exceeds_the_master_shopping_want_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 2})
+    services.set_shopping_extra(db, user, "OP01-001", 4)
+
+    shown, _ = services.set_user_card_printing(
+        db, user, "OP01-001", 1009, 9, deck_ids=[deck.id]
+    )
+
+    assert shown == 4
+    assert _wanted(db, user, "OP01-001", 1009) == 4
+
+
+def test_lowering_an_alt_pick_on_a_master_shopping_card_lowers_it_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})
+    services.set_shopping_extra(db, user, "OP01-002", 3)
+
+    services.set_user_card_printing(db, user, "OP01-002", 2009, 2, deck_ids=[deck.id])
+    shown, _ = services.set_user_card_printing(
+        db, user, "OP01-002", 2009, 1, deck_ids=[deck.id]
+    )
+
+    assert shown == 1
+    assert _wanted(db, user, "OP01-002", 2009) == 1
+
+
+def test_removing_the_master_shopping_card_clears_its_alt_picks_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})
+    services.set_shopping_extra(db, user, "OP01-002", 2)
+    services.set_user_card_printing(db, user, "OP01-002", 2009, 2, deck_ids=[deck.id])
+
+    services.set_shopping_extra(db, user, "OP01-002", 0)
+    services.set_shopping_extra(db, user, "OP01-002", 2)
+
+    assert _wanted(db, user, "OP01-002", 2009) == 0
+
+
+def test_alt_pick_for_a_card_in_no_deck_and_no_extra_is_refused_872(db):
+    user = _alt_setup(db)
+    deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})
+
+    with pytest.raises(LookupError):
+        services.set_user_card_printing(db, user, "OP01-002", 2009, 1, deck_ids=[deck.id])

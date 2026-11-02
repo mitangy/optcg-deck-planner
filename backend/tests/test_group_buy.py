@@ -547,3 +547,23 @@ def test_public_view_requires_toggle_and_is_read_only(db, two_players):
     with pytest.raises(PermissionError):
         group_buy.public_group_buy_view(db, created.invite_token)
 
+
+
+def test_group_buy_alt_pick_saves_for_a_master_shopping_card_872(db):
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    add_catalog(db, "OP01-002", name="Zoro", product_id=1002, market=1.0)
+    add_catalog(db, "OP01-002", name="Zoro", product_id=1019, market=8.0, special=True)
+    user = make_user(db, email="mshop@example.com", name="Mshop", sub="sub-mshop")
+    deck = add_deck_with_cards(db, user, "Deck", {"OP01-001": 1})
+    services.set_shopping_extra(db, user, "OP01-002", 2)
+    created = group_buy.create_group_buy(db, user, "Extras", deck_ids=[deck.id])
+
+    shown, _ = services.set_user_card_printing(
+        db, user, "OP01-002", 1019, 1, deck_ids=[deck.id]
+    )
+
+    assert shown == 1
+    detail = group_buy.get_group_buy(db, user, created.id)
+    line = next(l for l in detail.lines if l.card_id == "OP01-002")
+    assert next(a.wanted for a in line.alt_arts if a.product_id == 1019) == 1
+    assert line.remaining_cost == pytest.approx(8.0 + 1.0)

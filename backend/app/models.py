@@ -243,6 +243,25 @@ class ShoppingExtra(Base):
     user: Mapped[User] = relationship(back_populates="shopping_extras")
 
 
+class ShoppingExtraPrinting(Base):
+    """Alt-art want counts for a card that is in Master Shopping through a ShoppingExtra.
+
+    Deck cards keep their alt wants on DeckCardPrinting; a card added only from Master
+    Shopping has no deck, so its wants live here. Their sum stays <= the extra's qty.
+    """
+
+    __tablename__ = "shopping_extra_printings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", "product_id", name="uq_user_shopping_extra_printing"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class ShareLink(Base):
     """Public read-only link to a user's shopping list (or a deck)."""
 
