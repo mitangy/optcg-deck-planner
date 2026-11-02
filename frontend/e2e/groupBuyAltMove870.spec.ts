@@ -1,7 +1,7 @@
 /**
- * Group buy detail (/group-buys/:id): each art tile is its own count. Your buy
- * is Base + every alt want, so + on an alt adds a copy even after Base went to 0,
- * and the host no longer gets a Printing dropdown (#868).
+ * Group buy detail (/group-buys/:id): + on an alt art moves one copy from the
+ * Base art. Your buy stays the shopping number, Base is read-only, and + is
+ * disabled once Base has no copy left to move (#870).
  */
 import { expect, test } from "./fixtures";
 
@@ -17,8 +17,8 @@ function detail(myQty: number, mangaWant: number) {
     id: GB,
     title: "Zoro split",
     status: "open",
-    invite_token: "gb-invite-868",
-    invite_path: "/group-buy/join/gb-invite-868",
+    invite_token: "gb-invite-870",
+    invite_path: "/group-buy/join/gb-invite-870",
     host_user_id: 1,
     host_name: "Nami",
     member_count: 1,
@@ -74,18 +74,19 @@ function detail(myQty: number, mangaWant: number) {
   };
 }
 
-test("Raising an alt want after Base went to 0 adds a copy to Your buy (#868)", async ({ page, planner }, testInfo) => {
-  let myQty = 3;
+test("Plus on an alt moves a copy from Base and never changes Your buy (#870)", async ({ page, planner }, testInfo) => {
+  const myQty = 3;
   let mangaWant = 0;
   const qtyPuts: number[] = [];
+  const printingPuts: number[] = [];
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(myQty, mangaWant) }));
   await page.route(`**/api/group-buys/${GB}/quantities/OP01-001`, (route) => {
-    myQty = (JSON.parse(route.request().postData() ?? "{}") as { qty: number }).qty;
-    qtyPuts.push(myQty);
+    qtyPuts.push((JSON.parse(route.request().postData() ?? "{}") as { qty: number }).qty);
     return route.fulfill({ json: detail(myQty, mangaWant) });
   });
   await page.route("**/api/cards/OP01-001/printings/12", (route) => {
     mangaWant = (JSON.parse(route.request().postData() ?? "{}") as { qty: number }).qty;
+    printingPuts.push(mangaWant);
     return route.fulfill({ json: { card_id: "OP01-001", product_id: 12, qty: mangaWant, decks_updated: 1 } });
   });
   await planner.open(`/group-buys/${GB}`);
@@ -101,22 +102,35 @@ test("Raising an alt want after Base went to 0 adds a copy to Your buy (#868)", 
   await page.getByRole("group", { name: "Card layout" }).getByRole("button", { name: "Grid", exact: true }).click();
   const card = page.locator(".grid-card").filter({ hasText: "OP01-001" });
   const base = card.locator(".alt-art-base");
-  await expect(base.getByLabel("Roronoa Zoro base art wanted")).toHaveText("3");
+  const plus = card.getByRole("button", { name: "Increase want for Manga" });
+  await expect(base).toContainText("Buy ×3");
+  // Base is read-only: it has no stepper of its own.
+  await expect(card.getByRole("button", { name: /for Roronoa Zoro base art/ })).toHaveCount(0);
   await shot("2-grid-start");
 
-  for (let i = 0; i < 3; i++) {
-    await base.getByRole("button", { name: "Decrease want for Roronoa Zoro base art" }).click();
-    await expect.poll(() => myQty).toBe(2 - i);
-  }
-  await expect(base.getByLabel("Roronoa Zoro base art wanted")).toHaveText("0");
+  await plus.click();
+  await expect.poll(() => printingPuts).toEqual([1]);
+  await expect(base).toContainText("Buy ×2");
+  await expect(card.getByLabel("Manga wanted")).toHaveText("1");
+  await expect(card.getByLabel("Buy quantity for OP01-001")).toHaveValue("3");
+  await expect(card.getByTestId("gb-arts-total")).toContainText("$11.00");
+  await expect(card.getByTestId("gb-arts-total")).toHaveAttribute("title", "2 × Base $1.00 + 1 × Manga $9.00");
+  await shot("3-grid-alt-moved");
 
-  await card.getByRole("button", { name: "Increase want for Manga" }).click();
-  await expect.poll(() => mangaWant).toBe(1);
-  await expect.poll(() => qtyPuts.at(-1)).toBe(1);
-  await expect(card.getByTestId("gb-arts-total")).toContainText("$9.00");
-  await expect(card.getByTestId("gb-arts-total")).toContainText("Your 1 cop");
-  await expect(base.getByLabel("Roronoa Zoro base art wanted")).toHaveText("0");
-  await shot("3-grid-alt-added");
+  await plus.click();
+  await expect.poll(() => printingPuts).toEqual([1, 2]);
+  await expect(plus).toBeEnabled();
+  await plus.click();
+  await expect.poll(() => printingPuts).toEqual([1, 2, 3]);
+  await expect(card.getByLabel("Manga wanted")).toHaveText("3");
+  await expect(base).not.toContainText("Buy ×");
+  await expect(card.getByLabel("Buy quantity for OP01-001")).toHaveValue("3");
+  await expect(plus).toBeDisabled();
+  await expect(plus).toHaveAttribute("title", /raise Your buy/);
+  await shot("4-grid-base-empty");
+
+  // Your buy was never written by the alt buttons.
+  expect(qtyPuts).toEqual([]);
 });
 
 test.afterEach(({ planner }) => {

@@ -152,6 +152,8 @@ export function AltStepper({
 export function AltArtsRow({
   alts,
   cardNeeded,
+  blockWantInc = false,
+  blockWantIncTitle,
   editable = false,
   onOwnedChange,
   onWantChange,
@@ -165,6 +167,9 @@ export function AltArtsRow({
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
   cardNeeded?: number;
+  /** Group buys only: disable + on every alt (no Base copy left to move), with this tooltip. */
+  blockWantInc?: boolean;
+  blockWantIncTitle?: string;
   editable?: boolean;
   onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
@@ -238,8 +243,14 @@ export function AltArtsRow({
                   name={alt.name}
                   value={wanted}
                   busy={busy}
-                  disableInc={atCap}
-                  incTitle={atCap ? `Cannot exceed Need (${cardNeeded})` : undefined}
+                  disableInc={atCap || blockWantInc}
+                  incTitle={
+                    blockWantInc
+                      ? blockWantIncTitle
+                      : atCap
+                        ? `Cannot exceed Need (${cardNeeded})`
+                        : undefined
+                  }
                   onChange={(qty) => onWantChange(alt.product_id, qty)}
                 />
               ) : onWantChange ? (

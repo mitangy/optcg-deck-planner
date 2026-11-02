@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 871, title: "Alt arts in a group buy move a copy from the base art", text: "In a group buy, + on an alt art now moves a copy from the base art. Your buy stays at your shopping number, and your alt picks stay synced with your shopping list." },
   { date: "2026-11-02", app: "planner", pr: 869, title: "Group buys follow the art you pick", text: "The group buy page no longer has a Printing dropdown. Pick how many copies of each art you want on the art tiles: + on an alt adds a copy to Your buy, and checkout buys exactly what everyone picked." },
   { date: "2026-11-02", app: "planner", pr: 867, title: "Set how many of each card you want", text: "Every card on your Master Shopping list now has a Want counter next to Owned. It starts at what your decks need. Press + to buy extra copies, for trades or a spare, and Reset to go back to what your decks need." },
   { date: "2026-11-02", app: "planner", pr: 865, title: "Know when an update is out", text: "If the planner is open when a new version goes live, a small card now offers to reload so you get the latest. Reload now or press Later. The What’s new page also shows your version and lets you check for updates." },
