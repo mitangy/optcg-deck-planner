@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 852, title: "Help improve the card scanner", text: "When you add cards from a photo scan, a small crop of each card you confirmed is now shared to help make the scanner better. It is never the whole photo. It is on by default; turn it off, or delete what you shared, in the scanner's review screen. Learn more in the privacy policy." },
   { date: "2026-11-02", app: "planner", pr: 845, title: "Add any card to your shopping list from its enlarged view", text: "Tap a card to enlarge it and press Add to shopping list to put a single card on your Master Shopping list, then use + and − to set how many to buy. You can do the same for cards you scan on the Shopping page." },
   { date: "2026-11-02", app: "planner", pr: 844, title: "Search finds reprints in new sets", text: "Searching a set or printing name, like Heroines Edition Vol. 2 or Heroine Leader, now also finds cards reprinted there, such as Boa Hancock (OP14-041)." },
   // 2026-10-31

@@ -64,6 +64,16 @@ export type User = {
   sum_across_leaders?: boolean;
   /** Public handle shared with duel-web; null until picked. */
   username?: string | null;
+  /** Photo-scanner crops of the cards you add are shared to improve the scanner (default on). */
+  share_scans?: boolean;
+};
+
+export type ScanSampleUpload = {
+  image: string;
+  predicted_id: string | null;
+  confidence: "sure" | "check" | "none";
+  final_id: string;
+  label: "confirmed" | "corrected";
 };
 
 export type DeckSummary = {
@@ -477,7 +487,7 @@ export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
-  updatePreferences: (body: { sum_across_leaders?: boolean }) =>
+  updatePreferences: (body: { sum_across_leaders?: boolean; share_scans?: boolean }) =>
     request<User>("/preferences", { method: "PATCH", body: JSON.stringify(body) }),
   claim: (ticket: string) =>
     request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
@@ -605,6 +615,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ items }),
     }),
+  /** Max 40 items per request; 403 when the user switched sharing off. */
+  uploadScanSamples: (items: ScanSampleUpload[]) =>
+    request<{ saved: number }>("/scan-samples", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  myScanSamples: () => request<{ count: number }>("/scan-samples/mine"),
+  deleteMyScanSamples: () => request<{ deleted: number }>("/scan-samples/mine", { method: "DELETE" }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),

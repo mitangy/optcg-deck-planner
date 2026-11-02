@@ -1,0 +1,173 @@
+name: Scan embedder retrain
+
+# Weekly fine-tune of the card-art embedder on the crops users confirmed in the
+# scanner (#852). THE REPO IS PUBLIC: Actions logs and artifacts are world
+# readable, so user crops are never uploaded, cached or printed. Logs and the
+# step summary carry counts and metrics only, and the crops directory is
+# deleted in the final step. Only metrics.json is uploaded as an artifact.
+#
+# A new model is published (blob store + a Scan descriptors run) only when it
+# beats the currently published one on held-out user crops; see
+# frontend/scripts/train-embedder/gate.cjs.
+on:
+  schedule:
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      max_minutes:
+        description: "Training time budget in minutes"
+        required: false
+        default: "240"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: scan-retrain
+  cancel-in-progress: false
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      SCAN_TRAINING_TOKEN: ${{ secrets.SCAN_TRAINING_TOKEN }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      API_URL: ${{ secrets.API_URL }}
+      BLOB_BASE: https://2jesjagi5xofv6e6.public.blob.vercel-storage.com/scan-data
+      MAX_MINUTES: ${{ inputs.max_minutes || '240' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install training deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install opencv-python-headless onnx onnxruntime numpy
+
+      - name: Fetch user crops
+        id: samples
+        run: |
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Scan embedder retrain"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$SCAN_TRAINING_TOKEN" ]; then
+            echo "- skipped: SCAN_TRAINING_TOKEN secret is not set" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Counts only: the script never prints ids, card ids or image data.
+          node scripts/fetch-scan-samples.mjs .scan-build/crops
+          read -r TRAIN TEST < <(node -e '
+            const i = require("./.scan-build/crops/index.json");
+            const c = (s) => i.filter((e) => e.split === s).length;
+            console.log(c("train"), c("test"));')
+          echo "- crops: train=$TRAIN test=$TEST" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$TRAIN" -lt 50 ] || [ "$TEST" -lt 25 ]; then
+            echo "- skipped: need at least 50 train and 25 test crops" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch reference images
+        if: steps.samples.outputs.ready == 'true'
+        run: node scripts/fetch-reference-images.mjs .scan-build/refs
+
+      - name: Download published embedder and previous checkpoint
+        id: prev
+        if: steps.samples.outputs.ready == 'true'
+        run: |
+          mkdir -p .scan-build/models
+          OLD=scan-models/card-embedder.onnx
+          if curl -fsSL "$BLOB_BASE/card-embedder.json" -o .scan-build/models/pointer.json; then
+            FILE=$(node -p 'require("./.scan-build/models/pointer.json").model.file')
+            curl -fsSL "$BLOB_BASE/$FILE" -o .scan-build/models/old.onnx && OLD=.scan-build/models/old.onnx
+          fi
+          echo "old=$OLD" >> "$GITHUB_OUTPUT"
+          # Continue last week's run (wip) when there is one, else the last published checkpoint.
+          if curl -fsSL "$BLOB_BASE/training/card-embedder-wip.pt" -o .scan-build/models/prev.pt; then
+            echo "init=--init .scan-build/models/prev.pt --lr 2e-4" >> "$GITHUB_OUTPUT"
+            echo "- start: last run's checkpoint" >> "$GITHUB_STEP_SUMMARY"
+          elif curl -fsSL "$BLOB_BASE/training/card-embedder-latest.pt" -o .scan-build/models/prev.pt; then
+            echo "init=--init .scan-build/models/prev.pt --lr 2e-4" >> "$GITHUB_OUTPUT"
+            echo "- start: published checkpoint" >> "$GITHUB_STEP_SUMMARY"
+          else
+            rm -f .scan-build/models/prev.pt
+            echo "init=" >> "$GITHUB_OUTPUT"
+            echo "- start: ImageNet weights (no previous checkpoint)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Train
+        if: steps.samples.outputs.ready == 'true'
+        run: |
+          python scripts/train-embedder/train.py --refs .scan-build/refs --out .scan-build/models/new \
+            --user-crops .scan-build/crops --user-ratio 0.25 \
+            --epochs 10 --epoch-len 1920 --batch 64 --threads 4 --workers 2 \
+            --max-minutes "$MAX_MINUTES" ${{ steps.prev.outputs.init }}
+          python scripts/train-embedder/export_onnx.py --ckpt .scan-build/models/new.pt --out .scan-build/models/new.onnx
+
+      - name: Evaluate old vs new on held-out crops
+        id: eval
+        if: steps.samples.outputs.ready == 'true'
+        run: |
+          python scripts/train-embedder/eval_crops.py --refs .scan-build/refs --crops .scan-build/crops --split test \
+            --model "old=${{ steps.prev.outputs.old }}" --model new=.scan-build/models/new.onnx --out .scan-build/metrics.json
+          python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          m = json.load(open(".scan-build/metrics.json"))["models"]
+          print("")
+          print("| model | n | top1 | top5 | mean rank |")
+          print("|---|---|---|---|---|")
+          for k, v in m.items():
+              mr = "-" if v["mean_rank"] is None else f'{v["mean_rank"]:.2f}'
+              print(f'| {k} | {v["n"]} | {v["top1"]:.3f} | {v["top5"]:.3f} | {mr} |')
+          PY
+          RESULT=$(node scripts/train-embedder/gate.cjs .scan-build/metrics.json old new)
+          echo "$RESULT"
+          echo "- gate: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          case "$RESULT" in publish=true*) echo "publish=true" >> "$GITHUB_OUTPUT" ;; *) echo "publish=false" >> "$GITHUB_OUTPUT" ;; esac
+
+      # Model weights only; the crops never leave the runner.
+      - name: Save checkpoint for next week
+        if: steps.samples.outputs.ready == 'true' && env.BLOB_READ_WRITE_TOKEN != ''
+        run: node scripts/upload-embedder-training.mjs --wip .scan-build/models/new.pt
+
+
+      - name: Publish weights and rebuild descriptors
+        if: steps.eval.outputs.publish == 'true' && env.BLOB_READ_WRITE_TOKEN != ''
+        run: |
+          OUT=$(node scripts/upload-embedder-training.mjs .scan-build/models/new.onnx .scan-build/models/new.pt)
+          URL=$(echo "$OUT" | sed -n 's/^onnx_url=//p')
+          test -n "$URL"
+          gh workflow run scan-descriptors.yml -f embedder_url="$URL"
+          echo "- published new embedder and triggered Scan descriptors" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload metrics
+        if: steps.eval.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: scan-retrain-metrics
+          path: frontend/.scan-build/metrics.json
+          retention-days: 30
+
+      - name: Delete user crops
+        if: always()
+        run: rm -rf .scan-build/crops
