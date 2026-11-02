@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
@@ -1295,3 +1296,76 @@ class AnalystReviewOut(BaseModel):
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     created_at: str | None
+
+
+# ---------------------------------------------------------------- price alerts (#855)
+
+AlertDirection = Literal["below", "above"]
+
+
+class PriceAlertCreate(BaseModel):
+    card_id: str = Field(min_length=1, max_length=32)
+    product_id: int = Field(default=0, ge=0)
+    target_price: float = Field(gt=0, le=100_000)
+    direction: AlertDirection = "below"
+    notify_email: bool = True
+    notify_app: bool = True
+
+
+class PriceAlertUpdate(BaseModel):
+    target_price: float | None = Field(default=None, gt=0, le=100_000)
+    direction: AlertDirection | None = None
+    notify_email: bool | None = None
+    notify_app: bool | None = None
+    paused: bool | None = None
+
+
+class PriceAlertOut(BaseModel):
+    id: int
+    card_id: str
+    product_id: int
+    card_name: str
+    art_name: str
+    image_url: str
+    tcgplayer_url: str
+    is_alt: bool
+    current_price: float | None
+    target_price: float
+    direction: AlertDirection
+    notify_email: bool
+    notify_app: bool
+    paused: bool
+    armed: bool
+    met_now: bool
+    triggered_at: datetime | None = None
+    triggered_price: float | None = None
+    created_at: datetime | None = None
+
+
+class PriceAlertList(BaseModel):
+    alerts: list[PriceAlertOut]
+    email_enabled: bool
+
+
+class NotificationOut(BaseModel):
+    id: int
+    kind: str
+    title: str
+    body: str
+    card_id: str | None = None
+    product_id: int | None = None
+    price: float | None = None
+    link: str | None = None
+    created_at: datetime | None = None
+    read_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class NotificationList(BaseModel):
+    items: list[NotificationOut]
+    unread: int
+
+
+class NotificationsRead(BaseModel):
+    ids: list[int] | None = Field(default=None, max_length=500)

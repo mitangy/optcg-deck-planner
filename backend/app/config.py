@@ -89,6 +89,14 @@ class Settings(BaseSettings):
     new_release_prices: bool | None = None
     new_release_price_days: int = 30
     new_release_price_interval_minutes: int = 60
+    # Price-alert emails (#855). Both off by default; RESEND_API_KEY wins when both are set.
+    resend_api_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    # Empty: the SMTP login address (Gmail only sends as the signed-in account).
+    email_from: str = ""
 
     @property
     def analyst_model_admin_email_set(self) -> set[str]:

@@ -176,6 +176,52 @@ class CardDisplayChoice(Base):
     product_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class PriceAlert(Base):
+    """A target price a user watches for one art of a card (#855).
+
+    ``product_id`` 0 is the card's base art (CatalogCard.market_price); a positive
+    value is that printing's own market price. ``armed`` alerts fire when the
+    condition holds; firing disarms them until the price crosses back.
+    """
+
+    __tablename__ = "price_alerts"
+    __table_args__ = (UniqueConstraint("user_id", "card_id", "product_id", name="uq_price_alert_art"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    target_price: Mapped[float] = mapped_column(Float, nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), default="below")
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    notify_app: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    armed: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    last_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Price at the moment it last fired, shown as "Hit Nov 2 at $4.20".
+    triggered_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    """In-app inbox entry (the bell). Kind-based so other features can post here too."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(32), default="price_alert")
+    title: Mapped[str] = mapped_column(String(200), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    card_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    link: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ShoppingExtra(Base):
     """Card added straight to Master Shopping without a deck.
 

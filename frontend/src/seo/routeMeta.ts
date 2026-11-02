@@ -43,6 +43,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/decks", title: `My decks – ${NAME}`, noindex: true },
   { pattern: "/decks/:id", title: `Deck – ${NAME}`, noindex: true },
   { pattern: "/collection", title: `Collection – ${NAME}`, noindex: true },
+  { pattern: "/alerts", title: `Price alerts – ${NAME}`, noindex: true },
   { pattern: "/friends", title: `Friends – ${NAME}`, noindex: true },
   { pattern: "/friends/:username", title: `Friend – ${NAME}`, noindex: true },
   { pattern: "/friends/:username/decks/:deckId", title: `Friend’s deck – ${NAME}`, noindex: true },
