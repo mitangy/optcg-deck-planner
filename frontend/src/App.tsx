@@ -1073,6 +1073,7 @@ function ShoppingItemsView({
               <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
+              {showAltArts ? <th>Alt arts</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -1104,11 +1105,6 @@ function ShoppingItemsView({
                         )}
                       </div>
                     </div>
-                    {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                      <div className="card-cell-alts" onClick={stopCardSelectBubble}>
-                        {altRow(item)}
-                      </div>
-                    )}
                   </td>
                   <td>{ownedCell(item)}</td>
                   <td className="want-col">{wantCell(item)}</td>
@@ -1123,6 +1119,11 @@ function ShoppingItemsView({
                   <td className="used-in">
                     <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
                   </td>
+                  {showAltArts ? (
+                    <td className="alt-arts-cell" onClick={stopCardSelectBubble}>
+                      {altRow(item)}
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}
@@ -2109,6 +2110,7 @@ function CollectionItemsView({
               <SortableTh label="Value" colKey="value" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
+              {showAltArts ? <th>Alt arts</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -2128,7 +2130,6 @@ function CollectionItemsView({
                       )}
                     </div>
                   </div>
-                  {hasAltRow(item) && <div className="card-cell-alts">{altRow(item)}</div>}
                 </td>
                 <td>{ownedCell(item)}</td>
                 <td>
@@ -2137,6 +2138,7 @@ function CollectionItemsView({
                 <td className="collection-value">{money(item.value)}</td>
                 <td>{item.cost ?? "—"}</td>
                 <td className={`used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</td>
+                {showAltArts ? <td className="alt-arts-cell">{altRow(item)}</td> : null}
               </tr>
             ))}
           </tbody>
@@ -3387,37 +3389,33 @@ function CardTable({
   return (
     <>
       <div className="table-wrap desktop-table">
-        <table className="data-table">
+        <table className="data-table deck-table">
           <thead>
             <tr>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} />
+              <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
+              {showAltArts ? <th>Alt arts</th> : null}
             </tr>
           </thead>
           <tbody>
             {tableCards.map((c) => (
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
-                  <div className="card-cell-row">
-                    <div className="card-cell-inner">
-                      <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
-                      <div>
-                        <div className="card-id">{c.card_id}</div>
-                        <div>{nameWithBreaks(c.name)}</div>
-                        {c.tcgplayer_url && (
-                          <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
-                            TCGPlayer
-                          </a>
-                        )}
-                      </div>
+                  <div className="card-cell-inner">
+                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
+                    <div>
+                      <div className="card-id">{c.card_id}</div>
+                      <div>{nameWithBreaks(c.name)}</div>
+                      {c.tcgplayer_url && (
+                        <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      )}
                     </div>
-                    {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                      <div className="card-cell-alts">{altRow(c)}</div>
-                    )}
                   </div>
                 </td>
                 <td>
@@ -3443,9 +3441,10 @@ function CardTable({
                 <td>
                   <MarketPrice price={c.market_price} productId={c.product_id} />
                 </td>
-                <td>{c.card_type || "—"}</td>
+                <td className="col-type">{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                              </tr>
+                {showAltArts ? <td className="alt-arts-cell">{altRow(c)}</td> : null}
+              </tr>
             ))}
           </tbody>
         </table>
