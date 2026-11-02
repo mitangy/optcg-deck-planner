@@ -1,7 +1,7 @@
 /// <reference types="vitest/config" />
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Production must use the same-origin `/api` rewrite so the session cookie stays
@@ -36,13 +36,31 @@ function resolveGitSha(): string {
   }
 }
 
+/**
+ * Emits `/version.json` next to the bundle. The running app fetches it
+ * uncached to tell whether a newer deploy is live (src/appVersion.ts).
+ */
+function versionFile(sha: string, builtAt: string): Plugin {
+  return {
+    name: "planner-version-file",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: `${JSON.stringify({ sha, builtAt })}\n`,
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   assertSameOriginApiUrl(mode);
   const gitSha = resolveGitSha();
   // Bake the commit into import.meta.env.VITE_GIT_SHA for the UI build tag.
   process.env.VITE_GIT_SHA = gitSha;
   return {
-    plugins: [react()],
+    plugins: [react(), versionFile(gitSha, new Date().toISOString())],
     resolve: {
       // Shared deck analytics and the legal footer / pages are compiled from source; see packages/.
       alias: [
