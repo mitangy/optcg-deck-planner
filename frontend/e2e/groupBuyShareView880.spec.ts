@@ -146,7 +146,7 @@ test.afterEach(({ planner }) => {
   expect(planner.errors).toEqual([]);
 });
 
-test("The view-only invite page shows the alt art the group picked as the main image (#887)", async ({ page, planner }) => {
+test("The view-only invite page shows the alt art the group picked as the main image (#887)", async ({ page, planner }, testInfo) => {
   planner.signOut();
   const altImg = "https://tcgplayer-cdn.tcgplayer.com/product/99_200w.jpg";
   await page.route(`**/api/public/group-buys/${TOKEN}`, (route) =>
@@ -167,4 +167,5 @@ test("The view-only invite page shows the alt art the group picked as the main i
   await planner.open(`/group-buy/join/${TOKEN}`);
   await expect(page.getByText("OP01-001").first()).toBeVisible();
   await expect(page.getByRole("img", { name: "Zoro", exact: true }).first()).toHaveAttribute("src", /\/99_/);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-share-view-alt-art.png`, fullPage: true });
 });
