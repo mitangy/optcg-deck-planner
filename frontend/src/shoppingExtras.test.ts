@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
+import { nextExtraTarget, nextWantTarget, totalOwnedCopies, wantAtDeckFloor } from "./shoppingExtras";
 
 describe("nextExtraTarget (#525)", () => {
   it("+ on a card that is covered targets one copy beyond what is owned", () => {
@@ -55,5 +55,30 @@ describe("alt art copies count as owned when adding to Master Shopping (#626)", 
   it("totalOwnedCopies adds alt copies to base copies and tolerates a missing alts_owned", () => {
     expect(totalOwnedCopies({ owned: 1, alts_owned: 2 })).toBe(3);
     expect(totalOwnedCopies({ owned: 1 })).toBe(1);
+  });
+});
+
+describe("nextWantTarget (Master Shopping Want stepper)", () => {
+  it("+ targets one more than the current want, also on top of deck need", () => {
+    expect(nextWantTarget({ need: 3, deckNeed: 3 }, 1)).toBe(4);
+    expect(nextWantTarget({ need: 2, deckNeed: 0 }, 1)).toBe(3);
+  });
+
+  it("− lowers a direct target that is above the decks by one", () => {
+    expect(nextWantTarget({ need: 5, deckNeed: 3 }, -1)).toBe(4);
+  });
+
+  it("− drops the direct target once decks already cover the lower want", () => {
+    expect(nextWantTarget({ need: 4, deckNeed: 3 }, -1)).toBe(0);
+  });
+
+  it("− from 1 on a direct-only card removes the target", () => {
+    expect(nextWantTarget({ need: 1, deckNeed: 0 }, -1)).toBe(0);
+  });
+
+  it("the floor is only reached when decks need copies", () => {
+    expect(wantAtDeckFloor({ need: 3, deckNeed: 3 })).toBe(true);
+    expect(wantAtDeckFloor({ need: 4, deckNeed: 3 })).toBe(false);
+    expect(wantAtDeckFloor({ need: 1, deckNeed: 0 })).toBe(false);
   });
 });

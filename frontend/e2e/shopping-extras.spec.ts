@@ -52,7 +52,8 @@ test("a direct target above the deck need raises the list and the Collection sho
   await result.getByRole("button", { name: "Buy more EB01-002" }).click();
   // Target = owned 2 + 2 to buy + 1 = 5 (max with the deck's 4, not the sum).
   await expect.poll(() => planner.extras.get("EB01-002")).toBe(5);
-  await expect(page.getByText("Added directly (want 5)").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("Added directly").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("+1 over decks").filter({ visible: true }).first()).toBeVisible();
   // The deck shows as its own chip beside the note (#625).
   await expect(page.locator(".used-in-chip", { hasText: "Oden Red/Green" }).filter({ visible: true }).first()).toBeVisible();
 
@@ -66,12 +67,12 @@ test("turning off Added directly leaves directly added copies out of the list (#
   // Mini-Merry: the deck needs 1, the direct target is 2.
   planner.extras.set("EB01-011", 2);
   await planner.open("/");
-  const note = "Added directly (want 2)";
-  await expect(page.getByText(note).filter({ visible: true }).first()).toBeVisible();
+  const note = page.locator(".used-in-note", { hasText: "Added directly" });
+  await expect(note.filter({ visible: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: /Filters/ }).click();
   await page.getByRole("checkbox", { name: "Added directly" }).uncheck();
-  await expect(page.getByText(note)).toHaveCount(0);
+  await expect(note).toHaveCount(0);
   await expect(page.getByText("Oden Red/Green").filter({ visible: true }).first()).toBeVisible();
 });
 
@@ -90,4 +91,34 @@ test("Shopping remembers Still need only and the Add cards color after a reload 
   // The Filters drawer remembers that it was open, so it is already showing the checkbox.
   await expect(page.getByLabel("Still need only")).not.toBeChecked();
   await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveText(/Blue/);
+});
+
+test("the Want stepper raises a card over its decks, stops at the deck need, and Reset goes back (#867)", async ({ page, planner }) => {
+  await planner.open("/");
+  // Mini-Merry: the deck needs 1, nothing owned, nothing added directly.
+  const fewer = page.getByRole("button", { name: "Want fewer of Mini-Merry" }).filter({ visible: true }).first();
+  const more = page.getByRole("button", { name: "Want more of Mini-Merry" }).filter({ visible: true }).first();
+  await expect(fewer).toBeDisabled();
+
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(3);
+  await expect(page.getByText("+2 over decks").filter({ visible: true }).first()).toBeVisible();
+
+  // − steps back down to the deck need, then stops there.
+  await fewer.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await fewer.click();
+  await expect.poll(() => planner.extras.has("EB01-011")).toBe(false);
+  await expect(fewer).toBeDisabled();
+
+  await more.click();
+  await expect.poll(() => planner.extras.get("EB01-011")).toBe(2);
+  await page.getByRole("button", { name: "Reset want for EB01-011 to decks" }).filter({ visible: true }).first().click();
+  await expect.poll(() => planner.extras.has("EB01-011")).toBe(false);
+  await expect(page.getByText("+1 over decks")).toHaveCount(0);
+
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
 });
