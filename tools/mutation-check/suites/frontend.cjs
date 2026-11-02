@@ -12,6 +12,12 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Shopping-list button waits for the list to load (#845)
+    { id: "shopping845-add-enabled-while-loading", edits: [
+      { file: "frontend/src/App.tsx", from: "disabled={loading || save.isPending || extraQty === 0}", to: "disabled={save.isPending || extraQty === 0}" },
+      { file: "frontend/src/App.tsx", from: "aria-label={`Buy more ${cardId}`}\n            disabled={loading || save.isPending}", to: "aria-label={`Buy more ${cardId}`}\n            disabled={save.isPending}" },
+      { file: "frontend/src/App.tsx", from: "className=\"btn secondary\"\n          disabled={loading || save.isPending}", to: "className=\"btn secondary\"\n          disabled={save.isPending}" },
+    ], kills: ["Add to shopping list waits for the list to load so it can't overwrite a saved target (#845)"] },
     // Group buy: totals across the arts the viewer picked (#850)
     { id: "gb850-base-qty-ignores-alt-wants", file: "frontend/src/groupBuyArt.ts", from: "  return wanted + Math.max(0, base);", to: "  return Math.max(0, base);", kills: ["puts the base count on top of every alt want"] },
     { id: "gb850-alt-wants-ignored", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = 0;", kills: ["fills alt wants first"] },
