@@ -778,11 +778,6 @@ export const api = {
     }),
   undoGroupBuyReceiptApply: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/receipt/undo`, { method: "POST" }),
-  setGroupBuyLineProduct: (id: number, cardId: string, product_id: number) =>
-    request<GroupBuyDetail>(`/group-buys/${id}/lines/${encodeURIComponent(cardId)}`, {
-      method: "PUT",
-      body: JSON.stringify({ product_id }),
-    }),
   setGroupBuyQty: (id: number, cardId: string, qty: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
       method: "PUT",

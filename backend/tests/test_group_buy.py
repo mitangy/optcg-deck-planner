@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from app import group_buy, services
-from app.models import CatalogPrinting, Deck, Owned
+from app.models import Deck, GroupBuyLineOverride, Owned
 from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
@@ -70,25 +70,24 @@ def test_lock_freezes_quantities_against_later_owned_changes(db, two_players):
         group_buy.join_group_buy(db, outsider, created.invite_token)
 
 
-def test_host_printing_override_and_export(db, two_players):
+def test_stale_host_printing_override_is_ignored_at_checkout_868(db, two_players):
+    """Old prod rows in group_buy_line_overrides must not steer checkout any more."""
     host, friend = two_players
-    created = group_buy.create_group_buy(db, host, "Export")
+    created = group_buy.create_group_buy(db, host, "Stale override")
     group_buy.join_group_buy(db, friend, created.invite_token)
-    updated = group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
-    line = next(l for l in updated.lines if l.card_id == "OP01-001")
-    assert line.product_id == 1009
+    db.add(GroupBuyLineOverride(group_buy_id=created.id, card_id="OP01-001", product_id=1009))
+    db.commit()
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    line = next(l for l in detail.lines if l.card_id == "OP01-001")
+    assert line.product_id == 1001
     assert line.preferred_product_id == 1001
 
-    # Selecting preferred again clears the override.
-    reset = group_buy.set_line_override(db, host, created.id, "OP01-001", 1001)
-    line = next(l for l in reset.lines if l.card_id == "OP01-001")
-    assert line.product_id == 1001
-
-    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
     export = group_buy.export_tcgplayer(db, host, created.id)
-    # No alt wants → host printing override still buys the whole line as AA.
-    assert "6-1009" in export.paste_text.splitlines()
-    assert "5-1002" in export.paste_text.splitlines()
+    lines = export.paste_text.splitlines()
+    assert "6-1001" in lines
+    assert "6-1009" not in lines
+    assert "5-1002" in lines
     assert export.copy_count == 11
     assert export.with_product_id == 2
 
@@ -102,8 +101,6 @@ def test_export_allocates_alt_wants_not_whole_line(db, two_players):
     host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
     # Host still-need 3 of OP01-001; want only 1 AA. Friend still-need 3, no AA.
     services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
-    # Checkout override to AA used to export 6-1009 — must not when alts are set.
-    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
 
     export = group_buy.export_tcgplayer(db, host, created.id)
     lines = export.paste_text.splitlines()
@@ -499,33 +496,14 @@ def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players)
     host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
     # Host still-need 3 of OP01-001; want only 1 AA ($9), rest preferred ($2.5).
     services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
-    # Checkout printing override to AA used to inflate the whole line — must not.
-    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
 
     detail = group_buy.get_group_buy(db, host, created.id)
     line = next(l for l in detail.lines if l.card_id == "OP01-001")
-    assert line.product_id == 1009
+    assert line.product_id == 1001
     # Host: 1×$9 + 2×$2.5 = 14; Friend: 3×$2.5 = 7.5 → 21.5
     assert line.remaining_cost == 21.5
     # Header total includes OP01-002 as well (host 2×$1 + friend 3×$1 = 5).
     assert detail.remaining_market == round(21.5 + 5.0, 2)
-
-
-def test_group_buy_line_exposes_base_art_when_checkout_is_overridden_to_alt(db, two_players):
-    """The alt selector's Base tile must show the standard art, not the host's AA pick (#850)."""
-    host, friend = two_players
-    for pid, url in ((1001, "https://img.test/base.jpg"), (1009, "https://img.test/aa.jpg")):
-        row = db.scalar(select(CatalogPrinting).where(CatalogPrinting.product_id == pid))
-        row.image_url = url
-    db.commit()
-    created = group_buy.create_group_buy(db, host, "Base art")
-    group_buy.join_group_buy(db, friend, created.invite_token)
-    group_buy.set_line_override(db, host, created.id, "OP01-001", 1009)
-
-    detail = group_buy.get_group_buy(db, host, created.id)
-    line = next(l for l in detail.lines if l.card_id == "OP01-001")
-    assert line.image_url == "https://img.test/aa.jpg"
-    assert line.base_image_url == "https://img.test/base.jpg"
 
 
 def test_public_view_requires_toggle_and_is_read_only(db, two_players):

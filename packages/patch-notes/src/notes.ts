@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 869, title: "Group buys follow the art you pick", text: "The group buy page no longer has a Printing dropdown. Pick how many copies of each art you want on the art tiles: + on an alt adds a copy to Your buy, and checkout buys exactly what everyone picked." },
   { date: "2026-11-02", app: "planner", pr: 867, title: "Set how many of each card you want", text: "Every card on your Master Shopping list now has a Want counter next to Owned. It starts at what your decks need. Press + to buy extra copies, for trades or a spare, and Reset to go back to what your decks need." },
   { date: "2026-11-02", app: "planner", pr: 865, title: "Know when an update is out", text: "If the planner is open when a new version goes live, a small card now offers to reload so you get the latest. Reload now or press Later. The What’s new page also shows your version and lets you check for updates." },
   { date: "2026-11-02", app: "planner", pr: 863, title: "Add to shopping list waits for your list to load", text: "In a card's enlarged view, Add to shopping list and its + and − buttons stay greyed out until your list and owned counts have loaded, so a quick press can no longer reset a number you already saved. Owned shows … until then." },

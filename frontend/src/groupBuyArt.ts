@@ -63,3 +63,39 @@ export function qtyForBase(line: Pick<GroupBuyLine, "alt_arts">, base: number): 
   const wanted = (line.alt_arts ?? []).reduce((s, a) => s + Math.max(0, a.wanted ?? 0), 0);
   return wanted + Math.max(0, base);
 }
+
+/**
+ * Buy qty after one alt's want changes: the base count stays as it is and every
+ * other alt keeps its want, so + on an alt adds a copy instead of taking a base one.
+ */
+export function qtyForAltWant(line: ArtLine, productId: number, wanted: number): number {
+  const { base } = myArtSplit(line);
+  const others = (line.alt_arts ?? [])
+    .filter((a) => a.product_id !== productId)
+    .reduce((sum, a) => sum + Math.max(0, a.wanted ?? 0), 0);
+  return base + others + Math.max(0, wanted);
+}
+
+/** Viewer opted out of this card (custom qty 0 / Exclude). */
+export function isLineExcluded(
+  line: Pick<GroupBuyLine, "my_qty" | "my_is_custom" | "my_excluded">,
+): boolean {
+  return Boolean(line.my_excluded ?? (line.my_qty === 0 && line.my_is_custom));
+}
+
+/**
+ * Which group-buy lines the page lists. Still-needed only: an excluded line nobody
+ * else needs stays hidden unless "Show excluded" is on. Cards the viewer edited in
+ * this page session (`keepVisible`) stay listed so they can pick another art after
+ * taking Base to 0 (#868).
+ */
+export function visibleGroupBuyLines<
+  L extends Pick<GroupBuyLine, "card_id" | "total_qty" | "my_qty" | "my_is_custom" | "my_excluded">,
+>(lines: L[], opts: { showExcluded: boolean; keepVisible: ReadonlySet<string> }): L[] {
+  return lines.filter((l) => {
+    if (opts.keepVisible.has(l.card_id)) return true;
+    const excluded = isLineExcluded(l);
+    if (!opts.showExcluded && excluded && l.total_qty <= 0) return false;
+    return l.total_qty > 0 || (opts.showExcluded && excluded);
+  });
+}

@@ -385,10 +385,6 @@ class GroupBuyContributionUpdate(BaseModel):
     deck_ids: list[int] | None = None
 
 
-class GroupBuyLineOverrideUpdate(BaseModel):
-    product_id: int = Field(gt=0)
-
-
 class GroupBuyQtyUpdate(BaseModel):
     qty: int = Field(ge=0, le=999)
 
