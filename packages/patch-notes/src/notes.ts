@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 857, title: "Search for alt arts directly, with typo-tolerant search", text: "Add cards search now lists alt arts as their own rows, with their own art, set and price, so you can add one to your collection, deck or shopping list straight from the result. Search also forgives typos and punctuation in card and set names, like \"lufy\" or \"Romance Dwan\"." },
   { date: "2026-11-02", app: "planner", pr: 851, title: "Scan several cards on the Shopping page", text: "Scan cards on the Shopping page now takes a photo of several cards at once. It counts the copies of each card and shows how many you still need, and Mark as owned updates your shopping list." },
   { date: "2026-11-02", app: "planner", pr: 858, title: "Help improve the card scanner", text: "When you add cards from a photo scan, a small crop of each card you confirmed is now shared to help make the scanner better. It is never the whole photo. It is on by default; turn it off, or delete what you shared, in the scanner's review screen. Learn more in the privacy policy." },
   { date: "2026-11-02", app: "planner", pr: 856, title: "The scanner camera shows the whole picture", text: "The scanner's camera no longer shows a card-shaped frame or crops your photo to it. You see the full camera view, and every card in it is scanned." },

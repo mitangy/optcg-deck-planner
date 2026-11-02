@@ -5969,6 +5969,21 @@ tr.row-flash > td {
   font-size: 0.85rem;
 }
 
+/* Inline tag on alt-art search rows; sits on the card-id line so rows keep their height. */
+.alt-art-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 /* Used-in text with a small Remove beside it; the button keeps its size as the text wraps. */
 .used-in-cell {
   display: flex;

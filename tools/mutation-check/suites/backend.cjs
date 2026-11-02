@@ -5,6 +5,7 @@ const sync = "backend/app/catalog_sync.py";
 const prefresh = "backend/app/price_refresh.py";
 const domain = "backend/app/domain.py";
 const services = "backend/app/services.py";
+const fuzzyPy = "backend/app/fuzzy.py";
 const duel = "backend/app/routers/duel.py";
 const reporter = "backend/app/reporter.py";
 const feedback = "backend/app/routers/feedback.py";
@@ -188,11 +189,38 @@ module.exports = {
     { id: "leader-rarity-ignored", file: domain, from: "    return normalized == \"leader\" or rarity_u == \"L\"", to: "    return normalized == \"leader\"", kills: ["test_don_and_leader_type_helpers"] },
     { id: "numberless-don-skipped", file: sync, from: "    if is_don_product(name=name, card_type=card_type, rarity=rarity):\n        return synthetic_don_card_id(product_id)", to: "", kills: ["test_don_and_leader_type_helpers"] },
     { id: "don-counted-in-main", file: domain, from: "            don += needed", to: "            main += needed", kills: ["test_deck_size_counts_split_don"] },
-    { id: "search-name-ignored", file: services, from: "                CatalogCard.name.ilike(like),\n", to: "", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-color-ignored", file: services, from: "        filters.append(CatalogCard.color.ilike(f\"%{color_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-type-ignored", file: services, from: "        filters.append(CatalogCard.card_type.ilike(f\"%{type_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
-    { id: "search-printing-name-ignored", file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "", args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
-    { id: "search-printing-set-ignored", file: services, from: "                            CatalogPrinting.group_name.ilike(like),\n", to: "", args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "search-name-ignored", edits: [
+      { file: services, from: "                CatalogCard.name.ilike(like),\n", to: "" },
+      { file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-color-ignored", file: services, from: "        other_filters.append(CatalogCard.color.ilike(f\"%{color_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-type-ignored", file: services, from: "        other_filters.append(CatalogCard.card_type.ilike(f\"%{type_q}%\"))", to: "        pass", kills: ["test_search_catalog_by_name_color_and_type"] },
+    { id: "search-printing-name-ignored", edits: [
+      { file: services, from: "                            CatalogPrinting.name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "search-printing-set-ignored", edits: [
+      { file: services, from: "                            CatalogPrinting.group_name.ilike(like),\n", to: "" },
+      // The typo-tolerant pass would otherwise find the card anyway (#848).
+      { file: services, from: "    qtokens = fuzzy.tokens(query)\n", to: "    qtokens = []\n" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_finds_a_card_by_a_reprint_printings_name_and_set_843"] },
+    { id: "fuzzy848-skip-normalization", file: fuzzyPy, from: "    return _NON_WORD.sub(\" \", folded).strip()", to: "    return folded", args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_typos_and_punctuation_in_card_names_848"] },
+    { id: "fuzzy848-one-more-typo-allowed", file: fuzzyPy, from: "    return 1 if len(token) <= 6 else 2", to: "    return 2 if len(token) <= 6 else 3", args: "tests/test_deck_edit.py", kills: ["test_search_does_not_fuzzy_match_unrelated_words_848"] },
+    { id: "fuzzy848-short-tokens-get-typos", file: fuzzyPy, from: "    if len(token) < 4:\n        return 0", to: "    if len(token) < 3:\n        return 0", args: "tests/test_deck_edit.py", kills: ["test_search_does_not_fuzzy_match_unrelated_words_848"] },
+    { id: "fuzzy848-no-typo-tolerance", file: fuzzyPy, from: "        if allowed:\n            d = min", to: "        if False:\n            d = min", args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_typos_and_punctuation_in_card_names_848", "test_search_tolerates_a_typo_in_a_set_name_848"] },
+    { id: "fuzzy848-fuzzy-ahead-of-substring", file: services, from: "            rows.extend(extra[: limit - len(rows)])", to: "            rows[0:0] = extra[: limit - len(rows)]", args: "tests/test_deck_edit.py", kills: ["test_search_ranks_substring_matches_above_fuzzy_only_ones_848"] },
+    { id: "fuzzy848-ignores-color-filter", file: services, from: "CatalogCard.card_id.in_(costs), *other_filters)", to: "CatalogCard.card_id.in_(costs))", args: "tests/test_deck_edit.py", kills: ["test_search_fuzzy_results_still_obey_color_filter_848"] },
+    { id: "fuzzy848-set-name-not-indexed", edits: [
+      { file: services, from: "        texts[cid].append(f\"{name or ''} {group or ''}\")\n    for cid, name, group in db.execute(\n        select(CatalogPrinting", to: "        texts[cid].append(f\"{name or ''}\")\n    for cid, name, group in db.execute(\n        select(CatalogPrinting" },
+      { file: services, from: "        texts[cid].append(f\"{name or ''} {group or ''}\")\n    built", to: "        texts[cid].append(f\"{name or ''}\")\n    built" },
+    ], args: "tests/test_deck_edit.py", kills: ["test_search_tolerates_a_typo_in_a_set_name_848"] },
+    { id: "search-alts-always-includes-base", file: services, from: "        if card_hit or row.card_id in plain_text_hit:\n", to: "        if True:\n", args: "tests/test_deck_edit.py", kills: ["test_search_alts_text_only_in_one_alt_returns_just_that_alt_848"] },
+    { id: "search-alts-ignores-per-alt-text", file: services, from: "            if not card_hit and not text_hit(alt.name, alt.group_name):", to: "            if False and not text_hit(alt.name, alt.group_name):", args: "tests/test_deck_edit.py", kills: ["test_search_alts_text_only_in_one_alt_returns_just_that_alt_848"] },
+    { id: "search-alts-owned-always-zero", file: services, from: "\"owned\": int(alt_owned.get(row.card_id, {}).get(alt.product_id, 0)),", to: "\"owned\": 0,", args: "tests/test_deck_edit.py", kills: ["test_search_alts_owned_count_is_the_viewers_own_printing_848"] },
+    { id: "search-alts-flag-ignored", file: services, from: "    if not alts:\n        return [base_result(row) for row in rows]", to: "    if False:\n        return [base_result(row) for row in rows]", args: "tests/test_deck_edit.py", kills: ["test_search_alts_lists_base_then_alt_rows_and_plain_search_stays_base_only_848"] },
     { id: "upsert-add-dropped", file: services, from: "        db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))", to: "        pass", kills: ["test_upsert_deck_card_add_and_remove"] },
     { id: "upsert-remove-noop", file: services, from: "        if existing is not None:\n            db.delete(existing)\n        _clear_deck_card_printings", to: "        _clear_deck_card_printings", kills: ["test_upsert_deck_card_add_and_remove"] },
     { id: "reset-owned-all-cards", file: services, from: "            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(card_ids))", to: "            select(Owned).where(Owned.user_id == user.id)", kills: ["test_reset_deck_owned_zeros_cards_in_deck"] },

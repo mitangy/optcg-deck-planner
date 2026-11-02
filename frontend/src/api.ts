@@ -122,6 +122,10 @@ export type CatalogCardResult = {
   image_url: string;
   tcgplayer_url: string;
   group_name: string;
+  /** Set on alt-art rows (search with alts); null/absent = the base card row. */
+  alt_product_id?: number | null;
+  /** Viewer's owned copies of that alt printing (alt rows only). */
+  owned?: number;
 };
 
 export type CardView = {
@@ -577,9 +581,11 @@ export const api = {
     color?: string;
     card_type?: string;
     limit?: number;
+    alts?: boolean;
   }) => {
     const params = new URLSearchParams();
     if (opts?.q) params.set("q", opts.q);
+    if (opts?.alts) params.set("alts", "true");
     if (opts?.color) params.set("color", opts.color);
     if (opts?.card_type) params.set("card_type", opts.card_type);
     if (opts?.limit != null) params.set("limit", String(opts.limit));

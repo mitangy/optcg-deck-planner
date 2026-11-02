@@ -831,10 +831,15 @@ def catalog_cards(
     color: Annotated[str, Query()] = "",
     card_type: Annotated[str, Query()] = "",
     limit: Annotated[int, Query(ge=1, le=100)] = 40,
+    alts: Annotated[bool, Query()] = False,
 ):
-    """Search the card catalog by name, id, color, type, rarity, or set name."""
-    _ = user
-    return services.search_catalog(db, q=q, color=color, card_type=card_type, limit=limit)
+    """Search the card catalog by name, id, color, type, rarity, or set name.
+
+    With alts=true, alt-art printings are returned as their own rows.
+    """
+    return services.search_catalog(
+        db, q=q, color=color, card_type=card_type, limit=limit, alts=alts, user_id=user.id
+    )
 
 
 @router.get("/catalog/cards/{card_id}/printings", response_model=list[PrintingView])

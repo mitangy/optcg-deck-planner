@@ -12,6 +12,9 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Alt-art search rows (#848)
+    { id: "alt848-collection-add-saves-base", file: "frontend/src/App.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
+    { id: "alt848-collection-step-ignores-qty", file: "frontend/src/App.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
     // Group buy: totals across the arts the viewer picked (#850)
     { id: "gb850-base-qty-ignores-alt-wants", file: "frontend/src/groupBuyArt.ts", from: "  return wanted + Math.max(0, base);", to: "  return Math.max(0, base);", kills: ["puts the base count on top of every alt want"] },
     { id: "gb850-alt-wants-ignored", file: "frontend/src/groupBuyArt.ts", from: "    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);", to: "    const qty = 0;", kills: ["fills alt wants first"] },
