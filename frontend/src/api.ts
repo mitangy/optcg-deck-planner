@@ -378,6 +378,8 @@ export type GroupBuyOrderUpdate = {
   tax_cost?: number | null;
 };
 
+export type GroupBuyArtWant = { product_id: number; user_id: number; qty: number };
+
 export type GroupBuyLine = {
   card_id: string;
   name: string;
@@ -397,6 +399,8 @@ export type GroupBuyLine = {
   base_image_url?: string;
   members: GroupBuyMemberQty[];
   alt_arts: PrintingView[];
+  /** Every member's copies per art (alts first, rest on the preferred printing). */
+  art_wants?: GroupBuyArtWant[];
   /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
   my_qty: number;

@@ -163,6 +163,7 @@ export function AltArtsRow({
   cardId,
   shownProductId = null,
   onShow,
+  tileExtra,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -183,6 +184,8 @@ export function AltArtsRow({
   shownProductId?: number | null;
   /** Makes a tile the card's picture (0 = base). Adds a Show control to every tile. */
   onShow?: (productId: number) => void;
+  /** Extra content at the end of every tile's meta column (0 = the Base tile), e.g. who wants it. */
+  tileExtra?: (productId: number) => ReactNode;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
@@ -215,6 +218,7 @@ export function AltArtsRow({
             {baseOwnedControl}
             <span className="alt-base-label">Base</span>
             {showControl(0, `${base.name} base art`)}
+            {tileExtra?.(0)}
           </div>
         </div>
       )}
@@ -274,6 +278,7 @@ export function AltArtsRow({
                 </span>
               )}
               {showControl(alt.product_id, alt.name)}
+              {tileExtra?.(alt.product_id)}
             </div>
           </div>
         );

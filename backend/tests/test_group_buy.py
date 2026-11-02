@@ -673,3 +673,44 @@ def test_group_buy_show_picks_count_by_members_then_host_893(db):
     # Two members pick 1007: more picks beat the host's.
     services.set_display_art(db, viewer, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
+def _art_wants(line):
+    return sorted((w.user_id, w.product_id, w.qty) for w in line.art_wants)
+
+
+def test_group_buy_line_art_wants_per_member_on_right_product_891(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Wants")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+
+    # Seen from the viewer (who wants nothing alt): everyone's split is still reported.
+    line = _line(group_buy.get_group_buy(db, viewer, created.id))
+    assert _art_wants(line) == sorted(
+        [
+            (host.id, 1001, 2),  # base wants sit on the preferred printing
+            (wanter.id, 1009, 2),  # two alt copies ...
+            (wanter.id, 1001, 1),  # ... and the rest on base
+            (viewer.id, 1001, 1),
+        ]
+    )
+    assert sum(w.qty for w in line.art_wants) == line.total_qty
+
+
+def test_group_buy_art_wants_cap_alt_want_at_member_qty_891(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)  # wanter wants 2 of 1009
+    created = group_buy.create_group_buy(db, host, "Cap")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.set_member_qty(db, wanter, created.id, "OP01-001", 1)  # buys fewer than they want
+
+    line = _line(group_buy.get_group_buy(db, host, created.id))
+    assert [(w.product_id, w.qty) for w in line.art_wants if w.user_id == wanter.id] == [(1009, 1)]
+
+
+def test_public_group_buy_includes_art_wants_891(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Pub")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.set_public(db, host, created.id, True)
+
+    line = _line(group_buy.public_group_buy_view(db, created.invite_token))
+    assert (wanter.id, 1009, 2) in _art_wants(line)

@@ -30,6 +30,7 @@ from app.schemas import (
     GroupBuyInvitePreview,
     GroupBuyLineOut,
     GroupBuyMemberOut,
+    GroupBuyArtWantOut,
     GroupBuyMemberQtyOut,
     GroupBuyOrderUpdate,
     GroupBuyReceiptApplyRequest,
@@ -335,6 +336,7 @@ def _build_lines(
         line_remaining = 0.0
         priced_ok = True
         any_buy = False
+        art_wants: list[GroupBuyArtWantOut] = []
         for mem in members:
             if mem.qty <= 0:
                 continue
@@ -350,6 +352,11 @@ def _build_lines(
                 alt_inputs,
                 standard_product_id=preferred_product_id,
                 standard_price=preferred_market,
+            )
+            art_wants.extend(
+                GroupBuyArtWantOut(product_id=pid, user_id=mem.user_id, qty=qty)
+                for pid, qty, _price in buys
+                if pid and qty > 0
             )
             cost = services.remaining_cost_for_buys(buys)
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
@@ -406,6 +413,7 @@ def _build_lines(
                     if m.qty > 0 or m.user_id == viewer_user_id
                 ],
                 alt_arts=line_alt_arts,
+                art_wants=art_wants,
                 display_art=line_display_art,
                 my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
