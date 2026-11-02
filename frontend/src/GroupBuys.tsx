@@ -2062,7 +2062,7 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
             className="need"
             cardId={line.card_id}
             name={line.name}
-            imageSrc={line.image_url || undefined}
+            imageSrc={lineArtUrl(line)}
             meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
           >
             <MemberBreakdown line={line} members={members} />
@@ -2080,7 +2080,7 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
             className="need"
             cardId={line.card_id}
             name={line.name}
-            imageSrc={line.image_url || undefined}
+            imageSrc={lineArtUrl(line)}
             cost={line.cost ?? null}
             rarity={line.rarity}
             meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
@@ -2112,7 +2112,7 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
               <tr key={line.card_id} className="need">
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
+                    <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
                     <div>
                       <div className="card-id">{line.card_id}</div>
                       <div>{line.name}</div>
