@@ -1043,6 +1043,21 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     )
 
 
+def leave_group_buy(db: Session, user: User, group_id: int) -> None:
+    """A non-host member leaves an open group buy; their per-group rows go with them (#881)."""
+    group = _get_group(db, group_id)
+    member = _require_member(group, user)
+    if group.host_user_id == user.id:
+        raise ValueError("Host can't leave; delete the group buy instead")
+    if group.status != "open":
+        raise ValueError("Ask the host to unlock first")
+    for row in list(group.qty_overrides):
+        if row.user_id == user.id:
+            db.delete(row)
+    db.delete(member)
+    db.commit()
+
+
 def delete_group_buy(db: Session, user: User, group_id: int) -> None:
     group = _get_group(db, group_id)
     _require_host(group, user)

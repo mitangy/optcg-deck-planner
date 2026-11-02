@@ -729,6 +729,8 @@ export const api = {
     }),
   deleteGroupBuy: (id: number) =>
     request<{ ok: boolean }>(`/group-buys/${id}`, { method: "DELETE" }),
+  leaveGroupBuy: (id: number) =>
+    request<{ ok: boolean }>(`/group-buys/${id}/leave`, { method: "POST" }),
   joinGroupBuy: (token: string) =>
     request<GroupBuyDetail>(`/group-buys/join/${encodeURIComponent(token)}`, {
       method: "POST",

@@ -549,6 +549,7 @@ function lineArtUrl(line: GroupBuyLine): string | undefined {
 
 export function GroupBuyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const groupId = Number(id);
   const qc = useQueryClient();
   const isNarrow = useNarrowLayout();
@@ -920,6 +921,15 @@ export function GroupBuyDetailPage() {
     onSettled: () => invalidateDisplayArtViews(qc),
   });
 
+  const leave = useMutation({
+    mutationFn: () => api.leaveGroupBuy(groupId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      navigate("/group-buys");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -1247,6 +1257,21 @@ export function GroupBuyDetailPage() {
             }}
           >
             Delete
+          </button>
+        )}
+        {!detail.is_host && (
+          <button
+            type="button"
+            className="ghost danger"
+            disabled={leave.isPending || detail.status !== "open"}
+            title={detail.status !== "open" ? "Ask the host to unlock first" : undefined}
+            onClick={() => {
+              if (window.confirm("Leave this group buy? Your quantities are removed from the pool.")) {
+                leave.mutate();
+              }
+            }}
+          >
+            Leave group buy
           </button>
         )}
       </div>
