@@ -75,7 +75,6 @@ import {
   invalidateOwnedViews,
   patchOwnedCollection,
   patchOwnedCollectionAlt,
-  patchOwnedCollectionDisplayArt,
 } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
@@ -97,6 +96,7 @@ import { GridCard, MobileCard } from "./PlannerCard";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
+import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "./displayArtViews";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   OwnedCell,
@@ -329,47 +329,6 @@ function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["decks"] });
   void qc.invalidateQueries({ queryKey: ["group-buy"] });
   void qc.invalidateQueries({ queryKey: ["group-buys"] });
-}
-
-/** Display art is a view choice only: refresh the views that show it. */
-function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
-  void qc.invalidateQueries({ queryKey: ["shopping"] });
-  void qc.invalidateQueries({ queryKey: ["deck"] });
-  void qc.invalidateQueries({ queryKey: ["owned"] });
-  void qc.invalidateQueries({ queryKey: ["group-buy"] });
-  void qc.invalidateQueries({ queryKey: ["group-buys"] });
-}
-
-/** Patch the chosen art (null = automatic, 0 = base) onto every cached view of a card. */
-function applyDisplayArtOptimistic(
-  qc: ReturnType<typeof useQueryClient>,
-  cardId: string,
-  productId: number | null,
-) {
-  const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
-    old
-      ? {
-          ...old,
-          items: old.items.map((item) =>
-            item.card_id.toUpperCase() === id ? { ...item, display_art: productId } : item,
-          ),
-        }
-      : old,
-  );
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
-    old
-      ? {
-          ...old,
-          cards: old.cards.map((card) =>
-            card.card_id.toUpperCase() === id ? { ...card, display_art: productId } : card,
-          ),
-        }
-      : old,
-  );
-  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
-    old ? patchOwnedCollectionDisplayArt(old, id, productId) : old,
-  );
 }
 
 /**

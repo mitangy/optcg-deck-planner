@@ -30,6 +30,8 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { CardThumb } from "./CardThumb";
+import { mainImageUrl, shownProductId } from "./altArt";
+import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "./displayArtViews";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import { GridCard, MobileCard } from "./PlannerCard";
 import {
@@ -597,6 +599,11 @@ export function GroupBuysPage() {
   );
 }
 
+/** The card's main image follows your chosen art; line.image_url is the host's checkout printing, so start from the base art (#874). */
+function lineArtUrl(line: GroupBuyLine): string | undefined {
+  return mainImageUrl({ ...line, image_url: line.base_image_url || line.image_url });
+}
+
 export function GroupBuyDetailPage() {
   const { id } = useParams();
   const groupId = Number(id);
@@ -928,6 +935,31 @@ export function GroupBuyDetailPage() {
     onSettled: () => setAltWantBusyKey(null),
   });
 
+  /** Which art each card displays is your own view choice: saved like Master Shopping (#874). */
+  const setDisplayArt = useMutation({
+    mutationFn: ({ cardId, productId }: { cardId: string; productId: number }) =>
+      api.setDisplayArt(cardId, productId),
+    onMutate: async ({ cardId, productId }) => {
+      await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
+      const prev = qc.getQueryData<GroupBuyDetail>(["group-buy", groupId]);
+      if (prev) {
+        qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], {
+          ...prev,
+          lines: prev.lines.map((line) =>
+            line.card_id === cardId ? { ...line, display_art: productId } : line,
+          ),
+        });
+      }
+      applyDisplayArtOptimistic(qc, cardId, productId);
+      return { prev };
+    },
+    onError: (e: Error, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
+      setMsg(e.message);
+    },
+    onSettled: () => invalidateDisplayArtViews(qc),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -993,6 +1025,8 @@ export function GroupBuyDetailPage() {
                 })
             : undefined
         }
+        shownProductId={shownProductId(line)}
+        onShow={(productId) => setDisplayArt.mutate({ cardId: line.card_id, productId })}
         busyProductId={
           altWantBusyKey?.startsWith(`${line.card_id}:`)
             ? Number(altWantBusyKey.slice(line.card_id.length + 1))
@@ -1581,7 +1615,7 @@ export function GroupBuyDetailPage() {
                     before={<MemberColorRail line={line} members={members} />}
                     cardId={line.card_id}
                     name={line.name}
-                    imageSrc={line.image_url || undefined}
+                    imageSrc={lineArtUrl(line)}
                     meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
                       .filter(Boolean)
                       .join(" · ")}
@@ -1643,7 +1677,7 @@ export function GroupBuyDetailPage() {
                     before={<MemberColorRail line={line} members={members} />}
                     cardId={line.card_id}
                     name={line.name}
-                    imageSrc={line.image_url || undefined}
+                    imageSrc={lineArtUrl(line)}
                     cost={line.cost ?? null}
                     rarity={line.rarity}
                     meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
@@ -1734,7 +1768,7 @@ export function GroupBuyDetailPage() {
                         <td className="card-cell">
                           <div className="card-cell-inner">
                             <MemberColorRail line={line} members={members} />
-                            <CardThumb src={line.image_url || undefined} cardId={line.card_id} alt={line.name} />
+                            <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
                             <div>
                               <div className="card-id">{line.card_id}</div>
                               <div>{line.name}</div>
