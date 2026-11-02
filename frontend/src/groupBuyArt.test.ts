@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrintingView } from "./api";
-import { myArtSplit, mySelectedArtsTotal, qtyForAltWant, qtyForBase, visibleGroupBuyLines } from "./groupBuyArt";
+import { altIncBlocked, myArtSplit, mySelectedArtsTotal, visibleGroupBuyLines } from "./groupBuyArt";
 
 const alt = (product_id: number, name: string, price: number | null, wanted: number): PrintingView => ({
   product_id,
@@ -78,36 +78,12 @@ describe("mySelectedArtsTotal", () => {
   });
 });
 
-describe("qtyForBase", () => {
-  it("puts the base count on top of every alt want so it is not swallowed by alts (#850)", () => {
-    const alts = [alt(2, "Manga", 9, 2), alt(3, "Parallel", 5, 1)];
-    // Buying 2 of 3 wanted alt copies leaves base 0; one more base copy needs qty 4, not 3.
-    expect(myArtSplit(line(2, alts)).base).toBe(0);
-    const qty = qtyForBase({ alt_arts: alts }, 1);
-    expect(qty).toBe(4);
-    expect(myArtSplit(line(qty, alts)).base).toBe(1);
-  });
-});
-
-describe("qtyForAltWant", () => {
-  it("Raising an alt want adds a copy to Your buy and keeps the Base count (#868)", () => {
-    const alts = [alt(2, "Manga", 9, 0), alt(3, "Parallel", 5, 0)];
-    // Reported case: Base was taken to 0, so Your buy is 0; + on an alt must give 1.
-    expect(qtyForAltWant(line(0, alts), 3, 1)).toBe(1);
-    // 3 base, no wants: one alt copy makes 4 and base stays 3.
-    const qty = qtyForAltWant(line(3, alts), 2, 1);
-    expect(qty).toBe(4);
-    const next = [alt(2, "Manga", 9, 1), alt(3, "Parallel", 5, 0)];
-    expect(myArtSplit(line(qty, next)).base).toBe(3);
-  });
-
-  it("Lowering an alt want removes only that alt copy and keeps the Base count (#868)", () => {
-    const alts = [alt(2, "Manga", 9, 2), alt(3, "Parallel", 5, 1)];
-    // my_qty 5 = 2 Manga + 1 Parallel + 2 base. Manga 2 -> 1 gives 4, base still 2.
-    const qty = qtyForAltWant(line(5, alts), 2, 1);
-    expect(qty).toBe(4);
-    const next = [alt(2, "Manga", 9, 1), alt(3, "Parallel", 5, 1)];
-    expect(myArtSplit(line(qty, next)).base).toBe(2);
+describe("altIncBlocked", () => {
+  it("Alt + is blocked once Base has no copies left to move (#870)", () => {
+    const alts = [alt(2, "Manga", 9, 1)];
+    expect(altIncBlocked(line(2, alts))).toBe(false);
+    expect(altIncBlocked(line(1, alts))).toBe(true);
+    expect(altIncBlocked(line(0, alts))).toBe(true);
   });
 });
 

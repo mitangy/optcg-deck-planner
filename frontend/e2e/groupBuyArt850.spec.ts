@@ -95,7 +95,7 @@ test("Group buy shows the Base tile and prices the card as the total across pick
     const base = card.locator(".alt-art-base");
     await expect(base).toBeVisible();
     // 3 copies bought, 1 of them the Manga: 2 on the base art, priced at the base printing ($1.00), not the host's $50 checkout printing.
-    await expect(base.getByLabel("Roronoa Zoro base art wanted")).toHaveText("2");
+    await expect(base).toContainText("Buy ×2");
     await expect(base).toContainText("$1.00");
     const total = card.getByTestId("gb-arts-total");
     await expect(total).toContainText("$11.00");
@@ -103,13 +103,13 @@ test("Group buy shows the Base tile and prices the card as the total across pick
     await expect(total).toHaveAttribute("title", "2 × Base $1.00 + 1 × Manga $9.00");
   }
 
-  // One more base copy: qty 4 (alt wants stay first), total $12.00.
+  // One more copy on Your buy: qty 4 (alt wants stay first), the extra lands on Base, total $12.00.
   const last = layouts[layouts.length - 1] === "Grid" ? ".grid-card" : ".mobile-card";
   const card = page.locator(last).filter({ hasText: "OP01-001" });
-  await card.locator(".alt-art-base").getByRole("button", { name: "Increase want for Roronoa Zoro base art" }).click();
+  await card.getByRole("button", { name: "Increase buy qty for OP01-001" }).click();
   await expect.poll(() => qtyPuts).toEqual([4]);
   await expect(card.getByTestId("gb-arts-total")).toContainText("$12.00");
-  await expect(card.locator(".alt-art-base").getByLabel("Roronoa Zoro base art wanted")).toHaveText("3");
+  await expect(card.locator(".alt-art-base")).toContainText("Buy ×3");
 });
 
 test.afterEach(({ planner }) => {

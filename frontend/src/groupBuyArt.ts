@@ -56,24 +56,11 @@ export function mySelectedArtsTotal(line: ArtLine): MyArtsTotal {
 }
 
 /**
- * Buy qty that leaves exactly `base` copies on the base art: the alt wants are
- * always filled first, so the base count rides on top of the total wanted.
+ * + on an alt art moves one copy from the base art, so it has nothing to move
+ * once the base art is down to 0 copies (#870).
  */
-export function qtyForBase(line: Pick<GroupBuyLine, "alt_arts">, base: number): number {
-  const wanted = (line.alt_arts ?? []).reduce((s, a) => s + Math.max(0, a.wanted ?? 0), 0);
-  return wanted + Math.max(0, base);
-}
-
-/**
- * Buy qty after one alt's want changes: the base count stays as it is and every
- * other alt keeps its want, so + on an alt adds a copy instead of taking a base one.
- */
-export function qtyForAltWant(line: ArtLine, productId: number, wanted: number): number {
-  const { base } = myArtSplit(line);
-  const others = (line.alt_arts ?? [])
-    .filter((a) => a.product_id !== productId)
-    .reduce((sum, a) => sum + Math.max(0, a.wanted ?? 0), 0);
-  return base + others + Math.max(0, wanted);
+export function altIncBlocked(line: ArtLine): boolean {
+  return myArtSplit(line).base <= 0;
 }
 
 /** Viewer opted out of this card (custom qty 0 / Exclude). */

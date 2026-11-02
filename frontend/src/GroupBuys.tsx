@@ -30,14 +30,13 @@ import {
   type SortKey,
 } from "./cardListControls";
 import { CardThumb } from "./CardThumb";
-import { AltArtsRow, AltStepper, MarketPrice } from "./MarketPrice";
+import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import { GridCard, MobileCard } from "./PlannerCard";
 import {
   isLineExcluded,
+  altIncBlocked,
   myArtSplit,
   mySelectedArtsTotal,
-  qtyForAltWant,
-  qtyForBase,
   visibleGroupBuyLines,
 } from "./groupBuyArt";
 import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
@@ -864,23 +863,18 @@ export function GroupBuyDetailPage() {
       cardId,
       productId,
       qty,
-      buyQty,
     }: {
       cardId: string;
       productId: number;
       qty: number;
-      /** Your buy after this change: Base count + every alt want (#868). */
-      buyQty: number;
-    }) => {
-      await api.setCardPrinting(
+    }) =>
+      api.setCardPrinting(
         cardId,
         productId,
         qty,
         activeDeckIds && activeDeckIds.length ? activeDeckIds : undefined,
-      );
-      return api.setGroupBuyQty(groupId, cardId, buyQty);
-    },
-    onMutate: async ({ cardId, productId, qty, buyQty }) => {
+      ),
+    onMutate: async ({ cardId, productId, qty }) => {
       keepCardVisible(cardId);
       setAltWantBusyKey(`${cardId}:${productId}`);
       await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
@@ -892,7 +886,6 @@ export function GroupBuyDetailPage() {
             line.card_id === cardId
               ? {
                   ...line,
-                  my_qty: buyQty,
                   alt_arts: line.alt_arts.map((a) =>
                     a.product_id === productId ? { ...a, wanted: qty } : a,
                   ),
@@ -907,8 +900,26 @@ export function GroupBuyDetailPage() {
       if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
       setMsg(e.message);
     },
-    onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
+    onSuccess: async (res, { cardId, productId }) => {
+      // The server may clamp the want; show the stored value.
+      qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], (cur) =>
+        cur
+          ? {
+              ...cur,
+              lines: cur.lines.map((line) =>
+                line.card_id === cardId
+                  ? {
+                      ...line,
+                      alt_arts: line.alt_arts.map((a) =>
+                        a.product_id === productId ? { ...a, wanted: res.qty } : a,
+                      ),
+                    }
+                  : line,
+              ),
+            }
+          : cur,
+      );
+      await qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
       await qc.invalidateQueries({ queryKey: ["group-buys"] });
       await qc.invalidateQueries({ queryKey: ["shopping"] });
       await qc.invalidateQueries({ queryKey: ["deck"] });
@@ -951,22 +962,13 @@ export function GroupBuyDetailPage() {
   const groupBuyAltRow = (line: GroupBuyLine) => {
     const alts = line.alt_arts ?? [];
     const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0;
-    const canEditBase = detail?.status === "open";
     const baseCount = myArtSplit(line).base;
-    const baseControl = canEditBase ? (
-      <AltStepper
-        caption="Want"
-        verb="want"
-        name={`${line.name} base art`}
-        value={baseCount}
-        busy={qtyBusy}
-        onChange={(base) => setQty.mutate({ cardId: line.card_id, qty: qtyForBase(line, base) })}
-      />
-    ) : baseCount > 0 ? (
-      <span className="alt-want-label" title="Copies you buy as the base art">
-        Buy ×{baseCount}
-      </span>
-    ) : null;
+    const baseControl =
+      baseCount > 0 ? (
+        <span className="alt-want-label" title="Copies you buy as the base art">
+          Buy ×{baseCount}
+        </span>
+      ) : null;
     return (
       <AltArtsRow
         base={{
@@ -980,13 +982,14 @@ export function GroupBuyDetailPage() {
         cardId={line.card_id}
         cardNeeded={line.my_need ?? 0}
         editable={canEditWants}
+        blockWantInc={altIncBlocked(line)}
+        blockWantIncTitle="No Base copies left; raise Your buy first"
         onWantChange={
           canEditWants
             ? (productId, qty) => setAltWant.mutate({
                   cardId: line.card_id,
                   productId,
                   qty,
-                  buyQty: qtyForAltWant(line, productId, qty),
                 })
             : undefined
         }
