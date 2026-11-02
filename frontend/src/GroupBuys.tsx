@@ -1643,7 +1643,7 @@ export function GroupBuyDetailPage() {
                         </a>
                       ) : null}
                       {showAltArts ? (
-                        <div className="grid-card-alts">{groupBuyAltRow(line)}</div>
+                        <div className="grid-card-alts alt-arts-short">{groupBuyAltRow(line)}</div>
                       ) : null}
                   </GridCard>
                 );
@@ -1711,7 +1711,7 @@ export function GroupBuyDetailPage() {
                       </div>
                     ) : null}
                     {showAltArts ? (
-                      <div className="mobile-card-alts">{groupBuyAltRow(line)}</div>
+                      <div className="mobile-card-alts alt-arts-short">{groupBuyAltRow(line)}</div>
                     ) : null}
                   </MobileCard>
                 );
@@ -1800,7 +1800,7 @@ export function GroupBuyDetailPage() {
                         </td>
                         <td>{money(line.remaining_cost)}</td>
                         {showAltArts ? (
-                          <td className="alt-arts-cell">{groupBuyAltRow(line)}</td>
+                          <td className="alt-arts-cell alt-arts-short">{groupBuyAltRow(line)}</td>
                         ) : null}
                       </tr>
                     );
