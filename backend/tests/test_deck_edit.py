@@ -9,7 +9,7 @@ from app.domain import (
     is_don_type,
     is_leader_type,
 )
-from app.models import CatalogCard
+from app.models import CatalogCard, CatalogPrinting
 from app.services import (
     DeckOversizeError,
     get_deck_detail,
@@ -118,6 +118,26 @@ def test_search_catalog_by_name_color_and_type(db):
 
     by_type = search_catalog(db, card_type="DON")
     assert [c.card_id for c in by_type] == ["DON-001"]
+
+
+def test_search_finds_a_card_by_a_reprint_printings_name_and_set_843(db):
+    db.add_all(
+        [
+            CatalogCard(card_id="OP14-041", name="Boa Hancock - OP14-041", group_name="Azure Sea", market_price=1.0),
+            CatalogPrinting(card_id="OP14-041", product_id=1, name="Boa Hancock (OP14-041)", group_name="Azure Sea", market_price=1.0),
+            CatalogPrinting(card_id="OP14-041", product_id=2, name="Boa Hancock (OP14-041) (Heroine Leader)", group_name="Extra Booster: One Piece Heroines Edition Vol. 2", market_price=2.0),
+            CatalogPrinting(card_id="OP14-041", product_id=3, name="Boa Hancock (OP14-041) (Heroine Leader) (Alt)", group_name="Extra Booster: One Piece Heroines Edition Vol. 2", market_price=3.0),
+            CatalogCard(card_id="OP01-016", name="Nami", group_name="Romance Dawn", market_price=0.5),
+            CatalogPrinting(card_id="OP01-016", product_id=4, name="Nami", group_name="Romance Dawn", market_price=0.5),
+        ]
+    )
+    db.commit()
+
+    by_printing_name = search_catalog(db, q="Heroine Leader")
+    assert [c.card_id for c in by_printing_name] == ["OP14-041"]
+
+    by_printing_set = search_catalog(db, q="Heroines Edition Vol. 2")
+    assert [c.card_id for c in by_printing_set] == ["OP14-041"]
 
 
 def test_upsert_deck_card_add_and_remove(db):
