@@ -91,7 +91,7 @@ import { FriendsPage } from "./friends/FriendsPage";
 import { FriendPage } from "./friends/FriendPage";
 import { FriendDeckPage } from "./friends/FriendDeckPage";
 import { HideFromFriendsItem } from "./friends/HideFromFriends";
-import { CardArtImg, CardThumb, MobileCardMedia } from "./CardThumb";
+import { CardArtImg, CardLightboxActionContext, CardThumb, MobileCardMedia } from "./CardThumb";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
 import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
@@ -628,6 +628,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   }, [pathname]);
 
   return (
+    <CardLightboxActionContext.Provider value={renderLightboxShopping}>
     <div className="app">
       <header className="topbar">
         <div className="topbar-inner">
@@ -666,6 +667,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
       <main className="app-main">{children}</main>
       <WhatsNewCard app="planner" Link={Link} />
     </div>
+    </CardLightboxActionContext.Provider>
   );
 }
 
@@ -1953,6 +1955,7 @@ function ShoppingPage() {
         <CardScanner
           items={data?.items ?? []}
           initialImage={droppedImage}
+          renderHitAction={(card) => <ShoppingScanHitAction cardId={card.card_id} />}
           onClose={() => {
             setScanOpen(false);
             setDroppedImage(null);
@@ -2361,19 +2364,21 @@ function CollectionAddPanel({
 
 /** "Add" for a card that needs nothing yet; otherwise a copies-to-buy stepper. Same footprint either way. */
 function ShoppingExtraControl({
-  card,
+  cardId,
   item,
   owned,
+  addLabel = "Add",
 }: {
-  card: CatalogCardResult;
+  cardId: string;
   item: ShoppingItem | undefined;
   owned: number;
+  addLabel?: string;
 }) {
   const qc = useQueryClient();
   const stillNeed = item?.still_need ?? 0;
   const extraQty = item?.extra_qty ?? 0;
   const save = useMutation({
-    mutationFn: (target: number) => api.setShoppingExtra(card.card_id, target),
+    mutationFn: (target: number) => api.setShoppingExtra(cardId, target),
     // Stay pending until the list refetches, so a quick second press never steps from stale counts.
     onSuccess: async () => {
       invalidateOwnedViews(qc);
@@ -2391,7 +2396,7 @@ function ShoppingExtraControl({
           <button
             type="button"
             className="owned-btn"
-            aria-label={`Buy fewer ${card.card_id}`}
+            aria-label={`Buy fewer ${cardId}`}
             // Deck-driven copies are changed in the deck; only direct targets step down here.
             disabled={save.isPending || extraQty === 0}
             onClick={() => step(-1)}
@@ -2404,7 +2409,7 @@ function ShoppingExtraControl({
           <button
             type="button"
             className="owned-btn"
-            aria-label={`Buy more ${card.card_id}`}
+            aria-label={`Buy more ${cardId}`}
             disabled={save.isPending}
             onClick={() => step(1)}
           >
@@ -2416,29 +2421,67 @@ function ShoppingExtraControl({
           type="button"
           className="btn secondary"
           disabled={save.isPending}
-          aria-label={`Add ${card.card_id} to shopping list`}
+          aria-label={`Add ${cardId} to shopping list`}
           title={save.error ? (save.error as Error).message : undefined}
           onClick={() => step(1)}
         >
-          {save.isError ? "Retry" : "Add"}
+          {save.isError ? "Retry" : addLabel}
         </button>
       )}
     </span>
   );
 }
 
-function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
+/** Owned copies and the shopping row for a card, matching how the backend computes still_need (#626). */
+function useShoppingCardState(deckIds?: number[]) {
   const shoppingById = useFullShoppingById(deckIds);
   const ownedQ = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection() });
   const ownedById = useMemo(
     () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, totalOwnedCopies(i)])),
     [ownedQ.data],
   );
-  // Base plus alt-art copies, matching how the backend computes still_need (#626).
   const ownedOf = (cardId: string) => {
     const item = shoppingById.get(cardId);
     return item ? totalOwnedCopies(item) : (ownedById.get(cardId) ?? 0);
   };
+  return { shoppingById, ownedOf };
+}
+
+/** Under an enlarged card: what you own and need, and a one-press way onto the shopping list (#842). */
+function LightboxShoppingControl({ cardId }: { cardId: string }) {
+  const { shoppingById, ownedOf } = useShoppingCardState(useSavedShoppingDeckIds());
+  const item = shoppingById.get(cardId);
+  const meta = [`Owned ${ownedOf(cardId)}`];
+  const deckNeed = item?.deck_need ?? 0;
+  if (deckNeed > 0) meta.push(`Decks need ${deckNeed}`);
+  return (
+    <>
+      <p className="lightbox-action-meta muted">{meta.join(" · ")}</p>
+      <ShoppingExtraControl cardId={cardId} item={item} owned={ownedOf(cardId)} addLabel="Add to shopping list" />
+    </>
+  );
+}
+
+/** A scanned card's shopping control on the Shopping page (#842). */
+function ShoppingScanHitAction({ cardId }: { cardId: string }) {
+  const { shoppingById, ownedOf } = useShoppingCardState(useSavedShoppingDeckIds());
+  return (
+    <div className="scan-hit-owned">
+      <span className="muted">On shopping list</span>
+      <ShoppingExtraControl
+        cardId={cardId}
+        item={shoppingById.get(cardId)}
+        owned={ownedOf(cardId)}
+        addLabel="Add to shopping list"
+      />
+    </div>
+  );
+}
+
+const renderLightboxShopping = (cardId: string) => <LightboxShoppingControl cardId={cardId} />;
+
+function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
+  const { shoppingById, ownedOf } = useShoppingCardState(deckIds);
   return (
     <CatalogAddDrawer
       className="shopping-add"
@@ -2454,7 +2497,7 @@ function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deck
       }}
       renderAction={(card) => (
         <ShoppingExtraControl
-          card={card}
+          cardId={card.card_id}
           item={shoppingById.get(card.card_id)}
           owned={ownedOf(card.card_id)}
         />

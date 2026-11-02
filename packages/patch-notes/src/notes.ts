@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 845, title: "Add any card to your shopping list from its enlarged view", text: "Tap a card to enlarge it and press Add to shopping list to put a single card on your Master Shopping list, then use + and − to set how many to buy. You can do the same for cards you scan on the Shopping page." },
   // 2026-10-31
   { date: "2026-10-31", app: "planner", pr: 841, title: "New sets' prices update every hour", text: "Prices for newly released and upcoming sets, like Extra Booster 05, now update every hour instead of once a day. Older sets still update daily." },
   { date: "2026-10-31", app: "both", pr: 839, title: "A new OP18 event and 2 alt arts", text: "This Kingdom is Doomed. You Can't Save It! (OP18-058) is now in the duel app, and its [Trigger] plays its [Main] effect. New alt arts are available for Rebecca (OP15-039) and Jewelry Bonney (OP13-100). 23 cards that showed preview art now show their official art." },

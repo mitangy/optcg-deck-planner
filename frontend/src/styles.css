@@ -1812,6 +1812,12 @@ tr.done td {
   display: grid;
   place-items: center;
   min-width: 0;
+  max-height: calc(100dvh - 4rem);
+}
+
+/* With an action row below, leave room for it so the panel never outgrows the screen. */
+.lightbox-panel:has(.lightbox-action) .lightbox-img {
+  max-height: calc(100dvh - 11rem);
 }
 
 .lightbox-img {
@@ -1823,6 +1829,55 @@ tr.done td {
   border-radius: 16px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
   background: #111;
+}
+
+/* Shopping action under the enlarged card: same footprint for Add and the stepper, so nothing shifts. */
+.lightbox-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  max-width: calc(100vw - 1.5rem);
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.lightbox-action-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.lightbox-action .shopping-extra-control {
+  justify-content: center;
+  /* Fixed width that fits "Add to shopping list" in any font, so Add and the stepper share one footprint. */
+  width: 14rem;
+  max-width: 100%;
+  min-height: 2.5rem;
+}
+
+/* Button and stepper are both 2.5rem tall, so swapping them moves nothing. */
+.lightbox-action .shopping-extra-control .btn,
+.scan-hit-owned .shopping-extra-control .btn {
+  height: 2.5rem;
+  width: 100%;
+  margin: 0;
+  padding-block: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-hit-owned .shopping-extra-control {
+  width: 14rem;
+  max-width: 100%;
+  min-height: 2.5rem;
+  justify-content: flex-end;
 }
 
 .lightbox-close {
