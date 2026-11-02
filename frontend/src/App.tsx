@@ -2406,12 +2406,17 @@ function CatalogAddDrawer({
 }
 
 /** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
-function useFullShoppingById(deckIds?: number[]): Map<string, ShoppingItem> {
+function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {
   const q = useQuery({
     queryKey: deckIds ? ["shopping", "all", deckIds] : ["shopping", "all"],
     queryFn: () => api.shopping(deckIds),
   });
-  return useMemo(() => new Map((q.data?.items ?? []).map((i) => [i.card_id, i])), [q.data]);
+  const byId = useMemo(() => new Map((q.data?.items ?? []).map((i) => [i.card_id, i])), [q.data]);
+  return { byId, loaded: q.data !== undefined };
+}
+
+function useFullShoppingById(deckIds?: number[]): Map<string, ShoppingItem> {
+  return useFullShoppingState(deckIds).byId;
 }
 
 function CollectionAddPanel({
@@ -2459,12 +2464,15 @@ function ShoppingExtraControl({
   item,
   owned,
   addLabel = "Add",
+  loading = false,
   altProductId = 0,
 }: {
   cardId: string;
   item: ShoppingItem | undefined;
   owned: number;
   addLabel?: string;
+  /** The list or owned counts are still loading: item/owned are placeholders, so a press would overwrite a saved target (#845). */
+  loading?: boolean;
   /** Set on an alt-art search row: adding also makes that alt the card's shown art. */
   altProductId?: number;
 }) {
@@ -2498,7 +2506,7 @@ function ShoppingExtraControl({
             className="owned-btn"
             aria-label={`Buy fewer ${cardId}${altProductId > 0 ? " alt art" : ""}`}
             // Deck-driven copies are changed in the deck; only direct targets step down here.
-            disabled={save.isPending || extraQty === 0}
+            disabled={loading || save.isPending || extraQty === 0}
             onClick={() => step(-1)}
           >
             −
@@ -2510,7 +2518,7 @@ function ShoppingExtraControl({
             type="button"
             className="owned-btn"
             aria-label={`Buy more ${cardId}${altProductId > 0 ? " alt art" : ""}`}
-            disabled={save.isPending}
+            disabled={loading || save.isPending}
             onClick={() => step(1)}
           >
             +
@@ -2520,7 +2528,7 @@ function ShoppingExtraControl({
         <button
           type="button"
           className="btn secondary"
-          disabled={save.isPending}
+          disabled={loading || save.isPending}
           aria-label={`Add ${cardId}${altProductId > 0 ? " alt art" : ""} to shopping list`}
           title={save.error ? (save.error as Error).message : undefined}
           onClick={() => step(1)}
@@ -2534,7 +2542,7 @@ function ShoppingExtraControl({
 
 /** Owned copies and the shopping row for a card, matching how the backend computes still_need (#626). */
 function useShoppingCardState(deckIds?: number[]) {
-  const shoppingById = useFullShoppingById(deckIds);
+  const { byId: shoppingById, loaded: shoppingLoaded } = useFullShoppingState(deckIds);
   const ownedQ = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection() });
   const ownedById = useMemo(
     () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, totalOwnedCopies(i)])),
@@ -2544,27 +2552,34 @@ function useShoppingCardState(deckIds?: number[]) {
     const item = shoppingById.get(cardId);
     return item ? totalOwnedCopies(item) : (ownedById.get(cardId) ?? 0);
   };
-  return { shoppingById, ownedOf };
+  const loading = !shoppingLoaded || ownedQ.data === undefined;
+  return { shoppingById, ownedOf, loading };
 }
 
 /** Under an enlarged card: what you own and need, and a one-press way onto the shopping list (#842). */
-function LightboxShoppingControl({ cardId }: { cardId: string }) {
-  const { shoppingById, ownedOf } = useShoppingCardState(useSavedShoppingDeckIds());
+export function LightboxShoppingControl({ cardId }: { cardId: string }) {
+  const { shoppingById, ownedOf, loading } = useShoppingCardState(useSavedShoppingDeckIds());
   const item = shoppingById.get(cardId);
-  const meta = [`Owned ${ownedOf(cardId)}`];
+  const meta = [loading ? "Owned …" : `Owned ${ownedOf(cardId)}`];
   const deckNeed = item?.deck_need ?? 0;
   if (deckNeed > 0) meta.push(`Decks need ${deckNeed}`);
   return (
     <>
       <p className="lightbox-action-meta muted">{meta.join(" · ")}</p>
-      <ShoppingExtraControl cardId={cardId} item={item} owned={ownedOf(cardId)} addLabel="Add to shopping list" />
+      <ShoppingExtraControl
+        cardId={cardId}
+        item={item}
+        owned={ownedOf(cardId)}
+        addLabel="Add to shopping list"
+        loading={loading}
+      />
     </>
   );
 }
 
 /** A scanned card's shopping control on the Shopping page (#842). */
-function ShoppingScanHitAction({ cardId }: { cardId: string }) {
-  const { shoppingById, ownedOf } = useShoppingCardState(useSavedShoppingDeckIds());
+export function ShoppingScanHitAction({ cardId }: { cardId: string }) {
+  const { shoppingById, ownedOf, loading } = useShoppingCardState(useSavedShoppingDeckIds());
   return (
     <div className="scan-hit-owned">
       <span className="muted">On shopping list</span>
@@ -2573,6 +2588,7 @@ function ShoppingScanHitAction({ cardId }: { cardId: string }) {
         item={shoppingById.get(cardId)}
         owned={ownedOf(cardId)}
         addLabel="Add to shopping list"
+        loading={loading}
       />
     </div>
   );
@@ -2586,7 +2602,7 @@ const renderLightboxActions = (cardId: string, productId?: number) => (
 );
 
 function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
-  const { shoppingById, ownedOf } = useShoppingCardState(deckIds);
+  const { shoppingById, ownedOf, loading } = useShoppingCardState(deckIds);
   return (
     <CatalogAddDrawer
       className="shopping-add"
@@ -2605,6 +2621,7 @@ function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deck
           cardId={card.card_id}
           item={shoppingById.get(card.card_id)}
           owned={ownedOf(card.card_id)}
+          loading={loading}
           altProductId={card.alt_product_id ?? 0}
         />
       )}

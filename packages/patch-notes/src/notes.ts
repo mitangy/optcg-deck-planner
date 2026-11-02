@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 863, title: "Add to shopping list waits for your list to load", text: "In a card's enlarged view, Add to shopping list and its + and − buttons stay greyed out until your list and owned counts have loaded, so a quick press can no longer reset a number you already saved. Owned shows … until then." },
   { date: "2026-11-02", app: "planner", pr: 860, title: "Price alerts for cards and alt arts", text: "Set a target price on any card, or on one of its alt arts separately, and get told when the TCGPlayer market price falls to it or rises to it. Open the Alerts page, or tap a card and press Price alert. You get a notice in the bell at the top and, once email is switched on, an email too." },
   { date: "2026-11-02", app: "planner", pr: 857, title: "Search for alt arts directly, with typo-tolerant search", text: "Add cards search now lists alt arts as their own rows, with their own art, set and price, so you can add one to your collection, deck or shopping list straight from the result. Search also forgives typos and punctuation in card and set names, like \"lufy\" or \"Romance Dwan\"." },
   { date: "2026-11-02", app: "planner", pr: 851, title: "Scan several cards on the Shopping page", text: "Scan cards on the Shopping page now takes a photo of several cards at once. It counts the copies of each card and shows how many you still need, and Mark as owned updates your shopping list." },

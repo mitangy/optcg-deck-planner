@@ -12,6 +12,12 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Shopping-list button waits for the list to load (#845)
+    { id: "shopping845-add-enabled-while-loading", edits: [
+      { file: "frontend/src/App.tsx", from: "disabled={loading || save.isPending || extraQty === 0}", to: "disabled={save.isPending || extraQty === 0}" },
+      { file: "frontend/src/App.tsx", from: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={loading || save.isPending}", to: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={save.isPending}" },
+      { file: "frontend/src/App.tsx", from: "className=\"btn secondary\"\n          disabled={loading || save.isPending}", to: "className=\"btn secondary\"\n          disabled={save.isPending}" },
+    ], kills: ["Add to shopping list waits for the list to load so it can't overwrite a saved target (#845)"] },
     // Alt-art search rows (#848)
     { id: "alt848-collection-add-saves-base", file: "frontend/src/App.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
     { id: "alt848-collection-step-ignores-qty", file: "frontend/src/App.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
