@@ -157,11 +157,12 @@ test("The view-only invite page shows the alt art the group picked as the main i
   await page.route(`**/api/public/group-buys/${TOKEN}/view`, (route) => {
     const v = view();
     // The server picks the group's most-wanted alt as display_art (#882).
-    v.lines[0] = {
+    const lines = v.lines as Array<Record<string, unknown>>;
+    lines[0] = {
       ...v.lines[0],
       alt_arts: [{ product_id: 99, name: "Zoro (Alternate Art)", image_url: altImg, market_price: 30, owned: 0, wanted: 0 }],
       display_art: 99,
-    } as (typeof v.lines)[number];
+    };
     return route.fulfill({ json: v });
   });
   await planner.open(`/group-buy/join/${TOKEN}`);
