@@ -573,6 +573,70 @@ h1 {
   background: var(--bg-deep);
 }
 
+/* Want stepper: Owned-stepper look with a read-only count and a one-line note
+   that always reserves its height, so state changes never shift the row. */
+.want-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.want-qty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.want-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.1rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.want-reset {
+  padding: 0.35rem 0.2rem;
+  margin: -0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.want-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.grid-card-want .want-cell,
+.mobile-card-want .want-cell {
+  align-items: center;
+}
+
+.grid-card-want .want-qty {
+  width: 2.25rem;
+  height: 2.1rem;
+}
+
 .owned-err {
   color: var(--danger);
   font-weight: 700;
@@ -2904,6 +2968,33 @@ tr.done td {
     align-items: flex-end;
   }
 
+  /* Master Shopping: Market takes its own line, Owned and Want share the next. */
+  .mobile-card-price-row:has(.mobile-card-want) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.3rem 0.9rem;
+  }
+
+  .mobile-card-price-row:has(.mobile-card-want) .mobile-card-price-main {
+    flex: 1 0 100%;
+  }
+
+  .mobile-card-price-row:has(.mobile-card-want) .mobile-card-owned {
+    align-items: flex-start;
+  }
+
+  .mobile-card-price-row .mobile-card-want .want-cell {
+    align-items: flex-start;
+    max-width: 6.6rem;
+  }
+
+  /* Let the note wrap under the stepper instead of widening it past the row. */
+  .mobile-card-want .want-note {
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 0 0.35rem;
+  }
+
   /* Slightly tighter stepper when Owned sits beside Market / TCGPlayer */
   .mobile-card-price-row .mobile-card-owned .owned-total {
     min-height: 2rem;
@@ -2992,6 +3083,24 @@ tr.done td {
     width: 2.2rem;
     padding: 0.3rem 0.1rem;
     font-size: 0.92rem;
+  }
+
+  .mobile-card-owned .want-qty {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 0.92rem;
+  }
+
+  .mobile-card-price-row .mobile-card-want .want-qty {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.88rem;
+  }
+
+  .mobile-card-price-row .mobile-card-want .owned-btn {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
   }
 
   .mobile-card-owned .group-buy-qty {

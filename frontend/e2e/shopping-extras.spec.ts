@@ -52,7 +52,8 @@ test("a direct target above the deck need raises the list and the Collection sho
   await result.getByRole("button", { name: "Buy more EB01-002" }).click();
   // Target = owned 2 + 2 to buy + 1 = 5 (max with the deck's 4, not the sum).
   await expect.poll(() => planner.extras.get("EB01-002")).toBe(5);
-  await expect(page.getByText("Added directly (want 5)").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("Added directly").filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText("+1 over decks").filter({ visible: true }).first()).toBeVisible();
   // The deck shows as its own chip beside the note (#625).
   await expect(page.locator(".used-in-chip", { hasText: "Oden Red/Green" }).filter({ visible: true }).first()).toBeVisible();
 
@@ -66,12 +67,12 @@ test("turning off Added directly leaves directly added copies out of the list (#
   // Mini-Merry: the deck needs 1, the direct target is 2.
   planner.extras.set("EB01-011", 2);
   await planner.open("/");
-  const note = "Added directly (want 2)";
-  await expect(page.getByText(note).filter({ visible: true }).first()).toBeVisible();
+  const note = page.locator(".used-in-note", { hasText: "Added directly" });
+  await expect(note.filter({ visible: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: /Filters/ }).click();
   await page.getByRole("checkbox", { name: "Added directly" }).uncheck();
-  await expect(page.getByText(note)).toHaveCount(0);
+  await expect(note).toHaveCount(0);
   await expect(page.getByText("Oden Red/Green").filter({ visible: true }).first()).toBeVisible();
 });
 

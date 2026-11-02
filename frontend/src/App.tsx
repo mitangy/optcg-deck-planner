@@ -101,6 +101,7 @@ import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
   OwnedCell,
   OwnedStepper,
+  WantStepper,
   StillNeededCell,
   ownedCellIsTotal,
   stillNeededText,
@@ -608,6 +609,35 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
   });
 }
 
+/** Sets a card's direct target in the cached shopping list: need = max(deck need, target). */
+function applyWantOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, extraQty: number) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+    if (!old) return old;
+    let cardsStill = 0;
+    let remaining = 0;
+    const items = old.items.flatMap((item) => {
+      if (item.card_id.toUpperCase() !== id) {
+        cardsStill += item.still_need;
+        if (item.remaining_cost != null) remaining += item.remaining_cost;
+        return [item];
+      }
+      const need = Math.max(item.deck_need ?? 0, extraQty);
+      if (need === 0) return [];
+      const patched = patchOwnedQty(id, item.owned, need, item.market_price, item.alts_owned ?? 0);
+      cardsStill += patched.still_need;
+      if (patched.remaining_cost != null) remaining += patched.remaining_cost;
+      return [{ ...item, ...patched, need, extra_qty: extraQty }];
+    });
+    return {
+      ...old,
+      items,
+      cards_still_needed: cardsStill,
+      remaining_market: Math.round(remaining * 100) / 100,
+    };
+  });
+}
+
 function Shell({ user, children }: { user: User; children: ReactNode }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -789,6 +819,21 @@ function OwnedInput({
   );
 }
 
+function WantInput({ item, onSaved }: { item: ShoppingItem; onSaved: () => void }) {
+  const qc = useQueryClient();
+  return (
+    <WantStepper
+      cardId={item.card_id}
+      name={item.name}
+      need={item.need}
+      deckNeed={item.deck_need ?? 0}
+      extraQty={item.extra_qty ?? 0}
+      applyOptimistic={(id, qty) => applyWantOptimistic(qc, id, qty)}
+      onSaved={onSaved}
+    />
+  );
+}
+
 /** Matches the shopping mobile breakpoint in styles.css (`max-width: 800px`). */
 function useNarrowLayout() {
   const [narrow, setNarrow] = useState(() =>
@@ -878,6 +923,8 @@ function shoppingColumnValue(item: ShoppingItem, key: string) {
       return item.card_id;
     case "owned":
       return totalOwned(item.owned, item.alts_owned);
+    case "want":
+      return item.need;
     case "still":
       return item.still_need;
     case "market":
@@ -934,6 +981,7 @@ function ShoppingItemsView({
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
     />
   );
+  const wantCell = (item: ShoppingItem) => <WantInput item={item} onSaved={onOwnedSaved} />;
   const removeExtraButton = (item: ShoppingItem) =>
     (item.extra_qty ?? 0) > 0 ? (
       <button
@@ -1011,6 +1059,10 @@ function ShoppingItemsView({
                     <span>Owned</span>
                     {ownedCell(item)}
                   </div>
+                  <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
+                    <span>Want</span>
+                    {wantCell(item)}
+                  </div>
                   {item.tcgplayer_url && (
                     <a
                       href={item.tcgplayer_url}
@@ -1056,6 +1108,7 @@ function ShoppingItemsView({
               </th>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Want" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
@@ -1099,8 +1152,9 @@ function ShoppingItemsView({
                     )}
                   </td>
                   <td>{ownedCell(item)}</td>
+                  <td className="want-col">{wantCell(item)}</td>
                   <td>
-                    <StillNeededCell still={item.still_need} need={item.need} />
+                    <StillNeededCell still={item.still_need} />
                   </td>
                   <td>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
@@ -1174,6 +1228,10 @@ function ShoppingItemsView({
                   <div className="mobile-card-owned">
                     <span>Owned</span>
                     {ownedCell(item)}
+                  </div>
+                  <div className="mobile-card-owned mobile-card-want">
+                    <span>Want</span>
+                    {wantCell(item)}
                   </div>
                 </div>
               }
@@ -1611,7 +1669,7 @@ function ShoppingPage() {
     }
     const extra = item.extra_qty ?? 0;
     if (extra > 0) {
-      parts.push(`Added directly${extra > (item.deck_need ?? 0) && item.used_in.length > 0 ? ` (want ${extra})` : ""}`);
+      parts.push("Added directly");
     }
     return parts.join(" · ");
   }

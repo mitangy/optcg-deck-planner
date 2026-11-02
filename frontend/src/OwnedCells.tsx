@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "./api";
+import { nextWantTarget, wantAtDeckFloor } from "./shoppingExtras";
 
 /** Base copies plus every owned alt-art copy: what counts toward a deck. */
 export function totalOwned(owned: number, altsOwned?: number): number {
@@ -68,12 +69,12 @@ export function OwnedCell({
   );
 }
 
-/** Still-needed count with the deck need as a muted "of N" line. */
-export function StillNeededCell({ still, need }: { still: number; need: number }) {
+/** Still-needed count with the deck need as a muted "of N" line (omit `need` where a Want column shows it). */
+export function StillNeededCell({ still, need }: { still: number; need?: number }) {
   return (
     <span className="still-need">
       <span className="still-need-num">{still}</span>
-      <span className="still-need-of">of {need}</span>
+      {need != null && <span className="still-need-of">of {need}</span>}
     </span>
   );
 }
@@ -228,6 +229,105 @@ export function OwnedStepper({
       />
       {inc}
       {err && <span className="owned-err">!</span>}
+    </span>
+  );
+}
+
+/**
+ * Master Shopping "Want" stepper: copies wanted overall (decks and the direct
+ * target combined). Looks like the Owned stepper; the number is read-only.
+ * `saveExtra` stores the direct target (0 clears it).
+ */
+export function WantStepper({
+  cardId,
+  name,
+  need,
+  deckNeed,
+  extraQty,
+  applyOptimistic,
+  onSaved,
+}: {
+  cardId: string;
+  name: string;
+  need: number;
+  deckNeed: number;
+  extraQty: number;
+  /** Patches the cached shopping list right away, and again with the server value on failure. */
+  applyOptimistic: (cardId: string, extraQty: number) => void;
+  onSaved: () => void;
+}) {
+  const [err, setErr] = useState<string | null>(null);
+  const prevRef = useRef(extraQty);
+  prevRef.current = extraQty;
+  const save = useMutation({
+    mutationFn: (target: number) => api.setShoppingExtra(cardId, target),
+    onMutate: (target) => {
+      const prev = prevRef.current;
+      applyOptimistic(cardId, target);
+      return { prev };
+    },
+    onSuccess: () => {
+      setErr(null);
+      onSaved();
+    },
+    onError: (e: Error, _t, ctx) => {
+      setErr(e.message);
+      applyOptimistic(cardId, ctx?.prev ?? 0);
+    },
+  });
+  const atFloor = wantAtDeckFloor({ need, deckNeed });
+  const over = extraQty > deckNeed && deckNeed > 0 ? extraQty - deckNeed : 0;
+  let note: ReactNode;
+  if (over > 0) {
+    note = (
+      <>
+        +{over} over decks
+        <button
+          type="button"
+          className="want-reset"
+          aria-label={`Reset want for ${cardId} to decks`}
+          disabled={save.isPending}
+          onClick={() => save.mutate(0)}
+        >
+          Reset
+        </button>
+      </>
+    );
+  } else if (deckNeed > 0) {
+    note = "from decks";
+  } else {
+    note = "added directly";
+  }
+  return (
+    <span className="want-cell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <span className="owned-wrap">
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Want fewer of ${name}`}
+          title={atFloor ? `Your decks need ${deckNeed}. Change the deck to go lower.` : undefined}
+          disabled={save.isPending || atFloor}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => save.mutate(nextWantTarget({ need, deckNeed }, -1))}
+        >
+          −
+        </button>
+        <span className="want-qty" title={err ?? undefined} aria-label={`${name} wanted`}>
+          {need}
+        </span>
+        <button
+          type="button"
+          className="owned-btn"
+          aria-label={`Want more of ${name}`}
+          disabled={save.isPending}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => save.mutate(nextWantTarget({ need, deckNeed }, 1))}
+        >
+          +
+        </button>
+        {err && <span className="owned-err">!</span>}
+      </span>
+      <span className="want-note">{note}</span>
     </span>
   );
 }
