@@ -440,6 +440,8 @@ class GroupBuyLineOut(BaseModel):
     preferred_market_price: float | None = None
     tcgplayer_url: str = ""
     image_url: str = ""
+    # Art of the preferred (standard) printing, even when checkout is overridden to an alt.
+    base_image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
     # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.

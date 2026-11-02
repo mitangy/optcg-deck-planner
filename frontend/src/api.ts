@@ -330,6 +330,8 @@ export type GroupBuyLine = {
   preferred_market_price?: number | null;
   tcgplayer_url: string;
   image_url: string;
+  /** Art of the preferred (base) printing; `image_url` is the host's checkout printing. */
+  base_image_url?: string;
   members: GroupBuyMemberQty[];
   alt_arts: PrintingView[];
   /** Chosen display art: null = automatic, 0 = base, >0 = product id. */

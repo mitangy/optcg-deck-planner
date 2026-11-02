@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { money } from "../api";
 import { CardLayoutToggle, useCardLayout } from "../CardLayout";
-import { CardThumb } from "../CardThumb";
+import { GridCard } from "../PlannerCard";
 import { CardSearchInput, COLOR_ORDER, matchesCardSearch } from "../cardListControls";
 import { friendsApi, type FriendOwnedItem } from "./friendsApi";
 import { CardRow, Empty, LoadError } from "./ui";
@@ -71,16 +71,15 @@ export function FriendCollection({ friendId, username }: { friendId: number; use
       ) : layout === "grid" ? (
         <div className="card-grid friend-card-grid">
           {items.map((item) => (
-            <article key={item.card_id} className="grid-card friend-grid-card" data-card-id={item.card_id}>
-              <div className="grid-card-media">
-                <CardThumb src={item.image_url || undefined} cardId={item.card_id} alt={item.name} />
-              </div>
-              <div className="grid-card-body">
-                <div className="card-id">{item.card_id}</div>
-                <div className="grid-card-name">{item.name}</div>
-                <div className="grid-card-meta muted">{ownedText(item)}</div>
-              </div>
-            </article>
+            <GridCard
+              key={item.card_id}
+              className="friend-grid-card"
+              dataCardId={item.card_id}
+              cardId={item.card_id}
+              name={item.name}
+              imageSrc={item.image_url || undefined}
+              meta={ownedText(item)}
+            />
           ))}
         </div>
       ) : (
