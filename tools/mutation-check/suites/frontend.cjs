@@ -12,6 +12,15 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Update-available check (#864)
+    { id: "version864-never-updates", file: "frontend/src/appVersion.ts", from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "  return { kind: \"latest\" };", kills: ["offers an update when the live deploy is a different commit"] },
+    { id: "version864-always-updates", file: "frontend/src/appVersion.ts", from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "", kills: ["says up to date when the live deploy is the running commit"] },
+    { id: "version864-full-sha-kept", file: "frontend/src/appVersion.ts", from: "    sha: sha.trim().slice(0, 7),", to: "    sha: sha.trim(),", kills: ["matches a full SHA in the version file against the short running SHA"] },
+    { id: "version864-nags-dev", file: "frontend/src/appVersion.ts", from: "  if (!deployed || running === \"dev\" || running === \"unknown\") return { kind: \"unknown\" };", to: "  if (!deployed) return { kind: \"unknown\" };", kills: ["never nags a dev build"] },
+    { id: "version864-accepts-junk", file: "frontend/src/appVersion.ts", from: "  if (typeof sha !== \"string\" || !/^[0-9a-f]{7,40}$/i.test(sha.trim())) return null;", to: "  if (typeof sha !== \"string\") return null;", kills: ["treats an HTML fallback page or junk as unknown, not an update"] },
+    { id: "version864-dismiss-ignores-sha", file: "frontend/src/appVersion.ts", from: "s.deployed.sha !== dismissed ? s.deployed : null", to: "s.deployed.sha !== dismissed || true ? s.deployed : null", kills: ["stays quiet about a dismissed build but nags again for a newer one"] },
+    { id: "version864-later-never-hides", file: "frontend/src/appVersion.ts", from: "  dismissedSha = status.deployed.sha;\n", to: "", kills: ["Later hides the card until a newer build is deployed (#864)"] },
+    { id: "version864-later-forever", file: "frontend/src/appVersion.ts", from: "s.deployed.sha !== dismissed ? s.deployed : null", to: "dismissed === null ? s.deployed : null", kills: ["Later hides the card until a newer build is deployed (#864)"] },
     // Shopping-list button waits for the list to load (#845)
     { id: "shopping845-add-enabled-while-loading", edits: [
       { file: "frontend/src/App.tsx", from: "disabled={loading || save.isPending || extraQty === 0}", to: "disabled={save.isPending || extraQty === 0}" },

@@ -30,7 +30,7 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
-import { WhatsNewCard } from "@optcg/patch-notes";
+import { CornerNotices, UpdateNotice } from "./UpdateNotice";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
@@ -669,7 +669,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
         </div>
       </header>
       <main className="app-main">{children}</main>
-      <WhatsNewCard app="planner" Link={Link} />
+      <CornerNotices />
     </div>
     </CardLightboxActionContext.Provider>
   );
@@ -4741,6 +4741,7 @@ function MetaRoute() {
   }
   return (
     <div className="app public-app">
+      <UpdateNotice />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -4813,6 +4814,7 @@ function PublicSharePage() {
 
   return (
     <div className="app public-app">
+      <UpdateNotice />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
 import { ThemeToggle } from "./ThemeToggle";
+import { UpdateNotice, VersionStatus } from "./UpdateNotice";
 
 const NOTES = notesFor("planner");
 
@@ -13,6 +14,7 @@ export function WhatsNewPage() {
   }, []);
   return (
     <div className="app public-app">
+      <UpdateNotice />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -33,6 +35,7 @@ export function WhatsNewPage() {
             <h1>What’s new</h1>
           </div>
         </div>
+        <VersionStatus />
         <WhatsNewList notes={NOTES} />
       </main>
     </div>
