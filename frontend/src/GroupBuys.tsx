@@ -1,7 +1,7 @@
 import { BrandWordmark } from "./BrandWordmark";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Select } from "@optcg/ui/popups";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
@@ -16,7 +16,7 @@ import {
 import { BuildTag } from "./BuildTag";
 import { ShipIcon } from "./ThemeIcons";
 import { ThemeToggle } from "./ThemeToggle";
-import { CardLayoutToggle, useCardLayout } from "./CardLayout";
+import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
 import {
   buildFilterSummary,
   CardSearchInput,
@@ -42,7 +42,7 @@ import {
   mySelectedArtsTotal,
   visibleGroupBuyLines,
 } from "./groupBuyArt";
-import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
+import { SortableTh, sortByColumn, useColumnSort, type ColumnSort } from "./columnSort";
 import { invalidateOwnedViews } from "./ownedCollection";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
@@ -547,6 +547,382 @@ function lineArtUrl(line: GroupBuyLine): string | undefined {
   return mainImageUrl({ ...line, image_url: line.base_image_url || line.image_url });
 }
 
+/** Locked, ordered or purchased group buys show shipping, tax and what each member owes. */
+function hasOrderPanel(detail: Pick<GroupBuyDetail, "status">): boolean {
+  return detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
+}
+
+const NO_KEEP_VISIBLE: ReadonlySet<string> = new Set();
+
+/**
+ * Filter, search and sort a group buy's lines, then lay them out as grid/list rows
+ * (with User section headings when User is the primary sort) and as table rows
+ * (a column-header sort replaces the headings). The member page and the view-only
+ * invite page share it so the two always order and price cards the same way.
+ */
+function useGroupBuyLines(
+  allLines: GroupBuyLine[],
+  members: GroupBuyMember[],
+  search: string,
+  effectiveSorts: SortKey[],
+  columnSortKey: string,
+  { showExcluded = false, keepVisible = NO_KEEP_VISIBLE }: { showExcluded?: boolean; keepVisible?: ReadonlySet<string> } = {},
+) {
+  const lines = useMemo(() => {
+    let list = visibleGroupBuyLines(allLines, { showExcluded, keepVisible });
+    if (search.trim()) {
+      list = list.filter((l) =>
+        matchesCardSearch(
+          {
+            card_id: l.card_id,
+            name: l.name,
+            color: l.color,
+            card_type: l.card_type,
+            rarity: l.rarity,
+            used_in: l.members.map((m) => m.display_name),
+          },
+          search,
+        ),
+      );
+    }
+    const sortKey = (l: GroupBuyLine) => ({
+      card_id: l.card_id,
+      color: l.color || "",
+      still_need: l.total_qty,
+      market_price: groupBuyShownPrice(l),
+      user_sort_key: userSortKeyForLine(l, members),
+    });
+    return [...list].sort((a, b) => compareCardOrder(sortKey(a), sortKey(b), effectiveSorts));
+  }, [allLines, members, showExcluded, keepVisible, effectiveSorts, search]);
+
+  /** Section headers only when User is the primary sort (otherwise groups would fragment). */
+  const groupingByUser = effectiveSorts[0] === "user";
+  const displayRows = useMemo(
+    () => buildGroupBuyDisplayRows(lines, members, groupingByUser),
+    [lines, members, groupingByUser],
+  );
+  const { sort: cardsSort, onSort: onCardsSort } = useColumnSort(columnSortKey);
+  const tableRows = useMemo(
+    () =>
+      cardsSort
+        ? buildGroupBuyDisplayRows(sortByColumn(lines, cardsSort, groupBuyLineValue), members, false)
+        : displayRows,
+    [cardsSort, lines, members, displayRows],
+  );
+  return { lines, displayRows, tableRows, cardsSort, onCardsSort };
+}
+
+/** Members drawer: who is in, their copies and cost (plus ship / tax / owes once ordering starts). */
+function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
+  const members = detail.members ?? [];
+  const showOrderPanel = hasOrderPanel(detail);
+  return (
+    <div className="group-buy-members">
+      <CollapsibleDrawer
+        label="Members"
+        summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
+        storageKey={MEMBERS_OPEN_KEY}
+        defaultOpen
+      >
+        <ul>
+          {members.map((m) => (
+            <li key={m.user_id}>
+              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+              <strong>
+                {m.display_name}
+                {m.role === "host" ? " (host)" : ""}
+              </strong>
+              <MemberModeTag member={m} />
+              <span className="muted">
+                {" "}
+                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
+                {showOrderPanel ? (
+                  <>
+                    {" "}
+                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
+                    {" · owes "}
+                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
+                  </>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CollapsibleDrawer>
+    </div>
+  );
+}
+
+/** Shipping / tax / order notes as plain text, for anyone who cannot edit them. */
+function GroupBuyOrderDetails({ detail }: { detail: GroupBuyDetail }) {
+  return (
+    <div className="group-buy-order-readonly">
+      {detail.external_order_id ? (
+        <p>
+          Order id: <strong>{detail.external_order_id}</strong>
+        </p>
+      ) : null}
+      <p className="muted">
+        Shipping split:{" "}
+        {SHIPPING_SPLIT_LABELS[
+          detail.shipping_split === "by_cost" || detail.shipping_split === "by_copies"
+            ? detail.shipping_split
+            : "equal"
+        ]}
+        {" · Tax split: by card cost"}
+        {(detail.tax_cost ?? 0) > 0 ? ` (${money(detail.tax_cost)})` : ""}
+      </p>
+      {detail.order_notes ? <p>{detail.order_notes}</p> : null}
+    </div>
+  );
+}
+
+/** Order & settlement drawer with the cards + shipping + tax total; `children` add what the host can edit. */
+function GroupBuySettlement({
+  detail,
+  readOnly = false,
+  children,
+}: {
+  detail: GroupBuyDetail;
+  /** The invite view skips the host-facing next-step hint. */
+  readOnly?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="group-buy-settlement">
+      <CollapsibleDrawer
+        label="Order & settlement"
+        summary={`${money(detail.grand_total)} total`}
+        storageKey={SETTLEMENT_OPEN_KEY}
+        defaultOpen
+      >
+        <p className="muted">
+          {readOnly ? null : (
+            <>
+              {detail.status === "locked"
+                ? "After checkout, mark ordered. Import a TCGPlayer receipt (required), then Mark purchased for matched copies only."
+                : detail.status === "ordered"
+                  ? "Order placed — settle costs below. Import a TCGPlayer receipt (required), then Mark purchased to update Owned for matched copies."
+                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records. Hosts can Undo Mark purchased to restore the pool."}{" "}
+            </>
+          )}
+          Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
+          {money(detail.tax_cost ?? 0)} ={" "}
+          <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
+          {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
+        </p>
+        {children}
+      </CollapsibleDrawer>
+    </div>
+  );
+}
+
+const lineMeta = (line: GroupBuyLine, excluded: boolean) =>
+  [excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
+    .filter(Boolean)
+    .join(" · ");
+
+/**
+ * The merged card list as grid cards, phone cards or desktop table rows. The member page
+ * and the view-only invite page both render it, so the art (`lineArtUrl`), meta, who chips
+ * and price can't drift apart again (#887). The member-only parts are slots: leave them out
+ * for the view-only page and the matching column / row disappears.
+ */
+function GroupBuyLines({
+  layout,
+  isNarrow,
+  members,
+  displayRows,
+  tableRows,
+  cardsSort,
+  onCardsSort,
+  renderBuyEditor,
+  renderAltRow,
+}: {
+  layout: CardLayout;
+  isNarrow: boolean;
+  members: GroupBuyMember[];
+  displayRows: GroupBuyDisplayRow[];
+  tableRows: GroupBuyDisplayRow[];
+  cardsSort: ColumnSort | null;
+  onCardsSort: ReturnType<typeof useColumnSort>["onSort"];
+  /** "Your buy" stepper (member page while the group buy is open). */
+  renderBuyEditor?: (line: GroupBuyLine, excluded: boolean) => ReactNode;
+  /** Alt arts row (member page with Show alt arts on). */
+  renderAltRow?: (line: GroupBuyLine) => ReactNode;
+}) {
+  const heading = (row: Extract<GroupBuyDisplayRow, { kind: "header" }>) => (
+    <UserGroupHeading userId={row.userId} displayName={row.displayName} members={members} />
+  );
+  if (layout === "grid") {
+    return (
+      <div className="card-grid">
+        {displayRows.map((row) => {
+          if (row.kind === "header") {
+            return (
+              <div key={row.key} className="group-buy-user-section">
+                {heading(row)}
+              </div>
+            );
+          }
+          const line = row.line;
+          const excluded = isLineExcluded(line);
+          return (
+            <GridCard
+              key={row.key}
+              className={cardShellClass("need", line, members, excluded)}
+              before={<MemberColorRail line={line} members={members} />}
+              cardId={line.card_id}
+              name={line.name}
+              imageSrc={lineArtUrl(line)}
+              meta={lineMeta(line, excluded)}
+            >
+              <div className="group-buy-who-row">
+                <MemberBreakdown line={line} members={members} />
+              </div>
+              <div className="grid-card-price">
+                <GroupBuyCardPrice line={line} />
+              </div>
+              {renderBuyEditor ? (
+                <div className="grid-card-owned">
+                  <span>Your buy</span>
+                  {renderBuyEditor(line, excluded)}
+                </div>
+              ) : null}
+              {line.tcgplayer_url ? (
+                <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                  TCGPlayer
+                </a>
+              ) : null}
+              {renderAltRow ? <div className="grid-card-alts alt-arts-short">{renderAltRow(line)}</div> : null}
+            </GridCard>
+          );
+        })}
+      </div>
+    );
+  }
+  if (isNarrow) {
+    return (
+      <div className="mobile-card-list mobile-card-list-mounted">
+        {displayRows.map((row) => {
+          if (row.kind === "header") {
+            return (
+              <div key={row.key} className="group-buy-user-section">
+                {heading(row)}
+              </div>
+            );
+          }
+          const line = row.line;
+          const excluded = isLineExcluded(line);
+          return (
+            <MobileCard
+              key={row.key}
+              className={cardShellClass("need", line, members, excluded)}
+              before={<MemberColorRail line={line} members={members} />}
+              cardId={line.card_id}
+              name={line.name}
+              imageSrc={lineArtUrl(line)}
+              cost={line.cost ?? null}
+              rarity={line.rarity}
+              meta={lineMeta(line, excluded)}
+              info={
+                <>
+                  <div className="group-buy-who-row">
+                    <MemberBreakdown line={line} members={members} />
+                  </div>
+                  <div className="mobile-card-price-row">
+                    <GroupBuyCardPrice line={line} />
+                    {line.tcgplayer_url ? (
+                      <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                        TCGPlayer
+                      </a>
+                    ) : null}
+                  </div>
+                </>
+              }
+            >
+              {renderBuyEditor ? (
+                <div className="mobile-card-owned">
+                  <span>Your buy</span>
+                  {renderBuyEditor(line, excluded)}
+                </div>
+              ) : null}
+              {renderAltRow ? <div className="mobile-card-alts alt-arts-short">{renderAltRow(line)}</div> : null}
+            </MobileCard>
+          );
+        })}
+      </div>
+    );
+  }
+  const colSpan = 5 + (renderBuyEditor ? 1 : 0) + (renderAltRow ? 1 : 0);
+  const th = (label: string, colKey: string, firstDir: "asc" | "desc") => (
+    <SortableTh label={label} colKey={colKey} firstDir={firstDir} sort={cardsSort} onSort={onCardsSort} />
+  );
+  return (
+    <div className="table-wrap desktop-table">
+      <table className="data-table">
+        <thead>
+          <tr>
+            {th("Card", "card", "asc")}
+            {renderBuyEditor ? th("Your buy", "mine", "desc") : null}
+            {th("Total", "total", "desc")}
+            {th("Who", "who", "asc")}
+            {th("Market", "market", "desc")}
+            {th("Est.", "est", "desc")}
+            {renderAltRow ? <th>Alt arts</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {tableRows.map((row) => {
+            if (row.kind === "header") {
+              return (
+                <tr key={row.key} className="group-buy-user-header-row">
+                  <td colSpan={colSpan}>{heading(row)}</td>
+                </tr>
+              );
+            }
+            const line = row.line;
+            const excluded = isLineExcluded(line);
+            const active = line.members.filter((m) => m.qty > 0);
+            const soleClass =
+              active.length === 1 ? ` gb-user-${memberColorIndex(active[0].user_id, members)}` : "";
+            return (
+              <tr key={row.key} className={`${excluded ? "excluded" : ""}${soleClass}`.trim() || undefined}>
+                <td className="card-cell">
+                  <div className="card-cell-inner">
+                    <MemberColorRail line={line} members={members} />
+                    <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
+                    <div>
+                      <div className="card-id">{line.card_id}</div>
+                      <div>{line.name}</div>
+                      {excluded ? <div className="muted">Excluded</div> : null}
+                      {line.tcgplayer_url ? (
+                        <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
+                          TCGPlayer
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </td>
+                {renderBuyEditor ? <td>{renderBuyEditor(line, excluded)}</td> : null}
+                <td>{line.total_qty}</td>
+                <td>
+                  <MemberBreakdown line={line} members={members} />
+                </td>
+                <td>
+                  <MarketPrice price={line.market_price} productId={line.product_id} />
+                </td>
+                <td>{money(line.remaining_cost)}</td>
+                {renderAltRow ? <td className="alt-arts-cell alt-arts-short">{renderAltRow(line)}</td> : null}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function GroupBuyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -575,8 +951,6 @@ export function GroupBuyDetailPage() {
   const [receiptDraft, setReceiptDraft] = useState<ReceiptApplyDraft | null>(null);
   const [receiptResetKey, setReceiptResetKey] = useState(0);
   const sortingByUser = effectiveSorts.includes("user");
-  /** Section headers only when User is the primary sort (otherwise groups would fragment). */
-  const groupingByUser = effectiveSorts[0] === "user";
 
   const detailQ = useQuery({
     queryKey: ["group-buy", groupId],
@@ -589,59 +963,15 @@ export function GroupBuyDetailPage() {
   const detail = detailQ.data;
   const members = detail?.members ?? [];
 
-  const lines = useMemo(() => {
-    let list = visibleGroupBuyLines(detail?.lines ?? [], { showExcluded, keepVisible });
-    if (search.trim()) {
-      list = list.filter((l) =>
-        matchesCardSearch(
-          {
-            card_id: l.card_id,
-            name: l.name,
-            color: l.color,
-            card_type: l.card_type,
-            rarity: l.rarity,
-            used_in: l.members.map((m) => m.display_name),
-          },
-          search,
-        ),
-      );
-    }
-    const memberList = detail?.members ?? [];
-    return [...list].sort((a, b) =>
-      compareCardOrder(
-        {
-          card_id: a.card_id,
-          color: a.color || "",
-          still_need: a.total_qty,
-          market_price: groupBuyShownPrice(a),
-          user_sort_key: userSortKeyForLine(a, memberList),
-        },
-        {
-          card_id: b.card_id,
-          color: b.color || "",
-          still_need: b.total_qty,
-          market_price: groupBuyShownPrice(b),
-          user_sort_key: userSortKeyForLine(b, memberList),
-        },
-        effectiveSorts,
-      ),
-    );
-  }, [detail, showExcluded, keepVisible, effectiveSorts, search]);
-
-  const displayRows = useMemo(
-    () => buildGroupBuyDisplayRows(lines, members, groupingByUser),
-    [lines, members, groupingByUser],
+  const { lines, displayRows, tableRows, cardsSort, onCardsSort } = useGroupBuyLines(
+    detail?.lines ?? [],
+    members,
+    search,
+    effectiveSorts,
+    "optcg_colsort_gb_cards",
+    { showExcluded, keepVisible },
   );
-  const { sort: cardsSort, onSort: onCardsSort } = useColumnSort("optcg_colsort_gb_cards");
   const { sort: oweSort, onSort: onOweSort } = useColumnSort("optcg_colsort_gb_owe");
-  // A header sort replaces the per-user section headers, which only make sense in the menu order.
-  const tableRows = useMemo(
-    () =>
-      cardsSort
-        ? buildGroupBuyDisplayRows(sortByColumn(lines, cardsSort, groupBuyLineValue), members, false)
-        : displayRows,
-    [cardsSort, lines, members, displayRows],
-  );
   const oweMembers = useMemo(() => sortByColumn(members, oweSort, groupBuyOweValue), [members, oweSort]);
 
   const decks = decksQ.data ?? [];
@@ -1045,13 +1375,9 @@ export function GroupBuyDetailPage() {
   if (detailQ.error) return <p className="error">{(detailQ.error as Error).message}</p>;
   if (!detail) return <p className="error">Group buy not found.</p>;
 
-  const showOrderPanel = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
+  const showOrderPanel = hasOrderPanel(detail);
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
   const receiptReady = Boolean(receiptDraft?.canApply);
-  const tableColSpan =
-    5 +
-    (detail.status === "open" ? 1 : 0) +
-    (showAltArts ? 1 : 0);
 
   function setContributionDecks(next: number[] | null) {
     if (next && next.length === decks.length) contribution.mutate(null);
@@ -1290,180 +1616,113 @@ export function GroupBuyDetailPage() {
         </p>
       )}
 
-      <div className="group-buy-members">
-        <CollapsibleDrawer
-          label="Members"
-          summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
-          storageKey={MEMBERS_OPEN_KEY}
-          defaultOpen
-        >
-          <ul>
-            {members.map((m) => (
-              <li key={m.user_id}>
-                <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-                <strong>
-                  {m.display_name}
-                  {m.role === "host" ? " (host)" : ""}
-                </strong>
-                <MemberModeTag member={m} />
-                <span className="muted">
-                  {" "}
-                  · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
-                  {showOrderPanel ? (
-                    <>
-                      {" "}
-                      · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
-                      {" · owes "}
-                      <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
-                    </>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </CollapsibleDrawer>
-      </div>
+      <GroupBuyMembersList detail={detail} />
 
       {showOrderPanel && (
-        <div className="group-buy-settlement">
-          <CollapsibleDrawer
-            label="Order & settlement"
-            summary={`${money(detail.grand_total)} total`}
-            storageKey={SETTLEMENT_OPEN_KEY}
-            defaultOpen
-          >
-            <p className="muted">
-              {detail.status === "locked"
-                ? "After checkout, mark ordered. Import a TCGPlayer receipt (required), then Mark purchased for matched copies only."
-                : detail.status === "ordered"
-                  ? "Order placed — settle costs below. Import a TCGPlayer receipt (required), then Mark purchased to update Owned for matched copies."
-                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records. Hosts can Undo Mark purchased to restore the pool."}{" "}
-              Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
-              {money(detail.tax_cost ?? 0)} ={" "}
-              <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
-              {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
-            </p>
-            {detail.is_host && detail.status !== "completed" ? (
-              <form
-                className="group-buy-order-form"
-                onSubmit={(e: FormEvent) => {
-                  e.preventDefault();
-                  saveOrder.mutate(orderBodyFromForm());
-                }}
-              >
-                <label>
-                  Order / receipt id
-                  <input
-                    type="text"
-                    value={orderId}
-                    maxLength={200}
-                    onChange={(e) => setOrderId(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </label>
-                <label>
-                  Shipping cost
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={shippingCost}
-                    onChange={(e) => setShippingCost(e.target.value)}
-                  />
-                </label>
-                <label>
-                  Split shipping
-                  <Select
-                    value={shippingSplit}
-                    onChange={setShippingSplit}
-                    options={(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => ({
-                      value: key,
-                      label: SHIPPING_SPLIT_LABELS[key],
-                    }))}
-                  />
-                </label>
-                <label>
-                  Tax
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={taxCost}
-                    onChange={(e) => setTaxCost(e.target.value)}
-                    aria-describedby="group-buy-tax-hint"
-                  />
-                  <span id="group-buy-tax-hint" className="group-buy-field-hint">
-                    Always split by card cost
-                  </span>
-                </label>
-                <label className="group-buy-order-notes">
-                  Notes
-                  <textarea
-                    value={orderNotes}
-                    maxLength={4000}
-                    rows={3}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="Who paid, tracking, Venmo handles…"
-                  />
-                </label>
-                <button type="submit" className="btn secondary" disabled={orderBusy}>
-                  {saveOrder.isPending ? "Saving…" : "Save order details"}
-                </button>
-              </form>
-            ) : (
-              <div className="group-buy-order-readonly">
-                {detail.external_order_id ? (
-                  <p>
-                    Order id: <strong>{detail.external_order_id}</strong>
-                  </p>
-                ) : null}
-                <p className="muted">
-                  Shipping split:{" "}
-                  {SHIPPING_SPLIT_LABELS[
-                    detail.shipping_split === "by_cost" || detail.shipping_split === "by_copies"
-                      ? detail.shipping_split
-                      : "equal"
-                  ]}
-                  {" · Tax split: by card cost"}
-                  {(detail.tax_cost ?? 0) > 0 ? ` (${money(detail.tax_cost)})` : ""}
-                </p>
-                {detail.order_notes ? <p>{detail.order_notes}</p> : null}
-              </div>
-            )}
-            <div className="table-wrap desktop-table">
-              <table className="data-table group-buy-owe-table">
-                <thead>
-                  <tr>
-                    <SortableTh label="Member" colKey="member" firstDir="asc" sort={oweSort} onSort={onOweSort} />
-                    <SortableTh label="Cards" colKey="cards" firstDir="desc" sort={oweSort} onSort={onOweSort} />
-                    <SortableTh label="Shipping" colKey="shipping" firstDir="desc" sort={oweSort} onSort={onOweSort} />
-                    <SortableTh label="Tax" colKey="tax" firstDir="desc" sort={oweSort} onSort={onOweSort} />
-                    <SortableTh label="Owes" colKey="owes" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+        <GroupBuySettlement detail={detail}>
+          {detail.is_host && detail.status !== "completed" ? (
+            <form
+              className="group-buy-order-form"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                saveOrder.mutate(orderBodyFromForm());
+              }}
+            >
+              <label>
+                Order / receipt id
+                <input
+                  type="text"
+                  value={orderId}
+                  maxLength={200}
+                  onChange={(e) => setOrderId(e.target.value)}
+                  placeholder="Optional"
+                />
+              </label>
+              <label>
+                Shipping cost
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={shippingCost}
+                  onChange={(e) => setShippingCost(e.target.value)}
+                />
+              </label>
+              <label>
+                Split shipping
+                <Select
+                  value={shippingSplit}
+                  onChange={setShippingSplit}
+                  options={(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => ({
+                    value: key,
+                    label: SHIPPING_SPLIT_LABELS[key],
+                  }))}
+                />
+              </label>
+              <label>
+                Tax
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={taxCost}
+                  onChange={(e) => setTaxCost(e.target.value)}
+                  aria-describedby="group-buy-tax-hint"
+                />
+                <span id="group-buy-tax-hint" className="group-buy-field-hint">
+                  Always split by card cost
+                </span>
+              </label>
+              <label className="group-buy-order-notes">
+                Notes
+                <textarea
+                  value={orderNotes}
+                  maxLength={4000}
+                  rows={3}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  placeholder="Who paid, tracking, Venmo handles…"
+                />
+              </label>
+              <button type="submit" className="btn secondary" disabled={orderBusy}>
+                {saveOrder.isPending ? "Saving…" : "Save order details"}
+              </button>
+            </form>
+          ) : (
+            <GroupBuyOrderDetails detail={detail} />
+          )}
+          <div className="table-wrap desktop-table">
+            <table className="data-table group-buy-owe-table">
+              <thead>
+                <tr>
+                  <SortableTh label="Member" colKey="member" firstDir="asc" sort={oweSort} onSort={onOweSort} />
+                  <SortableTh label="Cards" colKey="cards" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                  <SortableTh label="Shipping" colKey="shipping" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                  <SortableTh label="Tax" colKey="tax" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                  <SortableTh label="Owes" colKey="owes" firstDir="desc" sort={oweSort} onSort={onOweSort} />
+                </tr>
+              </thead>
+              <tbody>
+                {oweMembers.map((m) => (
+                  <tr key={m.user_id}>
+                    <td>
+                      <span className="group-buy-member-cell">
+                        <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+                        {m.display_name}
+                        {m.role === "host" ? " (host)" : ""}
+                      </span>
+                    </td>
+                    <td>{money(m.card_cost ?? 0)}</td>
+                    <td>{money(m.shipping_share ?? 0)}</td>
+                    <td>{money(m.tax_share ?? 0)}</td>
+                    <td>
+                      <strong className="group-buy-owes">{money(m.total_owed ?? 0)}</strong>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {oweMembers.map((m) => (
-                    <tr key={m.user_id}>
-                      <td>
-                        <span className="group-buy-member-cell">
-                          <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-                          {m.display_name}
-                          {m.role === "host" ? " (host)" : ""}
-                        </span>
-                      </td>
-                      <td>{money(m.card_cost ?? 0)}</td>
-                      <td>{money(m.shipping_share ?? 0)}</td>
-                      <td>{money(m.tax_share ?? 0)}</td>
-                      <td>
-                        <strong className="group-buy-owes">{money(m.total_owed ?? 0)}</strong>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleDrawer>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </GroupBuySettlement>
       )}
 
       {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
@@ -1587,227 +1846,34 @@ export function GroupBuyDetailPage() {
 
           {lines.length === 0 ? (
             <p className="muted">No cards match the current search or filters.</p>
-          ) : layout === "grid" ? (
-            <div className="card-grid">
-              {displayRows.map((row) => {
-                if (row.kind === "header") {
-                  return (
-                    <div key={row.key} className="group-buy-user-section">
-                      <UserGroupHeading
-                        userId={row.userId}
-                        displayName={row.displayName}
-                        members={members}
-                      />
-                    </div>
-                  );
-                }
-                const line = row.line;
-                const excluded = isLineExcluded(line);
-                return (
-                  <GridCard
-                    key={row.key}
-                    className={cardShellClass("need", line, members, excluded)}
-                    before={<MemberColorRail line={line} members={members} />}
-                    cardId={line.card_id}
-                    name={line.name}
-                    imageSrc={lineArtUrl(line)}
-                    meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  >
-                      <div className="group-buy-who-row">
-                        <MemberBreakdown line={line} members={members} />
-                      </div>
-                      <div className="grid-card-price">
-                        <GroupBuyCardPrice line={line} />
-                      </div>
-                      {detail.status === "open" ? (
-                        <div className="grid-card-owned">
-                          <span>Your buy</span>
-                          <BuyQtyEditor
-                            cardId={line.card_id}
-                            qty={line.my_qty}
-                            suggestedQty={line.my_suggested_qty}
-                            isCustom={line.my_is_custom}
-                            excluded={excluded}
-                            disabled={qtyBusy}
-                            onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                            onReset={() => clearQty.mutate(line.card_id)}
-                            onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                          />
-                        </div>
-                      ) : null}
-                      {line.tcgplayer_url ? (
-                        <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                          TCGPlayer
-                        </a>
-                      ) : null}
-                      {showAltArts ? (
-                        <div className="grid-card-alts alt-arts-short">{groupBuyAltRow(line)}</div>
-                      ) : null}
-                  </GridCard>
-                );
-              })}
-            </div>
-          ) : isNarrow ? (
-            <div className="mobile-card-list mobile-card-list-mounted">
-              {displayRows.map((row) => {
-                if (row.kind === "header") {
-                  return (
-                    <div key={row.key} className="group-buy-user-section">
-                      <UserGroupHeading
-                        userId={row.userId}
-                        displayName={row.displayName}
-                        members={members}
-                      />
-                    </div>
-                  );
-                }
-                const line = row.line;
-                const excluded = isLineExcluded(line);
-                return (
-                  <MobileCard
-                    key={row.key}
-                    className={cardShellClass("need", line, members, excluded)}
-                    before={<MemberColorRail line={line} members={members} />}
-                    cardId={line.card_id}
-                    name={line.name}
-                    imageSrc={lineArtUrl(line)}
-                    cost={line.cost ?? null}
-                    rarity={line.rarity}
-                    meta={[excluded ? "Excluded" : "", line.color, `Total ${line.total_qty}`, money(line.remaining_cost)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    info={
-                      <>
-                        <div className="group-buy-who-row">
-                          <MemberBreakdown line={line} members={members} />
-                        </div>
-                        <div className="mobile-card-price-row">
-                          <GroupBuyCardPrice line={line} />
-                          {line.tcgplayer_url ? (
-                            <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                              TCGPlayer
-                            </a>
-                          ) : null}
-                        </div>
-                      </>
-                    }
-                  >
-                    {detail.status === "open" ? (
-                      <div className="mobile-card-owned">
-                        <span>Your buy</span>
-                        <BuyQtyEditor
-                          cardId={line.card_id}
-                          qty={line.my_qty}
-                          suggestedQty={line.my_suggested_qty}
-                          isCustom={line.my_is_custom}
-                          excluded={excluded}
-                          disabled={qtyBusy}
-                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                          onReset={() => clearQty.mutate(line.card_id)}
-                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                        />
-                      </div>
-                    ) : null}
-                    {showAltArts ? (
-                      <div className="mobile-card-alts alt-arts-short">{groupBuyAltRow(line)}</div>
-                    ) : null}
-                  </MobileCard>
-                );
-              })}
-            </div>
           ) : (
-            <div className="table-wrap desktop-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <SortableTh label="Card" colKey="card" firstDir="asc" sort={cardsSort} onSort={onCardsSort} />
-                    {detail.status === "open" ? (
-                      <SortableTh label="Your buy" colKey="mine" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
-                    ) : null}
-                    <SortableTh label="Total" colKey="total" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
-                    <SortableTh label="Who" colKey="who" firstDir="asc" sort={cardsSort} onSort={onCardsSort} />
-                    <SortableTh label="Market" colKey="market" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
-                    <SortableTh label="Est." colKey="est" firstDir="desc" sort={cardsSort} onSort={onCardsSort} />
-                    {showAltArts ? <th>Alt arts</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableRows.map((row) => {
-                    if (row.kind === "header") {
-                      return (
-                        <tr key={row.key} className="group-buy-user-header-row">
-                          <td colSpan={tableColSpan}>
-                            <UserGroupHeading
-                              userId={row.userId}
-                              displayName={row.displayName}
-                              members={members}
-                            />
-                          </td>
-                        </tr>
-                      );
-                    }
-                    const line = row.line;
-                    const excluded = isLineExcluded(line);
-                    const active = line.members.filter((m) => m.qty > 0);
-                    const soleClass =
-                      active.length === 1
-                        ? ` gb-user-${memberColorIndex(active[0].user_id, members)}`
-                        : "";
-                    return (
-                      <tr
-                        key={row.key}
-                        className={`${excluded ? "excluded" : ""}${soleClass}`.trim() || undefined}
-                      >
-                        <td className="card-cell">
-                          <div className="card-cell-inner">
-                            <MemberColorRail line={line} members={members} />
-                            <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
-                            <div>
-                              <div className="card-id">{line.card_id}</div>
-                              <div>{line.name}</div>
-                              {excluded ? <div className="muted">Excluded</div> : null}
-                              {line.tcgplayer_url ? (
-                                <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">
-                                  TCGPlayer
-                                </a>
-                              ) : null}
-                            </div>
-                          </div>
-                        </td>
-                        {detail.status === "open" ? (
-                          <td>
-                            <BuyQtyEditor
-                              cardId={line.card_id}
-                              qty={line.my_qty}
-                              suggestedQty={line.my_suggested_qty}
-                              isCustom={line.my_is_custom}
-                              excluded={excluded}
-                              disabled={qtyBusy}
-                              onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                              onReset={() => clearQty.mutate(line.card_id)}
-                              onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                            />
-                          </td>
-                        ) : null}
-                        <td>{line.total_qty}</td>
-                        <td>
-                          <MemberBreakdown line={line} members={members} />
-                        </td>
-                        <td>
-                          <MarketPrice price={line.market_price} productId={line.product_id} />
-                        </td>
-                        <td>{money(line.remaining_cost)}</td>
-                        {showAltArts ? (
-                          <td className="alt-arts-cell alt-arts-short">{groupBuyAltRow(line)}</td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <GroupBuyLines
+              layout={layout}
+              isNarrow={isNarrow}
+              members={members}
+              displayRows={displayRows}
+              tableRows={tableRows}
+              cardsSort={cardsSort}
+              onCardsSort={onCardsSort}
+              renderBuyEditor={
+                detail.status === "open"
+                  ? (line, excluded) => (
+                      <BuyQtyEditor
+                        cardId={line.card_id}
+                        qty={line.my_qty}
+                        suggestedQty={line.my_suggested_qty}
+                        isCustom={line.my_is_custom}
+                        excluded={excluded}
+                        disabled={qtyBusy}
+                        onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                        onReset={() => clearQty.mutate(line.card_id)}
+                        onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                      />
+                    )
+                  : undefined
+              }
+              renderAltRow={showAltArts ? groupBuyAltRow : undefined}
+            />
           )}
         </>
       )}
@@ -1936,205 +2002,50 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
   const [search, setSearch] = useState("");
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
-
   const members = detail.members ?? [];
-  const showOrderPanel =
-    detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
-
-  const lines = useMemo(() => {
-    let list = (detail.lines ?? []).filter((l) => l.total_qty > 0);
-    if (search.trim()) {
-      list = list.filter((l) =>
-        matchesCardSearch(
-          {
-            card_id: l.card_id,
-            name: l.name,
-            color: l.color,
-            card_type: l.card_type,
-            rarity: l.rarity,
-            used_in: l.members.map((m) => m.display_name),
-          },
-          search,
-        ),
-      );
-    }
-    return [...list].sort((a, b) =>
-      compareCardOrder(
-        {
-          card_id: a.card_id,
-          color: a.color || "",
-          still_need: a.total_qty,
-          market_price: a.market_price,
-        },
-        {
-          card_id: b.card_id,
-          color: b.color || "",
-          still_need: b.total_qty,
-          market_price: b.market_price,
-        },
-        effectiveSorts,
-      ),
-    );
-  }, [detail, search, effectiveSorts]);
-  const { sort, onSort } = useColumnSort("optcg_colsort_gb_public");
-  const tableLines = useMemo(() => sortByColumn(lines, sort, groupBuyLineValue), [lines, sort]);
+  const { lines, displayRows, tableRows, cardsSort, onCardsSort } = useGroupBuyLines(
+    detail.lines ?? [],
+    members,
+    search,
+    effectiveSorts,
+    "optcg_colsort_gb_public",
+  );
 
   return (
     <>
-    <div className="group-buy-members">
-      <CollapsibleDrawer
-        label="Members"
-        summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
-        storageKey={MEMBERS_OPEN_KEY}
-        defaultOpen
-      >
-        <ul>
-          {members.map((m) => (
-            <li key={m.user_id}>
-              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-              <strong>
-                {m.display_name}
-                {m.role === "host" ? " (host)" : ""}
-              </strong>
-              <MemberModeTag member={m} />
-              <span className="muted">
-                {" "}
-                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
-                {showOrderPanel ? (
-                  <>
-                    {" "}
-                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
-                    {" · owes "}
-                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
-                  </>
-                ) : null}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </CollapsibleDrawer>
-    </div>
+      <GroupBuyMembersList detail={detail} />
+      {hasOrderPanel(detail) ? (
+        <GroupBuySettlement detail={detail} readOnly>
+          <GroupBuyOrderDetails detail={detail} />
+        </GroupBuySettlement>
+      ) : null}
 
-    {showOrderPanel ? (
-      <div className="group-buy-settlement">
-        <CollapsibleDrawer
-          label="Order & settlement"
-          summary={`${money(detail.grand_total)} total`}
-          storageKey={SETTLEMENT_OPEN_KEY}
-          defaultOpen
-        >
-          <p className="muted">
-            Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
-            {money(detail.tax_cost ?? 0)} ={" "}
-            <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
-            {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
-          </p>
-          {detail.external_order_id ? (
-            <p className="muted">Order / receipt id: {detail.external_order_id}</p>
-          ) : null}
-          {detail.order_notes ? <p className="muted">{detail.order_notes}</p> : null}
-        </CollapsibleDrawer>
-      </div>
-    ) : null}
-
-    <div className="list-toolbar">
-      <div className="list-toolbar-row">
-        <CardSearchInput value={search} onChange={setSearch} />
-        <CardLayoutToggle layout={layout} onChange={setLayout} />
-      </div>
-      <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
-        <div className="filters">
-          <SortMenu
-            sorts={sorts}
-            onChange={setSorts}
-            onlyNeed
-            unavailableKeys={unavailableSorts}
-          />
+      <div className="list-toolbar">
+        <div className="list-toolbar-row">
+          <CardSearchInput value={search} onChange={setSearch} />
+          <CardLayoutToggle layout={layout} onChange={setLayout} />
         </div>
-      </CollapsibleFilters>
-    </div>
+        <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
+          <div className="filters">
+            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed unavailableKeys={unavailableSorts} />
+          </div>
+        </CollapsibleFilters>
+      </div>
 
-    {layout === "grid" ? (
-      <div className="card-grid">
-        {lines.map((line) => (
-          <GridCard
-            key={line.card_id}
-            className="need"
-            cardId={line.card_id}
-            name={line.name}
-            imageSrc={lineArtUrl(line)}
-            meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
-          >
-            <MemberBreakdown line={line} members={members} />
-            <div className="grid-card-price">
-              <MarketPrice price={line.market_price} productId={line.product_id} />
-            </div>
-          </GridCard>
-        ))}
-      </div>
-    ) : isNarrow ? (
-      <div className="mobile-card-list">
-        {lines.map((line) => (
-          <MobileCard
-            key={line.card_id}
-            className="need"
-            cardId={line.card_id}
-            name={line.name}
-            imageSrc={lineArtUrl(line)}
-            cost={line.cost ?? null}
-            rarity={line.rarity}
-            meta={`${line.total_qty} copies · ${money(line.remaining_cost)}`}
-            info={
-              <>
-                <MemberBreakdown line={line} members={members} />
-                <div className="mobile-card-price-row">
-                  <MarketPrice price={line.market_price} productId={line.product_id} />
-                </div>
-              </>
-            }
-          />
-        ))}
-      </div>
-    ) : (
-      <div className="table-wrap desktop-table">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-              <SortableTh label="Qty" colKey="total" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Who" colKey="who" firstDir="asc" sort={sort} onSort={onSort} />
-              <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Remaining" colKey="est" firstDir="desc" sort={sort} onSort={onSort} />
-            </tr>
-          </thead>
-          <tbody>
-            {tableLines.map((line) => (
-              <tr key={line.card_id} className="need">
-                <td className="card-cell">
-                  <div className="card-cell-inner">
-                    <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
-                    <div>
-                      <div className="card-id">{line.card_id}</div>
-                      <div>{line.name}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>{line.total_qty}</td>
-                <td>
-                  <MemberBreakdown line={line} members={members} />
-                </td>
-                <td>
-                  <MarketPrice price={line.market_price} productId={line.product_id} />
-                </td>
-                <td>{money(line.remaining_cost)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-
-    {!lines.length ? <p className="muted">No cards in this group buy.</p> : null}
+      {lines.length ? (
+        <GroupBuyLines
+          layout={layout}
+          isNarrow={isNarrow}
+          members={members}
+          displayRows={displayRows}
+          tableRows={tableRows}
+          cardsSort={cardsSort}
+          onCardsSort={onCardsSort}
+        />
+      ) : (
+        <p className="muted">No cards in this group buy.</p>
+      )}
     </>
   );
 }
+
