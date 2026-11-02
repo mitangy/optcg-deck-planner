@@ -56,6 +56,16 @@ export function mySelectedArtsTotal(line: ArtLine): MyArtsTotal {
 }
 
 /**
+ * The price shown under a group-buy card: your total across the arts you picked
+ * when you buy any copies, otherwise the unit market price. The Price sort uses it (#876).
+ */
+export function groupBuyShownPrice(
+  line: ArtLine & Pick<GroupBuyLine, "market_price">,
+): number | null {
+  return line.my_qty > 0 ? mySelectedArtsTotal(line).total : (line.market_price ?? null);
+}
+
+/**
  * + on an alt art moves one copy from the base art, so it has nothing to move
  * once the base art is down to 0 copies (#870).
  */
