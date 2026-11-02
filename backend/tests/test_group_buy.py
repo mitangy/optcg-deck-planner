@@ -642,3 +642,34 @@ def test_public_group_buy_shows_group_alt_art_882(db):
     line = _line(group_buy.public_group_buy_view(db, created.invite_token))
     assert line.display_art == 1009
     assert any(a.product_id == 1009 for a in line.alt_arts)
+
+
+def test_public_group_buy_follows_members_show_pick_over_wants_893(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+    # Wanter wants 1009 x2, but the host picked 1007 with Show.
+    services.set_display_art(db, host, "OP01-001", 1007)
+
+    guest = _line(group_buy.public_group_buy_view(db, created.invite_token))
+    assert guest.display_art == 1007
+    assert any(a.product_id == 1007 for a in guest.alt_arts)
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1007
+
+
+def test_group_buy_show_picks_count_by_members_then_host_893(db):
+    host, wanter, viewer = _three_players_with_alt_want(db)
+    created = group_buy.create_group_buy(db, host, "Art")
+    group_buy.join_group_buy(db, wanter, created.invite_token)
+    group_buy.join_group_buy(db, viewer, created.invite_token)
+    services.set_display_art(db, wanter, "OP01-001", 1009)
+    services.set_display_art(db, host, "OP01-001", 1007)
+    # One pick each: the host's wins the tie (1007 is also the lower id, so check the reverse too).
+    assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
+    services.set_display_art(db, host, "OP01-001", 1009)
+    services.set_display_art(db, wanter, "OP01-001", 1007)
+    assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1009
+    # Two members pick 1007: more picks beat the host's.
+    services.set_display_art(db, viewer, "OP01-001", 1007)
+    assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007

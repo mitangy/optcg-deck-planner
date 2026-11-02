@@ -220,6 +220,21 @@ def _viewer_zero_customs(
     return out
 
 
+def _group_shown_pick(
+    card_id: str, member_display: dict[int, dict[str, int]], host_id: int
+) -> int | None:
+    """Art most members picked with Show (0 = base); ties go to the host's pick, then lowest id."""
+    counts: dict[int, int] = {}
+    for by_card in member_display.values():
+        pick = by_card.get(card_id)
+        if pick is not None:
+            counts[pick] = counts.get(pick, 0) + 1
+    if not counts:
+        return None
+    host_pick = member_display.get(host_id, {}).get(card_id)
+    return min(counts, key=lambda pid: (-counts[pid], pid != host_pick, pid))
+
+
 def _group_wanted_alt(card_id: str, member_shop_alts: dict[int, dict[str, list]]) -> int | None:
     """Product id of the alt with the most wanted copies across all members (ties: lowest id)."""
     totals: dict[int, int] = {}
@@ -254,6 +269,8 @@ def _build_lines(
     viewer_display: dict[str, int | None] = {}
     # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
+    # Each member's explicit Show pick per card (#893).
+    member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
         shop = services.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
@@ -261,6 +278,8 @@ def _build_lines(
         by_card: dict[str, list] = {}
         for item in shop.items:
             by_card[item.card_id.upper()] = item.alt_arts
+            if item.display_art is not None:
+                member_display.setdefault(member.user_id, {})[item.card_id.upper()] = item.display_art
             if member.user_id == viewer_user_id:
                 viewer_need[item.card_id] = item.need
                 viewer_wants[item.card_id] = {
@@ -345,11 +364,14 @@ def _build_lines(
         line_alt_arts = list(viewer_shop_alts.get(card_id) or alts.get(card_id, []))
         line_display_art = viewer_display.get(card_id)
         if line_display_art is None and not viewer_wants.get(card_id):
-            # Viewer has no art preference of their own: show the alt the group wants most (#882).
-            group_pick = _group_wanted_alt(card_id, member_shop_alts)
+            # Viewer has no art preference of their own: show the art members picked with
+            # Show (#893), else the alt the group wants most (#882).
+            group_pick = _group_shown_pick(card_id, member_display, group.host_user_id)
+            if group_pick is None:
+                group_pick = _group_wanted_alt(card_id, member_shop_alts)
             if group_pick is not None:
                 line_display_art = group_pick
-                if all(a.product_id != group_pick for a in line_alt_arts):
+                if group_pick > 0 and all(a.product_id != group_pick for a in line_alt_arts):
                     line_alt_arts.extend(a for a in alts.get(card_id, []) if a.product_id == group_pick)
 
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
