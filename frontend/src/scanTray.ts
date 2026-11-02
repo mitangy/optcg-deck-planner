@@ -14,6 +14,8 @@ export type TrayRow = {
   fixed: boolean;
   /** Crop thumbnails, one per detected card in this row. */
   thumbs: string[];
+  /** Indices into the scan's items array of the crops in this row (parallel to `thumbs`). */
+  sources: number[];
   /** Copies to add. 0 = skip. */
   qty: number;
 };
@@ -39,6 +41,7 @@ export function buildTrayRows(items: MultiScanItem[]): TrayRow[] {
         confidence: "none",
         fixed: false,
         thumbs: [item.thumbUrl],
+        sources: [i],
         qty: 0,
       });
       return;
@@ -46,6 +49,7 @@ export function buildTrayRows(items: MultiScanItem[]): TrayRow[] {
     const row = byId.get(id);
     if (row) {
       row.thumbs.push(item.thumbUrl);
+      row.sources.push(i);
       row.qty = clampQty(row.qty + 1);
       if (RANK[item.confidence] > RANK[row.confidence]) row.confidence = item.confidence;
       return;
@@ -56,6 +60,7 @@ export function buildTrayRows(items: MultiScanItem[]): TrayRow[] {
       confidence: item.confidence,
       fixed: false,
       thumbs: [item.thumbUrl],
+      sources: [i],
       qty: 1,
     };
     byId.set(id, created);
@@ -88,6 +93,7 @@ export function fixRow(rows: TrayRow[], key: string, cardId: string): TrayRow[] 
           ? {
               ...r,
               thumbs: [...r.thumbs, ...target.thumbs],
+              sources: [...r.sources, ...target.sources],
               qty: clampQty(r.qty + copies),
             }
           : r,
@@ -117,4 +123,38 @@ export function trayAddPayload(rows: TrayRow[]): { card_id: string; add: number 
 
 export function trayReadyCount(rows: TrayRow[]): number {
   return trayAddPayload(rows).reduce((n, i) => n + i.add, 0);
+}
+
+/** One scan crop to share with the scanner's training set, labelled by what the user ended up adding. */
+export type ScanSample = {
+  image: string;
+  predicted_id: string | null;
+  confidence: MultiScanConfidence;
+  final_id: string;
+  label: "confirmed" | "corrected";
+};
+
+/**
+ * Crops worth sharing after the user added the tray: only rows that were added (a card and a
+ * quantity above 0). A row with fewer copies than crops means the user dropped some, and which
+ * crop was the wrong one is unknown, so the whole row is left out.
+ */
+export function traySamples(rows: TrayRow[], items: MultiScanItem[]): ScanSample[] {
+  const out: ScanSample[] = [];
+  for (const row of rows) {
+    if (!row.cardId || row.qty <= 0 || row.qty < row.sources.length) continue;
+    for (const i of row.sources) {
+      const item = items[i];
+      if (!item?.sampleUrl) continue;
+      const predicted = item.confidence === "none" ? null : (item.cardId?.trim().toUpperCase() ?? null);
+      out.push({
+        image: item.sampleUrl,
+        predicted_id: predicted,
+        confidence: item.confidence,
+        final_id: row.cardId,
+        label: predicted === row.cardId ? "confirmed" : "corrected",
+      });
+    }
+  }
+  return out;
 }

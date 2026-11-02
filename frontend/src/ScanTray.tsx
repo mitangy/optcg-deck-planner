@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CatalogCardResult } from "./api";
 import { CardArtImg } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
+import { ScanShare } from "./ScanShare";
 import { MAX_ROW_QTY, trayReadyCount, type TrayRow } from "./scanTray";
 
 const CHIP: Record<string, string> = {
@@ -169,6 +170,7 @@ export function ScanTray({
           />
         ))}
       </ul>
+      <ScanShare />
       <div className="scan-tray-foot">
         <p className="scan-tray-error" role="alert">
           {addError}

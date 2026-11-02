@@ -1,13 +1,8 @@
-/** Live camera capture with an on-screen card-shaped guide.
+/** Live camera capture of the full frame.
  *
- * Framing is what makes rectification reliable. Without a guide, a real
- * handheld photo of a card on a cluttered surface routinely defeats corner
- * detection — verified against real iPhone photos where a busy desk made
- * `findCardQuad` return nothing at all. Filling a known guide rectangle turns
- * that into a solved problem: the card occupies almost the whole frame, a
- * thin margin of background survives at the edges for detection to key off,
- * and the collector number becomes several times larger in the captured
- * pixels than in a free-form photo of the same scene.
+ * The photo is the whole camera frame, uncropped, so a photo of several cards
+ * keeps every card. The preview is letterboxed (`object-fit: contain`), so
+ * what you see is exactly what gets captured.
  *
  * Requires `getUserMedia`, which itself requires a secure context — plain
  * `http://<lan-ip>` on a real phone does not qualify (see the phone-testing
@@ -19,7 +14,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog } from "@optcg/ui/popups";
-import { CARD_ASPECT } from "./cardRectify";
 import { scanLog } from "./scanLog";
 
 export function isLiveCaptureSupported(): boolean {
@@ -37,65 +31,6 @@ type Props = {
 };
 
 /**
- * Keep a thin ring of background around the guide when cropping.
- *
- * Cropping flush to the guide would hand the matcher a card with no border,
- * and `findCardQuad` separates the card from its surroundings by sampling
- * the image edge — with nothing but card there, it has nothing to key off.
- * A small margin keeps rectification working while still discarding the
- * table, fingers and neighbouring cards.
- */
-const GUIDE_CROP_MARGIN = 0.06;
-
-/**
- * Map the on-screen guide box into the video's own pixel coordinates.
- *
- * The preview is `object-fit: cover`, so the frame is scaled up to fill the
- * element and the overflow is cropped evenly on both axes — neither of which
- * is visible in element coordinates. Both have to be undone, or the crop
- * lands somewhere other than where the user framed the card.
- *
- * Falls back to the whole frame if the guide has not been laid out yet.
- */
-export function guideCropInVideoSpace(
-  video: HTMLVideoElement,
-  guide: HTMLElement | null,
-): { x: number; y: number; width: number; height: number } {
-  const full = { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
-  const box = video.getBoundingClientRect();
-  const g = guide?.getBoundingClientRect();
-  if (!g || !g.width || !g.height || !box.width || !box.height) return full;
-
-  const scale = Math.max(box.width / video.videoWidth, box.height / video.videoHeight);
-  if (!Number.isFinite(scale) || scale <= 0) return full;
-  const shownW = video.videoWidth * scale;
-  const shownH = video.videoHeight * scale;
-  const hiddenX = (shownW - box.width) / 2;
-  const hiddenY = (shownH - box.height) / 2;
-
-  const marginX = g.width * GUIDE_CROP_MARGIN;
-  const marginY = g.height * GUIDE_CROP_MARGIN;
-  const left = g.left - box.left - marginX;
-  const top = g.top - box.top - marginY;
-
-  const x = (left + hiddenX) / scale;
-  const y = (top + hiddenY) / scale;
-  const width = (g.width + marginX * 2) / scale;
-  const height = (g.height + marginY * 2) / scale;
-
-  // Clamp so a guide larger than the frame cannot ask for pixels that do not
-  // exist, which would make drawImage silently produce a blank canvas.
-  const cx = Math.max(0, Math.min(x, video.videoWidth));
-  const cy = Math.max(0, Math.min(y, video.videoHeight));
-  return {
-    x: cx,
-    y: cy,
-    width: Math.max(1, Math.min(width, video.videoWidth - cx)),
-    height: Math.max(1, Math.min(height, video.videoHeight - cy)),
-  };
-}
-
-/**
  * The full-screen viewfinder, a dialog of its own: it mounts only while open, so closing it (cancel,
  * Escape, capture, or the scanner under it going away) unmounts `LiveCapture` and stops the camera.
  * Escape closes just this one; a stray tap on the picture must not, so only Escape does.
@@ -110,7 +45,6 @@ export function CardCaptureLive({ onCapture, onCancel }: Props) {
 
 function LiveCapture({ onCapture, onCancel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const guideRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const [ready, setReady] = useState(false);
@@ -126,8 +60,8 @@ function LiveCapture({ onCapture, onCancel }: Props) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
-            // Ask for plenty of resolution: the guide crop keeps only ~15%
-            // of the frame, so the card's own detail is what survives.
+            // Ask for plenty of resolution: with several cards in one frame,
+            // each card's own detail is only a fraction of the pixels.
             // cardScanImage caps the working size, so a large capture costs
             // nothing downstream.
             width: { ideal: 1920 },
@@ -191,24 +125,13 @@ function LiveCapture({ onCapture, onCancel }: Props) {
   const capture = useCallback(() => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
-    const crop = guideCropInVideoSpace(video, guideRef.current);
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(crop.width);
-    canvas.height = Math.round(crop.height);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(
-      video,
-      crop.x,
-      crop.y,
-      crop.width,
-      crop.height,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
-    scanLog("live:crop", `guide ${Math.round(crop.width)}x${Math.round(crop.height)} of ${video.videoWidth}x${video.videoHeight}`);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    scanLog("live:crop", `full frame ${video.videoWidth}x${video.videoHeight}`);
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
@@ -224,16 +147,6 @@ function LiveCapture({ onCapture, onCancel }: Props) {
     <>
       <video ref={videoRef} className="live-video" playsInline muted autoPlay />
 
-      {ready && (
-        <div className="live-guide-layer" aria-hidden="true">
-          <div ref={guideRef} className="live-guide-box" style={{ aspectRatio: CARD_ASPECT }}>
-            <span className="live-guide-corner tl" />
-            <span className="live-guide-corner tr" />
-            <span className="live-guide-corner bl" />
-            <span className="live-guide-corner br" />
-          </div>
-        </div>
-      )}
       {!ready && !error && <p className="live-status">Starting camera…</p>}
       {error && <p className="live-status live-error">{error}</p>}
 
@@ -249,7 +162,7 @@ function LiveCapture({ onCapture, onCancel }: Props) {
       </div>
 
       <div className="live-bottom-bar">
-        <p className="live-hint">Fill the frame with the card, then tap Capture.</p>
+        <p className="live-hint">Point the camera at your cards, then tap Capture.</p>
         <button
           type="button"
           className="live-shutter"
