@@ -264,17 +264,22 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
 
 // ---------------------------------------------------------------- watch dialog (page)
 
-function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClose: () => void }) {
+export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClose: () => void }) {
   const alertsQ = usePriceAlerts();
   const printingsQ = useQuery({ queryKey: ["card-printings", card.card_id], queryFn: () => api.cardPrintings(card.card_id) });
-  const [productId, setProductId] = useState(0);
+  // Search can list an alt art as its own row; its price and image are then the alt's, not the base's.
+  const rowAlt = card.alt_product_id ?? 0;
+  const [productId, setProductId] = useState(rowAlt);
   const [saved, setSaved] = useState<PriceAlert | null>(null);
   const alts = (printingsQ.data ?? []).filter((p) => p.is_special);
-  const price = productId === 0 ? (card.market_price ?? artPrice(printingsQ.data, 0)) : artPrice(printingsQ.data, productId);
+  const basePrinting = (printingsQ.data ?? []).find((p) => !p.is_special);
+  const basePrice = rowAlt ? artPrice(printingsQ.data, 0) : (card.market_price ?? artPrice(printingsQ.data, 0));
+  const baseImage = rowAlt ? (basePrinting?.image_url ?? "") : card.image_url;
+  const price = productId === 0 ? basePrice : artPrice(printingsQ.data, productId);
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === card.card_id && a.product_id === productId);
 
   const tiles: { id: number; name: string; price: number | null; image: string }[] = [
-    { id: 0, name: "Base", price: card.market_price ?? artPrice(printingsQ.data, 0), image: card.image_url },
+    { id: 0, name: "Base", price: basePrice, image: baseImage },
     ...alts.map((p) => ({ id: p.product_id, name: p.name, price: p.market_price, image: p.image_url })),
   ];
 

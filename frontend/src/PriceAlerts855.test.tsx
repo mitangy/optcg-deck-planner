@@ -14,6 +14,7 @@ import {
   LightboxPriceAlertControl,
   NotificationsBell,
   parseTarget,
+  WatchDialog,
 } from "./PriceAlerts";
 
 let root: Root | null = null;
@@ -186,5 +187,25 @@ describe("notifications bell (#855)", () => {
     await mount(<NotificationsBell />);
     expect(host!.querySelector(".bell-badge")?.textContent).toBe("4");
     expect(host!.querySelector("button")!.getAttribute("aria-label")).toBe("Notifications, 4 unread");
+  });
+});
+
+describe("watch dialog from an alt-art search result (#860)", () => {
+  it("an alt-art search row opens with that alt picked and the base tile priced from the base printing (#860)", async () => {
+    vi.spyOn(api, "priceAlerts").mockResolvedValue({ alerts: [], email_enabled: false });
+    const base = { product_id: 11, name: "Shanks", market_price: 2.5, image_url: "base.jpg", is_special: false } as PrintingView;
+    const alt = { product_id: 22, name: "Shanks (Alternate Art)", market_price: 26, image_url: "alt.jpg", is_special: true } as PrintingView;
+    vi.spyOn(api, "cardPrintings").mockResolvedValue([base, alt]);
+    // Search with alts returns the alt as its own row: its price and image are the alt's.
+    const row = {
+      card_id: "OP01-120", name: "Shanks", rarity: "SEC", color: "Red", card_type: "Character", cost: 9,
+      market_price: 26, low_price: null, image_url: "alt.jpg", tcgplayer_url: "", group_name: "", alt_product_id: 22,
+    };
+    await mount(<WatchDialog card={row} onClose={() => {}} />);
+
+    const tiles = [...document.querySelectorAll<HTMLElement>(".alert-art-tile")];
+    const picked = tiles.filter((t) => t.getAttribute("aria-checked") === "true");
+    expect(picked.map((t) => t.title)).toEqual(["Shanks (Alternate Art)"]);
+    expect(tiles[0].querySelector(".alert-art-price")?.textContent).toBe("$2.50");
   });
 });
