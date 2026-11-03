@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-02
+  { date: "2026-11-02", app: "planner", pr: 0, title: "Price alerts follow the art you see", text: "When a card shows an alt art as its main picture, opening that picture and pressing Price alert now sets the alert on that alt art, not the base art." },
   { date: "2026-11-02", app: "planner", pr: 890, title: "Group buy invite page matches the member view", text: "The view-only group buy page now shows cards the same way members see them: the same card details, member colours, TCGPlayer links and a working User sort." },
   { date: "2026-11-02", app: "planner", pr: 888, title: "Shared group buy links show the picked alt art", text: "Opening a group buy invite link now shows the alt art the group picked as each card's main image, not the base art." },
   { date: "2026-11-02", app: "planner", pr: 884, title: "Alt arts line up the same on every card list", text: "On Shopping, Collection and your decks, the List view now puts alt arts in their own column on the right, like group buys, and Grid cards in a row are all the same height. A card with lots of alt arts shows about five and scrolls for the rest. On the deck page at narrower desktop widths the deck Type column and the Shopping Cost column hide to make room for the alt arts." },

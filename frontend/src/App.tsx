@@ -998,6 +998,7 @@ function ShoppingItemsView({
                 cardId={item.card_id}
                 name={item.name}
                 imageSrc={mainImageUrl(item)}
+                imageProductId={shownProductId(item)}
                 onMediaClick={stopCardSelectBubble}
                 meta={
                   <>
@@ -1094,7 +1095,7 @@ function ShoppingItemsView({
                   </td>
                   <td className="card-cell">
                     <div className="card-cell-inner">
-                      <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
+                      <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                       <div>
                         <div className="card-id">{item.card_id}</div>
                         <div>{item.name}</div>
@@ -1154,6 +1155,7 @@ function ShoppingItemsView({
               cardId={item.card_id}
               name={item.name}
               imageSrc={mainImageUrl(item)}
+              imageProductId={shownProductId(item)}
               cost={item.cost}
               rarity={item.rarity}
               mediaWrapProps={{ onClick: stopCardSelectBubble, onKeyDown: stopCardSelectBubble }}
@@ -2061,7 +2063,7 @@ function CollectionItemsView({
             <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
               <div className="grid-card collection-grid-card">
                 <div className="collection-tile-art">
-                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
+                  <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                   <span className="copies-badge" role="img" aria-label={`${copies} owned`} title={`${copies} owned`}>
                     ×{copies}
                   </span>
@@ -2118,7 +2120,7 @@ function CollectionItemsView({
               <tr key={item.card_id} data-card-id={item.card_id}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />
+                    <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                     <div>
                       <div className="card-id">{item.card_id}</div>
                       <div>{item.name}</div>
@@ -2151,6 +2153,7 @@ function CollectionItemsView({
             <div className="mobile-card-top">
               <MobileCardMedia
                 src={mainImageUrl(item)}
+                productId={shownProductId(item)}
                 cardId={item.card_id}
                 alt={item.name}
                 cost={item.cost}
@@ -3351,6 +3354,7 @@ function CardTable({
             cardId={c.card_id}
             name={c.name}
             imageSrc={mainImageUrl(c)}
+            imageProductId={shownProductId(c)}
             meta={[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
           >
               <div className="grid-card-price">
@@ -3406,7 +3410,7 @@ function CardTable({
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} />
+                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{nameWithBreaks(c.name)}</div>
@@ -3459,6 +3463,7 @@ function CardTable({
             cardId={c.card_id}
             name={c.name}
             imageSrc={mainImageUrl(c)}
+            imageProductId={shownProductId(c)}
             cost={c.cost}
             rarity={c.rarity}
             meta={[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
