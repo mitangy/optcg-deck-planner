@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
   { date: "2026-11-03", app: "planner", pr: 895, title: "Master Shopping fits without sideways scrolling", text: "On wide screens the Master Shopping list no longer cuts off the Alt arts column. The table uses slightly smaller steppers and hides the Cost column when alt arts are shown, so everything fits." },
   // 2026-11-02
   { date: "2026-11-02", app: "planner", pr: 897, title: "Price alerts follow the art you see", text: "When a card shows an alt art as its main picture, opening that picture and pressing Price alert now sets the alert on that alt art, not the base art." },
