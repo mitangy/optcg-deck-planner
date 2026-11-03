@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
-  { date: "2026-11-03", app: "planner", pr: 893, title: "Master Shopping fits without sideways scrolling", text: "On wide screens the Master Shopping list no longer cuts off the Alt arts column. The table uses slightly smaller steppers and hides the Cost column when alt arts are shown, so everything fits." },
+  { date: "2026-11-03", app: "planner", pr: 895, title: "Master Shopping fits without sideways scrolling", text: "On wide screens the Master Shopping list no longer cuts off the Alt arts column. The table uses slightly smaller steppers and hides the Cost column when alt arts are shown, so everything fits." },
   // 2026-11-02
   { date: "2026-11-02", app: "planner", pr: 890, title: "Group buy invite page matches the member view", text: "The view-only group buy page now shows cards the same way members see them: the same card details, member colours, TCGPlayer links and a working User sort." },
   { date: "2026-11-02", app: "planner", pr: 888, title: "Shared group buy links show the picked alt art", text: "Opening a group buy invite link now shows the alt art the group picked as each card's main image, not the base art." },
