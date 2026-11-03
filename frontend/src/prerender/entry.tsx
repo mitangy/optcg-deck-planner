@@ -62,7 +62,7 @@ function renderPage(path: string, page: ReactNode, leaders: MetaLeadersResponse 
 /** All pre-rendered files for a build. `leaders` is for tests; a build leaves it out and fetches them. */
 export async function prerender(opts: { template: string; leaders?: MetaLeadersResponse | null; log?: (msg: string) => void }): Promise<PrerenderedFile[]> {
   const log = opts.log ?? ((m: string) => console.log(`[planner-prerender] ${m}`));
-  const leaders = opts.leaders !== undefined ? opts.leaders : await fetchLeaders(process.env.META_API_URL || DEFAULT_API);
+  const leaders = opts.leaders !== undefined ? opts.leaders : await fetchLeaders((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.META_API_URL || DEFAULT_API);
   if (!leaders) log("meta API unavailable: /meta is pre-rendered without leaders");
 
   const files: PrerenderedFile[] = [];

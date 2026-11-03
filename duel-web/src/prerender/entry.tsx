@@ -97,7 +97,7 @@ function render(page: PageSpec, snapshot: MetaSnapshot): string {
  */
 export async function prerender(opts: { template: string; snapshot?: MetaSnapshot; log?: (msg: string) => void }): Promise<PrerenderedFile[]> {
   const log = opts.log ?? ((m: string) => console.log(`[duel-prerender] ${m}`));
-  const snapshot = opts.snapshot ?? (await loadBuildSnapshot({ api: process.env.META_API_URL, log })).snapshot;
+  const snapshot = opts.snapshot ?? (await loadBuildSnapshot({ api: (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.META_API_URL, log })).snapshot;
   const files: PrerenderedFile[] = [];
   for (const page of pagesFor(snapshot)) {
     const html = render(page, snapshot);
