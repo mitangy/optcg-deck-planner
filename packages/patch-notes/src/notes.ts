@@ -11,8 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
-  { date: "2026-11-03", app: "duel", pr: 921, title: "Join us on Discord", text: "There's now a link to our Discord in the menu and at the bottom of every page. Come chat, report bugs and find games." },
-  { date: "2026-11-03", app: "planner", pr: 921, title: "Join us on Discord", text: "A Discord button now sits in the top bar next to the theme switch, and there's a Discord link at the bottom of every page." },
+  { date: "2026-11-03", app: "duel", pr: 922, title: "Join us on Discord", text: "There's now a link to our Discord in the menu and at the bottom of every page. Come chat, report bugs and find games." },
+  { date: "2026-11-03", app: "planner", pr: 922, title: "Join us on Discord", text: "A Discord button now sits in the top bar next to the theme switch, and there's a Discord link at the bottom of every page." },
   { date: "2026-11-03", app: "duel", pr: 919, title: "A page for every popular leader", text: "Each popular leader now has its own page with its meta share, win rate and recent top-8 decklists, and a Play this deck online button that saves the list and opens the lobby with it. Find them under Top leaders in the footer or from the meta decks page." },
   { date: "2026-11-03", app: "planner", pr: 918, title: "Dimmed background behind the buy sheet", text: "On phones, the page behind the \"Buy your copies as…\" sheet is now dimmed, and a tap on the dimmed area closes it." },
   { date: "2026-11-03", app: "planner", pr: 908, title: "Choose which alt arts to buy", text: "On Master Shopping and your deck pages, the price of the copies you still need is now a button for cards with alt arts. It opens \"Buy your N copies as…\" where you pick how many to buy as each alt art and how many as the base art, with a live total. The price then shows the split, like 1 alt + 1 base, alt tiles show Buy ×N, and Remaining and Est. cost use each art's own price." },
