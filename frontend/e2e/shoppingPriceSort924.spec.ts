@@ -34,5 +34,5 @@ test("Master Shopping: ticking Price sorts cards by market price, highest first,
   await expect(panel).toHaveCount(0);
 
   await expect.poll(() => ids(page)).toEqual(["EB01-003", "EB01-009", "EB01-002", "EB01-011"]);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/shoppingPriceSort924-${testInfo.project.name}-sorted.png` });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/shoppingPriceSort924-${testInfo.project.name}-sorted.png`, fullPage: true });
 });
