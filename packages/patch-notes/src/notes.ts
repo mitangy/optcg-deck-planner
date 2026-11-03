@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
-  { date: "2026-11-03", app: "planner", pr: 922, title: "Planner loads again for signed-in players", text: "Earlier today the planner could show only its background if you had signed in before. It loads normally again." },
+  { date: "2026-11-03", app: "planner", pr: 923, title: "Planner loads again for signed-in players", text: "Earlier today the planner could show only its background if you had signed in before. It loads normally again." },
   { date: "2026-11-03", app: "both", pr: 910, title: "Four new OP18 cards and a Vivi promo", text: "I Pray For Your Success. (OP18-059), Thousand Sunny (OP18-075), Hee Hee Hee!! I Smell Adventure!! (OP18-094), Iron Body Empty Tree (OP18-116) and the Pirates Party Nefeltari Vivi promo (P-160) are now in the duel app. The OP18 cards show preview art until their official images are out." },
   { date: "2026-11-03", app: "duel", pr: 919, title: "A page for every popular leader", text: "Each popular leader now has its own page with its meta share, win rate and recent top-8 decklists, and a Play this deck online button that saves the list and opens the lobby with it. Find them under Top leaders in the footer or from the meta decks page." },
   { date: "2026-11-03", app: "planner", pr: 918, title: "Dimmed background behind the buy sheet", text: "On phones, the page behind the \"Buy your copies as…\" sheet is now dimmed, and a tap on the dimmed area closes it." },
