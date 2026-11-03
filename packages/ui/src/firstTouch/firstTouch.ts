@@ -44,9 +44,10 @@ function externalReferrerHost(referrer: string, currentHost: string): string | n
 }
 
 /** The stored first touch, or null when there is none or it has expired. */
-export function readFirstTouch(storage: StorageLike = localStorage, now: number = Date.now()): FirstTouch | null {
+export function readFirstTouch(storage?: StorageLike, now: number = Date.now()): FirstTouch | null {
   try {
-    const raw = storage.getItem(FIRST_TOUCH_KEY);
+    // Resolve the global inside the try: a browser that blocks site data throws on `localStorage` itself (#907).
+    const raw = (storage ?? localStorage).getItem(FIRST_TOUCH_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw) as FirstTouch | null;
     if (!v || typeof v !== "object" || typeof v.at !== "number") return null;
@@ -62,12 +63,16 @@ export function readFirstTouch(storage: StorageLike = localStorage, now: number 
  * 30 days; a direct visit stores nothing (direct is the absence of a value).
  */
 export function captureFirstTouch(
-  loc: Pick<Location, "hostname" | "pathname" | "search"> = window.location,
-  referrer: string = document.referrer,
-  storage: StorageLike = localStorage,
+  location?: Pick<Location, "hostname" | "pathname" | "search">,
+  referrerOverride?: string,
+  storageOverride?: StorageLike,
   now: number = Date.now(),
 ): void {
   try {
+    // Globals are resolved inside the try: blocked site data makes `localStorage` throw (#907).
+    const loc = location ?? window.location;
+    const referrer = referrerOverride ?? document.referrer;
+    const storage = storageOverride ?? localStorage;
     const ref = externalReferrerHost(referrer, loc.hostname);
     const params = new URLSearchParams(loc.search);
     const touch: FirstTouch = { at: now };
