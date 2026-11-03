@@ -50,6 +50,9 @@ MASS_ENTRY_URL_MAX_LEN = 1800
 
 
 def _display_name(user: User) -> str:
+    """Duel username when set (#903), else the account name as before."""
+    if user.username:
+        return user.username
     return (user.name or user.email or f"User {user.id}").strip()
 
 

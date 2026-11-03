@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "planner", pr: 904, title: "Usernames in the planner", text: "Group buys and shared lists now show people by their Duel username. Anyone without a username still shows the way they did before." },
+  { date: "2026-11-03", app: "planner", pr: 904, title: "Who-wants names fit on one line", text: "On group buy art tiles, the names of who wants each art now sit on one line under the picture instead of wrapping." },
   { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
   { date: "2026-11-03", app: "planner", pr: 895, title: "Master Shopping fits without sideways scrolling", text: "On wide screens the Master Shopping list no longer cuts off the Alt arts column. The table uses slightly smaller steppers and hides the Cost column when alt arts are shown, so everything fits." },
   // 2026-11-02
