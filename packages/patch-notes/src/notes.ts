@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
   { date: "2026-11-03", app: "planner", pr: 0, title: "Lowering Want trims your alt art picks", text: "On a Master Shopping card, lowering Want now trims the alt arts you picked to fit, so pressing minus on one art no longer makes another art jump back up." },
+  { date: "2026-11-03", app: "both", pr: 0, title: "Sign-in works when your browser blocks site data", text: "If your browser blocks site data, the planner and the duel app now still open and let you sign in. Before this fix they could show a blank page." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Usernames in the planner", text: "Group buys and shared lists now show people by their Duel username. Anyone without a username still shows the way they did before." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Who-wants names fit on one line", text: "On group buy art tiles, the names of who wants each art now sit on one line under the picture instead of wrapping." },
   { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
