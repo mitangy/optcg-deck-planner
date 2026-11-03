@@ -1943,6 +1943,7 @@ function ShoppingPage() {
               onChange={setSorts}
               onlyNeed={onlyNeed}
               unavailableKeys={shoppingUnavailableSorts}
+              columnSortKey="optcg_colsort_shopping"
             />
             <label>
               <input
@@ -2907,7 +2908,7 @@ function CollectionPage() {
                 <span />
               )}
               <div className="collection-toolbar-tools">
-                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} />
+                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} columnSortKey="optcg_colsort_collection" />
                 <CollectionFilterMenu badge={activeFilters}>
                   <div className="collection-filter-list">
                     <label>
@@ -4642,6 +4643,7 @@ function DeckDetailPage() {
               onChange={setSorts}
               onlyNeed={onlyNeed}
               unavailableKeys={deckUnavailableSorts}
+              columnSortKey="optcg_colsort_deck"
             />
             <label>
               <input

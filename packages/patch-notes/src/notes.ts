@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "planner", pr: 925, title: "Price sort works on Master Shopping", text: "Ticking an option in the Sort menu now makes it the main sort, so Price really sorts by price, highest first. Changing the Sort menu also replaces a sort you picked earlier by clicking a column header." },
   { date: "2026-11-03", app: "planner", pr: 923, title: "Planner loads again for signed-in players", text: "Earlier today the planner could show only its background if you had signed in before. It loads normally again." },
   { date: "2026-11-03", app: "duel", pr: 922, title: "Join us on Discord", text: "There's now a link to our Discord in the menu and at the bottom of every page. Come chat, report bugs and find games." },
   { date: "2026-11-03", app: "planner", pr: 922, title: "Join us on Discord", text: "A Discord button now sits in the top bar next to the theme switch, and there's a Discord link at the bottom of every page." },

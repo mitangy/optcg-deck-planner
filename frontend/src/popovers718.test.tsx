@@ -191,15 +191,25 @@ describe("sort panel on the shared Popover (#718)", () => {
     await click(box("Price"));
     expect(panel()).not.toBeNull();
     expect(box("Price").checked).toBe(true);
-    expect(trigger().textContent).toBe("Sort: Color › Set › Price");
+    expect(trigger().textContent).toBe("Sort: Price › Color › Set");
 
-    await click(panel()!.querySelector<HTMLElement>('button[aria-label="Move Price up"]')!);
+    await click(panel()!.querySelector<HTMLElement>('button[aria-label="Move Price down"]')!);
     expect(panel()).not.toBeNull();
     expect(trigger().textContent).toBe("Sort: Color › Price › Set");
+
+    await click(panel()!.querySelector<HTMLElement>('button[aria-label="Move Price up"]')!);
+    expect(trigger().textContent).toBe("Sort: Price › Color › Set");
 
     await click(box("Color"));
     expect(panel()).not.toBeNull();
     expect(trigger().textContent).toBe("Sort: Price › Set");
+  });
+
+  it("ticking a Sort option makes it the main sort (#924)", async () => {
+    await mount(<SortHarness />);
+    await click(trigger());
+    await click(box("Price"));
+    expect(trigger().textContent).toBe("Sort: Price › Color › Set");
   });
 
   it("Escape closes it and focus returns to the Sort button (#718)", async () => {
