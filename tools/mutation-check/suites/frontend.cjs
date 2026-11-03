@@ -12,6 +12,11 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Signed-in browsers see the app, not a hidden pre-render (#921)
+    { id: "prerender921-main-keeps-mark", file: "frontend/src/main.tsx", from: "releasePrerenderedRoot(rootEl);\n", to: "", kills: ["a signed-in browser's app is not hidden by the pre-render rule, and never shows the logged-out page (#921)", "a visitor keeps the pre-rendered landing on screen while the app mounts (#921)"], args: "src/prerenderRelease921" },
+    { id: "prerender921-attr-kept", file: "frontend/src/prerendered.ts", from: "  root.removeAttribute(\"data-prerendered\");\n", to: "", kills: ["a signed-in browser's app is not hidden by the pre-render rule, and never shows the logged-out page (#921)"], args: "src/prerenderRelease921" },
+    { id: "prerender921-signed-in-keeps-landing", file: "frontend/src/prerendered.ts", from: "  if (!KEEP_PRERENDER_WHILE_LOADING) root.replaceChildren();\n", to: "", kills: ["a signed-in browser's app is not hidden by the pre-render rule, and never shows the logged-out page (#921)"], args: "src/prerenderRelease921" },
+    { id: "prerender921-visitor-loses-landing", file: "frontend/src/prerendered.ts", from: "  if (!KEEP_PRERENDER_WHILE_LOADING) root.replaceChildren();\n", to: "  root.replaceChildren();\n", kills: ["a visitor keeps the pre-rendered landing on screen while the app mounts (#921)"], args: "src/prerenderRelease921" },
     // Lightbox price alert follows the main art (#896)
     { id: "main-art-alert855-grid-drops-product-id", file: "frontend/src/PlannerCard.tsx", from: "<CardThumb src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />", to: "<CardThumb src={imageSrc} cardId={cardId} alt={name} />", kills: ["a grid card showing an alt art opens its lightbox for that alt's product id (#896)"] },
     { id: "main-art-alert855-mobile-drops-product-id", edits: [

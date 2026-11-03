@@ -40,6 +40,17 @@ export function setSignedInHint(signedIn: boolean): void {
  */
 export const KEEP_PRERENDER_WHILE_LOADING: boolean = WAS_PRERENDERED && !hasSignedInHint();
 
+/**
+ * Hand `#root` to the app (#921). The `data-prerendered` mark must go: React replaces the children but keeps the
+ * attribute, and styles.css hides `#root[data-prerendered] > *` for a signed-in browser, which would hide the whole app.
+ * A signed-in browser also drops the hidden logged-out markup now, so it never shows while React mounts.
+ */
+export function releasePrerenderedRoot(root: HTMLElement): void {
+  if (!root.hasAttribute("data-prerendered")) return;
+  if (!KEEP_PRERENDER_WHILE_LOADING) root.replaceChildren();
+  root.removeAttribute("data-prerendered");
+}
+
 /** Id of the `<script type="application/json">` holding the leaders the pre-render fetched. */
 export const META_SEED_ID = "meta-seed";
 
