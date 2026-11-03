@@ -210,6 +210,11 @@ body {
 
 /* With the legal footer below a page, the page fills the screen minus the
    footer, so short pages put it at the bottom edge instead of below the fold. */
+/* Pre-rendered public pages are for visitors; a browser with a signed-in session sees the skeleton instead (#914). */
+html.signed-in-hint #root[data-prerendered] > * {
+  visibility: hidden;
+}
+
 #root:has(> .site-footer) {
   display: flex;
   flex-direction: column;

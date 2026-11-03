@@ -9,6 +9,8 @@ export type PageMeta = {
   origin: string;
   /** Keep search engines from listing the page. Removes the canonical link. */
   noindex?: boolean;
+  /** Absolute URL of the share picture; pages that do not give one keep the site's. */
+  image?: string;
 };
 
 function upsert(selector: string, create: () => HTMLElement): HTMLElement {
@@ -48,7 +50,7 @@ export function canonicalUrl(origin: string, path = "/"): string {
 }
 
 /** Sets the document title, description, canonical link, robots and social tags for the page being shown. */
-export function applyPageMeta({ title, description, path, origin, noindex }: PageMeta): void {
+export function applyPageMeta({ title, description, path, origin, noindex, image }: PageMeta): void {
   document.title = title;
   if (description !== undefined) setNamedMeta("name", "description", description);
 
@@ -72,12 +74,16 @@ export function applyPageMeta({ title, description, path, origin, noindex }: Pag
     syncIfPresent("name", "twitter:description", description);
   }
   if (url) syncIfPresent("property", "og:url", url);
+  if (image) {
+    syncIfPresent("property", "og:image", image);
+    syncIfPresent("name", "twitter:image", image);
+  }
 }
 
 /** Applies the page meta while the component is mounted and whenever a field changes. */
 export function usePageMeta(meta: PageMeta): void {
-  const { title, description, path, origin, noindex } = meta;
+  const { title, description, path, origin, noindex, image } = meta;
   useEffect(() => {
-    applyPageMeta({ title, description, path, origin, noindex });
-  }, [title, description, path, origin, noindex]);
+    applyPageMeta({ title, description, path, origin, noindex, image });
+  }, [title, description, path, origin, noindex, image]);
 }

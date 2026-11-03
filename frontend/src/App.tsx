@@ -37,6 +37,8 @@ import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPo
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { PlannerLandingPage } from "./LandingPage";
+import { PublicMetaScreen } from "./PublicMetaScreen";
+import { KEEP_PRERENDER_WHILE_LOADING, setSignedInHint } from "./prerendered";
 import { RouteMeta } from "./seo/RouteMeta";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -313,7 +315,14 @@ function DeckExportPanel({
 }
 
 function useMe() {
-  return useQuery({ queryKey: ["me"], queryFn: api.me });
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const user = await api.me();
+      setSignedInHint(user != null);
+      return user;
+    },
+  });
 }
 
 function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
@@ -4865,7 +4874,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
 /** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
 function HomeRoute() {
   const { data: user, isLoading, refetch } = useMe();
-  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  // A pre-rendered page keeps showing the landing page while the session loads (see prerendered.ts).
+  if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (!user) {
     return (
       <PlannerLandingPage
@@ -4886,7 +4896,7 @@ function HomeRoute() {
 /** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 function MetaRoute() {
   const { data: user, isLoading } = useMe();
-  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (user) {
     return (
       <Shell user={user}>
@@ -4894,34 +4904,7 @@ function MetaRoute() {
       </Shell>
     );
   }
-  return (
-    <div className="app public-app">
-      <UpdateNotice />
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/login">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <BuildTag />
-            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
-              Play Duel
-            </a>
-            <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main className="app-main">
-        <MetaPage user={null} />
-      </main>
-    </div>
-  );
+  return <PublicMetaScreen />;
 }
 
 function PublicSharePage() {

@@ -1,7 +1,8 @@
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { build, defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { prerenderPlugin } from "../scripts/seo/prerender-plugin.mjs";
 
 /** Short SHA for the build tag in the SPA chrome. */
 function resolveGitSha(): string {
@@ -44,7 +45,12 @@ export default defineConfig(() => {
   // Bake the commit into import.meta.env.VITE_GIT_SHA for the UI build tag.
   process.env.VITE_GIT_SHA = gitSha;
   return {
-    plugins: [react(), versionFile(gitSha, builtAt)],
+    plugins: [
+      react(),
+      versionFile(gitSha, builtAt),
+      // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
+      prerenderPlugin({ name: "duel", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
+    ],
     resolve: {
       // Deck stats, odds and build hints plus the legal footer and pages, shared with the planner; see packages/.
       alias: [
