@@ -1,23 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { LIVE_MIN_ONLINE, liveLine } from "./live";
+import { LIVE_MIN_ONLINE, liveSummary } from "./live";
 
-describe("Live counts line", () => {
-  it("writes online players and matches in progress (#431)", () => {
-    expect(liveLine({ online: 38, matches: 11 })).toBe("38 online · 11 matches in progress");
+describe("Live matches summary", () => {
+  it("counts matches being played now and says 1 match, not 1 matches (#930)", () => {
+    expect(liveSummary({ online: 0, matches: 3 })?.text).toBe("3 matches being played now");
+    expect(liveSummary({ online: 0, matches: 1 })?.text).toBe("1 match being played now");
   });
 
-  it("says 1 match, not 1 matches, and keeps 0 matches plural (#431)", () => {
-    expect(liveLine({ online: 12, matches: 1 })).toBe("12 online · 1 match in progress");
-    expect(liveLine({ online: 12, matches: 0 })).toBe("12 online · 0 matches in progress");
+  it("always shows the match count, even with almost nobody online (#930)", () => {
+    expect(liveSummary({ online: 1, matches: 2 })?.text).toBe("2 matches being played now");
+    expect(liveSummary({ online: 0, matches: 0 })?.text).toBe("0 matches being played now");
   });
 
-  it("shows at exactly the threshold and hides just below it (#431)", () => {
-    expect(liveLine({ online: LIVE_MIN_ONLINE, matches: 2 })).toBe("5 online · 2 matches in progress");
-    expect(liveLine({ online: LIVE_MIN_ONLINE - 1, matches: 2 })).toBeNull();
+  it("adds players online at exactly the threshold and hides it just below (#930)", () => {
+    expect(liveSummary({ online: LIVE_MIN_ONLINE, matches: 2 })?.text).toBe("2 matches being played now · 5 online");
+    expect(liveSummary({ online: LIVE_MIN_ONLINE - 1, matches: 2 })?.text).toBe("2 matches being played now");
   });
 
-  it("shows nothing while the counts are missing (#431)", () => {
-    expect(liveLine(null)).toBeNull();
-    expect(liveLine(undefined)).toBeNull();
+  it("flags the empty state only when no match is being played (#930)", () => {
+    expect(liveSummary({ online: 9, matches: 0 })?.empty).toBe(true);
+    expect(liveSummary({ online: 9, matches: 1 })?.empty).toBe(false);
+  });
+
+  it("shows nothing while the counts are missing (#930)", () => {
+    expect(liveSummary(null)).toBeNull();
+    expect(liveSummary(undefined)).toBeNull();
   });
 });

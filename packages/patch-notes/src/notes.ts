@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "duel", pr: 0, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },
   { date: "2026-11-03", app: "planner", pr: 929, title: "Market price follows the art you show", text: "On Master Shopping, when a card shows an alt art, its Market price and recent sales are now for that alt art instead of the base card." },
   { date: "2026-11-03", app: "planner", pr: 927, title: "Price sort counts your alt arts", text: "On Master Shopping, sorting by Price now uses what you'll pay for the copies you still need, so alt arts you picked to buy count at their own price." },
   { date: "2026-11-03", app: "planner", pr: 925, title: "Price sort works on Master Shopping", text: "Ticking an option in the Sort menu now makes it the main sort, so Price really sorts by price, highest first. Changing the Sort menu also replaces a sort you picked earlier by clicking a column header." },
