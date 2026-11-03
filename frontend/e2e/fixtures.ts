@@ -91,6 +91,8 @@ type Planner = {
   manyAlts(cardId: string, count: number): void;
   /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
   noDecks(): void;
+  /** JSON bodies the page POSTed to /price-alerts (the fake keeps them as the viewer's alerts). */
+  priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: string }[];
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
@@ -122,6 +124,7 @@ export const test = base.extend<{ planner: Planner }>({
     const altOwned = new Map<string, number>();
     const extras = new Map<string, number>();
     const ownedAdds: Planner["ownedAdds"] = [];
+    const priceAlertPosts: Planner["priceAlertPosts"] = [];
     const displayArt = new Map<string, number>();
     let hasDecks = true;
     let deckHidden = false;
@@ -423,6 +426,27 @@ export const test = base.extend<{ planner: Planner }>({
         });
         return json({ items });
       }
+      // Price alerts (#855): POST saves one per card + art; the list and the bell read them back.
+      if (path === "/price-alerts" && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as Planner["priceAlertPosts"][number];
+        priceAlertPosts.push(body);
+        return json({
+          id: priceAlertPosts.length, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: body.product_id !== 0,
+          current_price: null, notify_email: false, notify_app: true, paused: false, armed: true, met_now: false,
+          triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...body,
+        });
+      }
+      if (path === "/price-alerts") {
+        return json({
+          email_enabled: false,
+          alerts: priceAlertPosts.map((b, i) => ({
+            id: i + 1, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: b.product_id !== 0, current_price: null,
+            notify_email: false, notify_app: true, paused: false, armed: true, met_now: false, triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...b,
+          })),
+        });
+      }
+      if (path === "/notifications") return json({ items: [], unread: 0 });
+      if (path.startsWith("/catalog/cards/") && path.endsWith("/printings")) return json([]);
       // Which art a card shows: PUT /owned/:card/display (null = automatic).
       if ((m = path.match(/^\/owned\/([^/]+)\/display$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
@@ -487,6 +511,7 @@ export const test = base.extend<{ planner: Planner }>({
         hasDecks = false;
       },
       requests,
+      priceAlertPosts,
       get deckHidden() {
         return deckHidden;
       },

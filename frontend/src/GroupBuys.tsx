@@ -825,6 +825,7 @@ function GroupBuyLines({
               cardId={line.card_id}
               name={line.name}
               imageSrc={lineArtUrl(line)}
+              imageProductId={shownProductId(line)}
               meta={lineMeta(line, excluded)}
             >
               <div className="group-buy-who-row">
@@ -872,6 +873,7 @@ function GroupBuyLines({
               cardId={line.card_id}
               name={line.name}
               imageSrc={lineArtUrl(line)}
+              imageProductId={shownProductId(line)}
               cost={line.cost ?? null}
               rarity={line.rarity}
               meta={lineMeta(line, excluded)}
@@ -941,7 +943,7 @@ function GroupBuyLines({
                 <td className="card-cell">
                   <div className="card-cell-inner">
                     <MemberColorRail line={line} members={members} />
-                    <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} />
+                    <CardThumb src={lineArtUrl(line)} cardId={line.card_id} alt={line.name} productId={shownProductId(line)} />
                     <div>
                       <div className="card-id">{line.card_id}</div>
                       <div>{line.name}</div>
