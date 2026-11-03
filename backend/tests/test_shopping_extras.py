@@ -316,6 +316,38 @@ def test_removing_the_master_shopping_card_clears_its_alt_picks_872(db):
     assert _wanted(db, user, "OP01-002", 2009) == 0
 
 
+def _two_alt_extra(db, want):
+    user = _alt_setup(db)
+    add_catalog(db, "OP01-002", name="Zoro", product_id=2010, market=6.0, special=True)
+    services.set_shopping_extra(db, user, "OP01-002", want)
+    return user
+
+
+def test_lowering_want_clamps_saved_alt_picks_so_a_later_minus_stays_on_that_art_873(db):
+    user = _two_alt_extra(db, 4)
+    services.set_user_card_printing(db, user, "OP01-002", 2009, 2)
+    services.set_user_card_printing(db, user, "OP01-002", 2010, 2)
+
+    services.set_shopping_extra(db, user, "OP01-002", 3)
+    assert _wanted(db, user, "OP01-002", 2009) == 1
+    assert _wanted(db, user, "OP01-002", 2010) == 2
+
+    services.set_user_card_printing(db, user, "OP01-002", 2010, 1)
+
+    assert _wanted(db, user, "OP01-002", 2009) == 1
+    assert _wanted(db, user, "OP01-002", 2010) == 1
+
+
+def test_raising_want_back_does_not_resurrect_trimmed_alt_picks_873(db):
+    user = _two_alt_extra(db, 3)
+    services.set_user_card_printing(db, user, "OP01-002", 2009, 3)
+
+    services.set_shopping_extra(db, user, "OP01-002", 1)
+    services.set_shopping_extra(db, user, "OP01-002", 3)
+
+    assert _wanted(db, user, "OP01-002", 2009) == 1
+
+
 def test_alt_pick_for_a_card_in_no_deck_and_no_extra_is_refused_872(db):
     user = _alt_setup(db)
     deck = add_deck_with_cards(db, user, "Deck A", {"OP01-001": 1})

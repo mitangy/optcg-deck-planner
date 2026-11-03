@@ -1723,6 +1723,16 @@ def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
         db.add(ShoppingExtra(user_id=user.id, card_id=card_id, qty=qty))
     else:
         row.qty = qty
+    # Trim saved alt picks to the new Want, like a deck does when Need drops.
+    picks = db.scalars(
+        select(ShoppingExtraPrinting).where(
+            ShoppingExtraPrinting.user_id == user.id,
+            ShoppingExtraPrinting.card_id == card_id,
+        )
+    ).all()
+    if picks:
+        _apply_alt_want_clamp_to_rows(picks, qty)
+        _delete_zero_printing_rows(db, picks)
     db.commit()
     return qty
 
