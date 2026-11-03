@@ -202,6 +202,8 @@ class CardView(BaseModel):
     product_id: int | None = None
     section: str = "main"  # main | additional | don
     alt_arts: list[PrintingView] = []
+    # Every member's qty split across arts (alts first, rest on the preferred printing).
+    art_wants: list[GroupBuyArtWantOut] = []
     # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
 
@@ -429,6 +431,12 @@ class GroupBuyMemberQtyOut(BaseModel):
     is_custom: bool = False
 
 
+class GroupBuyArtWantOut(BaseModel):
+    product_id: int
+    user_id: int
+    qty: int
+
+
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
@@ -449,6 +457,8 @@ class GroupBuyLineOut(BaseModel):
     base_image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
+    # Every member's qty split across arts (alts first, rest on the preferred printing).
+    art_wants: list[GroupBuyArtWantOut] = []
     # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
     # Viewer (current user) contribution on this line — for qty editors.
