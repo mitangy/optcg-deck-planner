@@ -88,6 +88,9 @@ export function PlayOnlinePage() {
             <Link to="/decks/meta" className="btn btn-secondary btn-lg">
               Browse meta decks
             </Link>
+            <Link to="/leaders" className="btn btn-secondary btn-lg">
+              Top leaders
+            </Link>
           </div>
         </section>
 

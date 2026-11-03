@@ -29,6 +29,7 @@ import {
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
+import { BuySplit, canSplitBuy } from "./BuySplit";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { CornerNotices, UpdateNotice } from "./UpdateNotice";
 import { submitFeedback } from "./feedback";
@@ -36,6 +37,8 @@ import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPo
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { PlannerLandingPage } from "./LandingPage";
+import { PublicMetaScreen } from "./PublicMetaScreen";
+import { KEEP_PRERENDER_WHILE_LOADING, setSignedInHint } from "./prerendered";
 import { RouteMeta } from "./seo/RouteMeta";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -312,7 +315,14 @@ function DeckExportPanel({
 }
 
 function useMe() {
-  return useQuery({ queryKey: ["me"], queryFn: api.me });
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const user = await api.me();
+      setSignedInHint(user != null);
+      return user;
+    },
+  });
 }
 
 function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
@@ -404,7 +414,7 @@ function applyAltOwnedOptimistic(
           alt_arts,
           alts_owned,
           still_need,
-          remaining_cost: remainingCostForCard({ still_need, market_price: item.market_price }),
+          remaining_cost: remainingCostForCard({ still_need, market_price: item.market_price, alt_arts }),
         };
       }
       cardsStill += patched.still_need;
@@ -440,17 +450,66 @@ function applyAltOwnedOptimistic(
   });
 }
 
+/**
+ * Buy mode (#906): sets how many still-needed copies of one alt art to buy in the
+ * cached shopping list and deck, and reprices the card with the pick.
+ */
+function applyAltBuyOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  cardId: string,
+  productId: number,
+  qty: number,
+) {
+  const id = cardId.toUpperCase();
+  const patchAlts = (alts: PrintingView[] | undefined) =>
+    (alts ?? []).map((a) => (a.product_id === productId ? { ...a, wanted: qty } : a));
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+    if (!old) return old;
+    let remaining = 0;
+    const items = old.items.map((item) => {
+      let patched = item;
+      if (item.card_id.toUpperCase() === id) {
+        const alt_arts = patchAlts(item.alt_arts);
+        patched = {
+          ...item,
+          alt_arts,
+          remaining_cost: remainingCostForCard({
+            still_need: item.still_need,
+            market_price: item.market_price,
+            alt_arts,
+          }),
+        };
+      }
+      if (patched.remaining_cost != null) remaining += patched.remaining_cost;
+      return patched;
+    });
+    return { ...old, items, remaining_market: Math.round(remaining * 100) / 100 };
+  });
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+    old
+      ? {
+          ...old,
+          cards: old.cards.map((card) =>
+            card.card_id.toUpperCase() === id ? { ...card, alt_arts: patchAlts(card.alt_arts) } : card,
+          ),
+        }
+      : old,
+  );
+}
+
 function patchOwnedQty(
   cardId: string,
   qty: number,
   need: number,
   market: number | null | undefined,
   altsOwned = 0,
+  altArts?: PrintingView[],
 ) {
   const still = stillNeedFor(need, qty, altsOwned);
   const remaining = remainingCostForCard({
     still_need: still,
     market_price: market != null && !Number.isNaN(market) ? market : null,
+    alt_arts: altArts,
   });
   return { owned: qty, still_need: still, remaining_cost: remaining };
 }
@@ -536,7 +595,7 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
         if (item.remaining_cost != null) remaining += item.remaining_cost;
         return item;
       }
-      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alts_owned ?? 0);
+      const patched = patchOwnedQty(id, qty, item.need, item.market_price, item.alts_owned ?? 0, item.alt_arts);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return { ...item, ...patched };
@@ -583,7 +642,7 @@ function applyWantOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: stri
       }
       const need = Math.max(item.deck_need ?? 0, extraQty);
       if (need === 0) return [];
-      const patched = patchOwnedQty(id, item.owned, need, item.market_price, item.alts_owned ?? 0);
+      const patched = patchOwnedQty(id, item.owned, need, item.market_price, item.alts_owned ?? 0, item.alt_arts);
       cardsStill += patched.still_need;
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return [{ ...item, ...patched, need, extra_qty: extraQty }];
@@ -808,6 +867,11 @@ function useNarrowLayout() {
   return narrow;
 }
 
+/** The product id in a `${cardId}:${productId}` busy key when it belongs to this card. */
+function busyProductFor(key: string | null | undefined, cardId: string): number | null {
+  return key?.startsWith(`${cardId}:`) ? Number(key.slice(cardId.length + 1)) : null;
+}
+
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
 }
@@ -909,6 +973,8 @@ function ShoppingItemsView({
   onToggleSelectVisible,
   showAltArts,
   altRow,
+  onBuyPick,
+  buyBusyKey = null,
   usedInNote,
   onOwnedSaved,
   onRemoveExtra,
@@ -923,6 +989,10 @@ function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
+  /** Owner pages: saves how many still-needed copies are bought as one alt art (#906). */
+  onBuyPick?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while a buy pick is saving. */
+  buyBusyKey?: string | null;
   usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
@@ -956,6 +1026,16 @@ function ShoppingItemsView({
         Remove
       </button>
     ) : null;
+
+  const buySplit = (item: ShoppingItem, prefix = "") => (
+    <BuySplit
+      card={item}
+      amount={money(item.remaining_cost)}
+      prefix={prefix}
+      onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
+      busyProductId={busyProductFor(buyBusyKey, item.card_id)}
+    />
+  );
 
   if (layout === "grid") {
     return (
@@ -1003,7 +1083,7 @@ function ShoppingItemsView({
                 meta={
                   <>
                     {stillNeededText(item.still_need, item.need)}
-                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                    {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
                   </>
                 }
               >
@@ -1115,7 +1195,7 @@ function ShoppingItemsView({
                   <td>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
                   </td>
-                  <td>{money(item.remaining_cost)}</td>
+                  <td>{buySplit(item)}</td>
                   <td className="col-cost">{item.cost ?? "—"}</td>
                   <td className="used-in">
                     <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
@@ -1164,7 +1244,7 @@ function ShoppingItemsView({
                   {[item.color, stillNeededText(item.still_need, item.need)]
                     .filter(Boolean)
                     .join(" · ")}
-                  {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
                 </>
               }
               info={
@@ -1353,6 +1433,21 @@ function ShoppingPage() {
     }
   };
 
+  const changeShoppingAltBuy = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltBuyOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setCardPrinting(cardId, productId, qty);
+      applyAltBuyOptimistic(qc, cardId, productId, res.qty);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateAltWantViews(qc);
+      setAltOwnedBusyKey(null);
+    }
+  };
+
   const changeShoppingDisplayArt = async (cardId: string, productId: number) => {
     setAltOwnedErr(null);
     applyDisplayArtOptimistic(qc, cardId, productId);
@@ -1381,6 +1476,7 @@ function ShoppingPage() {
         />
       }
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
+      showBuyPicks={item.still_need > 0}
       shownProductId={shownProductId(item)}
       onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
       busyProductId={
@@ -1933,6 +2029,8 @@ function ShoppingPage() {
         onToggleSelectVisible={toggleSelectVisible}
         showAltArts={showAltArts}
         altRow={shoppingAltRow}
+        onBuyPick={(cardId, productId, qty) => void changeShoppingAltBuy(cardId, productId, qty)}
+        buyBusyKey={altOwnedBusyKey}
         usedInNote={usedInNote}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}
@@ -3289,6 +3387,7 @@ function CardTable({
   onAltOwnedChange,
   altOwnedBusyKey = null,
   onDisplayArtChange,
+  onAltBuyChange,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -3302,8 +3401,22 @@ function CardTable({
   altOwnedBusyKey?: string | null;
   /** Owner pages only: pick which art the card shows (0 = base). */
   onDisplayArtChange?: (cardId: string, productId: number) => void;
+  /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
+  onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
+  // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
+  const buySplit = (c: CardView) =>
+    onAltBuyChange && canSplitBuy(c) ? (
+      <BuySplit
+        card={c}
+        amount={money(remainingCostForCard(c))}
+        prefix="Left "
+        onPick={(productId, qty) => onAltBuyChange(c.card_id, productId, qty)}
+        busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
+        plainWhenIdle={false}
+      />
+    ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
   // With editable alt tiles on screen, the base count is edited under the Base tile.
   const ownedCell = (c: CardView) => (
@@ -3330,6 +3443,7 @@ function CardTable({
           ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
           : undefined
       }
+      showBuyPicks={Boolean(onAltBuyChange) && c.still_need > 0}
       shownProductId={shownProductId(c)}
       onShow={
         onDisplayArtChange
@@ -3355,7 +3469,12 @@ function CardTable({
             name={c.name}
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
-            meta={[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+            meta={
+              <>
+                {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+              </>
+            }
           >
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
@@ -3439,7 +3558,10 @@ function CardTable({
                       />
                     </>
                   ) : (
-                    <StillNeededCell still={c.still_need} need={c.needed} />
+                    <>
+                      <StillNeededCell still={c.still_need} need={c.needed} />
+                      {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+                    </>
                   )}
                 </td>
                 <td>
@@ -3466,9 +3588,12 @@ function CardTable({
             imageProductId={shownProductId(c)}
             cost={c.cost}
             rarity={c.rarity}
-            meta={[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
-              .filter(Boolean)
-              .join(" · ")}
+            meta={
+              <>
+                {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+              </>
+            }
             info={
               <>
                 <div className="mobile-card-price-row">
@@ -4136,6 +4261,21 @@ function DeckDetailPage() {
     }
   };
 
+  const changeAltBuy = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setAltOwnedBusyKey(`${cardId}:${productId}`);
+    applyAltBuyOptimistic(qc, cardId, productId, qty);
+    try {
+      const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
+      applyDeckUpdate(detail);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateAltWantViews(qc);
+      setAltOwnedBusyKey(null);
+    }
+  };
+
   const changeDisplayArt = async (cardId: string, productId: number) => {
     setAltOwnedErr(null);
     applyDisplayArtOptimistic(qc, cardId, productId);
@@ -4530,6 +4670,7 @@ function DeckDetailPage() {
         onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
         onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
+        onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
       />
       {additional.length > 0 && (
         <>
@@ -4547,6 +4688,7 @@ function DeckDetailPage() {
             onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
             onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
+            onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
           />
         </>
       )}
@@ -4574,6 +4716,7 @@ function DeckDetailPage() {
           onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
           onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
+          onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
         />
       )}
     </section>
@@ -4731,7 +4874,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
 /** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
 function HomeRoute() {
   const { data: user, isLoading, refetch } = useMe();
-  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  // A pre-rendered page keeps showing the landing page while the session loads (see prerendered.ts).
+  if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (!user) {
     return (
       <PlannerLandingPage
@@ -4752,7 +4896,7 @@ function HomeRoute() {
 /** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 function MetaRoute() {
   const { data: user, isLoading } = useMe();
-  if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (user) {
     return (
       <Shell user={user}>
@@ -4760,34 +4904,7 @@ function MetaRoute() {
       </Shell>
     );
   }
-  return (
-    <div className="app public-app">
-      <UpdateNotice />
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/login">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <BuildTag />
-            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
-              Play Duel
-            </a>
-            <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main className="app-main">
-        <MetaPage user={null} />
-      </main>
-    </div>
-  );
+  return <PublicMetaScreen />;
 }
 
 function PublicSharePage() {

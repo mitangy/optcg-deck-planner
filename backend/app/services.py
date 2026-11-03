@@ -1404,11 +1404,15 @@ def shopping_list(
         cat = catalog.get(card_id)
         market = cat.market_price if cat else None
         card_alts = alts.get(card_id, [])
-        # Alt wants no longer steer what the planner prices: still-needed copies
-        # are bought at the standard printing.
+        # Alt arts the user picked to buy (#906) are priced at their own market
+        # price, in list order; whatever is left of still_need is the standard art.
         buys = allocate_still_need_buys(
             still,
-            [],
+            [
+                (a.product_id, a.wanted, a.market_price)
+                for a in card_alts
+                if a.wanted > 0
+            ],
             standard_product_id=product_ids.get(card_id),
             standard_price=market,
         )

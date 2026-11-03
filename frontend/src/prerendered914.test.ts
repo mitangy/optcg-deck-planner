@@ -1,0 +1,55 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(() => {
+  document.body.innerHTML = "";
+  vi.resetModules();
+});
+
+describe("pre-rendered page markers (#914)", () => {
+  it("reads the leaders the build embedded, and nothing from a broken or incomplete script (#914)", async () => {
+    const { readMetaSeed } = await import("./prerendered");
+    expect(readMetaSeed()).toBeNull();
+    document.body.innerHTML = '<script type="application/json" id="meta-seed">{"generatedAt":"2026-11-03T05:00:00Z","days":30,"leaders":{"leaders":[]}}</script>';
+    expect(readMetaSeed()).toMatchObject({ days: 30, generatedAt: "2026-11-03T05:00:00Z" });
+    document.body.innerHTML = '<script type="application/json" id="meta-seed">{"days":30}</script>';
+    expect(readMetaSeed()).toBeNull();
+    document.body.innerHTML = '<script type="application/json" id="meta-seed">{oops</script>';
+    expect(readMetaSeed()).toBeNull();
+  });
+
+  it("knows the page came from the pre-render only when #root is marked (#914)", async () => {
+    document.body.innerHTML = '<div id="root"></div>';
+    vi.resetModules();
+    expect((await import("./prerendered")).WAS_PRERENDERED).toBe(false);
+    document.body.innerHTML = '<div id="root" data-prerendered><p>hi</p></div>';
+    vi.resetModules();
+    expect((await import("./prerendered")).WAS_PRERENDERED).toBe(true);
+  });
+
+  it("remembers a signed-in session, forgets it, and survives blocked storage (#914)", async () => {
+    localStorage.clear();
+    const m = await import("./prerendered");
+    expect(m.hasSignedInHint()).toBe(false);
+    m.setSignedInHint(true);
+    expect(localStorage.getItem("optcg.signedIn")).toBe("1");
+    expect(m.hasSignedInHint()).toBe(true);
+    m.setSignedInHint(false);
+    expect(m.hasSignedInHint()).toBe(false);
+    const broken = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(m.hasSignedInHint()).toBe(false);
+    broken.mockRestore();
+  });
+
+  it("a signed-in browser does not keep the pre-rendered page while the session loads (#914)", async () => {
+    document.body.innerHTML = '<div id="root" data-prerendered></div>';
+    localStorage.clear();
+    vi.resetModules();
+    expect((await import("./prerendered")).KEEP_PRERENDER_WHILE_LOADING).toBe(true);
+    localStorage.setItem("optcg.signedIn", "1");
+    vi.resetModules();
+    expect((await import("./prerendered")).KEEP_PRERENDER_WHILE_LOADING).toBe(false);
+  });
+});

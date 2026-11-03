@@ -1,8 +1,9 @@
 /// <reference types="vitest/config" />
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { build, defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { prerenderPlugin } from "../scripts/seo/prerender-plugin.mjs";
 
 // Production must use the same-origin `/api` rewrite so the session cookie stays
 // first-party (absolute cross-origin API URLs break cookies on mobile Safari).
@@ -60,7 +61,12 @@ export default defineConfig(({ mode }) => {
   // Bake the commit into import.meta.env.VITE_GIT_SHA for the UI build tag.
   process.env.VITE_GIT_SHA = gitSha;
   return {
-    plugins: [react(), versionFile(gitSha, new Date().toISOString())],
+    plugins: [
+      react(),
+      versionFile(gitSha, new Date().toISOString()),
+      // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
+      prerenderPlugin({ name: "planner", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
+    ],
     resolve: {
       // Shared deck analytics and the legal footer / pages are compiled from source; see packages/.
       alias: [

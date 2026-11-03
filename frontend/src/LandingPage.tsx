@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "./api";
-import { BrandWordmark } from "./BrandWordmark";
-import { BuildTag } from "./BuildTag";
 import { DUEL_URL } from "./duelLink";
-import { ThemeToggle } from "./ThemeToggle";
+import { PublicTopbar } from "./PublicTopbar";
 
 const FEATURES: readonly { title: string; body: string }[] = [
   {
@@ -47,26 +45,7 @@ export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<v
 
   return (
     <div className="app public-app landing">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <BuildTag />
-            <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
-              Play Duel
-            </a>
-            <ThemeToggle />
-            <Link className="btn secondary" to="/login">
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicTopbar />
       <main className="app-main landing-main">
         <section className="landing-hero">
           <h1>One Piece TCG deck planner with live market prices</h1>

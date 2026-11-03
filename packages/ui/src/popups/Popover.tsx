@@ -1,7 +1,15 @@
-import { Popover, PopoverButton, PopoverGroup, PopoverPanel as HeadlessPopoverPanel, type PopoverPanelProps } from "@headlessui/react";
+import {
+  Popover,
+  PopoverBackdrop,
+  PopoverButton,
+  PopoverGroup,
+  PopoverPanel as HeadlessPopoverPanel,
+  type PopoverPanelProps,
+} from "@headlessui/react";
 import "./ui.css";
 
-export { Popover, PopoverButton, PopoverGroup };
+/** `PopoverBackdrop` renders only while its Popover is open; a tap on it is an outside click and closes the panel. */
+export { Popover, PopoverBackdrop, PopoverButton, PopoverGroup };
 
 /**
  * The panel of a `Popover`. It is anchored to the button and rendered in a portal with floating
