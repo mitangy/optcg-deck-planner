@@ -1,4 +1,5 @@
 /** Duel-web ↔ FastAPI helpers (tokens + light auth). */
+import { readFirstTouch } from "@optcg/ui/firstTouch";
 import { getApiBaseUrl } from "../config";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { rememberAssignedGameServer } from "./gameServer";
@@ -288,7 +289,7 @@ export async function claimLoginTicket(ticket: string): Promise<AuthUser> {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticket }),
+    body: JSON.stringify({ ticket, source: readFirstTouch() }),
   });
   if (!res.ok) {
     const text = await res.text();

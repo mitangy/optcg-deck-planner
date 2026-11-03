@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload } from "./adminLogic";
+import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -233,5 +233,19 @@ describe("uploaded images in the admin page (#812)", () => {
     expect(canRestoreUpload({ role: "admin" }, down)).toBe(true);
     expect(canRestoreUpload({ role: "moderator" }, down)).toBe(false);
     expect(canRestoreUpload({ role: "admin" }, { taken_down_at: null })).toBe(false);
+  });
+});
+
+describe("formatSignupSource (#905)", () => {
+  it("shows the referring host, utm tags, direct, or a dash for an unknown source (#905)", () => {
+    expect(formatSignupSource({ ref: "google.com", land: "/decks" })).toEqual({ text: "google.com", title: "google.com (landed on /decks)" });
+    expect(formatSignupSource({ ref: "l.instagram.com", utm_source: "instagram", utm_medium: "paid", utm_campaign: "nov-ad" }).text).toBe("utm: instagram / paid / nov-ad");
+    expect(formatSignupSource({ utm_source: "newsletter" }).text).toBe("utm: newsletter");
+    expect(formatSignupSource({}).text).toBe("direct");
+    expect(formatSignupSource(null).text).toBe("—");
+  });
+
+  it("keeps the referrer in the tooltip when utm tags take the label (#905)", () => {
+    expect(formatSignupSource({ ref: "l.instagram.com", land: "/", utm_source: "ig" }).title).toBe("utm: ig (from l.instagram.com, landed on /)");
   });
 });

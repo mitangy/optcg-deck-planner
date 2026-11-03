@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./analytics";
 import { startAccountSync } from "./account/accountSync";
 import { App } from "./App";
@@ -25,6 +26,8 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 
+// Before routing can rewrite the URL: remember where a new visitor came from (#905).
+captureFirstTouch();
 // Signed-in players get their settings and playmat / card back from the account.
 void startAccountSync();
 // Lobby and Settings say when a newer deploy is live than this bundle.

@@ -157,6 +157,18 @@ def _ensure_user_username(bind: Engine | None = None) -> None:
         )
 
 
+def _ensure_user_signup_source() -> None:
+    """Add users.signup_source (nullable, metadata-only on Postgres) on existing DBs (#905)."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("users")}
+    if "signup_source" in existing:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN signup_source TEXT"))
+
+
 def _ensure_deck_hidden_from_friends() -> None:
     """Add decks.hidden_from_friends on existing DBs; old decks stay visible to friends (#703)."""
     false = "FALSE" if engine.dialect.name == "postgresql" else "0"
@@ -435,6 +447,7 @@ def init_db() -> None:
     _ensure_user_sum_across_leaders()
     _ensure_deck_hidden_from_friends()
     _ensure_user_username()
+    _ensure_user_signup_source()
     _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
     _ensure_duel_progress_closed()

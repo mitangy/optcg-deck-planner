@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Select } from "@optcg/ui/popups";
 import { type AdminUser, type AdminUsers, type Role, banUser, deleteUser, fetchAdminUsers, setUserRole, unbanUser } from "./adminApi";
-import { canBanUser, canDeleteUser, dateOf } from "./adminLogic";
+import { canBanUser, canDeleteUser, dateOf, formatSignupSource } from "./adminLogic";
 
 const PAGE = 50;
 
@@ -107,6 +107,7 @@ export function UsersTab({ actor }: { actor: Actor }) {
         <div className="adm-urow adm-uhead" aria-hidden>
           <span>User</span>
           <span>Role</span>
+          <span>Source</span>
           <span className="num">Matches</span>
           <span>Joined</span>
           <span>Actions</span>
@@ -118,6 +119,7 @@ export function UsersTab({ actor }: { actor: Actor }) {
           const mayBan = canBanUser(actor, u);
           const mayDelete = canDeleteUser(actor, u);
           const busy = busyId === u.id;
+          const source = formatSignupSource(u.signup_source);
           return (
             <div key={u.id} className={`adm-urow${banned ? " banned" : ""}`}>
               <span className="adm-ucell adm-uname">
@@ -145,6 +147,9 @@ export function UsersTab({ actor }: { actor: Actor }) {
                 ) : (
                   <span className={`adm-pill adm-pill-${u.role === "user" ? "mid" : "ok"}`}>{u.role}</span>
                 )}
+              </span>
+              <span className={`adm-ucell adm-usource${u.signup_source ? "" : " adm-muted"}`} data-label="Source" title={source.title}>
+                {source.text}
               </span>
               <span className="adm-ucell num" data-label="Matches">
                 {u.matches}

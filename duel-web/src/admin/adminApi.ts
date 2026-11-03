@@ -130,6 +130,8 @@ export type AdminHosting = {
   github: ProviderResult<GithubData>;
 };
 
+export type SignupSource = { ref?: string; land?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
+
 export type AdminUser = {
   id: number;
   email: string;
@@ -139,6 +141,8 @@ export type AdminUser = {
   created_at: string;
   banned_at: string | null;
   ban_reason: string | null;
+  /** First-touch source captured at sign-up (#905). Null: unknown (account predates tracking); `{}`: direct. */
+  signup_source: SignupSource | null;
   matches: number;
   last_match_at: string | null;
 };
