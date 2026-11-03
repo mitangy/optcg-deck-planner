@@ -28,7 +28,7 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
-import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
+import { deckRemainingMarket, remainingCostForCard, shoppingShownPrice } from "./deckCost";
 import { BuySplit, canSplitBuy } from "./BuySplit";
 import { DISCORD_INVITE_URL, FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { CornerNotices, UpdateNotice } from "./UpdateNotice";
@@ -1503,7 +1503,7 @@ function ShoppingPage() {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
-    list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
+    list = [...list].sort((a, b) => compareCardOrder({ ...a, market_price: shoppingShownPrice(a) }, { ...b, market_price: shoppingShownPrice(b) }, effectiveSorts));
     return list;
   }, [data, onlyNeed, effectiveSorts, search]);
 
@@ -1944,6 +1944,7 @@ function ShoppingPage() {
               onlyNeed={onlyNeed}
               unavailableKeys={shoppingUnavailableSorts}
               columnSortKey="optcg_colsort_shopping"
+              priceHint="Price is what you still pay for each card, highest first, with picked alt arts at their own price."
             />
             <label>
               <input

@@ -50,6 +50,14 @@ export function splitStillNeed(card: CostCard): BuySplit {
 }
 
 /**
+ * Price a Master Shopping card sorts by (#926): what you still pay for it (picked alt arts at
+ * their own price), or its standard market price when nothing is left to buy.
+ */
+export function shoppingShownPrice(card: CostCard): number | null {
+  return card.still_need > 0 ? splitStillNeed(card).cost : (card.market_price ?? null);
+}
+
+/**
  * Remaining market cost of one card: still_need copies, the ones picked as an
  * alt art (#906) at that art's price and the rest at the standard
  * price. Alt arts the user owns already reduce still_need on the server.

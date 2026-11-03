@@ -165,6 +165,7 @@ export function SortMenu({
   unavailableKeys = [],
   keys = ALL_SORT_KEYS,
   columnSortKey,
+  priceHint = "Price is highest market price first.",
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
@@ -174,6 +175,8 @@ export function SortMenu({
   unavailableKeys?: SortKey[];
   /** Sort options this page offers (defaults to the shopping/deck set). */
   keys?: SortKey[];
+  /** Explains the Price option when a page sorts by something other than the base market price. */
+  priceHint?: string;
 }) {
   const menuKeys = useMemo(() => {
     const inactive = keys.filter((k) => !sorts.includes(k));
@@ -229,7 +232,7 @@ export function SortMenu({
       </PopoverButton>
       <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
         <p className="sort-menu-hint">
-          Top option sorts first; a newly ticked option goes to the top. Price is highest market price first.
+          Top option sorts first; a newly ticked option goes to the top. {priceHint}
           {keys.includes("value") ? " Value is owned copies × market price, highest first." : ""}
           {keys.includes("deck")
             ? " Deck groups by leader (earliest deck first); cards used by multiple leaders stay under their earliest leader."

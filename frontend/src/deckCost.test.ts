@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deckRemainingMarket, remainingCostForCard, splitStillNeed } from "./deckCost";
+import { deckRemainingMarket, remainingCostForCard, shoppingShownPrice, splitStillNeed } from "./deckCost";
 
 describe("remainingCostForCard", () => {
   it("prices every still-needed copy at the standard price (#625)", () => {
@@ -52,5 +52,16 @@ describe("deckRemainingMarket", () => {
       { still_need: 0, market_price: 5 }, // owned
     ];
     expect(deckRemainingMarket(cards)).toBe(10);
+  });
+});
+
+describe("shoppingShownPrice", () => {
+  it("shoppingShownPrice prices picked alt arts and falls back to market price when nothing is needed (#926)", () => {
+    const alts = [{ wanted: 1, market_price: 10 }];
+    // 1 alt x 10 + 1 base x 1
+    expect(shoppingShownPrice({ still_need: 2, market_price: 1, alt_arts: alts })).toBe(11);
+    // Nothing left to buy: the standard market price, not the alt pick.
+    expect(shoppingShownPrice({ still_need: 0, market_price: 1, alt_arts: alts })).toBe(1);
+    expect(shoppingShownPrice({ still_need: 0, market_price: null, alt_arts: alts })).toBeNull();
   });
 });
