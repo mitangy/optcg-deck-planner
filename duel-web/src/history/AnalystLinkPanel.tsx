@@ -163,6 +163,7 @@ export function AnalystLinkPanel() {
               <p className="lesson-meta">
                 <span className="lesson-status">{STATUS_LABEL[r.status]}</span>
                 {r.about ? <span className="lesson-about">{r.about}</span> : null}
+                {r.fromBots ? <span className="lesson-source">From bot games</span> : null}
               </p>
               <p className="lesson-text">{r.text}</p>
               {r.cards.length ? <p className="lesson-cards">{r.cards.join(", ")}</p> : null}
