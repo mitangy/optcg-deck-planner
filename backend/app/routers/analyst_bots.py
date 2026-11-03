@@ -11,11 +11,22 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.analyst_bots import MAX_BATCH_GAMES, MAX_GAMES, bot_game_replay, clean_levels, ingest_batch, search_bot_games, sim_stats
+from app.analyst_bots import (
+    MAX_BATCH_GAMES,
+    MAX_GAMES,
+    BotLessonError,
+    bot_game_replay,
+    clean_levels,
+    ingest_batch,
+    save_bot_lesson,
+    search_bot_games,
+    shared_bot_lessons,
+    sim_stats,
+)
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.routers.analyst import require_service
-from app.schemas import CARD_ID_PATTERN
+from app.schemas import CARD_ID_PATTERN, BotLessonIn
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
 
@@ -93,4 +104,16 @@ def analyst_sim_stats(
     """Simulated matchup win rates and line stats from bot self-play (aggregates only)."""
     if opponent and not leader:
         raise HTTPException(status_code=400, detail="Give a leader with the opponent")
-    return sim_stats(db, leader, opponent, levels, days, rules_version)
+    out = sim_stats(db, leader, opponent, levels, days, rules_version)
+    if leader:
+        out["lessons"] = shared_bot_lessons(db, leader, opponent)
+    return out
+
+
+@router.post("/bot-lessons")
+def post_bot_lesson(body: BotLessonIn, _: Service, db: Annotated[Session, Depends(get_db)]) -> dict:
+    """A line bot games and real games agree on, saved as a draft for the admin. Once approved it reaches every player's Log Pose."""
+    try:
+        return save_bot_lesson(db, body.text, body.leader_id, body.opponent_id, body.cards, body.evidence)
+    except BotLessonError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail) from e

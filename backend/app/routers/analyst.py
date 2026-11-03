@@ -316,6 +316,15 @@ def put_sharing(
 MAX_DRAFT_LESSONS = 100
 
 
+def _match_ids(evidence: str | None) -> list[str]:
+    """Player lessons keep a JSON list of match ids; bot lessons keep a JSON object with a summary instead."""
+    try:
+        value = json.loads(evidence or "[]")
+    except ValueError:
+        return []
+    return [m for m in value if isinstance(m, str)] if isinstance(value, list) else []
+
+
 def _lesson_out(row: AnalystLesson) -> AnalystLessonOut:
     return AnalystLessonOut(
         id=row.id,
@@ -324,7 +333,8 @@ def _lesson_out(row: AnalystLesson) -> AnalystLessonOut:
         leader_id=row.leader_id,
         opponent_id=row.opponent_id,
         cards=[c for c in row.cards.split(",") if c],
-        match_ids=json.loads(row.evidence or "[]"),
+        match_ids=_match_ids(row.evidence),
+        source=row.source or "player",
         created_at=row.created_at.isoformat() if row.created_at else None,
         reviewed_at=row.reviewed_at.isoformat() if row.reviewed_at else None,
     )

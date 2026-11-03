@@ -7,7 +7,7 @@
  */
 import { replayApply, replayStart, type MatchReplay, type Seat } from "@optcg/rules";
 import { emptyTally, tallyIntent, type LineTally } from "@optcg/rules/src/sim/selfPlay";
-import { plannerCall, type PlannerApi } from "./matches";
+import { cardName, plannerCall, type PlannerApi } from "./matches";
 
 export type { LineTally };
 
@@ -169,4 +169,75 @@ export type LessonDraftInput = { text: string; leader_id: string; opponent_id?: 
 /** Card numbers a line is about (up to 10), for the lesson's card list. */
 export function cardsOfLine(line: string): string[] {
   return [...new Set(line.match(/[A-Z]{2,4}\d{2}-\d{3}|P-\d{3}/g) ?? [])].slice(0, 10);
+}
+
+// ——— weekly run over every leader (#915) ———
+
+export const DEFAULT_MIN_LEADER_GAMES = 60;
+export const DEFAULT_MAX_PER_LEADER = 3;
+
+/** Leaders in the all-leaders sim answer with at least minGames simulated games, most-played first. */
+export function leadersWithGames(sim: { leaders?: { leader: string; games: number }[] }, minGames = DEFAULT_MIN_LEADER_GAMES): string[] {
+  return (sim.leaders ?? []).filter((l) => l.games >= minGames).map((l) => l.leader);
+}
+
+/** The strongest `max` candidates (compareLines already sorts them by how far both sources move), one per line. */
+export function topCandidates(found: LessonCandidate[], max: number): LessonCandidate[] {
+  const seen = new Set<string>();
+  const out: LessonCandidate[] = [];
+  for (const c of found) {
+    if (out.length >= max) break;
+    if (seen.has(c.line)) continue;
+    seen.add(c.line);
+    out.push(c);
+  }
+  return out;
+}
+
+/** The bot and real numbers behind a lesson, short enough for the review list. */
+export function evidenceSummary(c: LessonCandidate): string {
+  const side = (s: LessonCandidate["bot"]) => `${pc(s.withRate)} vs ${pc(s.withoutRate)} (${s.withGames}/${s.withoutGames} games)`;
+  return `${c.line}: bot ${side(c.bot)}; real ${side(c.real)}`.slice(0, 500);
+}
+
+export type BotLessonPost = LessonDraftInput & { evidence: string };
+
+/** Save one lesson through the service secret. The planner skips a lesson it already has (any status): `skipped` is true then. */
+export async function postBotLesson(api: PlannerApi, lesson: BotLessonPost): Promise<{ skipped: boolean }> {
+  return plannerCall<{ skipped: boolean }>(api, null, "/analyst/bot-lessons", true, lesson);
+}
+
+export type LeaderRun = { leader: string; botLines: number; realGames: number; lessons: (LessonCandidate & { text: string })[] };
+
+/** Bot line stats for a leader, the same lines tallied over its real archive games, and the lines both agree on (best `max`). */
+export async function lessonsForLeader(api: PlannerApi, leader: string, opts: { opponent?: string; realGames?: number; max?: number } = {}): Promise<LeaderRun> {
+  const realMax = opts.realGames ?? 60;
+  const query = new URLSearchParams({ leader, levels: "hard/hard" });
+  if (opts.opponent) query.set("opponent", opts.opponent);
+  const sim = await plannerCall<{ lines?: LineRow[] }>(api, null, `/analyst/stats/sim?${query}`, true);
+  const bot = sim.lines ?? [];
+
+  const real: { lines: Set<string>; won: boolean }[] = [];
+  const search = new URLSearchParams({ leader, limit: "50" });
+  if (opts.opponent) search.set("opponent", opts.opponent);
+  for (let offset = 0; real.length < realMax && bot.length; offset += 50) {
+    search.set("offset", String(offset));
+    const page = await plannerCall<{ games: { game_id: string; has_replay: boolean }[] }>(api, null, `/analyst/corpus/games?${search}`, true);
+    if (!page.games.length) break;
+    for (const g of page.games) {
+      if (!g.has_replay || real.length >= realMax) continue;
+      try {
+        const { replay } = await plannerCall<{ replay: MatchReplay }>(api, null, `/analyst/corpus/games/${g.game_id}/replay`, true);
+        const seats = ([0, 1] as Seat[]).filter((s) => replay.players[s].leaderId === leader);
+        if (seats.length !== 1 || !replay.end) continue;
+        const seat = seats[0]!;
+        real.push({ lines: linesOf(tallyReplay(replay).tallies[seat]), won: replay.end.winner === seat });
+      } catch {
+        /* a game the engine no longer replays is left out */
+      }
+    }
+  }
+  const name = cardName(leader) ?? leader;
+  const lessons = topCandidates(compareLines(bot, realLineStats(real)), opts.max ?? DEFAULT_MAX_PER_LEADER).map((c) => ({ ...c, text: lessonText(c, name) }));
+  return { leader, botLines: bot.length, realGames: real.length, lessons };
 }

@@ -85,12 +85,13 @@ test("every saved answer has thumbs and 'This is wrong', and a vote is a quiet T
   await up.click();
   await expect(up).toHaveAttribute("aria-pressed", "true");
   await expect(second.getByRole("status")).toHaveText("Thanks");
-  expect(st.posts.at(-1)).toMatchObject({ kind: "chat", thread_id: 1, message_index: 1, rating: "up", note: "", starts_with: "Keep the Nami until you can afford the b" });
+  // The button flips before the POST reaches the fake route, so wait for the post itself.
+  await expect.poll(() => st.posts.at(-1)).toMatchObject({ kind: "chat", thread_id: 1, message_index: 1, rating: "up", note: "", starts_with: "Keep the Nami until you can afford the b" });
   // The vote can be changed; the first answer's own bar is untouched.
   await down.click();
   await expect(down).toHaveAttribute("aria-pressed", "true");
   await expect(up).toHaveAttribute("aria-pressed", "false");
-  expect(st.posts.at(-1)).toMatchObject({ message_index: 1, rating: "down" });
+  await expect.poll(() => st.posts.at(-1)).toMatchObject({ message_index: 1, rating: "down" });
   await expect(bars.nth(0).getByRole("button", { pressed: true })).toHaveCount(0);
   // Nothing moved: not the buttons, not the status.
   expect(await boxes(second)).toEqual(before);

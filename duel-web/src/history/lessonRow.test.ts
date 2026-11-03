@@ -54,4 +54,9 @@ describe("Log Pose lesson review list", () => {
     expect(rows.map((r) => r.about)).toEqual(["<OP01-001> vs <OP05-060>", "<OP01-001>", "vs <OP05-060>", null]);
     expect(rows[0].cards).toEqual(["<OP02-121>"]);
   });
+
+  it("marks only lessons drafted from bot games, and treats a missing source as your own (#915)", () => {
+    const rows = lessonRows([lesson({ id: 1, source: "bots" }), lesson({ id: 2, source: "player" }), lesson({ id: 3 })], name);
+    expect(rows.map((r) => r.fromBots)).toEqual([true, false, false]);
+  });
 });

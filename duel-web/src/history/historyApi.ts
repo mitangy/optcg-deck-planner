@@ -86,6 +86,8 @@ export type AnalystLesson = {
   opponent_id: string | null;
   cards: string[];
   match_ids: string[];
+  /** "bots": drafted from bot-vs-real game lines (#915); an older server omits it, which means "player". */
+  source?: "player" | "bots";
   created_at: string | null;
   reviewed_at: string | null;
 };
