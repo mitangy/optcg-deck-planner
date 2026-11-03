@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react";
-import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
+import { createPortal } from "react-dom";
+import { Popover, PopoverBackdrop, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { splitStillNeed } from "./deckCost";
@@ -182,6 +183,10 @@ export function BuySplit({
           </span>
           {caption ? <span className="buy-split-caption">{caption}</span> : null}
         </PopoverButton>
+        {/* Phone sheet: dim the page behind it. In a portal so no table cell or card can trap it under the list. */}
+        {phone
+          ? createPortal(<PopoverBackdrop transition className="buy-split-backdrop" data-testid="buy-split-backdrop" />, document.body)
+          : null}
         <PopoverPanel
           anchor={phone ? false : { to: "bottom start", gap: 6, padding: 8 }}
           portal
