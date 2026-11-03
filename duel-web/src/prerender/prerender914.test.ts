@@ -109,6 +109,13 @@ describe("pre-rendered public pages (#914)", async () => {
     expect(xml).not.toContain("/settings");
   });
 
+  it("only the static shells (home, leaderboard) are marked to be hidden from browsers that run the app (#914)", () => {
+    for (const f of ["index.html", "leaderboard/index.html"]) expect(rootOf(byFile.get(f) ?? ""), f).toContain("prerender-shell");
+    for (const f of ["leaders/index.html", "leaders/op17-039-rocks-d-xebec/index.html", "decks/meta/index.html", "terms/index.html", "whats-new/index.html", "play-one-piece-tcg-online/index.html"]) {
+      expect(rootOf(byFile.get(f) ?? ""), f).not.toContain("prerender-shell");
+    }
+  });
+
   it("ships the snapshot as a static file (#914)", () => {
     expect(JSON.parse(byFile.get("meta-snapshot.json") ?? "{}").leaders).toHaveLength(leaders.length);
   });
@@ -122,13 +129,17 @@ describe("pre-rendered public pages (#914)", async () => {
       expect(resolveRequest(routes, files, "/leaders/op17-039-rocks-d-xebec/")).toMatchObject({ status: 200, file: "leaders/op17-039-rocks-d-xebec/index.html" });
     });
 
-    it("if the platform did not serve directory indexes, a leader page would still open the app, not a 404 (#914)", () => {
-      expect(resolveRequest(routes, files, "/leaders/op17-039-rocks-d-xebec", { directoryIndex: false })).toMatchObject({ status: 200, file: "_app.html" });
+    it("a known leader slug serves its own page even when the platform serves no directory indexes (#914)", () => {
+      for (const p of ["/leaders/op17-039-rocks-d-xebec", "/leaders/op17-039-rocks-d-xebec/"]) {
+        expect(resolveRequest(routes, files, p, { directoryIndex: false }), p).toMatchObject({ status: 200, file: "leaders/op17-039-rocks-d-xebec/index.html" });
+      }
     });
 
     it("a bare id or a leader the build did not know opens the app, which redirects or shows the live data (#914)", () => {
       expect(resolveRequest(routes, files, "/leaders/op17-039")).toMatchObject({ status: 200, file: "_app.html" });
       expect(resolveRequest(routes, files, "/leaders/op99-001-newcomer")).toMatchObject({ status: 200, file: "_app.html" });
+      expect(resolveRequest(routes, files, "/leaders/op17-039", { directoryIndex: false })).toMatchObject({ status: 200, file: "_app.html" });
+      expect(resolveRequest(routes, files, "/leaders/op99-001-newcomer/", { directoryIndex: false })).toMatchObject({ status: 200, file: "_app.html" });
     });
 
     it("each fixed public route names its own pre-rendered file, so it works without directory indexes too (#914)", () => {

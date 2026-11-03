@@ -14,7 +14,7 @@ import "../pages/playOnline.css";
 export function HomeShell({ snapshot }: { snapshot: MetaSnapshot }) {
   const top = snapshot.leaders.slice(0, 8);
   return (
-    <div className="app-shell">
+    <div className="app-shell prerender-shell">
       <div className="page play-online">
         <section className="play-online-hero">
           <h1 className="page-title play-online-title">OPTCG Duel: play the One Piece TCG online, free</h1>
@@ -66,7 +66,7 @@ export function HomeShell({ snapshot }: { snapshot: MetaSnapshot }) {
 
 export function LeaderboardShell() {
   return (
-    <div className="app-shell">
+    <div className="app-shell prerender-shell">
       <div className="page page-narrow">
         <header className="page-header">
           <NavMenu />

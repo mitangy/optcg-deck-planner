@@ -5,6 +5,41 @@
  */
 export const WAS_PRERENDERED: boolean = typeof document !== "undefined" && document.getElementById("root")?.hasAttribute("data-prerendered") === true;
 
+/** localStorage key: "1" while a signed-in session was last seen. index.html reads the same key before first paint. */
+export const SIGNED_IN_HINT_KEY = "optcg.signedIn";
+
+function hintStorage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function hasSignedInHint(): boolean {
+  try {
+    return hintStorage()?.getItem(SIGNED_IN_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Remember (or forget) that this browser has a signed-in session, so the next load does not flash the logged-out page. */
+export function setSignedInHint(signedIn: boolean): void {
+  try {
+    if (signedIn) hintStorage()?.setItem(SIGNED_IN_HINT_KEY, "1");
+    else hintStorage()?.removeItem(SIGNED_IN_HINT_KEY);
+  } catch {
+    /* storage blocked: the hint is only an optimisation */
+  }
+}
+
+/**
+ * Keep the pre-rendered public page on screen while the session loads. Not for a browser that was signed in:
+ * it would see the logged-out page first, so it gets the skeleton (index.html hides the markup for it).
+ */
+export const KEEP_PRERENDER_WHILE_LOADING: boolean = WAS_PRERENDERED && !hasSignedInHint();
+
 /** Id of the `<script type="application/json">` holding the leaders the pre-render fetched. */
 export const META_SEED_ID = "meta-seed";
 

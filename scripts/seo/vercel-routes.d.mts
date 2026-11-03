@@ -1,4 +1,4 @@
-export type VercelRoute = { src?: string; dest?: string; status?: number; handle?: string };
+export type VercelRoute = { src?: string; dest?: string; status?: number; handle?: string; check?: boolean };
 export function resolveRequest(
   routes: readonly VercelRoute[],
   files: ReadonlySet<string>,

@@ -9,7 +9,7 @@
 const stripQuery = (p) => p.split(/[?#]/)[0];
 
 /**
- * @param {{ src?: string; dest?: string; status?: number; handle?: string }[]} routes
+ * @param {{ src?: string; dest?: string; status?: number; handle?: string; check?: boolean }[]} routes
  * @param {ReadonlySet<string>} files output files without a leading slash, e.g. "leaders/index.html"
  * @param {string} rawPath request path
  * @param {{ directoryIndex?: boolean }} [opts] directoryIndex (default true): a path that names a directory serves its index.html.
@@ -24,19 +24,32 @@ export function resolveRequest(routes, files, rawPath, { directoryIndex = true }
   const idx = routes.findIndex((r) => r.handle === "filesystem");
   const before = idx < 0 ? [] : routes.slice(0, idx);
   const after = idx < 0 ? routes : routes.slice(idx + 1);
-  const match = (list) => {
+  const substitute = (dest, m) => dest.replace(/\$(\d+)/g, (_, n) => m[Number(n)] ?? "").replace(/^\//, "");
+  const match = (list, current) => {
     for (const r of list) {
       if (!r.src) continue;
-      const m = new RegExp(`^${r.src}$`).exec(path);
+      const m = new RegExp(`^${r.src}$`).exec(current);
       if (m) return { r, m };
     }
     return null;
   };
-  const early = match(before);
+  const early = match(before, path);
   if (early) return { file: null, status: early.r.status ?? 200, via: "route", src: early.r.src };
   for (const c of candidates) if (c && files.has(c)) return { file: c, status: 200, via: "filesystem" };
-  const hit = match(after);
-  if (!hit) return { file: null, status: 404, via: "none" };
-  const dest = hit.r.dest ? hit.r.dest.replace(/\$(\d+)/g, (_, n) => hit.m[Number(n)] ?? "").replace(/^\//, "") : null;
-  return { file: dest, status: hit.r.status ?? 200, via: "route", src: hit.r.src };
+
+  // `check: true` routes rewrite and then look for the file; when it is missing the rewritten path goes on to the later routes.
+  let current = path;
+  let start = 0;
+  for (;;) {
+    const rest = after.slice(start);
+    const hit = match(rest, current);
+    if (!hit) return { file: null, status: 404, via: "none" };
+    const dest = hit.r.dest ? substitute(hit.r.dest, hit.m) : null;
+    if (hit.r.check && dest !== null && !files.has(dest)) {
+      current = `/${dest}`;
+      start += rest.indexOf(hit.r) + 1;
+      continue;
+    }
+    return { file: dest, status: hit.r.status ?? 200, via: "route", src: hit.r.src };
+  }
 }

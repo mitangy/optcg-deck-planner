@@ -11,6 +11,12 @@
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
       } catch (e) {}
     </script>
+    <script>
+      // A browser that was signed in must not see the pre-rendered logged-out page while the session loads (see src/prerendered.ts).
+      try {
+        if (localStorage.getItem("optcg.signedIn") === "1") document.documentElement.classList.add("signed-in-hint");
+      } catch (e) {}
+    </script>
     <title>OPTCG Deck Planner – One Piece TCG deck builder with live TCGPlayer prices</title>
     <meta name="description" content="Plan One Piece TCG decks, track the cards you own and see what you still need to buy, with live TCGPlayer prices. An unofficial fan-made tool, free with a Google account." />
     <link rel="canonical" href="https://optcg-deck-planner.app/" />

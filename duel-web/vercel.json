@@ -52,7 +52,12 @@
       "dest": "/leaders/index.html"
     },
     {
-      "src": "/leaders/[^/]+/?",
+      "src": "/leaders/([^/]+?)/?",
+      "dest": "/leaders/$1/index.html",
+      "check": true
+    },
+    {
+      "src": "/leaders/[^/]+(?:/index\\.html)?/?",
       "dest": "/_app.html"
     },
     {

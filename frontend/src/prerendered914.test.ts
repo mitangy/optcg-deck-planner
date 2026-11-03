@@ -26,4 +26,30 @@ describe("pre-rendered page markers (#914)", () => {
     vi.resetModules();
     expect((await import("./prerendered")).WAS_PRERENDERED).toBe(true);
   });
+
+  it("remembers a signed-in session, forgets it, and survives blocked storage (#914)", async () => {
+    localStorage.clear();
+    const m = await import("./prerendered");
+    expect(m.hasSignedInHint()).toBe(false);
+    m.setSignedInHint(true);
+    expect(localStorage.getItem("optcg.signedIn")).toBe("1");
+    expect(m.hasSignedInHint()).toBe(true);
+    m.setSignedInHint(false);
+    expect(m.hasSignedInHint()).toBe(false);
+    const broken = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(m.hasSignedInHint()).toBe(false);
+    broken.mockRestore();
+  });
+
+  it("a signed-in browser does not keep the pre-rendered page while the session loads (#914)", async () => {
+    document.body.innerHTML = '<div id="root" data-prerendered></div>';
+    localStorage.clear();
+    vi.resetModules();
+    expect((await import("./prerendered")).KEEP_PRERENDER_WHILE_LOADING).toBe(true);
+    localStorage.setItem("optcg.signedIn", "1");
+    vi.resetModules();
+    expect((await import("./prerendered")).KEEP_PRERENDER_WHILE_LOADING).toBe(false);
+  });
 });
