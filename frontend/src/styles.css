@@ -5487,6 +5487,40 @@ button.ghost.scan-open:hover {
   border-color: var(--gold);
 }
 
+/* Discord icon link in the top bar: same round pill as the theme toggle. */
+.discord-nav-link {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid rgba(226, 180, 88, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(239, 230, 210, 0.85);
+  text-decoration: none;
+}
+
+.discord-nav-link svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.discord-nav-link:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+/* Phones: the top bar (Play Duel, bell, theme, Log out) has no room for another control without cropping the
+   wordmark, so the Discord link lives in the page footer there. */
+@media (max-width: 480px) {
+  .topbar .discord-nav-link {
+    display: none;
+  }
+}
+
 /* Smallest phones: the wordmark alone identifies the app, leaving room for
    the theme toggle + Log out (they overlapped the title at 320px). */
 @media (max-width: 380px) {

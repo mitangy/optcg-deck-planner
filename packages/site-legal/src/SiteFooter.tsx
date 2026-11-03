@@ -1,12 +1,12 @@
 import type { ComponentType, ReactNode } from "react";
-import { FAN_DISCLAIMER, LEGAL_PATHS, LEGAL_TITLES, OWNERSHIP_NOTICE, type LegalKind } from "./content";
+import { DISCORD_INVITE_URL, FAN_DISCLAIMER, LEGAL_PATHS, LEGAL_TITLES, OWNERSHIP_NOTICE, type LegalKind } from "./content";
 
 export type FooterLinkProps = { to: string; className?: string; children: ReactNode };
 
 const ORDER: LegalKind[] = ["terms", "privacy", "cookies", "conduct"];
 
 /**
- * Page-end footer: legal links, What’s new (and optional feedback button) plus the fan-project blurb. In flow at the end
+ * Page-end footer: legal links, What’s new, the Discord invite (and optional feedback button) plus the fan-project blurb. In flow at the end
  * of the page (never fixed), so it never covers controls. `Link` is the app's
  * router link so the legal pages open without a reload.
  */
@@ -38,6 +38,9 @@ export function SiteFooter({
           <Link to="/whats-new" className="site-footer-link">
             What’s new
           </Link>
+          <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener" className="site-footer-link">
+            Discord
+          </a>
           {extraLinks?.map((l) => (
             <Link key={l.to} to={l.to} className="site-footer-link">
               {l.label}

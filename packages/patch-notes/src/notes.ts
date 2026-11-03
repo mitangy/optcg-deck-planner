@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "duel", pr: 922, title: "Join us on Discord", text: "There's now a link to our Discord in the menu and at the bottom of every page. Come chat, report bugs and find games." },
+  { date: "2026-11-03", app: "planner", pr: 922, title: "Join us on Discord", text: "A Discord button now sits in the top bar next to the theme switch, and there's a Discord link at the bottom of every page." },
   { date: "2026-11-03", app: "duel", pr: 916, title: "Log Pose learns from bot games", text: "Log Pose now checks bot simulation results when you ask about a matchup or a leader, and shares tips from bot games once they have been reviewed. Its win chance estimates are also refreshed each week from the latest bot games." },
   { date: "2026-11-03", app: "planner", pr: 913, title: "Lowering Want trims your alt art picks", text: "On a Master Shopping card, lowering Want now trims the alt arts you picked to fit, so pressing minus on one art no longer makes another art jump back up." },
   { date: "2026-11-03", app: "both", pr: 913, title: "Sign-in works when your browser blocks site data", text: "If your browser blocks site data, the planner and the duel app now still open and let you sign in. Before this fix they could show a blank page." },
