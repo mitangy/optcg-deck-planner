@@ -4000,40 +4000,37 @@ tr.done td {
   min-width: 0;
 }
 
+/* Who-wants rail (#898): one segment per member, full height of the card or table row,
+   each segment outlined so neighbouring colours stay distinct. */
 .group-buy-color-rail {
   display: flex;
   flex-direction: column;
-  width: 4px;
-  border-radius: 999px;
+  width: 9px;
   overflow: hidden;
   flex: 0 0 auto;
-  align-self: stretch;
-  min-height: 2.5rem;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  gap: 2px;
 }
 
 .group-buy-color-rail > span {
   flex: 1 1 0;
-  min-height: 0.45rem;
+  min-height: 0.6rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
 }
 
 .grid-card:has(> .group-buy-color-rail),
 .mobile-card:has(> .group-buy-color-rail) {
-  padding-left: 0.85rem;
+  padding-left: 1.05rem;
 }
 
 .grid-card > .group-buy-color-rail,
 .mobile-card > .group-buy-color-rail {
-  position: absolute;
-  left: 0;
-  top: 0.65rem;
-  bottom: 0.65rem;
-  min-height: 0;
-  border-radius: 16px 0 0 16px;
-}
-
-.card-cell-inner > .group-buy-color-rail {
-  align-self: stretch;
-  min-height: 3rem;
+  border-radius: 15px 0 0 15px;
 }
 
 .gb-user-0 { --gb-user: #0f6a6a; }
