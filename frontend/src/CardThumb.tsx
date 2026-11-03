@@ -117,12 +117,14 @@ export function CardThumb({
 
 export function MobileCardMedia({
   src,
+  productId,
   cardId,
   alt,
   cost,
   rarity,
 }: {
   src?: string;
+  productId?: number;
   cardId?: string | null;
   alt: string;
   cost: number | string | null;
@@ -130,7 +132,7 @@ export function MobileCardMedia({
 }) {
   return (
     <div className="mobile-card-media">
-      <CardThumb src={src} cardId={cardId} alt={alt} />
+      <CardThumb src={src} cardId={cardId} alt={alt} productId={productId} />
       <div className="mobile-card-media-meta">
         <span className="mobile-card-cost">Cost {cost ?? "—"}</span>
         {rarity ? <span className="mobile-card-rarity">{rarity}</span> : null}

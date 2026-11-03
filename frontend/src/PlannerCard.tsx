@@ -13,6 +13,7 @@ export function GridCard({
   cardId,
   name,
   imageSrc,
+  imageProductId,
   className = "",
   as: Tag = "article",
   dataCardId,
@@ -25,6 +26,8 @@ export function GridCard({
   cardId: string;
   name: string;
   imageSrc?: string;
+  /** Printing the main art shows (0 = base) so the lightbox price alert targets it. */
+  imageProductId?: number;
   /** Extra classes after `grid-card` (e.g. `need`, `done`, `excluded`). */
   className?: string;
   /** `div` when an outer wrapper already is the article (Shopping's selectable wrapper). */
@@ -46,7 +49,7 @@ export function GridCard({
     >
       {before}
       <div className="grid-card-media" onClick={onMediaClick}>
-        <CardThumb src={imageSrc} cardId={cardId} alt={name} />
+        <CardThumb src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />
       </div>
       <div className="grid-card-body">
         <div className="card-id">{cardId}</div>
@@ -66,6 +69,7 @@ export function MobileCard({
   cardId,
   name,
   imageSrc,
+  imageProductId,
   cost,
   rarity,
   className = "",
@@ -80,6 +84,8 @@ export function MobileCard({
   cardId: string;
   name: string;
   imageSrc?: string;
+  /** Printing the main art shows (0 = base) so the lightbox price alert targets it. */
+  imageProductId?: number;
   cost: number | string | null;
   rarity?: string;
   /** Extra classes after `mobile-card` (e.g. `need`, `done`, `selectable`). */
@@ -96,7 +102,7 @@ export function MobileCard({
   children?: ReactNode;
 }) {
   const media = (
-    <MobileCardMedia src={imageSrc} cardId={cardId} alt={name} cost={cost} rarity={rarity} />
+    <MobileCardMedia src={imageSrc} productId={imageProductId} cardId={cardId} alt={name} cost={cost} rarity={rarity} />
   );
   return (
     <article

@@ -12,6 +12,12 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Lightbox price alert follows the main art (#896)
+    { id: "main-art-alert855-grid-drops-product-id", file: "frontend/src/PlannerCard.tsx", from: "<CardThumb src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />", to: "<CardThumb src={imageSrc} cardId={cardId} alt={name} />", kills: ["a grid card showing an alt art opens its lightbox for that alt's product id (#896)"] },
+    { id: "main-art-alert855-mobile-drops-product-id", edits: [
+      { file: "frontend/src/PlannerCard.tsx", from: "<MobileCardMedia src={imageSrc} productId={imageProductId} ", to: "<MobileCardMedia src={imageSrc} " },
+      { file: "frontend/src/CardThumb.tsx", from: "<CardThumb src={src} cardId={cardId} alt={alt} productId={productId} />", to: "<CardThumb src={src} cardId={cardId} alt={alt} />" },
+    ], kills: ["a phone card showing an alt art opens its lightbox for that alt's product id (#896)"] },
     // Update-available check (#864)
     { id: "version864-never-updates", file: "frontend/src/appVersion.ts", from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "  return { kind: \"latest\" };", kills: ["offers an update when the live deploy is a different commit"] },
     { id: "version864-always-updates", file: "frontend/src/appVersion.ts", from: "  if (deployed.sha === running) return { kind: \"latest\" };", to: "", kills: ["says up to date when the live deploy is the running commit"] },
