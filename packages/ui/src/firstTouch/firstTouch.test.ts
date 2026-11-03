@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { FIRST_TOUCH_KEY, FIRST_TOUCH_TTL_MS, captureFirstTouch, readFirstTouch } from "./firstTouch";
 
 function memoryStorage() {
@@ -73,5 +73,27 @@ describe("first-touch source (#905)", () => {
     };
     expect(() => captureFirstTouch(here(), "https://google.com/", blocked, NOW)).not.toThrow();
     expect(readFirstTouch(blocked, NOW)).toBeNull();
+  });
+
+  describe("blocked browser storage (#907)", () => {
+    afterEach(() => {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    });
+
+    it("first-touch capture and read survive blocked browser storage (#907)", () => {
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        get() {
+          throw new DOMException("The operation is insecure.", "SecurityError");
+        },
+      });
+      expect(() => captureFirstTouch(here(), "https://google.com/", undefined, NOW)).not.toThrow();
+      expect(() => captureFirstTouch()).not.toThrow();
+      let read: unknown = "unset";
+      expect(() => {
+        read = readFirstTouch(undefined, NOW);
+      }).not.toThrow();
+      expect(read).toBeNull();
+    });
   });
 });
