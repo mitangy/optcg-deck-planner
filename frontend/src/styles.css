@@ -3841,9 +3841,27 @@ tr.done td {
   gap: 0.25rem;
 }
 
+/* One line per chip (#902): the chips get their own row across the whole tile, under the
+   thumbnail; a very long name ends in "…" (full text in the tooltip). */
+.alt-art:has(> .alt-art-wants) {
+  flex-wrap: wrap;
+}
+
+.alt-art > .alt-art-wants {
+  flex: 1 0 100%;
+  margin-top: 0;
+}
+
+.alt-art-wants .group-buy-who-chip {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
 .alt-art-want-text {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Phone list: tiles sit two (or more) per row, so three rows is already six tiles. */

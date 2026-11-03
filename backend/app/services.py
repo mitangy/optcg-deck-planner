@@ -1900,7 +1900,8 @@ def public_share_view(
     owner = db.get(User, link.user_id)
     if owner is None:
         raise LookupError("Share link not found")
-    owner_name = (owner.name or owner.email.split("@")[0] or "Collector").strip()
+    # Duel username when set (#903), else the account name as before.
+    owner_name = owner.username or (owner.name or owner.email.split("@")[0] or "Collector").strip()
     viewer_signed_in = viewer is not None
     viewer_is_owner = viewer is not None and viewer.id == owner.id
 

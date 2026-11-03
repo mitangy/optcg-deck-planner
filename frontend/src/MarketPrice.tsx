@@ -184,7 +184,7 @@ export function AltArtsRow({
   shownProductId?: number | null;
   /** Makes a tile the card's picture (0 = base). Adds a Show control to every tile. */
   onShow?: (productId: number) => void;
-  /** Extra content at the end of every tile's meta column (0 = the Base tile), e.g. who wants it. */
+  /** Extra content on its own full-width row at the bottom of every tile (0 = the Base tile), e.g. who wants it. */
   tileExtra?: (productId: number) => ReactNode;
 }) {
   const list = alts ?? [];
@@ -218,8 +218,8 @@ export function AltArtsRow({
             {baseOwnedControl}
             <span className="alt-base-label">Base</span>
             {showControl(0, `${base.name} base art`)}
-            {tileExtra?.(0)}
           </div>
+          {tileExtra?.(0)}
         </div>
       )}
       {list.map((alt) => {
@@ -278,8 +278,8 @@ export function AltArtsRow({
                 </span>
               )}
               {showControl(alt.product_id, alt.name)}
-              {tileExtra?.(alt.product_id)}
             </div>
+            {tileExtra?.(alt.product_id)}
           </div>
         );
       })}
