@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+/** Community Discord invite, linked from both apps (footer, duel menu, planner top bar). */
+export const DISCORD_INVITE_URL = "https://discord.gg/XYweKSE3zG";
+
 /** Shows a "draft under review" banner on every legal page. Turn off once reviewed. */
 export const LEGAL_DRAFT = true;
 

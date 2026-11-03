@@ -75,7 +75,9 @@ async function menuWorks(page: Page): Promise<void> {
     "What’s new",
     "Settings",
     "Deck planner ↗",
+    "Discord ↗",
   ]);
+  await expect(drawer.getByRole("link", { name: /Discord/ })).toHaveAttribute("href", "https://discord.gg/XYweKSE3zG");
   // Opening the drawer moves nothing in the header.
   expect(await button.boundingBox()).toEqual(before);
   expect(await page.locator(".page-title").boundingBox()).toEqual(title);
