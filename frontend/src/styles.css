@@ -3794,6 +3794,25 @@ tr.done td {
   --alt-tile-h: 84px;
 }
 
+/* Who wants this art (#891): member-coloured chips under the tile's price/label, wrapping inside it. */
+.alt-art-wants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  margin-top: 0.1rem;
+}
+
+.alt-art-wants .group-buy-who-chip {
+  font-size: 0.74rem;
+  gap: 0.25rem;
+}
+
+.alt-art-want-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Phone list: tiles sit two (or more) per row, so three rows is already six tiles. */
 .mobile-card-alts .alt-arts {
   --alt-rows: 3;

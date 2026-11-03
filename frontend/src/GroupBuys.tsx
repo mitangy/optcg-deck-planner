@@ -194,6 +194,56 @@ function MemberBreakdown({
   );
 }
 
+/** Who wants this art (productId 0 = the Base tile, which holds the preferred printing's wants). */
+function ArtWantChips({
+  line,
+  productId,
+  members,
+}: {
+  line: GroupBuyLine;
+  productId: number;
+  members: GroupBuyMember[];
+}) {
+  const target = productId === 0 ? line.preferred_product_id : productId;
+  const wants = (line.art_wants ?? []).filter((w) => w.product_id === target && w.qty > 0);
+  if (!wants.length) return null;
+  return (
+    <span className="alt-art-wants">
+      {wants.map((w) => {
+        const name = members.find((m) => m.user_id === w.user_id)?.display_name ?? "Member";
+        return (
+          <span key={w.user_id} className="group-buy-who-chip" title={`${name} wants ×${w.qty}`}>
+            <MemberSwatch userId={w.user_id} members={members} />
+            <span className="alt-art-want-text">
+              {name} ×{w.qty}
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/** View-only alt row: Base plus the alts somebody wants, with who wants each; no steppers or Show. */
+function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+  const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));
+  const alts = (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
+  if (!alts.length) return null;
+  return (
+    <AltArtsRow
+      base={{
+        name: line.name,
+        image_url: line.base_image_url || undefined,
+        market_price: line.preferred_market_price ?? null,
+        product_id: line.preferred_product_id ?? null,
+      }}
+      alts={alts}
+      cardId={line.card_id}
+      tileExtra={(productId) => <ArtWantChips line={line} productId={productId} members={members} />}
+    />
+  );
+}
+
 function MemberColorRail({
   line,
   members,
@@ -1307,6 +1357,7 @@ export function GroupBuyDetailPage() {
                 })
             : undefined
         }
+        tileExtra={(productId) => <ArtWantChips line={line} productId={productId} members={members} />}
         shownProductId={shownProductId(line)}
         onShow={(productId) => setDisplayArt.mutate({ cardId: line.card_id, productId })}
         busyProductId={
@@ -2043,6 +2094,7 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
           tableRows={tableRows}
           cardsSort={cardsSort}
           onCardsSort={onCardsSort}
+          renderAltRow={(line) => readOnlyAltRow(line, members)}
         />
       ) : (
         <p className="muted">No cards in this group buy.</p>
