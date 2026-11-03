@@ -9,7 +9,7 @@ const PRIVATE = [
   "/duel", "/hotseat", "/settings", "/history", "/history/m_123", "/replay/m_123", "/admin", "/auth/complete",
   "/welcome/username", "/demo", "/decks", "/decks/new", "/decks/abc123/configure", "/watch/room-7",
 ];
-const PUBLIC = ["/", "/play-one-piece-tcg-online", "/decks/meta", "/leaderboard", "/whats-new", "/terms", "/privacy", "/cookies", "/events/stress-test-2026-11/rules"];
+const PUBLIC = ["/", "/play-one-piece-tcg-online", "/decks/meta", "/leaderboard", "/whats-new", "/terms", "/privacy", "/cookies", "/events/stress-test-2026-11/rules", "/leaders", "/leaders/op17-039-rocks-d-xebec"];
 
 describe("duel route meta (#804)", () => {
   it.each(PRIVATE)("%s is noindex (#804)", (path) => {
@@ -69,6 +69,6 @@ describe("duel vercel.json routes (#804)", () => {
     expect(status(routes, "/nope-xyz")).toBe(404);
     expect(status(routes, "/history/a/b/c")).toBe(404);
     const last = routes[routes.length - 1];
-    expect(last.dest).toBe("/index.html");
+    expect(last.dest).toBe("/_app.html");
   });
 });

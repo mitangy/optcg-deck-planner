@@ -8,9 +8,10 @@ import {
   groupByCost,
   metaDeckName,
   ordinal,
+  playMetaDeck,
   type MetaDeck,
 } from "./meta";
-import { getSavedDeck, saveDeck } from "./storage";
+import { getSavedDeck, getSelectedDeckId, listSavedDecks, saveDeck } from "./storage";
 
 const decks = fixture.decks as MetaDeck[];
 const first = decks[0];
@@ -100,6 +101,37 @@ describe("duplicate detection (#443)", () => {
   it("signatures ignore case and order but not leader (#443)", () => {
     expect(deckSignature("op17-039", ["b", "A"])).toBe(deckSignature("OP17-039", ["a", "B"]));
     expect(deckSignature("OP17-039", ["A"])).not.toBe(deckSignature("OP12-001", ["A"]));
+  });
+});
+
+describe("Play this deck online (#914)", () => {
+  it("saves the chosen list as a deck and makes it the one the lobby plays (#914)", () => {
+    const chosen = decks[1];
+    const result = playMetaDeck(leader, chosen);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(getSelectedDeckId()).toBe(result.deckId);
+    const saved = getSavedDeck(result.deckId)!;
+    expect(saved.leaderId).toBe("OP17-039");
+    expect(deckSignature(saved.leaderId, saved.cards)).toBe(deckSignature("OP17-039", addMetaDeckCards(chosen)));
+    expect(saved.name).toBe(metaDeckName(fixture.name, "OP17-039", chosen.event, chosen.placing));
+  });
+
+  it("playing the same list twice reuses the saved copy and selects it again (#914)", () => {
+    const a = playMetaDeck(leader, first);
+    playMetaDeck(leader, decks[1]);
+    const b = playMetaDeck(leader, first);
+    expect(a.ok && b.ok && a.deckId === b.deckId).toBe(true);
+    expect(listSavedDecks()).toHaveLength(2);
+    expect(getSelectedDeckId()).toBe(b.ok ? b.deckId : null);
+  });
+
+  it("a list that cannot be imported selects nothing and says why (#914)", () => {
+    const result = playMetaDeck(leader, { ...first, text: "not a decklist" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.length).toBeGreaterThan(0);
+    expect(getSelectedDeckId()).toBeNull();
+    expect(listSavedDecks()).toHaveLength(0);
   });
 });
 

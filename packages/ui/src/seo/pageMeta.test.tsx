@@ -18,6 +18,21 @@ afterEach(() => {
 const canonical = () => document.head.querySelector('link[rel="canonical"]')?.getAttribute("href") ?? null;
 const robots = () => document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? null;
 
+describe("applyPageMeta share image (#914)", () => {
+  const og = () => document.head.querySelector('meta[property="og:image"]')?.getAttribute("content") ?? null;
+  const tw = () => document.head.querySelector('meta[name="twitter:image"]')?.getAttribute("content") ?? null;
+
+  it("points og:image and twitter:image at the page's own picture, and leaves the site's when the page has none (#914)", () => {
+    document.head.innerHTML =
+      '<meta property="og:image" content="https://example.test/og-image.png" /><meta name="twitter:image" content="https://example.test/og-image.png" />';
+    applyPageMeta({ title: "Leader", path: "/leaders/x", origin: ORIGIN, image: "https://cdn.test/leader.jpg" });
+    expect(og()).toBe("https://cdn.test/leader.jpg");
+    expect(tw()).toBe("https://cdn.test/leader.jpg");
+    applyPageMeta({ title: "Other", path: "/other", origin: ORIGIN, image: "https://cdn.test/other.jpg" });
+    expect(og()).toBe("https://cdn.test/other.jpg");
+  });
+});
+
 describe("applyPageMeta (#804)", () => {
   it("removes the noindex a private page left behind when an indexable page opens (#804)", () => {
     applyPageMeta({ title: "Private", path: "/history", origin: ORIGIN, noindex: true });

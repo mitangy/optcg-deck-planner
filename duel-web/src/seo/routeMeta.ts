@@ -37,6 +37,18 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
       "Browse the leaders and decklists doing well in the One Piece TCG right now, then copy one and try it online in this unofficial fan-made simulator.",
   },
   {
+    pattern: "/leaders",
+    title: "One Piece TCG leaders: meta share, win rate and decklists | OPTCG Duel",
+    description:
+      "The most played One Piece TCG leaders right now with their meta share, top 8 finishes and win rate. Open one for recent top decklists and play it free in this unofficial fan-made simulator.",
+  },
+  {
+    // Each page sets its own title and description from the leader's numbers (pages/LeaderPage.tsx).
+    pattern: "/leaders/:slug",
+    title: "Leader decklists – OPTCG Duel",
+    description: "Recent top decklists for a One Piece TCG leader. Play the deck free in this unofficial fan-made simulator.",
+  },
+  {
     pattern: "/leaderboard",
     title: "Ranked leaderboard – OPTCG Duel",
     description: "The top players on the OPTCG Duel ranked ladder and their Bounties. Climb it with a free account.",

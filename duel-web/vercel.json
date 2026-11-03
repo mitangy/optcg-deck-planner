@@ -2,7 +2,7 @@
   "framework": "vite",
   "installCommand": "npm install",
   "buildCommand": "npx vite build",
-  "ignoreCommand": "bash ../scripts/vercel-ignore-build.sh duel-web packages/deck-analytics packages/site-legal packages/patch-notes packages/ui packages/rules packages/analyst-client scripts/vercel-ignore-build.sh",
+  "ignoreCommand": "bash ../scripts/vercel-ignore-build.sh duel-web packages/deck-analytics packages/site-legal packages/patch-notes packages/ui packages/rules packages/analyst-client scripts/seo scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "**": false,
@@ -45,103 +45,116 @@
     },
     {
       "src": "/play-one-piece-tcg-online/?",
-      "dest": "/index.html"
+      "dest": "/play-one-piece-tcg-online/index.html"
+    },
+    {
+      "src": "/leaders/?",
+      "dest": "/leaders/index.html"
+    },
+    {
+      "src": "/leaders/([^/]+?)/?",
+      "dest": "/leaders/$1/index.html",
+      "check": true
+    },
+    {
+      "src": "/leaders/[^/]+(?:/index\\.html)?/?",
+      "dest": "/_app.html"
     },
     {
       "src": "/watch/[^/]+/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/decks/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/decks/meta/?",
-      "dest": "/index.html"
+      "dest": "/decks/meta/index.html"
     },
     {
       "src": "/decks/new/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/decks/[^/]+/configure/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/decks/configure/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/duel/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/hotseat/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/settings/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/leaderboard/?",
-      "dest": "/index.html"
+      "dest": "/leaderboard/index.html"
     },
     {
       "src": "/history/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/history/[^/]+/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/replay/[^/]+/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/admin/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/auth/complete/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/welcome/username/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/demo/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/whats-new/?",
-      "dest": "/index.html"
+      "dest": "/whats-new/index.html"
     },
     {
       "src": "/events/[^/]+/rules/?",
-      "dest": "/index.html"
+      "dest": "/_app.html"
     },
     {
       "src": "/terms/?",
-      "dest": "/index.html"
+      "dest": "/terms/index.html"
     },
     {
       "src": "/privacy/?",
-      "dest": "/index.html"
+      "dest": "/privacy/index.html"
     },
     {
       "src": "/cookies/?",
-      "dest": "/index.html"
+      "dest": "/cookies/index.html"
     },
     {
       "src": "/conduct/?",
-      "dest": "/index.html"
+      "dest": "/conduct/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html",
+      "dest": "/_app.html",
       "status": 404
     }
   ]

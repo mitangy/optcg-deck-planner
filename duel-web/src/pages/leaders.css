@@ -1,0 +1,207 @@
+/* /leaders and /leaders/:slug (#914). Colours come from the theme variables, so crew themes and light mode follow. */
+
+.leader-page,
+.leaders-index {
+  max-width: 960px;
+  overflow-x: clip;
+}
+
+.leader-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.leader-hero-art {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  background: var(--arena-mid);
+}
+
+/* The fallback text box keeps the art's footprint when the picture cannot load. */
+.leader-hero-art.meta-art-fallback {
+  font-size: 1rem;
+}
+
+.leader-hero-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.leader-title {
+  margin: 0;
+  line-height: 1.15;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.leader-colors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.leader-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.55rem 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--ink);
+}
+
+.leader-color::before {
+  content: "";
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--leader-dot, var(--muted));
+  border: 1px solid var(--muted);
+}
+
+.leader-color-red { --leader-dot: #d6403a; }
+.leader-color-green { --leader-dot: #2e9e5b; }
+.leader-color-blue { --leader-dot: #2f7fd1; }
+.leader-color-purple { --leader-dot: #8a4fc7; }
+.leader-color-black { --leader-dot: #23242a; }
+.leader-color-yellow { --leader-dot: #e0b81f; }
+
+.leader-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.leader-stat {
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  background: rgb(var(--panel-rgb) / 0.55);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.leader-stat dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.leader-stat dd {
+  margin: 0.1rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.leader-cta {
+  align-items: center;
+}
+
+.leader-play-error {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.leader-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.leader-intro .panel-copy {
+  margin: 0;
+  max-width: 68ch;
+  line-height: 1.55;
+}
+
+/* Each list opens in place: the summary row is the same height open or closed, so nothing around it moves. */
+.leader-deck-summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--chrome-bright);
+  overflow-wrap: anywhere;
+}
+
+.leader-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+}
+
+.leader-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.leader-data {
+  margin: 0.5rem 0 0;
+}
+
+/* /leaders */
+.leaders-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 0.5rem;
+}
+
+.leaders-grid > li {
+  min-width: 0;
+}
+
+.leaders-card {
+  text-decoration: none;
+  height: 100%;
+}
+
+.leaders-rank {
+  flex: 0 0 auto;
+  min-width: 1.4rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+
+.leaders-card .leader-colors {
+  margin: 0.1rem 0;
+}
+
+@media (max-width: 640px) {
+  .leader-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .leader-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leader-hero-art {
+    max-width: 200px;
+  }
+}

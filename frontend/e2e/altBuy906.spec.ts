@@ -91,8 +91,41 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
   await expect(trigger(page)).toContainText("$29.98");
   await expect(trigger(page)).toContainText("2 alt");
 
+  // Audit the page itself, not the open sheet over its dimmed backdrop.
+  await page.keyboard.press("Escape");
+  await expect(dialog(page)).toBeHidden();
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("Phone: the page behind the buy split sheet is dimmed and a tap on it closes the sheet (#906)", async ({ page, planner }, testInfo) => {
+  test.skip(testInfo.project.name !== "phone-375", "the bottom sheet is phone only");
+  await planner.open("/");
+  const backdrop = page.getByTestId("buy-split-backdrop");
+  await expect(backdrop).toHaveCount(0);
+  await trigger(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(backdrop).toBeVisible();
+  await expect(backdrop).toHaveCSS("opacity", "1");
+  const viewport = page.viewportSize()!;
+  const shade = await backdrop.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height, bg: getComputedStyle(el).backgroundColor };
+  });
+  // Covers the whole screen with a see-through dark shade.
+  expect(shade).toMatchObject({ x: 0, y: 0, w: viewport.width, h: viewport.height });
+  expect(shade.bg).toMatch(/rgba\(\d+, \d+, \d+, 0\.[1-9]/);
+  // The list above the sheet is under the shade; the sheet itself stays on top of it.
+  const top = await page.evaluate(() => document.elementFromPoint(window.innerWidth / 2, 40)?.getAttribute("data-testid"));
+  expect(top).toBe("buy-split-backdrop");
+  const sheet = (await dialog(page).boundingBox())!;
+  const onSheet = await page.evaluate(([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest('[role="dialog"]')), [sheet.x + sheet.width / 2, sheet.y + 20]);
+  expect(onSheet).toBe(true);
+  await shot(page, "sheet-backdrop", testInfo);
+
+  await page.mouse.click(viewport.width / 2, 40);
+  await expect(dialog(page)).toBeHidden();
+  await expect(backdrop).toHaveCount(0);
 });
 
 test("Deck page: the still-needed price opens the split and saves the deck want (#906)", async ({ page, planner }, testInfo) => {
