@@ -83,6 +83,8 @@ type Planner = {
   altOwned: Map<string, number>;
   /** JSON bodies the page POSTed to /owned/add (Collection photo scan). */
   ownedAdds: { items: { card_id: string; add: number }[] }[];
+  /** Alt-art copies picked to buy (`wanted`) as the fake backend holds them, keyed `CARD-ID:productId` (#906). */
+  altWants: Map<string, number>;
   /** Chosen display art per card (0 = base, >0 = product id), as the fake backend holds it. */
   displayArt: Map<string, number>;
   /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
@@ -122,6 +124,7 @@ export const test = base.extend<{ planner: Planner }>({
     const createdDecks: Planner["createdDecks"] = [];
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
+    const altWants = new Map<string, number>();
     const extras = new Map<string, number>();
     const ownedAdds: Planner["ownedAdds"] = [];
     const priceAlertPosts: Planner["priceAlertPosts"] = [];
@@ -139,7 +142,7 @@ export const test = base.extend<{ planner: Planner }>({
         group_name: "Extra Booster: Memorial Collection",
         is_special: false,
       }));
-      const alt_arts = [...(c.alt_arts ?? []), ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
+      const alt_arts = [...(c.alt_arts ?? []), ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
       const altsOwned = alt_arts.reduce((n, a) => n + a.owned, 0);
       return {
         card_id: c.card_id,
@@ -175,8 +178,17 @@ export const test = base.extend<{ planner: Planner }>({
       don_cards: 0,
       hidden_from_friends: deckHidden,
     });
-    // Mirrors the backend: still-needed copies are priced at the standard printing.
-    const remainingCost = (v: ReturnType<typeof cardView>) => Math.round(v.still_need * v.market_price * 100) / 100;
+    // Mirrors the backend (allocate_still_need_buys): picked alt copies at the alt price, the rest standard (#906).
+    const remainingCost = (v: ReturnType<typeof cardView>) => {
+      let left = v.still_need;
+      let total = 0;
+      for (const a of v.alt_arts) {
+        const take = Math.min(a.wanted, left);
+        total += take * a.market_price;
+        left -= take;
+      }
+      return Math.round((total + left * v.market_price) * 100) / 100;
+    };
     const shopping = (withExtras = true) => {
       // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
       const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
@@ -416,6 +428,17 @@ export const test = base.extend<{ planner: Planner }>({
         else altOwned.delete(`${cardId}:${m[2]}`);
         return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
+      // Alt-art copies to buy (#906): deck-level PUT /decks/:d/cards/:card/printings/:product and the
+      // shopping-level PUT /cards/:card/printings/:product share one number, clamped to the deck need.
+      if ((m = path.match(/^\/(?:decks\/\d+\/)?cards\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!).toUpperCase();
+        const card = CARDS.find((c) => c.card_id === cardId);
+        const asked = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        const qty = Math.max(0, Math.min(asked, card?.needed ?? 0));
+        if (qty > 0) altWants.set(`${cardId}:${m[2]}`, qty);
+        else altWants.delete(`${cardId}:${m[2]}`);
+        return path.startsWith("/decks/") ? json(deckDetail()) : json({ card_id: cardId, product_id: Number(m[2]), qty, decks_updated: 1 });
+      }
       if (path === "/owned/add" && method === "POST") {
         const body = JSON.parse(req.postData() ?? "{}") as Planner["ownedAdds"][number];
         ownedAdds.push(body);
@@ -501,6 +524,7 @@ export const test = base.extend<{ planner: Planner }>({
     await use({
       owned,
       altOwned,
+      altWants,
       displayArt,
       extras,
       ownedAdds,
