@@ -3734,25 +3734,58 @@ tr.done td {
   height: 72px;
 }
 
+/* The page content is capped near 1160px at every viewport, so Master Shopping (the widest table) always
+   needs the compact form once its Alt arts column shows: tighter cells, smaller alt tiles and steppers,
+   and no Cost column (grid and phone cards still show it) (#892). */
+.shopping-table:has(td.alt-arts-cell) :is(th, td) {
+  padding-inline: 0.45rem;
+}
+
+.shopping-table td.alt-arts-cell .alt-art .thumb {
+  width: 44px;
+  height: 62px;
+}
+
+.shopping-table:has(td.alt-arts-cell) .col-cost {
+  display: none;
+}
+
+.shopping-table:has(td.alt-arts-cell) .card-cell {
+  min-width: 12rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) .owned-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1.1rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) :is(.owned, .want-qty) {
+  width: 2.3rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) .want-qty {
+  height: 2.1rem;
+}
+
 /* Below 1440px the Alt arts column has to share the row with the dock/editor beside the table, so the
-   deck, Shopping and Collection tables tighten their cells and use smaller tiles; the deck list also
-   drops its Type column and Shopping its Cost column (grid and phone cards still show them). */
+   deck and Collection tables tighten their cells and use smaller tiles; the deck list also drops its
+   Type column (grid and phone cards still show it). */
 @media (max-width: 1439px) {
-  :is(.deck-table, .shopping-table, .collection-table):has(td.alt-arts-cell) :is(th, td) {
+  :is(.deck-table, .collection-table):has(td.alt-arts-cell) :is(th, td) {
     padding-inline: 0.5rem;
   }
 
-  :is(.deck-table, .shopping-table, .collection-table) td.alt-arts-cell .alt-art .thumb {
+  :is(.deck-table, .collection-table) td.alt-arts-cell .alt-art .thumb {
     width: 44px;
     height: 62px;
   }
 
-  .deck-table:has(td.alt-arts-cell) .col-type,
-  .shopping-table:has(td.alt-arts-cell) .col-cost {
+  .deck-table:has(td.alt-arts-cell) .col-type {
     display: none;
   }
 
-  :is(.deck-table, .shopping-table):has(td.alt-arts-cell) .card-cell {
+  .deck-table:has(td.alt-arts-cell) .card-cell {
     min-width: 12rem;
   }
 }

@@ -172,3 +172,18 @@ test("group buy: a card with many alts shows about five tiles, then the alt box 
     expect(box.lastReachable).toBe(true);
   }
 });
+
+for (const list of LISTS) {
+  test(`${list.name} list fits without sideways scroll on wide screens too (#892)`, async ({ page, planner }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1200", "the table is desktop only");
+    planner.manyAlts(IZO, 3);
+    for (const width of [1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      await planner.open(list.path);
+      const table = page.locator(".desktop-table");
+      await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+      const fit = await table.evaluate((w) => ({ scroll: w.scrollWidth, client: w.clientWidth }));
+      expect(fit.scroll, `${list.name} at ${width}px`).toBeLessThanOrEqual(fit.client);
+    }
+  });
+}

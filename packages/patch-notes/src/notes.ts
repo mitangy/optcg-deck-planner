@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-03
+  { date: "2026-11-03", app: "planner", pr: 895, title: "Master Shopping fits without sideways scrolling", text: "On wide screens the Master Shopping list no longer cuts off the Alt arts column. The table uses slightly smaller steppers and hides the Cost column when alt arts are shown, so everything fits." },
   // 2026-11-02
   { date: "2026-11-02", app: "planner", pr: 894, title: "Group buy shows the art members chose to show", text: "A group buy card now shows the art members picked with Show as its main image, for guests and members who have not picked one. If nobody picked, it shows the alt the group wants most." },
   { date: "2026-11-02", app: "planner", pr: 894, title: "See who wants which alt art in a group buy", text: "Each art tile in a group buy now shows who wants it, like Nami ×2 or Usopp ×1, in each member's colour. The view-only invite page shows the same chips on Base and on every alt somebody wants." },
