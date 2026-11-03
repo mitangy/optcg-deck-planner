@@ -91,5 +91,6 @@ jobs:
         with:
           name: selfplay-games
           path: selfplay-out/
-          retention-days: 7
+          # The weekly value-refit.yml reads the last 7 runs' games; 14 days always leaves a full week.
+          retention-days: 14
           if-no-files-found: ignore

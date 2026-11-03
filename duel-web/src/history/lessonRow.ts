@@ -9,6 +9,8 @@ export type LessonRow = {
   text: string;
   /** e.g. "Zoro vs Nami", "Zoro", or null when the lesson is general. */
   about: string | null;
+  /** Drafted from bot games and real games rather than from your own games (#915). */
+  fromBots: boolean;
   cards: string[];
   actions: LessonAction[];
 };
@@ -31,6 +33,7 @@ export function lessonRows(lessons: AnalystLesson[], cardName: (id: string) => s
         : l.opponent_id
           ? `vs ${cardName(l.opponent_id)}`
           : null,
+      fromBots: l.source === "bots",
       cards: l.cards.map(cardName),
       actions: [
         ...(l.status !== "approved" ? [{ label: "Approve", status: "approved" as const }] : []),

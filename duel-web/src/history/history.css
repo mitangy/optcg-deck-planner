@@ -232,6 +232,13 @@
   color: var(--chrome-bright);
 }
 
+.lesson-source {
+  padding: 0 0.4rem;
+  border: 1px solid var(--chrome-bright);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .lesson-text {
   margin-top: 0.3rem;
   color: var(--ink);

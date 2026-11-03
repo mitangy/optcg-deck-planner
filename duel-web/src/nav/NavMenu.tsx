@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Dialog } from "@optcg/ui/popups";
+import { DISCORD_INVITE_URL } from "@optcg/site-legal";
 import { getPlannerUrl } from "../config";
 import { activeNavHref, navItemsFor } from "./navItems";
 import { useAccountRole } from "./useAccountRole";
@@ -70,6 +71,11 @@ export function NavMenu() {
             <li className="nav-sep">
               <a className="nav-link" href={getPlannerUrl()} target="_blank" rel="noopener" onClick={close}>
                 Deck planner <span aria-hidden>↗</span>
+              </a>
+            </li>
+            <li>
+              <a className="nav-link" href={DISCORD_INVITE_URL} target="_blank" rel="noopener" onClick={close}>
+                Discord <span aria-hidden>↗</span>
               </a>
             </li>
           </ul>

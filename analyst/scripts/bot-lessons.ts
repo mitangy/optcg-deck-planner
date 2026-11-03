@@ -1,65 +1,63 @@
 /**
- * Draft lesson candidates where bot self-play games and real games agree (#635).
+ * Draft lesson candidates where bot self-play games and real games agree (#635, #915).
  *
- *   npx tsx analyst/scripts/bot-lessons.ts --leader OP01-001 [--opponent OP02-001] [--real-games 60] [--post]
+ *   npx tsx analyst/scripts/bot-lessons.ts --leader OP01-001 [--opponent OP02-001] [--real-games 60] [--max-per-leader 3] [--post]
+ *   npx tsx analyst/scripts/bot-lessons.ts --all-leaders [--min-games 60] [--max-per-leader 3] [--post]
  *
  * Reads the bot line stats (sim_stats) and tallies the same lines in the leader's real archive games, then prints the
- * lines both show moving the same way. With --post (and ANALYST_TOKEN, the owner's personal connector token) each one is
- * saved as a draft lesson for the owner to approve in the duel app (Settings, Log Pose). ANALYST_API_URL and
- * ANALYST_SERVICE_SECRET name the planner API and its service secret.
+ * lines both show moving the same way (the best --max-per-leader per leader). With --post each one is saved through
+ * POST /analyst/bot-lessons as a draft owned by the admin: they approve it in the duel app (Settings, Log Pose), and
+ * an approved one reaches every player's Log Pose with the sim stats. A lesson the planner already has, in any status,
+ * is skipped, so a weekly run adds nothing twice. Needs ANALYST_API_URL and ANALYST_SERVICE_SECRET (no personal token).
  */
-import type { MatchReplay, Seat } from "@optcg/rules";
-import { cardsOfLine, compareLines, lessonText, linesOf, realLineStats, tallyReplay, type LineRow } from "../src/botGames";
-import { cardName, draftLesson, plannerCall, type PlannerApi } from "../src/matches";
+import { DEFAULT_MAX_PER_LEADER, DEFAULT_MIN_LEADER_GAMES, cardsOfLine, evidenceSummary, leadersWithGames, lessonsForLeader, postBotLesson } from "../src/botGames";
+import { plannerCall, type PlannerApi } from "../src/matches";
 
 const flag = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
+const has = (name: string) => process.argv.includes(`--${name}`);
+const allLeaders = has("all-leaders");
 const leader = flag("leader")?.toUpperCase();
 const opponent = flag("opponent")?.toUpperCase();
-const realMax = Number(flag("real-games") ?? 60);
+const realGames = Number(flag("real-games") ?? 60);
+const max = Number(flag("max-per-leader") ?? DEFAULT_MAX_PER_LEADER);
+const minGames = Number(flag("min-games") ?? DEFAULT_MIN_LEADER_GAMES);
+const post = has("post");
 const api: PlannerApi = { baseUrl: process.env.ANALYST_API_URL ?? "", serviceSecret: process.env.ANALYST_SERVICE_SECRET ?? "" };
-if (!leader || !api.baseUrl || !api.serviceSecret) {
-  console.error("usage: bot-lessons.ts --leader OP01-001 [--opponent OP02-001] [--real-games 60] [--post]   (needs ANALYST_API_URL and ANALYST_SERVICE_SECRET)");
+if ((!leader && !allLeaders) || (leader && allLeaders) || !api.baseUrl || !api.serviceSecret) {
+  console.error(
+    "usage: bot-lessons.ts (--leader OP01-001 [--opponent OP02-001] | --all-leaders [--min-games 60]) [--real-games 60] [--max-per-leader 3] [--post]   (needs ANALYST_API_URL and ANALYST_SERVICE_SECRET)",
+  );
   process.exit(2);
 }
 
-const query = new URLSearchParams({ leader, levels: "hard/hard" });
-if (opponent) query.set("opponent", opponent);
-const sim = await plannerCall<{ lines?: LineRow[] }>(api, null, `/analyst/stats/sim?${query}`, true);
-const bot = sim.lines ?? [];
+const leaders = allLeaders
+  ? leadersWithGames(await plannerCall<{ leaders?: { leader: string; games: number }[] }>(api, null, "/analyst/stats/sim?levels=hard%2Fhard", true), minGames)
+  : [leader!];
+console.log(`${leaders.length} leader${leaders.length === 1 ? "" : "s"} to check${allLeaders ? ` (at least ${minGames} bot games each)` : ""}.`);
 
-const real: { lines: Set<string>; won: boolean }[] = [];
-const search = new URLSearchParams({ leader, limit: "50" });
-if (opponent) search.set("opponent", opponent);
-for (let offset = 0; real.length < realMax; offset += 50) {
-  search.set("offset", String(offset));
-  const page = await plannerCall<{ games: { game_id: string; has_replay: boolean }[] }>(api, null, `/analyst/corpus/games?${search}`, true);
-  if (!page.games.length) break;
-  for (const g of page.games) {
-    if (!g.has_replay || real.length >= realMax) continue;
-    try {
-      const { replay } = await plannerCall<{ replay: MatchReplay }>(api, null, `/analyst/corpus/games/${g.game_id}/replay`, true);
-      const seats = ([0, 1] as Seat[]).filter((s) => replay.players[s].leaderId === leader);
-      if (seats.length !== 1 || !replay.end) continue;
-      const seat = seats[0]!;
-      real.push({ lines: linesOf(tallyReplay(replay).tallies[seat]), won: replay.end.winner === seat });
-    } catch {
-      /* a game the engine no longer replays is left out */
+let found = 0;
+let saved = 0;
+let skipped = 0;
+let failed = 0;
+for (const id of leaders) {
+  try {
+    const run = await lessonsForLeader(api, id, { ...(opponent ? { opponent } : {}), realGames, max });
+    console.log(`${id}${opponent ? ` vs ${opponent}` : ""}: ${run.botLines} bot lines, ${run.realGames} real games, ${run.lessons.length} lessons where both agree`);
+    for (const c of run.lessons) {
+      found += 1;
+      console.log(`- ${c.text}`);
+      if (!post) continue;
+      const r = await postBotLesson(api, { text: c.text, leader_id: id, ...(opponent ? { opponent_id: opponent } : {}), cards: cardsOfLine(c.line), evidence: evidenceSummary(c) });
+      if (r.skipped) skipped += 1;
+      else saved += 1;
     }
+  } catch (err) {
+    failed += 1;
+    console.error(`${id}: ${err instanceof Error ? err.message : err}`);
   }
 }
-
-const found = compareLines(bot, realLineStats(real));
-console.log(`${leader}${opponent ? ` vs ${opponent}` : ""}: ${bot.length} bot lines, ${real.length} real games, ${found.length} lines where both agree`);
-const name = cardName(leader) ?? leader;
-const token = process.env.ANALYST_TOKEN;
-for (const c of found) {
-  const text = lessonText(c, name);
-  console.log(`- ${text}`);
-  if (process.argv.includes("--post")) {
-    if (!token) throw new Error("--post needs ANALYST_TOKEN (the owner's personal connector token).");
-    await draftLesson(api, token, { text, leader_id: leader, ...(opponent ? { opponent_id: opponent } : {}), cards: cardsOfLine(c.line) });
-  }
-}
+console.log(`Bot lessons: ${found} found${post ? `, ${saved} saved as drafts, ${skipped} already there` : " (not posted: add --post)"}${failed ? `, ${failed} leaders failed` : ""}.`);
+if (failed && failed === leaders.length) process.exit(1);
