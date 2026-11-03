@@ -303,6 +303,11 @@ def _add_columns(table: str, columns: list[tuple[str, str]]) -> None:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {typ}"))
 
 
+def _ensure_analyst_lesson_source() -> None:
+    """Add analyst_lessons.source ("player" | "bots") on existing DBs (#915)."""
+    _add_columns("analyst_lessons", [("source", "VARCHAR(16) NOT NULL DEFAULT 'player'")])
+
+
 def _ensure_analyst_usage_columns() -> None:
     """Add the analytics columns to analyst_usage on existing DBs (#446)."""
     _add_columns(
@@ -453,6 +458,7 @@ def init_db() -> None:
     _ensure_duel_progress_closed()
     _ensure_duel_server_urls()
     _ensure_analyst_review_citations()
+    _ensure_analyst_lesson_source()
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()
     _ensure_user_role_columns()

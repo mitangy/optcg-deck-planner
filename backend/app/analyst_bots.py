@@ -17,11 +17,11 @@ import secrets
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, defer
 
 from app.analyst_stats import MIN_GAMES, _record
-from app.models import BotMatch
+from app.models import AnalystLesson, BotMatch, User
 
 MAX_REPLAY_BYTES = 1_000_000
 MAX_BATCH_GAMES = 25
@@ -341,3 +341,72 @@ def sim_stats(db: Session, leader: str | None, opponent: str | None, levels: str
         "opponents": [{"opponent": oid, **_split(p)} for oid, p in sorted(by_opp.items(), key=lambda kv: -len(kv[1]))],
         "lines": _line_stats(non_mirror, line_limit),
     }
+
+
+# ——— lessons both bot games and real games agree on (#915) ———
+
+
+def shared_bot_lessons(db: Session, leader: str, opponent: str | None) -> list[dict]:
+    """Approved bot lessons for a leader (and a matchup when an opponent is given), read by every player's Log Pose."""
+    q = select(AnalystLesson).where(
+        AnalystLesson.source == "bots",
+        AnalystLesson.status == "approved",
+        or_(AnalystLesson.leader_id == leader, AnalystLesson.opponent_id == leader),
+    )
+    if opponent:
+        q = q.where(
+            or_(
+                AnalystLesson.opponent_id.is_(None),
+                AnalystLesson.leader_id == opponent,
+                AnalystLesson.opponent_id == opponent,
+            )
+        )
+    rows = db.scalars(q.order_by(AnalystLesson.created_at.desc(), AnalystLesson.id.desc()).limit(10)).all()
+    return [
+        {"text": r.text, "leader_id": r.leader_id, "opponent_id": r.opponent_id, "cards": [c for c in r.cards.split(",") if c]}
+        for r in rows
+    ]
+
+
+class BotLessonError(Exception):
+    def __init__(self, status: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.detail = detail
+
+
+def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | None, cards: list[str], evidence: str) -> dict:
+    """Save a bot lesson as a draft for the admin to review. A lesson with the same leader, opponent and text in any status is skipped."""
+    admin = db.scalar(select(User).where(User.role == "admin").order_by(User.id).limit(1))
+    if admin is None:
+        raise BotLessonError(503, "No admin account to review bot lessons")
+    text = text.strip()
+    same = select(AnalystLesson.id).where(
+        AnalystLesson.user_id == admin.id,
+        AnalystLesson.source == "bots",
+        AnalystLesson.leader_id == leader_id,
+        AnalystLesson.opponent_id.is_(None) if opponent_id is None else AnalystLesson.opponent_id == opponent_id,
+        AnalystLesson.text == text,
+    )
+    if db.scalar(same.limit(1)) is not None:
+        return {"skipped": True}
+    from app.routers import analyst as player_lessons  # the same cap as player drafts; read at call time
+
+    waiting = len(
+        db.scalars(select(AnalystLesson.id).where(AnalystLesson.user_id == admin.id, AnalystLesson.status == "draft")).all()
+    )
+    if waiting >= player_lessons.MAX_DRAFT_LESSONS:
+        raise BotLessonError(409, "Too many lessons are waiting for review")
+    row = AnalystLesson(
+        user_id=admin.id,
+        status="draft",
+        source="bots",
+        text=text,
+        leader_id=leader_id,
+        opponent_id=opponent_id,
+        cards=",".join(dict.fromkeys(cards)),
+        evidence=json.dumps({"summary": evidence}),
+    )
+    db.add(row)
+    db.commit()
+    return {"skipped": False, "id": row.id}

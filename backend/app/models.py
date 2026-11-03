@@ -759,6 +759,8 @@ class AnalystLesson(Base):
     cards: Mapped[str] = mapped_column(String(400), default="")
     text: Mapped[str] = mapped_column(Text)
     evidence: Mapped[str] = mapped_column(Text, default="[]")
+    # "player" (drafted through the owner's link) | "bots" (bot-vs-real lines, posted by the weekly job, shared with every player once approved)
+    source: Mapped[str] = mapped_column(String(16), default="player", server_default="player")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

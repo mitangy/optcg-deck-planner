@@ -212,3 +212,140 @@ def test_a_batch_of_several_large_replays_fits_the_request_limit_635(analyst):  
     r = _post(c, "big", games)
     assert r.status_code == 200, r.text[:200]
     assert r.json()["accepted"] == 3
+
+
+# ——— shared bot lessons (#915) ———
+
+
+def _admin(SessionLocal, name: str = "boss", role: str = "admin") -> int:
+    from app.models import User
+
+    with SessionLocal() as db:
+        u = User(email=f"{name}@x.test", name=name, google_sub=f"sub-{name}", username=name, role=role)
+        db.add(u)
+        db.commit()
+        return u.id
+
+
+def _lesson(**kw) -> dict:
+    return {"text": "With Zoro, games where Nami's effect was used were won more often.", "leader_id": ZORO, "cards": [NAMI], "evidence": "bot 60% vs 40%, real 55% vs 35%", **kw}
+
+
+def _post_lesson(c, headers=SERVICE, **kw):
+    return c.post("/analyst/bot-lessons", json=_lesson(**kw), headers=headers)
+
+
+def test_bot_lessons_need_the_service_secret_and_an_admin_to_own_them_915(analyst):  # noqa: F811
+    """Only the service secret can post a bot lesson, and with no admin account it is refused rather than lost (#915)."""
+    c, SessionLocal = analyst
+    assert _post_lesson(c, headers={}).status_code == 403
+    assert _post_lesson(c, headers={"X-Analyst-Service": "nope"}).status_code == 403
+    _admin(SessionLocal, "plain", role="user")
+    assert _post_lesson(c).status_code == 503
+    boss = _admin(SessionLocal)
+    r = _post_lesson(c)
+    assert r.status_code == 200 and r.json()["skipped"] is False
+    from app.models import AnalystLesson
+
+    with SessionLocal() as db:
+        row = db.query(AnalystLesson).one()
+        assert (row.user_id, row.status, row.source, row.cards) == (boss, "draft", "bots", NAMI)
+
+
+def test_a_bot_lesson_already_stored_in_any_status_is_skipped_915(analyst):  # noqa: F811
+    """Rerunning the weekly job adds nothing, and a lesson the admin rejected stays rejected (#915)."""
+    c, SessionLocal = analyst
+    _admin(SessionLocal)
+    from app.models import AnalystLesson
+
+    assert _post_lesson(c).json()["skipped"] is False
+    with SessionLocal() as db:
+        db.query(AnalystLesson).one().status = "rejected"
+        db.commit()
+    assert _post_lesson(c).json() == {"skipped": True}
+    # a different opponent, or a different text, is a new lesson
+    assert _post_lesson(c, opponent_id=LUCCI).json()["skipped"] is False
+    assert _post_lesson(c, opponent_id=LUCCI).json() == {"skipped": True}
+    assert _post_lesson(c, text="With Zoro, games with a counter event were won less often.").json()["skipped"] is False
+    with SessionLocal() as db:
+        assert db.query(AnalystLesson).count() == 3
+
+
+def test_bot_lesson_drafts_stop_at_the_review_limit_915(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
+    """The admin's review queue can't grow past MAX_DRAFT_LESSONS from bot lessons either (#915)."""
+    from app.routers import analyst as analyst_router
+
+    monkeypatch.setattr(analyst_router, "MAX_DRAFT_LESSONS", 2)
+    c, SessionLocal = analyst
+    _admin(SessionLocal)
+    codes = [_post_lesson(c, text=f"Bot lesson number {n} about Zoro.").status_code for n in range(3)]
+    assert codes == [200, 200, 409]
+
+
+def test_sim_stats_carry_only_approved_bot_lessons_for_that_leader_to_every_player_915(analyst):  # noqa: F811
+    """Approved bot lessons ride along with the sim stats; drafts, player lessons and other leaders' lessons stay out (#915)."""
+    c, SessionLocal = analyst
+    boss = _admin(SessionLocal)
+    from app.models import AnalystLesson
+
+    _post_lesson(c)  # Zoro, any opponent
+    _post_lesson(c, text="With Zoro against Lucci, holding a counter paid off.", opponent_id=LUCCI)
+    _post_lesson(c, text="With Zoro against Vivi, going first mattered most.", opponent_id=VIVI)
+    _post_lesson(c, text="With Nami, using her effect on turn two was strongest.", leader_id=NAMI)
+    _post_lesson(c, text="Still a draft lesson about Zoro and the bots.")
+    with SessionLocal() as db:
+        for row in db.query(AnalystLesson).all():
+            if "draft lesson" not in row.text:
+                row.status = "approved"
+        db.add(AnalystLesson(user_id=boss, status="approved", source="player", text="A player lesson about Zoro.", leader_id=ZORO, cards=""))
+        db.commit()
+    texts = lambda out: sorted(l["text"] for l in out["lessons"])
+    overview = _sim(c, leader=ZORO)
+    assert texts(overview) == sorted([
+        "With Zoro, games where Nami's effect was used were won more often.",
+        "With Zoro against Lucci, holding a counter paid off.",
+        "With Zoro against Vivi, going first mattered most.",
+    ])
+    assert {"text", "leader_id", "opponent_id", "cards"} <= set(overview["lessons"][0])
+    matchup = _sim(c, leader=ZORO, opponent=LUCCI)
+    assert texts(matchup) == sorted([
+        "With Zoro, games where Nami's effect was used were won more often.",
+        "With Zoro against Lucci, holding a counter paid off.",
+    ])
+    # a lesson names the leader on either side, like the player lesson list does
+    assert texts(_sim(c, leader=LUCCI)) == ["With Zoro against Lucci, holding a counter paid off."]
+    assert "lessons" not in _sim(c)
+
+
+def test_lesson_out_names_its_source_and_a_bot_lesson_has_no_match_ids_915(analyst):  # noqa: F811
+    """The review list tells bot lessons from player ones by source, and bot evidence never shows up as match ids (#915)."""
+    c, SessionLocal = analyst
+    me = c.post("/auth/dev-login").json()
+    from app.models import User
+
+    with SessionLocal() as db:
+        db.get(User, me["id"]).role = "admin"
+        db.commit()
+    assert _post_lesson(c).status_code == 200
+    token = c.post("/analyst/token").json()["token"]
+    c.post("/analyst/lessons", json={"text": "Hold a counter for turn four.", "leader_id": ZORO}, headers={"X-Analyst-Token": token})
+    got = c.get("/analyst/lessons/review").json()["lessons"]
+    assert sorted((l["source"], l["match_ids"]) for l in got) == [("bots", []), ("player", [])]
+
+
+def test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lessons_915(monkeypatch):
+    """An existing analyst_lessons table gets `source`, and its rows read back as player lessons (#915)."""
+    from sqlalchemy import text
+
+    from app import db as app_db
+    from tests.db_support import make_bare_engine
+
+    engine = make_bare_engine()
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE analyst_lessons (id INTEGER PRIMARY KEY, text TEXT NOT NULL)"))
+        conn.execute(text("INSERT INTO analyst_lessons (id, text) VALUES (1, 'old lesson')"))
+    monkeypatch.setattr(app_db, "engine", engine)
+    app_db._ensure_analyst_lesson_source()
+    app_db._ensure_analyst_lesson_source()
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT source FROM analyst_lessons")).all() == [("player",)]

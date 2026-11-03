@@ -734,6 +734,14 @@ class AnalystLessonIn(BaseModel):
     match_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(default_factory=list, max_length=10)
 
 
+class BotLessonIn(BaseModel):
+    text: str = Field(min_length=10, max_length=1000)
+    leader_id: str = Field(pattern=CARD_ID_PATTERN)
+    opponent_id: str | None = Field(default=None, pattern=CARD_ID_PATTERN)
+    cards: list[Annotated[str, Field(pattern=CARD_ID_PATTERN)]] = Field(default_factory=list, max_length=10)
+    evidence: str = Field(default="", max_length=500)
+
+
 class AnalystLessonOut(BaseModel):
     id: int
     status: str
@@ -742,6 +750,7 @@ class AnalystLessonOut(BaseModel):
     opponent_id: str | None
     cards: list[str]
     match_ids: list[str]
+    source: str = "player"
     created_at: str | None
     reviewed_at: str | None
 
