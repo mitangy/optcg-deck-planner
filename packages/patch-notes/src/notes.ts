@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "both", pr: 910, title: "Four new OP18 cards and a Vivi promo", text: "I Pray For Your Success. (OP18-059), Thousand Sunny (OP18-075), Hee Hee Hee!! I Smell Adventure!! (OP18-094), Iron Body Empty Tree (OP18-116) and the Pirates Party Nefeltari Vivi promo (P-160) are now in the duel app. The OP18 cards show preview art until their official images are out." },
+  // 2026-11-03
   { date: "2026-11-03", app: "planner", pr: 904, title: "Usernames in the planner", text: "Group buys and shared lists now show people by their Duel username. Anyone without a username still shows the way they did before." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Who-wants names fit on one line", text: "On group buy art tiles, the names of who wants each art now sit on one line under the picture instead of wrapping." },
   { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
