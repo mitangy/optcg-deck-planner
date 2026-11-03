@@ -98,7 +98,7 @@ import { CardArtImg, CardLightboxActionContext, CardThumb, MobileCardMedia } fro
 import { GridCard, MobileCard } from "./PlannerCard";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
-import { baseTileFor, mainImageUrl, shownProductId } from "./altArt";
+import { baseTileFor, mainImageUrl, shownMarket, shownProductId } from "./altArt";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "./displayArtViews";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
 import {
@@ -963,7 +963,7 @@ function shoppingColumnValue(item: ShoppingItem, key: string) {
     case "still":
       return item.still_need;
     case "market":
-      return item.market_price;
+      return shownMarket(item).price;
     case "remaining":
       return item.remaining_cost;
     case "cost":
@@ -973,6 +973,12 @@ function shoppingColumnValue(item: ShoppingItem, key: string) {
     default:
       return null;
   }
+}
+
+/** Master Shopping Market cell: the price (and recent sales) of the art the card shows (#928). */
+function ShownMarketPrice({ item }: { item: ShoppingItem }) {
+  const { price, productId } = shownMarket(item);
+  return <MarketPrice price={price} productId={productId} />;
 }
 
 function ShoppingItemsView({
@@ -1105,7 +1111,7 @@ function ShoppingItemsView({
                     </div>
                   )}
                   <div className="grid-card-price" onClick={stopCardSelectBubble}>
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                    <ShownMarketPrice item={item} />
                   </div>
                   <div className="grid-card-owned" onClick={stopCardSelectBubble}>
                     <span>Owned</span>
@@ -1205,7 +1211,7 @@ function ShoppingItemsView({
                     <StillNeededCell still={item.still_need} />
                   </td>
                   <td>
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                    <ShownMarketPrice item={item} />
                   </td>
                   <td>{buySplit(item)}</td>
                   <td className="col-cost">{item.cost ?? "—"}</td>
@@ -1267,7 +1273,7 @@ function ShoppingItemsView({
                 >
                   <div className="mobile-card-price-main">
                     <span className="muted">Market</span>
-                    <MarketPrice price={item.market_price} productId={item.product_id} />
+                    <ShownMarketPrice item={item} />
                     {item.tcgplayer_url ? (
                       <a
                         href={item.tcgplayer_url}

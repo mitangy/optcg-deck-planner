@@ -1,4 +1,8 @@
+import { shownMarket } from "./altArt";
+
 type CostAlt = {
+  product_id?: number;
+  owned?: number | null;
   wanted?: number | null;
   market_price?: number | null;
 };
@@ -8,6 +12,8 @@ export type CostCard = {
   market_price: number | null;
   /** Alt arts with the copies the user picked to buy (`wanted`), in list order. */
   alt_arts?: CostAlt[] | null;
+  /** The viewer's chosen art: null/undefined = automatic, 0 = base, >0 = a product id. */
+  display_art?: number | null;
 };
 
 export type BuySplit = {
@@ -51,10 +57,10 @@ export function splitStillNeed(card: CostCard): BuySplit {
 
 /**
  * Price a Master Shopping card sorts by (#926): what you still pay for it (picked alt arts at
- * their own price), or its standard market price when nothing is left to buy.
+ * their own price), or the price of the art it shows when nothing is left to buy (#928).
  */
 export function shoppingShownPrice(card: CostCard): number | null {
-  return card.still_need > 0 ? splitStillNeed(card).cost : (card.market_price ?? null);
+  return card.still_need > 0 ? splitStillNeed(card).cost : (shownMarket(card).price ?? null);
 }
 
 /**

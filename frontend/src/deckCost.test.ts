@@ -64,4 +64,13 @@ describe("shoppingShownPrice", () => {
     expect(shoppingShownPrice({ still_need: 0, market_price: 1, alt_arts: alts })).toBe(1);
     expect(shoppingShownPrice({ still_need: 0, market_price: null, alt_arts: alts })).toBeNull();
   });
+
+  it("shoppingShownPrice uses the shown alt art's price when nothing is needed (#928)", () => {
+    const alts = [{ product_id: 201, owned: 0, wanted: 0, market_price: 14.99 }];
+    expect(shoppingShownPrice({ still_need: 0, market_price: 1.25, alt_arts: alts, display_art: 201 })).toBe(14.99);
+    // Base chosen: the base price.
+    expect(shoppingShownPrice({ still_need: 0, market_price: 1.25, alt_arts: alts, display_art: 0 })).toBe(1.25);
+    // Still needed copies keep the buy split, whatever art is shown.
+    expect(shoppingShownPrice({ still_need: 1, market_price: 1.25, alt_arts: alts, display_art: 201 })).toBe(1.25);
+  });
 });
