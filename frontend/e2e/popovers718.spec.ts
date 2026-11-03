@@ -122,18 +122,20 @@ test("the Sort panel stays open while its checkboxes and arrows are used, is rea
   await price.check();
   await expect(panel).toBeVisible();
   await expect(sort).toContainText("Price");
-  await panel.getByRole("button", { name: "Move Price up" }).click();
-  // Price went above Set and the arrow it was clicked with is still there; one more press and it is first, so the arrow goes inactive under the pointer.
-  await panel.getByRole("button", { name: "Move Price up" }).click();
+  // A newly ticked option goes to the top, so its up arrow starts inactive.
   await expect(panel.getByRole("button", { name: "Move Price up" })).toBeDisabled();
+  await panel.getByRole("button", { name: "Move Price down" }).click();
+  // Price went below Color and the arrow it was clicked with is still there; one more press and it is last, so the arrow goes inactive under the pointer.
+  await panel.getByRole("button", { name: "Move Price down" }).click();
+  await expect(panel.getByRole("button", { name: "Move Price down" })).toBeDisabled();
   await expect(panel).toBeVisible();
 
   // Tab walks the panel's controls in order (the panel is reached from the keyboard, not just the pointer).
-  await panel.getByRole("checkbox", { name: "Color" }).focus();
+  await panel.getByRole("checkbox", { name: "Set" }).focus();
   await page.keyboard.press("Tab");
-  await expect(panel.getByRole("button", { name: "Move Color up" })).toBeFocused();
+  await expect(panel.getByRole("button", { name: "Move Set up" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(panel.getByRole("button", { name: "Move Color down" })).toBeFocused();
+  await expect(panel.getByRole("button", { name: "Move Set down" })).toBeFocused();
   await expect(panel).toBeVisible();
 
   await page.keyboard.press("Escape");

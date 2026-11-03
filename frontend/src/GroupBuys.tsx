@@ -1830,6 +1830,7 @@ export function GroupBuyDetailPage() {
                   onChange={setSorts}
                   onlyNeed
                   unavailableKeys={unavailableSorts}
+                  columnSortKey="optcg_colsort_gb_cards"
                 />
                 <label>
                   <input
@@ -2080,7 +2081,7 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
         </div>
         <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
           <div className="filters">
-            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed unavailableKeys={unavailableSorts} />
+            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed unavailableKeys={unavailableSorts} columnSortKey="optcg_colsort_gb_public" />
           </div>
         </CollapsibleFilters>
       </div>

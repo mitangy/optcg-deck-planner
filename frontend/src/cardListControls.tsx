@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useId, useMemo, useState } from "react";
+import { clearColumnSort } from "./columnSort";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
 export const CARD_SORTS_KEY = "optcg_card_sorts";
@@ -163,9 +164,12 @@ export function SortMenu({
   onlyNeed,
   unavailableKeys = [],
   keys = ALL_SORT_KEYS,
+  columnSortKey,
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
+  /** Storage key of the table header sort on this page; changing the Sort menu clears it so the menu wins. */
+  columnSortKey?: string;
   onlyNeed: boolean;
   unavailableKeys?: SortKey[];
   /** Sort options this page offers (defaults to the shopping/deck set). */
@@ -194,13 +198,18 @@ export function SortMenu({
     return null;
   }
 
+  function change(next: SortKey[]) {
+    if (columnSortKey) clearColumnSort(columnSortKey);
+    onChange(next);
+  }
+
   function toggleKey(key: SortKey) {
     if (keyDisabled(key)) return;
     if (sorts.includes(key)) {
-      onChange(sorts.filter((k) => k !== key));
+      change(sorts.filter((k) => k !== key));
       return;
     }
-    onChange([...sorts, key]);
+    change([key, ...sorts]);
   }
 
   function moveKey(key: SortKey, dir: -1 | 1) {
@@ -210,7 +219,7 @@ export function SortMenu({
     if (next < 0 || next >= sorts.length) return;
     const copy = [...sorts];
     [copy[idx], copy[next]] = [copy[next], copy[idx]];
-    onChange(copy);
+    change(copy);
   }
 
   return (
@@ -220,7 +229,7 @@ export function SortMenu({
       </PopoverButton>
       <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
         <p className="sort-menu-hint">
-          Top option sorts first. Price is highest market price first.
+          Top option sorts first; a newly ticked option goes to the top. Price is highest market price first.
           {keys.includes("value") ? " Value is owned copies × market price, highest first." : ""}
           {keys.includes("deck")
             ? " Deck groups by leader (earliest deck first); cards used by multiple leaders stay under their earliest leader."

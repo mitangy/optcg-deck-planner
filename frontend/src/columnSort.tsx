@@ -80,20 +80,28 @@ function subscribe(listener: () => void) {
   };
 }
 
+function writeColumnSort(storageKey: string, next: ColumnSort) {
+  stores.set(storageKey, next);
+  try {
+    if (next) localStorage.setItem(storageKey, JSON.stringify(next));
+    else localStorage.removeItem(storageKey);
+  } catch {
+    /* ignore */
+  }
+  listeners.forEach((l) => l());
+}
+
+/** Drops the header-click sort for `storageKey`, so the page's Sort menu order shows again. */
+export function clearColumnSort(storageKey: string) {
+  writeColumnSort(storageKey, null);
+}
+
 /** Column sort for a table, remembered per browser under `storageKey`. */
 export function useColumnSort(storageKey: string) {
   const sort = useSyncExternalStore(subscribe, () => readStore(storageKey));
   const onSort = useCallback(
     (key: string, firstDir: SortDir) => {
-      const next = nextColumnSort(readStore(storageKey), key, firstDir);
-      stores.set(storageKey, next);
-      try {
-        if (next) localStorage.setItem(storageKey, JSON.stringify(next));
-        else localStorage.removeItem(storageKey);
-      } catch {
-        /* ignore */
-      }
-      listeners.forEach((l) => l());
+      writeColumnSort(storageKey, nextColumnSort(readStore(storageKey), key, firstDir));
     },
     [storageKey],
   );

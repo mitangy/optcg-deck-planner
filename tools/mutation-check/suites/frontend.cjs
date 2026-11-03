@@ -500,5 +500,6 @@ module.exports = {
     {"id": "signedin914-hint-never-cleared", "file": "frontend/src/prerendered.ts", "from": "else hintStorage()?.removeItem(SIGNED_IN_HINT_KEY);", "to": "else void 0;", "kills": ["remembers a signed-in session, forgets it, and survives blocked storage (#914)"], "args": "src/prerendered914"},
     {"id": "signedin914-storage-errors-escape", "file": "frontend/src/prerendered.ts", "from": "    return hintStorage()?.getItem(SIGNED_IN_HINT_KEY) === \"1\";\n  } catch {\n    return false;", "to": "    return hintStorage()?.getItem(SIGNED_IN_HINT_KEY) === \"1\";\n  } catch (e) {\n    throw e;", "kills": ["remembers a signed-in session, forgets it, and survives blocked storage (#914)"], "args": "src/prerendered914"},
     {"id": "signedin914-hint-ignored-for-prerender", "file": "frontend/src/prerendered.ts", "from": "WAS_PRERENDERED && !hasSignedInHint();", "to": "WAS_PRERENDERED;", "kills": ["a signed-in browser does not keep the pre-rendered page while the session loads (#914)"], "args": "src/prerendered914"},
+    {"id": "sort924-ticked-key-appended", "file": "frontend/src/cardListControls.tsx", "from": "change([key, ...sorts]);", "to": "change([...sorts, key]);", "kills": ["ticking a Sort option makes it the main sort (#924)"], "args": "src/popovers718"},
 ],
 };
