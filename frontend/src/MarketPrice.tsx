@@ -157,6 +157,7 @@ export function AltArtsRow({
   editable = false,
   onOwnedChange,
   onWantChange,
+  showBuyPicks = false,
   busyProductId = null,
   base = null,
   baseOwnedControl,
@@ -174,6 +175,11 @@ export function AltArtsRow({
   editable?: boolean;
   onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
+  /**
+   * Planner pages (#906): tag every alt tile whose copies the user picked to buy
+   * with a read-only "Buy ×N" label. Picking happens in the buy-split popover.
+   */
+  showBuyPicks?: boolean;
   busyProductId?: number | null;
   base?: BaseArt | null;
   /** Owned stepper for the base count, shown inside the Base tile. */
@@ -266,6 +272,11 @@ export function AltArtsRow({
               ) : owned > 0 ? (
                 <span className="alt-want-label" title="Copies of this alt you own">
                   Own ×{owned}
+                </span>
+              ) : null}
+              {showBuyPicks && wanted > 0 ? (
+                <span className="alt-want-label" title="Copies of this art you buy (set from the price)">
+                  Buy ×{wanted}
                 </span>
               ) : null}
               {alt.tcgplayer_url ? (

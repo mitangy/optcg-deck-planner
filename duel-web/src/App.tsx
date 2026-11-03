@@ -10,6 +10,8 @@ import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
 import { PlayOnlinePage } from "./pages/PlayOnlinePage";
 import { MetaDecksPage } from "./pages/MetaDecksPage";
+import { LeaderPage } from "./pages/LeaderPage";
+import { LeadersIndexPage } from "./pages/LeadersIndexPage";
 import { NewDeckPage } from "./pages/NewDeckPage";
 import { DemoPage } from "./pages/DemoPage";
 import { EventRulesPage } from "./pages/EventRulesPage";
@@ -28,14 +30,11 @@ import { FeedbackHost } from "./FeedbackHost";
 import { ReportHost } from "./reports/ReportHost";
 import { openFeedback } from "./feedbackDialog";
 import { RouteMeta } from "./seo/RouteMeta";
-import { showsSiteFooter } from "./siteFooter";
+import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
 import { applyPopupSize } from "./board/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "./board/useMediaQuery";
-
-/** Reachable from every page, so the how-to-play landing page is crawlable. */
-const FOOTER_LINKS = [{ to: "/play-one-piece-tcg-online", label: "How to play online" }] as const;
 
 // The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
 const ReplayPage = lazy(() => import("./pages/ReplayPage"));
@@ -78,6 +77,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/play-one-piece-tcg-online" element={<PlayOnlinePage />} />
+        <Route path="/leaders" element={<LeadersIndexPage />} />
+        <Route path="/leaders/:slug" element={<LeaderPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />
         <Route path="/decks" element={<DeckListPage />} />
         <Route path="/decks/meta" element={<MetaDecksPage />} />
@@ -103,7 +104,7 @@ export function App() {
         <Route path="/conduct" element={<LegalPage kind="conduct" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" extraLinks={FOOTER_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
+      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" extraLinks={FOOTER_LINKS} externalLinks={FOOTER_EXTERNAL_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
       <FeedbackHost />
       <ReportHost />
       <LeaveGameDialog

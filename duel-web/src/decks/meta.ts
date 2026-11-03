@@ -1,7 +1,7 @@
 /** Meta deck browser (#443): Limitless tournament data from the backend's public /meta endpoints, plus the pure helpers the page uses. */
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
-import { createDeckFromInput, type ImportIntoDeckResult, type SavedDeck } from "./storage";
+import { createDeckFromInput, listSavedDecks, setSelectedDeckId, type ImportIntoDeckResult, type SavedDeck } from "./storage";
 
 export type MetaLeader = {
   leader_id: string;
@@ -88,8 +88,11 @@ export function fetchMetaDecks(
   days: number,
   top8Only: boolean,
   timeoutMs = TIMEOUT_MS,
+  /** Newest lists to ask for; the API's own default (50) when left out. */
+  limit?: number,
 ): Promise<MetaDecksResponse> {
   const q = new URLSearchParams({ leader: leaderId, days: String(days), top: top8Only ? "8" : "0" });
+  if (limit) q.set("limit", String(limit));
   return metaJson(`/meta/decks?${q}`, timeoutMs);
 }
 
@@ -156,6 +159,25 @@ export function findSavedCopy(saved: readonly SavedDeck[], leaderId: string, dec
 /** Saves the deck's own paste text as a new local deck. */
 export function addMetaDeck(leader: { leaderId: string; name: string }, deck: MetaDeck): ImportIntoDeckResult {
   return createDeckFromInput(metaDeckName(leader.name, leader.leaderId, deck.event, deck.placing), deck.text);
+}
+
+/**
+ * "Play this deck online" (#914): saves the list as a deck unless an identical one is already saved,
+ * and makes it the deck the lobby plays with. The caller then opens the lobby.
+ */
+export function playMetaDeck(
+  leader: { leaderId: string; name: string },
+  deck: MetaDeck,
+): { ok: true; deckId: string; warnings: string[] } | { ok: false; errors: string[] } {
+  const existing = findSavedCopy(listSavedDecks(), leader.leaderId, deck);
+  if (existing) {
+    setSelectedDeckId(existing.id);
+    return { ok: true, deckId: existing.id, warnings: [] };
+  }
+  const result = addMetaDeck(leader, deck);
+  if (!result.ok) return { ok: false, errors: result.errors };
+  setSelectedDeckId(result.deck.id);
+  return { ok: true, deckId: result.deck.id, warnings: result.warnings };
 }
 
 /** Cards grouped by cost for the expanded list ("0", "1", … then everything unpriced). */

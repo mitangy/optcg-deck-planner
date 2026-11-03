@@ -15,11 +15,14 @@ export function SiteFooter({
   className,
   onFeedback,
   extraLinks,
+  externalLinks,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
   /** Extra internal links after What’s new, e.g. a landing page that should be reachable from every page. */
   extraLinks?: readonly { to: string; label: string }[];
+  /** Links to other sites, opened in a new tab (no nofollow: they are our own listings). */
+  externalLinks?: readonly { href: string; label: string }[];
   /** When set, a "Send feedback" button follows the legal links. */
   onFeedback?: () => void;
 }) {
@@ -39,6 +42,11 @@ export function SiteFooter({
             <Link key={l.to} to={l.to} className="site-footer-link">
               {l.label}
             </Link>
+          ))}
+          {externalLinks?.map((l) => (
+            <a key={l.href} href={l.href} target="_blank" rel="noopener" className="site-footer-link">
+              {l.label}
+            </a>
           ))}
           {onFeedback ? (
             <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>

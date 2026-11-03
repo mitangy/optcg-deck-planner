@@ -8,6 +8,7 @@ import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./analytics";
 import App from "./App";
 import { startUpdateChecks } from "./appVersion";
+import { readMetaSeed } from "./prerendered";
 import "./styles.css";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import "@optcg/site-legal/siteLegal.css";
@@ -28,6 +29,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// A pre-rendered /meta carries the leaders it was built with: show them at once, and refetch because they are older than the page.
+const seed = readMetaSeed();
+if (seed) queryClient.setQueryData(["meta", "leaders", seed.days], seed.leaders, { updatedAt: Date.parse(seed.generatedAt) });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

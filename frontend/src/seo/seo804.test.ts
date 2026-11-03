@@ -73,6 +73,6 @@ describe("planner vercel.json routes (#804)", () => {
   it("an unknown path answers 404 and still serves the app (#804)", () => {
     expect(status(routes, "/nope-xyz")).toBe(404);
     expect(status(routes, "/decks/1/2/3")).toBe(404);
-    expect(routes[routes.length - 1].dest).toBe("/index.html");
+    expect(routes[routes.length - 1].dest).toBe("/_app.html");
   });
 });

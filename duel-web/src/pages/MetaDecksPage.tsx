@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Select } from "@optcg/ui/popups";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { CardArt } from "../cards/CardArt";
 import { cardImageUrl } from "@optcg/ui/cardArt";
@@ -22,13 +22,15 @@ import {
   type MetaLeadersResponse,
 } from "../decks/meta";
 import { NavMenu } from "../nav/NavMenu";
+import { readEmbeddedSnapshot, SnapshotContext } from "../leaders/useMetaView";
+import type { MetaSnapshot } from "../leaders/snapshot";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
-function LeaderArt({ id, url, className }: { id: string; url: string; className: string }) {
+export function LeaderArt({ id, url, className, size = "thumb" }: { id: string; url: string; className: string; size?: "thumb" | "large" }) {
   return (
     <CardArt
-      src={cardImageUrl(url, "thumb") || null}
+      src={cardImageUrl(url, size) || null}
       defId={id}
       className={className}
       fallback={
@@ -68,7 +70,7 @@ function LeaderRow({ leader, selected, onPick }: { leader: MetaLeader; selected:
   );
 }
 
-function DeckCards({ deck }: { deck: MetaDeck }) {
+export function DeckCards({ deck }: { deck: MetaDeck }) {
   return (
     <div className="meta-cards">
       {groupByCost(deck.cards).map((g) => (
@@ -231,20 +233,38 @@ function DeckPanel({ leader, days }: { leader: MetaLeader | undefined; days: num
   );
 }
 
+/** The pre-rendered snapshot as the page's first state, so the leaders are there before the live API answers (#914). */
+function seedFrom(snap: MetaSnapshot | null, days: number): Load<MetaLeadersResponse> {
+  if (!snap || snap.days !== days) return { status: "loading" };
+  return {
+    status: "ready",
+    data: { days: snap.days, min_players: 8, events: snap.events, total_decks: snap.total_decks, source: snap.source, source_url: snap.source_url, leaders: snap.leaders },
+  };
+}
+
 export function MetaDecksPage() {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("leader") ?? "";
   const daysParam = Number(params.get("days"));
   const days = (META_WINDOWS as readonly number[]).includes(daysParam) ? daysParam : META_DEFAULT_DAYS;
-  const [state, setState] = useState<Load<MetaLeadersResponse>>({ status: "loading" });
+  const fromServer = useContext(SnapshotContext);
+  const [state, setState] = useState<Load<MetaLeadersResponse>>(() => seedFrom(fromServer ?? readEmbeddedSnapshot(), days));
   const [tries, setTries] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: "loading" });
+    // Keep what is on screen (the snapshot) while the live meta for the same window loads.
+    setState((s) => (s.status === "ready" && s.data.days === days ? s : { status: "loading" }));
     fetchMetaLeaders(days)
       .then((data) => !cancelled && setState({ status: "ready", data }))
-      .catch((e) => !cancelled && setState({ status: "error", message: e instanceof Error ? e.message : "Could not load the meta" }));
+      // A failed refresh keeps the leaders already on screen (the snapshot) rather than replacing them with an error.
+      .catch(
+        (e) =>
+          !cancelled &&
+          setState((s) =>
+            s.status === "ready" && s.data.days === days ? s : { status: "error", message: e instanceof Error ? e.message : "Could not load the meta" },
+          ),
+      );
     return () => {
       cancelled = true;
     };
@@ -337,7 +357,10 @@ export function MetaDecksPage() {
         </div>
 
         <p className="meta meta-credit">
-          Tournament data from{" "}
+          <Link className="linkish" to="/leaders">
+            Every popular leader has its own page
+          </Link>
+          {" · "}Tournament data from{" "}
           <a className="linkish" href={data?.source_url ?? "https://play.limitlesstcg.com/tournaments/completed?game=OP"} target="_blank" rel="noopener noreferrer">
             Limitless TCG
           </a>
