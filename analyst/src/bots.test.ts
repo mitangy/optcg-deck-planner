@@ -132,6 +132,23 @@ describe("simulated stats (#635)", () => {
     expect((all as SearchResultBlock[]).map((b) => b.source)).toEqual(["botsim:OP01-001"]);
   });
 
+  it("cites approved bot lessons as their own lesson: sources, beside the botsim: ones and never as a win record (#915)", () => {
+    const lessons = [
+      { text: "With Zoro, games where Nami's effect was used were won more often. A pattern in the games, not proof of cause.", leader_id: "OP01-001", opponent_id: null, cards: ["OP01-016"] },
+      { text: "With Zoro against Olivier, holding a counter paid off.", leader_id: "OP01-001", opponent_id: "OP05-060", cards: [] },
+    ];
+    const blocks = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", leader: "OP01-001", overall: { games: 9, wins: 5, win_rate: 0.556, interval: [0.27, 0.8], too_few_games: false }, opponents: [], lines: [], lessons }))!;
+    expect(blocks.every((b) => b.type === "search_result")).toBe(true);
+    const results = blocks as SearchResultBlock[];
+    expect(results.map((b) => b.source)).toEqual(["botsim:OP01-001", "lesson:bots-OP01-001#1", "lesson:bots-OP01-001#2"]);
+    const text = (b: SearchResultBlock) => b.content.map((c) => c.text).join("\n");
+    expect(text(results[1]!)).toContain("Cards: OP01-016.");
+    expect(text(results[1]!)).toContain("From bot games, reviewed");
+    expect(text(results[2]!)).toContain("Applies to: OP01-001 against OP05-060.");
+    const matchup = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", leader: "OP01-001", opponent: "OP05-060", games: 80, wins: 44, win_rate: 0.55, interval: [0.44, 0.66], too_few_games: false, lines: [], lessons: [lessons[1]] }))!;
+    expect((matchup as SearchResultBlock[]).map((b) => b.source)).toEqual(["botsim:OP01-001~OP05-060", "lesson:bots-OP01-001~OP05-060#1"]);
+  });
+
   it("cites bot games in a search as botgame: sources labelled as simulated, beside player games as game: sources (#635)", () => {
     const blocks = adaptToolResult("search_matches", JSON.stringify({ total: 2, offset: 0, window_days: 90, games: [{ ...playerGame }, { ...botGame, kind: "bot game (Hard vs Hard self-play)" }] }))!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);

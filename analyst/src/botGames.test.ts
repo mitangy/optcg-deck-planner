@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardsOfLine, compareLines, lessonText, linesOf, realLineStats, tallyReplay, toBatches, uploadBotGames, type BotGameUpload, type LineRow } from "./botGames";
+import { cardsOfLine, compareLines, evidenceSummary, leadersWithGames, lessonText, lessonsForLeader, linesOf, postBotLesson, realLineStats, tallyReplay, toBatches, topCandidates, uploadBotGames, type BotGameUpload, type LineRow } from "./botGames";
 import { botGame } from "./testFixtures";
 
 const SEEDS = [1, 2, 3, 4];
@@ -128,5 +128,54 @@ describe("lessons both sources agree on (#635)", () => {
     expect(text).toContain("more often");
     expect(text.length).toBeLessThanOrEqual(1000);
     expect(cardsOfLine("cheat_out:OP01-016 via OP02-004")).toEqual(["OP01-016", "OP02-004"]);
+  });
+});
+
+describe("the weekly bot lessons run (#915)", () => {
+  it("checks every leader with at least the minimum of bot games, in the order given (#915)", () => {
+    const sim = { leaders: [{ leader: "OP01-001", games: 200 }, { leader: "OP05-060", games: 60 }, { leader: "OP02-001", games: 59 }] };
+    expect(leadersWithGames(sim, 60)).toEqual(["OP01-001", "OP05-060"]);
+    expect(leadersWithGames({}, 60)).toEqual([]);
+  });
+
+  it("keeps the best few lines per leader, one lesson per line (#915)", () => {
+    const bot = ["a", "b", "c", "d"].map((l, i) => row(l, 40, 0.9 - i * 0.05, 60, 0.4));
+    const found = compareLines(bot, ["a", "b", "c", "d"].map((l) => real(l, 10, 8, 20, 8)));
+    expect(found.map((c) => c.line)).toEqual(["a", "b", "c", "d"]);
+    expect(topCandidates(found, 3).map((c) => c.line)).toEqual(["a", "b", "c"]);
+    expect(topCandidates([found[0]!, found[0]!, found[1]!], 3).map((c) => c.line)).toEqual(["a", "b"]);
+  });
+
+  it("states the bot and the real numbers apart in the evidence the reviewer sees (#915)", () => {
+    const [c] = compareLines([row("counter_event", 40, 0.7, 60, 0.5)], [real("counter_event", 10, 6, 20, 5)]);
+    expect(evidenceSummary(c!)).toBe("counter_event: bot 70% vs 50% (40/60 games); real 60% vs 25% (10/20 games)");
+  });
+
+  it("posts a lesson with the service secret and no personal token, and reports a skipped one (#915)", async () => {
+    const calls: { url: string; method: string; headers: Record<string, string>; body: unknown }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, method: init.method as string, headers: init.headers as Record<string, string>, body: JSON.parse(init.body as string) });
+      return new Response(JSON.stringify({ skipped: true }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const lesson = { text: "With Zoro, games with it were won more often.", leader_id: "OP01-001", cards: ["OP01-016"], evidence: "x" };
+    const r = await postBotLesson({ baseUrl: "https://api.test/", serviceSecret: "svc", fetchImpl }, lesson);
+    expect(r).toEqual({ skipped: true });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe("https://api.test/analyst/bot-lessons");
+    expect(calls[0]!.method).toBe("POST");
+    expect(calls[0]!.headers["X-Analyst-Service"]).toBe("svc");
+    expect(calls[0]!.headers["X-Analyst-Token"]).toBeUndefined();
+    expect(calls[0]!.body).toEqual(lesson);
+  });
+
+  it("asks for the leader's hard-vs-hard line stats, and reads no real games when the bots have no lines (#915)", async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      urls.push(url);
+      return new Response(JSON.stringify({ lines: [], games: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const run = await lessonsForLeader({ baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl }, "OP01-001", { opponent: "OP05-060" });
+    expect(run).toMatchObject({ leader: "OP01-001", botLines: 0, realGames: 0, lessons: [] });
+    expect(urls).toEqual(["https://api.test/analyst/stats/sim?leader=OP01-001&levels=hard%2Fhard&opponent=OP05-060"]);
   });
 });
