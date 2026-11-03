@@ -4,7 +4,7 @@
  * Every adapter turns one tool's JSON answer into small, self-contained facts (one text block per
  * sentence, line or turn) under a stable machine-readable `source` id the apps parse:
  *   card:<id>                      rule:<section>                  ruling:<card>#<n> | ruling:general#<hash>
- *   stats:<leader>[~<opp>|#<card>] playbook:<leader>[~<opp>]       lesson:<id>
+ *   stats:<leader>[~<opp>|#<card>] playbook:<leader>[~<opp>]       lesson:<id> | lesson:bots-<leader>[~<opp>]#<n> (reviewed bot-game lessons)
  *   tourney:<leader>[~<opp>|#<card>] (Limitless TCG tournaments)   event:<limitless event id>
  *   match:<match_id>[#t<turn>]     game:<game_id>[#t<turn>]        deck:<hash>        odds:<shape>
  *   sim:<hash>[#curve|#cards|#line]  (goldfish)
@@ -512,6 +512,17 @@ function simStatsAdapter(v: Rec): ToolContent[] {
     }
     out.push(...lineResults(`botsim:${v.leader}`, title));
   }
+  // Approved lessons from bot games vs real games (#915): their own sources, so they are never read as a bot or player win rate.
+  ((v.lessons ?? []) as Rec[]).forEach((l, i) =>
+    out.push(
+      searchResult(`lesson:bots-${v.leader}${v.opponent ? `~${v.opponent}` : ""}#${i + 1}`, `Lesson from bot games, reviewed: ${String(l.text).slice(0, 70)}`, [
+        ...splitFacts(String(l.text)),
+        (l.leader_id || l.opponent_id) && `Applies to: ${l.leader_id ?? "any leader"}${l.opponent_id ? ` against ${l.opponent_id}` : ""}.`,
+        joined(l.cards) && `Cards: ${joined(l.cards)}.`,
+        "From bot games, reviewed: a line that bot self-play and real games both link to winning, approved by the site owner. A pattern in the games, not proof of cause.",
+      ]),
+    ),
+  );
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
 
