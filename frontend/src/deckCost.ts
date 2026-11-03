@@ -51,7 +51,7 @@ export function splitStillNeed(card: CostCard): BuySplit {
 
 /**
  * Remaining market cost of one card: still_need copies, the ones picked as an
- * alt art (Buy mode, #906) at that art's price and the rest at the standard
+ * alt art (#906) at that art's price and the rest at the standard
  * price. Alt arts the user owns already reduce still_need on the server.
  * Null when a needed copy is unpriced.
  */

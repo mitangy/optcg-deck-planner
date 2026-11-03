@@ -28,8 +28,8 @@ import {
   optcgSimFilename,
 } from "./optcgsimExport";
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
-import { deckRemainingMarket, remainingCostForCard, splitStillNeed } from "./deckCost";
-import { AltStepperModeRow, AltStepperSwitch, useAltStepperMode, type AltStepperMode } from "./AltStepperMode";
+import { deckRemainingMarket, remainingCostForCard } from "./deckCost";
+import { BuySplit, canSplitBuy } from "./BuySplit";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { CornerNotices, UpdateNotice } from "./UpdateNotice";
 import { submitFeedback } from "./feedback";
@@ -858,6 +858,11 @@ function useNarrowLayout() {
   return narrow;
 }
 
+/** The product id in a `${cardId}:${productId}` busy key when it belongs to this card. */
+function busyProductFor(key: string | null | undefined, cardId: string): number | null {
+  return key?.startsWith(`${cardId}:`) ? Number(key.slice(cardId.length + 1)) : null;
+}
+
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
 }
@@ -949,18 +954,6 @@ function shoppingColumnValue(item: ShoppingItem, key: string) {
   }
 }
 
-/** "1 alt + 1 base" under Remaining when some still-needed copies are picked as alt arts (#906). */
-function RemainingSplit({ item }: { item: Pick<ShoppingItem, "still_need" | "market_price" | "alt_arts"> }) {
-  if (item.still_need <= 0) return null;
-  const { altCopies, baseCopies } = splitStillNeed(item);
-  if (altCopies <= 0) return null;
-  return (
-    <span className="remaining-split">
-      {altCopies} alt{baseCopies > 0 ? ` + ${baseCopies} base` : ""}
-    </span>
-  );
-}
-
 function ShoppingItemsView({
   items,
   layout,
@@ -971,9 +964,8 @@ function ShoppingItemsView({
   onToggleSelectVisible,
   showAltArts,
   altRow,
-  altMode,
-  onAltModeChange,
-  showAltModeRow = false,
+  onBuyPick,
+  buyBusyKey = null,
   usedInNote,
   onOwnedSaved,
   onRemoveExtra,
@@ -988,10 +980,10 @@ function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
-  altMode: AltStepperMode;
-  onAltModeChange: (mode: AltStepperMode) => void;
-  /** One Owned | Buy row above the phone list / grid (the table has it in its header). */
-  showAltModeRow?: boolean;
+  /** Owner pages: saves how many still-needed copies are bought as one alt art (#906). */
+  onBuyPick?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while a buy pick is saving. */
+  buyBusyKey?: string | null;
   usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
@@ -1026,13 +1018,18 @@ function ShoppingItemsView({
       </button>
     ) : null;
 
-  const altModeRow =
-    showAltArts && showAltModeRow ? <AltStepperModeRow mode={altMode} onChange={onAltModeChange} /> : null;
+  const buySplit = (item: ShoppingItem, prefix = "") => (
+    <BuySplit
+      card={item}
+      amount={money(item.remaining_cost)}
+      prefix={prefix}
+      onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
+      busyProductId={busyProductFor(buyBusyKey, item.card_id)}
+    />
+  );
 
   if (layout === "grid") {
     return (
-      <>
-      {altModeRow}
       <div className="card-grid">
         {items.map((item: ShoppingItem) => {
           const checked = selectedCardIds.has(item.card_id);
@@ -1077,7 +1074,7 @@ function ShoppingItemsView({
                 meta={
                   <>
                     {stillNeededText(item.still_need, item.need)}
-                    {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                    {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
                   </>
                 }
               >
@@ -1123,7 +1120,6 @@ function ShoppingItemsView({
           );
         })}
       </div>
-      </>
     );
   }
 
@@ -1149,12 +1145,7 @@ function ShoppingItemsView({
               <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} className="col-cost" />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? (
-                <th>
-                  Alt arts
-                  <AltStepperSwitch mode={altMode} onChange={onAltModeChange} />
-                </th>
-              ) : null}
+              {showAltArts ? <th>Alt arts</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -1195,10 +1186,7 @@ function ShoppingItemsView({
                   <td>
                     <MarketPrice price={item.market_price} productId={item.product_id} />
                   </td>
-                  <td>
-                    {money(item.remaining_cost)}
-                    <RemainingSplit item={item} />
-                  </td>
+                  <td>{buySplit(item)}</td>
                   <td className="col-cost">{item.cost ?? "—"}</td>
                   <td className="used-in">
                     <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
@@ -1216,7 +1204,6 @@ function ShoppingItemsView({
       </div>
 
       <div className="mobile-card-list">
-        {altModeRow}
         {items.map((item: ShoppingItem) => {
           const checked = selectedCardIds.has(item.card_id);
           return (
@@ -1248,7 +1235,7 @@ function ShoppingItemsView({
                   {[item.color, stillNeededText(item.still_need, item.need)]
                     .filter(Boolean)
                     .join(" · ")}
-                  {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                  {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
                 </>
               }
               info={
@@ -1412,7 +1399,6 @@ function ShoppingPage() {
   });
   const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
   const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
-  const [altMode, setAltMode] = useAltStepperMode();
   const sortingByDeck = effectiveSorts.includes("deck");
 
   useEffect(() => {
@@ -1481,12 +1467,7 @@ function ShoppingPage() {
         />
       }
       onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
-      onBuyChange={
-        altMode === "buy"
-          ? (productId, qty) => void changeShoppingAltBuy(item.card_id, productId, qty)
-          : undefined
-      }
-      stillNeed={item.still_need}
+      showBuyPicks={item.still_need > 0}
       shownProductId={shownProductId(item)}
       onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
       busyProductId={
@@ -2039,9 +2020,8 @@ function ShoppingPage() {
         onToggleSelectVisible={toggleSelectVisible}
         showAltArts={showAltArts}
         altRow={shoppingAltRow}
-        altMode={altMode}
-        onAltModeChange={setAltMode}
-        showAltModeRow
+        onBuyPick={(cardId, productId, qty) => void changeShoppingAltBuy(cardId, productId, qty)}
+        buyBusyKey={altOwnedBusyKey}
         usedInNote={usedInNote}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}
@@ -2066,8 +2046,6 @@ function ShoppingPage() {
               onToggleSelectVisible={toggleSelectVisible}
               showAltArts={showAltArts}
               altRow={shoppingAltRow}
-              altMode={altMode}
-              onAltModeChange={setAltMode}
               usedInNote={usedInNote}
               onOwnedSaved={() => invalidateOwnedViews(qc)}
               onRemoveExtra={(id) => removeExtra.mutate(id)}
@@ -3400,10 +3378,7 @@ function CardTable({
   onAltOwnedChange,
   altOwnedBusyKey = null,
   onDisplayArtChange,
-  altMode = "owned",
-  onAltModeChange,
   onAltBuyChange,
-  showAltModeRow = false,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -3417,18 +3392,21 @@ function CardTable({
   altOwnedBusyKey?: string | null;
   /** Owner pages only: pick which art the card shows (0 = base). */
   onDisplayArtChange?: (cardId: string, productId: number) => void;
-  /** Owner pages only: Owned | Buy switch for the alt steppers, and the Buy-mode save (#906). */
-  altMode?: AltStepperMode;
-  onAltModeChange?: (mode: AltStepperMode) => void;
+  /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
-  /** One switch row above the phone list / grid (the table has it in its header). */
-  showAltModeRow?: boolean;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
-  const altModeSwitchShown = showAltArts && Boolean(onAltOwnedChange && onAltModeChange);
-  const altModeRow =
-    altModeSwitchShown && showAltModeRow && onAltModeChange ? (
-      <AltStepperModeRow mode={altMode} onChange={onAltModeChange} />
+  // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
+  const buySplit = (c: CardView) =>
+    onAltBuyChange && canSplitBuy(c) ? (
+      <BuySplit
+        card={c}
+        amount={money(remainingCostForCard(c))}
+        prefix="Left "
+        onPick={(productId, qty) => onAltBuyChange(c.card_id, productId, qty)}
+        busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
+        plainWhenIdle={false}
+      />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
   // With editable alt tiles on screen, the base count is edited under the Base tile.
@@ -3456,12 +3434,7 @@ function CardTable({
           ? (productId, qty) => onAltOwnedChange(c.card_id, productId, qty)
           : undefined
       }
-      onBuyChange={
-        onAltBuyChange && altMode === "buy"
-          ? (productId, qty) => onAltBuyChange(c.card_id, productId, qty)
-          : undefined
-      }
-      stillNeed={c.still_need}
+      showBuyPicks={Boolean(onAltBuyChange) && c.still_need > 0}
       shownProductId={shownProductId(c)}
       onShow={
         onDisplayArtChange
@@ -3477,8 +3450,6 @@ function CardTable({
   );
   if (layout === "grid") {
     return (
-      <>
-      {altModeRow}
       <div className="card-grid">
         {cards.map((c) => (
           <GridCard
@@ -3489,7 +3460,12 @@ function CardTable({
             name={c.name}
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
-            meta={[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+            meta={
+              <>
+                {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+              </>
+            }
           >
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
@@ -3521,7 +3497,6 @@ function CardTable({
           </GridCard>
         ))}
       </div>
-      </>
     );
   }
 
@@ -3537,14 +3512,7 @@ function CardTable({
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? (
-                <th>
-                  Alt arts
-                  {altModeSwitchShown && onAltModeChange ? (
-                    <AltStepperSwitch mode={altMode} onChange={onAltModeChange} />
-                  ) : null}
-                </th>
-              ) : null}
+              {showAltArts ? <th>Alt arts</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -3581,7 +3549,10 @@ function CardTable({
                       />
                     </>
                   ) : (
-                    <StillNeededCell still={c.still_need} need={c.needed} />
+                    <>
+                      <StillNeededCell still={c.still_need} need={c.needed} />
+                      {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+                    </>
                   )}
                 </td>
                 <td>
@@ -3597,7 +3568,6 @@ function CardTable({
       </div>
 
       <div className="mobile-card-list">
-        {altModeRow}
         {cards.map((c) => (
           <MobileCard
             key={`${c.section}-${c.card_id}`}
@@ -3609,9 +3579,12 @@ function CardTable({
             imageProductId={shownProductId(c)}
             cost={c.cost}
             rarity={c.rarity}
-            meta={[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""]
-              .filter(Boolean)
-              .join(" · ")}
+            meta={
+              <>
+                {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
+              </>
+            }
             info={
               <>
                 <div className="mobile-card-price-row">
@@ -4140,7 +4113,6 @@ function DeckDetailPage() {
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
-  const [altMode, setAltMode] = useAltStepperMode();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   // Wide enough for the dock column: the editor takes that column (sticky) while editing, stats move to the pill.
@@ -4689,10 +4661,7 @@ function DeckDetailPage() {
         onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
         onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
-        altMode={altMode}
-        onAltModeChange={setAltMode}
         onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
-        showAltModeRow
       />
       {additional.length > 0 && (
         <>
@@ -4710,8 +4679,6 @@ function DeckDetailPage() {
             onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
             onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
-            altMode={altMode}
-            onAltModeChange={setAltMode}
             onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
           />
         </>
@@ -4740,8 +4707,6 @@ function DeckDetailPage() {
           onAltOwnedChange={(cardId, productId, qty) => void changeAltOwned(cardId, productId, qty)}
           onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
-          altMode={altMode}
-          onAltModeChange={setAltMode}
           onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
         />
       )}

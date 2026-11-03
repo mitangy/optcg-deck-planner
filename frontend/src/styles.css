@@ -6714,17 +6714,6 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
-/* Base tile in Buy mode: read-only "Buy ×N", same height as the stepper it replaces. */
-.alt-buy-base {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  min-height: 1.9rem;
-  margin-top: 0.1rem;
-}
-
 /* Photo scan review tray (Collection). The dialog keeps one fixed height while
    reviewing, so editing rows never resizes it; only the list scrolls and the
    footer stays pinned. */
@@ -8358,61 +8347,216 @@ button.ghost.scan-tray-fix {
   text-decoration: underline;
 }
 
-/* Owned | Buy switch for the alt-art steppers (#906). Fixed size: toggling never moves anything. */
-.alt-mode-switch {
-  display: inline-flex;
-  flex: none;
-  vertical-align: middle;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  overflow: hidden;
-  font-weight: 650;
+/* Buy split (#906): the still-needed price is the control that splits the buy between the base
+   art and alt arts. The plain variant (no alts, or nothing left to buy) is the same box, so
+   rows never shift between the two. */
+.buy-split {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
 }
 
-.alt-mode-btn {
-  width: 3.4rem;
+.buy-split-pop {
+  display: inline-block;
+}
+
+.buy-split-box {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  box-sizing: border-box;
+  max-width: 100%;
   min-height: 1.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+  margin: 0;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
+}
+
+.buy-split-btn {
+  border-color: var(--line);
+  background: var(--card);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
-.alt-mode-btn[aria-pressed="true"] {
-  background: var(--primary-bg);
-  color: var(--primary-ink);
+.buy-split-btn:hover,
+.buy-split-btn[data-open] {
+  border-color: var(--gold);
 }
 
-.alt-mode-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  min-width: 0;
-  margin: 0 0 0.6rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-/* In a header cell the switch sits under the label, so it never widens the column. */
-th .alt-mode-switch {
-  display: flex;
-  width: max-content;
-  margin-top: 0.3rem;
-}
-
-/* "1 alt + 1 base" under the Remaining amount. */
-.remaining-split {
-  display: block;
+.buy-split-caption {
   font-size: 0.68rem;
   font-weight: 650;
   line-height: 1.1;
   color: var(--muted);
+}
+
+.buy-split-chevron {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.buy-split-panel {
+  z-index: 90;
+  width: min(21rem, calc(100vw - 16px));
+  max-height: min(28rem, calc(100dvh - 1rem));
+  overflow: auto;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
+  color: var(--ink);
+  text-align: left;
+}
+
+.buy-split-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.buy-split-rows {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.buy-split-row {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.buy-split-thumb {
+  display: block;
+  width: 2.25rem;
+}
+
+.buy-split-thumb .thumb {
+  width: 2.25rem;
+  height: auto;
+}
+
+.buy-split-art {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.buy-split-art-name {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.buy-split-art-price {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.buy-split-stepper {
+  gap: 0.15rem;
+}
+
+.buy-split-stepper .owned-btn {
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.05rem;
+}
+
+.buy-split-stepper .owned-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.buy-split-stepper .owned-btn[aria-disabled="true"]:hover {
+  border-color: var(--line);
+}
+
+.buy-split-qty {
+  min-width: 1.6rem;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Base is read-only: it takes whatever the alts leave. Same width as a stepper so the rows line up. */
+.buy-split-base-qty {
+  min-width: 5.3rem;
+  text-align: right;
+  padding-right: 0.55rem;
+}
+
+.buy-split-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0.75rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phone: a bottom sheet pinned to the screen's bottom edge with 44px tap targets. */
+.buy-split-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: auto;
+  max-height: 80dvh;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 16px 16px 0 0;
+  border-bottom: 0;
+}
+
+.buy-split-sheet .buy-split-stepper .owned-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.buy-split-sheet .buy-split-row {
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+}
+
+.buy-split-sheet .buy-split-thumb,
+.buy-split-sheet .buy-split-thumb .thumb {
+  width: 2.75rem;
+}
+
+.buy-split-sheet .buy-split-base-qty {
+  min-width: 7.1rem;
+}
+
+/* The trigger sits on its own line under a count or a meta line. */
+.buy-split-line {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+/* In the desktop table the amount's box is as wide as its caption ("1 alt + 1 base"), so a pick never widens the column. */
+.desktop-table .buy-split-box {
+  min-width: 6.4rem;
+}
+
+@media (max-width: 800px) {
+  .buy-split-box {
+    min-height: 2.75rem;
+  }
 }

@@ -310,7 +310,7 @@ test("alt arts sit in the list's own last column and the table still fits beside
   test.skip(testInfo.project.name !== "desktop-1200", "the table layout is desktop only");
   const check = async (label: string) => {
     const table = page.locator(".desktop-table table");
-    await expect(table.locator("thead th").last()).toContainText("Alt arts");
+    await expect(table.locator("thead th").last()).toHaveText("Alt arts");
     const g = await table.evaluate((t) => {
       const wrap = t.parentElement!;
       const rowOf = (id: string) => t.querySelector(`[data-card-id="${id}"]`)!;

@@ -27,7 +27,7 @@ for (const list of LISTS) {
     test.skip(testInfo.project.name !== "desktop-1200", "the table is desktop only");
     await planner.open(list.path);
     const table = page.locator(".desktop-table table");
-    await expect(table.locator("thead th").last()).toContainText("Alt arts");
+    await expect(table.locator("thead th").last()).toHaveText("Alt arts");
     const geometry = await table.evaluate((t, ids) => {
       const rows = [...t.querySelectorAll("tbody tr")].filter((r) => ids.some((id) => r.textContent?.includes(id)));
       const wrap = t.parentElement!;
@@ -181,7 +181,7 @@ for (const list of LISTS) {
       await page.setViewportSize({ width, height: 900 });
       await planner.open(list.path);
       const table = page.locator(".desktop-table");
-      await expect(table.locator("thead th").last()).toContainText("Alt arts");
+      await expect(table.locator("thead th").last()).toHaveText("Alt arts");
       const fit = await table.evaluate((w) => ({ scroll: w.scrollWidth, client: w.clientWidth }));
       expect(fit.scroll, `${list.name} at ${width}px`).toBeLessThanOrEqual(fit.client);
     }
