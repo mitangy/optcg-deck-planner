@@ -125,7 +125,7 @@ export function AltStepper({
         >
           −
         </button>
-        <span className="alt-want-qty" aria-label={`${name} ${verb === "owned" ? "owned" : "wanted"}`}>
+        <span className="alt-want-qty" aria-label={`${name} ${verb === "owned" ? "owned" : verb === "buy" ? "to buy" : "wanted"}`}>
           {value}
         </span>
         <button
@@ -157,6 +157,8 @@ export function AltArtsRow({
   editable = false,
   onOwnedChange,
   onWantChange,
+  onBuyChange,
+  stillNeed = 0,
   busyProductId = null,
   base = null,
   baseOwnedControl,
@@ -174,6 +176,14 @@ export function AltArtsRow({
   editable?: boolean;
   onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
+  /**
+   * Planner Buy mode (#906): every alt stepper edits how many still-needed
+   * copies to buy of that art, and the Base tile shows what is left as "Buy ×N".
+   * Takes the place of the Owned steppers.
+   */
+  onBuyChange?: (productId: number, qty: number) => void;
+  /** Buy mode: copies still needed (Need − owned), the pool the picks come out of. */
+  stillNeed?: number;
   busyProductId?: number | null;
   base?: BaseArt | null;
   /** Owned stepper for the base count, shown inside the Base tile. */
@@ -191,6 +201,12 @@ export function AltArtsRow({
   if (!list.length) return <span className="muted">—</span>;
   const wantSum = list.reduce((s, a) => s + (a.wanted ?? 0), 0);
   const atCap = cardNeeded != null && wantSum >= cardNeeded;
+  const buyMode = editable && Boolean(onBuyChange);
+  const baseBuy = Math.max(0, stillNeed - wantSum);
+  const buyBlockedTitle =
+    stillNeed <= 0
+      ? "Nothing left to buy"
+      : `All ${stillNeed} still-needed ${stillNeed === 1 ? "copy is" : "copies are"} already picked`;
   const shown = shownProductId ?? 0;
   const showControl = (productId: number, name: string) =>
     onShow ? (
@@ -215,7 +231,13 @@ export function AltArtsRow({
           <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} productId={0} />
           <div className="alt-meta">
             <MarketPrice price={base.market_price} productId={base.product_id} />
-            {baseOwnedControl}
+            {buyMode ? (
+              <span className="alt-buy-base" title="Still-needed copies you buy as the base art">
+                <span className="alt-want-label">Buy ×{baseBuy}</span>
+              </span>
+            ) : (
+              baseOwnedControl
+            )}
             <span className="alt-base-label">Base</span>
             {showControl(0, `${base.name} base art`)}
           </div>
@@ -231,7 +253,18 @@ export function AltArtsRow({
             <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} productId={alt.product_id} />
             <div className="alt-meta">
               <MarketPrice price={alt.market_price} productId={alt.product_id} />
-              {editable && onOwnedChange ? (
+              {buyMode && onBuyChange ? (
+                <AltStepper
+                  caption="Buy"
+                  verb="buy"
+                  name={alt.name}
+                  value={wanted}
+                  busy={busy}
+                  disableInc={baseBuy <= 0}
+                  incTitle={baseBuy <= 0 ? buyBlockedTitle : undefined}
+                  onChange={(qty) => onBuyChange(alt.product_id, qty)}
+                />
+              ) : editable && onOwnedChange ? (
                 <AltStepper
                   caption="Owned"
                   verb="owned"
