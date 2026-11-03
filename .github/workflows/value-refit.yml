@@ -1,0 +1,112 @@
+name: Value model refit
+
+# Weekly (#915): refit the learned win-chance model (packages/rules/src/bot/valueWeights.json) on the last week of
+# Hard vs Hard self-play games (the `selfplay-games` artifact of bot-selfplay.yml) and open a PR when the new model
+# beats the committed one on held-out games. fitValue.ts --gate decides; otherwise the job ends green with the report.
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  issues: write
+
+concurrency:
+  group: value-refit
+  cancel-in-progress: false
+
+jobs:
+  refit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Download last week's self-play games
+        run: |
+          mkdir -p games
+          for ID in $(gh run list --workflow bot-selfplay.yml --branch main --status success --limit 7 --json databaseId --jq '.[].databaseId'); do
+            gh run download "$ID" -n selfplay-games -D "games/$ID" || echo "run $ID has no selfplay-games artifact (expired or empty); skipping"
+          done
+          echo "Downloaded $(find games -name '*.jsonl' | wc -l) game files."
+      - name: Refit and compare
+        id: fit
+        run: |
+          npm run fit-value -w @optcg/rules -- --in "$PWD/games" \
+            --compare "$PWD/packages/rules/src/bot/valueWeights.json" --gate \
+            --out "$PWD/packages/rules/src/bot/valueWeights.json" --report "$PWD/report.json"
+          ACCEPT=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("report.json","utf8")).accept)')
+          echo "accept=$ACCEPT" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Value model refit"
+            echo '```json'
+            cat report.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Not accepted
+        if: ${{ steps.fit.outputs.accept != 'true' }}
+        run: echo "The refit did not beat the committed weights (or there were too few games); nothing to do. See the report above." | tee -a "$GITHUB_STEP_SUMMARY"
+      # PRs opened with GITHUB_TOKEN do not start CI by themselves, which is why the rules tests run here first.
+      - name: Rules tests on the new weights
+        id: tests
+        if: ${{ steps.fit.outputs.accept == 'true' }}
+        continue-on-error: true
+        run: npm test -w @optcg/rules
+      - name: Open an issue when the new weights break the rules tests
+        if: ${{ steps.fit.outputs.accept == 'true' && steps.tests.outcome == 'failure' }}
+        run: |
+          {
+            echo "The weekly value model refit (#915) found a better model, but \`npm test -w @optcg/rules\` fails with it, so no PR was opened."
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```json'
+            cat report.json
+            echo '```'
+          } > issue.md
+          gh issue create --title "Value model refit: new weights fail the rules tests" --body-file issue.md
+      - name: Open a PR with the new weights
+        if: ${{ steps.fit.outputs.accept == 'true' && steps.tests.outcome == 'success' }}
+        run: |
+          BRANCH="bot/value-refit-$(date -u +%F)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add packages/rules/src/bot/valueWeights.json
+          git commit -m "Refit the value model on last week's self-play games (#915)"
+          git push origin "$BRANCH"
+          {
+            echo "Made by the weekly value model refit (#915) from the last week of Hard vs Hard self-play games. The rules tests passed in the refit job; CI does not start on PRs opened with the workflow token, so push an empty commit or close and reopen to run it."
+            echo
+            node -e '
+              const r = JSON.parse(require("fs").readFileSync("report.json", "utf8"));
+              const f = (n) => (typeof n === "number" ? n.toFixed(4) : "stale");
+              console.log("| | Held-out log-loss | Held-out accuracy |\n|---|---|---|");
+              console.log(`| Committed weights | ${f(r.current.logLoss)} | ${f(r.current.accuracy)} |`);
+              console.log(`| This refit | ${f(r.candidate.logLoss)} | ${f(r.candidate.accuracy)} |`);
+              console.log(`\n${r.games} games, ${r.heldOutSamples} held-out samples (split by game). Decision: ${r.reason}.`);
+            '
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > pr-body.md
+          if ! gh pr create --base main --head "$BRANCH" --title "Refit the value model on last week's self-play games" --body-file pr-body.md; then
+            # Actions may not be allowed to create pull requests in this repository; leave the branch and say so.
+            {
+              echo "The weekly value model refit (#915) pushed \`$BRANCH\` but could not open a PR."
+              echo
+              echo "Compare: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$BRANCH?expand=1"
+              echo
+              cat pr-body.md
+            } > issue.md
+            gh issue create --title "Value model refit ready: $BRANCH" --body-file issue.md
+          fi
