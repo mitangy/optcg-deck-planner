@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "duel", pr: 916, title: "Log Pose learns from bot games", text: "Log Pose now checks bot simulation results when you ask about a matchup or a leader, and shares tips from bot games once they have been reviewed. Its win chance estimates are also refreshed each week from the latest bot games." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Usernames in the planner", text: "Group buys and shared lists now show people by their Duel username. Anyone without a username still shows the way they did before." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Who-wants names fit on one line", text: "On group buy art tiles, the names of who wants each art now sit on one line under the picture instead of wrapping." },
   { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
