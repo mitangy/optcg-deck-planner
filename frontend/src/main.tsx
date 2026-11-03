@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./analytics";
 import App from "./App";
 import { startUpdateChecks } from "./appVersion";
@@ -15,6 +16,8 @@ import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 import "./friends/friends.css";
 
+// Before routing can rewrite the URL: remember where a new visitor came from (#905).
+captureFirstTouch();
 startUpdateChecks();
 
 const queryClient = new QueryClient({

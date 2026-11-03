@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import urlparse
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -45,8 +47,44 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _username_rate = RateLimiter(max_calls=20, period_s=60, name="auth_username_rate")
 
 
+_SOURCE_CAPS = {"ref": 80, "land": 100, "utm_source": 60, "utm_medium": 60, "utm_campaign": 60}
+# An account counts as brand new (so its sign-in is its first touch) for this long.
+_NEW_ACCOUNT_WINDOW = timedelta(hours=1)
+
+
+class SignupSource(BaseModel):
+    """First-touch source sent by the client at sign-in (#905).
+
+    Every field is optional and cut to its cap (never rejected: a long value
+    must not fail a sign-in). Control characters are stripped; unknown fields
+    are ignored.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    ref: str | None = None
+    land: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+
+    @field_validator("ref", "land", "utm_source", "utm_medium", "utm_campaign", mode="before")
+    @classmethod
+    def _clean(cls, v: object, info) -> str | None:
+        if not isinstance(v, str):
+            return None
+        cleaned = "".join(ch for ch in v if ch.isprintable()).strip()
+        return cleaned[: _SOURCE_CAPS[info.field_name]] or None
+
+    def compact_json(self) -> str:
+        return json.dumps(
+            {k: v for k, v in self.model_dump().items() if v}, ensure_ascii=False, separators=(",", ":")
+        )
+
+
 class ClaimBody(BaseModel):
     ticket: str = Field(min_length=1)
+    source: SignupSource | None = None
 
 
 def _oauth_api_base(settings: Settings, return_to: str | None) -> str:
@@ -273,8 +311,25 @@ def claim_login(
         raise HTTPException(status_code=400, detail="User not found")
     if is_banned(user):
         raise HTTPException(status_code=403, detail="Account banned")
+    _record_signup_source(db, user, body.source)
     _set_session_cookie(response, user, settings)
     return user
+
+
+def _record_signup_source(db: Session, user: User, source: SignupSource | None) -> None:
+    """Save where a brand-new account came from; returning users are never relabelled (#905).
+
+    NULL stays "unknown" (signed up before tracking); "{}" means direct.
+    """
+    if user.signup_source is not None or user.created_at is None:
+        return
+    created = user.created_at
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) - created > _NEW_ACCOUNT_WINDOW:
+        return
+    user.signup_source = source.compact_json() if source is not None else "{}"
+    db.commit()
 
 
 @router.post("/logout")

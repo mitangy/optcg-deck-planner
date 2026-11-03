@@ -277,6 +277,75 @@ def test_a_banned_account_cannot_claim_a_login_ticket_667(api):
     assert r.status_code == 403 and SESSION_COOKIE not in r.cookies
 
 
+def _claim(c, S, uid: int, source=None):
+    with S() as db:
+        ticket = create_login_ticket(db, uid, get_settings())
+    body = {"ticket": ticket} if source is None else {"ticket": ticket, "source": source}
+    r = c.post("/auth/claim", json=body)
+    assert r.status_code == 200
+    with S() as db:
+        return db.get(User, uid).signup_source
+
+
+def test_a_new_accounts_first_touch_source_is_saved_at_sign_in_905(api):
+    c, S = api
+    uid = mk(S, "fresh@x.test", created_at=NOW - timedelta(minutes=2))
+    saved = _claim(c, S, uid, {"ref": "google.com", "land": "/decks", "utm_source": "ig", "bogus": "x"})
+    assert json.loads(saved) == {"ref": "google.com", "land": "/decks", "utm_source": "ig"}
+
+
+def test_a_returning_account_is_never_given_a_source_at_sign_in_905(api):
+    c, S = api
+    uid = mk(S, "old@x.test", created_at=NOW - timedelta(hours=2))
+    assert _claim(c, S, uid, {"ref": "google.com"}) is None
+
+
+def test_a_saved_source_is_not_overwritten_by_a_later_sign_in_905(api):
+    c, S = api
+    uid = mk(S, "twice@x.test", created_at=NOW - timedelta(minutes=2))
+    _claim(c, S, uid, {"ref": "google.com"})
+    saved = _claim(c, S, uid, {"ref": "reddit.com"})
+    assert json.loads(saved) == {"ref": "google.com"}
+
+
+def test_a_new_account_with_no_source_is_recorded_as_direct_905(api):
+    c, S = api
+    uid = mk(S, "direct@x.test", created_at=NOW - timedelta(minutes=2))
+    assert _claim(c, S, uid) == "{}"
+
+
+def test_an_oversized_or_dirty_source_is_cut_down_not_rejected_905(api):
+    c, S = api
+    uid = mk(S, "long@x.test", created_at=NOW - timedelta(minutes=2))
+    saved = json.loads(_claim(c, S, uid, {"ref": "a" * 500, "utm_campaign": "ad\x00\n-" + "z" * 200, "land": 7}))
+    assert saved["ref"] == "a" * 80
+    assert saved["utm_campaign"] == "ad-" + "z" * 57
+    assert "land" not in saved
+
+
+def test_the_admin_user_list_shows_each_accounts_source_or_null_when_unknown_905(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    tracked = mk(S, "t@x.test", signup_source='{"ref":"google.com"}')
+    direct = mk(S, "d@x.test", signup_source="{}")
+    unknown = mk(S, "u@x.test")
+    login(c, S, admin)
+    rows = {u["id"]: u["signup_source"] for u in c.get("/admin/users").json()["users"]}
+    assert rows[tracked] == {"ref": "google.com"} and rows[direct] == {} and rows[unknown] is None
+
+
+def test_startup_adds_the_signup_source_column_to_an_existing_users_table_905(monkeypatch):
+    engine = make_bare_engine()
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL)"))
+        conn.execute(text("INSERT INTO users (id, email) VALUES (1, 'a@x.test')"))
+    monkeypatch.setattr(app_db, "engine", engine)
+    app_db._ensure_user_signup_source()
+    app_db._ensure_user_signup_source()
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT signup_source FROM users")).all() == [(None,)]
+
+
 def test_a_banned_google_sign_in_is_sent_back_with_an_error_and_no_ticket_667(api, monkeypatch: pytest.MonkeyPatch):
     c, S = api
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "cid")

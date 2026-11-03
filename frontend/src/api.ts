@@ -1,3 +1,4 @@
+import { readFirstTouch } from "@optcg/ui/firstTouch";
 const configured = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
 // Local: hit uvicorn directly, on whichever host the page itself was loaded
 // from — not a fixed address. A static VITE_API_URL forces every page load to
@@ -559,7 +560,10 @@ export const api = {
   updatePreferences: (body: { sum_across_leaders?: boolean; share_scans?: boolean }) =>
     request<User>("/preferences", { method: "PATCH", body: JSON.stringify(body) }),
   claim: (ticket: string) =>
-    request<User>("/auth/claim", { method: "POST", body: JSON.stringify({ ticket }) }),
+    request<User>("/auth/claim", {
+      method: "POST",
+      body: JSON.stringify({ ticket, source: readFirstTouch() }),
+    }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),
   googleLoginUrl: () => `${API_URL}/auth/google`,
   metaLeaders: (days: number) => request<MetaLeadersResponse>(`/meta/leaders?days=${days}`),

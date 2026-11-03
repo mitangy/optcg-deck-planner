@@ -1,4 +1,4 @@
-import type { UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
 
 export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
 
@@ -28,6 +28,18 @@ export function canBanUser(actor: { id: number; role: Role }, target: Pick<Admin
   if (actor.id === target.id || target.role === "admin") return false;
   if (actor.role === "admin") return true;
   return actor.role === "moderator" && target.role === "user";
+}
+
+/**
+ * How a new account found us, for the Users tab (#905). `text` is the short label; `title` adds the landing path.
+ * A null source is an account from before tracking ("—"); an empty one is a direct visit.
+ */
+export function formatSignupSource(src: SignupSource | null | undefined): { text: string; title: string } {
+  if (!src) return { text: "—", title: "Source unknown (signed up before tracking)" };
+  const utm = [src.utm_source, src.utm_medium, src.utm_campaign].filter(Boolean).join(" / ");
+  const text = utm ? `utm: ${utm}` : src.ref || "direct";
+  const parts = [src.ref && utm ? `from ${src.ref}` : "", src.land ? `landed on ${src.land}` : ""].filter(Boolean);
+  return { text, title: parts.length ? `${text} (${parts.join(", ")})` : text };
 }
 
 /** Only the admin deletes, and never themselves. */

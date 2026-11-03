@@ -468,6 +468,17 @@ def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refr
 
 # ---------------------------------------------------------------- users
 
+def _parse_signup_source(raw: str | None) -> dict | None:
+    """The stored first-touch source, or None when unknown (#905)."""
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
 def _user_row(u: User, matches: int = 0, last_match_at: datetime | None = None) -> dict:
     return {
         "id": u.id,
@@ -478,6 +489,7 @@ def _user_row(u: User, matches: int = 0, last_match_at: datetime | None = None) 
         "created_at": _iso(u.created_at),
         "banned_at": _iso(u.banned_at),
         "ban_reason": u.ban_reason,
+        "signup_source": _parse_signup_source(u.signup_source),
         "matches": matches,
         "last_match_at": _iso(last_match_at),
     }
