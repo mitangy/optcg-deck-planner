@@ -85,7 +85,7 @@ def test_lowering_need_auto_clamps_alt_wants(db):
     assert all(a.wanted == 0 for a in detail.cards[0].alt_arts)
 
 
-def test_shopping_merges_max_alt_wants_but_prices_standard_only_625(db):
+def test_shopping_merges_max_alt_wants_across_decks_625(db):
     user = make_user(db, email="c@t.com", name="C", sub="c")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.2)
     add_catalog(db, "OP01-016", name="Nami", product_id=100, market=18.0, special=True)
@@ -100,14 +100,33 @@ def test_shopping_merges_max_alt_wants_but_prices_standard_only_625(db):
     assert item.still_need == 4
     aa = next(a for a in item.alt_arts if a.product_id == 100)
     assert aa.wanted == 2  # max across decks
-    # Wants no longer steer planner cost: everything still needed is standard.
-    assert item.remaining_cost == round(4 * 1.2, 2)
+    # 2 picked alt copies at 18.0 + 2 standard copies at 1.2 (#906).
+    assert item.remaining_cost == round(2 * 18.0 + 2 * 1.2, 2)
 
     set_owned(db, user, "OP01-016", 3)
     shop = shopping_list(db, user)
     item = next(i for i in shop.items if i.card_id == "OP01-016")
     assert item.still_need == 1
-    assert item.remaining_cost == 1.2
+    # Only one copy left to buy: it is the picked alt, not the standard art.
+    assert item.remaining_cost == 18.0
+
+
+def test_shopping_remaining_prices_picked_alt_copies_at_alt_price_906(db):
+    from app.services import set_user_card_printing
+
+    user = make_user(db, email="buy906@t.com", name="B", sub="buy906")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
+    add_catalog(db, "OP01-016", name="Nami", product_id=100, market=10.0, special=True)
+    add_deck_with_cards(db, user, "A", {"OP01-016": 3})
+
+    shop = shopping_list(db, user)
+    assert shop.items[0].remaining_cost == 3.0
+    assert shop.remaining_market == 3.0
+
+    set_user_card_printing(db, user, "OP01-016", 100, 1)
+    shop = shopping_list(db, user)
+    assert shop.items[0].remaining_cost == 12.0  # 1 alt at 10 + 2 base at 1
+    assert shop.remaining_market == 12.0
 
 
 def test_set_user_card_printing_syncs_across_decks(db):
@@ -193,7 +212,7 @@ def test_set_user_card_printing_splits_across_leaders_when_summing(db):
     item, wanted = _shop_alt_want(db, user, "OP01-016", 100)
     assert wanted == 5
     assert _alt_rows(db, "OP01-016") == {luffy_a.id: 4, luffy_b.id: 2, sabo.id: 1}
-    assert item.remaining_cost == 7.0  # wants no longer change planner cost (#625)
+    assert item.remaining_cost == 5 * 10.0 + 2 * 1.0  # 5 picked alts + 2 base (#906)
 
     # Asking for more than fits caps at the combined Need.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 99)

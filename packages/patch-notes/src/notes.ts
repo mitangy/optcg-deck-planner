@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-03
+  { date: "2026-11-03", app: "planner", pr: 908, title: "Choose which alt arts to buy", text: "On Master Shopping and your deck pages, the price of the copies you still need is now a button for cards with alt arts. It opens \"Buy your N copies as…\" where you pick how many to buy as each alt art and how many as the base art, with a live total. The price then shows the split, like 1 alt + 1 base, alt tiles show Buy ×N, and Remaining and Est. cost use each art's own price." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Usernames in the planner", text: "Group buys and shared lists now show people by their Duel username. Anyone without a username still shows the way they did before." },
   { date: "2026-11-03", app: "planner", pr: 904, title: "Who-wants names fit on one line", text: "On group buy art tiles, the names of who wants each art now sit on one line under the picture instead of wrapping." },
   { date: "2026-11-03", app: "planner", pr: 899, title: "Easier-to-read member colours in group buys", text: "The coloured bar showing who wants each group buy card now runs the full height of the card, in List and Grid, and each member's colour has an outline so neighbouring colours are easy to tell apart." },
