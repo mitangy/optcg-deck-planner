@@ -47,6 +47,7 @@ const SUITES = {
   cosmetics: require("./suites/cosmetics.cjs"),
   "preview-art": require("./suites/preview-art.cjs"),
   "alt-arts": require("./suites/alt-arts.cjs"),
+  "price-backfill": require("./suites/price-backfill.cjs"),
   "duel-e2e": require("./suites/duel-e2e.cjs"),
   "frontend-e2e": require("./suites/frontend-e2e.cjs"),
   ci: require("./suites/ci.cjs"),
