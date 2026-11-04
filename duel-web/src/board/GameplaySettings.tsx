@@ -164,6 +164,11 @@ const TOGGLES: Toggle[] = [
     label: "Sounds",
     hint: "A chime on your turn, plus short sounds for plays, attacks, K.O.s and more. Works on iPhone too.",
   },
+  {
+    key: "spectatorSound",
+    label: "Sound while watching",
+    hint: "Game sounds while you spectate a match. Off keeps watching tabs quiet. Needs Sounds on.",
+  },
 ];
 
 type ShowToggle = { key: ShowKey; label: string; hint: string };
@@ -238,7 +243,7 @@ function jumpToGroup(id: GroupId) {
 }
 
 /** Gameplay preferences; saved in this browser and applied live. */
-export function GameplaySettingsFields() {
+export function GameplaySettingsFields({ spectating = false }: { spectating?: boolean } = {}) {
   const settings = useDuelSettings();
   const lockNote = useLockNote(settings.screenOrientation);
   // Phones and tall windows keep the flat board, so the switch would do nothing there.
@@ -257,7 +262,7 @@ export function GameplaySettingsFields() {
         {note}
       </p>
     ) : null;
-  const groups = visibleGroups(device);
+  const groups = visibleGroups(device, undefined, { spectating });
   const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
 
   function renderRow(key: RowKey): ReactNode {
@@ -562,6 +567,11 @@ export function GameplaySettingsFields() {
 
   return (
     <div className="gameplay-settings">
+      {spectating ? (
+        <p className="field-hint">
+          Settings for playing your own turns are hidden while you watch. Change them from Settings.
+        </p>
+      ) : null}
       <nav className="settings-group-jump" aria-label="Gameplay sections">
         {groups.map((g) => (
           <button
@@ -594,7 +604,7 @@ export function GameplaySettingsFields() {
 }
 
 /** In-match sheet so settings change without leaving the game. */
-export function GameplaySettingsSheet({ onClose }: { onClose: () => void }) {
+export function GameplaySettingsSheet({ onClose, spectating = false }: { onClose: () => void; spectating?: boolean }) {
   return (
     <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Gameplay settings">
       <div className="sheet-head">
@@ -604,7 +614,7 @@ export function GameplaySettingsSheet({ onClose }: { onClose: () => void }) {
           ✕
         </button>
       </div>
-      <GameplaySettingsFields />
+      <GameplaySettingsFields spectating={spectating} />
     </Dialog>
   );
 }

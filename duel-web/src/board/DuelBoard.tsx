@@ -137,7 +137,7 @@ import { actionKeyTags, stepHandSelection } from "./hotkeys";
 import { useBoardHotkeys, useConfirmButtonKey } from "./useBoardHotkeys";
 import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
 import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
-import { useGameSfx } from "./sfx";
+import { gameSfxMuted, useGameSfx } from "./sfx";
 import { useSoundCues } from "./soundCues";
 import { buzz } from "./haptics";
 import {
@@ -825,7 +825,11 @@ export function DuelBoard({
     sound: prefs.turnSound,
     spectating,
   });
-  useGameSfx(view, battleLog, { sound: prefs.turnSound, muted: Boolean(hotseatPass) || autoPass != null || replayQuiet, spectating });
+  useGameSfx(view, battleLog, {
+    sound: prefs.turnSound,
+    muted: gameSfxMuted({ quiet: Boolean(hotseatPass) || autoPass != null || replayQuiet, spectating, spectatorSound: prefs.spectatorSound }),
+    spectating,
+  });
 
   // iOS only plays sound after one started inside a gesture: unlock on the
   // first touch of the match so a later cue is allowed to play.
@@ -2379,7 +2383,7 @@ export function DuelBoard({
         </header>
       )}
 
-      {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} /> : null}
+      {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} spectating={spectating} /> : null}
 
       {helpOpen ? <HotkeyHelpSheet onClose={() => setHelpOpen(false)} /> : null}
 

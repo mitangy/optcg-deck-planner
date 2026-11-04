@@ -16,7 +16,7 @@ const SIZES = [
   { project: "phone-375", name: "phone-812x375-landscape", width: 812, height: 375 },
 ];
 
-const TITLES = ["Turns and prompts", "Hand", "Board and layout", "Visual aids", "Animations", "Sound and alerts"];
+const TITLES = ["Turns and prompts", "Hand", "Board and layout", "Visual aids", "Animations", "Sound and alerts", "Spectating"];
 
 async function shot(page: Page, name: string) {
   if (SHOT_DIR) await page.screenshot({ path: `${SHOT_DIR}/${name}.png` });
@@ -49,7 +49,7 @@ for (const size of SIZES) {
       await expect(sheet).toBeVisible();
       for (const title of TITLES) await expect(sheet.getByRole("heading", { name: title, level: 3 })).toHaveCount(1);
       const nav = sheet.getByRole("navigation", { name: "Gameplay sections" });
-      await expect(nav.getByRole("button")).toHaveCount(6);
+      await expect(nav.getByRole("button")).toHaveCount(7);
       await expect(sheet.getByText("Show on screen")).toHaveCount(1);
       await page.waitForTimeout(250);
       await shot(page, `sheet-top-${size.name}`);

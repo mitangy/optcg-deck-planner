@@ -8,6 +8,7 @@ import {
   showToggleShown,
   toggleShown,
   turnAlertCopy,
+  playerOnlyRow,
   visibleGroups,
   type FieldDevice,
   type GameplayGroup,
@@ -87,7 +88,7 @@ describe("Gameplay settings groups (#496)", () => {
     "animationSpeed", "cardSpotlight", "showOnScreen",
     "sortHandByCost", "keepHandOpen", "layoutGrips", "oneTapActions", "dimUnplayable", "shortcutTags", "handCounters",
     "cantAttackWarning", "battleArrow", "attackGlow", "compactOwnBoard", "previewBigCard", "previewPopup", "popupSize", "previewPopupSize", "donUpright", "totalPower", "oppHandTopRight",
-    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "gameHints", "reduceMotion", "turnAlert", "turnSound",
+    "tiltedBoard", "bigBoard", "actionsBeside", "turnSplash", "gameHints", "reduceMotion", "turnAlert", "turnSound", "spectatorSound",
   ];
 
   it("every gameplay switch and select belongs to exactly one group and none is dropped (#496)", () => {
@@ -98,8 +99,8 @@ describe("Gameplay settings groups (#496)", () => {
     expect(groupOf("bigBoard")).toBe("board");
   });
 
-  it("keeps the six groups in order (#496)", () => {
-    expect(GAMEPLAY_GROUPS.map((g) => g.id)).toEqual(["turns", "hand", "board", "visual", "motion", "sound"]);
+  it("keeps the seven groups in order, Spectating last (#496)", () => {
+    expect(GAMEPLAY_GROUPS.map((g) => g.id)).toEqual(["turns", "hand", "board", "visual", "motion", "sound", "spectating"]);
   });
 
   it("lists a row only in the groups where the device shows it, so phone and desktop differ (#496)", () => {
@@ -149,5 +150,40 @@ describe("gameplay rows that do nothing in this layout (#790)", () => {
   it("leaves other rows alone (#790)", () => {
     expect(rowDisabledNote("textSize", sideways, on)).toBeNull();
     expect(rowDisabledNote("sortHandByCost", sideways, on)).toBeNull();
+  });
+});
+
+describe("Spectating settings (#TBD)", () => {
+  const rowsOf = (groups: GameplayGroup[]) => groups.flatMap((g) => g.rows);
+
+  it("a spectator's sheet hides rows that only matter when playing and keeps shared ones (#TBD)", () => {
+    const watching = rowsOf(visibleGroups(desktop, GAMEPLAY_GROUPS, { spectating: true }));
+    const playing = rowsOf(visibleGroups(desktop, GAMEPLAY_GROUPS, { spectating: false }));
+    expect(playing).toContain("endTurnConfirm");
+    expect(watching).not.toContain("endTurnConfirm");
+    expect(watching).not.toContain("oneTapActions");
+    // Shared rows stay: a spectator sees the board size and hears sounds.
+    expect(watching).toContain("bigBoard");
+    expect(watching).toContain("turnSound");
+    expect(watching).toContain("handCounters");
+  });
+
+  it("puts the Spectating group first when watching and last otherwise (#TBD)", () => {
+    const watching = visibleGroups(phone, GAMEPLAY_GROUPS, { spectating: true }).map((g) => g.id);
+    const playing = visibleGroups(phone, GAMEPLAY_GROUPS, { spectating: false }).map((g) => g.id);
+    expect(watching[0]).toBe("spectating");
+    expect(playing[playing.length - 1]).toBe("spectating");
+  });
+
+  it("drops a group whose rows are all player-only while watching (#TBD)", () => {
+    const onlyPlayer: GameplayGroup = { id: "turns", title: "T", chip: "T", rows: ["endTurnConfirm", "responseStops"] };
+    expect(visibleGroups(desktop, [onlyPlayer]).map((g) => g.id)).toEqual(["turns"]);
+    expect(visibleGroups(desktop, [onlyPlayer], { spectating: true })).toEqual([]);
+  });
+
+  it("classifies player-only rows (#TBD)", () => {
+    expect(playerOnlyRow("endTurnConfirm")).toBe(true);
+    expect(playerOnlyRow("bigBoard")).toBe(false);
+    expect(playerOnlyRow("spectatorSound")).toBe(false);
   });
 });

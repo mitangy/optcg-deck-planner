@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { narrateEvents, type BattleLogEntry } from "./battleLog";
 import type { MotionCue } from "./motionCues";
-import { logSfx, mergeSfx, newLogEntries, resultSfx, viewSfx } from "./sfx";
+import { gameSfxMuted, logSfx, mergeSfx, newLogEntries, resultSfx, viewSfx } from "./sfx";
 
 const log = (...ids: string[]): BattleLogEntry[] =>
   ids.map((id) => ({ id, turn: 1, text: "x", tone: "play", important: false, segments: [] }));
@@ -108,5 +108,17 @@ describe("resultSfx", () => {
 describe("mergeSfx", () => {
   it("drops duplicates and keeps the most important three (#253)", () => {
     expect(mergeSfx(["draw", "draw", "play", "don", "attack", "ko"])).toEqual(["ko", "attack", "play"]);
+  });
+});
+
+describe("gameSfxMuted", () => {
+  it("Sound while watching off mutes a spectator but not a player (#TBD)", () => {
+    expect(gameSfxMuted({ quiet: false, spectating: true, spectatorSound: false })).toBe(true);
+    expect(gameSfxMuted({ quiet: false, spectating: true, spectatorSound: true })).toBe(false);
+    expect(gameSfxMuted({ quiet: false, spectating: false, spectatorSound: false })).toBe(false);
+  });
+
+  it("stays muted in a quiet moment whatever the spectator setting says (#TBD)", () => {
+    expect(gameSfxMuted({ quiet: true, spectating: true, spectatorSound: true })).toBe(true);
   });
 });

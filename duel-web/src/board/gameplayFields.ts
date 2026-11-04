@@ -37,7 +37,8 @@ export type ToggleKey =
   | "gameHints"
   | "reduceMotion"
   | "turnAlert"
-  | "turnSound";
+  | "turnSound"
+  | "spectatorSound";
 
 /**
  * Whether a "Show on screen" switch is listed. Card preview and Recent plays
@@ -109,7 +110,7 @@ export type SelectRowKey =
 
 export type RowKey = ToggleKey | SelectRowKey;
 
-export type GroupId = "turns" | "hand" | "board" | "visual" | "motion" | "sound";
+export type GroupId = "turns" | "hand" | "board" | "visual" | "motion" | "sound" | "spectating";
 
 export type GameplayGroup = {
   id: GroupId;
@@ -176,7 +177,52 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     chip: "Sound",
     rows: ["turnSound", "turnAlert"],
   },
+  // Settings that only apply while you watch a match. Last on the Settings page, first in a spectator's sheet.
+  {
+    id: "spectating",
+    title: "Spectating",
+    chip: "Spectating",
+    rows: ["spectatorSound"],
+  },
 ];
+
+/**
+ * Rows that change nothing a spectator sees, so the in-match sheet hides them while watching.
+ * A spectator has no hand of their own, no action buttons and no prompts (checked against DuelBoard).
+ */
+export function playerOnlyRow(key: RowKey): boolean {
+  switch (key) {
+    // The End turn button and its confirm (IntentBar / PrimaryDock) are not drawn for spectators.
+    case "endTurnConfirm":
+    // Block / counter stops pass for the player; a spectator is never asked.
+    case "responseStops":
+    // Skips the confirm tap on your own actions, Counters, Blockers and DON!!.
+    case "oneTapActions":
+    // The warning comes from your own failed attack tap.
+    case "cantAttackWarning":
+    // The opening-hand tips are skipped when spectating (mulligan step is `!spectating`).
+    case "gameHints":
+    // Spectator fans and grids pick their own layout (specFans), ignoring Hand layout.
+    case "handLayout":
+    // The hand's Sort button is not drawn for spectators.
+    case "sortHandByCost":
+    // The tucked-away hand / Hide button is not drawn for spectator fans.
+    case "keepHandOpen":
+    // Fades hand cards you can't play: spectators have no legal plays to dim.
+    case "dimUnplayable":
+    // Spectators get no side action dock (sideActions requires !spectating).
+    case "actionsBeside":
+    // Glows your attackers with a legal attack; none exist while watching (dndEnabled requires !spectating).
+    case "attackGlow":
+    // Key tags mark action buttons and the Sort button, none of which a spectator has.
+    case "shortcutTags":
+    // Vibration / tab alert fire when the game needs you (alertsOn requires !spectating).
+    case "turnAlert":
+      return true;
+    default:
+      return false;
+  }
+}
 
 /** Whether a row is listed on this device (switches follow toggleShown; the rest are always there unless noted). */
 export function rowShown(key: RowKey, d: FieldDevice): boolean {
@@ -233,11 +279,25 @@ export function rowDisabledNote(
   }
 }
 
-/** The groups that have at least one row on this device, each with only its visible rows. */
-export function visibleGroups(d: FieldDevice, groups: GameplayGroup[] = GAMEPLAY_GROUPS): GameplayGroup[] {
-  return groups.map((g) => ({ ...g, rows: g.rows.filter((r) => rowShown(r, d)) })).filter(
-    (g) => g.rows.length > 0,
-  );
+/**
+ * The groups that have at least one row on this device, each with only its visible rows. Spectating
+ * drops the rows that only matter when you play (and any group left empty) and lists the Spectating
+ * group first; otherwise the Spectating group stays last, where GAMEPLAY_GROUPS puts it.
+ */
+export function visibleGroups(
+  d: FieldDevice,
+  groups: GameplayGroup[] = GAMEPLAY_GROUPS,
+  opts: { spectating?: boolean } = {},
+): GameplayGroup[] {
+  const spectating = opts.spectating === true;
+  const shown = groups
+    .map((g) => ({
+      ...g,
+      rows: g.rows.filter((r) => rowShown(r, d) && !(spectating && playerOnlyRow(r))),
+    }))
+    .filter((g) => g.rows.length > 0);
+  if (!spectating) return shown;
+  return [...shown.filter((g) => g.id === "spectating"), ...shown.filter((g) => g.id !== "spectating")];
 }
 
 /** The group a row belongs to. */

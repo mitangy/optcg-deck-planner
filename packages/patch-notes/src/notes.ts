@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-04
+  { date: "2026-11-04", app: "duel", title: "Spectating settings", text: "Settings now has a Spectating section with a Sound while watching switch, so you can keep match sounds off while you watch. The settings sheet in a match you are watching also hides the settings for playing your own turns, and lists Spectating first." },
   // 2026-11-03
   { date: "2026-11-03", app: "duel", pr: 931, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },
   { date: "2026-11-03", app: "planner", pr: 929, title: "Market price follows the art you show", text: "On Master Shopping, when a card shows an alt art, its Market price and recent sales are now for that alt art instead of the base card." },
