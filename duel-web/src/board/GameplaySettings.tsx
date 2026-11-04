@@ -164,6 +164,11 @@ const TOGGLES: Toggle[] = [
     label: "Sounds",
     hint: "A chime on your turn, plus short sounds for plays, attacks, K.O.s and more. Works on iPhone too.",
   },
+  {
+    key: "quietWatchTabs",
+    label: "Quiet watch tabs",
+    hint: "A tab where you're spectating or watching a replay stays silent while another tab has your match open.",
+  },
 ];
 
 type ShowToggle = { key: ShowKey; label: string; hint: string };

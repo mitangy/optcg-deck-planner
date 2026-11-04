@@ -1,8 +1,8 @@
-export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "fullscreen" | "reload" | "report-player" | "report" | "hide-art" | "concede" | "leave";
+export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "fullscreen" | "mute-tab" | "reload" | "report-player" | "report" | "hide-art" | "concede" | "leave";
 
 /**
  * Which entries the phone HUD's ⋯ menu shows, in display order (destructive
- * ones last). Reload rejoins the saved match; Report a problem opens the feedback dialog. Concede is for live players only; hotseat has no room to share. Spectators can share the watch link too. Full screen is listed only when the page offers it and no toolbar button already does (`fullscreenInBar`). A replay has no room to share.
+ * ones last). Reload rejoins the saved match; Report a problem opens the feedback dialog. Concede is for live players only; hotseat has no room to share. Spectators can share the watch link too. Mute this tab is listed in every match unless the toolbar has its button (`muteInBar`). Full screen is listed only when the page offers it and no toolbar button already does (`fullscreenInBar`). A replay has no room to share.
  */
 export function matchMenuItems(o: {
   spectating: boolean;
@@ -11,6 +11,8 @@ export function matchMenuItems(o: {
   fullscreenOffered: boolean;
   /** The Full screen button sits in the toolbar itself (the computer's action row), so the menu leaves it out. */
   fullscreenInBar?: boolean;
+  /** The Mute this tab button sits in the toolbar itself (the computer's bars), so the menu leaves it out (#934). */
+  muteInBar?: boolean;
   canConcede: boolean;
   /** A recorded game: there is no room to share and nothing to concede. */
   replay?: boolean;
@@ -23,6 +25,8 @@ export function matchMenuItems(o: {
   if (!o.hotseat) items.push("copy-room", "copy-spectate");
   items.push("settings");
   if (o.fullscreenOffered && !o.fullscreenInBar) items.push("fullscreen");
+  // Every match, spectating and replays included: a watch tab is the one that needs it (#934).
+  if (!o.muteInBar) items.push("mute-tab");
   // A Home Screen app has no browser reload button or pull-to-refresh.
   items.push("reload");
   if (o.canReportPlayer && !o.replay) items.push("report-player");

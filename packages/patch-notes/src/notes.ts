@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-04
+  { date: "2026-11-04", app: "duel", pr: 934, title: "Mute one tab", text: "A new Mute this tab button (or the M key) silences the sounds in just that tab, so a game you spectate no longer clashes with the one you play. Spectator and replay tabs also stay quiet on their own while another tab has your match open; turn that off with Quiet watch tabs in Gameplay settings." },
   // 2026-11-03
   { date: "2026-11-03", app: "duel", pr: 931, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },
   { date: "2026-11-03", app: "planner", pr: 929, title: "Market price follows the art you show", text: "On Master Shopping, when a card shows an alt art, its Market price and recent sales are now for that alt art instead of the base card." },

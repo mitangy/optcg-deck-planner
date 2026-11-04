@@ -12,6 +12,8 @@ type Props = {
   info: { matchup: string | null; seat: string | null; order: string };
   roomId: string | null;
   isFullscreen: boolean;
+  /** Mute this tab (#934): `silenced` is the current state. */
+  tabMute: { silenced: boolean; label: string; title: string; onToggle: () => void };
   leaveLabel?: string;
   onSettings: () => void;
   onToggleFullscreen: () => void;
@@ -50,6 +52,7 @@ export function MatchMenu({
   info,
   roomId,
   isFullscreen,
+  tabMute,
   leaveLabel = "Leave match",
   onSettings,
   onToggleFullscreen,
@@ -152,6 +155,20 @@ export function MatchMenu({
                         onClick={onToggleFullscreen}
                       >
                         {isFullscreen ? "Exit full screen" : "Full screen"}
+                      </button>
+                    </MenuItem>
+                  );
+                case "mute-tab":
+                  return (
+                    <MenuItem key={id}>
+                      <button
+                        type="button"
+                        className="match-menu-item"
+                        aria-pressed={tabMute.silenced}
+                        title={tabMute.title}
+                        onClick={tabMute.onToggle}
+                      >
+                        {tabMute.label}
                       </button>
                     </MenuItem>
                   );
