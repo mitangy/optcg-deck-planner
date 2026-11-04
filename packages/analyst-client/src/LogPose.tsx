@@ -133,6 +133,8 @@ type LogPoseValue = {
   setPage: (owner: object, page: LogPosePage | null) => void;
   /** Registers the deck the page has open, so Apply cards for it can save changes. */
   setEditor: (owner: object, editor: DeckEditor | null) => void;
+  /** Registers an element the panel renders into while it is set (a modal that would make the panel inert). */
+  setLayer: (owner: object, el: HTMLElement | null) => void;
   /** Registers the live game the page has open. */
   setGame: (owner: object, game: LogPoseGame | null) => void;
   /** Opens the panel. `quiet` keeps the keyboard where it is (the composer isn't focused), for a panel that opens by itself. */
@@ -173,6 +175,7 @@ const LogPoseContext = createContext<LogPoseValue>({
   session: fallbackSession,
   setPage: () => {},
   setEditor: () => {},
+  setLayer: () => {},
   setGame: () => {},
   openPanel: () => {},
   closePanel: () => {},
@@ -221,6 +224,20 @@ export function useLogPoseDeckEditor(editor: DeckEditor | null) {
     setEditor(owner, editor);
     return () => setEditor(owner, null);
   }, [editor, owner, setEditor]);
+}
+
+/**
+ * Lets the panel open inside a modal (e.g. an enlarged card) instead of behind it: while `el` is set, the panel
+ * renders into it, so the modal's focus trap and inert page leave it usable. Escape closes the panel before the modal.
+ * The panel sets `html[data-lp-layer]` (the side it is on) and `--lp-layer-w` (its width) so the modal can make room.
+ */
+export function useLogPoseLayer(el: HTMLElement | null) {
+  const { setLayer } = useContext(LogPoseContext);
+  const owner = useRef({}).current;
+  useEffect(() => {
+    setLayer(owner, el);
+    return () => setLayer(owner, null);
+  }, [el, owner, setLayer]);
 }
 
 /**
@@ -598,6 +615,18 @@ export function LogPoseProvider({
   const dockedTo: Dock = dockable ? fitDock(dock, inGame ? hosts.sides : undefined) : null;
   const embedded = dockedTo && hosts ? hosts[dockedTo] : null;
 
+  const [layer, setLayerState] = useState<HTMLElement | null>(null);
+  const layerOwner = useRef<object | null>(null);
+  const setLayer = useCallback((owner: object, next: HTMLElement | null) => {
+    if (next) {
+      layerOwner.current = owner;
+      setLayerState(next);
+    } else if (layerOwner.current === owner) {
+      layerOwner.current = null;
+      setLayerState(null);
+    }
+  }, []);
+
   const [game, setGameState] = useState<LogPoseGame | null>(null);
   const gameOwner = useRef<object | null>(null);
   const setGame = useCallback((owner: object, next: LogPoseGame | null) => {
@@ -636,8 +665,8 @@ export function LogPoseProvider({
   const stopGameAsk = useCallback(() => chatRef.current.stop(), []);
 
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk }),
-    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setLayer, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk }),
+    [enabled, apiBase, manager, setPage, setEditor, setLayer, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
@@ -706,6 +735,7 @@ export function LogPoseProvider({
             inGame={inGame}
             sides={hosts?.sides}
             embedded={embedded}
+            layer={layer}
             dockW={dockW}
             onDockW={setDockW}
             onCommitDockW={commitDockW}
@@ -809,6 +839,7 @@ function LogPosePanel({
   inGame,
   sides,
   embedded,
+  layer,
   dockW,
   onDockW,
   onCommitDockW,
@@ -842,6 +873,8 @@ function LogPosePanel({
   sides?: DockSides;
   /** The board element a docked panel renders into; null while it has none (the panel waits). */
   embedded: HTMLElement | null;
+  /** A modal's element the panel renders into while there is one (and no board column). */
+  layer: HTMLElement | null;
   dockW: number;
   onDockW: (w: number) => void;
   onCommitDockW: (w: number) => void;
@@ -943,15 +976,38 @@ function LogPosePanel({
     }
   }, [request, chatHistory, chatBusy, chatSend, onRequestHandled, page, phone]);
 
-  // Esc closes the drawer on desktop.
+  // Esc closes the drawer on desktop. Inside a modal (the enlarged card) it closes on phones too and is taken before
+  // the modal sees it, so the chat closes first and the next Esc closes the card.
+  const inLayer = layer !== null && !embedded;
   useEffect(() => {
-    if (phone) return;
+    if (phone && !inLayer) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) onClose();
+      if (e.key !== "Escape" || e.defaultPrevented || closing) return;
+      if (inLayer) e.stopPropagation();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [phone, onClose]);
+    window.addEventListener("keydown", onKey, inLayer);
+    return () => window.removeEventListener("keydown", onKey, inLayer);
+  }, [phone, onClose, inLayer, closing]);
+
+  // Beside a modal on desktop: tell the page which side the panel is on and how wide, so the modal makes room.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!inLayer || phone || closing || !el) return;
+    const root = document.documentElement;
+    const apply = () => {
+      root.dataset.lpLayer = dock === "left" ? "left" : "right";
+      root.style.setProperty("--lp-layer-w", `${el.offsetWidth}px`);
+    };
+    apply();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(apply) : null;
+    ro?.observe(el);
+    return () => {
+      ro?.disconnect();
+      delete root.dataset.lpLayer;
+      root.style.removeProperty("--lp-layer-w");
+    };
+  }, [inLayer, phone, closing, dock]);
 
   // Desktop: focus the composer. Phones wait for a tap so the keyboard doesn't jump up.
   useEffect(() => {
@@ -1281,7 +1337,7 @@ function LogPosePanel({
   if (pending) return null;
   return (
     <>
-      {embedded ? createPortal(node, embedded) : node}
+      {embedded ? createPortal(node, embedded) : layer ? createPortal(node, layer) : node}
       {preview ? createPortal(<div className="logpose lp-dock-preview" data-side={preview.side} aria-hidden="true" style={preview.rect} />, document.body) : null}
     </>
   );

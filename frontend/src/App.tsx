@@ -2754,7 +2754,7 @@ const renderLightboxActions = (cardId: string, productId?: number, close?: () =>
     </Link>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
-    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} onAsked={close} />
+    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
   </>
 );
 
