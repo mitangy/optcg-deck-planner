@@ -210,6 +210,8 @@ export type DuelSettings = {
   turnAlert: boolean;
   /** Short chime when the game needs you. */
   turnSound: boolean;
+  /** A tab spectating or replaying stays silent while another tab has your match open (#934). */
+  quietWatchTabs: boolean;
 
   // —— Log Pose ——
   /** The Log Pose matchup brief (Brief button and card) before casual and practice games. Never in ranked. */
@@ -287,6 +289,7 @@ const DEFAULTS: DuelSettings = {
   cardSpotlight: true,
   turnAlert: true,
   turnSound: false,
+  quietWatchTabs: true,
   matchBrief: true,
   matchBriefAuto: false,
   logPoseCopilot: false,

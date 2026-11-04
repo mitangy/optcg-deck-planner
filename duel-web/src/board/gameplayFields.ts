@@ -37,7 +37,8 @@ export type ToggleKey =
   | "gameHints"
   | "reduceMotion"
   | "turnAlert"
-  | "turnSound";
+  | "turnSound"
+  | "quietWatchTabs";
 
 /**
  * Whether a "Show on screen" switch is listed. Card preview and Recent plays
@@ -174,7 +175,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     id: "sound",
     title: "Sound and alerts",
     chip: "Sound",
-    rows: ["turnSound", "turnAlert"],
+    rows: ["turnSound", "quietWatchTabs", "turnAlert"],
   },
 ];
 

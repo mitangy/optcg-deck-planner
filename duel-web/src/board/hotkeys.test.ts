@@ -87,6 +87,14 @@ describe("hotkeyAction", () => {
     expect(hotkeyAction({ key: "f" }, { ...base, cardKeys: false, wide: false })).toBe("fullscreen");
   });
 
+  it("M toggles this tab's sound for players and spectators, but not while typing, held or with a modifier (#934)", () => {
+    expect(hotkeyAction({ key: "m" }, base)).toBe("mute_tab");
+    expect(hotkeyAction({ key: "M" }, { ...base, spectating: true })).toBe("mute_tab");
+    expect(hotkeyAction({ key: "m" }, { ...base, typing: true })).toBeNull();
+    expect(hotkeyAction({ key: "m", repeat: true }, base)).toBeNull();
+    expect(hotkeyAction({ key: "m", ctrlKey: true }, base)).toBeNull();
+  });
+
   it("F does nothing when full screen is not offered, with a modifier, held down or while typing (#468)", () => {
     expect(hotkeyAction({ key: "f" }, { ...base, fullscreenOffered: false })).toBeNull();
     expect(hotkeyAction({ key: "f", ctrlKey: true }, base)).toBeNull();

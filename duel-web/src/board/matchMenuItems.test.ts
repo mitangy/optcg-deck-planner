@@ -22,6 +22,14 @@ describe("match menu items", () => {
     expect(matchMenuItems({ ...live, fullscreenInBar: false })).not.toContain("fullscreen");
   });
 
+  it("lists Mute this tab in every match, spectating and replays included, unless the toolbar has its button (#934)", () => {
+    for (const o of [live, { ...live, spectating: true }, { ...live, spectating: true, replay: true }, { ...live, hotseat: true }]) {
+      expect(matchMenuItems(o)).toContain("mute-tab");
+    }
+    expect(matchMenuItems({ ...live, muteInBar: false })).toContain("mute-tab");
+    expect(matchMenuItems({ ...live, muteInBar: true })).not.toContain("mute-tab");
+  });
+
   it("offers Concede to a live player", () => {
     expect(matchMenuItems(live)).toContain("concede");
   });
