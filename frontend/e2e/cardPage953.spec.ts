@@ -98,3 +98,21 @@ test("signed in, the card page has the shopping and alert controls for the shown
   await expect(page.getByRole("button", { name: /to shopping list/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /alert/i }).first()).toBeVisible();
 });
+
+test("tapping the card page art opens it full size for the chosen art (#958)", async ({ page, planner }) => {
+  await mockCardApi(page);
+  await planner.open(`/cards/${ZORO}`);
+  await page.getByRole("region", { name: "Arts" }).getByRole("button", { name: /^Alternate Art/ }).click();
+  await expect(page).toHaveURL(/art=5002$/);
+
+  await page.getByRole("button", { name: "Enlarge Roronoa Zoro" }).click();
+  const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
+  await expect(lightbox).toBeVisible();
+  await expect(lightbox.locator("img")).toHaveAttribute("src", /\/product\/5002_in_1000x1000\.jpg$/);
+  // Just the picture: the page already has the shopping and alert controls, and "Card page" would point back here.
+  await expect(lightbox.getByRole("link", { name: "Card page" })).toHaveCount(0);
+  await expect(lightbox.getByRole("button", { name: /shopping list|alert/i })).toHaveCount(0);
+
+  await lightbox.getByRole("button", { name: "Close" }).click();
+  await expect(lightbox).toHaveCount(0);
+});

@@ -50,6 +50,32 @@ export function CardArtImg({
  */
 export const CardLightboxActionContext = createContext<((cardId: string, productId?: number, close?: () => void) => ReactNode) | null>(null);
 
+/** The enlarged card: big art, optional `children` (actions) under it, and a Close button. */
+export function CardLightbox({
+  src,
+  cardId,
+  alt = "",
+  onClose,
+  children,
+}: {
+  src?: string | null;
+  cardId?: string | null;
+  alt?: string;
+  onClose: () => void;
+  children?: ReactNode;
+}) {
+  const large = useCardArt(src, cardId, "large");
+  return (
+    <Dialog open onClose={onClose} className="lightbox" panelClassName="lightbox-panel" label="Expanded card art">
+      {large.src && <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />}
+      {children}
+      <button type="button" className="lightbox-close" onClick={onClose}>
+        Close
+      </button>
+    </Dialog>
+  );
+}
+
 export function CardThumb({
   src,
   cardId,
@@ -95,21 +121,9 @@ export function CardThumb({
         />
       </button>
       {open ? (
-        <Dialog
-          open
-          onClose={() => setOpen(false)}
-          className="lightbox"
-          panelClassName="lightbox-panel"
-          label="Expanded card art"
-        >
-          {large.src && (
-            <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
-          )}
+        <CardLightbox src={src} cardId={cardId} alt={alt} onClose={() => setOpen(false)}>
           {cardId && renderAction ? <div className="lightbox-action">{renderAction(cardId, productId, () => setOpen(false))}</div> : null}
-          <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
-            Close
-          </button>
-        </Dialog>
+        </CardLightbox>
       ) : null}
     </>
   );

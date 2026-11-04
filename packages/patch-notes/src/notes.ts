@@ -12,6 +12,8 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
   { date: "2026-11-04", app: "planner", pr: 961, title: "Bigger card art in list view", text: "In the List view on Master Shopping, your decks and Collection, the card art now fills the Card column and the card name sits underneath it." },
+  { date: "2026-11-04", app: "planner", pr: 962, title: "Why this read, one hover away", text: "When to buy's reasons now open from a ? icon: hover or tap it, and the graph stays in view." },
+  { date: "2026-11-04", app: "planner", pr: 962, title: "Full-size art on card pages", text: "Tap the art on a card page to see it full size." },
   { date: "2026-11-04", app: "planner", pr: 955, title: "A page for every card", text: "Every card now has its own page with its text, every art and the price history with When to buy for each, plus how often it is played in recent tournaments, which leaders play it and its best finishes. Open it from Card page under an enlarged card, or tap a card's name in a meta decklist." },
   { date: "2026-11-04", app: "planner", pr: 954, title: "Best time to buy", text: "The When to buy box now shows the best time to buy each art and roughly what it should cost then, based on how similar cards moved after release." },
   { date: "2026-11-04", app: "planner", pr: 949, title: "When to buy", text: "The Price history panel now has a When to buy line that says whether to buy now, wait or buy on a dip, based on how similar cards moved after release, and Ask Log Pose can look into it with the card's price history and how much it is being played." },
