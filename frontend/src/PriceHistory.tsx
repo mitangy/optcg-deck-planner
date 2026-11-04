@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { useLogPoseAsk } from "@optcg/analyst-client";
 import { artKind, bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
 import { api, money, type PriceHistoryResponse } from "./api";
@@ -62,11 +63,109 @@ function bestEstimate(best: BestBuy): string {
 const PILL: Record<BuyTiming["verdict"], string> = { wait: "Wait", soon: "Almost", good: "Good time", holds: "Holds", unknown: "No read" };
 
 /**
+ * The "?" next to the verdict. Hover (mouse) or keyboard focus shows the reasons in a floating panel anchored to the
+ * icon; a click or tap pins it open (phones have no hover). Escape and a press outside close it. The panel floats in a
+ * portal, so it never moves the chart or the lightbox it sits in.
+ */
+function WhyHint({ reasons }: { reasons: string[] }) {
+  const [pinned, setPinned] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const leaveTimer = useRef<number | undefined>(undefined);
+  const open = (pinned || hover || focus) && reasons.length > 0;
+  const panelId = useId();
+  const btnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
+  // PopoverButton sets aria-expanded from its own (click-only) state, which this hover/focus/tap panel does not use,
+  // so mirror the real state onto the DOM; React never rewrites it because that prop never changes.
+  useEffect(() => {
+    btnRef.current?.setAttribute("aria-expanded", String(open));
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const closeAll = () => {
+      setPinned(false);
+      setHover(false);
+      setFocus(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Only the hint closes, not the enlarged card around it.
+      e.stopPropagation();
+      closeAll();
+    };
+    const onDown = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.("[data-why-hint]")) closeAll();
+    };
+    window.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onDown, true);
+    };
+  }, [open]);
+  const enter = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
+    window.clearTimeout(leaveTimer.current);
+    setHover(true);
+  };
+  // A short grace period lets the pointer cross the gap between the icon and the panel.
+  const leave = (e: PointerEvent) => {
+    if (e.pointerType === "touch") return;
+    window.clearTimeout(leaveTimer.current);
+    leaveTimer.current = window.setTimeout(() => setHover(false), 150);
+  };
+  return (
+    <Popover as="span" className="ph-buy-why-wrap">
+      <PopoverButton
+        ref={btnRef}
+        type="button"
+        className="ph-buy-why"
+        aria-label="Why this read?"
+        aria-controls={open ? panelId : undefined}
+        disabled={reasons.length === 0}
+        data-why-hint=""
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          setPinned((v) => !v);
+        }}
+        onPointerEnter={enter}
+        onPointerLeave={leave}
+        onFocus={(e: React.FocusEvent<HTMLElement>) => setFocus(e.currentTarget.matches(":focus-visible"))}
+        onBlur={() => setFocus(false)}
+      >
+        <span className="ph-buy-why-icon" aria-hidden="true">
+          ?
+        </span>
+      </PopoverButton>
+      {open ? (
+        <PopoverPanel
+          static
+          anchor={{ to: "bottom end", gap: 6, padding: 8 }}
+          id={panelId}
+          role="tooltip"
+          className="ph-why-panel"
+          data-why-hint=""
+          onPointerEnter={enter}
+          onPointerLeave={leave}
+        >
+          <ul className="ph-buy-reasons">
+            {reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+          <p className="ph-why-note">Typical patterns of past sets, not a forecast.</p>
+        </PopoverPanel>
+      ) : null}
+    </Popover>
+  );
+}
+
+/**
  * "When to buy": a verdict from how similar cards moved after release, with the reasons one tap away. Its box is
  * the same size while loading, so the panel never jumps. `onAsk` is set only where Log Pose can answer.
  */
-function WhenToBuy({ timing, best, loading, onAsk, open, setOpen }: { timing: BuyTiming | null; best: BestBuy | null; loading: boolean; onAsk: (() => void) | null; open: boolean; setOpen: (fn: (v: boolean) => boolean) => void }) {
-  const reasonsId = useId();
+function WhenToBuy({ timing, best, loading, onAsk }: { timing: BuyTiming | null; best: BestBuy | null; loading: boolean; onAsk: (() => void) | null }) {
   const verdict = timing?.verdict ?? "unknown";
   const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : []), ...(best ? [best.basis] : [])] : [];
   return (
@@ -74,16 +173,7 @@ function WhenToBuy({ timing, best, loading, onAsk, open, setOpen }: { timing: Bu
       <div className="ph-buy-main">
         <span className={`ph-pill ph-pill-${loading ? "loading" : verdict}`}>{loading ? "…" : PILL[verdict]}</span>
         <span className="ph-buy-headline">{loading ? "Checking when to buy…" : (timing?.headline ?? "No read yet")}</span>
-        <button
-          type="button"
-          className="ph-buy-why"
-          aria-expanded={open}
-          aria-controls={reasonsId}
-          disabled={loading || reasons.length === 0}
-          onClick={() => setOpen((v) => !v)}
-        >
-          Why
-        </button>
+        <WhyHint reasons={loading ? [] : reasons} />
       </div>
       <div className="ph-buy-best">
         {loading ? (
@@ -97,15 +187,8 @@ function WhenToBuy({ timing, best, loading, onAsk, open, setOpen }: { timing: Bu
           "Best time: not enough data"
         )}
       </div>
-      {open && reasons.length ? (
-        <ul className="ph-buy-reasons" id={reasonsId}>
-          {reasons.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-      ) : null}
       <div className="ph-buy-foot">
-        <p className="ph-buy-note">{open ? "Typical patterns of past sets, not a forecast." : "Based on how similar cards moved after release, 2024–2026"}</p>
+        <p className="ph-buy-note">Based on how similar cards moved after release, 2024–2026</p>
         {onAsk ? (
           <button type="button" className="ph-buy-ask" onClick={onAsk}>
             Ask Log Pose
@@ -219,8 +302,6 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
     staleTime: 10 * 60_000,
     retry: false,
   });
-  // The reasons take the chart's place while they are open, so the panel never outgrows the screen.
-  const [whyOpen, setWhyOpen] = useState(false);
   const [rangeId, setRangeId] = useState(DEFAULT_RANGE_ID);
   const range = HISTORY_RANGES.find((r) => r.id === rangeId) ?? HISTORY_RANGES[1];
 
@@ -250,7 +331,7 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
   const name = q.data?.name ?? "this art";
 
   return (
-    <section className={`ph${whyOpen ? " ph-why-open" : ""}`} aria-label="Price history">
+    <section className="ph" aria-label="Price history">
       <div className="ph-head">
         <div className="ph-title" title={q.data?.name}>
           {q.data?.name ?? "Price history"}
@@ -275,7 +356,7 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
         />
         <Stat label={`${range.label} change`} value={pct(change)} toneClass={tone(change)} />
       </dl>
-      <WhenToBuy timing={timing} best={best} loading={q.isPending} onAsk={ask} open={whyOpen} setOpen={setWhyOpen} />
+      <WhenToBuy timing={timing} best={best} loading={q.isPending} onAsk={ask} />
       <div className={`ph-body ph-${status}`}>
         {status === "ready" ? (
           <Chart

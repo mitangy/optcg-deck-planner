@@ -50,7 +50,7 @@ async function expectFits(page: Page, panel: ReturnType<Page["locator"]>) {
   expect(row.x + row.width).toBeLessThanOrEqual(box.x + box.width);
 }
 
-test("Collection: a base art about four months old reads Good time, with its reasons behind Why (#946)", async ({ page, planner }) => {
+test("Collection: a base art about four months old reads Good time, with its reasons behind the ? icon (#946)", async ({ page, planner }) => {
   await planner.open("/collection");
   const izo = page.locator('[data-card-id="EB01-002"]:visible');
   await izo.locator("img.thumb").first().click();
@@ -65,15 +65,17 @@ test("Collection: a base art about four months old reads Good time, with its rea
   await expect(buy.locator(".ph-buy-best")).toContainText("Best time: Now");
   await expect(buy).toContainText("Based on how similar cards moved after release, 2024–2026");
   // Released Sep 16, 2025: 121 days old, in January, so the winter note comes with it.
-  const why = buy.getByRole("button", { name: "Why" });
+  const why = buy.getByRole("button", { name: "Why this read?" });
   await expect(why).toHaveAttribute("aria-expanded", "false");
-  await expect(buy.getByRole("list")).toHaveCount(0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
   const [triggerBefore, panelBefore] = [await toggle.boundingBox(), await panel.boundingBox()];
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-base-good-closed-${test.info().project.name}.png` });
   await why.click();
   await expect(why).toHaveAttribute("aria-expanded", "true");
-  await expect(buy.getByRole("listitem").first()).toContainText("Most of the typical drop is done at this age.");
-  await expect(buy).toContainText("tend to run higher in winter (peak in February)");
+  const reasons = page.getByRole("tooltip");
+  await expect(reasons.getByRole("listitem").first()).toContainText("Most of the typical drop is done at this age.");
+  await expect(reasons).toContainText("tend to run higher in winter (peak in February)");
+  await expect(reasons).toContainText("Typical patterns of past sets, not a forecast.");
   // Opening the reasons does not move the button that opened the panel.
   expect(await toggle.boundingBox()).toEqual(triggerBefore);
   const panelAfter = (await panel.boundingBox())!;
@@ -84,7 +86,63 @@ test("Collection: a base art about four months old reads Good time, with its rea
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/base-good-open-${test.info().project.name}.png` });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-base-good-open-${test.info().project.name}.png` });
   await why.click();
-  await expect(buy.getByRole("list")).toHaveCount(0);
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+});
+
+test("the ? icon shows the reasons on hover or tap and the chart stays in view (#959)", async ({ page, planner }) => {
+  const phone = test.info().project.name === "phone-375";
+  await planner.open("/collection");
+  await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
+  const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
+  await lightbox.getByRole("button", { name: "Price history" }).click();
+  const panel = lightbox.getByRole("region", { name: "Price history" });
+  const why = panel.getByLabel("When to buy").getByRole("button", { name: "Why this read?" });
+  const reasons = page.getByRole("tooltip");
+  const chart = panel.locator(".ph-body");
+  await expect(chart).toBeVisible();
+  const [chartBefore, whyBefore] = [await chart.boundingBox(), await why.boundingBox()];
+  await expect(reasons).toHaveCount(0);
+
+  if (phone) {
+    await why.tap();
+    await expect(reasons).toContainText("Most of the typical drop is done at this age.");
+    await expect(why).toHaveAttribute("aria-expanded", "true");
+  } else {
+    await why.hover();
+    await expect(reasons).toContainText("Most of the typical drop is done at this age.");
+  }
+  // The chart and the icon stay put while the reasons show, and the reasons stay on screen.
+  await expect(chart).toBeVisible();
+  expect(await chart.boundingBox()).toEqual(chartBefore);
+  expect(await why.boundingBox()).toEqual(whyBefore);
+  const box = (await reasons.boundingBox())!;
+  const vp = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/why-icon-${test.info().project.name}.png` });
+
+  if (phone) {
+    // Tapping the icon again closes it; tapping elsewhere does too.
+    await why.tap();
+    await expect(reasons).toHaveCount(0);
+    await why.tap();
+    await expect(reasons).toBeVisible();
+    await panel.locator(".ph-title").tap();
+    await expect(reasons).toHaveCount(0);
+  } else {
+    await page.mouse.move(0, 0);
+    await expect(reasons).toHaveCount(0);
+    // Keyboard focus shows it too, and Escape closes just the hint, not the enlarged card.
+    await why.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(reasons).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(reasons).toHaveCount(0);
+    await expect(lightbox).toBeVisible();
+  }
 });
 
 test("Collection: an alt art a month after release says wait and how far similar cards fell (#946)", async ({ page, planner }) => {
@@ -93,8 +151,8 @@ test("Collection: an alt art a month after release says wait and how far similar
   const buy = panel.getByLabel("When to buy");
   await expect(buy.locator(".ph-pill")).toHaveText("Wait");
   await expect(buy).toContainText("Better to wait");
-  await buy.getByRole("button", { name: "Why" }).click();
-  await expect(buy.getByRole("listitem")).toHaveText([
+  await buy.getByRole("button", { name: "Why this read?" }).click();
+  await expect(page.getByRole("tooltip").getByRole("listitem")).toHaveText([
     "Similar cards fell another ~24% by 6 months.",
     "Similar cards reached a buyable price about 6 weeks after release, around 21% below today's price.",
   ]);
@@ -125,8 +183,8 @@ test("Collection: a Manga art holds its value and is judged against its 30-day a
   const buy = panel.getByLabel("When to buy");
   await expect(buy.locator(".ph-pill")).toHaveText("Holds");
   await expect(buy).toContainText("Tends to hold its value");
-  await buy.getByRole("button", { name: "Why" }).click();
-  await expect(buy.getByRole("listitem").nth(1)).toHaveText("Now $80.00, 20% below its 30-day average of $100.00.");
+  await buy.getByRole("button", { name: "Why this read?" }).click();
+  await expect(page.getByRole("tooltip").getByRole("listitem").nth(1)).toHaveText("Now $80.00, 20% below its 30-day average of $100.00.");
   // The 30-day low and average are both $100, so the estimate is a single figure.
   await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Now, on a dip · est. ~$100");
   await expectFits(page, panel);

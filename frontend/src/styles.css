@@ -1903,6 +1903,15 @@ tr.done td {
   backdrop-filter: blur(4px);
 }
 
+/* A floating panel (hint, menu) portals into the lightbox: its wrapper must not become a second grid row that shifts the art. */
+.lightbox > div:has(> .ui-popover-panel) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
 /* Headless UI panel around the art: no box of its own (the Close button positions against .lightbox). */
 .lightbox-panel {
   display: grid;
@@ -8358,7 +8367,6 @@ button.ghost.scan-tray-fix {
   font-weight: 700;
 }
 
-.ph-buy-why,
 .ph-buy-ask {
   flex: none;
   min-height: 1.9rem;
@@ -8374,34 +8382,85 @@ button.ghost.scan-tray-fix {
   cursor: pointer;
 }
 
-.ph-buy-why[aria-expanded="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--primary-ink);
-}
-
-.ph-buy-why:disabled {
-  color: var(--muted);
-  cursor: default;
-}
-
-.ph-buy-why:not(:disabled):hover,
 .ph-buy-ask:hover {
   background: var(--card-sunk);
 }
 
-.ph-buy-why[aria-expanded="true"]:hover {
-  background: var(--accent);
-}
-
-.ph-buy-why:focus-visible,
 .ph-buy-ask:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.ph-why-open .ph-body {
-  display: none;
+.ph-buy-why-wrap {
+  flex: none;
+  display: inline-flex;
+}
+
+/* A 22px round "?" inside a 32px button: the extra ring is the hit target for fingers; negative margins keep the row as if it were 22px. */
+.ph-buy-why {
+  flex: none;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  margin: -5px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.ph-buy-why-icon {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ph-buy-why:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ph-buy-why:not(:disabled):hover,
+.ph-buy-why[aria-expanded="true"] {
+  color: var(--ink);
+}
+
+.ph-buy-why:not(:disabled):hover .ph-buy-why-icon,
+.ph-buy-why[aria-expanded="true"] .ph-buy-why-icon {
+  background: var(--card-sunk);
+  border-color: var(--ink);
+}
+
+.ph-buy-why:focus-visible {
+  outline: none;
+}
+
+.ph-buy-why:focus-visible .ph-buy-why-icon {
+  box-shadow: var(--focus-ring);
+}
+
+.ph-why-panel {
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 16px));
+  padding: 0.6rem 0.75rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
 }
 
 .ph-buy-reasons {
@@ -8414,6 +8473,13 @@ button.ghost.scan-tray-fix {
 
 .ph-buy-reasons li + li {
   margin-top: 0.15rem;
+}
+
+.ph-why-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--muted);
 }
 
 .ph-buy-foot {
