@@ -351,7 +351,7 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
         </div>
         <div className="card-head-info">
           <p className="eyebrow">
-            <Link to="/meta">Tournament meta</Link>
+            <Link to="/meta">Meta decks</Link> · Card
           </p>
           <h1>{card ? card.name : cardId}</h1>
           <p className="muted card-head-sub">
