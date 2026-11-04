@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
   { date: "2026-11-04", app: "both", pr: 972, title: "Log Pose keeps a chat per deck and per game", text: "Log Pose now opens the chat for what you are looking at: a deck's own chat on its page (shared between the planner and the duel app), a game's chat on its history page and on the board, and a General chat everywhere else. The new Chats button lists your recent chats so you can pick any of them, on any device. The match history marks games you have a chat about, and the match page has a Chat about this game button." },
+  { date: "2026-11-04", app: "planner", pr: 969, title: "Ask Log Pose keeps the card open", text: "Ask Log Pose from an enlarged card now opens the chat next to the card on a computer, or over it on a phone, instead of closing the card. Close the chat and the card is still there." },
   { date: "2026-11-04", app: "planner", pr: 961, title: "Bigger card art in list view", text: "In the List view on Master Shopping, your decks and Collection, the card art now fills the Card column and the card name sits underneath it." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Why this read, one hover away", text: "When to buy's reasons now open from a ? icon: hover or tap it, and the graph stays in view." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Full-size art on card pages", text: "Tap the art on a card page to see it full size." },

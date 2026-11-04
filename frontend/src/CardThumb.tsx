@@ -2,6 +2,7 @@ import { createContext, useContext, useState, type ImgHTMLAttributes, type React
 import { cardArtChain, type CardImageSize } from "@optcg/ui/cardArt";
 import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "./duelLink";
+import { useLogPoseLayer } from "@optcg/analyst-client";
 
 /**
  * Walks `cardArtChain` as images fail: `src` is the URL to show now, `fail`
@@ -65,10 +66,14 @@ export function CardLightbox({
   children?: ReactNode;
 }) {
   const large = useCardArt(src, cardId, "large");
+  // Log Pose opens inside the card (not behind it), so the chat and the card are both usable.
+  const [chatLayer, setChatLayer] = useState<HTMLElement | null>(null);
+  useLogPoseLayer(chatLayer);
   return (
     <Dialog open onClose={onClose} className="lightbox" panelClassName="lightbox-panel" label="Expanded card art">
       {large.src && <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />}
       {children}
+      <div ref={setChatLayer} className="lightbox-chat-layer" />
       <button type="button" className="lightbox-close" onClick={onClose}>
         Close
       </button>

@@ -95,7 +95,7 @@ export { chatBody, resolveScopeChat } from "./threads";
 export { ChatsMenu } from "./ChatsMenu";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseLayer, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export { NewDeckCard } from "./NewDeckCard";
