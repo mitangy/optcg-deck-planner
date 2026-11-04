@@ -5,6 +5,13 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Review game on the match-over card (#965)
+    {"id": "review965-replay-link-ignores-ready", "file": "duel-web/src/board/matchOverFacts.ts", "from": "record?.replay_ready === true ?", "to": "record?.has_replay ?", "kills": ["links the replay only once the saved match says it can be watched (#965)"], "args": "src/board/matchOverFacts"},
+    {"id": "review965-replay-link-never", "file": "duel-web/src/board/matchOverFacts.ts", "from": "record?.replay_ready === true ? `/replay/${encodeURIComponent(record.match_id)}` : null", "to": "null", "kills": ["links the replay only once the saved match says it can be watched (#965)"], "args": "src/board/matchOverFacts"},
+    {"id": "review965-retry-never", "file": "duel-web/src/replay/replayRetry.ts", "from": "e.reason === \"in-progress\" && i < delays.length", "to": "e.reason === \"in-progress\" && i < 0", "kills": ["retries an in-progress replay on the schedule until it loads (#965)", "gives up with the in-progress error after the last delay (#965)"], "args": "src/replay/replayRetry"},
+    {"id": "review965-retry-one-too-many", "file": "duel-web/src/replay/replayRetry.ts", "from": "i < delays.length", "to": "i <= delays.length", "kills": ["gives up with the in-progress error after the last delay (#965)"], "args": "src/replay/replayRetry"},
+    {"id": "review965-retry-any-error", "file": "duel-web/src/replay/replayRetry.ts", "from": "e instanceof ReplayLoadError && e.reason === \"in-progress\" && ", "to": "", "kills": ["does not retry any other failure (#965)"], "args": "src/replay/replayRetry"},
+    {"id": "review965-retry-ignores-cancel", "file": "duel-web/src/replay/replayRetry.ts", "from": " && !opts.cancelled?.()", "to": "", "kills": ["stops waiting once the page has gone away (#965)"], "args": "src/replay/replayRetry"},
     // Uploads tab: find and remove images nobody reported (#812)
     {"id": "uploads812-moderator-without-uploads-tab", "file": "duel-web/src/admin/adminLogic.ts", "from": "t.id === \"reports\" || t.id === \"uploads\" || t.id === \"users\"", "to": "t.id === \"reports\" || t.id === \"users\"", "kills": ["shows the admin all seven tabs, a moderator Reports, Uploads then Users, and anyone else none (#667, #812)"], "args": "src/admin/adminLogic"},
     {"id": "uploads812-reason-other-needs-no-note", "file": "duel-web/src/admin/adminLogic.ts", "from": "if (choice === \"Other\") return extra ? extra.slice(0, TAKE_DOWN_MAX) : null;", "to": "if (choice === \"Other\") return extra.slice(0, TAKE_DOWN_MAX);", "kills": ["builds the take-down reason from the choice and note, and makes Other say why (#812)"], "args": "src/admin/adminLogic"},

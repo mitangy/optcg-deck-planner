@@ -2930,6 +2930,16 @@ img.zone-pile-face {
 [data-mode="light"] .match-result-log {
   color: var(--chrome-bright);
 }
+.match-result-review-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 2.5rem;
+}
+.match-result-replay {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
 .match-result-board {
   align-self: stretch;
 }

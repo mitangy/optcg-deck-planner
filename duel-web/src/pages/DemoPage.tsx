@@ -62,7 +62,8 @@ const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
     opponent_name: "Opponent",
     rating_before: 1028,
     rating_after: 1012,
-    has_replay: false,
+    has_replay: true,
+    replay_ready: true,
     has_log: true,
   });
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { SeatPlayers } from "../net/protocol";
 import { googleLoginUrl } from "../net/api";
 import { fetchMatchReplay, ReplayLoadError, type ReplayLoadFailure, type ReplayPayload } from "../replay/replayApi";
+import { loadWhileSaving, type ReplayNavState } from "../replay/replayRetry";
 import { ReplayControls } from "../replay/ReplayControls";
 import { useReplay, type Replay } from "../replay/useReplay";
 import { BackLink } from "./BackLink";
@@ -11,7 +12,7 @@ import "../history/history.css";
 import "../replay/replay.css";
 
 type Load =
-  | { status: "loading" }
+  | { status: "loading"; saving?: boolean }
   | { status: "failed"; reason: ReplayLoadFailure; message: string }
   | { status: "ready"; payload: ReplayPayload };
 
@@ -119,12 +120,20 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
 
 export default function ReplayPage() {
   const { matchId = "" } = useParams();
+  const fromMatchOver = (useLocation().state as ReplayNavState)?.fromMatchOver === true;
   const [load, setLoad] = useState<Load>({ status: "loading" });
 
   useEffect(() => {
     let live = true;
     setLoad({ status: "loading" });
-    fetchMatchReplay(matchId)
+    // Opened from the match-over card, the server may not be done closing the game: wait for it rather than say "still being played".
+    const fetched = fromMatchOver
+      ? loadWhileSaving(() => fetchMatchReplay(matchId), {
+          onWait: () => live && setLoad({ status: "loading", saving: true }),
+          cancelled: () => !live,
+        })
+      : fetchMatchReplay(matchId);
+    fetched
       .then((payload) => live && setLoad({ status: "ready", payload }))
       .catch((e: unknown) => {
         if (!live) return;
@@ -134,7 +143,7 @@ export default function ReplayPage() {
     return () => {
       live = false;
     };
-  }, [matchId]);
+  }, [matchId, fromMatchOver]);
 
   if (load.status === "failed") {
     const copy = FAILURE_COPY[load.reason];
@@ -153,7 +162,7 @@ export default function ReplayPage() {
           matchId={null}
           errorBanner={null}
           matchOver={null}
-          waiting={{ status: "Loading the recording…" }}
+          waiting={{ status: load.saving ? "Saving the game…" : "Loading the recording…" }}
           leaveLabel="Exit replay"
           onSendIntent={() => undefined}
           onLeave={() => window.history.back()}
