@@ -45,11 +45,6 @@ const ICONS = {
       <path d="M17 5h2v14h-2zM4 5v14l11-7z" />
     </Icon>
   ),
-  flip: (
-    <Icon>
-      <path d="M7 3 3 7h3v7h2V7h3zM17 21l4-4h-3v-7h-2v7h-3z" />
-    </Icon>
-  ),
 };
 
 /** Keys that drive the replay: Space plays or pauses, ← / → step, Shift+← / → change turn. */
@@ -71,7 +66,7 @@ export function replayKeyAction(e: Pick<KeyboardEvent, "key" | "code" | "shiftKe
 const OWN_KEYS = "input, select, textarea, [contenteditable=true], [role=dialog], [aria-modal=true]";
 
 export function ReplayControls({ state, actions, note = null, resultSlot = null, reserveRow = false }: { state: ReplayControlsState; actions: ReplayControlsActions; note?: ReactNode; resultSlot?: ReactNode; reserveRow?: boolean }) {
-  const { step, total, turn, turns, playing, speed, revealAll, yourSeat, cameraSeat, playerNames } = state;
+  const { step, total, turn, turns, playing, speed, revealAll, yourSeat, playerNames, branch } = state;
   // Desktop has room for every control; phones keep the transport, scrubber and mode toggle, and tuck the rest behind More.
   const compact = !useMediaQuery(DESKTOP_BOARD_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -96,7 +91,6 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [actions]);
 
-  const otherSide = playerNames[(1 - cameraSeat) as 0 | 1] || "the other player";
   const youName = playerNames[yourSeat] || "You";
 
   const turnSelect = (
@@ -123,21 +117,9 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
       />
     </label>
   );
-  const flipButton = (
-    <button
-      type="button"
-      className="replay-btn replay-flip"
-      aria-label={`Flip the board to ${otherSide}'s side`}
-      title={`Flip the board to ${otherSide}'s side`}
-      onClick={actions.flip}
-    >
-      {ICONS.flip}
-    </button>
-  );
-
   return (
     <div className={`replay-controls${compact ? " replay-compact" : ""}`} role="group" aria-label="Replay controls">
-      {note || reserveRow ? (
+      {note || reserveRow || resultSlot ? (
         <p className="replay-note" role="status">
           {resultSlot ?? note}
         </p>
@@ -188,19 +170,48 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
         <div className="replay-row replay-pick">
           {turnSelect}
           {speedSelect}
-          {flipButton}
         </div>
       )}
 
       <div className="replay-row">
-        <div className="replay-seg" role="group" aria-label="What to show">
-          <button type="button" className="replay-seg-btn" aria-pressed={!revealAll} title={`Only what ${youName} could see`} onClick={() => actions.setRevealAll(false)}>
-            What I saw
-          </button>
-          <button type="button" className="replay-seg-btn" aria-pressed={revealAll} title="Both hands, and every draw by name" onClick={() => actions.setRevealAll(true)}>
-            Reveal all
-          </button>
-        </div>
+        {branch ? (
+          // Your own line: the bar takes the mode toggle's row, so nothing moves when it opens.
+          <div className="replay-line" role="group" aria-label="Your line">
+            <span className="replay-line-text" title={`Your line from turn ${branch.turn} · ${branch.moves} ${branch.moves === 1 ? "move" : "moves"}`}>
+              <strong>Your line</strong>
+              <span>
+                {compact ? `T${branch.turn}` : `turn ${branch.turn}`} · {branch.moves} {branch.moves === 1 ? "move" : "moves"}
+              </span>
+            </span>
+            <button type="button" className="replay-line-btn" aria-label="Undo move" onClick={actions.undoMove}>
+              <span className="replay-seg-long">Undo move</span>
+              <span className="replay-seg-short" aria-hidden>
+                Undo
+              </span>
+            </button>
+            <button type="button" className="replay-line-btn replay-line-back" aria-label="Back to game" onClick={actions.backToGame}>
+              <span className="replay-seg-long">Back to game</span>
+              <span className="replay-seg-short" aria-hidden>
+                Back
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="replay-seg" role="group" aria-label="What to show">
+            <button type="button" className="replay-seg-btn" aria-pressed={!revealAll} aria-label="What I saw" title={`Only what ${youName} could see`} onClick={() => actions.setRevealAll(false)}>
+              <span className="replay-seg-long">What I saw</span>
+              <span className="replay-seg-short" aria-hidden>
+                I saw
+              </span>
+            </button>
+            <button type="button" className="replay-seg-btn" aria-pressed={revealAll} aria-label="Reveal all" title="Both hands, and every draw by name" onClick={() => actions.setRevealAll(true)}>
+              <span className="replay-seg-long">Reveal all</span>
+              <span className="replay-seg-short" aria-hidden>
+                All
+              </span>
+            </button>
+          </div>
+        )}
         {compact ? (
           <button
             type="button"
@@ -228,7 +239,6 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
         >
           {turnSelect}
           {speedSelect}
-          {flipButton}
           <button type="button" className="replay-seg-btn replay-more-done" onClick={() => setMoreOpen(false)}>
             Done
           </button>

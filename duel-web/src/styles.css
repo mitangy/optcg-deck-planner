@@ -2892,6 +2892,24 @@ img.zone-pile-face {
   text-align: center;
   gap: 0.5rem;
 }
+/* A short screen (landscape phone): the card never outgrows it; the rest scrolls inside, and spacing tightens. */
+.modal-card.match-result {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.modal-card.match-result > * {
+  flex-shrink: 0;
+}
+@media (max-height: 499px) {
+  .modal-card.match-result {
+    gap: 0.3rem;
+    padding-block: 0.7rem;
+  }
+  .modal-card.match-result h2 {
+    font-size: 1.15rem;
+  }
+}
 .modal-card .match-result-kicker {
   color: var(--muted);
   font-size: 0.72rem;

@@ -15,7 +15,7 @@ import type { CardDefId, GameEvent, InstanceId, Intent, MatchState, Seat } from 
 export { RULES_VERSION } from "./state/snapshot.js";
 export { REGISTRY_HASH } from "./cards/abilities.js";
 export { MATCH_REPLAY_SCHEMA, type MatchReplay } from "./matchReplay.js";
-export type { GameEvent, InstanceId, MatchState, Seat } from "./types.js";
+export type { GameEvent, InstanceId, Intent, MatchState, Seat } from "./types.js";
 
 export interface TimelineStep {
   /** Who sent the intent. */
@@ -52,7 +52,7 @@ export const DEFAULT_CHECKPOINT_EVERY = 16;
 /** The card id a hidden hand card carries: the same one projected events and choices use. */
 export const HIDDEN_CARD = "HIDDEN";
 
-function indexBoard(state: MatchState, into: Map<InstanceId, { defId: CardDefId; seat: Seat }>) {
+export function indexBoardCards(state: MatchState, into: Map<InstanceId, { defId: CardDefId; seat: Seat }>) {
   for (const seat of [0, 1] as Seat[]) {
     const p = state.players[seat];
     for (const c of [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])]) {
@@ -70,7 +70,7 @@ export function createTimelineBuilder(replay: MatchReplay, opts: { every?: numbe
   const checkpoints: MatchState[] = [start];
   const turnStarts: { turn: number; step: number }[] = [{ turn: start.turnNumber, step: 0 }];
   const boardCards = new Map<InstanceId, { defId: CardDefId; seat: Seat }>();
-  indexBoard(start, boardCards);
+  indexBoardCards(start, boardCards);
   let state = start;
   let diverged: ReplayTimeline["diverged"];
   let done = replay.intents.length === 0;
@@ -88,7 +88,7 @@ export function createTimelineBuilder(replay: MatchReplay, opts: { every?: numbe
           steps.push({ seat, intentType: intent.type, turnNumber: state.turnNumber, activeSeat: state.activeSeat, phase: state.phase, events: applied.events });
           if (state.turnNumber !== before.turnNumber) turnStarts.push({ turn: state.turnNumber, step: steps.length });
           if (steps.length % every === 0) checkpoints.push(state);
-          indexBoard(state, boardCards);
+          indexBoardCards(state, boardCards);
         } catch (err) {
           diverged = { atIntent: i, intentType: intent.type, message: err instanceof Error ? err.message : String(err) };
           done = true;

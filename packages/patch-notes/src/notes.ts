@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
+  { date: "2026-11-04", app: "duel", pr: 966, title: "Play out a replay", text: "In a replay, make a move at any point to try a different line. The board follows whoever has to act, both hands are face up, and Undo move or Back to game takes you back to the recording. Also fixed the match-over card being cut off on a landscape phone." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Why this read, one hover away", text: "When to buy's reasons now open from a ? icon: hover or tap it, and the graph stays in view." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Full-size art on card pages", text: "Tap the art on a card page to see it full size." },
   { date: "2026-11-04", app: "planner", pr: 955, title: "A page for every card", text: "Every card now has its own page with its text, every art and the price history with When to buy for each, plus how often it is played in recent tournaments, which leaders play it and its best finishes. Open it from Card page under an enlarged card, or tap a card's name in a meta decklist." },

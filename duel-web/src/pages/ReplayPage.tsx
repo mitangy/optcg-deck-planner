@@ -102,17 +102,16 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
         view={ready ? ready.view : null}
         seat={ready ? ready.controls.cameraSeat : payload.your_seat}
         matchId={null}
-        errorBanner={null}
+        errorBanner={ready?.error ?? null}
         matchOver={result}
         players={players}
-        spectator
         battleLog={ready?.battleLog}
         waiting={ready ? undefined : { status: `Rebuilding the game… ${Math.round(replay.phase === "building" ? replay.progress * 100 : 100)}%` }}
         leaveLabel="Exit replay"
         replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} />, quiet: ready.quiet } : undefined}
-        onSendIntent={() => undefined}
+        onSendIntent={ready ? ready.sendIntent : () => undefined}
         onLeave={() => navigate("/history")}
-        onClearError={() => undefined}
+        onClearError={ready ? ready.clearError : () => undefined}
       />
     </div>
   );

@@ -400,7 +400,9 @@ export function DuelBoard({
   /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
-  const handLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
+  const resolvedHandLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
+  /** A replay's controls take the right rail's free space, so its hand is the fan, never the rail's grid. */
+  const handLayout = replay && resolvedHandLayout === "grid" ? "fan" : resolvedHandLayout;
   /**
    * Spectators of unranked rooms see both hands face up: fanned on desktop,
    * compact grids on phones. Their Hand setting (saved, untouched) only
@@ -689,7 +691,7 @@ export function DuelBoard({
     winner: matchOver?.winner ?? view?.winner,
     // The room's reason (concede / clock) beats the engine's view.winReason.
     reason: matchOver?.reason ?? view?.winReason,
-    youSeat: spectating ? null : mySeat,
+    youSeat: spectating || isReplay ? null : mySeat,
     // Hotseat: one device plays both seats — name seats, not "You".
     neutral: Boolean(hotseatPass),
   });
@@ -741,6 +743,7 @@ export function DuelBoard({
     stopMode !== "always" &&
     view &&
     !spectating &&
+    !isReplay &&
     !over &&
     !view.pendingChoices?.length &&
     queuedCounter == null
@@ -812,7 +815,7 @@ export function DuelBoard({
   }
 
   // Hotseat hands the device over itself; alerts only matter online.
-  const alertsOn = !spectating && !over && !hotseatPass && autoPass == null;
+  const alertsOn = !spectating && !isReplay && !over && !hotseatPass && autoPass == null;
   // An attack against you has its own cue, so the generic "your move" alert
   // stays quiet while you are answering one.
   const attackKey = alertsOn ? incomingAttackKey(view, spectating) : null;
@@ -1443,8 +1446,9 @@ export function DuelBoard({
   // (spectators only) so nothing moves at game over.
   const myRevealed = revealedIdSet(spectating ? undefined : view.handReveals?.[boardSeat]);
   // While live, cards an effect revealed from their hand stay face up among the backs (#491).
+  // A replay is played from both seats (#966): the hand across the table is face up, unless the view leaves it out ("What I saw").
   const shownFarHand =
-    farHand ?? (over ? view.revealedHands?.[oppSeat] : farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat]));
+    farHand ?? (over || isReplay ? view.revealedHands?.[oppSeat] : farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat]));
   const revealLife = over ? view.revealedLife : undefined;
   const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
     revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
@@ -1452,7 +1456,7 @@ export function DuelBoard({
   // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
   const youFirst = boardSeat === firstSeat;
-  const orderLabel = spectating
+  const orderLabel = spectating || isReplay
     ? `${playerLabel(firstSeat)} goes first`
     : youFirst
       ? "You go first"
@@ -1777,27 +1781,8 @@ export function DuelBoard({
     selectedHandCard && yourTurn && view.phase === "main" && cardIntents.length === 0
       ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount, selectedHandCard.blocked) ?? undefined
       : undefined;
-  // Desktop has no Actions panel: only the defend tray stays in the rail.
-  const intentPanel = railDefend && defendTray ? (
-    defendTray
-  ) : wide && !lp ? null : !spectating ? (
-    <IntentBar
-      waiting={oppWait}
-      idle={oppWait ? "opponent" : view.pendingChoices?.[0]?.seat === mySeat ? "prompt" : null}
-      intents={barIntents}
-      view={view}
-      disabled={over}
-      filterHandIndex={handFilter}
-      selectedBoardId={selectedBoardId}
-      confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
-      onSend={sendPrimary}
-      onChooseReplace={openReplace}
-      defend={defendPrimary}
-      counterLabel={counterLabel}
-      onCard={{ count: cardIntents.length, active: popoverOpen }}
-      emptyHint={affordHint}
-    />
-  ) : replay ? (
+  // The replay controls ride where the action bar does (phones); on desktop they dock in the right rail.
+  const replayBar = replay ? (
     <div className="intent-bar replay-bar">
       {/* The result lives in the controls' own slim row here, so it never covers the board. */}
       {isValidElement(replay.controls)
@@ -1814,6 +1799,32 @@ export function DuelBoard({
           })
         : replay.controls}
     </div>
+  ) : null;
+  // Desktop has no Actions panel: only the defend tray stays in the rail.
+  const intentPanel = railDefend && defendTray ? (
+    defendTray
+  ) : wide && !lp ? null : !spectating ? (
+    <>
+    <IntentBar
+      waiting={oppWait}
+      idle={oppWait ? "opponent" : view.pendingChoices?.[0]?.seat === mySeat ? "prompt" : null}
+      intents={barIntents}
+      view={view}
+      disabled={over}
+      filterHandIndex={handFilter}
+      selectedBoardId={selectedBoardId}
+      confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
+      onSend={sendPrimary}
+      onChooseReplace={openReplace}
+      defend={defendPrimary}
+      counterLabel={counterLabel}
+      onCard={{ count: cardIntents.length, active: popoverOpen }}
+      emptyHint={affordHint}
+    />
+    {replayBar}
+    </>
+  ) : replayBar ? (
+    replayBar
   ) : !wide || lp ? null : (
     // Phones: the HUD's SPECTATOR chip says it already, and the bar's height goes to the mats.
     <div className="intent-bar">
@@ -2205,12 +2216,12 @@ export function DuelBoard({
             <span className="hud-turn-num">T{view.turnNumber}</span>
             {mulliganPhase && decidingMulligan ? (
               <span className="hud-turn-chip">MULLIGAN</span>
-            ) : yourTurn ? (
+            ) : yourTurn && !isReplay ? (
               <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
-            ) : oppActive && !spectating ? (
+            ) : oppActive && !spectating && !isReplay ? (
               <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
             ) : null}
-            {spectating ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
+            {spectating || isReplay ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
             {formatCountdown(timer?.turnEndsAt, now) ? (
               <span className="hud-turn-chip hud-timer" title="Turn clock">
                 {formatCountdown(timer?.turnEndsAt, now)}
@@ -2285,12 +2296,12 @@ export function DuelBoard({
             </span>
             {mulliganPhase && decidingMulligan ? (
               <span className="hud-turn-chip">MULLIGAN</span>
-            ) : yourTurn ? (
+            ) : yourTurn && !isReplay ? (
               <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
-            ) : oppActive && !spectating ? (
+            ) : oppActive && !spectating && !isReplay ? (
               <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
             ) : null}
-            {spectating ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
+            {spectating || isReplay ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
             {formatCountdown(timer?.turnEndsAt, now) ? (
               <span className="hud-turn-chip hud-timer" title="Turn clock">
                 Turn {formatCountdown(timer?.turnEndsAt, now)}
@@ -2677,7 +2688,7 @@ export function DuelBoard({
                 waiting={oppWait}
                 view={view}
                 disabled={over}
-                confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+                confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
                 defend={defendPrimary}
                 counterLabel={counterLabel}
                 onSend={sendPrimary}
@@ -3129,7 +3140,7 @@ export function DuelBoard({
           waiting={oppWait}
           view={view}
           disabled={over}
-          confirmEndTurn={endTurnWarning(prefs.endTurnConfirm, view.legalIntents)}
+          confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
           defend={defendPrimary}
           counterLabel={counterLabel}
           onSend={sendPrimary}
@@ -3203,7 +3214,7 @@ export function DuelBoard({
             {(() => {
               // Spectators / hotseat: name the winning player instead of "Seat N".
               const winner = (matchOver?.winner ?? view.winner) as Seat | null;
-              return spectating && players && (winner === 0 || winner === 1)
+              return (spectating || isReplay) && players && (winner === 0 || winner === 1)
                 ? winnerHeadline(players, winner, null, true)
                 : result.headline;
             })()}

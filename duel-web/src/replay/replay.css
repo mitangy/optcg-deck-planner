@@ -138,6 +138,11 @@
   cursor: pointer;
 }
 
+/* Short labels for the narrowest rail (a landscape phone); the full ones are the buttons' names. */
+.replay-seg-short {
+  display: none;
+}
+
 .replay-seg-btn + .replay-seg-btn {
   border-left: 1px solid var(--line);
 }
@@ -145,6 +150,69 @@
 .replay-seg-btn[aria-pressed="true"] {
   background: color-mix(in srgb, var(--arena-panel) 55%, var(--chrome) 45%);
   color: var(--chrome-bright, inherit);
+}
+
+/* Your own line (#966): the variation bar takes the mode toggle's row, at the same height. */
+.replay-line {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  /* The mode toggle's height (its buttons plus its own border), so swapping them moves nothing. */
+  min-height: calc(2.75rem + 2px);
+  padding: 0 0.3rem 0 0.55rem;
+  border: 1px solid var(--chrome);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--arena-panel) 70%, var(--chrome) 30%);
+}
+
+.replay-line-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+.replay-line-text > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replay-line-text strong {
+  font-size: 0.8rem;
+  color: var(--chrome-bright, inherit);
+}
+
+.replay-line-btn {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: 2.25rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 8px;
+  background: var(--arena-panel);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.replay-line-btn:hover,
+.replay-line-btn:focus-visible {
+  background: color-mix(in srgb, var(--arena-panel) 80%, var(--chrome) 20%);
+  outline: none;
+}
+
+.replay-line-btn:focus-visible {
+  box-shadow: var(--focus);
 }
 
 /* On a phone the bar sits where the action bar does. */
@@ -312,10 +380,18 @@
     max-width: 2.5rem;
   }
 
-  /* Both mode labels fit their equal-width halves without clipping. */
+  /* Both mode labels fit their equal-width halves without clipping: the short ones here. */
   .replay-compact .replay-seg-btn {
     padding: 0 0.15rem;
     font-size: 0.74rem;
+  }
+
+  .replay-compact .replay-seg-long {
+    display: none;
+  }
+
+  .replay-compact .replay-seg-short {
+    display: inline;
   }
 
   .replay-note {
@@ -325,6 +401,28 @@
 
   .replay-compact .replay-more {
     width: 2.1rem;
+  }
+
+  .replay-compact .replay-line {
+    min-height: calc(2.1rem + 2px);
+    gap: 0.2rem;
+    padding: 0 0.2rem 0 0.3rem;
+  }
+
+  .replay-compact .replay-line-btn {
+    height: 1.75rem;
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .replay-compact .replay-line-text {
+    font-size: 0.64rem;
+    line-height: 1.1;
+  }
+
+  /* No room for the words on the narrowest rail: the highlighted bar and "T3 · 1 move" say it (the full text is its title). */
+  .replay-compact .replay-line-text strong {
+    display: none;
   }
 
   .replay-more-sheet {
