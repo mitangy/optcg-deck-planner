@@ -153,10 +153,10 @@ describe("gameplay rows that do nothing in this layout (#790)", () => {
   });
 });
 
-describe("Spectating settings (#TBD)", () => {
+describe("Spectating settings (#937)", () => {
   const rowsOf = (groups: GameplayGroup[]) => groups.flatMap((g) => g.rows);
 
-  it("a spectator's sheet hides rows that only matter when playing and keeps shared ones (#TBD)", () => {
+  it("a spectator's sheet hides rows that only matter when playing and keeps shared ones (#937)", () => {
     const watching = rowsOf(visibleGroups(desktop, GAMEPLAY_GROUPS, { spectating: true }));
     const playing = rowsOf(visibleGroups(desktop, GAMEPLAY_GROUPS, { spectating: false }));
     expect(playing).toContain("endTurnConfirm");
@@ -168,20 +168,20 @@ describe("Spectating settings (#TBD)", () => {
     expect(watching).toContain("handCounters");
   });
 
-  it("puts the Spectating group first when watching and last otherwise (#TBD)", () => {
+  it("puts the Spectating group first when watching and last otherwise (#937)", () => {
     const watching = visibleGroups(phone, GAMEPLAY_GROUPS, { spectating: true }).map((g) => g.id);
     const playing = visibleGroups(phone, GAMEPLAY_GROUPS, { spectating: false }).map((g) => g.id);
     expect(watching[0]).toBe("spectating");
     expect(playing[playing.length - 1]).toBe("spectating");
   });
 
-  it("drops a group whose rows are all player-only while watching (#TBD)", () => {
+  it("drops a group whose rows are all player-only while watching (#937)", () => {
     const onlyPlayer: GameplayGroup = { id: "turns", title: "T", chip: "T", rows: ["endTurnConfirm", "responseStops"] };
     expect(visibleGroups(desktop, [onlyPlayer]).map((g) => g.id)).toEqual(["turns"]);
     expect(visibleGroups(desktop, [onlyPlayer], { spectating: true })).toEqual([]);
   });
 
-  it("classifies player-only rows (#TBD)", () => {
+  it("classifies player-only rows (#937)", () => {
     expect(playerOnlyRow("endTurnConfirm")).toBe(true);
     expect(playerOnlyRow("bigBoard")).toBe(false);
     expect(playerOnlyRow("spectatorSound")).toBe(false);

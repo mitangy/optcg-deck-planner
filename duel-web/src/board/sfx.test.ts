@@ -112,13 +112,13 @@ describe("mergeSfx", () => {
 });
 
 describe("gameSfxMuted", () => {
-  it("Sound while watching off mutes a spectator but not a player (#TBD)", () => {
+  it("Sound while watching off mutes a spectator but not a player (#937)", () => {
     expect(gameSfxMuted({ quiet: false, spectating: true, spectatorSound: false })).toBe(true);
     expect(gameSfxMuted({ quiet: false, spectating: true, spectatorSound: true })).toBe(false);
     expect(gameSfxMuted({ quiet: false, spectating: false, spectatorSound: false })).toBe(false);
   });
 
-  it("stays muted in a quiet moment whatever the spectator setting says (#TBD)", () => {
+  it("stays muted in a quiet moment whatever the spectator setting says (#937)", () => {
     expect(gameSfxMuted({ quiet: true, spectating: true, spectatorSound: true })).toBe(true);
   });
 });
