@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
   { date: "2026-11-04", app: "planner", pr: 939, title: "Friends can see your collection", text: "Your collection is now shared with your friends by default, like your decks, so they can see which cards you own. If you already chose to keep it private, nothing changes. Turn it off any time under Sharing on the Friends page." },
+  { date: "2026-11-04", app: "planner", pr: 0, title: "Alt art picks follow your deck filter", text: "On Master Shopping, picking an alt art to buy now saves it to the decks you have ticked under Include decks, so the pick stays instead of snapping back to 0." },
   { date: "2026-11-04", app: "planner", pr: 0, title: "Owned alt arts no longer count twice", text: "If you picked an alt art to buy and already own it, Remaining no longer charges for it again. Copies you own come off the alt art you picked, and only the rest is priced." },
   // 2026-11-03
   { date: "2026-11-03", app: "duel", pr: 931, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },

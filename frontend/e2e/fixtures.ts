@@ -103,6 +103,10 @@ type Planner = {
   enableLogPose(): void;
   /** Sign out for this session (call before `open`): /auth/me answers null. */
   signOut(): void;
+  /** Add a second deck to the fake deck list (call before `open`), so the Include decks filter can hide one. */
+  addSecondDeck(): void;
+  /** Bodies the page PUT to the shopping-level /cards/:card/printings/:product (the alt buy pick). */
+  printingPuts: { path: string; body: { qty: number; deck_ids?: number[] } }[];
   /** Whether the fake deck is hidden from friends (set by PATCH /decks/:id with hidden_from_friends). */
   readonly deckHidden: boolean;
   /** Decks the page created through POST /decks (name and decklist as sent). */
@@ -130,6 +134,8 @@ export const test = base.extend<{ planner: Planner }>({
     const priceAlertPosts: Planner["priceAlertPosts"] = [];
     const displayArt = new Map<string, number>();
     let hasDecks = true;
+    let secondDeck = false;
+    const printingPuts: Planner["printingPuts"] = [];
     let deckHidden = false;
     const extraAlts = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
@@ -339,7 +345,7 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/decks") {
         const d = deckDetail();
         if (!hasDecks) return json([]);
-        return json([
+        const decks = [
           {
             id: DECK_ID,
             name: d.name,
@@ -354,7 +360,9 @@ export const test = base.extend<{ planner: Planner }>({
             sort_order: 0,
             is_main: true,
           },
-        ]);
+        ];
+        if (secondDeck) decks.push({ ...decks[0]!, id: DECK_ID + 1, name: `${d.name} 2`, sort_order: 1, is_main: false });
+        return json(decks);
       }
       if (path === `/decks/${DECK_ID}`) {
         if (method === "PATCH") {
@@ -433,7 +441,9 @@ export const test = base.extend<{ planner: Planner }>({
       if ((m = path.match(/^\/(?:decks\/\d+\/)?cards\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
         const card = CARDS.find((c) => c.card_id === cardId);
-        const asked = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        const body = JSON.parse(req.postData() ?? "{}") as { qty: number; deck_ids?: number[] };
+        if (!path.startsWith("/decks/")) printingPuts.push({ path, body });
+        const asked = body.qty;
         const qty = Math.max(0, Math.min(asked, card?.needed ?? 0));
         if (qty > 0) altWants.set(`${cardId}:${m[2]}`, qty);
         else altWants.delete(`${cardId}:${m[2]}`);
@@ -542,6 +552,10 @@ export const test = base.extend<{ planner: Planner }>({
       errors,
       chats,
       createdDecks,
+      addSecondDeck() {
+        secondDeck = true;
+      },
+      printingPuts,
       signOut() {
         signedIn = false;
       },
