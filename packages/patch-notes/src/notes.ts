@@ -12,9 +12,9 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
   { date: "2026-11-04", app: "planner", pr: 939, title: "Friends can see your collection", text: "Your collection is now shared with your friends by default, like your decks, so they can see which cards you own. If you already chose to keep it private, nothing changes. Turn it off any time under Sharing on the Friends page." },
-  { date: "2026-11-04", app: "planner", pr: 0, title: "Alt art picks follow your deck filter", text: "On Master Shopping, picking an alt art to buy now saves it to the decks you have ticked under Include decks, so the pick stays instead of snapping back to 0." },
-  { date: "2026-11-04", app: "planner", pr: 0, title: "Owned alt arts no longer count twice", text: "If you picked an alt art to buy and already own it, Remaining no longer charges for it again. Copies you own come off the alt art you picked, and only the rest is priced." },
-  { date: "2026-11-04", app: "duel", pr: 0, title: "Leader pages no longer vanish", text: "A leader's page now stays up with its decklists when that leader slips out of the current top 30, instead of switching to \"no recent tournament data\" after loading." },
+  { date: "2026-11-04", app: "planner", pr: 944, title: "Alt art picks follow your deck filter", text: "On Master Shopping, picking an alt art to buy now saves it to the decks you have ticked under Include decks, so the pick stays instead of snapping back to 0." },
+  { date: "2026-11-04", app: "planner", pr: 944, title: "Owned alt arts no longer count twice", text: "If you picked an alt art to buy and already own it, Remaining no longer charges for it again. Copies you own come off the alt art you picked, and only the rest is priced." },
+  { date: "2026-11-04", app: "duel", pr: 944, title: "Leader pages no longer vanish", text: "A leader's page now stays up with its decklists when that leader slips out of the current top 30, instead of switching to \"no recent tournament data\" after loading." },
   // 2026-11-03
   { date: "2026-11-03", app: "duel", pr: 931, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },
   { date: "2026-11-03", app: "planner", pr: 929, title: "Market price follows the art you show", text: "On Master Shopping, when a card shows an alt art, its Market price and recent sales are now for that alt art instead of the base card." },
