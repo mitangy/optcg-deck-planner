@@ -1,0 +1,58 @@
+/** price-timing mutations (packages/price-timing/src, vitest): the "when to buy" verdicts shared by the planner and Log Pose. */
+const f = "packages/price-timing/src/priceTiming.ts";
+module.exports = {
+  cwd: "packages/price-timing",
+  runner: "vitest",
+  mutations: [
+    // artKind
+    { id: "timing-kind-manga-not-chase", file: f, from: "const CHASE_MARK = /manga|", to: "const CHASE_MARK = /mangax|", kills: ["reads chase arts from the TCGPlayer name"] },
+    { id: "timing-kind-gold-anywhere", file: f, from: "const marks = [...name.matchAll(/\\(([^)]*)\\)/g)].map((m) => m[1]).join(\" \");", to: "const marks = name;", kills: ["does not take a card name for an art mark"] },
+    { id: "timing-kind-alt-before-chase", file: f, from: "  if (CHASE_MARK.test(marks)) return \"chase\";\n  if (ALT_MARK.test(marks) || /parallel/i.test(name)) return \"alt\";", to: "  if (ALT_MARK.test(marks) || /parallel/i.test(name)) return \"alt\";\n  if (CHASE_MARK.test(marks)) return \"chase\";", kills: ["keeps a chase mark ahead of the alt mark"] },
+    {
+      id: "timing-kind-parallel-not-alt",
+      edits: [
+        { file: f, from: "const ALT_MARK = /alternate art|parallel/i;", to: "const ALT_MARK = /alternate art/i;" },
+        { file: f, from: "if (ALT_MARK.test(marks) || /parallel/i.test(name)) return \"alt\";", to: "if (ALT_MARK.test(marks)) return \"alt\";" },
+      ],
+      kills: ["reads alt arts"],
+    },
+    { id: "timing-kind-base-rare-without-rarity", file: f, from: "if (rarity && BASE_RARE.test(rarity.trim())) return \"baseRare\";", to: "if (!rarity || BASE_RARE.test(rarity.trim())) return \"baseRare\";", kills: ["only when its rarity is known"] },
+    { id: "timing-kind-rare-is-base-rare", file: f, from: "const BASE_RARE = /^(sr|sec|l|super rare|secret rare|leader)$/i;", to: "const BASE_RARE = /^(r|sr|sec|l|super rare|secret rare|leader)$/i;", kills: ["only when its rarity is known"] },
+    // curve
+    { id: "timing-curve-no-interpolation", file: f, from: "return curve[i]! + (curve[i + 1]! - curve[i]!) * t;", to: "return curve[i]!;", kills: ["interpolates linearly between the 14-day marks"] },
+    { id: "timing-curve-before-release-not-100", file: f, from: "if (!(day > 0)) return 100;", to: "if (!(day > 0)) return curve[0] - 1;", kills: ["is 100 before release and holds the last value after a year"] },
+    { id: "timing-curve-no-clamp-after-year", file: f, from: "if (day >= CURVE_OFFSETS[last]!) return curve[last]!;", to: "if (day >= CURVE_OFFSETS[last]!) return curve[last - 1]!;", kills: ["is 100 before release and holds the last value after a year"] },
+    { id: "timing-curve-alt-flat-start", file: f, from: "alt: [100, 85, 79, 66,", to: "alt: [100, 85, 79, 80,", kills: ["interpolates linearly between the 14-day marks", "is soon when the typical remaining drop"] },
+    // verdicts
+    { id: "timing-unknown-without-release", file: f, from: "if (!released || current == null || !(current > 0)) {", to: "if (current == null || !(current > 0)) {", kills: ["says unknown without a release date or a current price"] },
+    { id: "timing-unknown-without-price", file: f, from: "if (!released || current == null || !(current > 0)) {", to: "if (!released) {", kills: ["says unknown without a release date or a current price"] },
+    { id: "timing-presale-not-wait", file: f, from: "  if (age < 0) {\n    return {\n      verdict: \"wait\",", to: "  if (age < 0) {\n    return {\n      verdict: \"soon\",", kills: ["tells you to wait during presale, for every kind"] },
+    { id: "timing-presale-skipped", file: f, from: "  if (age < 0) {\n    return {", to: "  if (age < -9999) {\n    return {", kills: ["tells you to wait during presale, for every kind"] },
+    { id: "timing-chase-waits", file: f, from: "  if (kind === \"chase\") {", to: "  if (kind === \"alt\") {", kills: ["says a chase art holds", "comes with a chase verdict too"] },
+    { id: "timing-chase-avg-all-history", file: f, from: "    if (recent.length >= 2) {\n      const avg", to: "    if (points.length >= 2) {\n      const avg", kills: ["leaves the average out when there are no recent points"] },
+    { id: "timing-drop-reference-day-90", file: f, from: "const SETTLED_DAY = 180;", to: "const SETTLED_DAY = 90;", kills: ["waits on an alt art 30 days after release"] },
+    { id: "timing-drop-inverted-ratio", file: f, from: "1 - expectedRatio(kind, SETTLED_DAY) / expectedRatio(kind, age)", to: "1 - expectedRatio(kind, age) / expectedRatio(kind, SETTLED_DAY)", kills: ["waits on an alt art 30 days after release"] },
+    { id: "timing-wait-threshold-high", file: f, from: "const WAIT_DROP = 0.15;", to: "const WAIT_DROP = 0.25;", kills: ["waits on an alt art 30 days after release", "uses the all-singles curve"] },
+    { id: "timing-soon-threshold-low", file: f, from: "const SOON_DROP = 0.1;", to: "const SOON_DROP = 0.05;", kills: ["is soon when the typical remaining drop"] },
+    { id: "timing-soon-threshold-high", file: f, from: "const SOON_DROP = 0.1;", to: "const SOON_DROP = 0.15;", kills: ["is soon when the typical remaining drop"] },
+    { id: "timing-no-clamp-past-settled", file: f, from: "const drop = age >= SETTLED_DAY ? 0 : 1 -", to: "const drop = 0 + 1 -", kills: ["does not say the price will fall further"] },
+    { id: "timing-drop-pct-unrounded-floor", file: f, from: "Math.max(0, Math.round(drop * 100))", to: "Math.max(0, Math.floor(drop * 100))", kills: ["is soon when the typical remaining drop"] },
+    // 30-day low
+    { id: "timing-low-threshold-10", file: f, from: "if (low > 0 && above > 15)", to: "if (low > 0 && above > 10)", kills: ["adds nothing at exactly 15 percent"] },
+    { id: "timing-low-threshold-ge", file: f, from: "if (low > 0 && above > 15)", to: "if (low > 0 && above >= 15)", kills: ["adds nothing at exactly 15 percent"] },
+    { id: "timing-low-threshold-20", file: f, from: "if (low > 0 && above > 15)", to: "if (low > 0 && above > 20)", kills: ["adds a reason when the price is more than 15 percent above the 30-day low"] },
+    { id: "timing-low-on-wait", file: f, from: "if (verdict !== \"wait\" && recent.length) {", to: "if (recent.length) {", kills: ["applies to soon as well, and never to wait"] },
+    { id: "timing-low-only-good", file: f, from: "if (verdict !== \"wait\" && recent.length) {", to: "if (verdict === \"good\" && recent.length) {", kills: ["applies to soon as well, and never to wait"] },
+    { id: "timing-window-31-days", file: f, from: "return d <= to && to - d <= days;", to: "return d <= to && to - d <= days + 1;", kills: ["counts day 30 back but not day 31"] },
+    { id: "timing-window-29-days", file: f, from: "return d <= to && to - d <= days;", to: "return d <= to && to - d <= days - 1;", kills: ["counts day 30 back but not day 31"] },
+    // season
+    { id: "timing-season-dec-missing", file: f, from: "if (month === 12 || month <= 3)", to: "if (month <= 3)", kills: ["says winter from December through March"] },
+    { id: "timing-season-april-winter", file: f, from: "if (month === 12 || month <= 3)", to: "if (month === 12 || month <= 4)", kills: ["says nothing in the months between"] },
+    { id: "timing-season-mar-missing", file: f, from: "if (month === 12 || month <= 3)", to: "if (month === 12 || month <= 2)", kills: ["says winter from December through March"] },
+    { id: "timing-season-aug-missing", file: f, from: "if (month >= 8 && month <= 10)", to: "if (month >= 9 && month <= 10)", kills: ["says cheapest from August through October"] },
+    { id: "timing-season-nov-cheap", file: f, from: "if (month >= 8 && month <= 10)", to: "if (month >= 8 && month <= 11)", kills: ["says nothing in the months between"] },
+    { id: "timing-season-jul-cheap", file: f, from: "if (month >= 8 && month <= 10)", to: "if (month >= 7 && month <= 10)", kills: ["says nothing in the months between"] },
+    { id: "timing-season-any-age", file: f, from: "if (age < 120) return undefined;", to: "", kills: ["is only for cards at least 120 days old"] },
+    { id: "timing-season-age-121", file: f, from: "if (age < 120) return undefined;", to: "if (age < 121) return undefined;", kills: ["is only for cards at least 120 days old"] },
+  ],
+};

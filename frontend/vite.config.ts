@@ -71,6 +71,7 @@ export default defineConfig(({ mode }) => {
       // Shared deck analytics and the legal footer / pages are compiled from source; see packages/.
       alias: [
         { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
+        { find: /^@optcg\/price-timing/, replacement: fileURLToPath(new URL("../packages/price-timing/src", import.meta.url)) },
         { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
         { find: /^@optcg\/patch-notes/, replacement: fileURLToPath(new URL("../packages/patch-notes/src", import.meta.url)) },
         { find: /^@optcg\/ui/, replacement: fileURLToPath(new URL("../packages/ui/src", import.meta.url)) },

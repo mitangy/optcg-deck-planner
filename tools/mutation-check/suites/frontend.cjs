@@ -522,5 +522,8 @@ module.exports = {
     { id: "ph946-nearest-by-index", file: "frontend/src/priceHistory.ts", from: "Math.abs(dayNumber(p.date) - x)", to: "Math.abs(i - x)", kills: ["hovering picks the point nearest in time"], args: "src/priceHistory.test.ts" },
     { id: "ph946-months-ignore-day", file: "frontend/src/priceHistory.ts", from: "- (td < rd ? 1 : 0)", to: "", kills: ["release age counts days"], args: "src/priceHistory.test.ts" },
     { id: "ph946-ticks-start-above-min", file: "frontend/src/priceHistory.ts", from: "Math.floor(min / step) * step", to: "Math.ceil(min / step) * step", kills: ["axis ticks are round numbers"], args: "src/priceHistory.test.ts" },
+    {"id": "ph946-ask-product-always", "file": "frontend/src/priceHistory.ts", "from": "${productId ? `, product ${productId}` : \"\"}", "to": "${`, product ${productId}`}", "kills": ["calls the base art base art"], "args": "src/priceHistory.test.ts"},
+    {"id": "ph946-ask-no-art-label", "file": "frontend/src/priceHistory.ts", "from": "return marks.length ? marks.join(\", \") : \"base art\";", "to": "return marks.join(\", \");", "kills": ["calls the base art base art"], "args": "src/priceHistory.test.ts"},
+    {"id": "ph946-ask-keeps-marks-in-name", "file": "frontend/src/priceHistory.ts", "from": "return productName.replace(/\\s*\\([^)]*\\)/g, \"\")", "to": "return productName.replace(/\\s*\\([^)]*\\)$/, \"\")", "kills": ["keeps every art mark and drops them from the card name"], "args": "src/priceHistory.test.ts"},
 ],
 };

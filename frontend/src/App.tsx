@@ -2737,11 +2737,11 @@ export function ShoppingScanHitAction({ cardId }: { cardId: string }) {
   );
 }
 
-const renderLightboxActions = (cardId: string, productId?: number) => (
+const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
   <>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
-    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
+    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} onAsked={close} />
   </>
 );
 

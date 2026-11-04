@@ -318,6 +318,28 @@ describe("chat", () => {
     expect(await run(false)).toBe("error");
   });
 
+  it("answers a price_history call with a cited price: source and says what it is doing (#946)", async () => {
+    const released = new Date(Date.now() - 100 * 86_400_000).toISOString().slice(0, 10);
+    const { api } = planner({
+      "POST /analyst/chat/threads": { id: 9 },
+      "POST /analyst/chat/threads/9/messages": null,
+      "POST /analyst/chat/usage": null,
+      "GET /analyst/chat/budget": BUDGET,
+      "GET /catalog/cards/OP05-119/price-history": { card_id: "OP05-119", product_id: 555, name: "Monkey.D.Luffy (Alternate Art)", group_name: "OP05", released, current: 20, points: [[released, 30], [new Date().toISOString().slice(0, 10), 20]] },
+    });
+    const toolUse = { type: "tool_use", id: "t1", name: "price_history", input: { card_id: "OP05-119", product_id: 555 } };
+    const { seen, callModel } = scriptedModel([
+      { content: [toolUse], stop_reason: "tool_use", usage: usage(1000, 100) },
+      { content: [{ type: "text", text: "Buy now." }], stop_reason: "end_turn", usage: usage(2000, 200) },
+    ]);
+    const events: SseEvent[] = [];
+    await runChat({ ...deps(api, callModel), knowledge: { stats: api } }, "chat.tok", { message: "When should I buy the OP05-119 alt?" }, (e) => events.push(e), new AbortController().signal);
+    expect(events.find((e) => e.event === "status")!.data).toEqual({ text: "Checking price history" });
+    const toolResult = seen[1]!.messages.at(-1).content[0];
+    expect(toolResult.content[0]).toMatchObject({ type: "search_result", source: "price:OP05-119#555", citations: { enabled: true } });
+    expect(toolResult.content.every((b: { type: string }) => b.type === "search_result")).toBe(true);
+  });
+
   it("runs the tools the model asks for, streams the answer and saves the whole turn (#377)", async () => {
     const { calls, api } = planner({
       "POST /analyst/chat/threads": { id: 9 },

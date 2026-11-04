@@ -120,6 +120,8 @@ module.exports = {
     { id: "md-fence-parsed", file: md, from: "    const fence = FENCE.exec(line);", to: "    const fence = null as RegExpExecArray | null;", kills: ["keeps a fenced code block verbatim"] },
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
+    { id: "cit-price-not-a-kind", file: cit, from: '"botgame", "position", "price"];', to: '"botgame", "position"];', kills: ["parses price: sources by card and art"] },
+    { id: "cit-price-label", file: cit, from: 'return "Price history";', to: 'return "Source";', kills: ["parses price: sources by card and art"] },
     { id: "cit-turn-not-read", file: cit, from: "const m = /^t(\\d+)$/.exec(part);", to: "const m = null as RegExpExecArray | null;", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\" || head === \"botsim\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-label-rules-no-section-sign", file: cit, from: "`Rules \u00a7${p.id}`", to: "`Rules ${p.id}`", kills: ["labels each kind of source"] },

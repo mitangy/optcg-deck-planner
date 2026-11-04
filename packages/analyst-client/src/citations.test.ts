@@ -32,6 +32,11 @@ describe("source ids and their badges (#390)", () => {
     expect(label("odds:d50h8x1f")).toBe("Odds");
   });
 
+  it("parses price: sources by card and art, and labels them Price history", () => {
+    expect(parseSource("price:OP05-119#2000123")).toMatchObject({ kind: "price", id: "OP05-119", part: "2000123" });
+    expect(kindLabel(parseSource("price:OP05-119"))).toBe("Price history");
+  });
+
   it("parses sim: sources and labels them Goldfish sim (#402)", () => {
     expect(parseSource("sim:1a2b3c4d#curve")).toMatchObject({ kind: "sim", id: "1a2b3c4d", part: "curve" });
     expect(kindLabel(parseSource("sim:1a2b3c4d"))).toBe("Goldfish sim");
