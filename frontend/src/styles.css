@@ -8109,6 +8109,16 @@ button.ghost.scan-tray-fix {
   box-shadow: var(--shadow-lift);
 }
 
+/* A short landscape screen has no room above the button: the panel takes the screen instead (#968). */
+@media (max-height: 520px) {
+  .lightbox-history-pop {
+    position: fixed;
+    top: 0.5rem;
+    bottom: auto;
+    max-height: calc(100dvh - 1rem);
+  }
+}
+
 /* Only one floating panel at a time. */
 .lightbox-action:has(.lightbox-history-pop) .lightbox-alert-pop {
   display: none;

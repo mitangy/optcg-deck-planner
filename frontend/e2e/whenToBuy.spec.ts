@@ -266,6 +266,28 @@ test("Ask Log Pose opens the chat beside the card on desktop and over it on a ph
   }
 });
 
+test("On a short landscape screen the price panel fits the screen instead of collapsing (#968)", async ({ page, planner }) => {
+  test.skip(test.info().project.name !== "phone-375", "landscape phone only");
+  planner.enableLogPose();
+  await page.setViewportSize({ width: 812, height: 375 });
+  await planner.open("/collection");
+  await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
+  const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
+  await lightbox.getByRole("button", { name: "Price history" }).click();
+  const pop = lightbox.locator(".lightbox-history-pop");
+  const ask = pop.getByRole("button", { name: "Ask Log Pose" });
+  await expect(ask).toBeVisible();
+  const vp = page.viewportSize()!;
+  const box = (await pop.boundingBox())!;
+  expect(box.height).toBeGreaterThan(200);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  // The When to buy row is within the part of the panel that shows.
+  const buy = (await pop.getByLabel("When to buy").boundingBox())!;
+  expect(buy.y).toBeGreaterThanOrEqual(box.y);
+  expect(buy.y + buy.height).toBeLessThanOrEqual(box.y + box.height + 1);
+});
+
 test("no Ask Log Pose while Log Pose is off (#946)", async ({ page, planner }) => {
   await planner.open("/collection");
   await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
