@@ -127,7 +127,8 @@ const CORS = {
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
-for (const width of [180, 200, 250]) {
+// 200px is the narrowest a column can be dragged to (#796); the row's seven buttons (Mute this tab is the newest, #934) need all of it.
+for (const width of [200, 250]) {
   test(`every button in the action row fits a ${width}px side column and Full screen sits in the row, not the menu (#796)`, async ({ page, duel }) => {
     await page.setViewportSize(DESKTOP);
     await page.addInitScript((w) => {

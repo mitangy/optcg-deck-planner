@@ -1096,3 +1096,14 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
 .sheet .settings-group {
   scroll-margin-top: 4.4rem;
 }
+
+/* Mute this tab (#934): the speaker keeps one width whichever glyph shows, so the toolbar never shifts. */
+.tab-mute-icon {
+  display: inline-block;
+  width: 1.25em;
+  text-align: center;
+}
+
+.tab-mute-btn[aria-pressed="true"] {
+  border-color: var(--accent, currentColor);
+}

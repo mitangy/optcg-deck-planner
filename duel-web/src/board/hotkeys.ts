@@ -10,6 +10,8 @@ export type HotkeyAction =
   | "hand_next"
   /** F: toggle full screen (only when the browser offers it). */
   | "fullscreen"
+  /** M: mute or unmute this tab (#934). Spectators too. */
+  | "mute_tab"
   /** 1-9: the Nth secondary action button. */
   | { kind: "slot"; n: number }
   /** A/E/P/D: the button for this mnemonic letter (lowercase). */
@@ -67,6 +69,8 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
     if (!ctx.fullscreenOffered || e.repeat) return null;
     return "fullscreen";
   }
+  // A watch tab is the one that needs it (#934).
+  if (e.key.toLowerCase() === "m") return e.repeat ? null : "mute_tab";
   if (ctx.spectating) return null;
   if (e.key === "Escape") return ctx.escOwned ? null : "escape";
   const k = e.key.toLowerCase();

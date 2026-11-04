@@ -19,6 +19,8 @@ type Options = {
   /** Full screen is offered here (see canOfferFullscreen): F calls onToggleFullscreen. */
   fullscreenOffered: boolean;
   onToggleFullscreen: () => void;
+  /** M: mute or unmute this tab (#934). */
+  onToggleTabMute: () => void;
 };
 
 /** An open Headless UI menu (match menu, Undo) is `[role="menu"]`: it owns the keys, so the board shortcuts stay quiet. */
@@ -123,6 +125,7 @@ export function useBoardHotkeys(opts: Options) {
       else if (action === "sort_hand") o.onSortHand();
       else if (action === "help") o.onHelp();
       else if (action === "fullscreen") o.onToggleFullscreen();
+      else if (action === "mute_tab") o.onToggleTabMute();
       else {
         const btn = document.querySelector<HTMLButtonElement>(
           ".board-root .intent-btn-primary:not(:disabled)",
