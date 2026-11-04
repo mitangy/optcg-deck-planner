@@ -155,5 +155,8 @@ describe("leader page (#914)", () => {
     expect(host!.querySelector("h1")?.textContent).toBe("Rocks.D.Xebec (OP17-039) deck list – play online free");
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? "").not.toContain("noindex");
     expect(playButtons()).toHaveLength(1 + decks.length);
+    // It left the live list, so the intro must not still call it the most played leader.
+    expect(host!.textContent).not.toContain("making it the most played");
+    expect(host!.textContent).toContain(`the ${liveWithout.length + 1}`);
   });
 });
