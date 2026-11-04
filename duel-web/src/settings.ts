@@ -210,6 +210,8 @@ export type DuelSettings = {
   turnAlert: boolean;
   /** Short chime when the game needs you. */
   turnSound: boolean;
+  /** Game sounds while you spectate a match. Off keeps watching tabs quiet; needs Sounds on. */
+  spectatorSound: boolean;
   /** A tab spectating or replaying stays silent while another tab has your match open (#934). */
   quietWatchTabs: boolean;
 
@@ -289,6 +291,7 @@ const DEFAULTS: DuelSettings = {
   cardSpotlight: true,
   turnAlert: true,
   turnSound: false,
+  spectatorSound: true,
   quietWatchTabs: true,
   matchBrief: true,
   matchBriefAuto: false,

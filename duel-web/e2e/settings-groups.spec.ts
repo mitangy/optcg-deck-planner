@@ -16,7 +16,7 @@ const SIZES = [
   { project: "phone-375", name: "phone-812x375-landscape", width: 812, height: 375 },
 ];
 
-const TITLES = ["Turns and prompts", "Hand", "Board and layout", "Visual aids", "Animations", "Sound and alerts"];
+const TITLES = ["Turns and prompts", "Hand", "Board and layout", "Visual aids", "Animations", "Sound and alerts", "Spectating"];
 
 async function shot(page: Page, name: string) {
   if (SHOT_DIR) await page.screenshot({ path: `${SHOT_DIR}/${name}.png` });
@@ -49,7 +49,7 @@ for (const size of SIZES) {
       await expect(sheet).toBeVisible();
       for (const title of TITLES) await expect(sheet.getByRole("heading", { name: title, level: 3 })).toHaveCount(1);
       const nav = sheet.getByRole("navigation", { name: "Gameplay sections" });
-      await expect(nav.getByRole("button")).toHaveCount(6);
+      await expect(nav.getByRole("button")).toHaveCount(7);
       await expect(sheet.getByText("Show on screen")).toHaveCount(1);
       await page.waitForTimeout(250);
       await shot(page, `sheet-top-${size.name}`);
@@ -120,3 +120,27 @@ for (const size of SIZES) {
     });
   });
 }
+
+// Phone landscape wraps the seven chips onto two rows; a jumped-to heading must land under both, not behind the second (#937).
+test("a chip jumps its heading below a two-row chip row in phone landscape (#937)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "phone landscape runs in phone-375");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 812, height: 375 });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await page.getByRole("button", { name: "Match menu" }).click();
+  await page.getByRole("menuitem", { name: /Gameplay settings/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Gameplay settings" });
+  const nav = sheet.getByRole("navigation", { name: "Gameplay sections" });
+  // The case only exists while the chips wrap.
+  const chipTops = new Set<number>();
+  for (const b of await nav.getByRole("button").all()) chipTops.add(Math.round((await b.boundingBox())!.y));
+  expect(chipTops.size).toBeGreaterThan(1);
+  await nav.getByRole("button", { name: "Visual aids" }).click();
+  const heading = sheet.getByRole("heading", { name: "Visual aids", level: 3 });
+  // Reduced motion makes the jump instant, so one reading is where it settles (a smooth scroll passes under the row on its way).
+  await page.waitForTimeout(150);
+  const n = (await nav.boundingBox())!;
+  const h = (await heading.boundingBox())!;
+  expect(h.y).toBeGreaterThanOrEqual(n.y + n.height - 1);
+});

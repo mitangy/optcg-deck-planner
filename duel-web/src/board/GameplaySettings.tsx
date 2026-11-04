@@ -165,6 +165,11 @@ const TOGGLES: Toggle[] = [
     hint: "A chime on your turn, plus short sounds for plays, attacks, K.O.s and more. Works on iPhone too.",
   },
   {
+    key: "spectatorSound",
+    label: "Sound while watching",
+    hint: "Game sounds while you spectate a match. Off keeps watching tabs quiet. Needs Sounds on.",
+  },
+  {
     key: "quietWatchTabs",
     label: "Quiet watch tabs",
     hint: "A tab where you're spectating or watching a replay stays silent while another tab has your match open.",
@@ -234,16 +239,21 @@ const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
-/** Scrolls a settings group under the sticky chip row (the group's scroll-margin-top clears it). */
+/**
+ * Scrolls a settings group under the sticky chip row. In the in-match sheet the chips can wrap to two
+ * rows on narrow windows, so the margin that clears them is measured from the row itself (#937).
+ */
 function jumpToGroup(id: GroupId) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  document
-    .getElementById(`gp-${id}`)
-    ?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  const group = document.getElementById(`gp-${id}`);
+  if (!group) return;
+  const nav = group.closest(".sheet")?.querySelector<HTMLElement>(".settings-group-jump");
+  if (nav) group.style.scrollMarginTop = `${nav.offsetHeight + 8}px`;
+  group.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
 }
 
 /** Gameplay preferences; saved in this browser and applied live. */
-export function GameplaySettingsFields() {
+export function GameplaySettingsFields({ spectating = false }: { spectating?: boolean } = {}) {
   const settings = useDuelSettings();
   const lockNote = useLockNote(settings.screenOrientation);
   // Phones and tall windows keep the flat board, so the switch would do nothing there.
@@ -262,7 +272,7 @@ export function GameplaySettingsFields() {
         {note}
       </p>
     ) : null;
-  const groups = visibleGroups(device);
+  const groups = visibleGroups(device, undefined, { spectating });
   const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
 
   function renderRow(key: RowKey): ReactNode {
@@ -567,6 +577,11 @@ export function GameplaySettingsFields() {
 
   return (
     <div className="gameplay-settings">
+      {spectating ? (
+        <p className="field-hint">
+          Settings for playing your own turns are hidden while you watch. Change them from Settings.
+        </p>
+      ) : null}
       <nav className="settings-group-jump" aria-label="Gameplay sections">
         {groups.map((g) => (
           <button
@@ -599,7 +614,7 @@ export function GameplaySettingsFields() {
 }
 
 /** In-match sheet so settings change without leaving the game. */
-export function GameplaySettingsSheet({ onClose }: { onClose: () => void }) {
+export function GameplaySettingsSheet({ onClose, spectating = false }: { onClose: () => void; spectating?: boolean }) {
   return (
     <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Gameplay settings">
       <div className="sheet-head">
@@ -609,7 +624,7 @@ export function GameplaySettingsSheet({ onClose }: { onClose: () => void }) {
           ✕
         </button>
       </div>
-      <GameplaySettingsFields />
+      <GameplaySettingsFields spectating={spectating} />
     </Dialog>
   );
 }

@@ -156,6 +156,11 @@ export function playSfx(ids: readonly SfxId[], now = Date.now()): void {
   }
 }
 
+/** Whether game sound effects are held back: a quiet moment (hotseat hand-over, auto-pass, replay) or a spectator who turned "Sound while watching" off. */
+export function gameSfxMuted(o: { quiet: boolean; spectating: boolean; spectatorSound: boolean }): boolean {
+  return o.quiet || (o.spectating && !o.spectatorSound);
+}
+
 /**
  * Sound effects for draws, plays, attacks, blocks, counters, K.O.s, DON!!,
  * triggers and the result. `sound` = the master Sounds setting; `muted` =
