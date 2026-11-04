@@ -2020,6 +2020,31 @@ tr.done td {
   justify-content: flex-end;
 }
 
+/* Where Log Pose renders while the card is open (#968): no box of its own; the panel is fixed to the screen. */
+.lightbox-chat-layer {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Beside the card on desktop the chat takes its side of the screen: the card and its Close button move over. */
+html[data-lp-layer="right"] .lightbox {
+  padding-right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox {
+  padding-left: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="right"] .lightbox-close {
+  right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox-close {
+  left: calc(var(--lp-layer-w, 420px) + 1rem);
+  right: auto;
+}
+
 .lightbox-close {
   position: absolute;
   top: 1rem;
