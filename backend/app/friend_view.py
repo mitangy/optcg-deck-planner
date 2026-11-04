@@ -27,7 +27,7 @@ def not_found() -> HTTPException:
 @dataclass(frozen=True)
 class Sharing:
     decks: str = "friends"
-    collection: str = "off"
+    collection: str = "friends"
     trades_open: bool = False
     show_values: bool = False
     prompted: bool = False

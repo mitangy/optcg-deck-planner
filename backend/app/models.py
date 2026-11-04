@@ -1244,7 +1244,9 @@ class AnalystFeedback(Base):
 
 
 class UserSharing(Base):
-    """What a user lets accepted friends see (#703). No row means the defaults."""
+    """What a user lets accepted friends see (#703). No row means the defaults: decks and collection shared
+    with friends (#935), trades and prices off. A row is only written when the user saves a choice,
+    so a stored "off" is always explicit."""
 
     __tablename__ = "user_sharing"
 
@@ -1252,7 +1254,7 @@ class UserSharing(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     decks: Mapped[str] = mapped_column(String(16), default="friends", server_default="friends")
-    collection: Mapped[str] = mapped_column(String(16), default="off", server_default="off")
+    collection: Mapped[str] = mapped_column(String(16), default="friends", server_default="friends")
     trades_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     show_values: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Set the first time the user saves their sharing choices.
