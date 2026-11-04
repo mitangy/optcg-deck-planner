@@ -57,12 +57,24 @@ export function fanPosForDrop(
 }
 
 /**
+ * The spot to save for a spectator's near fan, dropped with its centre at
+ * `centreX` and its bottom edge at `bottom`. Its default spot is the strip
+ * under the board: dropped with its bottom edge near the window's bottom (at
+ * any x) it goes back there. Spectator fans never tuck, so the bottom edge
+ * only means "home"; anywhere else it stays where it was dropped.
+ */
+export function spectatorNearFanPosForDrop(centreX: number, bottom: number, vp: Viewport): FanPos | null {
+  if (vp.height - bottom <= FAN_SNAP_PX) return null;
+  return { x: clamp01(centreX / vp.width), y: clamp01(bottom / vp.height) };
+}
+
+/**
  * The spot to save for a spectator's far fan (the one hanging from the top of
  * the board), dropped with its centre at `centreX` and its bottom edge at
  * `bottom`, `height` tall. Its default spot is the strip along the top of the
- * board (`matTop`, centred on `defaultCentreX`): dropped with its top edge and
- * centre near it, it goes back there; anywhere else it stays where it was
- * dropped (it never snaps to the bottom edge, which would hide the board).
+ * board (`matTop`): dropped with its top edge there or above it (at any x) it
+ * goes back; anywhere else it stays where it was dropped (it never snaps to
+ * the bottom edge, which would hide the board).
  */
 export function farFanPosForDrop(
   centreX: number,
@@ -70,10 +82,9 @@ export function farFanPosForDrop(
   height: number,
   vp: Viewport,
   matTop: number,
-  defaultCentreX: number,
 ): FanPos | null {
   const top = bottom - height;
-  if (Math.abs(centreX - defaultCentreX) <= FAN_SNAP_PX && Math.abs(top - matTop) <= FAN_SNAP_PX) return null;
+  if (top - matTop <= FAN_SNAP_PX) return null;
   return { x: clamp01(centreX / vp.width), y: clamp01(bottom / vp.height) };
 }
 

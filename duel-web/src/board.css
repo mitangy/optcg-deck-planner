@@ -6078,6 +6078,23 @@ body.is-panel-resize-row .col-cut {
   pointer-events: none;
 }
 
+/* Where a dragged spectator hand docks: a strip along the bottom of the window
+   (near) or the top of the board (far), lit when letting go would redock it. */
+.spec-dock-target {
+  position: fixed;
+  z-index: 90;
+  box-sizing: border-box;
+  border: 2px dashed rgb(var(--chrome-bright-rgb) / 0.55);
+  border-radius: 8px;
+  background: rgb(var(--chrome-bright-rgb) / 0.05);
+  pointer-events: none;
+}
+
+.spec-dock-target.is-active {
+  border-color: var(--chrome-bright);
+  background: rgb(var(--chrome-bright-rgb) / 0.2);
+}
+
 /* A hand card that costs more than your active DON!!, or that an effect stops you playing.
    The gray sits on everything but the caption, so "Can't play" stays red (#673). */
 .arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {
