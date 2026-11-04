@@ -2,7 +2,7 @@
   "framework": "vite",
   "installCommand": "npm install --prefix frontend",
   "buildCommand": "cd frontend && npx vite build",
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/price-timing packages/site-legal packages/patch-notes packages/analyst-client packages/ui vercel.json scripts/seo scripts/vercel-ignore-build.sh",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/price-timing packages/site-legal packages/patch-notes packages/analyst-client packages/ui packages/rules/src/cards/cardData.json vercel.json scripts/seo scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "**": false,
@@ -54,6 +54,10 @@
     {
       "src": "/meta/?",
       "dest": "/meta/index.html"
+    },
+    {
+      "src": "/cards/[^/]+/?",
+      "dest": "/_app.html"
     },
     {
       "src": "/group-buy/join/[^/]+/?",

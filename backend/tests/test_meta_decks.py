@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.models import CatalogCard, Tournament, TournamentDeck
+from app.models import CatalogCard, CatalogPrinting, Tournament, TournamentDeck
 from app.rate_limit import RateLimiter
 from app.routers import meta as meta_router
 from tests.test_abuse_limits import _signed_in
@@ -267,3 +267,139 @@ def test_meta_requests_are_rate_limited_per_client_ip_443(client, monkeypatch: p
     assert [c.get("/meta/leaders", headers=one).status_code for _ in range(3)] == [200, 200, 429]
     assert c.get("/meta/decks", params={"leader": A}, headers=one).status_code == 429
     assert c.get("/meta/leaders", headers=two).status_code == 200
+
+
+X = "OP01-016"
+
+
+def card_page(c, card_id=X, **params):
+    r = c.get(f"/meta/cards/{card_id}", params=params)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def seed_card_meta(db) -> None:
+    add_card(db, A, "Roronoa Zoro (OP01-001)", card_type="Leader", color="Red")
+    add_card(db, B, "Eustass Kid", card_type="Leader", color="Red")
+    add_card(db, X, "Nami (016)", color="Red")
+    add_event(db, "e1", 5, 32)
+    add_deck(db, "e1", A, cards={X: 4, "OP01-017": 2})
+    add_deck(db, "e1", A, cards={"OP01-017": 4})
+    add_deck(db, "e1", B, cards={X: 3})
+    add_deck(db, "e1", B, cards={X: 1})
+    add_deck(db, "e1", B, cards={"OP01-017": 1})
+    add_deck(db, "e1", B, cards={})  # no stored list: not a decklist
+    db.commit()
+
+
+def test_card_usage_rate_and_average_copies_count_decks_with_a_list_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        seed_card_meta(db)
+    u = card_page(c)["usage"]
+    assert (u["events"], u["total_decks"], u["decks_with_card"]) == (1, 5, 3)
+    assert u["rate"] == 0.6
+    assert u["average_copies"] == 2.7  # (4 + 3 + 1) / 3, not the max
+    assert u["is_leader"] is False
+
+
+def test_card_usage_breaks_down_by_leader_with_each_leaders_own_rate_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        seed_card_meta(db)
+    leaders_ = card_page(c)["usage"]["leaders"]
+    assert [row["leader_id"] for row in leaders_] == [B, A]  # most decks with the card first, not by id
+    kid, zoro = leaders_
+    assert (kid["decks_with_card"], kid["leader_decks"], kid["rate"], kid["average_copies"]) == (2, 3, 0.667, 2.0)
+    assert (zoro["decks_with_card"], zoro["leader_decks"], zoro["rate"], zoro["average_copies"]) == (1, 2, 0.5, 4.0)
+    assert zoro["name"] == "Roronoa Zoro"  # catalog suffix dropped
+
+
+def test_leader_card_usage_is_the_decks_it_led_with_no_leader_breakdown_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        seed_card_meta(db)
+    u = card_page(c, A)["usage"]
+    assert u["is_leader"] is True
+    assert (u["total_decks"], u["decks_with_card"], u["rate"]) == (6, 2, 0.333)  # every deck counts, like /meta/leaders
+    assert u["average_copies"] is None
+    assert u["leaders"] == []
+    assert [d["leader_id"] for d in u["top_decks"]] == [A, A]
+
+
+def test_card_pages_are_cached_per_card_and_window_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        seed_card_meta(db)
+    first = c.get(f"/meta/cards/{X}")
+    assert first.headers["cache-control"] == "public, max-age=600"
+    assert card_page(c, A)["card"]["card_id"] == A
+    assert card_page(c)["card"]["card_id"] == X
+    assert card_page(c, days=7)["usage"]["days"] == 7
+
+
+def test_card_top_decks_order_by_placing_then_event_size_then_date_and_cap_at_six_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_card(db, A, "Zoro", card_type="Leader")
+        add_card(db, X, "Nami")
+        add_event(db, "big", 10, 64, name="Big Open")
+        add_event(db, "small", 3, 16, name="Small Cup")
+        add_event(db, "old", 20, 16, name="Old Cup")
+        ids = {
+            "unplaced": add_deck(db, "big", A, cards={X: 1}),
+            "third": add_deck(db, "small", A, placing=3, cards={X: 2}),
+            "first_old": add_deck(db, "old", A, placing=1, cards={X: 3}),
+            "first_small": add_deck(db, "small", A, placing=1, cards={X: 4}),
+            "first_big": add_deck(db, "big", A, placing=1, cards={X: 1}),
+            "second": add_deck(db, "big", A, placing=2, cards={X: 2}),
+            "eighth": add_deck(db, "big", A, placing=8, cards={X: 2}),
+        }
+        db.commit()
+    top = card_page(c)["usage"]["top_decks"]
+    assert [d["id"] for d in top] == [ids[k] for k in ("first_big", "first_small", "first_old", "second", "third", "eighth")]
+    assert [d["copies"] for d in top][:3] == [1, 4, 3]
+    assert top[0]["event_url"] == "https://play.limitlesstcg.com/tournament/big"
+    assert top[0]["leader_name"] == "Zoro"
+
+
+def test_card_usage_ignores_events_outside_the_window_and_small_events_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_card(db, X, "Nami")
+        add_event(db, "recent", 5, 32)
+        add_event(db, "ancient", 60, 64)
+        add_event(db, "tiny", 2, 4)
+        for eid in ("recent", "ancient", "tiny"):
+            add_deck(db, eid, A, cards={X: 4})
+        db.commit()
+    assert card_page(c)["usage"]["decks_with_card"] == 1
+    assert card_page(c, days=90)["usage"]["decks_with_card"] == 2
+    assert card_page(c, min_players=2)["usage"]["decks_with_card"] == 2
+
+
+def test_card_page_lists_printings_base_first_and_a_card_nobody_plays_953(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_card(db, X, "Nami (016)")
+        db.add_all(
+            [
+                CatalogPrinting(card_id=X, product_id=30, name="Nami (Alternate Art)", market_price=9.5, is_special=1, image_url="alt"),
+                CatalogPrinting(card_id=X, product_id=20, name="Nami", market_price=0.4, is_special=0, image_url="base"),
+                CatalogPrinting(card_id=X, product_id=40, name="Nami (Manga)", market_price=80.0, is_special=1),
+            ]
+        )
+        db.commit()
+    body = card_page(c)
+    assert [p["product_id"] for p in body["printings"]] == [20, 30, 40]
+    assert body["printings"][0]["image_url"] == "base" and body["printings"][1]["is_special"] is True
+    assert body["card"]["name"] == "Nami"
+    assert body["usage"]["decks_with_card"] == 0 and body["usage"]["rate"] == 0.0 and body["usage"]["average_copies"] is None
+    assert body["usage"]["top_decks"] == [] and body["usage"]["leaders"] == []
+
+
+def test_card_page_is_404_for_a_card_not_in_the_catalog_and_422_for_a_bad_id_953(client):
+    c, _ = client
+    assert c.get(f"/meta/cards/{X}").status_code == 404
+    assert c.get("/meta/cards/nope").status_code == 422
+    assert c.get(f"/meta/cards/{X}", params={"days": 91}).status_code == 422

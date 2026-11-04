@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Annotated, Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app import meta_decks
@@ -77,3 +77,20 @@ def get_meta_decks(
         ("decks", leader, days, min_players, top, limit),
         lambda: meta_decks.meta_decks(db, leader, days, min_players, top, limit),
     )
+
+
+@router.get("/cards/{card_id}")
+def get_meta_card(
+    request: Request,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+    card_id: Annotated[str, Path(pattern=CARD_ID_PATTERN)],
+    days: Annotated[int, Query(ge=1, le=90)] = 30,
+    min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
+):
+    """A card's page (#953): printings plus its tournament usage. 404 when the catalog lacks the id."""
+    _guard(request, response)
+    out = _cached(("card", card_id, days, min_players), lambda: meta_decks.card_detail(db, card_id, days, min_players))
+    if out is None:
+        raise HTTPException(status_code=404, detail="Unknown card")
+    return out
