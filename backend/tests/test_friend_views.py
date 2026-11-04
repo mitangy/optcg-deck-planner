@@ -70,14 +70,42 @@ def test_turning_decks_off_hides_them_but_not_the_profile_703(client):
     assert as_user(c, me).get(f"/friends/{kai}/profile").status_code == 200
 
 
-def test_the_collection_is_private_until_you_share_it_703(client):
+def test_turning_the_collection_off_hides_it_and_back_on_shows_it_703(client):
     c, S = client
     kai, me = _pair(S)
+    share(c, kai, collection="off")
     assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 404
     share(c, kai, collection="friends")
     assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 200
     share(c, kai, collection="off")
     assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 404
+
+
+def test_a_friend_who_never_chose_sharing_shows_their_collection_but_not_spares_935(client):
+    c, S = client
+    kai, me = _pair(S)
+    add_card(S, "OP01-001", "Zoro", 2.0)
+    own(S, kai, "OP01-001", 2)
+    assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 200
+    p = as_user(c, me).get(f"/friends/{kai}/profile").json()
+    assert (p["collection_shared"], p["trades_open"], p["unique_cards"]) == (True, False, 1)
+    assert as_user(c, me).get(f"/friends/{kai}/spares").status_code == 404
+
+
+def test_a_user_who_turned_the_collection_off_stays_private_935(client):
+    c, S = client
+    kai, me = _pair(S)
+    share(c, kai, decks="friends", collection="off")
+    assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 404
+    assert as_user(c, me).get(f"/friends/{kai}/profile").json()["collection_shared"] is False
+
+
+def test_saving_only_trades_keeps_the_collection_shared_935(client):
+    c, S = client
+    kai, me = _pair(S)
+    share(c, kai, trades_open=True)
+    assert as_user(c, kai).get("/me/sharing").json()["collection"] == "friends"
+    assert as_user(c, me).get(f"/friends/{kai}/collection").status_code == 200
 
 
 def test_spares_are_hidden_until_the_owner_opens_trades_703(client):
@@ -197,12 +225,12 @@ def test_renaming_a_deck_leaves_it_visible_to_friends_703(client):
 # --- sharing settings ---------------------------------------------------------
 
 
-def test_sharing_defaults_share_decks_only_and_ask_first_703(client):
+def test_sharing_defaults_share_decks_and_collection_and_ask_first_935(client):
     c, S = client
     me = make_user(S, "Me")
     assert as_user(c, me).get("/me/sharing").json() == {
         "decks": "friends",
-        "collection": "off",
+        "collection": "friends",
         "trades_open": False,
         "show_values": False,
         "prompted": False,

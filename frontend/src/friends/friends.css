@@ -236,6 +236,10 @@
   gap: 0.5rem;
 }
 
+.sharing-prompt-actions .btn {
+  min-width: 0;
+}
+
 .sharing-prompt-actions .btn.secondary {
   width: auto;
   margin-top: 0;
