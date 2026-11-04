@@ -234,12 +234,17 @@ const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
-/** Scrolls a settings group under the sticky chip row (the group's scroll-margin-top clears it). */
+/**
+ * Scrolls a settings group under the sticky chip row. In the in-match sheet the chips can wrap to two
+ * rows on narrow windows, so the margin that clears them is measured from the row itself (#937).
+ */
 function jumpToGroup(id: GroupId) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  document
-    .getElementById(`gp-${id}`)
-    ?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  const group = document.getElementById(`gp-${id}`);
+  if (!group) return;
+  const nav = group.closest(".sheet")?.querySelector<HTMLElement>(".settings-group-jump");
+  if (nav) group.style.scrollMarginTop = `${nav.offsetHeight + 8}px`;
+  group.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
 }
 
 /** Gameplay preferences; saved in this browser and applied live. */

@@ -57,7 +57,8 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
     ]),
     mySpare: new Map([["EB01-006", 2]]),
     keep: new Map(),
-    sharing: { decks: "friends", collection: "friends", trades_open: true, show_values: false, prompted: seed.prompted ?? true },
+    // A fresh user (never saved sharing) shares decks and collection, with trades closed (#935).
+    sharing: { decks: "friends", collection: "friends", trades_open: seed.prompted === false ? false : true, show_values: false, prompted: seed.prompted ?? true },
     kaiSharesCollection: true,
     username: seed.noUsername ? null : ME.username,
   };

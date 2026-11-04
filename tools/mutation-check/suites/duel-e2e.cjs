@@ -993,6 +993,9 @@ module.exports = {
     { id: "e2e-settings-chip-row-not-sticky", args: "settings-groups --project=desktop-1280 -g \"in-match sheet\"", file: "duel-web/src/interactions.css", from: ".sheet .settings-group-jump {\n  position: sticky;\n  top: -0.9rem;\n", to: ".sheet .settings-group-jump {\n", kills: [
       "settings-groups.spec.ts > desktop-1280x720 > the in-match sheet lists the groups, and a chip jumps to its group under the sticky chip row (#496) [desktop-1280]",
     ] },
+    { id: "e2e-settings-chip-two-rows-hides-heading", args: "settings-groups --project=phone-375 -g \"two-row\"", file: "duel-web/src/board/GameplaySettings.tsx", from: "  if (nav) group.style.scrollMarginTop = `${nav.offsetHeight + 8}px`;\n", to: "", kills: [
+      "settings-groups.spec.ts > a chip jumps its heading below a two-row chip row in phone landscape (#937) [phone-375]",
+    ] },
     { id: "e2e-settings-appearance-heading-missing", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "          <h2 className=\"settings-section-title\" id=\"appearance-title\">Appearance</h2>\n", to: "", kills: [
       "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
