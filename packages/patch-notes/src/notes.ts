@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
-  { date: "2026-11-04", app: "planner", pr: 946, title: "Price history for every art", text: "Open any card's enlarged picture and tap Price history to see how that art's market price has moved, with 1M to Max ranges, its peak, how far it has fallen from it, and when it came out." },
+  { date: "2026-11-04", app: "planner", pr: 947, title: "Price history for every art", text: "Open any card's enlarged picture and tap Price history to see how that art's market price has moved, with 1M to Max ranges, its peak, how far it has fallen from it, and when it came out." },
   { date: "2026-11-04", app: "duel", pr: 938, title: "Spectating settings", text: "Settings now has a Spectating section with a Sound while watching switch, so you can keep match sounds off while you watch. The settings sheet in a match you are watching also hides the settings for playing your own turns, and lists Spectating first." },
   { date: "2026-11-04", app: "duel", pr: 945, title: "Put a moved hand back", text: "When you watch a match, you can put a moved hand back by dropping it on the bottom edge of the window (your side) or the top of the board (the other side). An outline shows where it will dock while you drag." },
   { date: "2026-11-04", app: "duel", pr: 940, title: "Mute one tab", text: "A new Mute this tab button (or the M key) silences the sounds in just that tab, so a game you spectate no longer clashes with the one you play. Spectator and replay tabs also stay quiet on their own while another tab has your match open; turn that off with Quiet watch tabs in Gameplay settings." },
