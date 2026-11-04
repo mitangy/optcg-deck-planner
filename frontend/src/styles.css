@@ -8026,7 +8026,8 @@ button.ghost.scan-tray-fix {
   transform: translateX(-50%);
   z-index: 3;
   width: min(26rem, calc(100vw - 1.5rem));
-  max-height: calc(100dvh - 20rem);
+  /* Room for the lightbox controls under it (Card page, Owned stepper, Price alert, Price history). */
+  max-height: calc(100dvh - 23.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   box-sizing: border-box;
@@ -8326,6 +8327,35 @@ button.ghost.scan-tray-fix {
   line-height: 1.2;
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.ph-buy-best {
+  min-width: 0;
+  height: 1.1rem;
+  line-height: 1.1rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-buy-est {
+  white-space: nowrap;
+}
+
+/* Narrow phones: the estimate moves to a second line instead of being cut off; the line keeps a fixed two-line height. */
+@media (max-width: 480px) {
+  .ph-buy-best {
+    height: 2.2rem;
+    white-space: normal;
+    text-overflow: clip;
+  }
+}
+
+.ph-buy-best strong {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .ph-buy-why,

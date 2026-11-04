@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useLogPoseAsk } from "@optcg/analyst-client";
-import { artKind, buyTiming, type BuyTiming } from "@optcg/price-timing";
+import { artKind, bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
 import { api, money, type PriceHistoryResponse } from "./api";
 import {
   buyQuestion,
@@ -49,16 +49,26 @@ function Stat({ label, value, sub, toneClass = "" }: { label: string; value: str
   );
 }
 
+/** " · est. $A–$B" for the best-time line; "~$A" when both ends round to the same dollar, empty without an estimate. */
+function bestEstimate(best: BestBuy): string {
+  if (best.estLow == null || best.estHigh == null) return "";
+  const whole = Math.min(best.estLow, best.estHigh) >= 10;
+  const fmt = (x: number) => (whole ? `$${Math.round(x)}` : `$${x.toFixed(2)}`);
+  const lo = fmt(best.estLow);
+  const hi = fmt(best.estHigh);
+  return lo === hi ? ` · est. ~${lo}` : ` · est. ${lo}–${hi}`;
+}
+
 const PILL: Record<BuyTiming["verdict"], string> = { wait: "Wait", soon: "Almost", good: "Good time", holds: "Holds", unknown: "No read" };
 
 /**
  * "When to buy": a verdict from how similar cards moved after release, with the reasons one tap away. Its box is
  * the same size while loading, so the panel never jumps. `onAsk` is set only where Log Pose can answer.
  */
-function WhenToBuy({ timing, loading, onAsk, open, setOpen }: { timing: BuyTiming | null; loading: boolean; onAsk: (() => void) | null; open: boolean; setOpen: (fn: (v: boolean) => boolean) => void }) {
+function WhenToBuy({ timing, best, loading, onAsk, open, setOpen }: { timing: BuyTiming | null; best: BestBuy | null; loading: boolean; onAsk: (() => void) | null; open: boolean; setOpen: (fn: (v: boolean) => boolean) => void }) {
   const reasonsId = useId();
   const verdict = timing?.verdict ?? "unknown";
-  const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : [])] : [];
+  const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : []), ...(best ? [best.basis] : [])] : [];
   return (
     <div className="ph-buy" aria-label="When to buy" aria-busy={loading}>
       <div className="ph-buy-main">
@@ -74,6 +84,18 @@ function WhenToBuy({ timing, loading, onAsk, open, setOpen }: { timing: BuyTimin
         >
           Why
         </button>
+      </div>
+      <div className="ph-buy-best">
+        {loading ? (
+          "Best time: …"
+        ) : best ? (
+          <>
+            Best time: <strong>{best.label}</strong>
+            {bestEstimate(best) ? <span className="ph-buy-est">{bestEstimate(best)}</span> : null}
+          </>
+        ) : (
+          "Best time: not enough data"
+        )}
       </div>
       {open && reasons.length ? (
         <ul className="ph-buy-reasons" id={reasonsId}>
@@ -209,13 +231,11 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
   const released = q.data?.released ?? null;
   const fromPeak = stats.changeFromPeakPct;
 
-  const timing = useMemo(
-    () =>
-      q.data
-        ? buyTiming({ kind: artKind(q.data.name), released: q.data.released, today: todayIso(), points: all, current: q.data.current ?? stats.now })
-        : null,
-    [q.data, all, stats.now],
-  );
+  const [timing, best] = useMemo(() => {
+    if (!q.data) return [null, null] as const;
+    const input = { kind: artKind(q.data.name), released: q.data.released, today: todayIso(), points: all, current: q.data.current ?? stats.now };
+    return [buyTiming(input), bestTimeToBuy(input)] as const;
+  }, [q.data, all, stats.now]);
   const askLogPose = useLogPoseAsk();
   const data = q.data;
   const ask =
@@ -255,7 +275,7 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
         />
         <Stat label={`${range.label} change`} value={pct(change)} toneClass={tone(change)} />
       </dl>
-      <WhenToBuy timing={timing} loading={q.isPending} onAsk={ask} open={whyOpen} setOpen={setWhyOpen} />
+      <WhenToBuy timing={timing} best={best} loading={q.isPending} onAsk={ask} open={whyOpen} setOpen={setWhyOpen} />
       <div className={`ph-body ph-${status}`}>
         {status === "ready" ? (
           <Chart

@@ -150,3 +150,100 @@ export function buyTiming({ kind, released, today, points, current }: BuyTimingI
 
   return { verdict, headline, reasons, expectedFurtherDropPct: dropPct, ...(seasonNote ? { seasonNote } : {}) };
 }
+
+export type BestBuy = {
+  when: "now" | "window";
+  /** ISO dates. */
+  from: string;
+  to: string;
+  /** Short, e.g. "Now", "Now, on a dip", "Dec 2026 – Jan 2027". */
+  label: string;
+  /** Estimated price range in USD; left out when the price now says little about it. */
+  estLow?: number;
+  estHigh?: number;
+  basis: string;
+};
+
+/** Where a kind's price typically sits once settled (percent of release-day price): the median of the 154 to 210 day marks. */
+export function settledRatio(kind: ArtKind): number {
+  const r = [154, 168, 182, 196, 210].map((d) => expectedRatio(kind, d)).sort((a, b) => a - b);
+  return r[2]!;
+}
+
+/** The first day after release at which a kind's typical price is within 10% of where it settles. */
+export function buyableDay(kind: ArtKind): number {
+  const target = settledRatio(kind) * (1 + SOON_DROP);
+  for (let d = 0; d < 365; d++) if (expectedRatio(kind, d) <= target) return d;
+  return 364;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function addDays(iso: string, days: number): string {
+  return new Date((dayNumber(iso) + days) * DAY_MS).toISOString().slice(0, 10);
+}
+
+function monthYear(iso: string): string {
+  return `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+function windowLabel(from: string, to: string): string {
+  return `${monthYear(from)} – ${monthYear(to)}`;
+}
+
+const cents = (x: number) => Math.round(x * 100) / 100;
+
+/** The best time to buy and roughly what it should cost then, from how similar cards moved after release. A pattern of past sets, never a forecast. */
+export function bestTimeToBuy({ kind, released, today, points, current }: BuyTimingInput): BestBuy | null {
+  if (!released || current == null || !(current > 0)) return null;
+  const age = dayNumber(today) - dayNumber(released);
+  const recent = lastDays(points, today, 30);
+  const low = recent.length ? Math.min(...recent.map((p) => p.price)) : current;
+
+  if (kind === "chase" && age < 0) {
+    // Presale runs far above release day; chase cards have dipped in the first weeks before climbing.
+    const from = addDays(released, 7);
+    const to = addDays(released, 60);
+    return { when: "window", from, to, label: windowLabel(from, to), basis: "Presale prices usually run well above release day. Cards like this have dipped in the first weeks after release, then climbed." };
+  }
+
+  if (kind === "chase") {
+    const avg = recent.length ? recent.reduce((s, p) => s + p.price, 0) / recent.length : current;
+    return {
+      when: "now",
+      from: today,
+      to: addDays(today, 30),
+      label: "Now, on a dip",
+      estLow: cents(low),
+      estHigh: cents(avg),
+      basis: "Cards like this have kept or gained value, so waiting rarely pays; aim for a dip toward its 30-day low.",
+    };
+  }
+
+  const day = buyableDay(kind);
+  if (age < day) {
+    const from = addDays(released, day);
+    const to = addDays(from, 60);
+    const weeks = Math.round(day / 7);
+    const out: BestBuy = { when: "window", from, to, label: windowLabel(from, to), basis: `Similar cards reached a buyable price about ${weeks} weeks after release.` };
+    if (age >= 0) {
+      const est = (current * settledRatio(kind)) / expectedRatio(kind, age);
+      out.estLow = cents(est * 0.9);
+      out.estHigh = cents(est * 1.1);
+      out.basis = `Similar cards reached a buyable price about ${weeks} weeks after release, around ${Math.round((1 - est / current) * 100)}% below today's price.`;
+    }
+    return out;
+  }
+
+  const month = Number(today.slice(5, 7));
+  const winter = age >= 120 && (month === 12 || month <= 3);
+  return {
+    when: "now",
+    from: today,
+    to: addDays(today, 30),
+    label: "Now",
+    estLow: cents(Math.min(low, current)),
+    estHigh: cents(current),
+    basis: `Most of the typical drop is done.${winter ? " Aug–Oct has usually been cheaper across the market." : ""}`,
+  };
+}

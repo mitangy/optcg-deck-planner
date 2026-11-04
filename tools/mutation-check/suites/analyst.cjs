@@ -1124,6 +1124,8 @@ module.exports = {
     {"id": "ph-kind-ignored", "file": "analyst/src/priceHistory.ts", "from": "const kind = artKind(raw.name);", "to": "const kind = \"other\" as const;", "kills": ["reads the art kind and what a typical card"]},
     {"id": "ph-curve-at-six-months-always", "file": "analyst/src/priceHistory.ts", "from": "round1(expectedRatio(kind, age)) : null,", "to": "round1(expectedRatio(kind, 180)) : null,", "kills": ["reads the art kind and what a typical card"]},
     {"id": "ph-timing-overridden", "file": "analyst/src/priceHistory.ts", "from": "buy_timing: timing,", "to": "buy_timing: { ...timing, verdict: \"good\" as const },", "kills": ["adds the buyTiming read"]},
+    {"id": "ph-best-time-dropped", "file": "analyst/src/priceHistory.ts", "from": "    best_time_to_buy: best\n      ?", "to": "    best_time_to_buy: null\n      && best ?", "kills": ["adds a best time to buy"]},
+    {"id": "ph-best-estimate-dropped", "file": "analyst/src/priceHistory.ts", "from": "est_low: best.estLow ?? null,", "to": "est_low: null,", "kills": ["adds a best time to buy"]},
     {"id": "ph-base-art-note-inverted", "file": "analyst/src/priceHistory.ts", "from": "...(productId === 0 ? [", "to": "...(productId !== 0 ? [", "kills": ["calls a Manga art a chase art that holds"]},
     {"id": "ph-tool-not-registered", "file": "analyst/src/server.ts", "from": "    registerPrices(add, knowledge.stats);\n", "to": "", "kills": ["is offered with the planner API, to MCP and chat alike"]},
     {"id": "ph-adapter-unregistered", "file": "analyst/src/sources.ts", "from": "  price_history: priceHistoryAdapter,\n", "to": "", "kills": ["turns an answer into one price: search result per art", "answers a price_history call with a cited price: source"]},

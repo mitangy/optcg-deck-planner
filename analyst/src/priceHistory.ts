@@ -1,4 +1,4 @@
-import { artKind, buyTiming, expectedRatio, type PricePoint } from "@optcg/price-timing";
+import { artKind, bestTimeToBuy, buyTiming, expectedRatio, type PricePoint } from "@optcg/price-timing";
 import { plannerCall, type PlannerApi } from "./matches";
 
 type Raw = {
@@ -72,6 +72,7 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
   }
 
   const timing = buyTiming({ kind, released: raw.released, today, points, current: now });
+  const best = bestTimeToBuy({ kind, released: raw.released, today, points, current: now });
   const notes = [
     "Prices are TCGPlayer market prices in USD, one per day.",
     ...(raw.released ? [] : ["No release date is known for this set."]),
@@ -108,6 +109,9 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
       percent_of_release_price_at_6_months: round1(expectedRatio(kind, 180)),
     },
     buy_timing: timing,
+    best_time_to_buy: best
+      ? { when: best.when, from: best.from, to: best.to, label: best.label, est_low: best.estLow ?? null, est_high: best.estHigh ?? null, basis: best.basis }
+      : null,
     notes,
   };
 }

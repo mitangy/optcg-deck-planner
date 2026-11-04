@@ -409,7 +409,7 @@ function registerPrices(add: Add, api: PlannerApi) {
     {
       title: "Price history",
       description:
-        "TCGPlayer market price history of one card art (USD, one price a day): art name, set, release date and age, price now, peak and its date, lowest price since the peak, change over 30 and 90 days, about 26 weekly points, the art kind (chase: Manga/SP/Treasure/Wanted Poster/Gold; alt; baseRare: base SR/SEC/Leader; other), what a typical card of that kind cost at this age as a percent of its release-day price, and a buy_timing read (wait, soon, good, holds, unknown) with reasons. " +
+        "TCGPlayer market price history of one card art (USD, one price a day): art name, set, release date and age, price now, peak and its date, lowest price since the peak, change over 30 and 90 days, about 26 weekly points, the art kind (chase: Manga/SP/Treasure/Wanted Poster/Gold; alt; baseRare: base SR/SEC/Leader; other), what a typical card of that kind cost at this age as a percent of its release-day price, and a buy_timing read (wait, soon, good, holds, unknown) with reasons, plus best_time_to_buy (a date window and an estimated price range from past patterns, not a forecast). " +
         "The typical curve is the median of 924 past singles (OP06-OP17, EB01-EB05, PRB-01/02), a pattern of past sets and not a forecast. Use it for \"when should I buy\" and price questions; it is the only source of card prices. " +
         "card_id alone is the base art; for an alternate art pass its product_id (the Price history panel in the planner shows it).",
       inputSchema: {
