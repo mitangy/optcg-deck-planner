@@ -104,6 +104,21 @@ test("Collection: an alt art a month after release says wait and how far similar
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/alt-wait-open-${test.info().project.name}.png` });
 });
 
+test("On a 320px phone the best-time estimate moves to a second line instead of being cut off (#954)", async ({ page, planner }) => {
+  test.skip(test.info().project.name !== "phone-375", "narrow phones only");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await altHistory(page, { name: "Izo (Alternate Art)", released: "2025-12-16", current: 12, days: 30, price: (i) => 20 - i * 0.25 });
+  const { panel } = await openAltPanel(page, planner);
+  const best = panel.getByLabel("When to buy").locator(".ph-buy-best");
+  await expect(best).toHaveText("Best time: Jan 2026 – Mar 2026 · est. $8.54–$10.44");
+  const label = (await best.locator("strong").boundingBox())!;
+  const est = (await best.locator(".ph-buy-est").boundingBox())!;
+  expect(est.y).toBeGreaterThan(label.y);
+  await expectFits(page, panel);
+  // Both lines show in full: the line is tall enough for the wrapped estimate.
+  expect(await best.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+});
+
 test("Collection: a Manga art holds its value and is judged against its 30-day average (#946)", async ({ page, planner }) => {
   await altHistory(page, { name: "Izo (Manga)", released: "2025-09-16", current: 80, days: 40, price: () => 100 });
   const { panel } = await openAltPanel(page, planner);

@@ -8329,6 +8329,19 @@ button.ghost.scan-tray-fix {
   text-overflow: ellipsis;
 }
 
+.ph-buy-est {
+  white-space: nowrap;
+}
+
+/* Narrow phones: the estimate moves to a second line instead of being cut off; the line keeps a fixed two-line height. */
+@media (max-width: 480px) {
+  .ph-buy-best {
+    height: 2.2rem;
+    white-space: normal;
+    text-overflow: clip;
+  }
+}
+
 .ph-buy-best strong {
   color: var(--ink);
   font-weight: 700;

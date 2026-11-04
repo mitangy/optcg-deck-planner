@@ -91,7 +91,7 @@ function WhenToBuy({ timing, best, loading, onAsk, open, setOpen }: { timing: Bu
         ) : best ? (
           <>
             Best time: <strong>{best.label}</strong>
-            {bestEstimate(best)}
+            {bestEstimate(best) ? <span className="ph-buy-est">{bestEstimate(best)}</span> : null}
           </>
         ) : (
           "Best time: not enough data"
