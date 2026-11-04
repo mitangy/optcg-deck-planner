@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
+  { date: "2026-11-04", app: "planner", pr: 0, title: "Ask Log Pose, right under When to buy", text: "Ask Log Pose in the price history now drops its answer down under the When to buy box, so you keep the card and graph in view. Fold it away with the arrow, or press Continue in Log Pose to carry on the chat." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Why this read, one hover away", text: "When to buy's reasons now open from a ? icon: hover or tap it, and the graph stays in view." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Full-size art on card pages", text: "Tap the art on a card page to see it full size." },
   { date: "2026-11-04", app: "planner", pr: 955, title: "A page for every card", text: "Every card now has its own page with its text, every art and the price history with When to buy for each, plus how often it is played in recent tournaments, which leaders play it and its best finishes. Open it from Card page under an enlarged card, or tap a card's name in a meta decklist." },

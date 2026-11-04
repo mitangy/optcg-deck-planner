@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -47,6 +48,7 @@ import { CitedAnswer, SourceHooksContext, type SourceHooks } from "./Sources";
 import { RequestAccessView, RequestsList } from "./AccessViews";
 import { OwnerTabs } from "./OwnerTabs";
 import { UsageView } from "./UsageView";
+import { createInlineAsks, IDLE_INLINE, type InlineAsks, type InlineState } from "./inlineAsk";
 import { FeedbackBar, useFeedback } from "./Feedback";
 import { answerStart, targetKey } from "./feedback";
 import { ModelPicker } from "./ModelPicker";
@@ -157,6 +159,10 @@ type LogPoseValue = {
   askGame: (text: string, opts?: { auto?: boolean; signal?: AbortSignal }) => Promise<GameAskResult>;
   /** Cancels the answer in flight, if any. */
   stopGameAsk: () => void;
+  /** Questions answered inside a page instead of the panel (see useLogPoseInlineAsk). */
+  inline: InlineAsks;
+  /** Opens the panel on a saved chat thread (replacing the chat shown there), e.g. one an inline answer was saved to. */
+  openThread: (threadId: number) => void;
 };
 
 const NO_HOOKS: SourceHooks = {};
@@ -184,12 +190,51 @@ const LogPoseContext = createContext<LogPoseValue>({
   openLogPose: () => false,
   askGame: async () => NOT_SENT,
   stopGameAsk: () => {},
+  inline: createInlineAsks({ session: fallbackSession, context: () => undefined, credit: () => ({ apply: () => {}, refuse: () => {}, refresh: () => {} }) }),
+  openThread: () => {},
 });
 
 /** A function that asks Log Pose a question and opens its panel, or null while Log Pose can't answer (signed out, not enabled, hidden page). */
 export function useLogPoseAsk(): ((ask: LogPoseAsk) => void) | null {
   const { available, openLogPose } = useContext(LogPoseContext);
   return useMemo(() => (available ? (ask: LogPoseAsk) => void openLogPose(ask) : null), [available, openLogPose]);
+}
+
+/** What an inline question returns: its state, plus the actions on it. */
+export type LogPoseInlineAsk = InlineState & {
+  /** Streams the question into this key. Does nothing while the key has an answer coming or shown. */
+  ask: (prompt: string) => void;
+  /** Stops the answer in flight; what streamed stays. */
+  stop: () => void;
+  /** Forgets the answer, so the next `ask` puts the question again. */
+  reset: () => void;
+  /** Opens the chat panel on the thread this answer was saved to. False while it has none. */
+  continueInPanel: () => boolean;
+};
+
+/**
+ * Asks Log Pose one question inside the page (no chat panel) and streams the answer back, or null while Log Pose
+ * can't answer (same rule as useLogPoseAsk). `key` names the question's place (e.g. the art): its answer is kept for
+ * the session, so asking there again shows it instead of spending credit twice. The question is sent to the same
+ * /chat endpoint as the panel's, so it counts against the same limits and is saved as a normal chat thread.
+ */
+export function useLogPoseInlineAsk(key: string): LogPoseInlineAsk | null {
+  const { available, inline, openThread, openLogPose } = useContext(LogPoseContext);
+  const state = useSyncExternalStore(inline.subscribe, () => inline.get(key), () => IDLE_INLINE);
+  return useMemo(() => {
+    if (!available) return null;
+    return {
+      ...state,
+      ask: (prompt) => inline.ask(key, prompt),
+      stop: () => inline.stop(key),
+      reset: () => inline.reset(key),
+      continueInPanel: () => {
+        if (state.threadId === null) return false;
+        openThread(state.threadId);
+        return openLogPose();
+      },
+    };
+  }, [available, state, inline, key, openThread, openLogPose]);
 }
 
 /** Whether chat is on for this user (false outside a provider), plus the session for review streams. */
@@ -302,6 +347,9 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
     writeThreadId(id);
   }, []);
 
+  // Bumped when the chat is pointed at another thread, so a history still loading for the old one is dropped.
+  const loadSeq = useRef(0);
+
   const loadHistory = useCallback(() => {
     if (history !== "idle") return;
     const id = readThreadId();
@@ -310,17 +358,36 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
       return;
     }
     setHistory("loading");
+    const seq = loadSeq.current;
     fetchThread(apiBase, id)
       .then((t) => {
+        if (seq !== loadSeq.current) return;
         if (!t) {
           writeThreadId(null);
           threadRef.current = null;
           setThreadId(null);
         } else setMessages((cur) => (cur.length ? cur : t.messages.map(fromHistory)));
       })
-      .catch(() => setError("Could not load your last chat."))
-      .finally(() => setHistory("done"));
+      .catch(() => seq === loadSeq.current && setError("Could not load your last chat."))
+      .finally(() => seq === loadSeq.current && setHistory("done"));
   }, [apiBase, history]);
+
+  /** Points the chat at a saved thread: it is loaded the next time the panel asks for its history. */
+  const openThread = useCallback(
+    (id: number) => {
+      abort.current?.abort();
+      abort.current = null;
+      busyRef.current = false;
+      loadSeq.current++;
+      keepThread(id);
+      setMessages([]);
+      setError(null);
+      setStatus("");
+      setBusy(false);
+      setHistory("idle");
+    },
+    [keepThread],
+  );
 
   const send = useCallback(
     async (text: string, context: ChatContext | undefined, opts?: { auto?: boolean }): Promise<GameAskResult> => {
@@ -449,7 +516,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  return { messages, busy, status, error, history, threadId, loadHistory, send, stop, reset, whenIdle, busyNow: () => busyRef.current };
+  return { messages, busy, status, error, history, threadId, loadHistory, openThread, send, stop, reset, whenIdle, busyNow: () => busyRef.current };
 }
 
 /**
@@ -635,9 +702,18 @@ export function LogPoseProvider({
   }, []);
   const stopGameAsk = useCallback(() => chatRef.current.stop(), []);
 
+  const openThread = useCallback((id: number) => chatRef.current.openThread(id), []);
+  // Questions answered inside a page: the page context and the credit hooks are read when a question is sent.
+  const creditRef = useRef(creditHooks);
+  creditRef.current = creditHooks;
+  const inline = useMemo(
+    () => createInlineAsks({ session: manager, context: () => askContext(pageRef.current, undefined), credit: () => creditRef.current }),
+    [manager],
+  );
+
   const value = useMemo<LogPoseValue>(
-    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk }),
-    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk],
+    () => ({ enabled, apiBase, session: manager, setPage, setEditor, setGame, openPanel, closePanel, panelOpen: open && !hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk, inline, openThread }),
+    [enabled, apiBase, manager, setPage, setEditor, setGame, openPanel, closePanel, open, hidden, dock, setDock, setDockHost, available, openLogPose, askGame, stopGameAsk, inline, openThread],
   );
 
   // A panel left open on a page that hides Log Pose must not come back on the next one.
