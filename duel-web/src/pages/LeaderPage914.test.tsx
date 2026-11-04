@@ -137,4 +137,23 @@ describe("leader page (#914)", () => {
     expect(host!.querySelector("h1")?.textContent).toContain("no recent tournament data");
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex");
   });
+
+  it("a pre-rendered leader page stays up when the live list drops that leader (#919)", async () => {
+    const liveWithout = leaders.filter((l) => l.leader_id !== "OP17-039");
+    expect(liveWithout.length).toBeGreaterThan(0);
+    const fetchSpy = vi.fn((url: string) =>
+      Promise.resolve(
+        String(url).includes("/meta/leaders")
+          ? new Response(JSON.stringify({ ...leadersFixture, leaders: liveWithout }), { status: 200, headers: { "content-type": "application/json" } })
+          : new Response("{}", { status: 503 }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    await mount("/leaders/op17-039-rocks-d-xebec");
+    await act(async () => undefined);
+    expect(fetchSpy.mock.calls.some(([u]) => String(u).includes("/meta/leaders"))).toBe(true);
+    expect(host!.querySelector("h1")?.textContent).toBe("Rocks.D.Xebec (OP17-039) deck list – play online free");
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content") ?? "").not.toContain("noindex");
+    expect(playButtons()).toHaveLength(1 + decks.length);
+  });
 });

@@ -94,7 +94,7 @@ function NotFound({ text }: { text: string }) {
 export function LeaderPage() {
   const { slug = "" } = useParams();
   const view = useMetaView(parseLeaderSlug(slug)?.leaderId ?? null);
-  const route = resolveLeaderRoute(slug, view.leaders);
+  const route = resolveLeaderRoute(slug, view.routeLeaders);
 
   if (route.kind === "redirect") return <Navigate to={route.to} replace />;
   if (route.kind === "unknown") {
