@@ -6,7 +6,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, money, type CardPageFinish, type CardPageLeader, type CardPageResponse } from "./api";
 import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPage";
 import { loadCardRules, type CardRules } from "./cardRules";
-import { CardArtImg } from "./CardThumb";
+import { CardArtImg, CardLightbox, useCardArt } from "./CardThumb";
 import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } from "./meta";
 import { PriceHistory } from "./PriceHistory";
 import { SITE_ORIGIN } from "./seo/routeMeta";
@@ -288,6 +288,21 @@ function CardNotFound({ cardId, error }: { cardId: string; error: Error & { stat
  * `?art=<productId>` picks the printing (absent = base art); `?days=` the tournament window.
  * `renderActions` is given only to signed-in viewers: owned count, shopping list and price alert for the shown art.
  */
+/** The header art; tap it for the full-size card (no actions: this page already has them). */
+function HeadArt({ src, cardId, name, alt }: { src?: string | null; cardId: string; name: string; alt: string }) {
+  const [open, setOpen] = useState(false);
+  const art = useCardArt(src, cardId, "large");
+  if (!art.src) return <div className="card-head-img placeholder">No image</div>;
+  return (
+    <>
+      <button type="button" className="card-head-btn" onClick={() => setOpen(true)} title="Expand card" aria-label={`Enlarge ${name}`}>
+        <img className="card-head-img" src={art.src} alt={alt} onError={art.fail} />
+      </button>
+      {open ? <CardLightbox src={src} cardId={cardId} alt={alt} onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
 export function CardPage({ renderActions }: { renderActions?: (cardId: string, productId: number) => ReactNode }) {
   const { cardId: rawId = "" } = useParams();
   const cardId = rawId.toUpperCase();
@@ -337,14 +352,7 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
       <header className="card-head">
         <div className="card-head-art">
           {card ? (
-            <CardArtImg
-              className="card-head-img"
-              src={image}
-              cardId={card.card_id}
-              size="large"
-              alt={`${card.name} ${artLabel}`.trim()}
-              fallback={<div className="card-head-img placeholder">No image</div>}
-            />
+            <HeadArt src={image} cardId={card.card_id} name={card.name} alt={`${card.name} ${artLabel}`.trim()} />
           ) : (
             <Skeleton className="card-head-img" />
           )}
