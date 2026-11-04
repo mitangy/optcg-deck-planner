@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
+  { date: "2026-11-04", app: "duel", pr: 945, title: "Put a moved hand back", text: "When you watch a match, you can put a moved hand back by dropping it on the bottom edge of the window (your side) or the top of the board (the other side). An outline shows where it will dock while you drag." },
   { date: "2026-11-04", app: "duel", pr: 940, title: "Mute one tab", text: "A new Mute this tab button (or the M key) silences the sounds in just that tab, so a game you spectate no longer clashes with the one you play. Spectator and replay tabs also stay quiet on their own while another tab has your match open; turn that off with Quiet watch tabs in Gameplay settings." },
   { date: "2026-11-04", app: "planner", pr: 939, title: "Friends can see your collection", text: "Your collection is now shared with your friends by default, like your decks, so they can see which cards you own. If you already chose to keep it private, nothing changes. Turn it off any time under Sharing on the Friends page." },
   { date: "2026-11-04", app: "planner", pr: 944, title: "Alt art picks follow your deck filter", text: "On Master Shopping, picking an alt art to buy now saves it to the decks you have ticked under Include decks, so the pick stays instead of snapping back to 0." },

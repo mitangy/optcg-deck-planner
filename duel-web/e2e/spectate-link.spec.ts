@@ -380,6 +380,66 @@ test("the two desktop hand labels match and line up, and each fan is draggable b
   expect(duel.errors).toEqual([]);
 });
 
+test("a desktop spectator redocks each moved hand by dropping its grip back where it was (#936)", async ({ page, duel, browser }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "desktop layout (the size is set here)");
+  const roomId = await practiceRoomId(page, duel);
+  const size = { width: 1280, height: 720 };
+  const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: size });
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.locator(".hand-fan-cards .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  await spec.waitForTimeout(1500);
+
+  const setting = (key: string) =>
+    spec.evaluate((k) => (JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, string>)[k] ?? "", key);
+  const centre = async (grip: import("@playwright/test").Locator) => {
+    const b = (await grip.boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+
+  for (const fan of [
+    { name: "far", grip: ".spec-far .hand-fan-grip", float: ".spec-far.spec-far-float", key: "spectatorFarFanPos", target: ".spec-dock-target-far" },
+    { name: "near", grip: ".hand-fan-spec .hand-fan-grip", float: ".hand-fan.hand-fan-float", key: "spectatorNearFanPos", target: ".spec-dock-target-near" },
+  ]) {
+    const grip = spec.locator(fan.grip);
+    const home = await centre(grip);
+    expect(await setting(fan.key), `${fan.name} starts docked`).toBe("");
+    await expect(spec.locator(fan.float)).toHaveCount(0);
+    await expect(spec.locator(".spec-dock-target")).toHaveCount(0);
+
+    // Grab the docked fan and carry it out: its grip stays under the pointer (a docked grip sits at the
+    // board's edge, a floating one at the cards' edge, so the fan has to shift to keep it there).
+    await spec.mouse.move(home.x, home.y);
+    await spec.mouse.down();
+    await spec.mouse.move(home.x + 6, home.y - 6, { steps: 3 });
+    await spec.mouse.move(900, 400, { steps: 12 });
+    const held = await centre(grip);
+    expect(Math.abs(held.x - 900), `${fan.name} grip stays under the pointer (x)`).toBeLessThan(20);
+    expect(Math.abs(held.y - 400), `${fan.name} grip stays under the pointer (y)`).toBeLessThan(20);
+
+    // Out on the board the dock outline shows but is not lit; the drop floats.
+    await expect(spec.locator(fan.target)).toBeVisible();
+    await expect(spec.locator(fan.target)).not.toHaveClass(/is-active/);
+    await spec.mouse.up();
+    await expect(spec.locator(fan.float)).toHaveCount(1);
+    await expect(spec.locator(".spec-dock-target")).toHaveCount(0);
+    expect(await setting(fan.key)).toMatch(/^[\d.]+,[\d.]+$/);
+
+    // Grip back to where it was: the outline lights up, and releasing redocks.
+    const out = await centre(grip);
+    await spec.mouse.move(out.x, out.y);
+    await spec.mouse.down();
+    await spec.mouse.move(home.x, home.y, { steps: 14 });
+    await expect(spec.locator(fan.target)).toHaveClass(/is-active/);
+    await spec.mouse.up();
+    await expect(spec.locator(fan.float), `${fan.name} fan redocked`).toHaveCount(0);
+    expect(await setting(fan.key)).toBe("");
+    await expect(spec.locator(".spec-dock-target")).toHaveCount(0);
+  }
+  await ctx.close();
+  expect(duel.errors).toEqual([]);
+});
+
 test("both phone layouts label the two hands with the same pill, lined up (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "phone-375", "phone layout");
   const roomId = await practiceRoomId(page, duel);
