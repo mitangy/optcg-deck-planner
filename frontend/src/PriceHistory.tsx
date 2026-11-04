@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
-import { CitedAnswer, useLogPoseInlineAsk, type LogPoseInlineAsk } from "@optcg/analyst-client";
+import { useLogPoseAsk } from "@optcg/analyst-client";
 import { artKind, bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
 import { api, money, type PriceHistoryResponse } from "./api";
 import {
@@ -60,13 +60,7 @@ function bestEstimate(best: BestBuy): string {
   return lo === hi ? ` · est. ~${lo}` : ` · est. ${lo}–${hi}`;
 }
 
-const PILL: Record<BuyTiming["verdict"], string> = {
-  wait: "Wait",
-  soon: "Almost",
-  good: "Good time",
-  holds: "Holds",
-  unknown: "No read",
-};
+const PILL: Record<BuyTiming["verdict"], string> = { wait: "Wait", soon: "Almost", good: "Good time", holds: "Holds", unknown: "No read" };
 
 /**
  * The "?" next to the verdict. Hover (mouse) or keyboard focus shows the reasons in a floating panel anchored to the
@@ -171,23 +165,7 @@ function WhyHint({ reasons }: { reasons: string[] }) {
  * "When to buy": a verdict from how similar cards moved after release, with the reasons one tap away. Its box is
  * the same size while loading, so the panel never jumps. `onAsk` is set only where Log Pose can answer.
  */
-function WhenToBuy({
-  timing,
-  best,
-  loading,
-  onAsk,
-  askOpen,
-  askRef,
-  drawerId,
-}: {
-  timing: BuyTiming | null;
-  best: BestBuy | null;
-  loading: boolean;
-  onAsk: (() => void) | null;
-  askOpen: boolean;
-  askRef: RefObject<HTMLButtonElement | null>;
-  drawerId: string;
-}) {
+function WhenToBuy({ timing, best, loading, onAsk }: { timing: BuyTiming | null; best: BestBuy | null; loading: boolean; onAsk: (() => void) | null }) {
   const verdict = timing?.verdict ?? "unknown";
   const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : []), ...(best ? [best.basis] : [])] : [];
   return (
@@ -212,147 +190,10 @@ function WhenToBuy({
       <div className="ph-buy-foot">
         <p className="ph-buy-note">Based on how similar cards moved after release, 2024–2026</p>
         {onAsk ? (
-          <button ref={askRef} type="button" className="ph-buy-ask" aria-expanded={askOpen} aria-controls={drawerId} onClick={onAsk}>
+          <button type="button" className="ph-buy-ask" onClick={onAsk}>
             Ask Log Pose
           </button>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-/**
- * The drawer under When to buy (#960): Log Pose's answer to "when is the best time to buy this art?", streamed here
- * instead of in the chat panel. It drops down over the chart's box (the same size as the chart, so nothing around it
- * moves, in the lightbox or on the card page) and scrolls inside. The chevron folds it away; asking again re-opens the
- * answer already there. "Continue in Log Pose" opens the chat panel on the thread this was saved to.
- */
-/** The least height (px) the drawer is given inside the lightbox's price panel. */
-const DRAWER_MIN = 110;
-
-function AskDrawer({
-  id,
-  ask,
-  open,
-  onFold,
-  onContinue,
-  onAgain,
-}: {
-  id: string;
-  ask: LogPoseInlineAsk;
-  open: boolean;
-  onFold: () => void;
-  onContinue: () => void;
-  onAgain: () => void;
-}) {
-  const streaming = ask.phase === "streaming";
-  const rootRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const [room, setRoom] = useState<number | null>(null);
-  // Inside the lightbox's price panel (which scrolls when the screen is short) the drawer is only as tall as the part
-  // of the chart's box that shows, so its buttons are never cut off. If almost none shows, the panel scrolls to it.
-  useLayoutEffect(() => {
-    const el = rootRef.current;
-    const stage = el?.parentElement;
-    const pop = el?.closest<HTMLElement>(".lightbox-history-pop");
-    if (!open || !stage || !pop) {
-      setRoom(null);
-      return;
-    }
-    const measure = () => {
-      let r = pop.getBoundingClientRect().bottom - stage.getBoundingClientRect().top - 6;
-      if (r < DRAWER_MIN) {
-        pop.scrollTop += DRAWER_MIN - r;
-        r = pop.getBoundingClientRect().bottom - stage.getBoundingClientRect().top - 6;
-      }
-      setRoom(Math.floor(r));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [open]);
-  const stick = useRef(true);
-  // Keep the newest text in view while it streams, unless the reader scrolled up; once it is done, show it from the top.
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [ask.text, ask.status, ask.error]);
-  useEffect(() => {
-    if (ask.phase === "done" && bodyRef.current) {
-      bodyRef.current.scrollTop = 0;
-      stick.current = false;
-    }
-  }, [ask.phase]);
-  return (
-    <div
-      ref={rootRef}
-      id={id}
-      className="logpose ph-ask"
-      role="region"
-      aria-label="Log Pose's answer"
-      data-open={open ? "true" : "false"}
-      style={room !== null ? { maxHeight: room } : undefined}
-      // Hidden from tab order and screen readers while folded; the animation stays smooth because visibility is transitioned.
-      aria-hidden={!open}
-      inert={!open}
-      onKeyDown={(e) => {
-        if (e.key !== "Escape") return;
-        // Only the drawer folds, not the enlarged card around it.
-        e.stopPropagation();
-        onFold();
-      }}
-    >
-      <div
-        ref={bodyRef}
-        className="ph-ask-body"
-        aria-live="polite"
-        aria-busy={streaming}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
-        }}
-      >
-        {ask.text ? <CitedAnswer text={ask.text} citations={ask.citations} done={!streaming} /> : null}
-        {ask.phase === "stopped" ? <p className="ph-ask-note">Stopped.</p> : null}
-        {ask.error ? (
-          <p className="ph-ask-error" role="alert">
-            {ask.error}
-          </p>
-        ) : null}
-      </div>
-      <div className="ph-ask-foot">
-        <span className="ph-ask-title">Log Pose</span>
-        {streaming ? (
-          <span className="ph-ask-status" role="status">
-            <span className="ph-ask-dot" aria-hidden="true" />
-            {ask.status || "Thinking…"}
-          </span>
-        ) : null}
-        <span className="ph-ask-actions">
-          {streaming ? (
-            <button type="button" className="ph-ask-btn" onClick={ask.stop}>
-              Stop
-            </button>
-          ) : (
-            <>
-              {ask.phase === "done" && ask.threadId !== null ? (
-                <button type="button" className="ph-ask-btn ph-ask-btn-main" onClick={onContinue}>
-                  Continue in Log Pose
-                </button>
-              ) : null}
-              {ask.phase === "done" || ask.phase === "stopped" || (ask.phase === "error" && !ask.limit) ? (
-                <button type="button" className="ph-ask-btn" onClick={onAgain}>
-                  Ask again
-                </button>
-              ) : null}
-            </>
-          )}
-          <button type="button" className="ph-ask-fold" aria-label="Hide Log Pose's answer" onClick={onFold}>
-            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <path d="M5 12l5-5 5 5" />
-            </svg>
-          </button>
-        </span>
       </div>
     </div>
   );
@@ -473,41 +314,18 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
 
   const [timing, best] = useMemo(() => {
     if (!q.data) return [null, null] as const;
-    const input = {
-      kind: artKind(q.data.name),
-      released: q.data.released,
-      today: todayIso(),
-      points: all,
-      current: q.data.current ?? stats.now,
-    };
+    const input = { kind: artKind(q.data.name), released: q.data.released, today: todayIso(), points: all, current: q.data.current ?? stats.now };
     return [buyTiming(input), bestTimeToBuy(input)] as const;
   }, [q.data, all, stats.now]);
-  const inline = useLogPoseInlineAsk(`when-to-buy:${cardId}:${productId}`);
+  const askLogPose = useLogPoseAsk();
   const data = q.data;
-  // Folded away with the chevron, the answer stays: Ask Log Pose re-opens it instead of asking again.
-  const [folded, setFolded] = useState(false);
-  const drawerId = useId();
-  const askRef = useRef<HTMLButtonElement>(null);
-  const question = data ? buyQuestion(data.name, cardId, productId) : "";
-  const hasAnswer = inline !== null && inline.phase !== "idle";
   const ask =
-    inline && data
+    askLogPose && data
       ? () => {
-          if (inline.phase === "idle") inline.ask(question);
-          setFolded(false);
+          askLogPose({ prompt: buyQuestion(data.name, cardId, productId) });
+          onAsked?.();
         }
       : null;
-  const drawerOpen = hasAnswer && !folded;
-  // A drawer that mounts already open would not animate: it drops the frame after it mounts.
-  const [mountedOpen, setMountedOpen] = useState(false);
-  useEffect(() => {
-    if (!drawerOpen) {
-      setMountedOpen(false);
-      return;
-    }
-    const raf = requestAnimationFrame(() => setMountedOpen(true));
-    return () => cancelAnimationFrame(raf);
-  }, [drawerOpen]);
 
   const status = q.isPending ? "loading" : q.isError ? "error" : shown.length === 0 ? "empty" : "ready";
   const name = q.data?.name ?? "this art";
@@ -531,42 +349,30 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
         <Stat label="Peak" value={money(stats.peak?.price)} sub={stats.peak ? formatDay(stats.peak.date) : undefined} />
         <Stat label="Low since peak" value={money(stats.lowSincePeak)} />
         <Stat label="From peak" value={pct(fromPeak)} toneClass={tone(fromPeak)} />
-        <Stat label="Released" value={released ? formatDay(released).replace(/, 20(\d\d)$/, " '$1") : "—"} sub={released ? releasedAgo(released, todayIso()) : undefined} />
+        <Stat
+          label="Released"
+          value={released ? formatDay(released).replace(/, 20(\d\d)$/, " '$1") : "—"}
+          sub={released ? releasedAgo(released, todayIso()) : undefined}
+        />
         <Stat label={`${range.label} change`} value={pct(change)} toneClass={tone(change)} />
       </dl>
-      <WhenToBuy timing={timing} best={best} loading={q.isPending} onAsk={ask} askOpen={drawerOpen} askRef={askRef} drawerId={drawerId} />
-      <div className="ph-stage">
-        <div className={`ph-body ph-${status}`}>
-          {status === "ready" ? (
-            <Chart
-              key={`${rangeId}-${shown.length}`}
-              points={shown}
-              label={`${name} market price from ${formatDay(shown[0].date)} to ${formatDay(shown[shown.length - 1].date)}`}
-            />
-          ) : (
-            <div className="ph-placeholder" role={status === "loading" ? "status" : undefined}>
-              {status === "loading" ? "Loading price history…" : status === "error" ? "Could not load price history" : "No price history yet for this art"}
-            </div>
-          )}
-        </div>
-        {inline && hasAnswer ? (
-          <AskDrawer
-            id={drawerId}
-            ask={inline}
-            open={mountedOpen}
-            onFold={() => {
-              setFolded(true);
-              askRef.current?.focus({ preventScroll: true });
-            }}
-            onAgain={() => {
-              inline.reset();
-              inline.ask(question);
-            }}
-            onContinue={() => {
-              if (inline.continueInPanel()) onAsked?.();
-            }}
+      <WhenToBuy timing={timing} best={best} loading={q.isPending} onAsk={ask} />
+      <div className={`ph-body ph-${status}`}>
+        {status === "ready" ? (
+          <Chart
+            key={`${rangeId}-${shown.length}`}
+            points={shown}
+            label={`${name} market price from ${formatDay(shown[0].date)} to ${formatDay(shown[shown.length - 1].date)}`}
           />
-        ) : null}
+        ) : (
+          <div className="ph-placeholder" role={status === "loading" ? "status" : undefined}>
+            {status === "loading"
+              ? "Loading price history…"
+              : status === "error"
+                ? "Could not load price history"
+                : "No price history yet for this art"}
+          </div>
+        )}
       </div>
     </section>
   );

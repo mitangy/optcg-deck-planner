@@ -5,7 +5,6 @@
  */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { mockCardApi, ZORO } from "./cardPageFake";
 
 const SHOTS = process.env.WTB_SHOTS;
 
@@ -209,212 +208,26 @@ test("Collection: an alt art with no price points yet still gets the read from i
   await expectFits(page, panel);
 });
 
-const IZO_QUESTION = "When is the best time to buy Izo (base art, EB01-002)? Use its price history and how much it's being played.";
-const ANSWER_1 = "Izo is four months old, so most of the drop is behind it.";
-const ANSWER_2 = " A reprint announcement is the main risk to watch.";
-
-/** The analyst answers the page's questions with `reply`, and every body it was sent is kept. */
-async function fakeAnswers(page: Page, reply: () => { status?: number; body: string }) {
-  const bodies: { message: string; thread_id?: number; context?: { page?: string } }[] = [];
-  await page.route("**/fake-analyst/chat", (route) => {
-    bodies.push(JSON.parse(route.request().postData() ?? "{}") as (typeof bodies)[number]);
-    const r = reply();
-    return route.fulfill({ status: r.status ?? 200, contentType: r.status && r.status >= 400 ? "application/json" : "text/event-stream", body: r.body });
-  });
-  return bodies;
-}
-
-const sse = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-const streamed = () => ({
-  body:
-    sse("thread", { thread_id: 61 }) +
-    sse("text", { delta: ANSWER_1 }) +
-    sse("cite", { citations: [{ source: "price:EB01-002", title: "Izo price history", cited_text: "fell" }] }) +
-    sse("text", { delta: ANSWER_2 }) +
-    sse("done", { thread_id: 61 }),
-});
-
-async function openIzoPanel(page: Page, planner: { open(path: string): Promise<void> }) {
+test("Ask Log Pose sends the question for this art and closes the card so the answer shows (#946)", async ({ page, planner }) => {
+  planner.enableLogPose();
   await planner.open("/collection");
-  await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
+  const izo = page.locator('[data-card-id="EB01-002"]:visible');
+  await izo.locator("img.thumb").first().click();
   const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
   await lightbox.getByRole("button", { name: "Price history" }).click();
   const panel = lightbox.getByRole("region", { name: "Price history" });
   await expect(panel.locator(".ph-pill")).toHaveText("Good time");
-  return { lightbox, panel };
-}
-
-test("Ask Log Pose streams the answer into a drawer under When to buy without opening the chat or closing the card (#960)", async ({ page, planner }) => {
-  const bodies = await fakeAnswers(page, streamed);
-  planner.enableLogPose();
-  const { lightbox, panel } = await openIzoPanel(page, planner);
   const ask = panel.getByRole("button", { name: "Ask Log Pose" });
   await expectFits(page, panel);
-  const [askBefore, panelBefore, chartBefore, buyBox] = [await ask.boundingBox(), await panel.boundingBox(), await panel.locator(".ph-body").boundingBox(), await panel.getByLabel("When to buy").boundingBox()];
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-with-ask-${test.info().project.name}.png` });
-  await expect(ask).toHaveAttribute("aria-expanded", "false");
   await ask.click();
 
-  const drawer = panel.getByRole("region", { name: "Log Pose's answer" });
-  await expect(drawer).toBeVisible();
-  await expect(drawer).toContainText(ANSWER_1);
-  await expect(drawer).toContainText(ANSWER_2);
-  await expect(drawer.getByRole("button", { name: "Continue in Log Pose" })).toBeVisible();
-  await expect(ask).toHaveAttribute("aria-expanded", "true");
-  // The question for this art went out once, as a new chat; the chat panel did not open and the card is still up.
-  expect(bodies).toHaveLength(1);
-  expect(bodies[0]!.message).toBe(IZO_QUESTION);
-  expect(bodies[0]!.thread_id).toBeUndefined();
-  await expect(page.getByRole("dialog", { name: "Log Pose" })).toHaveCount(0);
-  await expect(lightbox).toBeVisible();
-  // It drops down under the When to buy box, over the chart's box, and nothing around it moves.
-  const box = (await drawer.boundingBox())!;
-  expect(box.y).toBeGreaterThanOrEqual(buyBox!.y + buyBox!.height);
-  for (const k of ["x", "width"] as const) expect(Math.abs(box[k] - chartBefore![k]), `drawer ${k} matches the chart's`).toBeLessThan(1);
-  // As tall as the chart's box, or as much of it as shows in the scrolling price panel: its buttons are never cut off.
-  expect(box.height).toBeLessThanOrEqual(chartBefore!.height + 1);
-  expect(box.height).toBeGreaterThanOrEqual(100);
-  const popBox = (await lightbox.locator(".lightbox-history-pop").boundingBox())!;
-  const continueBox = (await drawer.getByRole("button", { name: "Continue in Log Pose" }).boundingBox())!;
-  expect(continueBox.y + continueBox.height).toBeLessThanOrEqual(popBox.y + popBox.height);
-  expect(await ask.boundingBox()).toEqual(askBefore);
-  expect(await panel.boundingBox()).toEqual(panelBefore);
-  await expectFits(page, panel);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-drawer-${test.info().project.name}.png` });
-
-  // The ? reasons still open over the drawer.
-  await panel.getByLabel("When to buy").getByRole("button", { name: "Why this read?" }).click();
-  await expect(page.getByRole("tooltip")).toContainText("Most of the typical drop is done at this age.");
-  await page.keyboard.press("Escape");
-  await page.mouse.move(0, 0);
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await expect(drawer).toBeVisible();
-
-  // The chevron folds it away; Ask again shows the answer already there instead of asking again.
-  await drawer.getByRole("button", { name: "Hide Log Pose's answer" }).click();
-  await expect(drawer).toBeHidden();
-  await expect(ask).toHaveAttribute("aria-expanded", "false");
-  await expect(ask).toBeFocused();
-  await ask.click();
-  await expect(drawer).toBeVisible();
-  await expect(drawer).toContainText(ANSWER_1);
-  expect(bodies).toHaveLength(1);
-  // Escape folds just the drawer.
-  await drawer.getByRole("button", { name: "Continue in Log Pose" }).focus();
-  await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  await expect(lightbox).toBeVisible();
-  // The answer outlives the panel being closed and opened again.
-  await lightbox.getByRole("button", { name: "Price history" }).click();
-  await lightbox.getByRole("button", { name: "Price history" }).click();
-  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
-  await expect(panel.getByRole("region", { name: "Log Pose's answer" })).toContainText(ANSWER_1);
-  expect(bodies).toHaveLength(1);
-  // Ask again sends the question a second time.
-  await panel.getByRole("button", { name: "Ask again" }).click();
-  await expect.poll(() => bodies.length).toBe(2);
-});
-
-test("On the card page the drawer opens under When to buy and Continue opens the panel on the thread (#960)", async ({ page, planner }) => {
-  const bodies = await fakeAnswers(page, streamed);
-  await page.route("**/api/analyst/chat/threads/61", (route) =>
-    route.fulfill({ json: { id: 61, title: "Zoro", messages: [{ role: "user", text: "q" }, { role: "assistant", text: ANSWER_1 }] } }),
-  );
-  await mockCardApi(page);
-  planner.enableLogPose();
-  await planner.open(`/cards/${ZORO}`);
-  const panel = page.getByRole("region", { name: "Price history" });
-  const ask = panel.getByRole("button", { name: "Ask Log Pose" });
-  await expect(panel.getByLabel("When to buy").locator(".ph-pill")).not.toHaveText("…");
-  await ask.scrollIntoViewIfNeeded();
-  const [askBefore, chartBefore] = [await ask.boundingBox(), await panel.locator(".ph-body").boundingBox()];
-  await ask.click();
-  const drawer = panel.getByRole("region", { name: "Log Pose's answer" });
-  await expect(drawer).toContainText(ANSWER_1);
-  expect(bodies).toHaveLength(1);
-  expect(bodies[0]!.message).toContain("Roronoa Zoro");
-  expect(await ask.boundingBox()).toEqual(askBefore);
-  expect(await panel.locator(".ph-body").boundingBox()).toEqual(chartBefore);
-  await expect(page.getByRole("dialog", { name: "Log Pose" })).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/card-page-drawer-${test.info().project.name}.png` });
-  await drawer.getByRole("button", { name: "Continue in Log Pose" }).click();
-  await expect(page.getByRole("dialog", { name: "Log Pose" }).locator(".lp-msg-assistant")).toContainText(ANSWER_1);
-});
-
-test("Continue in Log Pose opens the chat panel on the thread the answer was saved to and closes the card (#960)", async ({ page, planner }) => {
-  await fakeAnswers(page, streamed);
-  const loaded: string[] = [];
-  await page.route("**/api/analyst/chat/threads/*", (route) => {
-    loaded.push(new URL(route.request().url()).pathname);
-    return route.fulfill({
-      json: { id: 61, title: "Izo", messages: [{ role: "user", text: IZO_QUESTION }, { role: "assistant", text: ANSWER_1 + ANSWER_2 }] },
-    });
-  });
-  planner.enableLogPose();
-  const { lightbox, panel } = await openIzoPanel(page, planner);
-  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
-  await panel.getByRole("button", { name: "Continue in Log Pose" }).click();
-
-  const chat = page.getByRole("dialog", { name: "Log Pose" });
-  await expect(chat).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Log Pose" })).toBeVisible();
+  await expect(page.getByText("Because the deck has 15 cards.")).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-ask-log-pose-${test.info().project.name}.png` });
   await expect(lightbox).toHaveCount(0);
-  await expect(chat.locator(".lp-msg-user")).toHaveText(IZO_QUESTION);
-  await expect(chat.locator(".lp-msg-assistant")).toContainText(ANSWER_1 + ANSWER_2);
-  // (Dev builds run the panel's load effect twice.)
-  expect([...new Set(loaded)]).toEqual(["/api/analyst/chat/threads/61"]);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-continue-${test.info().project.name}.png` });
-});
-
-test("On a short landscape screen the price panel and its drawer fit the screen (#960)", async ({ page, planner }) => {
-  test.skip(test.info().project.name !== "phone-375", "landscape phone only");
-  await fakeAnswers(page, streamed);
-  await page.setViewportSize({ width: 812, height: 375 });
-  planner.enableLogPose();
-  const { panel } = await openIzoPanel(page, planner);
-  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
-  const drawer = panel.getByRole("region", { name: "Log Pose's answer" });
-  await expect(drawer.getByRole("button", { name: "Continue in Log Pose" })).toBeVisible();
-  const vp = page.viewportSize()!;
-  // The price panel scrolls inside its box, which is on screen; the drawer and its buttons show within it.
-  const pop = (await page.locator(".lightbox-history-pop").boundingBox())!;
-  expect(pop.y).toBeGreaterThanOrEqual(0);
-  expect(pop.y + pop.height).toBeLessThanOrEqual(vp.height);
-  expect(pop.x + pop.width).toBeLessThanOrEqual(vp.width);
-  for (const box of [(await drawer.boundingBox())!, (await drawer.getByRole("button", { name: "Continue in Log Pose" }).boundingBox())!]) {
-    expect(box.y).toBeGreaterThanOrEqual(pop.y);
-    expect(box.y + box.height).toBeLessThanOrEqual(pop.y + pop.height + 1);
-  }
-  expect((await drawer.boundingBox())!.height).toBeGreaterThanOrEqual(100);
-});
-
-test("a credit limit shows the friendly message in the drawer and nothing to continue (#960)", async ({ page, planner }) => {
-  await fakeAnswers(page, () => ({ status: 429, body: JSON.stringify({ code: "credit" }) }));
-  planner.enableLogPose();
-  const { lightbox, panel } = await openIzoPanel(page, planner);
-  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
-  const drawer = panel.getByRole("region", { name: "Log Pose's answer" });
-  await expect(drawer.getByRole("alert")).toHaveText("You've used this month's free Log Pose credit.");
-  await expect(drawer.getByRole("button", { name: "Continue in Log Pose" })).toHaveCount(0);
-  await expect(page.getByRole("dialog", { name: "Log Pose" })).toHaveCount(0);
-  await expect(lightbox).toBeVisible();
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-drawer-limit-${test.info().project.name}.png` });
-});
-
-test("Stop ends the streaming answer and keeps what came (#960)", async ({ page, planner }) => {
-  // The answer never finishes: only a text event arrives, then the stream is held open by the route not completing.
-  await page.route("**/fake-analyst/chat", () => {
-    /* never fulfilled: the request stays pending, so the drawer shows Thinking… until stopped */
-  });
-  planner.enableLogPose();
-  const { panel } = await openIzoPanel(page, planner);
-  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
-  const drawer = panel.getByRole("region", { name: "Log Pose's answer" });
-  await expect(drawer.getByRole("status")).toContainText("Thinking…");
-  await drawer.getByRole("button", { name: "Stop" }).click();
-  await expect(drawer).toContainText("Stopped.");
-  await expect(drawer.getByRole("button", { name: "Ask again" })).toBeVisible();
-  await expect(drawer.getByRole("button", { name: "Stop" })).toHaveCount(0);
+  expect(planner.chats).toHaveLength(1);
+  expect(planner.chats[0]!.message).toBe("When is the best time to buy Izo (base art, EB01-002)? Use its price history and how much it's being played.");
 });
 
 test("no Ask Log Pose while Log Pose is off (#946)", async ({ page, planner }) => {
