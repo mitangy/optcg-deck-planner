@@ -1854,6 +1854,11 @@ label.btn.is-busy {
     flex: 1 1 0;
   }
 
+  .home-primary > .live-empty,
+  .home-primary > .live-pill {
+    order: 3;
+  }
+
   .home-primary > .install-hint,
   .home-primary > .intro {
     order: 3;
@@ -2246,12 +2251,97 @@ label.btn.is-busy {
 
 /* —— Live line, Ask Log Pose tile, Unranked, wave drift —— */
 
-.home-live {
+.live-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   margin: 0;
-  text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.live-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fcf6d;
+  box-shadow: 0 0 0 0 rgba(63, 207, 109, 0.55);
+  animation: live-pulse 2s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  70% {
+    box-shadow: 0 0 0 7px rgba(63, 207, 109, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 207, 109, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .live-dot {
+  animation: none;
+}
+
+.live-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+}
+
+.live-empty-title {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.live-empty-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.live-empty-invite {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.live-empty-alt {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.live-empty-small {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: rgb(var(--panel-rgb) / 0.6);
+  border-color: var(--line);
+}
+
+.live-empty-small:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
 }
 
 .voyage-delta-none {

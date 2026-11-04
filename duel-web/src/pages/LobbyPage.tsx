@@ -51,7 +51,7 @@ import { UpdateNotice, VersionStatus } from "../VersionStatus";
 import { WhatsNewCard } from "@optcg/patch-notes";
 import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
-import { LiveLine } from "../home/LiveLine";
+import { LivePanel } from "../home/LivePanel";
 import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
 import { BrandMark, BrandWordmark } from "../BrandMark";
@@ -1052,6 +1052,13 @@ export function LobbyPage() {
             </div>
           </div>
 
+          <LivePanel
+            onInvite={() => playFrom("create")}
+            onBot={() => playFrom("bot")}
+            onPractice={() => playFrom("hotseat")}
+            disabled={busy || queueing}
+          />
+
           <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
 
           {showIosHint ? (
@@ -1092,7 +1099,6 @@ export function LobbyPage() {
             onSpectate={spectateFriend}
           />
           <TopBounties me={authMode === "google" ? me : null} />
-          <LiveLine />
         </div>
         <div className="home-version">
           <VersionStatus />
