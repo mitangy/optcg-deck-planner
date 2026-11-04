@@ -375,20 +375,28 @@ class BotLessonError(Exception):
         self.detail = detail
 
 
+def _posted_text(evidence: str | None) -> str | None:
+    try:
+        value = json.loads(evidence or "{}")
+    except ValueError:
+        return None
+    return value.get("posted_text") if isinstance(value, dict) else None
+
+
 def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | None, cards: list[str], evidence: str) -> dict:
     """Save a bot lesson as a draft for the admin to review. A lesson with the same leader, opponent and text in any status is skipped."""
     admin = db.scalar(select(User).where(User.role == "admin").order_by(User.id).limit(1))
     if admin is None:
         raise BotLessonError(503, "No admin account to review bot lessons")
     text = text.strip()
-    same = select(AnalystLesson.id).where(
+    same = select(AnalystLesson.text, AnalystLesson.evidence).where(
         AnalystLesson.user_id == admin.id,
         AnalystLesson.source == "bots",
         AnalystLesson.leader_id == leader_id,
         AnalystLesson.opponent_id.is_(None) if opponent_id is None else AnalystLesson.opponent_id == opponent_id,
-        AnalystLesson.text == text,
     )
-    if db.scalar(same.limit(1)) is not None:
+    # The admin can edit a lesson's text, so also match the wording as first posted (kept in evidence); rows saved before that match on text.
+    if any(text in (t, _posted_text(ev)) for t, ev in db.execute(same).all()):
         return {"skipped": True}
     from app.routers import analyst as player_lessons  # the same cap as player drafts; read at call time
 
@@ -405,7 +413,7 @@ def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | N
         leader_id=leader_id,
         opponent_id=opponent_id,
         cards=",".join(dict.fromkeys(cards)),
-        evidence=json.dumps({"summary": evidence}),
+        evidence=json.dumps({"summary": evidence, "posted_text": text}),
     )
     db.add(row)
     db.commit()

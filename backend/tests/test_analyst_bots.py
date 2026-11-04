@@ -373,3 +373,19 @@ def test_my_lessons_for_claude_leave_out_approved_bot_lessons_916(analyst):  # n
     assert [l["id"] for l in got] == [mine["id"]]
     # the admin's own review list still shows both
     assert sorted(l["source"] for l in c.get("/analyst/lessons/review").json()["lessons"]) == ["bots", "player"]
+
+
+def test_a_bot_lesson_the_admin_edited_is_still_skipped_when_posted_again_916(analyst):  # noqa: F811
+    """Next week's job re-posts the original wording; the admin's edited copy (in any status) keeps it from coming back as a new draft (#916)."""
+    c, SessionLocal = analyst
+    _admin_with_link(c, SessionLocal)
+    assert _post_lesson(c).json()["skipped"] is False
+    row = c.get("/analyst/lessons/review").json()["lessons"][0]
+    edited = {"status": "approved", "text": "With Zoro, using Nami's effect won more often (admin wording)."}
+    assert c.patch(f"/analyst/lessons/review/{row['id']}", json=edited).status_code == 200
+    assert _post_lesson(c).json() == {"skipped": True}
+    # editing again, and the edited wording itself being posted, are skipped too
+    assert c.patch(f"/analyst/lessons/review/{row['id']}", json={"text": "Second rewrite."}).status_code == 200
+    assert _post_lesson(c).json() == {"skipped": True}
+    assert _post_lesson(c, text="Second rewrite.").json() == {"skipped": True}
+    assert len(c.get("/analyst/lessons/review").json()["lessons"]) == 1
