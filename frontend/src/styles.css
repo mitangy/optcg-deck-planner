@@ -9091,6 +9091,22 @@ button.ghost.scan-tray-fix {
   box-shadow: var(--shadow);
 }
 
+.card-head-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: zoom-in;
+}
+
+.card-head-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
 .card-head-img.placeholder {
   display: grid;
   place-items: center;
