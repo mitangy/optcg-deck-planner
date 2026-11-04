@@ -287,6 +287,8 @@ const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is
 
 /** Desktop and tablets (a fine pointer, or 640px and wider) get the resizable drawer; anything else gets the phone sheet. */
 export const DRAWER_QUERY = "(min-width: 640px), (pointer: fine)";
+/** Windows too short for the chat's name on its own row under the header (#970). */
+export const SHORT_QUERY = "(max-height: 500px)";
 
 function useMedia(query: string): boolean {
   const get = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
@@ -998,6 +1000,8 @@ function LogPosePanel({
   const blocked = chatOn && credit?.refusal ? credit : null;
   const showChat = chatOn && view === "chat";
   const phone = !useMedia(DRAWER_QUERY);
+  // A short window (a phone on its side) has no room for a second header row: the chat's name moves into the header.
+  const short = useMedia(SHORT_QUERY);
   const [draft, setDraft] = useState("");
   /** Context for the next message only: the hint a Why? was about. */
   const [extra, setExtra] = useState<LogPoseAsk["context"] | null>(null);
@@ -1209,6 +1213,15 @@ function LogPosePanel({
   // The chat on show: the page's own while it is, or the one picked from the Chats list.
   const shown = chat.scope.key === active.key ? active : chat.scope;
   const floating = !phone && dock === null;
+  const chatsMenu = <ChatsMenu apiBase={apiBase} active={active} threadId={chat.threadId} busy={chat.busy} onPick={chat.openThread} />;
+  const scopeBar = (
+    <div className="lp-scope">
+      <span className="lp-scope-label" title={scopeLabel(shown)} data-testid="lp-scope-label">
+        {scopeLabel(shown)}
+      </span>
+      {chatsMenu}
+    </div>
+  );
   const node = (
     <div
       ref={panelRef}
@@ -1231,13 +1244,29 @@ function LogPosePanel({
       }
     >
       {phone ? <SheetGrip {...sheet} /> : embedded ? null : edge && dock ? <DockHandle side={dock} width={dockW} onWidth={onDockW} onCommit={onCommitDockW} onReset={() => onCommitDockW(DOCK_W_DEFAULT)} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
-      <header className="lp-head" data-owner={owner ? "true" : undefined} data-movable={phone ? undefined : "true"} {...(phone ? {} : move.header)}>
+      <header
+        className="lp-head"
+        data-owner={owner ? "true" : undefined}
+        data-movable={phone ? undefined : "true"}
+        data-scope-inline={showChat && short ? "true" : undefined}
+        {...(phone ? {} : move.header)}
+      >
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
         </span>
-        <h2 id="lp-title" className="lp-title">
-          Log Pose
-        </h2>
+        {showChat && short ? (
+          <>
+            <h2 id="lp-title" className="lp-title lp-title-scope" title={scopeLabel(shown)} data-testid="lp-scope-label">
+              <span className="lp-sr">Log Pose: </span>
+              {scopeLabel(shown)}
+            </h2>
+            {chatsMenu}
+          </>
+        ) : (
+          <h2 id="lp-title" className="lp-title">
+            Log Pose
+          </h2>
+        )}
         {!phone ? (
           <button
             type="button"
@@ -1277,14 +1306,7 @@ function LogPosePanel({
       {owner && view !== "chat" ? (
         <OwnerTabs view={view} waiting={waiting} onView={setView} />
       ) : null}
-      {showChat ? (
-        <div className="lp-scope">
-          <span className="lp-scope-label" title={scopeLabel(shown)} data-testid="lp-scope-label">
-            {scopeLabel(shown)}
-          </span>
-          <ChatsMenu apiBase={apiBase} active={active} threadId={chat.threadId} busy={chat.busy} onPick={chat.openThread} />
-        </div>
-      ) : null}
+      {showChat && !short ? scopeBar : null}
       {showChat && !owner ? <CreditMeter credit={credit} /> : null}
       {showChat ? <ModelPicker apiBase={apiBase} /> : null}
 

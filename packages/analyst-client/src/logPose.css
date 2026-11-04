@@ -2459,6 +2459,15 @@
   border-bottom: 1px solid var(--lp-line-d);
 }
 
+/* Short windows: the chat's name is the header's title and Chats sits beside it; the menu drops from the header's edge (#970). */
+.lp-head[data-scope-inline] {
+  position: relative;
+}
+
+.lp-title-scope {
+  font-size: 0.95rem;
+}
+
 .lp-scope-label {
   flex: 1 1 auto;
   min-width: 0;
