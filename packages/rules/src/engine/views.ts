@@ -16,7 +16,7 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   if (hasRestriction(state, seat, c, "cannot_attack")) statuses.push("Cannot attack");
   const rush = keywords.includes("rush") || keywords.includes("rush_character");
   // Summoning sickness only matters on its controller's own turn; the flag lingers until their next Refresh.
-  const sick = Boolean(c.summoningSick) && state.activeSeat === seat;
+  const sick = Boolean(c.summoningSick);
   if (sick && !rush && def.type === "character") statuses.push("Summoning sick");
   // Rush only matters the turn the card is played; afterwards its pill is noise (the keyword stays in `keywords`).
   for (const k of keywords) if (sick || (k !== "rush" && k !== "rush_character")) statuses.push(KEYWORD_LABELS[k] ?? k);

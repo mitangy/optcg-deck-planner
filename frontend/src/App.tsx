@@ -37,6 +37,7 @@ import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPo
 import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { PlannerLandingPage } from "./LandingPage";
+import { PublicCardScreen } from "./PublicCardScreen";
 import { PublicMetaScreen } from "./PublicMetaScreen";
 import { KEEP_PRERENDER_WHILE_LOADING, setSignedInHint } from "./prerendered";
 import { RouteMeta } from "./seo/RouteMeta";
@@ -88,6 +89,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { LightboxPriceAlertControl, NotificationsBell, PriceAlertsPage } from "./PriceAlerts";
+import { CardPage } from "./CardPage";
 import { MetaPage } from "./MetaPage";
 import { FriendsNavLink } from "./friends/FriendsNavLink";
 import { FriendsPage } from "./friends/FriendsPage";
@@ -2737,8 +2739,19 @@ export function ShoppingScanHitAction({ cardId }: { cardId: string }) {
   );
 }
 
+/** Owned count, shopping list and price alert on the card page (#953), for the art it shows. */
+const renderCardPageActions = (cardId: string, productId: number) => (
+  <>
+    <LightboxShoppingControl cardId={cardId} />
+    <LightboxPriceAlertControl cardId={cardId} productId={productId} />
+  </>
+);
+
 const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
   <>
+    <Link className="btn secondary lightbox-card-link" to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`} onClick={close}>
+      Card page
+    </Link>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
     <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} onAsked={close} />
@@ -4932,6 +4945,20 @@ function MetaRoute() {
   return <PublicMetaScreen />;
 }
 
+/** A card's page is public: signed-in users get the app shell (and their owned/alert controls), everyone else the slim public header. */
+function CardRoute() {
+  const { data: user, isLoading } = useMe();
+  if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
+  if (user) {
+    return (
+      <Shell user={user}>
+        <CardPage renderActions={renderCardPageActions} />
+      </Shell>
+    );
+  }
+  return <PublicCardScreen />;
+}
+
 function PublicSharePage() {
   const { token = "" } = useParams();
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
@@ -5212,6 +5239,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
         <Route path="/meta" element={<MetaRoute />} />
+        <Route path="/cards/:cardId" element={<CardRoute />} />
         <Route path="/group-buy/join/:token" element={<GroupBuyJoinPage />} />
         <Route path="/group-buy/view/:token" element={<PublicGroupBuyPage />} />
         <Route path="/whats-new" element={<WhatsNewPage />} />
