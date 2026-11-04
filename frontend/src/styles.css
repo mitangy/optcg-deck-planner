@@ -503,6 +503,40 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+/* Desktop list tables (#961): the art fills the Card column and the text sits under it, centred.
+   The column keeps a definite width (about its old min-width) so it never grows the table sideways;
+   art is capped so a wide table does not stretch it. Grid cards, the phone list and alt tiles are untouched. */
+.data-table .card-cell {
+  width: 14rem;
+}
+
+.data-table .card-cell-inner {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.data-table .card-cell-inner > .thumb-btn > .thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.data-table .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .data-table {
   min-width: 720px;
   /* separate + 0 spacing draws each cell's border-bottom in full so lines
@@ -3765,6 +3799,7 @@ tr.done td {
 }
 
 .shopping-table:has(td.alt-arts-cell) .card-cell {
+  width: 12rem;
   min-width: 12rem;
 }
 
@@ -3800,6 +3835,7 @@ tr.done td {
   }
 
   .deck-table:has(td.alt-arts-cell) .card-cell {
+    width: 12rem;
     min-width: 12rem;
   }
 }
