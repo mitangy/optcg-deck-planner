@@ -1430,5 +1430,6 @@ module.exports = {
     {"id": "botlessons915-column-not-added", "file": "backend/app/db.py", "from": "(\"source\", \"VARCHAR(16) NOT NULL DEFAULT 'player'\")", "to": "(\"source_x\", \"VARCHAR(16) NOT NULL DEFAULT 'player'\")", "kills": ["test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lessons_915"], "args": "tests/test_analyst_bots.py"},
     // Owned picked alt copies are not priced again in Remaining (#908)
     {"id": "shop908-owned-alt-priced-again", "file": "backend/app/services.py", "from": "                (a.product_id, a.wanted - a.owned, a.market_price)\n                for a in card_alts\n                if a.wanted - a.owned > 0", "to": "                (a.product_id, a.wanted, a.market_price)\n                for a in card_alts\n                if a.wanted > 0", "kills": ["test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908"], "args": "tests/test_alt_art_wants.py"},
+    {"id": "botlessons916-my-lessons-include-bot-lessons", "file": "backend/app/routers/analyst.py", "from": "_lessons(db, user, status, leader, player_only=True)", "to": "_lessons(db, user, status, leader)", "kills": ["test_my_lessons_for_claude_leave_out_approved_bot_lessons_916"], "args": "tests/test_analyst_bots.py"},
   ],
 };

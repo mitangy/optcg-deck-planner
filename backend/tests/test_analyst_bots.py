@@ -349,3 +349,27 @@ def test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lesso
     app_db._ensure_analyst_lesson_source()
     with engine.connect() as conn:
         assert conn.execute(text("SELECT source FROM analyst_lessons")).all() == [("player",)]
+
+
+def _admin_with_link(c, SessionLocal) -> dict:
+    me = c.post("/auth/dev-login").json()
+    from app.models import User
+
+    with SessionLocal() as db:
+        db.get(User, me["id"]).role = "admin"
+        db.commit()
+    return {"X-Analyst-Token": c.post("/analyst/token").json()["token"]}
+
+
+def test_my_lessons_for_claude_leave_out_approved_bot_lessons_916(analyst):  # noqa: F811
+    """Bot lessons are owned by the admin but are not the admin's own player lessons: Log Pose's my_lessons never lists them (#916)."""
+    c, SessionLocal = analyst
+    link = _admin_with_link(c, SessionLocal)
+    assert _post_lesson(c).status_code == 200
+    mine = c.post("/analyst/lessons", json={"text": "Hold a counter for turn four.", "leader_id": ZORO}, headers=link).json()
+    for lesson in c.get("/analyst/lessons/review").json()["lessons"]:
+        assert c.patch(f"/analyst/lessons/review/{lesson['id']}", json={"status": "approved"}).status_code == 200
+    got = c.get("/analyst/lessons", headers=link).json()["lessons"]
+    assert [l["id"] for l in got] == [mine["id"]]
+    # the admin's own review list still shows both
+    assert sorted(l["source"] for l in c.get("/analyst/lessons/review").json()["lessons"]) == ["bots", "player"]
