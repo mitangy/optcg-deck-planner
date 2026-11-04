@@ -1456,7 +1456,9 @@ function ShoppingPage() {
     setAltOwnedBusyKey(`${cardId}:${productId}`);
     applyAltBuyOptimistic(qc, cardId, productId, qty);
     try {
-      const res = await api.setCardPrinting(cardId, productId, qty);
+      // Same deck filter the shopping list is read with, so the pick lands on the decks shown.
+      const deckIds = activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds;
+      const res = await api.setCardPrinting(cardId, productId, qty, deckIds);
       applyAltBuyOptimistic(qc, cardId, productId, res.qty);
     } catch (e) {
       setAltOwnedErr((e as Error).message);

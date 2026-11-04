@@ -124,7 +124,7 @@ import { PANEL_LABELS, collapsedColumns, columnOf, mergeIntoColumn, parsePanelLa
 import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
 import { usePanelResize } from "./usePanelResize";
 import { SidePanel, usePanelDrag } from "./SidePanels";
-import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos } from "./handFanPos";
+import { FAN_SNAP_PX, fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./handFanPos";
 import { fanCornerFor } from "./fanCorner";
 import { CornerFit } from "./CornerFit";
 import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
@@ -431,6 +431,9 @@ export function DuelBoard({
         specFans ? { spectatorNearFanPos: serializeFanPos(next) } : { handFanPos: serializeFanPos(next) },
       ),
     boardCentreX,
+    // A spectator's near fan goes home on the bottom edge, at any x; it is measured by its cards while docked.
+    specFans ? (centreX, bottom, _h, vp) => spectatorNearFanPosForDrop(centreX, bottom, vp) : undefined,
+    specFans ? { bodySelector: ".hand-fan-cards", anchorGrip: true } : undefined,
   );
   const farMove = useFanMove(
     farRef,
@@ -439,8 +442,9 @@ export function DuelBoard({
     boardCentreX,
     (centreX, bottom, height, vp) => {
       const mat = document.querySelector(".arena .playmat")?.getBoundingClientRect();
-      return farFanPosForDrop(centreX, bottom, height, vp, mat?.top ?? 0, boardCentreX());
+      return farFanPosForDrop(centreX, bottom, height, vp, mat?.top ?? 0);
     },
+    { bodySelector: ".spec-far-cards", anchorGrip: true },
   );
   const shownFanPos = fanMove.livePos ?? (specFans ? specNearPos : fanPos);
   /** The far fan is off its strip along the top of the board, floating where it was dragged. */
@@ -2832,6 +2836,27 @@ export function DuelBoard({
           )}
         </LandscapeOverlay>
       ) : null}
+
+      {specFans === "desktop" && (fanMove.livePos != null || farMove.livePos != null)
+        ? (() => {
+            // Where the fan being dragged docks; lit when letting go now would put it back.
+            const near = fanMove.livePos != null;
+            const mat = document.querySelector(".arena .playmat")?.getBoundingClientRect();
+            if (!mat) return null;
+            return (
+              <div
+                className={`spec-dock-target spec-dock-target-${near ? "near" : "far"}${(near ? fanMove.willDock : farMove.willDock) ? " is-active" : ""}`}
+                style={{
+                  left: mat.left,
+                  width: mat.width,
+                  height: FAN_SNAP_PX,
+                  ...(near ? { bottom: 0 } : { top: mat.top }),
+                }}
+                aria-hidden
+              />
+            );
+          })()
+        : null}
 
       {farHand && specFans === "desktop" && shownFarPos ? (
         // Off its strip, so it floats over the board (a fixed box inside the mat would be clipped by it).

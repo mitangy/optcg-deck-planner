@@ -34,6 +34,11 @@ export function fetchStaticSnapshot(): Promise<MetaSnapshot | null> {
 export type MetaView = {
   /** The popular leaders: the snapshot's until the live API answers. */
   leaders: MetaLeader[];
+  /**
+   * `leaders` plus any snapshot leader the live list dropped, so a pre-rendered leader page does not
+   * turn into "not found" when its leader falls out of the live top 30 (#919). Only for resolving a page's route.
+   */
+  routeLeaders: MetaLeader[];
   /** Recent top-8 lists of `leaderId`, when one was asked for and known. */
   decks: MetaDeck[] | null;
   days: number;
@@ -95,8 +100,10 @@ export function useMetaView(leaderId: string | null): MetaView {
   }, [key]);
 
   const leaders = live?.leaders ?? base?.leaders ?? [];
+  const routeLeaders = live ? [...leaders, ...(base?.leaders ?? []).filter((b) => !leaders.some((l) => l.leader_id === b.leader_id))] : leaders;
   return {
     leaders,
+    routeLeaders,
     decks: key ? (liveDecks[key] ?? base?.decks[key] ?? null) : null,
     days: live?.days ?? base?.days ?? SNAPSHOT_DAYS,
     events: live?.events ?? base?.events ?? null,

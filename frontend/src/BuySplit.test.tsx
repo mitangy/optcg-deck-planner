@@ -87,6 +87,15 @@ describe("BuySplitEditor (#906)", () => {
     expect(host.querySelector(".buy-split-total")?.textContent).toBe("Total$31.00");
   });
 
+  it("owned picked alt copies are not counted against Base, the caption or the total again (#908)", () => {
+    // Need 4, pick 2 of Alt 1, own both: still_need 2 is all base.
+    const owned = { ...alt(1, 10, 2), owned: 2 };
+    const host = mount(<BuySplitEditor card={card(2, [owned])} onPick={() => {}} />);
+    expect(host.querySelector("[aria-label='Base copies to buy']")?.textContent).toBe("×2");
+    expect(host.querySelector(".buy-split-total")?.textContent).toBe("Total$2.00");
+    expect(buySplitCaption(card(2, [owned]))).toBeNull();
+  });
+
   it("the caption names the alt and base copies, and is empty with no picks (#906)", () => {
     expect(buySplitCaption(card(2, [alt(1, 10, 1)]))).toBe("1 alt + 1 base");
     expect(buySplitCaption(card(2, [alt(1, 10, 2)]))).toBe("2 alt");
