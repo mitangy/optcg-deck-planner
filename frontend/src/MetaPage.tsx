@@ -175,9 +175,9 @@ function MetaDeckRow({
                       <CardThumb src={c.image_url} cardId={c.card_id} alt={c.name || c.card_id} />
                       <span className="meta-card-count">{c.count}×</span>
                     </div>
-                    <span className="meta-card-name" title={c.name}>
+                    <Link className="meta-card-name" to={`/cards/${encodeURIComponent(c.card_id)}`} title={`${c.name || c.card_id}: open card page`}>
                       {c.name || c.card_id}
-                    </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

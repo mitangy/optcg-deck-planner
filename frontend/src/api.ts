@@ -564,6 +564,79 @@ export type MetaDecksResponse = {
   decks: MetaDeck[];
 };
 
+/** One printing of a card on its page (#953); the first is the base art. */
+export type CardPagePrinting = {
+  product_id: number;
+  name: string;
+  market_price: number | null;
+  image_url: string;
+  tcgplayer_url: string;
+  group_name: string;
+  is_special: boolean;
+};
+
+export type CardPageLeader = {
+  leader_id: string;
+  name: string;
+  color: string;
+  image_url: string;
+  /** Decks with a stored list that this leader played. */
+  leader_decks: number;
+  decks_with_card: number;
+  /** Share of that leader's decks that ran the card. */
+  rate: number;
+  average_copies: number;
+};
+
+export type CardPageFinish = {
+  id: number;
+  event: string;
+  event_url: string;
+  /** YYYY-MM-DD */
+  date: string;
+  players: number;
+  placing: number | null;
+  record: { wins: number; losses: number; ties: number };
+  leader_id: string;
+  leader_name: string;
+  leader_image_url: string;
+  copies: number;
+};
+
+export type CardPageUsage = {
+  days: number;
+  min_players: number;
+  events: number;
+  total_decks: number;
+  is_leader: boolean;
+  /** Decks that ran the card (a Leader: decks it led). */
+  decks_with_card: number;
+  rate: number;
+  /** Null for a Leader or a card nobody ran. */
+  average_copies: number | null;
+  leaders: CardPageLeader[];
+  top_decks: CardPageFinish[];
+  source: string;
+  source_url: string;
+};
+
+export type CardPageResponse = {
+  card: {
+    card_id: string;
+    name: string;
+    rarity: string;
+    color: string;
+    card_type: string;
+    cost: string | null;
+    group_name: string;
+    image_url: string;
+    tcgplayer_url: string;
+    market_price: number | null;
+  };
+  printings: CardPagePrinting[];
+  usage: CardPageUsage;
+};
+
 export const api = {
   apiUrl: API_URL,
   me: () => request<User | null>("/auth/me"),
@@ -582,6 +655,9 @@ export const api = {
     request<MetaDecksResponse>(
       `/meta/decks?leader=${encodeURIComponent(leader)}&days=${days}&top=${top}&limit=50`,
     ),
+  /** A card's page: printings and tournament usage. Public; 404 for an unknown card. */
+  cardDetail: (cardId: string, days: number) =>
+    request<CardPageResponse>(`/meta/cards/${encodeURIComponent(cardId)}?days=${days}`),
   decks: () => request<DeckSummary[]>("/decks"),
   deck: (id: number, deckIds?: number[]) => {
     const params = new URLSearchParams();

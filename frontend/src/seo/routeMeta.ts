@@ -30,6 +30,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
     description:
       "See which leaders and decklists are winning in the One Piece TCG, with the TCGPlayer price of each list, and copy one into your planner. Unofficial fan-made tool.",
   },
+  { pattern: "/cards/:cardId", title: `Card – ${NAME}`, noindex: true },
   { pattern: "/whats-new", title: `What’s new – ${NAME}`, description: "Everything that changed in the OPTCG Deck Planner recently, newest first." },
   { pattern: "/terms", title: `Terms & credits – ${NAME}`, description: "Terms of use and credits for the OPTCG Deck Planner, an unofficial fan-made One Piece Card Game tool." },
   { pattern: "/privacy", title: `Privacy policy – ${NAME}`, description: "What the OPTCG Deck Planner stores about you, why, and how to delete it." },
