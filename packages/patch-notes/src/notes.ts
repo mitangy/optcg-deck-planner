@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
-  { date: "2026-11-04", app: "planner", pr: 0, title: "Best time to buy", text: "The When to buy box now shows the best time to buy each art and roughly what it should cost then, based on how similar cards moved after release." },
+  { date: "2026-11-04", app: "planner", pr: 954, title: "Best time to buy", text: "The When to buy box now shows the best time to buy each art and roughly what it should cost then, based on how similar cards moved after release." },
   { date: "2026-11-04", app: "planner", pr: 949, title: "When to buy", text: "The Price history panel now has a When to buy line that says whether to buy now, wait or buy on a dip, based on how similar cards moved after release, and Ask Log Pose can look into it with the card's price history and how much it is being played." },
   { date: "2026-11-04", app: "planner", pr: 947, title: "Price history for every art", text: "Open any card's enlarged picture and tap Price history to see how that art's market price has moved, with 1M to Max ranges, its peak, how far it has fallen from it, and when it came out." },
   { date: "2026-11-04", app: "duel", pr: 938, title: "Spectating settings", text: "Settings now has a Spectating section with a Sound while watching switch, so you can keep match sounds off while you watch. The settings sheet in a match you are watching also hides the settings for playing your own turns, and lists Spectating first." },
