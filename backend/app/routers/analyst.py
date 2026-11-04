@@ -340,8 +340,10 @@ def _lesson_out(row: AnalystLesson) -> AnalystLessonOut:
     )
 
 
-def _lessons(db: Session, user: User, status: str, leader: str | None) -> list[AnalystLessonOut]:
+def _lessons(db: Session, user: User, status: str, leader: str | None, player_only: bool = False) -> list[AnalystLessonOut]:
     q = select(AnalystLesson).where(AnalystLesson.user_id == user.id)
+    if player_only:  # bot lessons are owned by the admin but are not their own (#916)
+        q = q.where(AnalystLesson.source == "player")
     if status != "all":
         q = q.where(AnalystLesson.status == status)
     if leader:
@@ -397,8 +399,8 @@ def analyst_lessons(
     status: Literal["draft", "approved", "rejected", "all"] = "approved",
     leader: Annotated[str | None, Query(pattern=CARD_ID_PATTERN)] = None,
 ) -> AnalystLessonsOut:
-    """The link owner's lessons for Claude; approved ones unless asked otherwise."""
-    return AnalystLessonsOut(lessons=_lessons(db, user, status, leader))
+    """The link owner's lessons for Claude; approved ones unless asked otherwise. Bot lessons reach Claude through the sim stats instead."""
+    return AnalystLessonsOut(lessons=_lessons(db, user, status, leader, player_only=True))
 
 
 @router.get("/lessons/review", response_model=AnalystLessonsOut)

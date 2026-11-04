@@ -94,7 +94,7 @@ function NotFound({ text }: { text: string }) {
 export function LeaderPage() {
   const { slug = "" } = useParams();
   const view = useMetaView(parseLeaderSlug(slug)?.leaderId ?? null);
-  const route = resolveLeaderRoute(slug, view.leaders);
+  const route = resolveLeaderRoute(slug, view.routeLeaders);
 
   if (route.kind === "redirect") return <Navigate to={route.to} replace />;
   if (route.kind === "unknown") {
@@ -106,7 +106,8 @@ export function LeaderPage() {
 function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typeof useMetaView> }) {
   const decks = view.decks ?? [];
   const text = leaderPageText(leader, view.days);
-  const rank = view.leaders.findIndex((l) => l.leader_id === leader.leader_id) + 1;
+  // A snapshot leader the live list dropped sits after the live ones, so it never reads as "most played" (#919).
+  const rank = view.routeLeaders.findIndex((l) => l.leader_id === leader.leader_id) + 1;
   usePageMeta({
     title: text.title,
     description: text.description,
@@ -156,7 +157,7 @@ function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typ
             {leader.name || leader.leader_id} in the meta
           </h2>
           <div className="leader-intro">
-            {leaderIntro({ leader, rank: rank || 1, of: view.leaders.length, days: view.days, decks }).map((p) => (
+            {leaderIntro({ leader, rank: rank || 1, of: view.routeLeaders.length, days: view.days, decks }).map((p) => (
               <p key={p} className="panel-copy">
                 {p}
               </p>

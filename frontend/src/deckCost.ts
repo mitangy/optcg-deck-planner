@@ -26,6 +26,15 @@ export type BuySplit = {
 };
 
 /**
+ * Copies of an alt art still to buy: the picked copies minus the ones the user owns.
+ * still_need already drops owned alt copies, so counting them in the pick too would
+ * price them twice (#908). Mirrors the backend `shopping_list`.
+ */
+export function altBuyCopies(alt: Pick<CostAlt, "wanted" | "owned">): number {
+  return Math.max(0, (alt.wanted ?? 0) - (alt.owned ?? 0));
+}
+
+/**
  * Splits still_need across the picked alt arts (list order, each capped by what
  * is left), then the standard art. Mirrors the backend `allocate_still_need_buys`.
  */
@@ -37,7 +46,7 @@ export function splitStillNeed(card: CostCard): BuySplit {
   let altCopies = 0;
   for (const alt of card.alt_arts ?? []) {
     if (left <= 0) break;
-    const take = Math.min(Math.max(0, alt.wanted ?? 0), left);
+    const take = Math.min(altBuyCopies(alt), left);
     if (take <= 0) continue;
     left -= take;
     altCopies += take;
