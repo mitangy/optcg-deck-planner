@@ -29,11 +29,14 @@ export function SharingCard() {
   if (!data.prompted) {
     return (
       <section className="friend-card sharing-card sharing-prompt" aria-label="Sharing">
-        <h2>Let friends see your collection and spares?</h2>
-        <p className="muted">Friends can already see your decks. Share your collection and spares too and they can offer you trades. You can change this any time.</p>
+        <h2>Friends can see your decks and collection</h2>
+        <p className="muted">Open your spares to trades too and friends can offer you trades. You can change this any time.</p>
         <div className="sharing-prompt-actions">
           <button type="button" className="btn primary" disabled={save.isPending} onClick={() => save.mutate({ decks: "friends", collection: "friends", trades_open: true })}>
-            Share collection and spares
+            Open to trades
+          </button>
+          <button type="button" className="btn secondary" disabled={save.isPending} onClick={() => save.mutate({ decks: "friends", collection: "friends", trades_open: false })}>
+            Not now
           </button>
           <button type="button" className="btn secondary" disabled={save.isPending} onClick={() => save.mutate({ decks: "friends", collection: "off", trades_open: false })}>
             Just my decks

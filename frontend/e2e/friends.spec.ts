@@ -63,8 +63,8 @@ test("without a username, Friends asks for one first and checks its format (#703
 test("the first visit asks about sharing, then keeps four switches (#703)", async ({ page, planner }) => {
   const fake = await installFriendsApi(page, planner.owned, { prompted: false });
   await planner.open("/friends");
-  await expect(page.getByRole("heading", { name: "Let friends see your collection and spares?" })).toBeVisible();
-  await page.getByRole("button", { name: "Share collection and spares" }).click();
+  await expect(page.getByRole("heading", { name: "Friends can see your decks and collection" })).toBeVisible();
+  await page.getByRole("button", { name: "Open to trades" }).click();
   expect(fake.sharing).toMatchObject({ decks: "friends", collection: "friends", trades_open: true, prompted: true });
 
   const sharing = page.getByRole("region", { name: "Sharing" });
@@ -79,6 +79,27 @@ test("the first visit asks about sharing, then keeps four switches (#703)", asyn
   await expect.poll(() => fake.sharing.collection).toBe("off");
   expect(fake.sharing.show_values).toBe(false);
   await expect(sharing.getByRole("switch", { name: /Show prices/ })).toBeDisabled();
+});
+
+test("Not now on the first visit keeps decks and collection shared, trades closed (#935)", async ({ page, planner }) => {
+  const fake = await installFriendsApi(page, planner.owned, { prompted: false });
+  await planner.open("/friends");
+  await expect(page.getByRole("heading", { name: "Friends can see your decks and collection" })).toBeVisible();
+  const issues = await planner.audit();
+  expect(issues, formatIssues(issues)).toEqual([]);
+  await page.getByRole("button", { name: "Not now" }).click();
+  await expect.poll(() => fake.sharing.prompted).toBe(true);
+  expect(fake.sharing).toMatchObject({ decks: "friends", collection: "friends", trades_open: false });
+  const sharing = page.getByRole("region", { name: "Sharing" });
+  await expect(sharing.getByRole("switch", { name: /^Collection/ })).toBeChecked();
+});
+
+test("Just my decks on the first visit turns the collection off (#935)", async ({ page, planner }) => {
+  const fake = await installFriendsApi(page, planner.owned, { prompted: false });
+  await planner.open("/friends");
+  await page.getByRole("button", { name: "Just my decks" }).click();
+  await expect.poll(() => fake.sharing.prompted).toBe(true);
+  expect(fake.sharing).toMatchObject({ decks: "friends", collection: "off", trades_open: false });
 });
 
 test("a friend's deck shows what I'd still need from my own collection, and copies to my decks (#703)", async ({ page, planner }) => {

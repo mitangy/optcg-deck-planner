@@ -66,7 +66,7 @@ def put_my_sharing(
         db.add(row)
     # Column defaults only apply on flush; fill them so a fresh row reads back right.
     row.decks = row.decks or "friends"
-    row.collection = row.collection or "off"
+    row.collection = row.collection or "friends"
     row.trades_open = bool(row.trades_open)
     row.show_values = bool(row.show_values)
     for field in ("decks", "collection", "trades_open", "show_values"):

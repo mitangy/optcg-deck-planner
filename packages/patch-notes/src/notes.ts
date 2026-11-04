@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-04
   { date: "2026-11-04", app: "duel", pr: 945, title: "Put a moved hand back", text: "When you watch a match, you can put a moved hand back by dropping it on the bottom edge of the window (your side) or the top of the board (the other side). An outline shows where it will dock while you drag." },
+  { date: "2026-11-04", app: "planner", pr: 939, title: "Friends can see your collection", text: "Your collection is now shared with your friends by default, like your decks, so they can see which cards you own. If you already chose to keep it private, nothing changes. Turn it off any time under Sharing on the Friends page." },
   // 2026-11-03
   { date: "2026-11-03", app: "duel", pr: 931, title: "See how many matches are live", text: "The lobby now shows how many matches are being played right now. When there are none, it offers a quick way to invite a friend, play a bot or practice." },
   { date: "2026-11-03", app: "planner", pr: 929, title: "Market price follows the art you show", text: "On Master Shopping, when a card shows an alt art, its Market price and recent sales are now for that alt art instead of the base card." },
