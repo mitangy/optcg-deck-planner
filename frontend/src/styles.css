@@ -8318,6 +8318,22 @@ button.ghost.scan-tray-fix {
   font-weight: 600;
 }
 
+.ph-buy-best {
+  min-width: 0;
+  height: 1.1rem;
+  line-height: 1.1rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-buy-best strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .ph-buy-why,
 .ph-buy-ask {
   flex: none;

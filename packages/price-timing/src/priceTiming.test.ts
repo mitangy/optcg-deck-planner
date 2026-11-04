@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artKind, buyTiming, expectedRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
+import { artKind, bestTimeToBuy, buyableDay, buyTiming, expectedRatio, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
 
 /** `today` minus `days`, as an ISO day. */
 function ago(today: string, days: number): string {
@@ -207,5 +207,120 @@ describe("buyTiming season note (#946)", () => {
     const t = buyTiming({ kind: "chase", released: "2026-01-01", today: "2026-09-15", points: [], current: 10 });
     expect(t.verdict).toBe("holds");
     expect(t.seasonNote).toBe(CHEAP);
+  });
+});
+
+describe("bestTimeToBuy (#952)", () => {
+  const best = (kind: ArtKind, age: number, extra: { points?: PricePoint[]; current?: number | null; released?: string | null; today?: string } = {}) =>
+    bestTimeToBuy({
+      kind,
+      released: extra.released === undefined ? RELEASED : extra.released,
+      today: extra.today ?? at(age),
+      points: extra.points ?? [],
+      current: extra.current === undefined ? 10 : extra.current,
+    });
+
+  it("tells a chase card in presale to wait for the dip just after release, not buy now", () => {
+    expect(best("chase", -10, { current: 300 })).toEqual({
+      when: "window",
+      from: "2026-01-08",
+      to: "2026-03-02",
+      label: "Jan 2026 – Mar 2026",
+      basis: "Presale prices usually run well above release day. Cards like this have dipped in the first weeks after release, then climbed.",
+    });
+  });
+
+  it("calls an alt art buyable 41 days after release, within 10 percent of where it settles", () => {
+    expect(settledRatio("alt")).toBe(61);
+    // Day 40 is still 67.86 (above 61 * 1.1 = 67.1), day 41 is 66.93.
+    expect(buyableDay("alt")).toBe(41);
+  });
+
+  it("gives a window about six weeks out and an estimate from the typical curve for a fresh alt art", () => {
+    // Day 20 sits at 82.43 on the curve; settling at 61 is a 26% drop, so $50 is about $37.
+    const b = best("alt", 20, { current: 50 })!;
+    expect(b).toEqual({
+      when: "window",
+      from: "2026-02-11",
+      to: "2026-04-12",
+      label: "Feb 2026 – Apr 2026",
+      estLow: 33.3,
+      estHigh: 40.7,
+      basis: "Similar cards reached a buyable price about 6 weeks after release, around 26% below today's price.",
+    });
+  });
+
+  it("writes a window that crosses a year with both years", () => {
+    expect(best("alt", 5, { released: "2026-11-20", today: "2026-11-25" })!.label).toBe("Dec 2026 – Mar 2027");
+  });
+
+  it("says now, with the 30-day low as the low end, once the typical drop is done", () => {
+    const today = at(100);
+    const points = [
+      { date: ago(today, 31), price: 5 },
+      { date: ago(today, 10), price: 24 },
+      { date: ago(today, 3), price: 40 },
+    ];
+    expect(best("alt", 100, { points, current: 30 })).toEqual({
+      when: "now",
+      from: today,
+      to: ago(today, -30),
+      label: "Now",
+      estLow: 24,
+      estHigh: 30,
+      basis: "Most of the typical drop is done.",
+    });
+    // Cheaper than every recent price: today's price is the low end.
+    expect(best("alt", 100, { points, current: 20 })).toMatchObject({ estLow: 20, estHigh: 20 });
+  });
+
+  it("starts a window the day the typical price turns buyable, not before and not after", () => {
+    expect(best("alt", 40)!.when).toBe("window");
+    expect(best("alt", 41)!.when).toBe("now");
+  });
+
+  it("gives a presale window with no estimate", () => {
+    const b = best("alt", -31, { current: 100 })!;
+    expect(b.when).toBe("window");
+    expect(b.from).toBe("2026-02-11");
+    expect(b.estLow).toBeUndefined();
+    expect(b.estHigh).toBeUndefined();
+    expect(b.basis).toBe("Similar cards reached a buyable price about 6 weeks after release.");
+  });
+
+  it("tells a chase art to wait for a dip toward its 30-day low, with the 30-day average as the high end", () => {
+    const today = at(200);
+    const points = [
+      { date: ago(today, 40), price: 10 },
+      { date: ago(today, 5), price: 80 },
+      { date: ago(today, 2), price: 120 },
+    ];
+    expect(best("chase", 200, { points, current: 110 })).toEqual({
+      when: "now",
+      from: today,
+      to: ago(today, -30),
+      label: "Now, on a dip",
+      estLow: 80,
+      estHigh: 100,
+      basis: "Cards like this have kept or gained value, so waiting rarely pays; aim for a dip toward its 30-day low.",
+    });
+    expect(best("chase", 200, { current: 110 })).toMatchObject({ estLow: 110, estHigh: 110 });
+  });
+
+  it("adds that Aug to Oct has been cheaper for cards 120 days old or more in December through March", () => {
+    const note = " Aug–Oct has usually been cheaper across the market.";
+    const basis = (today: string, age: number) => bestTimeToBuy({ kind: "alt", released: ago(today, age), today, points: [], current: 10 })!.basis;
+    expect(basis("2026-12-01", 200)).toBe(`Most of the typical drop is done.${note}`);
+    expect(basis("2027-03-31", 200)).toBe(`Most of the typical drop is done.${note}`);
+    expect(basis("2027-04-01", 200)).toBe("Most of the typical drop is done.");
+    expect(basis("2026-11-30", 200)).toBe("Most of the typical drop is done.");
+    expect(basis("2027-01-15", 119)).toBe("Most of the typical drop is done.");
+    expect(basis("2027-01-15", 120)).toBe(`Most of the typical drop is done.${note}`);
+  });
+
+  it("is null without a release date or a current price", () => {
+    expect(best("alt", 20, { released: null })).toBeNull();
+    expect(best("alt", 20, { current: null })).toBeNull();
+    expect(best("alt", 20, { current: 0 })).toBeNull();
   });
 });

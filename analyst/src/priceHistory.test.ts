@@ -73,6 +73,23 @@ describe("price_history tool (#946)", () => {
     expect(early.buy_timing.expectedFurtherDropPct).toBe(24);
   });
 
+  it("adds a best time to buy: now for an older art, a dated window with an estimate for a fresh one (#952)", async () => {
+    const old = await priceHistory(planner(ALT).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
+    expect(old.best_time_to_buy).toEqual({
+      when: "now",
+      from: TODAY,
+      to: ago(-30),
+      label: "Now",
+      est_low: 20,
+      est_high: 20,
+      basis: "Most of the typical drop is done.",
+    });
+    const fresh = await priceHistory(planner({ ...ALT, released: ago(20) }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
+    expect(fresh.best_time_to_buy).toMatchObject({ when: "window", from: ago(-21), to: ago(-81), label: "Nov 2026 – Jan 2027", est_low: 13.32, est_high: 16.28 });
+    const none = await priceHistory(planner({ ...ALT, released: null, current: null, points: [] }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
+    expect(none.best_time_to_buy).toBeNull();
+  });
+
   it("calls a Manga art a chase art that holds, and a plain name unclassified", async () => {
     const manga = await priceHistory(planner({ ...ALT, name: "Monkey.D.Luffy (Manga)" }).api, { card_id: "OP05-119", product_id: 9 }, TODAY);
     expect(manga.art_kind).toBe("chase");
