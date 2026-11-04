@@ -26,6 +26,7 @@ const corpus = "backend/app/analyst_corpus.py";
 const bodyLimit = "backend/app/body_limit.py";
 const rateLimit = "backend/app/rate_limit.py";
 const api = "backend/app/routers/api.py";
+const metaRouter = "backend/app/routers/meta.py";
 const redisClient = "backend/app/redis_client.py";
 const duelLive = "backend/app/duel_live.py";
 const db = "backend/app/db.py";
@@ -33,7 +34,6 @@ const tsync = "backend/app/tournament_sync.py";
 const tstats = "backend/app/tournament_stats.py";
 const mainpy = "backend/app/main.py";
 const metaDecks = "backend/app/meta_decks.py";
-const metaRouter = "backend/app/routers/meta.py";
 const bots = "backend/app/analyst_bots.py";
 const botsRouter = "backend/app/routers/analyst_bots.py";
 
@@ -1444,5 +1444,24 @@ module.exports = {
     {"id": "ph946-refresh-records-sealed", "file": "backend/app/price_refresh.py", "from": "history = {row.product_id: prices[row.product_id][0] for row in rows}", "to": "history = {pid: v[0] for pid, v in prices.items()}", "kills": ["test_hourly_refresh_records_catalog_products_and_the_latest_price_of_the_day_wins_946"], "args": "tests/test_price_history.py"},
     {"id": "ph946-import-no-token", "file": "backend/app/routers/api.py", "from": "    _require_catalog_token(x_catalog_token, settings)\n    if len(body.prices)", "to": "    if len(body.prices)", "kills": ["test_import_needs_the_catalog_token_946"], "args": "tests/test_price_history.py"},
     {"id": "ph946-import-keeps-unknown-products", "file": "backend/app/routers/api.py", "from": "if pid in known and v is not None", "to": "if v is not None", "kills": ["test_import_keeps_only_catalog_products_946"], "args": "tests/test_price_history.py"},
+    // card page (#953)
+    {id: "card953-empty-lists-count-as-decks", file: metaDecks, from: "    lists = [(d, c) for d, c in lists if c]\n", to: "    pass\n", kills: ["test_card_usage_rate_and_average_copies_count_decks_with_a_list_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-average-is-max", file: metaDecks, from: "round(sum(n for _, n in ran) / len(ran), 1)", to: "round(max(n for _, n in ran), 1)", kills: ["test_card_usage_rate_and_average_copies_count_decks_with_a_list_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-leader-rate-over-all-decks", file: metaDecks, from: "round(len(copies) / listed_by_leader[lid], 3)", to: "round(len(copies) / len(ran), 3)", kills: ["test_card_usage_breaks_down_by_leader_with_each_leaders_own_rate_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-leader-copies-max", file: metaDecks, from: "round(sum(copies) / len(copies), 1)", to: "float(max(copies))", kills: ["test_card_usage_breaks_down_by_leader_with_each_leaders_own_rate_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-leaders-sorted-by-id", file: metaDecks, from: "key=lambda kv: (-len(kv[1]), kv[0]))[:CARD_LEADERS]", to: "key=lambda kv: kv[0])[:CARD_LEADERS]", kills: ["test_card_usage_breaks_down_by_leader_with_each_leaders_own_rate_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-leader-card-treated-as-plain-card", file: metaDecks, from: "is_leader = card.card_type == \"Leader\"", to: "is_leader = False", kills: ["test_leader_card_usage_is_the_decks_it_led_with_no_leader_breakdown_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-leader-share-over-listed-decks", file: metaDecks, from: "        total = len(decks)\n", to: "        total = len(lists)\n", kills: ["test_leader_card_usage_is_the_decks_it_led_with_no_leader_breakdown_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-top-decks-ignore-date", file: metaDecks, from: "    rows.sort(key=lambda r: r[1].date, reverse=True)\n", to: "", kills: ["test_card_top_decks_order_by_placing_then_event_size_then_date_and_cap_at_six_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-top-decks-ignore-event-size", file: metaDecks, from: "    rows.sort(key=lambda r: r[1].players, reverse=True)\n", to: "", kills: ["test_card_top_decks_order_by_placing_then_event_size_then_date_and_cap_at_six_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-top-decks-unplaced-first", file: metaDecks, from: "    rows.sort(key=lambda r: float(\"inf\") if r[0].placing is None else r[0].placing)\n", to: "    rows.sort(key=lambda r: -1 if r[0].placing is None else r[0].placing)\n", kills: ["test_card_top_decks_order_by_placing_then_event_size_then_date_and_cap_at_six_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-top-decks-uncapped", file: metaDecks, from: "CARD_TOP_DECKS = 6", to: "CARD_TOP_DECKS = 60", kills: ["test_card_top_decks_order_by_placing_then_event_size_then_date_and_cap_at_six_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-window-ignored", file: metaDecks, from: "    events = _window(db, days, min_players)\n    decks = db.scalars(", to: "    events = {e.id: e for e in db.scalars(select(Tournament)).all()}\n    decks = db.scalars(", kills: ["test_card_usage_ignores_events_outside_the_window_and_small_events_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-printings-unordered", file: metaDecks, from: "key=_orm_printing_sort_key)", to: "key=lambda p: -p.product_id)", kills: ["test_card_page_lists_printings_base_first_and_a_card_nobody_plays_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-unknown-card-is-200", file: metaDecks, from: "    if card is None:\n        return None\n", to: "    if card is None:\n        card = CatalogCard(card_id=card_id)\n", kills: ["test_card_page_is_404_for_a_card_not_in_the_catalog_and_422_for_a_bad_id_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-bad-id-accepted", file: metaRouter, from: "card_id: Annotated[str, Path(pattern=CARD_ID_PATTERN)],", to: "card_id: Annotated[str, Path()],", kills: ["test_card_page_is_404_for_a_card_not_in_the_catalog_and_422_for_a_bad_id_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-days-unbounded", file: metaRouter, from: "days: Annotated[int, Query(ge=1, le=90)] = 30,\n    min_players: Annotated[int, Query(ge=1, le=1000)] = 8,\n):\n    \"\"\"A card's page", to: "days: Annotated[int, Query(ge=1, le=900)] = 30,\n    min_players: Annotated[int, Query(ge=1, le=1000)] = 8,\n):\n    \"\"\"A card's page", kills: ["test_card_page_is_404_for_a_card_not_in_the_catalog_and_422_for_a_bad_id_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-cache-ignores-card", file: metaRouter, from: "(\"card\", card_id, days, min_players)", to: "(\"card\", days, min_players)", kills: ["test_card_pages_are_cached_per_card_and_window_953"], args: "tests/test_meta_decks.py"},
+    {id: "card953-no-cache-header", file: metaRouter, from: "    _guard(request, response)\n    out =", to: "    out =", kills: ["test_card_pages_are_cached_per_card_and_window_953"], args: "tests/test_meta_decks.py"},
   ],
 };
