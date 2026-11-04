@@ -40,6 +40,28 @@ type MetaDeckFixture = { placing: number | null; [key: string]: unknown };
 const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
 const META_DECKS = fixture<{ leader_id: string; decks: MetaDeckFixture[] }>("meta-decks.json");
 
+/**
+ * A believable chase card (#946): $60 on release day, a $180 spike a week later, a slide to about $90
+ * over two months, then a quiet stretch with one dip to $84, ending at $92. `days` of history end the
+ * day before FIXED_NOW, so the stats text never changes.
+ */
+export const PRICE_HISTORY_DAYS = 120;
+export function chaseCardHistory(days = PRICE_HISTORY_DAYS): [string, number][] {
+  const last = Date.UTC(2026, 0, 14);
+  const points: [string, number][] = [];
+  for (let d = 0; d < days; d++) {
+    let price: number;
+    if (d <= 7) price = 60 + (120 * d) / 7;
+    else if (d <= 67) price = 180 - (90 * (d - 7)) / 60;
+    else price = 90 + 4 * Math.sin(d / 6);
+    if (d === 80) price = 84;
+    if (d === days - 1) price = 92;
+    const day = new Date(last - (days - 1 - d) * 86_400_000).toISOString().slice(0, 10);
+    points.push([day, Math.round(price * 100) / 100]);
+  }
+  return points;
+}
+
 export const SHARE_TOKEN = "tok-oden-1";
 
 type ShareItem = { need: number; owned: number; alts_owned?: number; still_need: number; market_price: number | null; remaining_cost: number | null };
@@ -515,6 +537,23 @@ export const test = base.extend<{ planner: Planner }>({
         owned.set("EB01-003", Math.max(0, (owned.get("EB01-003") ?? 0) - 4));
         groupBuyPurchased = false;
         return json(groupBuy());
+      }
+      const history = /^\/catalog\/cards\/([^/]+)\/price-history$/.exec(path);
+      if (history) {
+        const productId = Number(new URL(req.url()).searchParams.get("product_id") ?? 0);
+        const card = CARDS.find((c) => c.card_id === decodeURIComponent(history[1]));
+        if (!card) return json({ detail: "Unknown card or art" }, 404);
+        const alt = card.alt_arts?.find((a) => a.product_id === productId);
+        // The base art has a full history; its alt has none yet.
+        return json({
+          card_id: card.card_id,
+          product_id: alt ? alt.product_id : (card.product_id ?? 0),
+          name: alt ? alt.name : card.name,
+          group_name: alt ? alt.group_name : "Extra Booster: Memorial Collection",
+          released: "2025-09-16",
+          current: alt ? alt.market_price : 92,
+          points: alt ? [] : chaseCardHistory(),
+        });
       }
       if (path.startsWith("/catalog/sales/")) return json({ product_id: Number(path.split("/").pop()), sales: SALES });
       if (path === `/public/share/${SHARE_TOKEN}/copy` && method === "POST") return signedIn ? json(deckDetail()) : json({ detail: "Not signed in" }, 401);

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -332,6 +333,31 @@ class CatalogPrinting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class CatalogGroup(Base):
+    """A TCGCSV set (group). Printings only carry the name, so release dates map by name (#946)."""
+
+    __tablename__ = "catalog_groups"
+
+    group_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(String(255), default="")
+    abbreviation: Mapped[str] = mapped_column(String(64), default="")
+    published_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class PriceHistoryMonth(Base):
+    """One TCGPlayer product's daily market prices for one month (#946).
+
+    `market` is a JSON array of 31 entries, index = day - 1, null where a day is
+    missing. One row per product-month keeps ~7.4k products x ~33 months small.
+    """
+
+    __tablename__ = "price_history_months"
+
+    product_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    month: Mapped[date] = mapped_column(Date, primary_key=True)
+    market: Mapped[str] = mapped_column(Text, default="[]")
 
 
 class CatalogMeta(Base):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Callable
 
 import httpx
@@ -13,7 +13,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.domain import is_don_product, is_special_printing, synthetic_don_card_id
-from app.models import CatalogCard, CatalogMeta, CatalogPrinting
+from app.models import CatalogCard, CatalogGroup, CatalogMeta, CatalogPrinting
 
 CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"
@@ -265,6 +265,32 @@ def refresh_special_flags(db: Session, card_ids: set[str] | None = None) -> dict
     }
 
 
+def _published_date(value: Any) -> date | None:
+    """TCGCSV publishedOn is a naive-UTC ISO timestamp ("2024-12-06T00:00:00")."""
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def store_groups(db: Session, groups: list[dict[str, Any]]) -> None:
+    """Upsert the TCGCSV set list, so a printing's release date can be found by group name (#946)."""
+    existing = {g.group_id: g for g in db.scalars(select(CatalogGroup)).all()}
+    for group in groups:
+        group_id = int(group["groupId"])
+        fields = {
+            "name": group.get("name") or "",
+            "abbreviation": group.get("abbreviation") or "",
+            "published_on": _published_date(group.get("publishedOn")),
+        }
+        row = existing.get(group_id)
+        if row is None:
+            db.add(CatalogGroup(group_id=group_id, **fields))
+        else:
+            for key, value in fields.items():
+                setattr(row, key, value)
+
+
 def sync_catalog(db: Session) -> dict[str, Any]:
     """Full TCGCSV pull; stores all printings and a preferred CatalogCard per number."""
     by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -401,7 +427,17 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         meta.last_synced_at = now
         meta.notes = notes
 
+    store_groups(db, groups)
     db.commit()
+
+    # Today's market price for every stored printing joins the price history (#946).
+    from app.price_history import record_prices_safely
+
+    record_prices_safely(
+        db,
+        now.date(),
+        {e["product_id"]: e["market_price"] for entries in by_card.values() for e in entries},
+    )
     return {
         "card_count": len(by_card),
         "printing_count": printing_count,

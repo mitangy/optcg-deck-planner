@@ -289,6 +289,17 @@ export type RecentSalesResponse = {
   sales: RecentSale[];
 };
 
+export type PriceHistoryResponse = {
+  card_id: string;
+  product_id: number;
+  name: string;
+  group_name: string;
+  released: string | null;
+  current: number | null;
+  /** [YYYY-MM-DD, market price], oldest first. */
+  points: [string, number][];
+};
+
 export type ShoppingResponse = {
   items: ShoppingItem[];
   cards_still_needed: number;
@@ -711,6 +722,9 @@ export const api = {
   deleteMyScanSamples: () => request<{ deleted: number }>("/scan-samples/mine", { method: "DELETE" }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
+  /** productId 0 = the card's base art. */
+  priceHistory: (cardId: string, productId = 0) =>
+    request<PriceHistoryResponse>(`/catalog/cards/${encodeURIComponent(cardId)}/price-history?product_id=${productId}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),
   createShare: (body: {
     kind?: string;

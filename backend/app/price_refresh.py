@@ -107,11 +107,20 @@ def fetch_group_prices(client: httpx.Client, group_id: int) -> dict[int, tuple[f
     return prices
 
 
+def _record_history(db: Session, history: dict[int, float | None], now: datetime) -> None:
+    """Latest market price of the day wins in the price history (#946)."""
+    from app.price_history import record_prices_safely
+
+    record_prices_safely(db, _utc(now).date(), history)
+
+
 def apply_prices(db: Session, prices: dict[int, tuple], now: datetime) -> dict[str, int]:
     """Write changed prices onto known printings, then re-pick preferred rows for those cards."""
     if not prices:
         return {"printings_updated": 0, "cards_updated": 0}
     rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.product_id.in_(list(prices)))).all()
+    # Catalog products only: the search API also lists sealed product.
+    history = {row.product_id: prices[row.product_id][0] for row in rows}
     printings_updated = 0
     card_ids: set[str] = set()
     for row in rows:
@@ -123,10 +132,12 @@ def apply_prices(db: Session, prices: dict[int, tuple], now: datetime) -> dict[s
             printings_updated += 1
             card_ids.add(row.card_id)
     if not card_ids:
+        _record_history(db, history, now)
         return {"printings_updated": 0, "cards_updated": 0}
     db.flush()
     cards = refresh_special_flags(db, card_ids)
     db.commit()
+    _record_history(db, history, now)
     return {"printings_updated": printings_updated, "cards_updated": cards["cards_updated"]}
 
 

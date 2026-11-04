@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
@@ -175,6 +175,26 @@ class RecentSale(BaseModel):
 class RecentSalesResponse(BaseModel):
     product_id: int
     sales: list[RecentSale]
+
+
+class PriceHistoryResponse(BaseModel):
+    card_id: str
+    product_id: int
+    name: str
+    group_name: str = ""
+    released: str | None = None
+    current: float | None = None
+    points: list[tuple[str, float]]
+
+
+class PriceHistoryImport(BaseModel):
+    day: date
+    prices: dict[int, float | None]
+
+
+class PriceHistoryImportResult(BaseModel):
+    day: str
+    stored: int
 
 
 class CardView(BaseModel):

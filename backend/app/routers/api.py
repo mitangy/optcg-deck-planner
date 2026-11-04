@@ -54,12 +54,15 @@ from app.schemas import (
     ShoppingExtraUpdate,
     PrintingView,
     PublicShoppingResponse,
+    PriceHistoryImport,
+    PriceHistoryImportResult,
+    PriceHistoryResponse,
     RecentSalesResponse,
     ShareCreate,
     ShareInfo,
     ShoppingResponse,
 )
-from app import group_buy, services
+from app import group_buy, price_history, services
 from app.services import DeckOversizeError
 
 router = APIRouter(tags=["api"])
@@ -892,6 +895,54 @@ def catalog_recent_sales(
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail="Could not load recent sales") from exc
     return RecentSalesResponse(product_id=product_id, sales=sales)
+
+
+# History is read from our own DB (no upstream call), so a looser cap than sales.
+_history_rate_limiter = RateLimiter(max_calls=120, period_s=60, name="api_price_history_rate_limiter")
+MAX_IMPORT_PRODUCTS = 50_000
+
+
+@router.get("/catalog/cards/{card_id}/price-history", response_model=PriceHistoryResponse)
+def catalog_price_history(
+    request: Request,
+    card_id: Annotated[str, Path(min_length=1, max_length=32)],
+    db: Annotated[Session, Depends(get_db)],
+    product_id: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
+):
+    """Daily market price history of one art (product_id 0 = the card's base art). Public."""
+    if not _history_rate_limiter.allow(client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many price history requests")
+    printing = price_history.resolve_printing(db, card_id.upper(), product_id)
+    if printing is None:
+        raise HTTPException(status_code=404, detail="Unknown card or art")
+    released = price_history.release_date(db, printing.group_name)
+    return PriceHistoryResponse(
+        card_id=printing.card_id,
+        product_id=printing.product_id,
+        name=printing.name,
+        group_name=printing.group_name,
+        released=released.isoformat() if released else None,
+        current=printing.market_price,
+        points=price_history.history_points(db, printing.product_id),
+    )
+
+
+@router.post("/catalog/price-history/import", response_model=PriceHistoryImportResult)
+def import_price_history(
+    body: PriceHistoryImport,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_catalog_token: Annotated[str | None, Header()] = None,
+):
+    """Backfill one day of market prices (token-guarded, used by the backfill workflow)."""
+    _require_catalog_token(x_catalog_token, settings)
+    if len(body.prices) > MAX_IMPORT_PRODUCTS:
+        raise HTTPException(status_code=413, detail="Too many products in one day")
+    known = price_history.known_product_ids(db, list(body.prices))
+    prices = {pid: v for pid, v in body.prices.items() if pid in known and v is not None and 0 <= v < 1_000_000}
+    stored = price_history.record_prices(db, body.day, prices)
+    db.commit()
+    return PriceHistoryImportResult(day=body.day.isoformat(), stored=stored)
 
 
 @router.post("/admin/sync-catalog", status_code=202)
