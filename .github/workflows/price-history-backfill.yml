@@ -1,0 +1,37 @@
+name: Price history backfill
+# Loads TCGCSV's daily price archives into the planner's price history (#946).
+# Re-running a day overwrites it, so a failed run can be resumed with a later start.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: First day (YYYY-MM-DD); archives begin 2024-02-08
+        default: "2024-02-08"
+      end:
+        description: Last day (YYYY-MM-DD); empty means yesterday (UTC)
+        default: ""
+      step_days:
+        description: Import every Nth day
+        default: "1"
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install py7zr
+        run: pip install py7zr
+      - name: Backfill
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          CATALOG_SYNC_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          STEP_DAYS: ${{ inputs.step_days }}
+        run: |
+          set -euo pipefail
+          END="${END:-$(date -u -d yesterday +%F)}"
+          python3 scripts/backfill_price_history.py --start "$START" --end "$END" --step-days "${STEP_DAYS:-1}"

@@ -1913,7 +1913,7 @@ tr.done td {
 
 /* With an action row below, leave room for it so the panel never outgrows the screen. */
 .lightbox-panel:has(.lightbox-action) .lightbox-img {
-  max-height: calc(100dvh - 14.5rem);
+  max-height: calc(100dvh - 17.5rem);
 }
 
 .lightbox-img {
@@ -7993,6 +7993,257 @@ button.ghost.scan-tray-fix {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: var(--shadow-lift);
+}
+
+/* Price history (#946): the button is one row tall; the panel floats over the art above the action card. */
+.lightbox-history {
+  position: static;
+  width: 17rem;
+  max-width: 100%;
+}
+
+.lightbox-history .lightbox-history-btn {
+  width: 100%;
+  height: 2.5rem;
+  margin: 0;
+  padding-block: 0;
+}
+
+.lightbox-history-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(26rem, calc(100vw - 1.5rem));
+  box-sizing: border-box;
+  padding: 0.7rem 0.8rem 0.6rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
+}
+
+/* Only one floating panel at a time. */
+.lightbox-action:has(.lightbox-history-pop) .lightbox-alert-pop {
+  display: none;
+}
+
+.ph {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.ph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.ph-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ph-ranges {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.ph-ranges button {
+  min-width: 2.1rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ph-ranges button:first-child {
+  border-left: 0;
+}
+
+.ph-ranges button:hover {
+  color: var(--ink);
+  background: var(--card-sunk);
+}
+
+.ph-ranges button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--primary-ink);
+}
+
+.ph-ranges button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.ph-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+}
+
+.ph-stat {
+  min-width: 0;
+  padding: 0.3rem 0.4rem;
+  border-radius: 8px;
+  background: var(--card-sunk);
+}
+
+.ph-stat dt {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-stat dd {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-stat dd.up {
+  color: var(--ok-ink);
+}
+
+.ph-stat dd.down {
+  color: var(--danger);
+}
+
+.ph-stat .ph-stat-sub {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Chart, loading, empty and error states share one box, so switching between them moves nothing. */
+.ph-body {
+  position: relative;
+  aspect-ratio: 360 / 168;
+  width: 100%;
+  border-radius: 10px;
+}
+
+.ph-chart {
+  position: absolute;
+  inset: 0;
+}
+
+.ph-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.ph-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ph-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.ph-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ph-cross {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.ph-dot {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+
+.ph-tip {
+  position: absolute;
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ph-tip strong {
+  font-size: 0.85rem;
+}
+
+.ph-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: var(--card-sunk);
+}
+
+.ph-loading .ph-placeholder {
+  animation: ph-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ph-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-loading .ph-placeholder {
+    animation: none;
+  }
 }
 
 /* Watch dialog */

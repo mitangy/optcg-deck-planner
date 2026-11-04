@@ -512,5 +512,15 @@ module.exports = {
     // Owned picked alt copies are not priced again in Remaining (#908)
     { id: "shop908-split-ignores-owned-alt", file: "frontend/src/deckCost.ts", from: "return Math.max(0, (alt.wanted ?? 0) - (alt.owned ?? 0));", to: "return Math.max(0, alt.wanted ?? 0);", kills: ["does not buy or price an owned picked alt copy again", "still buys the picked copies that are not owned as the alt", "owned picked alt copies are not counted against Base, the caption or the total again (#908)"] },
     { id: "shop908-base-left-ignores-owned-alt", file: "frontend/src/BuySplit.tsx", from: "n + altBuyCopies(a), 0)", to: "n + Math.max(0, a.wanted ?? 0), 0)", kills: ["owned picked alt copies are not counted against Base, the caption or the total again (#908)"] },
+    // Price history (#946)
+    { id: "ph946-range-cutoff-exclusive", file: "frontend/src/priceHistory.ts", from: "p.date >= cutoff", to: "p.date > cutoff", kills: ["keeps the point on its cut-off day"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-range-from-today", file: "frontend/src/priceHistory.ts", from: "minusMonths(points[points.length - 1].date, range.months)", to: "minusMonths(new Date().toISOString().slice(0, 10), range.months)", kills: ["count back from the latest point"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-month-not-clamped", file: "frontend/src/priceHistory.ts", from: "String(Math.min(d, last))", to: "String(d)", kills: ["clamps to the end of a shorter month"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-change-from-last", file: "frontend/src/priceHistory.ts", from: "const first = points[0].price;", to: "const first = points[points.length - 2].price;", kills: ["range change is first to last"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-peak-is-low", file: "frontend/src/priceHistory.ts", from: "if (p.price > points[peakIndex].price) peakIndex = i;", to: "if (p.price < points[peakIndex].price) peakIndex = i;", kills: ["stats find the peak in the middle"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-low-before-peak", file: "frontend/src/priceHistory.ts", from: "points.slice(peakIndex).map", to: "points.map", kills: ["stats find the peak in the middle"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-nearest-by-index", file: "frontend/src/priceHistory.ts", from: "Math.abs(dayNumber(p.date) - x)", to: "Math.abs(i - x)", kills: ["hovering picks the point nearest in time"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-months-ignore-day", file: "frontend/src/priceHistory.ts", from: "- (td < rd ? 1 : 0)", to: "", kills: ["release age counts days"], args: "src/priceHistory.test.ts" },
+    { id: "ph946-ticks-start-above-min", file: "frontend/src/priceHistory.ts", from: "Math.floor(min / step) * step", to: "Math.ceil(min / step) * step", kills: ["axis ticks are round numbers"], args: "src/priceHistory.test.ts" },
 ],
 };

@@ -95,6 +95,7 @@ import { FriendPage } from "./friends/FriendPage";
 import { FriendDeckPage } from "./friends/FriendDeckPage";
 import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardLightboxActionContext, CardThumb, MobileCardMedia } from "./CardThumb";
+import { LightboxPriceHistoryControl } from "./PriceHistory";
 import { GridCard, MobileCard } from "./PlannerCard";
 import { CardScanner, useImageDrop } from "./CardScanner";
 import ScanValidatePage from "./devtools/ScanValidatePage";
@@ -2740,6 +2741,7 @@ const renderLightboxActions = (cardId: string, productId?: number) => (
   <>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
+    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
   </>
 );
 
