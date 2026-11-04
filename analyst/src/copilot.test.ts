@@ -146,7 +146,7 @@ describe("copilot game context schema", () => {
 describe("copilot ticket check", () => {
   it("sends the ticket and variant to the planner and returns the leaders and deck it names (#416)", async () => {
     const { calls, api } = planner({ "POST /analyst/briefs/lookup": LOOKUP });
-    expect(await verifyGame(api, "chat.tok", catalog, game())).toEqual(claims);
+    expect(await verifyGame(api, "chat.tok", catalog, game())).toEqual({ ...claims, matchId: "" });
     expect(calls[0]!.body).toMatchObject({ ticket: TICKET, variant: expect.stringMatching(/^v3:/) });
   });
 
@@ -450,6 +450,15 @@ describe("copilot chat turn", () => {
     expect(seen[0]!.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(seen[0]!.system[1]).toEqual({ type: "text", text: COPILOT_INSTRUCTIONS });
     expect(seen[0]!.tools.map((t: { name: string }) => t.name)).toContain("propose_turn_plan");
+  });
+
+  it("scopes the new thread to the verified game, whatever scope the client sent (#970)", async () => {
+    const { calls, api } = planner({ ...answers, "POST /analyst/briefs/lookup": { ...LOOKUP, match_id: "abc123-r1" } });
+    const { callModel } = scriptedModel([{ content: [{ type: "text", text: "Ok." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
+    const body = chatBody.parse({ message: "Plan my turn", scope: "deck:duel:some-deck", scope_title: "Match chat", context: { game: { ticket: TICKET, snapshot: snapshot() } } });
+    await runChat(deps(api, callModel), "chat.tok", body, () => {}, new AbortController().signal);
+    const created = calls.find((c) => c.url.endsWith("/analyst/chat/threads") && c.method === "POST")!;
+    expect(created.body).toEqual({ title: "Match chat", scope: "match:abc123-r1" });
   });
 
   it("adds the no-plans sentence to the copilot text when the game came without plans (#620)", async () => {

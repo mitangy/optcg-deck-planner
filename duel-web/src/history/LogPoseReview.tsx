@@ -13,7 +13,7 @@ type ReviewState =
  * in) the first time the page opens when none is saved. Nothing at all while chat is off.
  */
 export function LogPoseReview({ matchId, finished }: { matchId: string; finished: boolean | undefined }) {
-  const { enabled, apiBase, session } = useLogPose();
+  const { enabled, apiBase, session, available, openLogPose } = useLogPose();
   const mode = reviewMode(enabled, finished);
   const [state, setState] = useState<ReviewState>({ kind: "loading" });
   const [collapsed, setCollapsed] = useState(false);
@@ -139,6 +139,12 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
             {state.message}
           </p>
         ) : null}
+      </div>
+      {/* The page's chat is this match's, so the panel opens on the game's own conversation. */}
+      <div className="lp-review-chat">
+        <button type="button" className="btn btn-secondary btn-sm" disabled={!available} onClick={() => openLogPose()}>
+          Chat about this game
+        </button>
       </div>
     </section>
   );

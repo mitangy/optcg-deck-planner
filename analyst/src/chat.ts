@@ -176,9 +176,15 @@ const hintContext = z.object({
   cardIds: z.array(z.string().max(20)).max(20).optional(),
 });
 
+/** general | match:<id> | deck:planner:<digits> | deck:duel:<id> (same as the planner's ANALYST_SCOPE_PATTERN). */
+const SCOPE_PATTERN = /^(general|match:[A-Za-z0-9_-]{1,64}|deck:planner:[0-9]{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$/;
+
 export const chatBody = z.object({
   thread_id: z.number().int().positive().optional(),
   message: z.string().trim().min(1).max(4000),
+  /** What the chat is about (#970); a verified live game overrides it. Only read when a thread is created. */
+  scope: z.string().regex(SCOPE_PATTERN).optional(),
+  scope_title: z.string().trim().max(80).optional(),
   context: z
     .object({
       app: z.enum(["duel", "planner"]).optional(),
@@ -642,8 +648,10 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
       throw err;
     }
   } else {
-    const title = body.message.replace(/\s+/g, " ").slice(0, 80);
-    threadId = (await plannerCall<{ id: number }>(api, token, "/analyst/chat/threads", true, { title })).id;
+    const title = body.scope_title || body.message.replace(/\s+/g, " ").slice(0, 80);
+    const matchScope = claims && /^[A-Za-z0-9_-]{1,64}$/.test(claims.matchId ?? "") ? `match:${claims.matchId}` : null;
+    const scope = matchScope ?? body.scope ?? "general";
+    threadId = (await plannerCall<{ id: number }>(api, token, "/analyst/chat/threads", true, { title, scope })).id;
   }
   const model = await currentModel(api, token);
   emit({ event: "thread", data: { thread_id: threadId } });

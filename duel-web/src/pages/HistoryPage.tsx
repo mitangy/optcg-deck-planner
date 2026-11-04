@@ -30,6 +30,18 @@ function LeaderArt({ defId }: { defId: string | null }) {
   );
 }
 
+/** A small compass on a row whose game has a Log Pose chat. */
+function ChatMark() {
+  return (
+    <span className="history-chat" role="img" aria-label="Has a Log Pose chat" title="You have a Log Pose chat about this game">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 6.5 14.2 12h-4.4zM12 17.5 9.8 12h4.4z" />
+      </svg>
+    </span>
+  );
+}
+
 export function HistoryPage() {
   const [state, setState] = useState<State>({ status: "loading" });
   const copy = useClickCopy();
@@ -117,6 +129,7 @@ export function HistoryPage() {
                       <span>{r.yourLeader}</span>
                       <span className="history-vs">vs</span>
                       <span>{r.opponentLeader}</span>
+                      {r.hasChat ? <ChatMark /> : null}
                     </p>
                     <p className="history-meta">
                       {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}

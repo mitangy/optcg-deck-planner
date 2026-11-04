@@ -159,13 +159,36 @@
 }
 
 /* Keep each leader name on one line; the pair wraps between names. */
-.history-leaders > span:not(.history-vs) {
+.history-leaders > span:not(.history-vs):not(.history-chat) {
   display: inline-block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+}
+
+/* The Log Pose compass after the leaders: fixed size, so rows with and without a chat line up. */
+.history-chat {
+  display: inline-block;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0.4rem;
+  vertical-align: -0.1rem;
+  color: var(--chrome);
+}
+
+.history-chat svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.history-chat circle {
+  fill: none;
 }
 
 .history-hint a {

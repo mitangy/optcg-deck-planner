@@ -849,12 +849,16 @@ class AnalystThread(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(120), default="")
+    # What the chat is about: general, match:<id>, deck:planner:<n> or deck:duel:<id> (#970).
+    scope: Mapped[str] = mapped_column(String(120), default="general", server_default="general")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    __table_args__ = (Index("ix_analyst_threads_user_scope", "user_id", "scope"),)
 
 
 class AnalystMessage(Base):

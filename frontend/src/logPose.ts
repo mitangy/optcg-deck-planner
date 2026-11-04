@@ -1,7 +1,7 @@
 /** Where the planner shows the Log Pose chat, and what the deck page tells it. */
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import type { DeckContext, DeckEditOp, LogPosePage, SourceHooks } from "@optcg/analyst-client";
+import { pageScope, plannerDeckScope, type DeckContext, type DeckEditOp, type LogPosePage, type SourceHooks } from "@optcg/analyst-client";
 
 /** Public share links are for people without an account; the sign-in page has no session yet. */
 const NO_LOG_POSE = ["/share", "/login"];
@@ -11,6 +11,13 @@ export function showsLogPose(pathname: string): boolean {
 }
 
 export const DECK_STARTERS = ["Review this deck", "Make it cheaper with what I own", "How does it do against the top decks?"];
+
+/** What the planner's deck page tells Log Pose: the deck, and its own chat (`deck:planner:<id>`, shared with the duel app's copy). */
+export function plannerDeckPage(deck: DeckContext): LogPosePage {
+  const name = deck.name || "This deck";
+  const scope = deck.plannerDeckId ? pageScope(plannerDeckScope(deck.plannerDeckId), name) : undefined;
+  return { page: "deck", label: name, deck, ...(scope ? { scope } : {}), starters: DECK_STARTERS };
+}
 
 export function defaultLogPosePage(pathname: string): LogPosePage {
   const page = pathname.replace(/^\/+/, "").split("/")[0] || "shopping";

@@ -305,6 +305,7 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
         "rating_after": 0,
         "has_replay": True,
         "has_log": False,
+        "has_chat": False,
         "finished": True,
         "replay_ready": True,
     }

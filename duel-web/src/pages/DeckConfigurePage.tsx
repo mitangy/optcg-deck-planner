@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { BackLink } from "./BackLink";
+import { deckEditorScope } from "../logPoseScopes";
 import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEditor } from "@optcg/analyst-client";
 import { DECK_EDITOR_STARTERS, deckContext } from "../logPose";
 import { DeckEditor } from "../board/DeckEditor";
@@ -101,7 +102,7 @@ export function DeckConfigurePage() {
   }, []);
 
   useLogPosePage(
-    deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), starters: DECK_EDITOR_STARTERS } : null,
+    deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), scope: deckEditorScope(deck), starters: DECK_EDITOR_STARTERS } : null,
   );
 
   // Log Pose's Apply card changes the draft and saves it at once: Apply is an explicit commit.
