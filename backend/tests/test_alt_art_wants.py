@@ -129,6 +129,32 @@ def test_shopping_remaining_prices_picked_alt_copies_at_alt_price_906(db):
     assert shop.remaining_market == 12.0
 
 
+def test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908(db):
+    from app.services import set_alt_owned, set_user_card_printing
+
+    user = make_user(db, email="buy908@t.com", name="B", sub="buy908")
+    add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
+    add_catalog(db, "OP01-016", name="Nami", product_id=100, market=10.0, special=True)
+    add_deck_with_cards(db, user, "A", {"OP01-016": 4})
+
+    set_user_card_printing(db, user, "OP01-016", 100, 2)
+    item = shopping_list(db, user).items[0]
+    assert item.remaining_cost == 22.0  # 2 alt at 10 + 2 base at 1
+
+    # Owning both picked alts leaves 2 copies to buy, all standard art.
+    set_alt_owned(db, user, "OP01-016", 100, 2)
+    shop = shopping_list(db, user)
+    assert shop.items[0].still_need == 2
+    assert shop.items[0].remaining_cost == 2.0
+    assert shop.remaining_market == 2.0
+
+    # Owning one of two picks: the other is still bought as the alt.
+    set_alt_owned(db, user, "OP01-016", 100, 1)
+    item = shopping_list(db, user).items[0]
+    assert item.still_need == 3
+    assert item.remaining_cost == 12.0  # 1 alt at 10 + 2 base at 1
+
+
 def test_set_user_card_printing_syncs_across_decks(db):
     from app.services import set_user_card_printing
     from app.models import DeckCardPrinting

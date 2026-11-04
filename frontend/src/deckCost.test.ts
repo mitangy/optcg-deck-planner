@@ -43,6 +43,24 @@ describe("remainingCostForCard with picked alt arts (#906)", () => {
   });
 });
 
+describe("remainingCostForCard with owned picked alt arts (#908)", () => {
+  it("does not buy or price an owned picked alt copy again", () => {
+    // Need 4, 2 of the alt owned: still_need 2. The pick of 2 is fully covered by what is owned.
+    const owned = [{ product_id: 100, wanted: 2, owned: 2, market_price: 10 }];
+    expect(remainingCostForCard({ still_need: 2, market_price: 1, alt_arts: owned })).toBe(2);
+    expect(splitStillNeed({ still_need: 2, market_price: 1, alt_arts: owned })).toMatchObject({
+      altCopies: 0,
+      baseCopies: 2,
+    });
+  });
+
+  it("still buys the picked copies that are not owned as the alt", () => {
+    // Need 4, pick 2, own 1: still_need 3 = 1 alt at 10 + 2 base at 1.
+    const alts = [{ product_id: 100, wanted: 2, owned: 1, market_price: 10 }];
+    expect(remainingCostForCard({ still_need: 3, market_price: 1, alt_arts: alts })).toBe(12);
+  });
+});
+
 describe("deckRemainingMarket", () => {
   it("sums priced cards and leaves out unpriced and finished ones (#625)", () => {
     const cards = [

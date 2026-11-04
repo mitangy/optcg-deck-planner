@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Popover, PopoverBackdrop, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
-import { splitStillNeed } from "./deckCost";
+import { altBuyCopies, splitStillNeed } from "./deckCost";
 import { useMediaQuery } from "./DeckStats";
 
 /** Phone layout: the list view's breakpoint (styles.css `max-width: 800px`). */
@@ -33,7 +33,7 @@ export function buySplitCaption(card: Pick<BuySplitCard, "still_need" | "market_
 
 /** Copies left for the standard art once the alt picks come out of what is still needed. */
 export function baseCopiesLeft(card: Pick<BuySplitCard, "still_need" | "alt_arts">): number {
-  const picked = (card.alt_arts ?? []).reduce((n, a) => n + Math.max(0, a.wanted ?? 0), 0);
+  const picked = (card.alt_arts ?? []).reduce((n, a) => n + altBuyCopies(a), 0);
   return Math.max(0, card.still_need - picked);
 }
 

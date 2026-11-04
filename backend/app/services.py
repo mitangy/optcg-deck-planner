@@ -1406,12 +1406,14 @@ def shopping_list(
         card_alts = alts.get(card_id, [])
         # Alt arts the user picked to buy (#906) are priced at their own market
         # price, in list order; whatever is left of still_need is the standard art.
+        # still_need already drops the alt copies the user owns, so those come off
+        # the pick too (#908): an owned picked copy is not bought, nor priced, again.
         buys = allocate_still_need_buys(
             still,
             [
-                (a.product_id, a.wanted, a.market_price)
+                (a.product_id, a.wanted - a.owned, a.market_price)
                 for a in card_alts
-                if a.wanted > 0
+                if a.wanted - a.owned > 0
             ],
             standard_product_id=product_ids.get(card_id),
             standard_price=market,
