@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { buzz } from "./haptics";
+import { isTabSilenced } from "./tabMute";
 
 const TITLE_MARK = "● Your move · ";
 
@@ -53,6 +54,8 @@ export type Note = {
 };
 
 export function playNotes(notes: Note[]): void {
+  // A muted tab (by hand, or a watch tab beside a live match) makes no sound (#934). unlockAudio still runs.
+  if (isTabSilenced()) return;
   try {
     const ctx = audioContext();
     if (!ctx) return;

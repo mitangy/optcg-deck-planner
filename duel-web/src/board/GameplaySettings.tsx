@@ -169,6 +169,11 @@ const TOGGLES: Toggle[] = [
     label: "Sound while watching",
     hint: "Game sounds while you spectate a match. Off keeps watching tabs quiet. Needs Sounds on.",
   },
+  {
+    key: "quietWatchTabs",
+    label: "Quiet watch tabs",
+    hint: "A tab where you're spectating or watching a replay stays silent while another tab has your match open.",
+  },
 ];
 
 type ShowToggle = { key: ShowKey; label: string; hint: string };

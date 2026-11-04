@@ -203,6 +203,7 @@ function match() {
         info={{ matchup: "You vs Zoro", seat: null, order: "You go first" }}
         roomId="room-1"
         isFullscreen={false}
+        tabMute={{ silenced: false, label: "Mute this tab", title: "", onToggle: () => {} }}
         onSettings={onSettings}
         onToggleFullscreen={() => {}}
         onReport={() => {}}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CardView, ChatLine, PlayerView, RematchState, Seat, UndoState } from "../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
 import { DuelBoard } from "../board/DuelBoard";
+import { DEMO_MATCH_ID } from "../board/tabMute";
 import { lookupCard } from "../cards/atlas";
 import type { RematchDeckOption } from "../decks/rematchDecks";
 import { motionDemoSteps } from "./motionDemo";
@@ -1119,7 +1120,7 @@ export function DemoPage() {
         key={motionRun}
         view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
-        matchId="demo-playmat"
+        matchId={DEMO_MATCH_ID}
         spectator={params.has("spectate")}
         seatSkins={params.has("oppart") ? [params.has("spectate") ? DEMO_OPP_SKIN : null, DEMO_OPP_SKIN] : undefined}
         players={params.has("oppart") ? [{ name: "Luffy" }, { name: "Zoro" }] : null}

@@ -114,6 +114,7 @@ import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
 import { useHandReorder } from "./useHandReorder";
 import { useHandShuffle } from "./useHandShuffle";
+import { DEMO_MATCH_ID, tabMuteCopy, useTabMute } from "./tabMute";
 import { useHandLift } from "./useHandLift";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
@@ -811,6 +812,13 @@ export function DuelBoard({
   // An attack against you has its own cue, so the generic "your move" alert
   // stays quiet while you are answering one.
   const attackKey = alertsOn ? incomingAttackKey(view, spectating) : null;
+  // Per-tab sound (#934): a watch tab goes quiet while another tab has a live match as a player. Demos play no part.
+  const tabMute = useTabMute({
+    playing: Boolean(view) && matchId != null && matchId !== DEMO_MATCH_ID && !spectating && !isReplay && !hotseatPass && !over,
+    watching: spectating,
+    autoQuiet: prefs.quietWatchTabs,
+  });
+  const tabMuteText = tabMuteCopy(tabMute);
   useTurnAlert(alertsOn && intents.length > 0 && attackKey == null, {
     buzz: prefs.turnAlert,
     sound: prefs.turnSound,
@@ -1066,6 +1074,7 @@ export function DuelBoard({
     onHelp: () => setHelpOpen(true),
     fullscreenOffered,
     onToggleFullscreen: toggleFullscreen,
+    onToggleTabMute: tabMute.toggle,
   });
 
   const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
@@ -2081,6 +2090,21 @@ export function DuelBoard({
     const target = reportTargetFor(spectating ? "spectate" : "match");
     if (target) openReport(target);
   };
+  /** Mute this tab: a fixed-size speaker so flipping state never moves its neighbours (#934). */
+  const muteTabBtn = (className: string) => (
+    <button
+      type="button"
+      className={`${className} tab-mute-btn`}
+      aria-label={tabMuteText.label}
+      aria-pressed={tabMute.silenced}
+      title={tabMuteText.title}
+      onClick={tabMute.toggle}
+    >
+      <span className="tab-mute-icon" aria-hidden>
+        {tabMute.silenced ? "🔇" : "🔊"}
+      </span>
+    </button>
+  );
   const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
@@ -2091,6 +2115,7 @@ export function DuelBoard({
         fullscreenOffered,
         // The computer's action row carries its own Full screen button; phones keep it in the menu.
         fullscreenInBar: placement === "anchor",
+        muteInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
         replay: isReplay,
         canReportPlayer,
@@ -2110,6 +2135,7 @@ export function DuelBoard({
       }}
       roomId={matchId}
       isFullscreen={isFullscreen}
+      tabMute={{ silenced: tabMute.silenced, label: tabMuteText.label, title: tabMuteText.title, onToggle: tabMute.toggle }}
       leaveLabel={leaveLabel}
       onSettings={() => setSettingsOpen(true)}
       onToggleFullscreen={toggleFullscreen}
@@ -2138,6 +2164,7 @@ export function DuelBoard({
           {isFullscreen ? "⤡" : "⛶"}
         </button>
       ) : null}
+      {muteTabBtn("hud-undo-btn hud-icon-btn")}
       {matchMenuEl("anchor")}
     </div>
   );
@@ -2335,6 +2362,7 @@ export function DuelBoard({
                 onConfirm={onConcede}
               />
             ) : null}
+            {muteTabBtn("hud-undo-btn hud-settings-btn")}
             {fullscreenOffered ? (
               <button
                 type="button"

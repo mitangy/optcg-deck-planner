@@ -3,6 +3,7 @@ import type { PlayerView } from "../net/protocol";
 import type { BattleLogEntry } from "./battleLog";
 import { motionCues, type MotionCue } from "./motionCues";
 import { audioContext, playNotes, type Note } from "./turnAlert";
+import { isTabSilenced } from "./tabMute";
 
 /** Game sound effects. The Life-loss, incoming-attack and opponent-tick cues live in turnAlert / soundCues. */
 export type SfxId =
@@ -104,6 +105,7 @@ const NOTES: Record<Exclude<SfxId, "draw" | "ko" | "tuck" | "riffle">, Note[]> =
 };
 
 function noiseBurst(at: number, len: number, gain: number, cutoff: number, kind: BiquadFilterType): void {
+  if (isTabSilenced()) return;
   try {
     const ctx = audioContext();
     if (!ctx) return;

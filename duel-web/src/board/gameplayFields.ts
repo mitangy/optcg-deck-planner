@@ -38,7 +38,8 @@ export type ToggleKey =
   | "reduceMotion"
   | "turnAlert"
   | "turnSound"
-  | "spectatorSound";
+  | "spectatorSound"
+  | "quietWatchTabs";
 
 /**
  * Whether a "Show on screen" switch is listed. Card preview and Recent plays
@@ -182,7 +183,7 @@ export const GAMEPLAY_GROUPS: GameplayGroup[] = [
     id: "spectating",
     title: "Spectating",
     chip: "Spectating",
-    rows: ["spectatorSound"],
+    rows: ["spectatorSound", "quietWatchTabs"],
   },
 ];
 
