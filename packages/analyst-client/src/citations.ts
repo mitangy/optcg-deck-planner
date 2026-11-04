@@ -2,7 +2,7 @@
  * Sources and citations in Log Pose answers. The analyst names each source `kind:id[#part]`
  * (card:OP01-006, rule:6-5-3, ruling:OP14-020#2, stats:<leader>~<opp>, playbook:<leader>[~<opp>],
  * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, sim:<hash>[#curve|#cards|#line], bot self-play
- * botsim:<leader>[~<opp>][#<line>], botgame:<id>#t3, position:<game id>#t3 (estimates from bot simulations), and from Limitless TCG tournaments
+ * botsim:<leader>[~<opp>][#<line>], botgame:<id>#t3, position:<game id>#t3 (estimates from bot simulations), price:<card>[#<product id>] (TCGPlayer price history), and from Limitless TCG tournaments
  * tourney:<leader>[~<opp>|#<card>] and event:<limitless event id>) and sends each citation
  * with the text offset (UTF-16) it follows. Everything here is pure, so it is tested without React.
  */
@@ -37,7 +37,7 @@ export function safeLink(href: string | null | undefined): string | null {
   return /^(\/(?!\/)|https?:\/\/)/i.test(href) ? href : null;
 }
 
-export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "sim" | "botsim" | "botgame" | "position" | "other";
+export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "event" | "playbook" | "match" | "game" | "deck" | "odds" | "lesson" | "sim" | "botsim" | "botgame" | "position" | "price" | "other";
 
 export type ParsedSource = {
   kind: SourceKind;
@@ -52,7 +52,7 @@ export type ParsedSource = {
   raw: string;
 };
 
-const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson", "sim", "botsim", "botgame", "position"];
+const KINDS: readonly string[] = ["card", "rule", "ruling", "stats", "tourney", "event", "playbook", "match", "game", "deck", "odds", "lesson", "sim", "botsim", "botgame", "position", "price"];
 
 export function parseSource(source: string): ParsedSource {
   const colon = source.indexOf(":");
@@ -109,6 +109,8 @@ export function kindLabel(p: ParsedSource): string {
       return p.turn ? `Bot game turn ${p.turn}` : "Bot game";
     case "position":
       return "Position estimate";
+    case "price":
+      return "Price history";
     case "lesson":
       return "Your lesson";
     default:

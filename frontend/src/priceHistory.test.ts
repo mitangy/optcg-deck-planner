@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  artLabel,
+  baseCardName,
+  buyQuestion,
   HISTORY_RANGES,
   historyStats,
   minusMonths,
@@ -97,5 +100,25 @@ describe("price history helpers (#946)", () => {
     const feb = Math.floor(Date.parse("2026-02-10T00:00:00Z") / 86_400_000);
     expect(nearestIndex(points, feb)).toBe(2);
     expect(nearestIndex(points, feb - 39)).toBe(1);
+  });
+});
+
+describe("Ask Log Pose about when to buy (#946)", () => {
+  it("names the card, its art, its number and the product id of an alternate art", () => {
+    expect(buyQuestion("Roronoa Zoro (Alternate Art)", "OP05-001", 543210)).toBe(
+      "When is the best time to buy Roronoa Zoro (Alternate Art, OP05-001, product 543210)? Use its price history and how much it's being played.",
+    );
+  });
+
+  it("calls the base art base art and leaves the product id out", () => {
+    expect(buyQuestion("Roronoa Zoro", "OP05-001", 0)).toBe(
+      "When is the best time to buy Roronoa Zoro (base art, OP05-001)? Use its price history and how much it's being played.",
+    );
+  });
+
+  it("keeps every art mark and drops them from the card name", () => {
+    expect(baseCardName("Monkey.D.Luffy (Alternate Art) (Manga)")).toBe("Monkey.D.Luffy");
+    expect(artLabel("Monkey.D.Luffy (Alternate Art) (Manga)")).toBe("Alternate Art, Manga");
+    expect(baseCardName("Tony Tony.Chopper")).toBe("Tony Tony.Chopper");
   });
 });

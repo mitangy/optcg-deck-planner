@@ -120,6 +120,8 @@ module.exports = {
     { id: "md-fence-parsed", file: md, from: "    const fence = FENCE.exec(line);", to: "    const fence = null as RegExpExecArray | null;", kills: ["keeps a fenced code block verbatim"] },
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
+    { id: "cit-price-not-a-kind", file: cit, from: '"botgame", "position", "price"];', to: '"botgame", "position"];', kills: ["parses price: sources by card and art"] },
+    { id: "cit-price-label", file: cit, from: 'return "Price history";', to: 'return "Source";', kills: ["parses price: sources by card and art"] },
     { id: "cit-turn-not-read", file: cit, from: "const m = /^t(\\d+)$/.exec(part);", to: "const m = null as RegExpExecArray | null;", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-opponent-not-split", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\" || head === \"botsim\") && id.includes(\"~\")) {", to: "if (false) {", kills: ["reads the kind, id and part of every source"] },
     { id: "cit-label-rules-no-section-sign", file: cit, from: "`Rules \u00a7${p.id}`", to: "`Rules ${p.id}`", kills: ["labels each kind of source"] },
@@ -215,7 +217,7 @@ module.exports = {
     { id: "ask-sends-before-history", file: ask, from: "  if (state.history !== \"done\") return \"wait\";\n", to: "", kills: ["waits for the last chat to load before sending a Why?"] },
     { id: "ask-sends-while-busy", file: ask, from: "state.busy || req.send === false", to: "req.send === false", kills: ["puts a Why? in the composer instead of sending while an answer is streaming"] },
     // goldfish sim sources (#402)
-    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\", \"botsim\", \"botgame\", \"position\"];", to: ", \"lesson\", \"botsim\", \"botgame\", \"position\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
+    { id: "citations-sim-kind-missing", file: cit, from: ", \"lesson\", \"sim\", \"botsim\", \"botgame\", \"position\", \"price\"];", to: ", \"lesson\", \"botsim\", \"botgame\", \"position\", \"price\"];", kills: ["parses sim: sources and labels them Goldfish sim (#402)"] },
     // tournament sources (#397)
     { id: "tourney-opponent-unparsed", file: cit, from: "if ((head === \"stats\" || head === \"tourney\" || head === \"playbook\" || head === \"botsim\") && id.includes(\"~\")) {", to: "if ((head === \"stats\" || head === \"playbook\" || head === \"botsim\") && id.includes(\"~\")) {", kills: ["reads tournament sources like stats ones: leader~opponent"] },
     { id: "tourney-kind-unknown", file: cit, from: "[\"card\", \"rule\", \"ruling\", \"stats\", \"tourney\", \"event\",", to: "[\"card\", \"rule\", \"ruling\", \"stats\", \"event\",", kills: ["reads tournament sources like stats ones: leader~opponent", "shows the win-record line for optcgduel.app win rates and tournament records only"] },
@@ -317,7 +319,7 @@ module.exports = {
     { id: "mention-image-by-text-not-id", file: "packages/analyst-client/src/mentions.ts", from: "    const id = names.get(m[0]) ?? m[0];", to: "    const id = m[0];", kills: ["looks up a name's picture by its card number (#533)"] },
     { id: "mention-name-from-title-first", file: "packages/analyst-client/src/mentions.ts", from: "cardName(id) ?? ", to: "", kills: ["takes names only from cited cards, the host's name before the citation title's (#533)"] },
     { id: "mention-names-from-any-source", file: "packages/analyst-client/src/mentions.ts", from: "    if (e.parsed.kind !== \"card\") continue;\n", to: "", kills: ["takes names only from cited cards, the host's name before the citation title's (#533)"] },
-    { id: "citations-bot-kinds-unknown", file: cit, from: ", \"sim\", \"botsim\", \"botgame\", \"position\"];", to: ", \"sim\"];", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
+    { id: "citations-bot-kinds-unknown", file: cit, from: ", \"sim\", \"botsim\", \"botgame\", \"position\", \"price\"];", to: ", \"sim\", \"price\"];", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
     { id: "citations-botgame-turn-unparsed", file: cit, from: "head === \"game\" || head === \"botgame\" || head === \"position\") && part", to: "head === \"game\") && part", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
     { id: "citations-botsim-record-line-hidden", file: cit, from: "p.kind === \"tourney\" || p.kind === \"botsim\";", to: "p.kind === \"tourney\";", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },
     { id: "citations-botsim-badged-as-win-rate", file: cit, from: "    case \"botsim\":\n      return \"Bot simulation\";", to: "    case \"botsim\":\n      return \"Win rate\";", kills: ["reads bot-simulation sources, badges them apart from Win rate"] },

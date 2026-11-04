@@ -10,6 +10,7 @@
  *   sim:<hash>[#curve|#cards|#line]  (goldfish)
  *   botsim:<leader>[~<opp>][#<line>] (bot self-play stats)   botgame:<game_id>[#t<turn>] (bot self-play games, ids b_...)
  *   position:<match or game id>#t<turn>[s<step>] (position estimates from bot simulations)
+ *   price:<card>[#<product id>] (TCGPlayer price history of one art; no #part is the base art)
  * A tool without an adapter (or an answer that can't be adapted) keeps its plain text.
  */
 
@@ -700,6 +701,33 @@ function simulateAdapter(v: Rec): ToolContent[] {
   return [...results, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])];
 }
 
+// ——— price history ———
+
+const usd = (x: unknown) => (typeof x === "number" ? `$${x.toFixed(2)}` : "?");
+const signed = (x: unknown) => (typeof x === "number" ? `${x > 0 ? "+" : ""}${x}%` : null);
+
+function priceHistoryAdapter(v: Rec): ToolContent[] {
+  if (typeof v.card_id !== "string" || typeof v.art_name !== "string") return [];
+  const id = `price:${v.card_id}${v.product_id ? `#${v.product_id}` : ""}`;
+  const t: Rec = v.buy_timing ?? {};
+  const c: Rec = v.typical_curve ?? {};
+  const weekly: [string, number][] = Array.isArray(v.weekly_points) ? v.weekly_points : [];
+  const facts: Fact[] = [
+    `${v.art_name} (${v.card_id}${v.product_id ? `, product ${v.product_id}` : ", base art"}): TCGPlayer market price ${usd(v.now)} now${v.set ? `, set ${v.set}` : ""}${v.released ? `, released ${v.released} (${v.age_days} days ago)` : ""}.`,
+    v.peak && `Peak ${usd(v.peak.price)} on ${v.peak.date}${v.low_since_peak ? `; lowest since then ${usd(v.low_since_peak.price)} on ${v.low_since_peak.date}` : ""}.`,
+    (signed(v.change_30d_pct) || signed(v.change_90d_pct)) && `Change over 30 days ${signed(v.change_30d_pct) ?? "unknown"}, over 90 days ${signed(v.change_90d_pct) ?? "unknown"}.`,
+    weekly.length > 1 && `Weekly prices, oldest first: ${weekly.map(([d, p]) => `${d} ${usd(p)}`).join(", ")}.`,
+    typeof c.percent_of_release_price_at_this_age === "number" &&
+      `Typical pattern of past sets (${v.art_kind} art, not a forecast): about ${c.percent_of_release_price_at_this_age}% of the release-day price at this age and ${c.percent_of_release_price_at_6_months}% at 6 months. ${c.basis}`,
+    t.headline && `When to buy, a judgement from those past patterns: ${t.verdict}, ${t.headline}.`,
+    ...(Array.isArray(t.reasons) ? t.reasons : []),
+    t.seasonNote,
+    ...(Array.isArray(v.notes) ? v.notes : []),
+  ];
+  const result = searchResult(id, `Price history: ${v.art_name} (${v.card_id})`, facts);
+  return result ? [result] : [];
+}
+
 const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   search_cards: searchCardsAdapter,
   get_cards: getCardsAdapter,
@@ -707,6 +735,7 @@ const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
   card_rulings: cardRulingsAdapter,
   matchup_stats: statsAdapter,
   tournament_stats: tournamentAdapter,
+  price_history: priceHistoryAdapter,
   playbook: playbookIndexAdapter,
   my_lessons: lessonsAdapter,
   review_match: reviewAdapter,

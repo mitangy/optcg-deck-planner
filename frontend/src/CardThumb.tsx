@@ -46,9 +46,9 @@ export function CardArtImg({
  * Lets the app shell put an action (e.g. "Add to shopping list") under the enlarged
  * card. Null where there is none, such as public pages, so those lightboxes stay plain.
  * `productId` is the printing the tile shows (0 = base art); undefined where the thumb is not
- * tied to one art.
+ * tied to one art. `close` closes the lightbox, for actions that open something else (Log Pose).
  */
-export const CardLightboxActionContext = createContext<((cardId: string, productId?: number) => ReactNode) | null>(null);
+export const CardLightboxActionContext = createContext<((cardId: string, productId?: number, close?: () => void) => ReactNode) | null>(null);
 
 export function CardThumb({
   src,
@@ -105,7 +105,7 @@ export function CardThumb({
           {large.src && (
             <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />
           )}
-          {cardId && renderAction ? <div className="lightbox-action">{renderAction(cardId, productId)}</div> : null}
+          {cardId && renderAction ? <div className="lightbox-action">{renderAction(cardId, productId, () => setOpen(false))}</div> : null}
           <button type="button" className="lightbox-close" onClick={() => setOpen(false)}>
             Close
           </button>

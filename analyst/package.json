@@ -30,6 +30,7 @@
     "@anthropic-ai/sdk": "^0.131.0",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@optcg/deck-analytics": "*",
+    "@optcg/price-timing": "*",
     "@optcg/rules": "*",
     "express": "^5.2.1",
     "tsx": "^4.21.0",

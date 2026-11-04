@@ -127,3 +127,19 @@ export function nearestIndex(points: PricePoint[], x: number): number {
   });
   return best;
 }
+
+/** The card's name without its art marks: "Monkey.D.Luffy (Alternate Art)" gives "Monkey.D.Luffy". */
+export function baseCardName(productName: string): string {
+  return productName.replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim() || productName;
+}
+
+/** The art marks of a TCGPlayer product name ("Alternate Art", "Manga"), or "base art" when it has none. */
+export function artLabel(productName: string): string {
+  const marks = [...productName.matchAll(/\(([^)]*)\)/g)].map((m) => m[1].trim()).filter(Boolean);
+  return marks.length ? marks.join(", ") : "base art";
+}
+
+/** The question the "Ask Log Pose" button sends. The art and product id let Log Pose price the exact art. */
+export function buyQuestion(productName: string, cardId: string, productId: number): string {
+  return `When is the best time to buy ${baseCardName(productName)} (${artLabel(productName)}, ${cardId}${productId ? `, product ${productId}` : ""})? Use its price history and how much it's being played.`;
+}

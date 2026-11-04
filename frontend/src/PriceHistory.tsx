@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useLogPoseAsk } from "@optcg/analyst-client";
+import { artKind, buyTiming, type BuyTiming } from "@optcg/price-timing";
 import { api, money, type PriceHistoryResponse } from "./api";
 import {
+  buyQuestion,
   DEFAULT_RANGE_ID,
   HISTORY_RANGES,
   dayNumber,
@@ -42,6 +45,51 @@ function Stat({ label, value, sub, toneClass = "" }: { label: string; value: str
       <dt>{label}</dt>
       <dd className={toneClass}>{value}</dd>
       <dd className="ph-stat-sub">{sub ?? " "}</dd>
+    </div>
+  );
+}
+
+const PILL: Record<BuyTiming["verdict"], string> = { wait: "Wait", soon: "Almost", good: "Good time", holds: "Holds", unknown: "No read" };
+
+/**
+ * "When to buy": a verdict from how similar cards moved after release, with the reasons one tap away. Its box is
+ * the same size while loading, so the panel never jumps. `onAsk` is set only where Log Pose can answer.
+ */
+function WhenToBuy({ timing, loading, onAsk, open, setOpen }: { timing: BuyTiming | null; loading: boolean; onAsk: (() => void) | null; open: boolean; setOpen: (fn: (v: boolean) => boolean) => void }) {
+  const reasonsId = useId();
+  const verdict = timing?.verdict ?? "unknown";
+  const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : [])] : [];
+  return (
+    <div className="ph-buy" aria-label="When to buy" aria-busy={loading}>
+      <div className="ph-buy-main">
+        <span className={`ph-pill ph-pill-${loading ? "loading" : verdict}`}>{loading ? "…" : PILL[verdict]}</span>
+        <span className="ph-buy-headline">{loading ? "Checking when to buy…" : (timing?.headline ?? "No read yet")}</span>
+        <button
+          type="button"
+          className="ph-buy-why"
+          aria-expanded={open}
+          aria-controls={reasonsId}
+          disabled={loading || reasons.length === 0}
+          onClick={() => setOpen((v) => !v)}
+        >
+          Why
+        </button>
+      </div>
+      {open && reasons.length ? (
+        <ul className="ph-buy-reasons" id={reasonsId}>
+          {reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="ph-buy-foot">
+        <p className="ph-buy-note">{open ? "Typical patterns of past sets, not a forecast." : "Based on how similar cards moved after release, 2024–2026"}</p>
+        {onAsk ? (
+          <button type="button" className="ph-buy-ask" onClick={onAsk}>
+            Ask Log Pose
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -142,13 +190,15 @@ function Chart({ points, label }: { points: PricePoint[]; label: string }) {
 }
 
 /** Price history of one art: range buttons, whole-history stats and an SVG line chart. */
-export function PriceHistory({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
+export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: string; productId?: number; onAsked?: () => void }) {
   const q = useQuery<PriceHistoryResponse>({
     queryKey: ["price-history", cardId, productId],
     queryFn: () => api.priceHistory(cardId, productId),
     staleTime: 10 * 60_000,
     retry: false,
   });
+  // The reasons take the chart's place while they are open, so the panel never outgrows the screen.
+  const [whyOpen, setWhyOpen] = useState(false);
   const [rangeId, setRangeId] = useState(DEFAULT_RANGE_ID);
   const range = HISTORY_RANGES.find((r) => r.id === rangeId) ?? HISTORY_RANGES[1];
 
@@ -159,11 +209,28 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
   const released = q.data?.released ?? null;
   const fromPeak = stats.changeFromPeakPct;
 
+  const timing = useMemo(
+    () =>
+      q.data
+        ? buyTiming({ kind: artKind(q.data.name), released: q.data.released, today: todayIso(), points: all, current: q.data.current ?? stats.now })
+        : null,
+    [q.data, all, stats.now],
+  );
+  const askLogPose = useLogPoseAsk();
+  const data = q.data;
+  const ask =
+    askLogPose && data
+      ? () => {
+          askLogPose({ prompt: buyQuestion(data.name, cardId, productId) });
+          onAsked?.();
+        }
+      : null;
+
   const status = q.isPending ? "loading" : q.isError ? "error" : shown.length === 0 ? "empty" : "ready";
   const name = q.data?.name ?? "this art";
 
   return (
-    <section className="ph" aria-label="Price history">
+    <section className={`ph${whyOpen ? " ph-why-open" : ""}`} aria-label="Price history">
       <div className="ph-head">
         <div className="ph-title" title={q.data?.name}>
           {q.data?.name ?? "Price history"}
@@ -188,6 +255,7 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
         />
         <Stat label={`${range.label} change`} value={pct(change)} toneClass={tone(change)} />
       </dl>
+      <WhenToBuy timing={timing} loading={q.isPending} onAsk={ask} open={whyOpen} setOpen={setWhyOpen} />
       <div className={`ph-body ph-${status}`}>
         {status === "ready" ? (
           <Chart
@@ -210,7 +278,7 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
 }
 
 /** The lightbox button; the panel floats over the art, so opening it never moves the button. */
-export function LightboxPriceHistoryControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
+export function LightboxPriceHistoryControl({ cardId, productId = 0, onAsked }: { cardId: string; productId?: number; onAsked?: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="lightbox-history">
@@ -219,7 +287,7 @@ export function LightboxPriceHistoryControl({ cardId, productId = 0 }: { cardId:
       </button>
       {open ? (
         <div className="lightbox-history-pop">
-          <PriceHistory cardId={cardId} productId={productId} />
+          <PriceHistory cardId={cardId} productId={productId} onAsked={onAsked} />
         </div>
       ) : null}
     </div>
