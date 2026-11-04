@@ -37,6 +37,7 @@ USER_AGENT = "OPTCGWebTracker/1.0"  # tcgcsv answers 401 without one
 DEFAULT_API_URL = "https://optcg-api-nutb.onrender.com"
 POST_PAUSE_S = 1.0
 RETRY_DELAYS_S = (15, 30, 45, 60, 60, 60, 60, 60)  # Render free cold start
+DOWNLOAD_DELAYS_S = (5, 15, 30, 60, 120)  # TCGCSV hiccups; then the day is skipped (#950)
 
 
 def archive_member_pattern(day: date) -> re.Pattern[str]:
@@ -67,7 +68,8 @@ def prices_from_results(results: list[dict]) -> dict[int, float | None]:
 def download(url: str, dest: Path) -> bool:
     """Fetch an archive; False when TCGCSV has none for that day (404)."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(1, 4):
+    attempts = len(DOWNLOAD_DELAYS_S) + 1
+    for attempt, delay in enumerate((*DOWNLOAD_DELAYS_S, None), start=1):
         try:
             with urllib.request.urlopen(req, timeout=120) as resp, open(dest, "wb") as out:
                 while chunk := resp.read(1 << 20):
@@ -79,8 +81,9 @@ def download(url: str, dest: Path) -> bool:
             err = f"HTTP {exc.code}"
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             err = str(exc)
-        print(f"  download attempt {attempt}/3 failed: {err}", file=sys.stderr)
-        time.sleep(5 * attempt)
+        print(f"  download attempt {attempt}/{attempts} failed: {err}", file=sys.stderr)
+        if delay is not None:
+            time.sleep(delay)
     raise RuntimeError(f"could not download {url}")
 
 
@@ -152,14 +155,22 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     imported = skipped = 0
+    failed: list[date] = []
     for day in days_between(args.start, args.end, args.step_days):
-        with tempfile.TemporaryDirectory(prefix="archive-") as tmp:
-            archive = Path(tmp) / "prices.7z"
-            if not download(ARCHIVE_URL.format(day=day.isoformat()), archive):
-                print(f"{day}: no archive, skipped")
-                skipped += 1
-                continue
-            prices = read_day(archive, day)
+        # One bad day (a download that keeps failing, a corrupt archive) is logged and skipped,
+        # so a long backfill doesn't stop halfway (#950). The failed days are listed at the end.
+        try:
+            with tempfile.TemporaryDirectory(prefix="archive-") as tmp:
+                archive = Path(tmp) / "prices.7z"
+                if not download(ARCHIVE_URL.format(day=day.isoformat()), archive):
+                    print(f"{day}: no archive, skipped")
+                    skipped += 1
+                    continue
+                prices = read_day(archive, day)
+        except Exception as exc:  # noqa: BLE001 - any per-day failure skips that day only
+            print(f"{day}: FAILED ({exc}), skipped", file=sys.stderr)
+            failed.append(day)
+            continue
         if not prices:
             print(f"{day}: no One Piece prices in the archive, skipped")
             skipped += 1
@@ -171,9 +182,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{day}: sent {len(prices)}, stored {result.get('stored')}")
             time.sleep(POST_PAUSE_S)
         imported += 1
-    print(f"Done: {imported} days imported, {skipped} skipped.")
+    print(f"Done: {imported} days imported, {skipped} skipped, {len(failed)} failed.")
+    if failed:
+        print("Failed days (re-run each with --start D --end D): " + " ".join(d.isoformat() for d in failed))
+        return 1
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
