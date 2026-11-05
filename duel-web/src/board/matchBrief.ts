@@ -36,3 +36,11 @@ export function briefFoldsAway(s: { auto: boolean; touched: boolean }, phase: st
 export function briefSeenKey(roomMatchId: string): string {
   return `optcg-duel:brief-seen:${roomMatchId}`;
 }
+
+/**
+ * Whether a match shows its Log Pose button (#993). The matchup brief and the copilot both live in the one Log Pose
+ * panel, so either being on gives exactly one button: never one each.
+ */
+export function matchLogPoseEntry(o: { briefShown: boolean; copilotShown: boolean }): "none" | "button" {
+  return o.briefShown || o.copilotShown ? "button" : "none";
+}

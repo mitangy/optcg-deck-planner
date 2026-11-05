@@ -1,16 +1,14 @@
 import { useEffect, type ReactNode } from "react";
+import { CopilotGlyph } from "./LogPoseMatchButton";
 
 export type LandscapePanel = "log" | "chat" | "brief";
 
-const LABEL: Record<LandscapePanel, string> = { log: "Battle log", chat: "Chat", brief: "Matchup brief" };
+const LABEL: Record<LandscapePanel, string> = { log: "Battle log", chat: "Chat", brief: "Log Pose" };
 
 function Icon({ panel }: { panel: LandscapePanel }) {
   if (panel === "brief") {
     return (
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
-        <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M13.2 6.8 11.4 11.4 6.8 13.2 8.6 8.6z" fill="currentColor" />
-      </svg>
+      <CopilotGlyph size={20} />
     );
   }
   return panel === "log" ? (
@@ -34,11 +32,11 @@ type RailProps = {
   open: LandscapePanel | null;
   onToggle: (panel: LandscapePanel) => void;
   hasChat: boolean;
-  /** A Log Pose matchup brief is available (a third button). */
+  /** Log Pose is on for this match (the brief, the copilot or both): one button, whichever it is. */
   hasBrief?: boolean;
+  /** The brief is being written or the copilot is running: the Log Pose button shows its busy dot. */
+  briefBusy?: boolean;
   logCount: number;
-  /** More rail buttons after the panels (the Log Pose copilot's). */
-  extra?: ReactNode;
   /** The ⋯ match menu button (there is no top bar in landscape). */
   menu: ReactNode;
 };
@@ -47,7 +45,7 @@ type RailProps = {
  * Landscape phones: the left column shrinks to an icon rail so the board gets
  * the width. The log and chat open as overlays (see LandscapeOverlay).
  */
-export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCount, extra, menu }: RailProps) {
+export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, briefBusy = false, logCount, menu }: RailProps) {
   const panels: LandscapePanel[] = [...(hasChat ? (["log", "chat"] as const) : (["log"] as const)), ...(hasBrief ? (["brief"] as const) : [])];
   return (
     <nav className="lp-rail" aria-label="Board panels">
@@ -60,6 +58,7 @@ export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCo
           aria-label={LABEL[panel]}
           aria-expanded={open === panel}
           title={LABEL[panel]}
+          data-busy={panel === "brief" && briefBusy ? "true" : undefined}
           onClick={() => onToggle(panel)}
         >
           <Icon panel={panel} />
@@ -70,7 +69,6 @@ export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, logCo
           ) : null}
         </button>
       ))}
-      {extra}
     </nav>
   );
 }

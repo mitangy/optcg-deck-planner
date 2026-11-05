@@ -48,15 +48,6 @@ function writeSeen(roomMatchId: string): void {
   }
 }
 
-function CompassGlyph() {
-  return (
-    <svg className="hud-brief-icon" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M13.2 6.8 11.4 11.4 6.8 13.2 8.6 8.6z" fill="currentColor" />
-    </svg>
-  );
-}
-
 type PinnedProps = {
   you: string;
   opp: string;
@@ -140,7 +131,7 @@ export function useMatchBrief(o: {
   phase: string | null | undefined;
   over: boolean;
   layout: BriefLayout;
-}): { shown: boolean; trigger: ReactNode; open: boolean; setOpen: (open: boolean) => void } {
+}): { shown: boolean; busy: boolean; open: boolean; setOpen: (open: boolean) => void } {
   const { enabled, session, openPanel, closePanel, panelOpen } = useLogPose();
   const settings = useDuelSettings();
   const brief = o.source?.brief ?? null;
@@ -293,31 +284,7 @@ export function useMatchBrief(o: {
   );
   useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, scope: liveMatchScope(brief.ticket, you, opp), starters: STARTERS, pinned } : null);
 
-  if (!shown || !brief) return { shown: false, trigger: null, open: false, setOpen };
-
-  const busy = state.kind === "peek" || state.kind === "streaming";
-
-  const hidden = o.over;
-  const label = "Matchup brief";
-  const trigger =
-    o.layout === "landscape" ? null : (
-      <button
-        type="button"
-        className={`hud-brief-btn${o.layout === "desktop" ? " hud-brief-text" : " hud-icon-btn"}`}
-        aria-label={label}
-        aria-expanded={open}
-        title={label}
-        data-busy={busy ? "true" : undefined}
-        style={hidden ? { visibility: "hidden" } : undefined}
-        tabIndex={hidden ? -1 : undefined}
-        aria-hidden={hidden ? true : undefined}
-        onClick={() => setOpen(!open)}
-      >
-        <CompassGlyph />
-        {o.layout === "desktop" ? <span className="hud-brief-label">Brief</span> : null}
-        <span className="hud-brief-dot" aria-hidden="true" />
-      </button>
-    );
-
-  return { shown: true, trigger, open, setOpen };
+  // The button is the shared Log Pose one (LogPoseMatchButton); this says whether the brief is up and being written.
+  if (!shown || !brief) return { shown: false, busy: false, open: false, setOpen };
+  return { shown: true, busy: state.kind === "peek" || state.kind === "streaming", open, setOpen };
 }
