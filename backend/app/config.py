@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     catalog_sync_token: str = "dev-sync-token"
     # Guards GET /scan-samples/export (#852). Empty means the export is closed.
     scan_training_token: str = ""
+    # Discord webhook that receives player feedback and card reports (#979). Empty = off.
+    discord_feedback_webhook_url: str = ""
     # Shared HMAC secret for short-lived Colyseus join tokens (defaults to session_secret).
     game_token_secret: str = ""
     # Game-server → API match ingest header secret.
