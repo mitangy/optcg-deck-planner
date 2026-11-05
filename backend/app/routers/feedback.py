@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.discord_notify import feedback_message, post_to_discord
 from app.models import Feedback, User
 from app.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
@@ -48,6 +49,7 @@ def _out(row: Feedback, user: User | None) -> FeedbackOut:
 def create_feedback(
     body: FeedbackIn,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     session_user: Annotated[User | None, Depends(get_optional_user)],
@@ -71,6 +73,12 @@ def create_feedback(
     db.add(row)
     db.commit()
     db.refresh(row)
+    if settings.discord_feedback_webhook_url:
+        background_tasks.add_task(
+            post_to_discord,
+            settings.discord_feedback_webhook_url,
+            feedback_message(row, duel_display_name(user) if user is not None else "anonymous"),
+        )
     return _out(row, user)
 
 

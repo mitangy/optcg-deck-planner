@@ -12,6 +12,9 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-05
   { date: "2026-11-05", app: "both", pr: 978, title: "A new OP18 event, I Will Make the Call", text: "I'll Make the Call (OP18-096) is now in the duel app. It shows preview art until its official image is out." },
+  { date: "2026-11-05", app: "planner", pr: 983, title: "When to buy knows your rares", text: "The When to buy box and Ask Log Pose now read a base Super Rare, Secret Rare or Leader card against how those cards usually move after release, instead of an average of all cards, so the verdict and best time to buy fit them better." },
+  { date: "2026-11-05", app: "duel", pr: 983, title: "Replay tabs go quiet again", text: "A replay tab stays quiet on its own again while another tab has your match open, as Quiet watch tabs in Gameplay settings promises." },
+  { date: "2026-11-05", app: "duel", pr: 983, title: "Replays keep every move", text: "In a replay, attaching several DON at once or paying several counters at once now plays all of them, instead of starting a stray line of your own with only the last one." },
   { date: "2026-11-05", app: "duel", pr: 976, title: "New pages: OPTCG sim online and play on your phone", text: "Two new guides explain how to play the One Piece TCG in your browser with no download, compare it with download simulators, and show how to add OPTCG Duel to your iPhone or Android Home Screen. Find them in the page footer." },
   { date: "2026-11-05", app: "duel", pr: 967, title: "Grade the game in a replay", text: "Replays of finished games now grade each move like chess.com: Best, Great, Inaccuracy, Mistake, Blunder and more, with the win chance and a Show best button that plays the better move as your own line. Ticks on the slider mark the big moments, and Review shows both players' accuracy and the key moments. Grades are estimates from bot simulations." },
   // 2026-11-04

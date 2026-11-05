@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { useLogPoseAsk } from "@optcg/analyst-client";
-import { artKind, bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
+import { bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
 import { api, money, type PriceHistoryResponse } from "./api";
 import {
   buyQuestion,
+  buyTimingInput,
   DEFAULT_RANGE_ID,
   HISTORY_RANGES,
   dayNumber,
@@ -314,7 +315,7 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
 
   const [timing, best] = useMemo(() => {
     if (!q.data) return [null, null] as const;
-    const input = { kind: artKind(q.data.name), released: q.data.released, today: todayIso(), points: all, current: q.data.current ?? stats.now };
+    const input = buyTimingInput(q.data, all, stats.now, todayIso());
     return [buyTiming(input), bestTimeToBuy(input)] as const;
   }, [q.data, all, stats.now]);
   const askLogPose = useLogPoseAsk();

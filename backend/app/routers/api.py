@@ -12,7 +12,7 @@ from app.auth import get_current_user, get_optional_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.models import CatalogMeta, CatalogPrinting, User
+from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
 from app.rate_limit import RateLimiter, client_ip
 from app.recent_sales import fetch_recent_sales, is_cached
 from app.schemas import (
@@ -916,12 +916,14 @@ def catalog_price_history(
     if printing is None:
         raise HTTPException(status_code=404, detail="Unknown card or art")
     released = price_history.release_date(db, printing.group_name)
+    card = db.get(CatalogCard, printing.card_id)
     return PriceHistoryResponse(
         card_id=printing.card_id,
         product_id=printing.product_id,
         name=printing.name,
         group_name=printing.group_name,
         released=released.isoformat() if released else None,
+        rarity=(card.rarity or None) if card else None,
         current=printing.market_price,
         points=price_history.history_points(db, printing.product_id),
     )
