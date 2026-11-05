@@ -9,6 +9,7 @@ export {
   errorText,
   fetchSavedReview,
   fetchThread,
+  listThreads,
   parseTurnPlan,
   parseChoiceAnswer,
   stampChoice,
@@ -38,6 +39,7 @@ export {
   type TurnPlan,
   type SavedReview,
   type StreamHandlers,
+  type ThreadSummary,
 } from "./client";
 export { createSessionManager, fetchChatSession, needsRefresh, parseAccess, REFRESH_MARGIN_MS, type AccessState, type ChatSession, type SessionManager } from "./session";
 export { answerTopup, decideAccess, listAccessRequests, NOTE_MAX, requestAccess, setFreeSpots, sortRequests, type AccessList, type AccessRequest, type AccessStatus } from "./access";
@@ -87,10 +89,13 @@ export { clampSheet, clampSize, dragSheet, dragRect, keyRect, readSheet, readSiz
 export { clampPos, dragPos, keyPos, readPos, writePos, type Pos } from "./panelPos";
 export { clampDockW, dockAt, fitDock, keyDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSide, type DockSides } from "./panelDock";
 export { growOrigin, compassRect, type Rect } from "./panelMotion";
-export { readThreadId, writeThreadId, THREAD_KEY } from "./threadStore";
+export { readThreadHint, writeThreadHint, THREAD_KEY, THREADS_KEY } from "./threadStore";
+export { GENERAL_SCOPE, canStartNewChat, duelDeckScope, groupThreads, isValidScope, matchScope, pageScope, plannerDeckScope, scopeKind, scopeLabel, type LogPoseScope, type ScopeKind, type ThreadGroup, type ThreadRow } from "./scopes";
+export { chatBody, resolveScopeChat } from "./threads";
+export { ChatsMenu } from "./ChatsMenu";
 export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
 export { Markdown } from "./Markdown";
-export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
+export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseLayer, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export { NewDeckCard } from "./NewDeckCard";

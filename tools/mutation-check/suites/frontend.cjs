@@ -542,5 +542,9 @@ module.exports = {
     {"id": "card953-headline-no-data", "file": "frontend/src/cardPage.ts", "from": "if (u.total_decks === 0) return", "to": "if (false) return", "kills": ["the headline tells no data"], "args": "src/cardPage.test.ts"},
     {"id": "card953-headline-not-played", "file": "frontend/src/cardPage.ts", "from": "if (u.decks_with_card === 0) return", "to": "if (false) return", "kills": ["the headline tells no data"], "args": "src/cardPage.test.ts"},
     {"id": "card953-headline-leader-wording", "file": "frontend/src/cardPage.ts", "from": "u.is_leader ? \"of decks led by it\" : \"of decklists\"", "to": "\"of decklists\"", "kills": ["the headline tells no data"], "args": "src/cardPage.test.ts"},
+  // a Log Pose chat per match, deck and general (#970)
+  {"id": "planner-deck-page-no-scope", "file": "frontend/src/logPose.ts", "from": "...(scope ? { scope } : {}), ", "to": "", "kills": ["opens the saved deck's own chat, named after the deck (#970)", "uses the general chat for a deck that has no id yet, and names an unnamed deck (#970)"], "args": "src/logPose.test.ts"},
+  {"id": "planner-deck-scope-unsaved-deck", "file": "frontend/src/logPose.ts", "from": "deck.plannerDeckId ? pageScope(plannerDeckScope(deck.plannerDeckId), name) : undefined", "to": "pageScope(plannerDeckScope(deck.plannerDeckId ?? 0), name)", "kills": ["uses the general chat for a deck that has no id yet, and names an unnamed deck (#970)"], "args": "src/logPose.test.ts"},
+  {"id": "planner-deck-unnamed", "file": "frontend/src/logPose.ts", "from": "const name = deck.name || \"This deck\";", "to": "const name = deck.name;", "kills": ["uses the general chat for a deck that has no id yet, and names an unnamed deck (#970)"], "args": "src/logPose.test.ts"},
 ],
 };

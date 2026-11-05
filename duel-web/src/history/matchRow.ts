@@ -29,6 +29,8 @@ export type MatchRow = {
   when: string | null;
   /** The recording can be watched in the replay viewer (Watch button). */
   replay: boolean;
+  /** Log Pose has a chat about this game (shows a small compass on the row). */
+  hasChat: boolean;
 };
 
 /** The row's `data-outcome`, which colours its edge. */
@@ -59,6 +61,7 @@ export function matchRow(
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,
     when: m.created_at ? relativeTime(new Date(m.created_at), now) : null,
     replay: m.replay_ready === true,
+    hasChat: m.has_chat === true,
   };
 }
 

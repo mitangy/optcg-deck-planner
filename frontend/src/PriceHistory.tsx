@@ -295,7 +295,7 @@ function Chart({ points, label }: { points: PricePoint[]; label: string }) {
 }
 
 /** Price history of one art: range buttons, whole-history stats and an SVG line chart. */
-export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: string; productId?: number; onAsked?: () => void }) {
+export function PriceHistory({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const q = useQuery<PriceHistoryResponse>({
     queryKey: ["price-history", cardId, productId],
     queryFn: () => api.priceHistory(cardId, productId),
@@ -323,7 +323,6 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
     askLogPose && data
       ? () => {
           askLogPose({ prompt: buyQuestion(data.name, cardId, productId) });
-          onAsked?.();
         }
       : null;
 
@@ -379,7 +378,7 @@ export function PriceHistory({ cardId, productId = 0, onAsked }: { cardId: strin
 }
 
 /** The lightbox button; the panel floats over the art, so opening it never moves the button. */
-export function LightboxPriceHistoryControl({ cardId, productId = 0, onAsked }: { cardId: string; productId?: number; onAsked?: () => void }) {
+export function LightboxPriceHistoryControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="lightbox-history">
@@ -388,7 +387,7 @@ export function LightboxPriceHistoryControl({ cardId, productId = 0, onAsked }: 
       </button>
       {open ? (
         <div className="lightbox-history-pop">
-          <PriceHistory cardId={cardId} productId={productId} onAsked={onAsked} />
+          <PriceHistory cardId={cardId} productId={productId} />
         </div>
       ) : null}
     </div>

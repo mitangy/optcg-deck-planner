@@ -12,7 +12,8 @@ import { openReport } from "../reports/reportDialog";
 import { historyReportTarget } from "../reports/reportTargets";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { BackLink } from "./BackLink";
-import { useLogPosePage } from "@optcg/analyst-client";
+import { useLogPose, useLogPosePage } from "@optcg/analyst-client";
+import { matchLogScope } from "../logPoseScopes";
 import { LogPoseReview } from "../history/LogPoseReview";
 import { MATCH_LOG_STARTERS } from "../logPose";
 import "../history/history.css";
@@ -80,7 +81,7 @@ export function MatchLogPage() {
   const opponentSeat = seat === undefined ? undefined : ((1 - seat) as 0 | 1);
   const wentFirst = log ? log.turns.find((t) => t.turn === 1)?.activeSeat === log.seat : null;
   useLogPosePage(
-    row ? { page: "match-log", label: `${row.yourLeader} vs ${row.opponentLeader}`, matchId, starters: MATCH_LOG_STARTERS } : null,
+    row ? { page: "match-log", label: `${row.yourLeader} vs ${row.opponentLeader}`, matchId, scope: matchLogScope(matchId, row.yourLeader, row.opponentLeader), starters: MATCH_LOG_STARTERS } : null,
   );
 
   const segment = (seg: LogSegment, i: number) =>

@@ -34,7 +34,7 @@ import { DISCORD_INVITE_URL, FeedbackDialog, SiteFooter } from "@optcg/site-lega
 import { CornerNotices, UpdateNotice } from "./UpdateNotice";
 import { submitFeedback } from "./feedback";
 import { hintAsk, LogPoseProvider, useLogPoseAsk, useLogPoseDeckEditor, useLogPosePage, type DeckEditor } from "@optcg/analyst-client";
-import { applyPlannerEdit, DECK_STARTERS, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, showsLogPose, useLogPoseDraft } from "./logPose";
+import { applyPlannerEdit, defaultLogPosePage, openDeckFor, openNewDeckFor, PLANNER_SOURCE_HOOKS, plannerDeckContext, plannerDeckPage, showsLogPose, useLogPoseDraft } from "./logPose";
 import { LegalPage } from "./LegalPage";
 import { PlannerLandingPage } from "./LandingPage";
 import { PublicCardScreen } from "./PublicCardScreen";
@@ -2754,7 +2754,7 @@ const renderLightboxActions = (cardId: string, productId?: number, close?: () =>
     </Link>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
-    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} onAsked={close} />
+    <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
   </>
 );
 
@@ -4205,9 +4205,7 @@ function DeckDetailPage() {
   });
 
   const logPoseDeck = useMemo(() => (data ? plannerDeckContext(data) : null), [data]);
-  useLogPosePage(
-    logPoseDeck ? { page: "deck", label: logPoseDeck.name || "This deck", deck: logPoseDeck, starters: DECK_STARTERS } : null,
-  );
+  useLogPosePage(logPoseDeck ? plannerDeckPage(logPoseDeck) : null);
 
   const optcgSimExport = useMemo(() => {
     if (!data) return null;

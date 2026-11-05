@@ -683,6 +683,8 @@ class DuelMatchHistoryEntry(BaseModel):
     finished: bool = True
     # The recording can be opened in the replay viewer: a kept replay of a finished game, or of a cut-off game whose room closed.
     replay_ready: bool = False
+    # The player has an answered Log Pose chat about this game (#970).
+    has_chat: bool = False
 
 
 class DuelMatchReplayOut(BaseModel):
@@ -1169,13 +1171,19 @@ class AnalystUsageSummary(BaseModel):
     groups: list[AnalystUsageGroup]
 
 
+# general | match:<id> | deck:planner:<digits> | deck:duel:<id> (#970).
+ANALYST_SCOPE_PATTERN = r"^(general|match:[A-Za-z0-9_-]{1,64}|deck:planner:[0-9]{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$"
+
+
 class AnalystThreadIn(BaseModel):
     title: str = Field(default="", max_length=120)
+    scope: str = Field(default="general", pattern=ANALYST_SCOPE_PATTERN)
 
 
 class AnalystThreadSummary(BaseModel):
     id: int
     title: str
+    scope: str
     updated_at: str | None
 
 
@@ -1293,6 +1301,7 @@ class AnalystDisplayMessage(BaseModel):
 class AnalystThreadView(BaseModel):
     id: int
     title: str
+    scope: str
     messages: list[AnalystDisplayMessage]
 
 
@@ -1327,6 +1336,8 @@ class AnalystBriefLookupOut(BaseModel):
     opponent_id: str
     deck: list[AnalystBriefDeckLine]
     key: str
+    # The game the ticket was minted for ("" when it names none); the chat scopes its thread to it (#970).
+    match_id: str = ""
     brief: AnalystBriefOut | None = None
 
 

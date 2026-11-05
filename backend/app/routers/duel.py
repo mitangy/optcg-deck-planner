@@ -30,6 +30,8 @@ from app.game_tokens import mint_game_token, verify_game_token
 from app.moderation import recent_takedowns
 from app.models import (
     CardReport,
+    AnalystMessage,
+    AnalystThread,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
@@ -718,6 +720,7 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
     opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
     opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
     now = datetime.now(timezone.utc)
+    with_chat = _chat_match_ids(db, user, [r.match_id for r in rows])
     entries = []
     for r in rows:
         seat = 0 if r.seat0_user_id == user.id else 1
@@ -740,9 +743,20 @@ def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) 
                 has_log=(r.seat0_log if seat == 0 else r.seat1_log) is not None,
                 finished=False,
                 replay_ready=r.replay is not None and _progress_closed(r, now),
+                has_chat=r.match_id in with_chat,
             )
         )
     return entries
+
+
+def _chat_match_ids(db: Session, user: User, match_ids: list[str]) -> set[str]:
+    """Which of these games the player has an answered Log Pose chat about (#970)."""
+    scopes = {f"match:{m}": m for m in match_ids}
+    answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
+    found = db.scalars(
+        select(AnalystThread.scope).where(AnalystThread.user_id == user.id, AnalystThread.scope.in_(list(scopes)), answered)
+    ).all()
+    return {scopes[s] for s in found}
 
 
 def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[DuelMatchHistoryEntry]:
@@ -758,6 +772,7 @@ def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[Due
             select(DuelMatchSeatLog.match_id, DuelMatchSeatLog.seat).where(DuelMatchSeatLog.match_id.in_(ids))
         ).all()
     }
+    with_chat = _chat_match_ids(db, user, ids)
     matches = []
     for r in rows:
         seat = 0 if r.seat0_user_id == user.id else 1
@@ -779,6 +794,7 @@ def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[Due
                 has_replay=r.match_id in with_replay,
                 has_log=(r.match_id, seat) in with_log,
                 replay_ready=r.match_id in with_replay,
+                has_chat=r.match_id in with_chat,
             )
         )
     return matches

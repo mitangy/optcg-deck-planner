@@ -308,6 +308,14 @@ def _ensure_analyst_lesson_source() -> None:
     _add_columns("analyst_lessons", [("source", "VARCHAR(16) NOT NULL DEFAULT 'player'")])
 
 
+def _ensure_analyst_thread_scope() -> None:
+    """Add analyst_threads.scope and its (user, scope) index on existing DBs (#970)."""
+    _add_columns("analyst_threads", [("scope", "VARCHAR(120) NOT NULL DEFAULT 'general'")])
+    if "analyst_threads" in inspect(engine).get_table_names():
+        with engine.begin() as conn:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_analyst_threads_user_scope ON analyst_threads (user_id, scope)"))
+
+
 def _ensure_analyst_usage_columns() -> None:
     """Add the analytics columns to analyst_usage on existing DBs (#446)."""
     _add_columns(
@@ -459,6 +467,7 @@ def init_db() -> None:
     _ensure_duel_server_urls()
     _ensure_analyst_review_citations()
     _ensure_analyst_lesson_source()
+    _ensure_analyst_thread_scope()
     _ensure_analyst_usage_columns()
     _ensure_analyst_access_credit_columns()
     _ensure_user_role_columns()

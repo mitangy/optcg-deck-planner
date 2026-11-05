@@ -208,7 +208,8 @@ test("Collection: an alt art with no price points yet still gets the read from i
   await expectFits(page, panel);
 });
 
-test("Ask Log Pose sends the question for this art and closes the card so the answer shows (#946)", async ({ page, planner }) => {
+test("Ask Log Pose opens the chat beside the card on desktop and over it on a phone, and the card stays open (#968)", async ({ page, planner }) => {
+  const phone = test.info().project.name === "phone-375";
   planner.enableLogPose();
   await planner.open("/collection");
   const izo = page.locator('[data-card-id="EB01-002"]:visible');
@@ -217,17 +218,74 @@ test("Ask Log Pose sends the question for this art and closes the card so the an
   await lightbox.getByRole("button", { name: "Price history" }).click();
   const panel = lightbox.getByRole("region", { name: "Price history" });
   await expect(panel.locator(".ph-pill")).toHaveText("Good time");
-  const ask = panel.getByRole("button", { name: "Ask Log Pose" });
   await expectFits(page, panel);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-with-ask-${test.info().project.name}.png` });
-  await ask.click();
+  await panel.getByRole("button", { name: "Ask Log Pose" }).click();
 
-  await expect(page.getByRole("dialog", { name: "Log Pose" })).toBeVisible();
-  await expect(page.getByText("Because the deck has 15 cards.")).toBeVisible();
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-ask-log-pose-${test.info().project.name}.png` });
-  await expect(lightbox).toHaveCount(0);
+  const chat = page.getByRole("dialog", { name: "Log Pose" });
+  await expect(chat).toBeVisible();
+  await expect(chat.getByText("Because the deck has 15 cards.")).toBeVisible();
   expect(planner.chats).toHaveLength(1);
   expect(planner.chats[0]!.message).toBe("When is the best time to buy Izo (base art, EB01-002)? Use its price history and how much it's being played.");
+  // The card is still up with its price panel open.
+  await expect(lightbox).toBeVisible();
+  await expect(panel).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-ask-log-pose-${test.info().project.name}.png` });
+
+  if (!phone) {
+    // Side by side: the card and its price panel sit left of the chat, and the Close button is not under it.
+    // The panel grows out of the compass: measure it once it has settled.
+    await chat.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    const chatBox = (await chat.boundingBox())!;
+    for (const box of [(await lightbox.locator(".lightbox-img").boundingBox())!, (await panel.boundingBox())!, (await lightbox.getByRole("button", { name: "Close", exact: true }).boundingBox())!]) {
+      expect(box.x + box.width).toBeLessThanOrEqual(chatBox.x + 1);
+    }
+    // Both are usable: type and send in the chat, then the card's range buttons still answer.
+    const input = chat.getByRole("textbox", { name: "Message Log Pose" });
+    await input.click();
+    await input.fill("And the alt art?");
+    await chat.getByRole("button", { name: "Send" }).click();
+    await expect.poll(() => planner.chats.length).toBe(2);
+    expect(planner.chats[1]!.message).toBe("And the alt art?");
+    await panel.getByRole("button", { name: "1M" }).click();
+    await expect(panel.getByRole("button", { name: "1M" })).toHaveAttribute("aria-pressed", "true");
+  }
+
+  // Escape closes the chat first; the card stays until the next one.
+  if (phone) await chat.getByRole("button", { name: "Close Log Pose" }).click();
+  else await page.keyboard.press("Escape");
+  await expect(chat).toHaveCount(0);
+  await expect(lightbox).toBeVisible();
+  await expect(panel).toBeVisible();
+  await expect(panel.locator(".ph-title")).toHaveText("Izo");
+  await expect(lightbox.getByRole("button", { name: "Ask Log Pose" })).toHaveCount(1);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-chat-closed-${test.info().project.name}.png` });
+  if (!phone) {
+    await page.keyboard.press("Escape");
+    await expect(lightbox).toHaveCount(0);
+  }
+});
+
+test("On a short landscape screen the price panel fits the screen instead of collapsing (#968)", async ({ page, planner }) => {
+  test.skip(test.info().project.name !== "phone-375", "landscape phone only");
+  planner.enableLogPose();
+  await page.setViewportSize({ width: 812, height: 375 });
+  await planner.open("/collection");
+  await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
+  const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
+  await lightbox.getByRole("button", { name: "Price history" }).click();
+  const pop = lightbox.locator(".lightbox-history-pop");
+  const ask = pop.getByRole("button", { name: "Ask Log Pose" });
+  await expect(ask).toBeVisible();
+  const vp = page.viewportSize()!;
+  const box = (await pop.boundingBox())!;
+  expect(box.height).toBeGreaterThan(200);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  // The When to buy row is within the part of the panel that shows.
+  const buy = (await pop.getByLabel("When to buy").boundingBox())!;
+  expect(buy.y).toBeGreaterThanOrEqual(box.y);
+  expect(buy.y + buy.height).toBeLessThanOrEqual(box.y + box.height + 1);
 });
 
 test("no Ask Log Pose while Log Pose is off (#946)", async ({ page, planner }) => {

@@ -56,6 +56,7 @@ from app.schemas import (
     AnalystReviewIn,
     AnalystReviewOut,
     AnalystStoredMessage,
+    ANALYST_SCOPE_PATTERN,
     AnalystThreadContent,
     AnalystThreadIn,
     AnalystThreadsOut,
@@ -310,11 +311,11 @@ def create_thread(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(analyst_user)],
 ) -> AnalystThreadSummary:
-    row = AnalystThread(user_id=user.id, title=body.title.strip())
+    row = AnalystThread(user_id=user.id, title=body.title.strip(), scope=body.scope)
     db.add(row)
     db.commit()
     db.refresh(row)
-    return AnalystThreadSummary(id=row.id, title=row.title, updated_at=row.updated_at.isoformat() if row.updated_at else None)
+    return AnalystThreadSummary(id=row.id, title=row.title, scope=row.scope, updated_at=row.updated_at.isoformat() if row.updated_at else None)
 
 
 @router.delete("/chat/threads/{thread_id}", status_code=204)
@@ -554,14 +555,16 @@ def thread_view(
 def list_threads(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    scope: Annotated[str | None, Query(pattern=ANALYST_SCOPE_PATTERN)] = None,
 ) -> AnalystThreadsOut:
-    """The signed-in player's threads, newest first. A thread whose first answer never finished isn't listed."""
+    """The signed-in player's threads, newest first (one scope with ?scope=). A thread whose first answer never finished isn't listed."""
     answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
-    rows = db.scalars(
-        select(AnalystThread).where(AnalystThread.user_id == user.id, answered).order_by(AnalystThread.updated_at.desc(), AnalystThread.id.desc()).limit(50)
-    ).all()
+    query = select(AnalystThread).where(AnalystThread.user_id == user.id, answered)
+    if scope is not None:
+        query = query.where(AnalystThread.scope == scope)
+    rows = db.scalars(query.order_by(AnalystThread.updated_at.desc(), AnalystThread.id.desc()).limit(50)).all()
     return AnalystThreadsOut(
-        threads=[AnalystThreadSummary(id=r.id, title=r.title, updated_at=r.updated_at.isoformat() if r.updated_at else None) for r in rows]
+        threads=[AnalystThreadSummary(id=r.id, title=r.title, scope=r.scope, updated_at=r.updated_at.isoformat() if r.updated_at else None) for r in rows]
     )
 
 
@@ -577,6 +580,7 @@ def view_thread(
     return AnalystThreadView(
         id=row.id,
         title=row.title,
+        scope=row.scope,
         messages=thread_view([(m.role, json.loads(m.content)) for m in _messages(db, row.id)], edits, drafts),
     )
 
@@ -680,7 +684,7 @@ def lookup_brief(
         if made is None or made >= datetime.now(timezone.utc) - BRIEF_TTL:
             brief = _brief_out(row)
     return AnalystBriefLookupOut(
-        leader_id=claims.leader, opponent_id=claims.opponent, deck=deck_counts(claims), key=key, brief=brief
+        leader_id=claims.leader, opponent_id=claims.opponent, deck=deck_counts(claims), key=key, match_id=claims.match_id, brief=brief
     )
 
 

@@ -21,6 +21,8 @@ export type MatchHistoryEntry = {
   finished?: boolean;
   /** The recording can be opened in the replay viewer. */
   replay_ready?: boolean;
+  /** Log Pose has a chat about this game. */
+  has_chat?: boolean;
 };
 
 /** One seat's log of a finished game (`SeatLog` in @optcg/rules); events are already projected for that seat. */

@@ -1131,6 +1131,12 @@ module.exports = {
     {"id": "ph-adapter-unregistered", "file": "analyst/src/sources.ts", "from": "  price_history: priceHistoryAdapter,\n", "to": "", "kills": ["turns an answer into one price: search result per art", "answers a price_history call with a cited price: source"]},
     {"id": "ph-source-always-product", "file": "analyst/src/sources.ts", "from": "const id = `price:${v.card_id}${v.product_id ? `#${v.product_id}` : \"\"}`;", "to": "const id = `price:${v.card_id}#${v.product_id}`;", "kills": ["names the base art without a product part"]},
     {"id": "ph-status-label-dropped", "file": "analyst/src/chat.ts", "from": "  price_history: \"Checking price history\",\n", "to": "", "kills": ["answers a price_history call with a cited price: source"]},
+    { id: "chat970-scope-not-sent", file: chat, from: "{ title, scope })).id;", to: "{ title })).id;", kills: ["creates the thread with the scope and title the client sent", "scopes to general and titles from the message"] },
+    { id: "chat970-scope-title-ignored", file: chat, from: "body.scope_title || body.message", to: "body.message", kills: ["creates the thread with the scope and title the client sent"] },
+    { id: "chat970-scope-defaults-to-none", file: chat, from: "matchScope ?? body.scope ?? \"general\"", to: "matchScope ?? body.scope ?? \"\"", kills: ["scopes to general and titles from the message"] },
+    { id: "chat970-game-scope-loses-to-client", file: chat, from: "matchScope ?? body.scope ?? \"general\"", to: "body.scope ?? matchScope ?? \"general\"", kills: ["scopes the new thread to the verified game"] },
+    { id: "chat970-scope-regex-open", file: chat, from: "z.string().regex(SCOPE_PATTERN).optional()", to: "z.string().optional()", kills: ["rejects a scope that isn't one of the four shapes"] },
+    { id: "chat970-game-id-not-returned", file: copilot, from: "matchId: found.match_id ?? \"\" };", to: "matchId: \"\" };", kills: ["scopes the new thread to the verified game"] },
   ],
 };
 

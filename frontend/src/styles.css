@@ -503,6 +503,40 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+/* Desktop list tables (#961): the art fills the Card column and the text sits under it, centred.
+   The column keeps a definite width (about its old min-width) so it never grows the table sideways;
+   art is capped so a wide table does not stretch it. Grid cards, the phone list and alt tiles are untouched. */
+.data-table .card-cell {
+  width: 14rem;
+}
+
+.data-table .card-cell-inner {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.data-table .card-cell-inner > .thumb-btn > .thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.data-table .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .data-table {
   min-width: 720px;
   /* separate + 0 spacing draws each cell's border-bottom in full so lines
@@ -1984,6 +2018,31 @@ tr.done td {
   max-width: 100%;
   min-height: 2.5rem;
   justify-content: flex-end;
+}
+
+/* Where Log Pose renders while the card is open (#968): no box of its own; the panel is fixed to the screen. */
+.lightbox-chat-layer {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Beside the card on desktop the chat takes its side of the screen: the card and its Close button move over. */
+html[data-lp-layer="right"] .lightbox {
+  padding-right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox {
+  padding-left: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="right"] .lightbox-close {
+  right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox-close {
+  left: calc(var(--lp-layer-w, 420px) + 1rem);
+  right: auto;
 }
 
 .lightbox-close {
@@ -3765,6 +3824,7 @@ tr.done td {
 }
 
 .shopping-table:has(td.alt-arts-cell) .card-cell {
+  width: 12rem;
   min-width: 12rem;
 }
 
@@ -3800,6 +3860,7 @@ tr.done td {
   }
 
   .deck-table:has(td.alt-arts-cell) .card-cell {
+    width: 12rem;
     min-width: 12rem;
   }
 }
@@ -8046,6 +8107,16 @@ button.ghost.scan-tray-fix {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: var(--shadow-lift);
+}
+
+/* A short landscape screen has no room above the button: the panel takes the screen instead (#968). */
+@media (max-height: 520px) {
+  .lightbox-history-pop {
+    position: fixed;
+    top: 0.5rem;
+    bottom: auto;
+    max-height: calc(100dvh - 1rem);
+  }
 }
 
 /* Only one floating panel at a time. */

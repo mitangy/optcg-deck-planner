@@ -495,3 +495,89 @@ def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):
     get_settings.cache_clear()
     assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 200
     assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-opus-5-5"
+
+
+def _answered_thread(c, h, scope: str | None = None, title: str = "t") -> int:
+    body = {"title": title} if scope is None else {"title": title, "scope": scope}
+    tid = c.post("/analyst/chat/threads", json=body, headers=h).json()["id"]
+    msgs = {"messages": [{"role": "user", "content": "hi"}, {"role": "assistant", "content": [{"type": "text", "text": "yo"}]}]}
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json=msgs, headers=h).status_code == 204
+    return tid
+
+
+def test_a_thread_keeps_the_scope_it_was_made_with_970(chat):
+    """The scope is stored on create and comes back on the list and the view; no scope means general (#970)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    made = c.post("/analyst/chat/threads", json={"title": "m", "scope": "match:abc123-r1"}, headers=h).json()
+    assert made["scope"] == "match:abc123-r1"
+    plain = _answered_thread(c, h)
+    matched = _answered_thread(c, h, "deck:duel:0b9c-4f")
+    rows = {t["id"]: t["scope"] for t in c.get("/analyst/chat/threads").json()["threads"]}
+    assert rows == {plain: "general", matched: "deck:duel:0b9c-4f"}
+    assert c.get(f"/analyst/chat/threads/{matched}").json()["scope"] == "deck:duel:0b9c-4f"
+
+
+@pytest.mark.parametrize("scope", ["", "match:", "match:a b", "match:" + "x" * 65, "deck:planner:abc", "deck:planner:1234567890123", "deck:other:1", "General", "match:ok\n"])
+def test_a_malformed_thread_scope_is_rejected_970(chat, scope):
+    """Only the four scope shapes are accepted, on create and as a list filter (#970)."""
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    assert c.post("/analyst/chat/threads", json={"title": "x", "scope": scope}, headers=h).status_code == 422
+    assert c.get("/analyst/chat/threads", params={"scope": scope}).status_code == 422
+
+
+def test_the_thread_list_filters_by_scope_and_player_970(chat):
+    """?scope= lists only that scope's answered threads, newest first, and never another player's (#970)."""
+    c, SessionLocal = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    older = _answered_thread(c, h, "match:g1")
+    _answered_thread(c, h, "match:g2")
+    _answered_thread(c, h)
+    newer = _answered_thread(c, h, "match:g1")
+    c.post("/analyst/chat/threads", json={"scope": "match:g1"}, headers=h)  # unanswered: not listed
+    db = SessionLocal()
+    try:
+        theirs = AnalystThread(user_id=_users(c, "alice")[0], title="theirs", scope="match:g1")
+        db.add(theirs)
+        db.commit()
+        db.add(AnalystMessage(thread_id=theirs.id, role="user", content='"hi"'))
+        db.commit()
+    finally:
+        db.close()
+    c.post("/auth/dev-login")
+    got = c.get("/analyst/chat/threads", params={"scope": "match:g1"}).json()["threads"]
+    assert [t["id"] for t in got] == [newer, older]
+    assert {t["scope"] for t in got} == {"match:g1"}
+    assert len(c.get("/analyst/chat/threads").json()["threads"]) == 4
+
+
+def test_match_history_flags_only_your_own_chat_about_a_game_970(chat):
+    """has_chat is true for a game you have an answered match-scoped thread on, not for someone else's (#970)."""
+    c, SessionLocal = chat
+    me, body = _session(c)
+    h = _as(body["token"])
+    a, b = _users(c, "alice", "bob")
+    _ingest(c, "chatted", me["id"], a, 0)
+    _ingest(c, "unanswered", me["id"], a, 0)
+    _ingest(c, "theirs-only", me["id"], a, 0)
+    _ingest(c, "other-scope", me["id"], a, 0)
+    _answered_thread(c, h, "match:chatted")
+    _answered_thread(c, h, "deck:duel:other-scope")
+    c.post("/analyst/chat/threads", json={"scope": "match:unanswered"}, headers=h)
+    db = SessionLocal()
+    try:
+        for who, scope in ((a, "match:theirs-only"), (a, "match:chatted")):
+            row = AnalystThread(user_id=who, title="x", scope=scope)
+            db.add(row)
+            db.commit()
+            db.add(AnalystMessage(thread_id=row.id, role="user", content='"hi"'))
+        db.commit()
+    finally:
+        db.close()
+    c.post("/auth/dev-login")
+    flags = {m["match_id"]: m["has_chat"] for m in c.get("/duel/matches/me").json()["matches"]}
+    assert flags == {"chatted": True, "unanswered": False, "theirs-only": False, "other-scope": False}
