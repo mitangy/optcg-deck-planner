@@ -288,6 +288,24 @@ describe("OP09-093 Marshall.D.Teach negate durations", () => {
   });
 });
 
+describe("OP14-033 Perona cannot be rested", () => {
+  it("OP14-033 target shows Cannot be rested until the end of the opponent's next turn (#985)", () => {
+    const h = new Harness();
+    h.hand(0, "OP14-033");
+    h.don(0, 10);
+    h.field(1, FILLER);
+    h.play(0, "OP14-033");
+    h.pick(FILLER);
+    expect(h.view(0).opponent.characters[0]!.statusLabels).toContain("Cannot be rested");
+
+    h.act(0, { type: "end_turn" });
+    expect(h.view(1).you.characters[0]!.statusLabels).toContain("Cannot be rested");
+
+    h.act(1, { type: "end_turn" });
+    expect(h.view(0).opponent.characters[0]!.statusLabels).not.toContain("Cannot be rested");
+  });
+});
+
 describe("replacement effects (OP16-014 Marco)", () => {
   it("offers to K.O. Marco instead when an opponent's effect would remove your Character", () => {
     const h = new Harness();
