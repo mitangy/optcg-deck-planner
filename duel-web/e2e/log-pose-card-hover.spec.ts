@@ -60,7 +60,7 @@ async function briefOnBoard(page: Page, duel: { startPractice: (o: { seed: numbe
   await stubLogPose(page);
   await duel.startPractice({ seed: 11 });
   const panel = page.getByRole("dialog", { name: /Log Pose/ });
-  if (!opensItself) await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  if (!opensItself) await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   await expect(panel).toBeVisible();
   await expect.poll(() => panel.evaluate((el) => el.getAnimations().length)).toBe(0);
   await panel.getByRole("button", { name: "Get brief" }).click();

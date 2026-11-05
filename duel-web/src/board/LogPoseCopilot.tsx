@@ -499,5 +499,6 @@ export function useLogPoseCopilot(o: {
   const pill = running ? <CopilotPill run={activeRun} auto={autoState} onStop={actions.stop} /> : null;
 
   // The one Log Pose button lives in DuelBoard (LogPoseMatchButton): this only says whether it is needed and busy.
-  return { shown, running, pill: shown ? pill : null };
+  // The pill stays up while the device shows the other seat (the button does not), so it is not tied to `shown`.
+  return { shown, running, pill };
 }

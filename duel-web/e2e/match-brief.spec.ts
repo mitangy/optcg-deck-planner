@@ -95,7 +95,7 @@ async function checkBrief(page: Page, duel: { startPractice: (o: { seed: number 
   const logPose = await stubLogPose(page);
   await duel.startPractice({ seed: 11 });
 
-  const trigger = page.getByRole("button", { name: "Matchup brief", exact: true });
+  const trigger = page.getByRole("button", { name: "Log Pose", exact: true });
   const panel = page.getByRole("dialog", { name: /Log Pose/ });
   const brief = panel.locator(".match-brief-pinned");
   const playmat = page.locator(".playmat");
@@ -327,7 +327,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   const roomId = body.room?.roomId ?? body.roomId;
   expect(roomId).toBeTruthy();
   // The player has a Brief button, so the room does mint tickets; the watcher must still get none.
-  await expect(page.getByRole("button", { name: "Matchup brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Log Pose", exact: true })).toBeVisible();
 
   const watcher = await browser.newContext({ ...info.project.use });
   const spec = await watcher.newPage();
@@ -345,7 +345,6 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   await expect(spec.locator(":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile")).toHaveCount(5, { timeout: 30_000 });
   // Nothing of the brief, and no Log Pose compass or panel on the board.
   await spec.waitForTimeout(500);
-  await expect(spec.getByRole("button", { name: "Matchup brief" })).toHaveCount(0);
   await expect(spec.locator(".match-brief-pinned")).toHaveCount(0);
   await expect(spec.getByRole("button", { name: "Log Pose", exact: true })).toHaveCount(0);
   await watcher.close();

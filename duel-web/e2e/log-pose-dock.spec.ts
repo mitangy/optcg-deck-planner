@@ -447,7 +447,7 @@ test("on a board, docking puts the panel in that side's column in place of an em
   await expect(panel(page)).toHaveCount(0);
   await expect(page.locator(".lp-dock-host")).toHaveCount(0);
   expect((await left.boundingBox())!.width).toBeLessThan(320);
-  await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
   // The matchup brief stays pinned at the top of the chat.
   await expect(left.locator(".lp-dock-host .lp-pinned .match-brief-pinned")).toBeVisible();
@@ -508,7 +508,7 @@ test("a docked Log Pose is dragged by its grip below another panel, and stays th
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await expect(page.locator('[data-panel="logpose"]')).toHaveCount(0);
-  await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
   const order = await columnOrder(page, "right");
   expect(order.indexOf("logpose")).toBeGreaterThan(order.indexOf("turn"));
@@ -538,7 +538,7 @@ test("dragging a docked Log Pose's grip into the other column moves the dock the
   // Closing and reopening keeps it in that slot of the left column.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
-  await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+  await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
   const again = await columnOrder(page, "left");
   expect(again.indexOf("logpose")).toBe(again.indexOf(first) + 1);
@@ -620,7 +620,7 @@ test.describe("landscape phone", () => {
 
   test("a landscape phone's board has no side columns, so the panel floats and dragging to an edge shows no dock (#432)", async ({ page, duel }) => {
     await duel.startPractice({ seed: 11 });
-    await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+    await page.getByRole("button", { name: "Log Pose", exact: true }).click();
     await expect(panel(page)).toBeVisible();
     await expect.poll(() => panel(page).evaluate((el) => el.getAnimations().length)).toBe(0);
     await expect(page.locator('[data-panel-col]')).toHaveCount(0);

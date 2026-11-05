@@ -320,7 +320,7 @@ async function expectTopBarFits(page: Page) {
 }
 
 /**
- * The desktop text buttons (Brief, Log Pose) hug their label with the same padding on both sides (#463): content
+ * The desktop text buttons (Log Pose, the match menu) hug their label with the same padding on both sides (#463): content
  * (text + icon) is at least 8px from each border, left and right within 2px, and nothing overflows the box.
  * Returns how many were measured so a caller can refuse a vacuous pass.
  */
@@ -351,7 +351,7 @@ async function expectTopBarButtonsPadded(page: Page) {
     }
     return out;
   });
-  expect(rows.length, "Brief and Log Pose both measured").toBeGreaterThanOrEqual(2);
+  expect(rows.length, "the Log Pose button was measured").toBeGreaterThanOrEqual(1);
   for (const r of rows) {
     expect(r.left, `${r.name} left gap`).toBeGreaterThanOrEqual(8);
     expect(r.right, `${r.name} right gap`).toBeGreaterThanOrEqual(8);
@@ -409,13 +409,12 @@ async function finishOpponentDefence(page: Page) {
   await lifeCheck.click();
 }
 
-test("the Log Pose button is not on the board while the copilot setting is off (#416)", async ({ page, duel }) => {
+test("the Log Pose button is not on the board while the copilot and brief settings are both off (#416, #993)", async ({ page, duel }) => {
+  await setSettings(page, { matchBrief: false, logPoseCopilot: false });
   await stubLogPose(page);
   await duel.startPractice({ seed: 7 });
   await keepBothHands(page);
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
-  // Brief is on by default, so the bar did render its buttons: only Log Pose's is missing.
-  await expect(page.getByRole("button", { name: "Matchup brief", exact: true })).toBeVisible();
   await expect(logPoseButton(page)).toHaveCount(0);
   await expect(page.locator(".lp-rail-btn")).toHaveCount(0);
 });
@@ -428,7 +427,8 @@ test("the matchup brief's Log Pose panel sees your opening hand with the copilot
   await duel.startPractice({ seed: 7 });
   // Mulligan step: the brief opened the panel over the board; no keep yet.
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "mulligan");
-  await expect(logPoseButton(page)).toHaveCount(0);
+  // The one Log Pose button (the brief's entry) is on the bar: the copilot setting is off but the panel still opens (#993).
+  await expect(logPoseButton(page)).toHaveCount(1);
   await expect(panel(page)).toBeVisible();
   await panel(page).locator(".lp-input").fill("Should I mulligan?");
   await panel(page).locator(".lp-input").press("Enter");
@@ -458,13 +458,12 @@ test.describe("landscape phone", () => {
 
 test.describe("desktop top bar padding", () => {
   for (const vp of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }]) {
-    test(`the Brief and Log Pose buttons keep even padding in the desktop top bar at ${vp.width}x${vp.height} (#463)`, async ({ page, duel }, info) => {
+    test(`the Log Pose button keeps even padding in the desktop top bar at ${vp.width}x${vp.height} (#463)`, async ({ page, duel }, info) => {
       test.skip(info.project.name !== "desktop-1280", "desktop only: the phone bar uses icon boxes");
       await page.setViewportSize(vp);
       await setSettings(page, { logPoseCopilot: true });
       await stubLogPose(page);
       await duel.startPractice({ seed: 7 });
-      await expect(page.getByRole("button", { name: "Matchup brief", exact: true })).toBeVisible();
       await expect(logPoseButton(page)).toContainText("Log Pose");
       await expectTopBarButtonsPadded(page);
     });
@@ -707,4 +706,56 @@ test("Stop while Log Pose is deciding a choice leaves the choice to the player a
   await page.waitForTimeout(1500);
   expect(lp.chats).toHaveLength(2);
   expect(duel.errors).toEqual([]);
+});
+
+test("One Log Pose button in a match when both the brief and copilot are on (#993)", async ({ page, duel }) => {
+  await setSettings(page, { matchBrief: true, logPoseCopilot: true });
+  await stubLogPose(page);
+  await duel.startPractice({ seed: 7 });
+  const button = logPoseButton(page);
+  await expect(button).toHaveCount(1);
+  await expect(button).toBeVisible();
+  // Nothing else in the top bar opens Log Pose: no second Brief / Matchup brief button.
+  await expect(page.locator(".arena .hud-bar .hud-brief-btn")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /Brief/ })).toHaveCount(0);
+  // The phone bar settles first: on a wide screen the panel opens itself for the mulligan, on a phone it waits.
+  await expect(button).toHaveAttribute("aria-expanded", /true|false/);
+  const wasOpen = (await button.getAttribute("aria-expanded")) === "true";
+  if (wasOpen) {
+    await button.click();
+    await expect(panel(page)).toHaveCount(0);
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+  }
+  await button.click();
+  await expect(panel(page)).toBeVisible();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  // The brief rides pinned at the top of the same panel.
+  await expect(panel(page).locator(".match-brief-pinned")).toBeVisible();
+  await button.click();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(button).toHaveCount(1);
+});
+
+test.describe("landscape phone, one Log Pose rail button (#993)", () => {
+  test.use({ viewport: { width: 812, height: 375 }, hasTouch: true });
+
+  for (const settings of [{ matchBrief: true, logPoseCopilot: true }, { matchBrief: false, logPoseCopilot: true }, { matchBrief: true, logPoseCopilot: false }]) {
+    test(`the rail has one Log Pose button with ${JSON.stringify(settings)} (#993)`, async ({ page, duel }, info) => {
+      test.skip(info.project.name !== "desktop-1280", "one run is enough: the viewport is set here");
+      await setSettings(page, settings);
+      await stubLogPose(page);
+      await duel.startPractice({ seed: 7 });
+      const button = logPoseButton(page);
+      await expect(button).toHaveCount(1);
+      await expect(button).toHaveClass(/lp-rail-btn/);
+      await expect(page.getByRole("button", { name: /Brief/ })).toHaveCount(0);
+      // Battle log and Log Pose (a practice game has no chat): the rail never grows a second Log Pose button.
+      await expect(page.locator(".lp-rail .lp-rail-btn")).toHaveCount(2);
+      await button.click();
+      await expect(panel(page)).toBeVisible();
+      await button.click();
+      await expect(panel(page)).toHaveCount(0);
+    });
+  }
 });
