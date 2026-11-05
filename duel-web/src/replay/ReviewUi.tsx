@@ -1,5 +1,5 @@
 /** The game review (#967) on the replay controls: the grade badge, the strip under the controls, and the summary. */
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   CLASS_LABEL,
   keyMoments,
@@ -7,6 +7,7 @@ import {
   pct,
   showBestRequest,
   summaryRows,
+  turnLabel,
   winAt,
   type KeyMoment,
   type MoveClass,
@@ -172,12 +173,18 @@ export function ReviewSummary({
   onGo,
   onClose,
   headingRef,
+  grip = null,
+  now = null,
 }: {
   review: ReviewState;
   viewer: ReviewViewer;
   onGo(step: number): void;
   onClose(): void;
   headingRef?: React.Ref<HTMLHeadingElement>;
+  /** The floating panel's keyboard move grip (desktop). */
+  grip?: ReactNode;
+  /** The move the replay is at, in full (phones: the strip there keeps to two lines, #986). */
+  now?: ReviewedMove | null;
 }) {
   const { playerNames, yourSeat } = viewer;
   const r = review.review;
@@ -188,6 +195,7 @@ export function ReviewSummary({
   return (
     <div className="rv-summary">
       <div className="rv-summary-head">
+        {grip}
         <h2 className="rv-summary-title" tabIndex={-1} ref={headingRef}>
           Game review
         </h2>
@@ -198,6 +206,24 @@ export function ReviewSummary({
       <p className="rv-summary-status" role="status">
         {running ? `Reviewing the game… ${Math.round(review.progress * 100)}%` : review.status === "failed" ? "The review stopped early. Showing what it graded." : ESTIMATE_NOTE}
       </p>
+      {now ? (
+        <div className="rv-now" aria-label="The move on screen">
+          <div className="rv-now-head">
+            {now.cls ? <GradeBadge cls={now.cls} size={18} /> : null}
+            <strong className={now.cls ? `rv-ink rv-ink-${now.cls}` : undefined}>{now.cls ? CLASS_LABEL[now.cls] : "Not ranked"}</strong>
+            <span className="rv-muted">the move on screen</span>
+          </div>
+          <p className="rv-now-line">
+            {now.played.label}
+            {now.playedWin != null ? ` · ${pct(now.playedWin)}` : ""}
+          </p>
+          {now.options > 0 && now.cls !== "best" && now.cls !== "great" ? (
+            <p className="rv-now-line">
+              Best: {now.best.label} <span className="rv-muted">({pct(now.bestWin)})</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {running ? (
         <div className="rv-progress" aria-hidden>
           <span style={{ width: `${Math.round(review.progress * 100)}%` }} />
@@ -248,7 +274,7 @@ export function ReviewSummary({
                   <span className="rv-moment-top">
                     <strong className={m.kind === "move" ? `rv-ink rv-ink-${m.cls}` : "rv-ink rv-ink-best"}>{momentTitle(m)}</strong>
                     <span className="rv-muted">
-                      T{m.turn} · {name(m.seat)}
+                      {turnLabel(m.turn)} · {name(m.seat)}
                     </span>
                   </span>
                   <span className="rv-moment-sub">
@@ -268,22 +294,4 @@ export function ReviewSummary({
       )}
     </div>
   );
-}
-
-/** Keeps `ref`'s element from growing taller than the room above the point it hangs from (a popover docked over a fixed bar). */
-export function useRoomAbove(ref: React.RefObject<HTMLElement | null>, anchor: React.RefObject<HTMLElement | null>, active: boolean): void {
-  useLayoutEffect(() => {
-    if (!active) return;
-    const fit = () => {
-      const a = anchor.current;
-      const el = ref.current;
-      if (!a || !el) return;
-      // Below the top bar, and 0.5rem above the anchor (the pop's own gap) plus a little air.
-      const barBottom = document.querySelector(".hud-bar")?.getBoundingClientRect().bottom ?? 0;
-      el.style.maxHeight = `${Math.max(160, Math.floor(a.getBoundingClientRect().top - Math.max(barBottom, 0) - 24))}px`;
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [ref, anchor, active]);
 }

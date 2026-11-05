@@ -4,8 +4,9 @@ import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { isTyping } from "../board/useBoardHotkeys";
 import { PLAY_SPEEDS, type PlaySpeed } from "./replayCursor";
 import type { ReplayControlsActions, ReplayControlsState } from "./useReplay";
-import { reviewTicks, turnMarks } from "./reviewModel";
-import { ReviewStrip, ReviewSummary, TurnGlyph, useRoomAbove } from "./ReviewUi";
+import { moveStatus, reviewTicks, turnMarks } from "./reviewModel";
+import { ReviewStrip, ReviewSummary, TurnGlyph } from "./ReviewUi";
+import { ReviewPanel } from "./ReviewPanel";
 import type { ReviewState } from "./useGameReview";
 import "./replay.css";
 
@@ -90,11 +91,9 @@ export function ReplayControls({
   const [moreOpen, setMoreOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
   const reviewBtnRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const showReview = review != null && review.status !== "off";
-  useRoomAbove(popRef, rootRef, showReview && reviewOpen && !compact);
   useEffect(() => {
     if (!reviewOpen || compact) return;
     headingRef.current?.focus({ preventScroll: true });
@@ -186,11 +185,16 @@ export function ReplayControls({
       <span className="replay-review-btn-text">Review</span>
     </button>
   ) : null;
-  const summary = showReview ? (
+  // Phones' strip keeps to two lines, so the sheet spells out the move on screen in full.
+  const now = compact && showReview ? moveStatus(review.review, { done: review.status === "done", progress: review.progress }, step, branch != null, total) : null;
+  const summary = (grip?: ReactNode) =>
+    showReview ? (
     <ReviewSummary
       review={review}
       viewer={viewer}
       headingRef={headingRef}
+      grip={grip}
+      now={now?.kind === "move" ? now.move : null}
       onClose={() => {
         setReviewOpen(false);
         reviewBtnRef.current?.focus();
@@ -201,7 +205,7 @@ export function ReplayControls({
         if (compact) setReviewOpen(false);
       }}
     />
-  ) : null;
+    ) : null;
   return (
     <div className={`replay-controls${compact ? " replay-compact" : ""}`} role="group" aria-label="Replay controls" ref={rootRef}>
       {note || reserveRow || resultSlot ? (
@@ -326,14 +330,12 @@ export function ReplayControls({
       </div>
 
       {showReview && reviewOpen && !compact ? (
-        <div className="replay-review-pop" role="dialog" aria-label="Game review" ref={popRef}>
-          {summary}
-        </div>
+        <ReviewPanel anchorRef={rootRef} render={summary} />
       ) : null}
 
       {showReview && reviewOpen && compact ? (
         <Dialog open onClose={() => setReviewOpen(false)} className="replay-more-backdrop" panelClassName="replay-review-sheet" label="Game review">
-          {summary}
+          {summary()}
         </Dialog>
       ) : null}
 

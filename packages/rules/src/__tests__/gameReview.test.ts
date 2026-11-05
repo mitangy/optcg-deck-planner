@@ -185,6 +185,29 @@ describe("game review (#967)", () => {
     expect(turns).toEqual([...turns].sort((a, b) => a - b));
   });
 
+  it("the mulligan before the first turn is not a turn of its own: no \"turn 0\" summary or good turn (#986)", () => {
+    // A game played with mulligans starts at turn number 0 (the mulligan phase) and turn 1 begins once both are done.
+    const base = golden(30);
+    const first = base.firstSeat;
+    const withMulligans: MatchReplay = {
+      ...base,
+      skipMulligans: false,
+      intents: [
+        { seat: first, intent: { type: "mulligan", doMulligan: false } },
+        { seat: (1 - first) as Seat, intent: { type: "mulligan", doMulligan: false } },
+        ...base.intents,
+      ],
+    };
+    // The win chance rises while the mulligan phase is open, so a "turn 0" would count as a good one.
+    winOf = (s) => (s.turnNumber === 0 ? 0.3 : 0.6);
+    const { review } = run(withMulligans);
+    expect(review.evals[0]).toMatchObject({ step: 0, turn: 0 });
+    expect(review.evals.some((e) => e.turn === 1)).toBe(true);
+    expect(review.turns.filter((t) => t.turn < 1 && t.active)).toEqual([]);
+    expect(review.turns.some((t) => t.turn < 1 && t.goodTurn)).toBe(false);
+    expect(review.turns.some((t) => t.turn === 1 && t.active)).toBe(true);
+  });
+
   it("a replay that diverges is reviewed up to the bad intent and says where (#967)", () => {
     const base = golden(40);
     const bad = 12;
