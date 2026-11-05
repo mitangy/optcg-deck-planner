@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyMoments, moveStatus, reviewTicks, showBestRequest, turnMarks, winAt, type GameReview, type MoveClass, type ReviewedMove, type Seat } from "./reviewModel";
+import { keyMoments, moveStatus, reviewTicks, showBestRequest, turnLabel, turnMarks, winAt, type GameReview, type MoveClass, type ReviewedMove, type Seat } from "./reviewModel";
 
 const intent = (n: number) => ({ type: "pass", n }) as unknown as ReviewedMove["played"]["intent"];
 const move = (step: number, seat: Seat, turn: number, cls: MoveClass | null, extra: Partial<ReviewedMove> = {}): ReviewedMove => ({
@@ -130,5 +130,13 @@ describe("keyMoments", () => {
   });
   it("is empty without a review (#967)", () => {
     expect(keyMoments(null)).toEqual([]);
+  });
+});
+
+describe("turnLabel", () => {
+  it("names the mulligan before the first turn, not a turn 0 (#986)", () => {
+    expect(turnLabel(0)).toBe("Mulligan");
+    expect(turnLabel(1)).toBe("T1");
+    expect(turnLabel(14)).toBe("T14");
   });
 });

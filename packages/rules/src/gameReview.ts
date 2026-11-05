@@ -205,7 +205,8 @@ export function createGameReviewer(replay: MatchReplay, opts: ReviewOptions = {}
       const turns: TurnSummary[] = [];
       const seen = new Set<string>();
       evals.forEach((e, idx) => {
-        if (e.final) return;
+        // Turn 0 is the mulligan phase before the first turn (the start point is kept for the win chance): not a turn to summarise (#986).
+        if (e.final || e.turn < 1) return;
         // The seat's own next turn start (or the end of the game), so both points have the move.
         const nextPoint = evals.slice(idx + 1).find((p) => p.final || p.activeSeat === e.activeSeat);
         const k = `${e.turn}:${e.activeSeat}`;

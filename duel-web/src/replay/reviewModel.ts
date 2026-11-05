@@ -120,6 +120,11 @@ export function keyMoments(review: GameReview | null): KeyMoment[] {
   return out.sort((a, b) => a.step - b.step || Number(a.kind === "goodTurn") - Number(b.kind === "goodTurn"));
 }
 
+/** A turn as the review names it: "T5", or "Mulligan" for the choice before the first turn begins (turn number 0, #986). */
+export function turnLabel(turn: number): string {
+  return turn < 1 ? "Mulligan" : `T${turn}`;
+}
+
 /** Percent for display: whole numbers, never "-0". */
 export function pct(n: number): string {
   return `${Math.round(Math.min(100, Math.max(0, n)))}%`;
