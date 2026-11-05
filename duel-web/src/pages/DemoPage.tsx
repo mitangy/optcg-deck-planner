@@ -700,7 +700,7 @@ function withManyStatuses(base: PlayerView): PlayerView {
   const many = ["Blocker", "Rush", "Double Attack", "Banish", "Unblockable"];
   const tag = (c: CardView, labels: string[]): CardView => ({
     ...c,
-    statusLabels: [...(c.statusLabels ?? []), ...labels],
+    statusLabels: [...new Set([...(c.statusLabels ?? []), ...labels])],
   });
   const [c1, c2, c3, ...rest] = base.you.characters;
   return {
