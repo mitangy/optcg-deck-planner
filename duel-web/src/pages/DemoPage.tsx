@@ -153,7 +153,7 @@ export const DEMO_VIEW: PlayerView = {
         defId: "ST01-008",
         power: 4000,
         printedPower: 5000,
-        statusLabels: ["Nullified"],
+        statusLabels: ["Nullified", "Cannot be rested"],
       },
       {
         id: "o-c2",
@@ -700,7 +700,7 @@ function withManyStatuses(base: PlayerView): PlayerView {
   const many = ["Blocker", "Rush", "Double Attack", "Banish", "Unblockable"];
   const tag = (c: CardView, labels: string[]): CardView => ({
     ...c,
-    statusLabels: [...(c.statusLabels ?? []), ...labels],
+    statusLabels: [...new Set([...(c.statusLabels ?? []), ...labels])],
   });
   const [c1, c2, c3, ...rest] = base.you.characters;
   return {
@@ -718,7 +718,7 @@ function withManyStatuses(base: PlayerView): PlayerView {
     opponent: {
       ...base.opponent,
       leader: tag(base.opponent.leader, ["Blocker", "Won't refresh"]),
-      characters: base.opponent.characters.map((c) => tag(c, ["Blocker", "Rush"])),
+      characters: base.opponent.characters.map((c) => tag(c, ["Blocker", "Rush", "Cannot be rested"])),
     },
   };
 }

@@ -16,6 +16,7 @@ export type StatusGlyph =
   | "double"
   | "banish"
   | "no-refresh"
+  | "no-rest"
   | "star"
   | "lock";
 
@@ -44,12 +45,20 @@ const STUN: StatusEntry = {
   text: "Stunned by an effect: it can't act until the effect ends.",
 };
 
+const NO_REST: StatusEntry = {
+  glyph: "no-rest",
+  tone: "disable",
+  text: "An effect stops it from being rested, so it can't attack or use [Blocker].",
+};
+
 const TABLE = new Map<string, StatusEntry>([
   ["effects negated", NEGATED],
   ["nullified", NEGATED],
   ["rested", { glyph: null, tone: "rested", text: "Turned sideways: it can't attack or block until its controller's next Refresh Phase untaps it." }],
   ["cannot attack", { glyph: "no-attack", tone: "disable", text: "An effect stops it from declaring attacks." }],
   ["can't attack", { glyph: "no-attack", tone: "disable", text: "An effect stops it from declaring attacks." }],
+  ["cannot be rested", NO_REST],
+  ["can't be rested", NO_REST],
   ["cannot block", { glyph: null, tone: "disable", text: "An effect stops it from blocking." }],
   ["can't block", { glyph: null, tone: "disable", text: "An effect stops it from blocking." }],
   ["summoning sick", { glyph: "sleep", tone: "sick", text: "Played this turn: it can't attack until its controller's next turn (Rush skips this)." }],
@@ -62,7 +71,7 @@ const TABLE = new Map<string, StatusEntry>([
   ["won't refresh", { glyph: "no-refresh", tone: "disable", text: "It stays rested through its controller's next Refresh Phase." }],
   ["stun", STUN],
   ["stunned", STUN],
-  ["unrestable", { glyph: "lock", tone: "protect", text: "Opponent effects can't rest it." }],
+  ["unrestable", { glyph: "lock", tone: "protect", text: "Your opponent's effects can't rest it." }],
 ]);
 
 /** Engine labels are fixed strings, but card scripts add free-form ones, so match loosely. */
