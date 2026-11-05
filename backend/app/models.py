@@ -1070,7 +1070,7 @@ class Feedback(Base):
     # bug | idea | other
     kind: Mapped[str] = mapped_column(String(16))
     message: Mapped[str] = mapped_column(Text)
-    # duel | planner
+    # duel | planner | discord (filed by the Den Den Mushi bot from a Discord post, #979)
     app: Mapped[str] = mapped_column(String(16))
     # Path only (no query string), e.g. /demo.
     page: Mapped[str] = mapped_column(String(200), default="")
@@ -1082,6 +1082,11 @@ class Feedback(Base):
     user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # Discord message (or forum thread) id the ticket came from; unique so a post is filed once.
+    discord_message_id: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True, index=True)
+    discord_author: Mapped[str] = mapped_column(String(64), default="")
+    # GitHub issue opened for a Discord ticket; set once so a retry never opens a second.
+    github_issue: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
