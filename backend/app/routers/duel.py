@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Request, Response
 from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -25,6 +25,7 @@ from app.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
 from app.config import Settings, get_settings
 from app.db import get_db
+from app.discord_notify import card_report_message, post_to_discord
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
 from app.moderation import recent_takedowns
@@ -968,6 +969,7 @@ def _report_out(row: CardReport, user: User | None) -> CardReportOut:
 def create_card_report(
     body: CardReportIn,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     session_user: Annotated[User | None, Depends(get_optional_user)],
@@ -988,6 +990,12 @@ def create_card_report(
     db.add(row)
     db.commit()
     db.refresh(row)
+    if settings.discord_feedback_webhook_url:
+        background_tasks.add_task(
+            post_to_discord,
+            settings.discord_feedback_webhook_url,
+            card_report_message(row, duel_display_name(user) if user is not None else "anonymous"),
+        )
     return _report_out(row, user)
 
 

@@ -51,6 +51,9 @@ services:
       # Spend caps default to $3/day per player and $50/month total (backend/app/config.py).
       - key: ANALYST_CHAT_EMAILS
         sync: false
+      # Discord webhook for the private bugs-and-feedback channel (#979). Empty: no posts.
+      - key: DISCORD_FEEDBACK_WEBHOOK_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
