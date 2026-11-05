@@ -371,6 +371,171 @@ test.describe("game review (#967)", () => {
     expect(errors).toEqual([]);
   });
 
+  // Text is wrapped, never cut off: no ellipsis, nothing wider or taller than its box (#986).
+  const uncut = (page: Page, selector: string) =>
+    page.locator(selector).evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        return { text: (el.textContent ?? "").trim(), ellipsis: cs.textOverflow === "ellipsis" && cs.whiteSpace === "nowrap", wide: el.scrollWidth > el.clientWidth + 1, tall: el.scrollHeight > el.clientHeight + 1 };
+      }),
+    );
+  const popup = (page: Page) => page.getByRole("dialog", { name: "Game review" });
+
+  test("the desktop panel drags by its header, resizes from its edges, stays usable beside the board and is where it was left (#986)", async ({ page }) => {
+    test.skip(page.viewportSize()!.width < 900, "the floating panel is desktop-only; phones get a sheet");
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await setUp(page);
+    await openFromHistory(page);
+    const controls = page.getByRole("group", { name: "Replay controls" });
+    const dockBefore = (await controls.boundingBox())!;
+    await reviewBtn(page).click();
+    await expect(page.getByText("Grades are bot-simulation estimates.")).toBeVisible({ timeout: 100_000 });
+    const box = async () => (await popup(page).boundingBox())!;
+    const first = await box();
+    // Opening it moves nothing in the dock.
+    expect(await controls.boundingBox()).toEqual(dockBefore);
+
+    // The header is the grip.
+    const head = (await popup(page).locator(".rv-summary-head").boundingBox())!;
+    const grab = { x: head.x + head.width / 2, y: head.y + head.height / 2 };
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x - 150, grab.y + 20, { steps: 4 });
+    await page.mouse.move(grab.x - 300, grab.y + 40, { steps: 4 });
+    await page.mouse.up();
+    const moved = await box();
+    expect(Math.abs(moved.x - (first.x - 300))).toBeLessThanOrEqual(1);
+    expect(Math.abs(moved.y - (first.y + 40))).toBeLessThanOrEqual(1);
+    expect(moved.width).toBe(first.width);
+    expect(await controls.boundingBox()).toEqual(dockBefore);
+
+    // The left edge widens it and leaves the right edge where it is.
+    const edge = async (name: string) => (await popup(page).locator(`[data-edge="${name}"]`).boundingBox())!;
+    let e = await edge("left");
+    await page.mouse.move(e.x + e.width / 2, e.y + e.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(e.x + e.width / 2 - 60, e.y + e.height / 2, { steps: 4 });
+    await page.mouse.up();
+    const wider = await box();
+    expect(Math.abs(wider.width - (moved.width + 60))).toBeLessThanOrEqual(1);
+    expect(Math.abs(wider.x + wider.width - (moved.x + moved.width))).toBeLessThanOrEqual(1);
+    // The bottom-right corner resizes both ways.
+    e = await edge("bottom-right");
+    await page.mouse.move(e.x + e.width / 2, e.y + e.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(e.x + e.width / 2 + 40, e.y + e.height / 2 - 80, { steps: 4 });
+    await page.mouse.up();
+    const sized = await box();
+    expect(Math.abs(sized.width - (wider.width + 40))).toBeLessThanOrEqual(1);
+    expect(Math.abs(sized.height - (wider.height - 80))).toBeLessThanOrEqual(1);
+    expect(sized.x).toBe(wider.x);
+    // The arrow keys on a handle resize too.
+    await popup(page).locator('[data-edge="right"]').focus();
+    await page.keyboard.press("ArrowRight");
+    expect(Math.abs((await box()).width - (sized.width + 16))).toBeLessThanOrEqual(1);
+    await popup(page).locator('[data-edge="right"]').press("ArrowLeft");
+
+    // Not modal: the board and the controls still work while it is open.
+    const before = await stepNow(page);
+    await page.getByRole("button", { name: "Step forward" }).click();
+    expect(await stepNow(page)).toBe(before + 1);
+    await expect(popup(page)).toBeVisible();
+
+    // Reload: the panel opens where and as big as it was left.
+    const placed = await box();
+    await page.reload();
+    await expect(controls).toBeVisible({ timeout: 30_000 });
+    await reviewBtn(page).click();
+    await expect(popup(page)).toBeVisible();
+    expect(await box()).toEqual(placed);
+
+    // Dragged to the bottom-right corner, a smaller window pulls it back inside; a bigger one gives the remembered place back.
+    const grip = (await popup(page).locator(".rv-summary-head").boundingBox())!;
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + grip.width / 2 + 900, grip.y + grip.height / 2 + 600, { steps: 4 });
+    await page.mouse.up();
+    const corner = await box();
+    expect(corner.x + corner.width).toBeGreaterThan(1000);
+    await page.setViewportSize({ width: 1000, height: 600 });
+    const small = await box();
+    expect(small.x).toBeGreaterThanOrEqual(0);
+    expect(small.y).toBeGreaterThanOrEqual(0);
+    expect(small.x + small.width).toBeLessThanOrEqual(1000);
+    expect(small.y + small.height).toBeLessThanOrEqual(600);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    expect(await box()).toEqual(corner);
+
+    // Double-clicking the header puts it back where it opens, and Escape closes it.
+    const h2 = (await popup(page).locator(".rv-summary-head").boundingBox())!;
+    await page.mouse.dblclick(h2.x + h2.width / 2, h2.y + h2.height / 2);
+    expect(await box()).toEqual(first);
+    await page.keyboard.press("Escape");
+    await expect(popup(page)).toHaveCount(0);
+    await expect(reviewBtn(page)).toBeFocused();
+    expect(errors).toEqual([]);
+  });
+
+  test("long key moments and the bar's grade and best move wrap instead of being cut off (#986)", async ({ page }) => {
+    const desktop = page.viewportSize()!.width >= 900;
+    await openReview(page);
+    const moments = page.locator(".rv-moment-sub");
+    await expect(moments.first()).toBeVisible();
+    expect(await uncut(page, ".rv-moment-sub, .rv-moment-top")).toEqual(expect.not.arrayContaining([expect.objectContaining({ ellipsis: true })]));
+    expect((await uncut(page, ".rv-moment-sub, .rv-moment-top")).filter((r) => r.wide)).toEqual([]);
+    if (desktop) {
+      // Squeezed to its narrowest, the longest "→ best:" line takes a second line instead of an ellipsis.
+      const left = (await popup(page).locator('[data-edge="left"]').boundingBox())!;
+      await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(left.x + left.width / 2 + 400, left.y + left.height / 2, { steps: 4 });
+      await page.mouse.up();
+      expect((await popup(page).boundingBox())!.width).toBeLessThan(300);
+    }
+    const rows = await page.locator(".rv-moment-sub").evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        return { text: el.textContent ?? "", lines: Math.round(el.getBoundingClientRect().height / parseFloat(cs.lineHeight)), wide: el.scrollWidth > el.clientWidth + 1, ellipsis: cs.textOverflow === "ellipsis" };
+      }),
+    );
+    const best = rows.filter((r) => r.text.includes("→ best:"));
+    expect(best.length).toBeGreaterThan(0);
+    expect(rows.every((r) => !r.wide && !r.ellipsis)).toBe(true);
+    expect(Math.max(...best.map((r) => r.lines))).toBeGreaterThanOrEqual(2);
+  });
+
+  test("the bar's grade and Best line are whole on desktop and the controls under it never move; phones read them in the sheet (#986)", async ({ page }) => {
+    const desktop = page.viewportSize()!.width >= 900;
+    await openReview(page);
+    const transport = page.locator(".replay-transport");
+    const rest = (await transport.boundingBox())!;
+    // The dock hangs from the bottom of the window, so a taller strip would push its own top up: it must keep its box too.
+    const stripRest = (await strip(page).boundingBox())!;
+    // Every move that has a grade: the transport row stays where it is, and what the bar says is not cut off.
+    const ticks = await page.locator(".rv-moment").filter({ has: page.locator(".rv-ink-mistake, .rv-ink-blunder") }).count();
+    expect(ticks).toBeGreaterThan(0);
+    for (let i = 0; i < Math.min(ticks, 3); i += 1) {
+      if (!(await popup(page).count()) && !(await page.getByRole("heading", { name: "Key moments" }).count())) await reviewBtn(page).click();
+      await page.locator(".rv-moment").filter({ has: page.locator(".rv-ink-mistake, .rv-ink-blunder") }).nth(i).click();
+      expect(await transport.boundingBox()).toEqual(rest);
+      expect(await strip(page).boundingBox()).toEqual(stripRest);
+      if (desktop) {
+        const bar = await uncut(page, ".rv-label, .rv-alt-text");
+        expect(bar.length).toBeGreaterThan(0);
+        expect(bar.filter((r) => r.ellipsis || r.wide || r.tall)).toEqual([]);
+      } else {
+        // The sheet spells out the move on screen and the best one in full.
+        await reviewBtn(page).click();
+        const now = page.locator(".rv-now");
+        await expect(now).toContainText("Best:");
+        await expect(now.locator(".rv-now-line").first()).toHaveText(/\S/);
+        expect((await uncut(page, ".rv-now-line")).filter((r) => r.wide)).toEqual([]);
+        await page.getByRole("button", { name: "Close" }).click();
+      }
+    }
+  });
+
   test("the strip keeps its place while grades arrive and when stepping (#967)", async ({ page }) => {
     await setUp(page);
     await openFromHistory(page);

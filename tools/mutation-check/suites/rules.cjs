@@ -28,6 +28,7 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"cannot-be-rested-no-status","file":"packages/rules/src/engine/views.ts","from":"  if (hasRestriction(state, seat, c, \"cannot_be_rested\")) statuses.push(\"Cannot be rested\");\n","to":"","kills":["OP14-033 target shows Cannot be rested until the end of the opponent's next turn (#985)"]},
     {"id":"hand-reveal-not-recorded","file":"packages/rules/src/engine/runtime.ts","from":"        if (loc.zone === \"hand\") {\n          const p = state.players[loc.seat];","to":"        if (false as boolean) {\n          const p = state.players[loc.seat];","kills":["Cards revealed from hand stay visible to the opponent"]},
     {"id":"hand-reveal-survives-turn","file":"packages/rules/src/engine/procedure.ts","from":"  for (const player of state.players) delete player.revealedHandIds;","to":"","kills":["Reveals end when the next turn begins"]},
     {"id":"hand-reveal-survives-leaving-hand","file":"packages/rules/src/engine/state.ts","from":"      if (p.revealedHandIds) p.revealedHandIds = p.revealedHandIds.filter((id) => id !== loc.id);","to":"","kills":["no longer revealed, even if it returns"]},
@@ -1118,6 +1119,7 @@ module.exports = {
     {"id":"review-diverge-drops-moves","file":"packages/rules/src/gameReview.ts","from":"          done = true;\n          break;","to":"          moves.length = 0;\n          done = true;\n          break;","kills":["a replay that diverges is reviewed"]},
     {"id":"review-advance-ignores-limit","file":"packages/rules/src/gameReview.ts","from":"analyzed < maxDecisions","to":"true","kills":["advance(n) reviews n ranked decisions"]},
     {"id":"review-seats-ignored","file":"packages/rules/src/gameReview.ts","from":"if (!seats.has(seat) || getPlayerView","to":"if (getPlayerView","kills":["only the chosen seats are reviewed"]},
+    {"id":"review-turn0-summarised","file":"packages/rules/src/gameReview.ts","from":"if (e.final || e.turn < 1) return;","to":"if (e.final) return;","kills":["the mulligan before the first turn is not a turn of its own"]},
     {"id":"review-eval-per-intent","file":"packages/rules/src/gameReview.ts","from":"if (state.turnNumber !== before.turnNumber) pushEval();","to":"pushEval();","kills":["win probabilities are recorded for both seats"]},
     {"id":"review-good-turn-opponent-start","file":"packages/rules/src/gameReview.ts","from":"evals.slice(idx + 1).find((p) => p.final || p.activeSeat === e.activeSeat)","to":"evals[idx + 1]","kills":["a turn is good when the seat"]},
     {"id":"review-good-turn-no-final-fallback","file":"packages/rules/src/gameReview.ts","from":"(p) => p.final || p.activeSeat === e.activeSeat","to":"(p) => !p.final && p.activeSeat === e.activeSeat","kills":["a turn is good when the seat"]},

@@ -14,6 +14,8 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   if (c.rested) statuses.push("Rested");
   if (isNegated(state, c)) statuses.push("Effects negated");
   if (hasRestriction(state, seat, c, "cannot_attack")) statuses.push("Cannot attack");
+  if (hasRestriction(state, seat, c, "cannot_be_rested")) statuses.push("Cannot be rested");
+  else if (hasRestriction(state, seat, c, "cannot_be_rested_by_opponent_effect")) statuses.push("Unrestable");
   const rush = keywords.includes("rush") || keywords.includes("rush_character");
   // Summoning sickness only matters on its controller's own turn; the flag lingers until their next Refresh.
   const sick = Boolean(c.summoningSick) && state.activeSeat === seat;

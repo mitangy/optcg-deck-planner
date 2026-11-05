@@ -979,6 +979,8 @@ class FeedbackOut(BaseModel):
     reporter: str
     status: str
     created_at: str
+    # GitHub issue opened for a Discord ticket: https://github.com/<repo>/issues/<n>
+    github_issue: int | None = None
 
 
 class FeedbackStatusIn(BaseModel):

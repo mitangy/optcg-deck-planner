@@ -231,6 +231,7 @@ def startup_lock(bind: Engine | None = None) -> Iterator[None]:
 CATALOG_SYNC_LOCK_KEY = 0x6F707463675F6373  # "optcg_cs"
 TOURNAMENT_SYNC_LOCK_KEY = 0x6F707463675F7473  # "optcg_ts"
 PROGRESS_SWEEP_LOCK_KEY = 0x6F707463675F7073  # "optcg_ps"
+DISCORD_FEEDBACK_LOCK_KEY = 0x6F707463675F6466  # "optcg_df"
 
 
 class AdvisoryLock:
@@ -452,6 +453,20 @@ def _seed_eval_runs(bind: Engine | None = None) -> None:
         session.commit()
 
 
+def _ensure_feedback_discord_columns() -> None:
+    """Add feedback.discord_message_id / discord_author on existing DBs (#979), with the unique index."""
+    _add_columns(
+        "feedback",
+        [("discord_message_id", "VARCHAR(32)"), ("discord_author", "VARCHAR(64) DEFAULT ''"), ("github_issue", "INTEGER")],
+    )
+    if "feedback" not in inspect(engine).get_table_names():
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_feedback_discord_message_id ON feedback (discord_message_id)")
+        )
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
@@ -474,6 +489,7 @@ def init_db() -> None:
     _ensure_user_share_scans()
     _ensure_eval_run_columns()
     _ensure_cosmetic_takedown_columns()
+    _ensure_feedback_discord_columns()
     _ensure_admin_role()
     _seed_eval_runs()
 

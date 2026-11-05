@@ -438,6 +438,7 @@
 
 /* —— Game review (#967): grades, win chance, scrubber ticks and the summary —— */
 .replay-root,
+.replay-review-pop,
 .replay-review-sheet {
   /* Dark: bright discs with a dark or white mark. Light: deeper discs so a yellow disc and yellow text still read on a pale panel. */
   --rv-c-best: #81b64c;
@@ -459,6 +460,7 @@
 }
 
 [data-mode="light"] .replay-root,
+[data-mode="light"] .replay-review-pop,
 [data-mode="light"] .replay-review-sheet {
   --rv-c-best: #3f7d1f;
   --rv-c-great: #1f6f93;
@@ -538,8 +540,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "eval eval"
-    "move move"
-    "alt btn";
+    "move btn"
+    "alt alt";
   column-gap: 0.4rem;
   row-gap: 0.2rem;
   align-items: center;
@@ -593,53 +595,52 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  height: 1.9rem;
+  /* Two lines are reserved (#986): the grade and the played move wrap instead of being cut off, and nothing below moves. */
+  height: 2.4rem;
   min-width: 0;
 }
 
 .rv-text {
-  display: flex;
   flex: 1 1 auto;
-  align-items: baseline;
-  gap: 0.4rem;
   min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-size: 0.82rem;
+  line-height: 1.25;
 }
 
 .rv-text strong {
-  flex: 0 0 auto;
+  margin-right: 0.4rem;
 }
 
 .rv-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 0.78rem;
   color: var(--chrome-bright, inherit);
 }
 
 .rv-neutral {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .rv-alt {
   grid-area: alt;
   display: flex;
   align-items: center;
-  height: 2rem;
+  height: 2.4rem;
   min-width: 0;
 }
 
 .rv-alt-text {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .rv-problem-compact {
@@ -647,12 +648,14 @@
 }
 
 .replay-compact .rv-problem-compact {
-  display: block;
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   font-size: 0.78rem;
+  line-height: 1.2;
 }
 
 .replay-compact .rv-move:has(.rv-problem-compact) .rv-text {
@@ -741,22 +744,139 @@
   background: color-mix(in srgb, var(--arena-panel) 55%, var(--chrome) 45%);
 }
 
-/* The summary: docked over the rail above the controls on desktop (opened by the viewer; it never moves the controls). */
+/* The summary on desktop (#986): a floating panel. It starts over the rail above the controls, is dragged by its header and
+   resized from its edges, and is fixed, so opening, moving or resizing it never moves the controls. */
 .replay-review-pop {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.5rem);
-  z-index: 2;
+  position: fixed;
+  z-index: 28;
   box-sizing: border-box;
-  width: min(20rem, calc(100vw - 1.5rem));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   border: 1px solid var(--line-strong, var(--line));
   border-radius: 12px;
   background: var(--arena-panel);
   color: var(--ink, inherit);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.replay-review-pop.is-dragging {
+  user-select: none;
+}
+
+.rv-pop-scroll {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.7rem;
+  border-radius: inherit;
+}
+
+.replay-review-pop .rv-summary-head {
+  cursor: grab;
+  touch-action: none;
+}
+
+.replay-review-pop.is-dragging .rv-summary-head {
+  cursor: grabbing;
+}
+
+.rv-grip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 2rem;
+  margin-left: -0.3rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+}
+
+.rv-grip:hover,
+.rv-grip:focus-visible {
+  color: var(--chrome-bright, inherit);
+}
+
+.rv-grip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Resize handles on the four edges and corners: a thin hit strip that sits on the border. */
+.rv-resize {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+}
+
+.rv-resize:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--chrome) 55%, transparent);
+}
+
+.rv-resize-top,
+.rv-resize-bottom {
+  right: 14px;
+  left: 14px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.rv-resize-left,
+.rv-resize-right {
+  top: 14px;
+  bottom: 14px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.rv-resize-top { top: -5px; }
+.rv-resize-bottom { bottom: -5px; }
+.rv-resize-left { left: -5px; }
+.rv-resize-right { right: -5px; }
+
+.rv-resize-top-left,
+.rv-resize-top-right,
+.rv-resize-bottom-left,
+.rv-resize-bottom-right {
+  width: 18px;
+  height: 18px;
+}
+
+.rv-resize-top-left { top: -6px; left: -6px; cursor: nwse-resize; }
+.rv-resize-bottom-right { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.rv-resize-top-right { top: -6px; right: -6px; cursor: nesw-resize; }
+.rv-resize-bottom-left { bottom: -6px; left: -6px; cursor: nesw-resize; }
+
+/* The move on screen, in full (the sheet on phones, where the strip keeps to two lines). */
+.rv-now {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.rv-now-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rv-now-line {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .replay-review-sheet {
@@ -800,6 +920,8 @@
 }
 
 .rv-summary-title {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: 1rem;
   color: var(--chrome-bright, inherit);
@@ -853,11 +975,9 @@
 
 .rv-table-name {
   display: block;
-  max-width: 6rem;
+  max-width: 7rem;
   margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .rv-table thead th {
@@ -910,7 +1030,7 @@
   gap: 0.55rem;
   width: 100%;
   min-height: 2.75rem;
-  padding: 0.25rem 0.4rem;
+  padding: 0.3rem 0.4rem;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -941,14 +1061,14 @@
 
 .rv-moment-top {
   display: flex;
-  gap: 0.45rem;
+  flex-wrap: wrap;
+  column-gap: 0.45rem;
   align-items: baseline;
 }
 
+/* Wraps, so a long move and its best alternative are read whole (#986). */
 .rv-moment-sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   color: var(--muted);
 }
 
@@ -1041,6 +1161,15 @@
   height: 2.75rem;
 }
 
+/* Phones keep the strip a fixed two lines; a longer move ends in an ellipsis here and is whole in the Review sheet (#986). */
+.replay-compact .rv-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+}
+
 .replay-compact .rv-alt {
   display: none;
 }
@@ -1079,12 +1208,6 @@
   .replay-compact .rv-text strong,
   .replay-compact .rv-label {
     font-size: 0.7rem;
-  }
-
-  .replay-compact .rv-text {
-    flex-direction: column;
-    gap: 0;
-    line-height: 1.1;
   }
 
   .replay-compact .rv-show {
