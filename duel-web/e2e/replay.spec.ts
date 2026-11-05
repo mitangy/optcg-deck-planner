@@ -325,3 +325,67 @@ test("a replay never answers an attack for you, even with response stops on auto
   expect(await stepNow(page)).toBe(15);
   await expect(line(page)).toHaveCount(0);
 });
+
+// The bots grade the finished game in a worker (#967): a badge on the move that led to the step shown, a summary,
+// and a way to see what the bots would have played instead.
+test.describe("game review (#967)", () => {
+  test.setTimeout(150_000);
+  const reviewBtn = (page: Page) => page.getByRole("button", { name: "Game review", exact: true });
+  const strip = (page: Page) => page.locator(".replay-review");
+  const grade = (page: Page) => strip(page).locator("svg.rv-badge[role=img]");
+
+  async function openReview(page: Page): Promise<void> {
+    await setUp(page);
+    await openFromHistory(page);
+    // While it runs the strip says so; the summary appears with its note once every move is graded.
+    await expect(strip(page)).toBeVisible();
+    await reviewBtn(page).click();
+    await expect(page.getByText("Grades are bot-simulation estimates.")).toBeVisible({ timeout: 100_000 });
+  }
+
+  test("a mistake or blunder moment jumps to the move, badges it and offers the best move as your line (#967)", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await openReview(page);
+    await expect(page.getByRole("heading", { name: "Key moments" })).toBeVisible();
+    // The slider's track carries a tick for every big moment, in the class's colour.
+    await expect(page.locator(".rv-tick-mistake, .rv-tick-blunder").first()).toBeAttached();
+    const bad = page.locator(".rv-moment").filter({ has: page.locator(".rv-ink-mistake, .rv-ink-blunder") }).first();
+    await expect(bad).toBeVisible();
+    await bad.click();
+    // The summary on a phone is a sheet that closes to show the board; on desktop it stays docked.
+    if (page.viewportSize()!.width < 900) await expect(page.getByRole("dialog", { name: "Game review" })).toHaveCount(0);
+    expect(await stepNow(page)).toBeGreaterThan(0);
+    await expect(grade(page)).toHaveAttribute("aria-label", /^(Mistake|Blunder)$/);
+    // Phones keep the strip to one line (the best move's name is on the Show best button); desktop spells it out.
+    if (page.viewportSize()!.width >= 900) await expect(strip(page).locator(".rv-alt-text")).toContainText("Best:");
+    else await expect(page.getByRole("button", { name: "Show best move" })).toHaveAttribute("title", /^Play .+ from here$/);
+    await expect(line(page)).toHaveCount(0);
+    const before = await stepNow(page);
+    await page.getByRole("button", { name: "Show best move" }).click();
+    await expect(line(page)).toContainText("Your line");
+    // The line starts from the position the move was made in.
+    expect(await stepNow(page)).toBe(before - 1);
+    // Nothing is graded on a line of your own, and the strip keeps its height.
+    await expect(strip(page)).toContainText("not graded");
+    expect(errors).toEqual([]);
+  });
+
+  test("the strip keeps its place while grades arrive and when stepping (#967)", async ({ page }) => {
+    await setUp(page);
+    await openFromHistory(page);
+    const box = async () => (await strip(page).boundingBox())!;
+    const first = await box();
+    await slider(page).fill("6");
+    const later = await box();
+    expect(later.height).toBe(first.height);
+    expect(later.y).toBe(first.y);
+    await expect(page.getByText("Reviewing", { exact: false }).first()).toBeVisible();
+    const done = page.getByText(/Win chance|You \d+%/).first();
+    await expect(done).toBeVisible({ timeout: 100_000 });
+    await expect(strip(page).locator(".rv-eval-text")).toContainText(/You \d+% \(est\.\)/, { timeout: 100_000 });
+    const end = await box();
+    expect(end.height).toBe(first.height);
+    expect(end.y).toBe(first.y);
+  });
+});

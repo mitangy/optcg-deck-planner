@@ -1,9 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, Select } from "@optcg/ui/popups";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/useMediaQuery";
 import { isTyping } from "../board/useBoardHotkeys";
 import { PLAY_SPEEDS, type PlaySpeed } from "./replayCursor";
 import type { ReplayControlsActions, ReplayControlsState } from "./useReplay";
+import { reviewTicks, turnMarks } from "./reviewModel";
+import { ReviewStrip, ReviewSummary, TurnGlyph, useRoomAbove } from "./ReviewUi";
+import type { ReviewState } from "./useGameReview";
 import "./replay.css";
 
 function Icon({ children }: { children: ReactNode }) {
@@ -65,11 +68,47 @@ export function replayKeyAction(e: Pick<KeyboardEvent, "key" | "code" | "shiftKe
 /** Controls whose own keys (or Space) must win over the replay's. */
 const OWN_KEYS = "input, select, textarea, [contenteditable=true], [role=dialog], [aria-modal=true]";
 
-export function ReplayControls({ state, actions, note = null, resultSlot = null, reserveRow = false }: { state: ReplayControlsState; actions: ReplayControlsActions; note?: ReactNode; resultSlot?: ReactNode; reserveRow?: boolean }) {
+export function ReplayControls({
+  state,
+  actions,
+  note = null,
+  resultSlot = null,
+  reserveRow = false,
+  review = null,
+}: {
+  state: ReplayControlsState;
+  actions: ReplayControlsActions;
+  note?: ReactNode;
+  resultSlot?: ReactNode;
+  reserveRow?: boolean;
+  /** The game review (#967), for a finished game; null for one that never ended. */
+  review?: ReviewState | null;
+}) {
   const { step, total, turn, turns, playing, speed, revealAll, yourSeat, playerNames, branch } = state;
   // Desktop has room for every control; phones keep the transport, scrubber and mode toggle, and tuck the rest behind More.
   const compact = !useMediaQuery(DESKTOP_BOARD_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const reviewBtnRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const showReview = review != null && review.status !== "off";
+  useRoomAbove(popRef, rootRef, showReview && reviewOpen && !compact);
+  useEffect(() => {
+    if (!reviewOpen || compact) return;
+    headingRef.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setReviewOpen(false);
+      reviewBtnRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reviewOpen, compact]);
+  const viewer = { step, total, branch: branch != null, yourSeat, playerNames };
+  const marks = turnMarks(review?.review ?? null, yourSeat);
+  const ticks = reviewTicks(review?.review ?? null, total);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -95,19 +134,33 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
 
   const turnSelect = (
     <label className="replay-field">
-      <span className="replay-field-label">Turn</span>
+      <span className={`replay-field-label${showReview && !compact ? " replay-field-label-hidden" : ""}`}>Turn</span>
       <Select
         buttonClassName="replay-select"
         value={turn}
         onChange={actions.goTurn}
         aria-label="Jump to turn"
-        options={turns.map((t) => ({ value: t.turn, label: t.turn }))}
+        options={turns.map((t) => {
+          const mark = marks.get(t.turn);
+          return {
+            value: t.turn,
+            label: mark ? (
+              <span className="rv-turn-option">
+                {t.turn}
+                <TurnGlyph mark={mark} />
+              </span>
+            ) : (
+              t.turn
+            ),
+            buttonLabel: showReview && !compact ? `Turn ${t.turn}` : t.turn,
+          };
+        })}
       />
     </label>
   );
   const speedSelect = (
     <label className="replay-field">
-      <span className="replay-field-label">Speed</span>
+      <span className={`replay-field-label${showReview && !compact ? " replay-field-label-hidden" : ""}`}>Speed</span>
       <Select
         buttonClassName="replay-select"
         value={speed}
@@ -117,13 +170,46 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
       />
     </label>
   );
+  const reviewButton = showReview ? (
+    <button
+      type="button"
+      className={`replay-btn replay-review-btn${reviewOpen ? " is-open" : ""}`}
+      ref={reviewBtnRef}
+      aria-label="Game review"
+      aria-expanded={reviewOpen}
+      title="Game review: accuracy and key moments (bot-simulation estimates)"
+      onClick={() => setReviewOpen((open) => !open)}
+    >
+      <Icon>
+        <path d="M5 20V10h3.5v10H5zm5.25 0V4h3.5v16h-3.5zM15.5 20v-7H19v7h-3.5z" />
+      </Icon>
+      <span className="replay-review-btn-text">Review</span>
+    </button>
+  ) : null;
+  const summary = showReview ? (
+    <ReviewSummary
+      review={review}
+      viewer={viewer}
+      headingRef={headingRef}
+      onClose={() => {
+        setReviewOpen(false);
+        reviewBtnRef.current?.focus();
+      }}
+      onGo={(target) => {
+        actions.goTo(target);
+        // A sheet covers the board: leave it so the moment can be seen.
+        if (compact) setReviewOpen(false);
+      }}
+    />
+  ) : null;
   return (
-    <div className={`replay-controls${compact ? " replay-compact" : ""}`} role="group" aria-label="Replay controls">
+    <div className={`replay-controls${compact ? " replay-compact" : ""}`} role="group" aria-label="Replay controls" ref={rootRef}>
       {note || reserveRow || resultSlot ? (
         <p className="replay-note" role="status">
           {resultSlot ?? note}
         </p>
       ) : null}
+      {showReview ? <ReviewStrip review={review} viewer={viewer} onShowBest={(at, moves) => actions.startBranch(at, moves)} /> : null}
       <div className="replay-row replay-transport">
         <button type="button" className="replay-btn" aria-label="Previous turn" title="Previous turn (Shift+←)" onClick={actions.prevTurn} disabled={step === 0}>
           {ICONS.prevTurn}
@@ -149,6 +235,7 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
       </div>
 
       <div className="replay-row replay-scrub">
+        <div className="replay-range-wrap">
         <input
           type="range"
           className="replay-range"
@@ -160,6 +247,14 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
           aria-valuetext={`Step ${step} of ${total}, turn ${turn}`}
           onChange={(e) => actions.goTo(Number(e.target.value))}
         />
+        {ticks.length ? (
+          <span className="rv-ticks" aria-hidden>
+            {ticks.map((t, i) => (
+              <span key={i} className={`rv-tick rv-tick-${t.cls} ${t.seat === yourSeat ? "rv-tick-you" : "rv-tick-foe"}`} style={{ "--f": t.frac } as React.CSSProperties} />
+            ))}
+          </span>
+        ) : null}
+        </div>
         <span className="replay-readout" aria-hidden>
           {compact ? `T${turn} · ` : ""}
           {step}/{total}
@@ -170,6 +265,7 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
         <div className="replay-row replay-pick">
           {turnSelect}
           {speedSelect}
+          {reviewButton}
         </div>
       )}
 
@@ -212,6 +308,7 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
             </button>
           </div>
         )}
+        {compact ? reviewButton : null}
         {compact ? (
           <button
             type="button"
@@ -228,6 +325,18 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
         ) : null}
       </div>
 
+      {showReview && reviewOpen && !compact ? (
+        <div className="replay-review-pop" role="dialog" aria-label="Game review" ref={popRef}>
+          {summary}
+        </div>
+      ) : null}
+
+      {showReview && reviewOpen && compact ? (
+        <Dialog open onClose={() => setReviewOpen(false)} className="replay-more-backdrop" panelClassName="replay-review-sheet" label="Game review">
+          {summary}
+        </Dialog>
+      ) : null}
+
       {compact && moreOpen ? (
         <Dialog
           open
@@ -239,6 +348,19 @@ export function ReplayControls({ state, actions, note = null, resultSlot = null,
         >
           {turnSelect}
           {speedSelect}
+          {showReview ? (
+            // Short landscape has no room beside the mode toggle, so Review lives here (hidden by CSS elsewhere).
+            <button
+              type="button"
+              className="replay-seg-btn replay-more-review"
+              onClick={() => {
+                setMoreOpen(false);
+                setReviewOpen(true);
+              }}
+            >
+              Game review
+            </button>
+          ) : null}
           <button type="button" className="replay-seg-btn replay-more-done" onClick={() => setMoreOpen(false)}>
             Done
           </button>

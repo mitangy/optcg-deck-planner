@@ -7,6 +7,7 @@ import { fetchMatchReplay, ReplayLoadError, type ReplayLoadFailure, type ReplayP
 import { loadWhileSaving, type ReplayNavState } from "../replay/replayRetry";
 import { ReplayControls } from "../replay/ReplayControls";
 import { useReplay, type Replay } from "../replay/useReplay";
+import { useGameReview } from "../replay/useGameReview";
 import { BackLink } from "./BackLink";
 import "../history/history.css";
 import "../replay/replay.css";
@@ -79,6 +80,8 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
   const replay: Replay = useReplay(payload);
   const players = useMemo<SeatPlayers>(() => [{ name: payload.players[0] }, { name: payload.players[1] }], [payload.players]);
   const matchId = payload.match_id;
+  // Grades are for a finished game, and start once the timeline is built (the worker does the work).
+  const review = useGameReview(matchId, payload.replay, replay.phase === "ready" && payload.replay.end != null);
   if (replay.phase === "unavailable") {
     const text =
       replay.status.reason === "schema"
@@ -108,7 +111,7 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
         battleLog={ready?.battleLog}
         waiting={ready ? undefined : { status: `Rebuilding the game… ${Math.round(replay.phase === "building" ? replay.progress * 100 : 100)}%` }}
         leaveLabel="Exit replay"
-        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} />, quiet: ready.quiet } : undefined}
+        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} review={payload.replay.end != null ? review : null} />, quiet: ready.quiet } : undefined}
         onSendIntent={ready ? ready.sendIntent : () => undefined}
         onLeave={() => navigate("/history")}
         onClearError={ready ? ready.clearError : () => undefined}

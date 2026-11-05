@@ -4480,6 +4480,36 @@ body.is-panel-resize-row .col-cut {
   .arena .side-counts .zone-cost {
     min-width: 0;
   }
+
+  /* When the height binds the mat (a tall control bar under it) the row is narrower than four icon+number chips: every
+     piece shrinks together, and below that the icons go (the chips keep their names for screen readers). */
+  .arena .side-counts .opp-counts {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 215px) {
+    .count-chip {
+      padding: 0 2px;
+      gap: 2px;
+      font-size: 0.72rem;
+    }
+
+    .count-icon {
+      width: 10px;
+      height: 10px;
+    }
+
+    .mat-order {
+      padding: 0.1em 0.35em;
+      font-size: 0.52rem;
+    }
+  }
+
+  @container (max-width: 150px) {
+    .count-icon {
+      display: none;
+    }
+  }
 }
 
 /* —— Landscape phones: icon rail | board | slim action column, hand under the board —— */

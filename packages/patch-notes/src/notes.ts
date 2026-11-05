@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-05
+  { date: "2026-11-05", app: "duel", pr: 967, title: "Grade the game in a replay", text: "Replays of finished games now grade each move like chess.com: Best, Great, Inaccuracy, Mistake, Blunder and more, with the win chance and a Show best button that plays the better move as your own line. Ticks on the slider mark the big moments, and Review shows both players' accuracy and the key moments. Grades are estimates from bot simulations." },
   // 2026-11-04
   { date: "2026-11-04", app: "duel", pr: 966, title: "Play out a replay", text: "In a replay, make a move at any point to try a different line. The board follows whoever has to act, both hands are face up, and Undo move or Back to game takes you back to the recording. Also fixed the match-over card being cut off on a landscape phone." },
   { date: "2026-11-04", app: "planner", pr: 962, title: "Why this read, one hover away", text: "When to buy's reasons now open from a ? icon: hover or tap it, and the graph stays in view." },
