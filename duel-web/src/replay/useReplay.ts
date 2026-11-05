@@ -281,8 +281,15 @@ export function useReplay(payload: ReplayPayload): Replay {
       setError(null);
       setPlaying(false);
       setQuiet(false);
-      if (outcome.kind === "advance") setStep(outcome.step);
-      else setBranch(outcome.branch);
+      // A handler can send several moves in one go (one give_don per DON, one counter per card) before React
+      // re-renders, so the next send must already see this one: move the refs now, not on the next render (#971).
+      if (outcome.kind === "advance") {
+        stepRef.current = outcome.step;
+        setStep(outcome.step);
+      } else {
+        branchRef.current = outcome.branch;
+        setBranch(outcome.branch);
+      }
     },
     [timeline, cursor],
   );
