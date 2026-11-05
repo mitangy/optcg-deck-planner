@@ -1337,6 +1337,16 @@ html {
   background: var(--arena-mid);
 }
 
+.deck-picker-art-random {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
