@@ -708,7 +708,7 @@ test("Stop while Log Pose is deciding a choice leaves the choice to the player a
   expect(duel.errors).toEqual([]);
 });
 
-test("One Log Pose button in a match when both the brief and copilot are on (#993)", async ({ page, duel }) => {
+test("One Log Pose button in a match when both the brief and copilot are on (#993)", async ({ page, duel }, info) => {
   await setSettings(page, { matchBrief: true, logPoseCopilot: true });
   await stubLogPose(page);
   await duel.startPractice({ seed: 7 });
@@ -731,7 +731,10 @@ test("One Log Pose button in a match when both the brief and copilot are on (#99
   await expect(button).toHaveAttribute("aria-expanded", "true");
   // The brief rides pinned at the top of the same panel.
   await expect(panel(page).locator(".match-brief-pinned")).toBeVisible();
-  await button.click();
+  // A phone's panel is a sheet over the top bar, so there it closes from its own Close button; on a wide screen
+  // the same button closes it again.
+  if (info.project.name === "phone-375") await panel(page).getByRole("button", { name: "Close Log Pose" }).click();
+  else await button.click();
   await expect(panel(page)).toHaveCount(0);
   await expect(button).toHaveAttribute("aria-expanded", "false");
   await expect(button).toHaveCount(1);
