@@ -7,6 +7,7 @@ type Raw = {
   name: string;
   group_name?: string;
   released: string | null;
+  rarity?: string | null;
   current: number | null;
   points: [string, number][];
 };
@@ -59,7 +60,7 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
   const points: PricePoint[] = raw.points.map(([date, price]) => ({ date, price }));
   const newest = points.length ? points[points.length - 1]! : null;
   const now = raw.current ?? newest?.price ?? null;
-  const kind = artKind(raw.name);
+  const kind = artKind(raw.name, raw.rarity);
   const age = raw.released ? dayNumber(today) - dayNumber(raw.released) : null;
 
   let peakIndex = -1;

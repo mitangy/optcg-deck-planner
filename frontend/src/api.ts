@@ -295,6 +295,8 @@ export type PriceHistoryResponse = {
   name: string;
   group_name: string;
   released: string | null;
+  /** The card's rarity (SR, SEC, L...); null when unknown. */
+  rarity?: string | null;
   current: number | null;
   /** [YYYY-MM-DD, market price], oldest first. */
   points: [string, number][];

@@ -69,6 +69,24 @@ def test_price_history_for_base_art_picks_the_catalog_printing_not_an_alt_946(cl
     assert c.get("/catalog/cards/NOPE-000/price-history").status_code == 404
 
 
+def test_price_history_carries_the_cards_rarity_949(client):
+    c, S = client
+    with S() as db:
+        db.add_all(
+            [
+                CatalogCard(card_id="OP01-001", name="Luffy", rarity="SR"),
+                _printing("OP01-001", 11, "Luffy", 30.0),
+                _printing("OP01-001", 12, "Luffy (Alternate Art)", 5.0, special=1),
+                _printing("OP02-002", 21, "Unlisted", 1.0),
+            ]
+        )
+        db.commit()
+    assert c.get("/catalog/cards/OP01-001/price-history").json()["rarity"] == "SR"
+    assert c.get("/catalog/cards/OP01-001/price-history?product_id=12").json()["rarity"] == "SR"
+    # No catalog card row: no rarity, not an error.
+    assert c.get("/catalog/cards/OP02-002/price-history").json()["rarity"] is None
+
+
 def test_price_history_release_date_comes_from_the_printings_set_946(client):
     c, S = client
     with S() as db:

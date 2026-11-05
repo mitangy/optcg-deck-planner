@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { buyTiming } from "@optcg/price-timing";
 import {
   artLabel,
   baseCardName,
   buyQuestion,
+  buyTimingInput,
   HISTORY_RANGES,
   historyStats,
   minusMonths,
@@ -120,5 +122,28 @@ describe("Ask Log Pose about when to buy (#946)", () => {
     expect(baseCardName("Monkey.D.Luffy (Alternate Art) (Manga)")).toBe("Monkey.D.Luffy");
     expect(artLabel("Monkey.D.Luffy (Alternate Art) (Manga)")).toBe("Alternate Art, Manga");
     expect(baseCardName("Tony Tony.Chopper")).toBe("Tony Tony.Chopper");
+  });
+});
+
+describe("When to buy input (#949 follow-up)", () => {
+  // A base SR released 60 days ago, now $10: the base SR curve is still falling, the all-singles curve has settled.
+  const data = { name: "Portgas.D.Ace", released: "2026-09-06", current: 10 };
+  const today = "2026-11-05";
+  const points = pts([["2026-09-06", 10], ["2026-11-05", 10]]);
+
+  it("reads a base SR, SEC or Leader with the base rare curve and says wait (#949)", () => {
+    for (const rarity of ["SR", "SEC", "L"]) {
+      const input = buyTimingInput({ ...data, rarity }, points, null, today);
+      expect(input.kind, rarity).toBe("baseRare");
+    }
+    expect(buyTiming(buyTimingInput({ ...data, rarity: "SR" }, points, null, today)).verdict).not.toBe(buyTiming(buyTimingInput(data, points, null, today)).verdict);
+  });
+
+  it("keeps an alternate art on the alt curve whatever the card's rarity is (#949)", () => {
+    expect(buyTimingInput({ ...data, name: "Portgas.D.Ace (Alternate Art)", rarity: "SR" }, points, null, today).kind).toBe("alt");
+  });
+
+  it("leaves a card with no known rarity on the all-singles curve (#949)", () => {
+    expect(buyTimingInput({ ...data, rarity: null }, points, null, today).kind).toBe("other");
   });
 });

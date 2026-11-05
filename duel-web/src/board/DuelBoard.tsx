@@ -114,7 +114,7 @@ import { sortHandIndices } from "./handSort";
 import { moveToSlot, reconcileHandOrder } from "./handOrder";
 import { useHandReorder } from "./useHandReorder";
 import { useHandShuffle } from "./useHandShuffle";
-import { DEMO_MATCH_ID, tabMuteCopy, useTabMute } from "./tabMute";
+import { DEMO_MATCH_ID, isWatchTab, tabMuteCopy, useTabMute } from "./tabMute";
 import { useHandLift } from "./useHandLift";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
@@ -822,7 +822,7 @@ export function DuelBoard({
   // Per-tab sound (#934): a watch tab goes quiet while another tab has a live match as a player. Demos play no part.
   const tabMute = useTabMute({
     playing: Boolean(view) && matchId != null && matchId !== DEMO_MATCH_ID && !spectating && !isReplay && !hotseatPass && !over,
-    watching: spectating,
+    watching: isWatchTab({ spectating, isReplay }),
     autoQuiet: prefs.quietWatchTabs,
   });
   const tabMuteText = tabMuteCopy(tabMute);
