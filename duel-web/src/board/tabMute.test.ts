@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTabMuteOverride, isTabSilenced, othersPlaying, setTabMuteOverride, setTabSilenced, tabMuteCopy, tabSilenced } from "./tabMute";
+import { getTabMuteOverride, isTabSilenced, isWatchTab, othersPlaying, setTabMuteOverride, setTabSilenced, tabMuteCopy, tabSilenced } from "./tabMute";
 import { playNotes, unlockAudio } from "./turnAlert";
 import { playSfx } from "./sfx";
 
@@ -22,6 +22,18 @@ describe("tabSilenced (#934)", () => {
     expect(tabSilenced({ ...base, autoQuiet: false })).toBe(false);
     expect(tabSilenced({ ...base, watching: false })).toBe(false);
     expect(tabSilenced({ ...base, otherTabPlaying: false })).toBe(false);
+  });
+});
+
+describe("isWatchTab (#971)", () => {
+  it("a replay board is a watch tab even though it is not spectating, so another tab's match quiets it (#971)", () => {
+    const watching = isWatchTab({ spectating: false, isReplay: true });
+    expect(tabSilenced({ ...base, watching })).toBe(true);
+  });
+
+  it("a spectator board is a watch tab and a board you play is not", () => {
+    expect(isWatchTab({ spectating: true, isReplay: false })).toBe(true);
+    expect(isWatchTab({ spectating: false, isReplay: false })).toBe(false);
   });
 });
 

@@ -20,6 +20,11 @@ export const HEARTBEAT_MS = 2000;
 /** A tab not heard from for this long is gone (a crashed or frozen tab sends no bye). */
 export const PRESENCE_TTL_MS = 5000;
 
+/** Whether this board is a watch tab for the auto-quiet: a spectator, or a replay (which has no spectator flag, #971). */
+export function isWatchTab(o: { spectating: boolean; isReplay: boolean }): boolean {
+  return o.spectating || o.isReplay;
+}
+
 /** The tab's silenced state, resolved from the manual override and the cross-tab presence. */
 export function tabSilenced(o: {
   override: TabMuteOverride;
