@@ -90,6 +90,15 @@ describe("price_history tool (#946)", () => {
     expect(none.best_time_to_buy).toBeNull();
   });
 
+  it("reads a base SR with the base rare curve, and leaves a base card without a rarity on the all-singles one (#949)", async () => {
+    const sr = { ...ALT, name: "Monkey.D.Luffy", product_id: 0, rarity: "SR", released: ago(60) };
+    const withRarity = await priceHistory(planner(sr).api, { card_id: "OP05-119" }, TODAY);
+    expect(withRarity.art_kind).toBe("baseRare");
+    const without = await priceHistory(planner({ ...sr, rarity: null }).api, { card_id: "OP05-119" }, TODAY);
+    expect(without.art_kind).toBe("other");
+    expect(withRarity.typical_curve.percent_of_release_price_at_this_age).not.toBe(without.typical_curve.percent_of_release_price_at_this_age);
+  });
+
   it("calls a Manga art a chase art that holds, and a plain name unclassified", async () => {
     const manga = await priceHistory(planner({ ...ALT, name: "Monkey.D.Luffy (Manga)" }).api, { card_id: "OP05-119", product_id: 9 }, TODAY);
     expect(manga.art_kind).toBe("chase");

@@ -183,6 +183,8 @@ class PriceHistoryResponse(BaseModel):
     name: str
     group_name: str = ""
     released: str | None = None
+    # The card's rarity (SR, SEC, L...): a base SR/SEC/Leader follows its own price curve.
+    rarity: str | None = None
     current: float | None = None
     points: list[tuple[str, float]]
 

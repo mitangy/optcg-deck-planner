@@ -1,4 +1,5 @@
 /** Pure helpers behind the price history chart (#946). Dates are ISO "YYYY-MM-DD" strings, read as UTC. */
+import { artKind } from "@optcg/price-timing";
 
 export type PricePoint = { date: string; price: number };
 
@@ -142,4 +143,14 @@ export function artLabel(productName: string): string {
 /** The question the "Ask Log Pose" button sends. The art and product id let Log Pose price the exact art. */
 export function buyQuestion(productName: string, cardId: string, productId: number): string {
   return `When is the best time to buy ${baseCardName(productName)} (${artLabel(productName)}, ${cardId}${productId ? `, product ${productId}` : ""})? Use its price history and how much it's being played.`;
+}
+
+/** What the When to buy read is computed from. The card's rarity picks the base SR / SEC / Leader curve; alt and chase names win first. */
+export function buyTimingInput(
+  data: { name: string; rarity?: string | null; released: string | null; current: number | null },
+  points: PricePoint[],
+  fallbackNow: number | null,
+  today: string,
+) {
+  return { kind: artKind(data.name, data.rarity), released: data.released, today, points, current: data.current ?? fallbackNow };
 }
