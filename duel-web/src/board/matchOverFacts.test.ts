@@ -22,7 +22,7 @@ const record = (over: Partial<MatchHistoryEntry> = {}): MatchHistoryEntry => ({
 
 describe("matchOverFacts", () => {
   it("shows the turn count before the saved match has landed (#281)", () => {
-    expect(matchOverFacts(9, null)).toEqual({ turns: "Ended on turn 9", rating: null, logPath: null });
+    expect(matchOverFacts(9, null)).toEqual({ turns: "Ended on turn 9", rating: null, logPath: null, replayPath: null });
   });
 
   it("shows a ranked loss as a negative Bounty change and links the match log (#281)", () => {
@@ -41,6 +41,15 @@ describe("matchOverFacts", () => {
     const facts = matchOverFacts(4, record({ ranked: false, has_log: false }));
     expect(facts.rating).toBeNull();
     expect(facts.logPath).toBeNull();
+  });
+});
+
+describe("matchOverFacts replayPath", () => {
+  it("links the replay only once the saved match says it can be watched (#965)", () => {
+    expect(matchOverFacts(9, record({ has_replay: true, replay_ready: true })).replayPath).toBe("/replay/room-1");
+    expect(matchOverFacts(9, record({ has_replay: true, replay_ready: false })).replayPath).toBeNull();
+    expect(matchOverFacts(9, record({ has_replay: true })).replayPath).toBeNull();
+    expect(matchOverFacts(9, null).replayPath).toBeNull();
   });
 });
 

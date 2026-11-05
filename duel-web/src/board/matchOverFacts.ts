@@ -7,6 +7,8 @@ export type MatchOverFacts = {
   rating: string | null;
   /** Where the turn-by-turn log lives (History), or null while there is none. */
   logPath: string | null;
+  /** The replay page for this game, or null until the saved match says a replay can be watched. */
+  replayPath: string | null;
 };
 
 /**
@@ -23,6 +25,7 @@ export function matchOverFacts(turnNumber: number, record: MatchHistoryEntry | n
         ? `Bounty ${record.rating_before} → ${record.rating_after} (${delta >= 0 ? "+" : "−"}${Math.abs(delta)})`
         : null,
     logPath: record?.has_log ? `/history/${encodeURIComponent(record.match_id)}` : null,
+    replayPath: record?.replay_ready === true ? `/replay/${encodeURIComponent(record.match_id)}` : null,
   };
 }
 

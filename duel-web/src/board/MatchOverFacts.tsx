@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link, useInRouterContext } from "react-router-dom";
 import { useLogPose } from "@optcg/analyst-client";
 import type { MatchHistoryEntry } from "../history/historyApi";
+import type { ReplayNavState } from "../replay/replayRetry";
 import { matchOverFacts, pollMatchRecord } from "./matchOverFacts";
 
 /** Loads the saved match for History facts (rating, log); resolves to its entry or throws. */
@@ -28,6 +30,7 @@ export function MatchOverFactsList({
   }, [matchId, loadRecord]);
 
   const { enabled: logPose } = useLogPose();
+  const inRouter = useInRouterContext();
   const facts = matchOverFacts(turnNumber, record);
   return (
     <>
@@ -35,6 +38,16 @@ export function MatchOverFactsList({
         {facts.turns}
         {facts.rating ? <span className="match-result-rating"> · {facts.rating}</span> : null}
       </p>
+      {loadRecord && inRouter ? (
+        // The slot keeps its height while the saved match is still on its way, so the card does not grow when the button lands.
+        <div className="match-result-review-slot">
+          {facts.replayPath ? (
+            <Link className="btn btn-primary match-result-replay" to={facts.replayPath} state={{ fromMatchOver: true } satisfies ReplayNavState}>
+              Review game
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       {facts.logPath ? (
         <a className="match-result-log" href={facts.logPath} target="_blank" rel="noopener noreferrer">
           View match log

@@ -12,6 +12,7 @@ import { peekNormalIntent } from "./policy.js";
 import { candidatesFor, searchCandidates } from "./search.js";
 import type { BotOptions } from "./types.js";
 import { extractFeatures } from "./features.js";
+import { stableJson } from "../review/classify.js";
 import { logitOf, sigmoid } from "./valueModel.js";
 
 export interface PositionOption {
@@ -32,6 +33,8 @@ export interface AnalysisOptions {
   /** Determinized samples per option (default 6). */
   samples?: number;
   rng?: Rng;
+  /** Legal intents to score even when the bot would not consider them (the game review passes the move that was played). Appended after the bot's candidates. */
+  include?: Intent[];
   /** Passed to the search (prior, opponentModel, ...). */
   search?: Pick<BotOptions, "prior" | "opponentModel" | "horizonTurns" | "maxEvals" | "evalMode">;
 }
@@ -56,6 +59,10 @@ export function rankOptions(state: MatchState, seat: Seat, opts: AnalysisOptions
   const base = peekNormalIntent(view, rng);
   if (!base) return [];
   const candidates = candidatesFor(view, base, rng, true);
+  for (const extra of opts.include ?? []) {
+    const key = stableJson(extra);
+    if (!candidates.some((c) => stableJson(c) === key)) candidates.push(extra);
+  }
   const result = searchCandidates(state, seat, view, base, candidates, rng, {
     ...opts.search,
     rng,

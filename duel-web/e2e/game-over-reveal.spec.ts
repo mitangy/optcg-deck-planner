@@ -41,3 +41,19 @@ test("after the match the opponent's hand and every Life card show face up (#482
     await shot(page, "phone-landscape-812x375-board");
   }
 });
+
+test("on a landscape phone the match-over card fits the screen and scrolls inside itself (#966)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "one run is enough: the viewport is set here");
+  await page.setViewportSize({ width: 812, height: 375 });
+  await page.goto("/demo?over");
+  await page.locator(".board-root").waitFor();
+  const card = page.locator(".modal-card.match-result");
+  await expect(card).toBeVisible();
+  const vp = page.viewportSize()!;
+  const box = (await card.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  // Whatever does not fit is reached by scrolling the card, and the way out is in it.
+  await card.getByRole("button", { name: "Return home" }).scrollIntoViewIfNeeded();
+  await expect(card.getByRole("button", { name: "Return home" })).toBeInViewport();
+});

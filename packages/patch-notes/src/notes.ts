@@ -10,7 +10,10 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-05
+  { date: "2026-11-05", app: "duel", pr: 967, title: "Grade the game in a replay", text: "Replays of finished games now grade each move like chess.com: Best, Great, Inaccuracy, Mistake, Blunder and more, with the win chance and a Show best button that plays the better move as your own line. Ticks on the slider mark the big moments, and Review shows both players' accuracy and the key moments. Grades are estimates from bot simulations." },
   // 2026-11-04
+  { date: "2026-11-04", app: "duel", pr: 966, title: "Play out a replay", text: "In a replay, make a move at any point to try a different line. The board follows whoever has to act, both hands are face up, and Undo move or Back to game takes you back to the recording. Also fixed the match-over card being cut off on a landscape phone." },
   { date: "2026-11-04", app: "both", pr: 972, title: "Log Pose keeps a chat per deck and per game", text: "Log Pose now opens the chat for what you are looking at: a deck's own chat on its page (shared between the planner and the duel app), a game's chat on its history page and on the board, and a General chat everywhere else. The new Chats button lists your recent chats so you can pick any of them, on any device. The match history marks games you have a chat about, and the match page has a Chat about this game button." },
   { date: "2026-11-04", app: "planner", pr: 969, title: "Ask Log Pose keeps the card open", text: "Ask Log Pose from an enlarged card now opens the chat next to the card on a computer, or over it on a phone, instead of closing the card. Close the chat and the card is still there." },
   { date: "2026-11-04", app: "planner", pr: 961, title: "Bigger card art in list view", text: "In the List view on Master Shopping, your decks and Collection, the card art now fills the Card column and the card name sits underneath it." },
