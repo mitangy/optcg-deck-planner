@@ -43390,6 +43390,22 @@
     "hasTrigger": true,
     "abilitySupport": "ok"
   },
+  "OP18-096": {
+    "id": "OP18-096",
+    "name": "I'll Make the Call",
+    "type": "event",
+    "colors": [
+      "black"
+    ],
+    "cost": 1,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/730161_400w.jpg",
+    "effectText": "[Main] You may rest 3 of your DON!! cards: Play up to 1 {Holy Knights of God} type Character card with a cost of 6 or less from your trash. [Counter] If you have 10 or more cards in your trash, up to 1 of your Leader or Characters gains +4000 power during this battle.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "abilitySupport": "ok"
+  },
   "OP18-101": {
     "id": "OP18-101",
     "name": "Kumadori",

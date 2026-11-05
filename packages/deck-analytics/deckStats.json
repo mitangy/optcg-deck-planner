@@ -2380,6 +2380,7 @@
 "OP18-091":{"n":"Brogy","t":"character","col":["black"],"cost":4,"pow":5000,"ctr":2000,"tr":["Giant","Elbaph","Giant Pirates"],"at":["Slash"],"tm":["When Attacking"]},
 "OP18-092":{"n":"Roronoa Zoro","t":"character","col":["black"],"cost":2,"pow":2000,"ctr":1000,"tr":["Straw Hat Crew","Elbaph"],"at":["Slash"],"kw":["Rush"]},
 "OP18-094":{"n":"Hee Hee Hee!! I Smell Adventure!!","t":"event","col":["black"],"cost":1,"tr":["Straw Hat Crew","The Four Emperors","Elbaph"],"trg":1,"tm":["Main"],"rl":["draw","search"],"srch":[{"look":5,"filter":{"traits":["Elbaph"]}}]},
+"OP18-096":{"n":"I'll Make the Call","t":"event","col":["black"],"cost":1,"tr":["Celestial Dragons","Holy Knights of God"],"tm":["Counter","Main"],"ec":4000},
 "OP18-101":{"n":"Kumadori","t":"character","col":["yellow"],"cost":4,"pow":6000,"tr":["CP9"],"at":["Strike"],"trg":1,"tm":["On K.O."],"rl":["lifeGain"]},
 "OP18-106":{"n":"Doberman","t":"character","col":["yellow"],"cost":7,"pow":7000,"ctr":2000,"tr":["Navy","Vice Admiral"],"at":["Slash"],"kw":["Double Attack"]},
 "OP18-108":{"n":"Funkfreed","t":"character","col":["yellow"],"cost":1,"pow":0,"ctr":1000,"tr":["CP9"],"at":["Slash"],"tm":["Activate: Main","On Play"],"rl":["draw"]},
