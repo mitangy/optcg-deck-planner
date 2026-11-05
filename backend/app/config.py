@@ -22,8 +22,14 @@ class Settings(BaseSettings):
     catalog_sync_token: str = "dev-sync-token"
     # Guards GET /scan-samples/export (#852). Empty means the export is closed.
     scan_training_token: str = ""
-    # Discord webhook that receives player feedback and card reports (#979). Empty = off.
-    discord_feedback_webhook_url: str = ""
+    # Den Den Mushi (#979): reads new posts in a Discord channel and files them as feedback.
+    # Off unless both the bot token and the channel id (a Forum or text channel) are set.
+    discord_bot_token: str = ""
+    discord_feedback_channel_id: str = ""
+    discord_feedback_poll_s: int = 30
+    # Each Discord ticket also opens a GitHub issue when the token (Issues read/write) is set.
+    github_issues_token: str = ""
+    github_issues_repo: str = "mitangy/optcg-deck-planner"
     # Shared HMAC secret for short-lived Colyseus join tokens (defaults to session_secret).
     game_token_secret: str = ""
     # Game-server → API match ingest header secret.
@@ -138,6 +144,10 @@ class Settings(BaseSettings):
     @property
     def tournament_sync_enabled(self) -> bool:
         return self.is_production if self.tournament_sync is None else self.tournament_sync
+
+    @property
+    def discord_feedback_enabled(self) -> bool:
+        return bool(self.discord_bot_token.strip() and self.discord_feedback_channel_id.strip())
 
     @property
     def new_release_prices_enabled(self) -> bool:

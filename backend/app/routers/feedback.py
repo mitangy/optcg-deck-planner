@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.discord_notify import feedback_message, post_to_discord
 from app.models import Feedback, User
 from app.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
@@ -27,6 +26,13 @@ _feedback_rate = RateLimiter(max_calls=10, period_s=600, name="feedback_feedback
 _feedback_global_rate = RateLimiter(max_calls=60, period_s=3600, name="feedback_feedback_global_rate")
 
 
+def _reporter(row: Feedback, user: User | None) -> str:
+    if user is not None:
+        return duel_display_name(user)
+    # Filed by the Discord bot: no account, but the post has an author (#979).
+    return f"Discord · {row.discord_author}" if row.discord_author else "anonymous"
+
+
 def _out(row: Feedback, user: User | None) -> FeedbackOut:
     return FeedbackOut(
         id=row.id,
@@ -39,9 +45,10 @@ def _out(row: Feedback, user: User | None) -> FeedbackOut:
         user_agent=row.user_agent,
         room_id=row.room_id,
         user_id=row.user_id,
-        reporter=duel_display_name(user) if user is not None else "anonymous",
+        reporter=_reporter(row, user),
         status=row.status,
         created_at=row.created_at.isoformat() if row.created_at else "",
+        github_issue=row.github_issue,
     )
 
 
@@ -49,7 +56,6 @@ def _out(row: Feedback, user: User | None) -> FeedbackOut:
 def create_feedback(
     body: FeedbackIn,
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
     session_user: Annotated[User | None, Depends(get_optional_user)],
@@ -73,12 +79,6 @@ def create_feedback(
     db.add(row)
     db.commit()
     db.refresh(row)
-    if settings.discord_feedback_webhook_url:
-        background_tasks.add_task(
-            post_to_discord,
-            settings.discord_feedback_webhook_url,
-            feedback_message(row, duel_display_name(user) if user is not None else "anonymous"),
-        )
     return _out(row, user)
 
 
