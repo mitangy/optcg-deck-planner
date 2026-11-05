@@ -26,7 +26,7 @@ import {
   streamAnalyst,
   type ChatContext,
   type ChoiceAnswer,
-  type ChatRequest,
+  type ThreadMessage,
   type DeckContext,
   type DonePayload,
   type GameChatContext,
@@ -51,7 +51,10 @@ import { FeedbackBar, useFeedback } from "./Feedback";
 import { answerStart, targetKey } from "./feedback";
 import { ModelPicker } from "./ModelPicker";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
-import { readThreadId, writeThreadId } from "./threadStore";
+import { readThreadHint, writeThreadHint } from "./threadStore";
+import { GENERAL_SCOPE, canStartNewChat, isValidScope, scopeLabel, type LogPoseScope } from "./scopes";
+import { chatBody, resolveScopeChat } from "./threads";
+import { ChatsMenu } from "./ChatsMenu";
 
 /** How a player out of credit can use Log Pose on their own Claude plan: a link, or a function that takes them there (the app's Settings). */
 export type OwnClaude = { href?: string; onSelect?: () => void };
@@ -80,6 +83,8 @@ export type LogPosePage = {
   label?: string;
   deck?: DeckContext;
   matchId?: string;
+  /** Which chat the panel opens on this page (a deck's, a match's). Without it the page uses the general chat. */
+  scope?: LogPoseScope;
   /** Prompt chips offered while the thread is empty. */
   starters?: string[];
   /**
@@ -96,6 +101,8 @@ export type LogPosePage = {
 export type LogPoseGame = {
   /** Chip text: "Looking at: <label>". */
   label: string;
+  /** The match's chat (`match:<game key>`): it wins over the page's scope while the game is registered. */
+  scope?: LogPoseScope;
   /** The game as it is right now, or null when it can't be read (the message goes without it). */
   context: () => GameChatContext | null;
   /** The Turn plan card for a plan under an answer. `ask` sends a message as the player. */
@@ -280,6 +287,8 @@ const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is
 
 /** Desktop and tablets (a fine pointer, or 640px and wider) get the resizable drawer; anything else gets the phone sheet. */
 export const DRAWER_QUERY = "(min-width: 640px), (pointer: fine)";
+/** Windows too short for the chat's name on its own row under the header (#970). */
+export const SHORT_QUERY = "(max-height: 500px)";
 
 function useMedia(query: string): boolean {
   const get = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
@@ -300,11 +309,24 @@ type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode
 
 const isLimit = (code: string | undefined): code is RefusalCode => code === "credit" || code === "daily" || code === "monthly";
 
-function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean, onUnread: () => void, credit: CreditHooks, live: { current: LogPoseGame | null }) {
+function useChat(
+  apiBase: string,
+  session: SessionManager,
+  isOpen: () => boolean,
+  onUnread: () => void,
+  credit: CreditHooks,
+  live: { current: LogPoseGame | null },
+  active: LogPoseScope,
+) {
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [threadId, setThreadId] = useState<number | null>(() => readThreadId());
+  // The chat on show: its scope (what a new thread is created under) and thread. A chat picked from the Chats list can be another scope than the page's.
+  const [scope, setScope] = useState<LogPoseScope>(active);
+  const [threadId, setThreadId] = useState<number | null>(() => readThreadHint(active.key));
   // The send in flight and the thread, read synchronously: a message sent the moment the last one ends must see both.
   const threadRef = useRef(threadId);
+  const scopeRef = useRef(scope);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const busyRef = useRef(false);
   const idleWaiters = useRef<(() => void)[]>([]);
   const [busy, setBusy] = useState(false);
@@ -312,32 +334,104 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<"idle" | "loading" | "done">("idle");
   const abort = useRef<AbortController | null>(null);
+  // Bumped whenever the chat on show is replaced (page scope change, pick, New chat, a send): a load that finishes late sees it and does nothing.
+  const epoch = useRef(0);
+  // The page scope the chat on show was last matched to. A pick leaves it alone, so the pick holds until the page's scope changes.
+  const syncedKey = useRef<string | null>(null);
+  const loading = useRef<Promise<void>>(Promise.resolve());
 
-  const keepThread = useCallback((id: number) => {
+  const keepThread = useCallback((id: number, sendScope: LogPoseScope, at: number) => {
+    writeThreadHint(sendScope.key, id);
+    if (epoch.current !== at) return;
     threadRef.current = id;
     setThreadId(id);
-    writeThreadId(id);
   }, []);
 
-  const loadHistory = useCallback(() => {
-    if (history !== "idle") return;
-    const id = readThreadId();
-    if (!id) {
-      setHistory("done");
-      return;
-    }
-    setHistory("loading");
-    fetchThread(apiBase, id)
-      .then((t) => {
-        if (!t) {
-          writeThreadId(null);
-          threadRef.current = null;
-          setThreadId(null);
-        } else setMessages((cur) => (cur.length ? cur : t.messages.map(fromHistory)));
+  const show = useCallback((id: number, t: { messages: ThreadMessage[] }) => {
+    threadRef.current = id;
+    setThreadId(id);
+    setMessages(t.messages.map(fromHistory));
+  }, []);
+
+  /** Shows the chat of the page's scope: the newest the server lists for it, with the remembered one on screen first. */
+  const startSync = useCallback(
+    (target: LogPoseScope) => {
+      const e = ++epoch.current;
+      syncedKey.current = target.key;
+      scopeRef.current = target;
+      setScope(target);
+      const hint = readThreadHint(target.key);
+      threadRef.current = hint;
+      setThreadId(hint);
+      setMessages([]);
+      setError(null);
+      setHistory("loading");
+      loading.current = resolveScopeChat(apiBase, target.key, hint, {
+        early: (c) => epoch.current === e && show(c.id, c.thread),
+        stale: () => epoch.current === e && writeThreadHint(target.key, null),
       })
-      .catch(() => setError("Could not load your last chat."))
-      .finally(() => setHistory("done"));
-  }, [apiBase, history]);
+        .then((c) => {
+          if (epoch.current !== e) return;
+          if (c) {
+            show(c.id, c.thread);
+            writeThreadHint(target.key, c.id);
+          } else {
+            threadRef.current = null;
+            setThreadId(null);
+            setMessages([]);
+          }
+        })
+        .catch(() => {
+          if (epoch.current === e) setError("Could not load your last chat.");
+        })
+        .finally(() => {
+          if (epoch.current === e) setHistory("done");
+        });
+    },
+    [apiBase, show],
+  );
+
+  /**
+   * Makes the chat on show the page's. Waits while an answer is in flight (it must land in the chat it was asked
+   * in; the effects below try again when it ends), and leaves a chat the player picked alone until the page's scope changes.
+   */
+  const sync = useCallback((): Promise<void> => {
+    if (!busyRef.current && syncedKey.current !== activeRef.current.key) startSync(activeRef.current);
+    return loading.current;
+  }, [startSync]);
+
+  // After the first load, a page on another scope brings its chat along even while the panel is closed.
+  useEffect(() => {
+    if (syncedKey.current !== null) void sync();
+  }, [active.key, busy, sync]);
+
+  /** Opens a chat from the Chats list, in place. */
+  const openThread = useCallback(
+    (row: { id: number; title: string; scope: string }) => {
+      if (busyRef.current) return;
+      const e = ++epoch.current;
+      const next: LogPoseScope = { key: isValidScope(row.scope) ? row.scope : GENERAL_SCOPE.key, title: row.title };
+      scopeRef.current = next;
+      setScope(next);
+      threadRef.current = row.id;
+      setThreadId(row.id);
+      setMessages([]);
+      setError(null);
+      setHistory("loading");
+      fetchThread(apiBase, row.id)
+        .then((t) => {
+          if (epoch.current !== e) return;
+          if (!t) {
+            threadRef.current = null;
+            setThreadId(null);
+            setError("That chat is gone.");
+          } else show(row.id, t);
+        })
+        .catch(() => epoch.current === e && setError("Could not load that chat."))
+        .finally(() => epoch.current === e && setHistory("done"));
+    },
+    [apiBase, show],
+  );
 
   const send = useCallback(
     async (text: string, context: ChatContext | undefined, opts?: { auto?: boolean }): Promise<GameAskResult> => {
@@ -347,6 +441,10 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
       const ctrl = new AbortController();
       abort.current = ctrl;
       busyRef.current = true;
+      // The chat and scope this message belongs to, taken now: the answer lands there even if the page moves on while it streams.
+      const at = ++epoch.current;
+      const sendScope = scopeRef.current.key === activeRef.current.key ? activeRef.current : scopeRef.current;
+      setHistory((h) => (h === "loading" ? "done" : h));
       setBusy(true);
       setStatus("");
       setError(null);
@@ -356,16 +454,14 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
           const last = cur[cur.length - 1];
           return last?.role === "assistant" ? [...cur.slice(0, -1), fn(last)] : cur;
         });
-      const body: ChatRequest = { message };
-      if (threadRef.current) body.thread_id = threadRef.current;
-      if (context) body.context = context;
+      const body = chatBody(message, threadRef.current, sendScope, context);
       try {
         await streamAnalyst(
           session,
           "/chat",
           body,
           {
-            onThread: keepThread,
+            onThread: (id) => keepThread(id, sendScope, at),
             onStatus: setStatus,
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
             // A citation follows the text streamed so far.
@@ -390,7 +486,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
               live.current?.onLiveChoice?.(stamped);
             },
             onDone: (d) => {
-              if (typeof d.thread_id === "number") keepThread(d.thread_id);
+              if (typeof d.thread_id === "number") keepThread(d.thread_id, sendScope, at);
               patchLast((m) => ({ ...m, saved: true }));
               if (!isOpen() && !opts?.auto) onUnread();
               credit.apply(d);
@@ -453,7 +549,9 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
   const reset = useCallback(() => {
     abort.current?.abort();
     abort.current = null;
-    writeThreadId(null);
+    epoch.current++;
+    // A fresh chat in the scope on show; the older ones stay in the Chats list.
+    writeThreadHint(scopeRef.current.key, null);
     threadRef.current = null;
     setThreadId(null);
     setMessages([]);
@@ -466,7 +564,7 @@ function useChat(apiBase: string, session: SessionManager, isOpen: () => boolean
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  return { messages, busy, status, error, history, threadId, loadHistory, send, stop, reset, whenIdle, busyNow: () => busyRef.current };
+  return { messages, busy, status, error, history, threadId, scope, sync, openThread, send, stop, reset, whenIdle, busyNow: () => busyRef.current };
 }
 
 /**
@@ -546,8 +644,24 @@ export function LogPoseProvider({
   const markUnread = useCallback(() => setUnread(true), []);
   const creditState = useCredit(apiBase, enabled === true, account);
   const creditHooks = useMemo(() => ({ apply: creditState.apply, refuse: creditState.refuse, refresh: creditState.refresh }), [creditState.apply, creditState.refuse, creditState.refresh]);
+  const [game, setGameState] = useState<LogPoseGame | null>(null);
+  const gameOwner = useRef<object | null>(null);
+  const setGame = useCallback((owner: object, next: LogPoseGame | null) => {
+    if (next) {
+      gameOwner.current = owner;
+      setGameState(next);
+    } else if (gameOwner.current === owner) {
+      gameOwner.current = null;
+      setGameState(null);
+    }
+  }, []);
+
   const gameRef = useRef<LogPoseGame | null>(null);
-  const chat = useChat(apiBase, manager, isOpen, markUnread, creditHooks, gameRef);
+  // The chat this page belongs to: the live game's match, else the page's deck or match, else the general chat.
+  const activeKey = game?.scope?.key ?? page?.scope?.key ?? defaultPage?.scope?.key ?? GENERAL_SCOPE.key;
+  const activeTitle = game?.scope?.title ?? page?.scope?.title ?? defaultPage?.scope?.title ?? GENERAL_SCOPE.title;
+  const active = useMemo<LogPoseScope>(() => ({ key: activeKey, title: activeTitle }), [activeKey, activeTitle]);
+  const chat = useChat(apiBase, manager, isOpen, markUnread, creditHooks, gameRef, active);
   const chatRef = useRef(chat);
   chatRef.current = chat;
 
@@ -627,18 +741,6 @@ export function LogPoseProvider({
     }
   }, []);
 
-  const [game, setGameState] = useState<LogPoseGame | null>(null);
-  const gameOwner = useRef<object | null>(null);
-  const setGame = useCallback((owner: object, next: LogPoseGame | null) => {
-    if (next) {
-      gameOwner.current = owner;
-      setGameState(next);
-    } else if (gameOwner.current === owner) {
-      gameOwner.current = null;
-      setGameState(null);
-    }
-  }, []);
-
   gameRef.current = game;
   const pageNow = page ?? defaultPage;
   const pageRef = useRef(pageNow);
@@ -655,6 +757,9 @@ export function LogPoseProvider({
       if (!chatRef.current.busyNow()) break;
       if (!(await chatRef.current.whenIdle(signal))) return { ...NOT_SENT, aborted: true };
     }
+    // The match's chat must be the one on show before the message goes (the panel may never have been opened).
+    await chatRef.current.sync();
+    if (signal?.aborted) return { ...NOT_SENT, aborted: true };
     if (enabledRef.current !== true) return NOT_SENT;
     // The game as it is now, whatever the chip says: the board asked, so the chip's × doesn't apply.
     const context = gameMessageContext(pageRef.current, gameRef.current, false);
@@ -717,6 +822,7 @@ export function LogPoseProvider({
         {chrome.panel && session ? (
           <LogPosePanel
             page={page ?? defaultPage}
+            active={active}
             editor={editor}
             game={game}
             chat={chat}
@@ -821,6 +927,7 @@ type Request = LogPoseAsk & { nonce: number };
 
 function LogPosePanel({
   page,
+  active,
   editor,
   game,
   chat,
@@ -849,6 +956,8 @@ function LogPosePanel({
   onRequestHandled,
 }: {
   page: LogPosePage | null;
+  /** The chat the page belongs to (see LogPoseProvider). */
+  active: LogPoseScope;
   editor: DeckEditor | null;
   game: LogPoseGame | null;
   chat: Chat;
@@ -891,6 +1000,8 @@ function LogPosePanel({
   const blocked = chatOn && credit?.refusal ? credit : null;
   const showChat = chatOn && view === "chat";
   const phone = !useMedia(DRAWER_QUERY);
+  // A short window (a phone on its side) has no room for a second header row: the chat's name moves into the header.
+  const short = useMedia(SHORT_QUERY);
   const [draft, setDraft] = useState("");
   /** Context for the next message only: the hint a Why? was about. */
   const [extra, setExtra] = useState<LogPoseAsk["context"] | null>(null);
@@ -944,15 +1055,16 @@ function LogPosePanel({
       done?.();
     };
   }, [closing, pending, embedded, edge, dock, origin, onExited]);
-  const { loadHistory } = chat;
+  const { sync } = chat;
 
   // A different page brings its chip back.
   const pageKey = page ? JSON.stringify([page.label, page.deck, page.matchId, game?.label]) : (game?.label ?? "");
   useEffect(() => setDropped(false), [pageKey]);
 
+  // Opening the panel (or moving to a page on another scope) puts the page's chat on show.
   useEffect(() => {
-    if (chatOn) loadHistory();
-  }, [chatOn, loadHistory]);
+    if (chatOn) void sync();
+  }, [chatOn, sync, active.key, chat.busy]);
 
   // A Why? from elsewhere in the app: send it once the last chat has loaded, or fill the composer while an answer streams.
   const { send: chatSend, history: chatHistory, busy: chatBusy } = chat;
@@ -1098,7 +1210,18 @@ function LogPosePanel({
   const showChip = Boolean(chipLabel) && !dropped;
   const aboutHint = extra?.hint;
 
+  // The chat on show: the page's own while it is, or the one picked from the Chats list.
+  const shown = chat.scope.key === active.key ? active : chat.scope;
   const floating = !phone && dock === null;
+  const chatsMenu = <ChatsMenu apiBase={apiBase} active={active} threadId={chat.threadId} busy={chat.busy} onPick={chat.openThread} />;
+  const scopeBar = (
+    <div className="lp-scope">
+      <span className="lp-scope-label" title={scopeLabel(shown)} data-testid="lp-scope-label">
+        {scopeLabel(shown)}
+      </span>
+      {chatsMenu}
+    </div>
+  );
   const node = (
     <div
       ref={panelRef}
@@ -1121,13 +1244,29 @@ function LogPosePanel({
       }
     >
       {phone ? <SheetGrip {...sheet} /> : embedded ? null : edge && dock ? <DockHandle side={dock} width={dockW} onWidth={onDockW} onCommit={onCommitDockW} onReset={() => onCommitDockW(DOCK_W_DEFAULT)} /> : <ResizeHandles drawer={drawer} panelRef={panelRef} />}
-      <header className="lp-head" data-owner={owner ? "true" : undefined} data-movable={phone ? undefined : "true"} {...(phone ? {} : move.header)}>
+      <header
+        className="lp-head"
+        data-owner={owner ? "true" : undefined}
+        data-movable={phone ? undefined : "true"}
+        data-scope-inline={showChat && short ? "true" : undefined}
+        {...(phone ? {} : move.header)}
+      >
         <span className="lp-head-icon" aria-hidden="true">
           <CompassIcon />
         </span>
-        <h2 id="lp-title" className="lp-title">
-          Log Pose
-        </h2>
+        {showChat && short ? (
+          <>
+            <h2 id="lp-title" className="lp-title lp-title-scope" title={scopeLabel(shown)} data-testid="lp-scope-label">
+              <span className="lp-sr">Log Pose: </span>
+              {scopeLabel(shown)}
+            </h2>
+            {chatsMenu}
+          </>
+        ) : (
+          <h2 id="lp-title" className="lp-title">
+            Log Pose
+          </h2>
+        )}
         {!phone ? (
           <button
             type="button"
@@ -1153,7 +1292,7 @@ function LogPosePanel({
             Back to chat
           </button>
         ) : null}
-        {showChat ? (
+        {showChat && canStartNewChat(shown.key) ? (
           <button type="button" className="lp-btn lp-btn-quiet" onClick={newChat}>
             New chat
           </button>
@@ -1167,6 +1306,7 @@ function LogPosePanel({
       {owner && view !== "chat" ? (
         <OwnerTabs view={view} waiting={waiting} onView={setView} />
       ) : null}
+      {showChat && !short ? scopeBar : null}
       {showChat && !owner ? <CreditMeter credit={credit} /> : null}
       {showChat ? <ModelPicker apiBase={apiBase} /> : null}
 

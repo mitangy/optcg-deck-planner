@@ -181,3 +181,10 @@ def test_brief_spend_counts_toward_the_daily_cap(chat):
     r = c.post("/analyst/chat/usage", json={"kind": "brief", "model": "m", "cost_usd": 3.0}, headers=h)
     assert r.status_code == 204, r.text
     assert c.get("/analyst/chat/budget", headers=h).json()["allowed"] is False
+
+
+def test_a_brief_lookup_names_the_game_its_ticket_is_for_970(chat):
+    """The lookup returns the ticket's match id, which the analyst scopes the game's chat thread to (#970)."""
+    c, _ = chat
+    _, body = _session(c)
+    assert _lookup(c, body["token"], _ticket()).json()["match_id"] == "room-1"

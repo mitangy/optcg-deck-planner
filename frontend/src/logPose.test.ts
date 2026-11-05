@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPlannerEdit, plannerDeckContext, showsLogPose } from "./logPose";
+import { applyPlannerEdit, plannerDeckContext, plannerDeckPage, showsLogPose } from "./logPose";
 
 describe("Log Pose in the planner (#377)", () => {
   it("keeps the compass off public share pages and shows it on the signed-in pages (#377)", () => {
@@ -53,6 +53,21 @@ describe("Log Pose in the planner (#377)", () => {
       { id: "OP05-100", copies: 4 },
       { id: "OP05-103", copies: 3 },
     ]);
+  });
+});
+
+describe("the chat the planner's deck page opens (#970)", () => {
+  const deck = { name: "Purple Enel", leader_card_id: "OP05-098", cards: [{ card_id: "OP05-100", needed: 4, section: "main" }] };
+
+  it("opens the saved deck's own chat, named after the deck (#970)", () => {
+    const page = plannerDeckPage(plannerDeckContext({ ...deck, id: 7 }));
+    expect(page.scope).toEqual({ key: "deck:planner:7", title: "Purple Enel" });
+    expect(page.page).toBe("deck");
+  });
+
+  it("uses the general chat for a deck that has no id yet, and names an unnamed deck (#970)", () => {
+    expect(plannerDeckPage(plannerDeckContext(deck)).scope).toBeUndefined();
+    expect(plannerDeckPage(plannerDeckContext({ ...deck, id: 9, name: "" })).scope).toEqual({ key: "deck:planner:9", title: "This deck" });
   });
 });
 

@@ -120,7 +120,8 @@ export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: st
 /** What the page the user is on adds to a message. */
 export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext; game?: GameChatContext };
 
-export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext };
+/** `scope` and `scope_title` only count for a new chat (no thread_id): they say what the thread is about. */
+export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext; scope?: string; scope_title?: string };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
 /** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
 export type BriefRequest = { ticket: string; generate: boolean };
@@ -445,7 +446,24 @@ export async function streamAnalyst(
 }
 
 export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[]; drafts?: NewDeckDraft[] };
-export type ThreadHistory = { id: number; title: string; messages: ThreadMessage[] };
+export type ThreadHistory = { id: number; title: string; scope?: string; messages: ThreadMessage[] };
+
+/** A saved chat in the Chats list. */
+export type ThreadSummary = { id: number; title: string; updated_at: string; scope: string };
+
+/** GET {apiBase}/analyst/chat/threads[?scope=]: the player's chats, newest first (one scope, or the latest 50 of all). */
+export async function listThreads(apiBase: string, scope?: string, fetchImpl: typeof fetch = fetch): Promise<ThreadSummary[]> {
+  const q = scope ? `?scope=${encodeURIComponent(scope)}` : "";
+  const res = await fetchImpl(`${apiBase}/analyst/chat/threads${q}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Could not list your chats (${res.status})`);
+  const body = (await res.json()) as { threads?: unknown };
+  const rows = Array.isArray(body.threads) ? body.threads : [];
+  return rows.flatMap((r): ThreadSummary[] => {
+    const t = r as Partial<ThreadSummary> | null;
+    if (!t || typeof t.id !== "number" || !Number.isInteger(t.id)) return [];
+    return [{ id: t.id, title: typeof t.title === "string" ? t.title : "", updated_at: typeof t.updated_at === "string" ? t.updated_at : "", scope: typeof t.scope === "string" ? t.scope : "general" }];
+  });
+}
 
 /** GET {apiBase}/analyst/chat/threads/{id}; null when it is gone (404). */
 export async function fetchThread(apiBase: string, threadId: number, fetchImpl: typeof fetch = fetch): Promise<ThreadHistory | null> {

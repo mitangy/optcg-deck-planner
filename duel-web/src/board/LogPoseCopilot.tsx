@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ticketGameKey, useLogPose, useLogPoseGame, type ChoiceAnswer, type GameAskResult, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
 import { lookupCard } from "../cards/atlas";
 import { setBoardCopilot } from "../logPose";
+import { liveMatchScope } from "../logPoseScopes";
 import type { BriefTicketWire, Intent, PlayerView, Seat } from "../net/protocol";
 import { useDuelSettings } from "../settings";
 import type { BattleLogEntry } from "./battleLog";
@@ -273,6 +274,11 @@ export function useLogPoseCopilot(o: {
   const ticketRef = useRef<string | null>(null);
   ticketRef.current = brief?.ticket ?? null;
   const gameKeyNow = () => (ticketRef.current ? ticketGameKey(ticketRef.current) : null);
+  // The match's own chat. The ticket is new on every reconnect but names the same match, so only the key and title count.
+  const scopeNow = brief ? liveMatchScope(brief.ticket, lookupCard(brief.leaderId).name || brief.leaderId, lookupCard(brief.opponentId).name || brief.opponentId) : undefined;
+  const scopeKey = scopeNow?.key;
+  const scopeTitle = scopeNow?.title;
+  const gameScope = useMemo(() => (scopeKey ? { key: scopeKey, title: scopeTitle ?? "" } : undefined), [scopeKey, scopeTitle]);
   const viewRef = useRef(view);
   viewRef.current = view;
   const logRef = useRef(o.battleLog);
@@ -423,6 +429,7 @@ export function useLogPoseCopilot(o: {
   const game = useMemo<LogPoseGame>(
     () => ({
       label: "this game",
+      scope: gameScope,
       starters: COPILOT_STARTERS,
       context: (): GameChatContext | null => {
         const v = viewRef.current;
@@ -437,7 +444,7 @@ export function useLogPoseCopilot(o: {
       onLivePlan: auto.onLivePlan,
       onLiveChoice: auto.onLiveChoice,
     }),
-    [store, actions, auto],
+    [store, actions, auto, gameScope],
   );
   useLogPoseGame(attached ? game : null);
 

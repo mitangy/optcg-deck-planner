@@ -11,6 +11,7 @@ import {
 } from "@optcg/analyst-client";
 import { lookupCard } from "../cards/atlas";
 import { deckContext, setBoardBrief } from "../logPose";
+import { liveMatchScope } from "../logPoseScopes";
 import type { BriefTicketWire } from "../net/protocol";
 import { useDuelSettings } from "../settings";
 import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBrief";
@@ -290,7 +291,7 @@ export function useMatchBrief(o: {
     () => (shown && brief ? <PinnedBrief you={you} opp={opp} state={state} collapsed={collapsed} onToggle={toggle} onGet={getBrief} /> : null),
     [shown, brief, you, opp, state, collapsed, toggle, getBrief],
   );
-  useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, starters: STARTERS, pinned } : null);
+  useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, scope: liveMatchScope(brief.ticket, you, opp), starters: STARTERS, pinned } : null);
 
   if (!shown || !brief) return { shown: false, trigger: null, open: false, setOpen };
 

@@ -133,7 +133,7 @@ type LegalAction = z.infer<typeof legalAction>;
 type ChoiceOption = z.infer<typeof choiceOption>;
 
 /** What the planner's brief ticket says about the game. */
-export type GameClaims = { leader: string; opponent: string; deck: { id: string; copies: number }[] };
+export type GameClaims = { leader: string; opponent: string; deck: { id: string; copies: number }[]; matchId?: string };
 
 /**
  * Checks the game server's ticket with the planner (a ranked or forged one is refused) and that the snapshot is
@@ -143,7 +143,7 @@ export async function verifyGame(api: PlannerApi, token: string, catalog: Catalo
   // Loaded here because chat.ts imports this module's schema when it is evaluated.
   const { ChatHttpError, briefVariant } = await import("./chat");
   const refuse = () => new ChatHttpError(400, COPILOT_REFUSAL, "bad_request");
-  let found: { leader_id: string; opponent_id: string; deck: { id: string; copies: number }[] };
+  let found: { leader_id: string; opponent_id: string; deck: { id: string; copies: number }[]; match_id?: string };
   try {
     found = await plannerCall(api, token, "/analyst/briefs/lookup", true, { ticket: game.ticket, variant: briefVariant(catalog) });
   } catch (err) {
@@ -152,7 +152,7 @@ export async function verifyGame(api: PlannerApi, token: string, catalog: Catalo
   }
   const { you, opponent } = game.snapshot;
   if (you.leader.defId !== found.leader_id || opponent.leader.defId !== found.opponent_id) throw refuse();
-  return { leader: found.leader_id, opponent: found.opponent_id, deck: found.deck };
+  return { leader: found.leader_id, opponent: found.opponent_id, deck: found.deck, matchId: found.match_id ?? "" };
 }
 
 const nameOfDef = (catalog: Catalog, id: string) => catalog.cards.get(id)?.name ?? id;

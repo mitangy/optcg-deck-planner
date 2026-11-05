@@ -177,6 +177,48 @@ describe("chat", () => {
     expect((calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, number>).cost_usd).toBeCloseTo(expected, 6);
   });
 
+  describe("thread scope (#970)", () => {
+    const turn = async (body: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
+      const { calls, api } = planner({
+        "POST /analyst/chat/threads": { id: 9 },
+        "POST /analyst/chat/threads/9/messages": null,
+        "GET /analyst/chat/threads/4/content": { id: 4, title: "t", messages: [] },
+        "POST /analyst/chat/threads/4/messages": null,
+        "POST /analyst/chat/usage": null,
+        "GET /analyst/chat/budget": BUDGET,
+        ...extra,
+      });
+      const { callModel } = scriptedModel([{ content: [{ type: "text", text: "Ahoy." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
+      await runChat(deps(api, callModel), "chat.tok", chatBody.parse(body), () => undefined, new AbortController().signal);
+      return calls.filter((c) => c.url.endsWith("/analyst/chat/threads") && c.method === "POST");
+    };
+
+    it("creates the thread with the scope and title the client sent", async () => {
+      const created = await turn({ message: "How is this deck?", scope: "deck:planner:42", scope_title: "Zoro aggro" });
+      expect(created).toHaveLength(1);
+      expect(created[0]!.body).toEqual({ title: "Zoro aggro", scope: "deck:planner:42" });
+    });
+
+    it("scopes to general and titles from the message when the client sends neither", async () => {
+      const created = await turn({ message: "  How   is\nmy deck? " });
+      expect(created[0]!.body).toEqual({ title: "How is my deck?", scope: "general" });
+    });
+
+    it("rejects a scope that isn't one of the four shapes", () => {
+      for (const scope of ["", "match:", "match:a b", "deck:planner:x", "deck:other:1", "match:" + "a".repeat(65)]) {
+        expect(chatBody.safeParse({ message: "hi", scope }).success, scope).toBe(false);
+      }
+      for (const scope of ["general", "match:abc123-r1", "deck:planner:7", "deck:duel:0b9c-4f_x"]) {
+        expect(chatBody.safeParse({ message: "hi", scope }).success, scope).toBe(true);
+      }
+    });
+
+    it("makes no thread when one is continued, and ignores the scope sent with it", async () => {
+      const created = await turn({ message: "More", thread_id: 4, scope: "match:g1", scope_title: "New" });
+      expect(created).toHaveLength(0);
+    });
+  });
+
   it("sends no output_config.effort to Haiku 4.5, in a chat, a review or a brief, while Sonnet gets one (#430)", async () => {
     const chat = async (model: string) => {
       const { api } = planner({

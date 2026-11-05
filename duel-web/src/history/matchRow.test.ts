@@ -23,6 +23,12 @@ const cardName = (id: string) => names[id] ?? id;
 const now = new Date("2026-10-02T12:00:00Z");
 
 describe("match history rows", () => {
+  it("marks a game that has a Log Pose chat and no other (#970)", () => {
+    expect(matchRow(entry({ has_chat: true }), cardName, now).hasChat).toBe(true);
+    expect(matchRow(entry({ has_chat: false }), cardName, now).hasChat).toBe(false);
+    expect(matchRow(entry({}), cardName, now).hasChat).toBe(false);
+  });
+
   it("offers Watch replay only for games whose recording is ready (#476)", () => {
     // A live game keeps a replay too (has_replay) but cannot be watched until its room closes.
     expect(matchRow(entry({ replay_ready: true }), cardName, now).replay).toBe(true);
