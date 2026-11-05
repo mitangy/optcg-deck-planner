@@ -17,7 +17,10 @@ import { leaderPageText, LeaderPage } from "../pages/LeaderPage";
 import { LeadersIndexPage } from "../pages/LeadersIndexPage";
 import { LegalPage } from "../pages/LegalPage";
 import { MetaDecksPage } from "../pages/MetaDecksPage";
+import { OptcgSimOnlinePage, OPTCG_SIM_FAQ } from "../pages/OptcgSimOnlinePage";
+import { PlayOnPhonePage, PLAY_ON_PHONE_FAQ } from "../pages/PlayOnPhonePage";
 import { PlayOnlinePage } from "../pages/PlayOnlinePage";
+import { faqPageJsonLd } from "../seo/faqJsonLd";
 import { WhatsNewPage } from "../pages/WhatsNewPage";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { leaderPath } from "../leaders/slug";
@@ -44,9 +47,9 @@ export function fileForPath(path: string): string {
   return clean ? `${clean}/index.html` : "index.html";
 }
 
-function headFor(path: string): PrerenderHead {
+function headFor(path: string, jsonLd?: unknown): PrerenderHead {
   const meta = routeMetaFor(path);
-  return { title: meta.title, description: meta.description, canonical: `${SITE_ORIGIN}${path === "/" ? "/" : path}`, noindex: meta.noindex };
+  return { title: meta.title, description: meta.description, canonical: `${SITE_ORIGIN}${path === "/" ? "/" : path}`, noindex: meta.noindex, jsonLd };
 }
 
 function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
@@ -54,6 +57,8 @@ function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
   const pages: PageSpec[] = [
     { path: "/", element: <HomeShell snapshot={snapshot} />, head: headFor("/"), embed: undefined },
     { path: "/play-one-piece-tcg-online", element: <PlayOnlinePage />, head: headFor("/play-one-piece-tcg-online") },
+    { path: "/optcg-sim-online", element: <OptcgSimOnlinePage />, head: headFor("/optcg-sim-online", faqPageJsonLd(OPTCG_SIM_FAQ)) },
+    { path: "/play-optcg-on-phone", element: <PlayOnPhonePage />, head: headFor("/play-optcg-on-phone", faqPageJsonLd(PLAY_ON_PHONE_FAQ)) },
     { path: "/decks/meta", element: <MetaDecksPage />, head: headFor("/decks/meta"), embed: null },
     { path: "/leaderboard", element: <LeaderboardShell />, head: headFor("/leaderboard") },
     { path: "/whats-new", element: <WhatsNewPage />, head: headFor("/whats-new") },

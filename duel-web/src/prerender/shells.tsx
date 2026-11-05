@@ -56,6 +56,12 @@ export function HomeShell({ snapshot }: { snapshot: MetaSnapshot }) {
               <li>
                 <Link to="/leaderboard">Ranked leaderboard</Link>
               </li>
+              <li>
+                <Link to="/optcg-sim-online">OPTCG sim online</Link>
+              </li>
+              <li>
+                <Link to="/play-optcg-on-phone">Play on your phone</Link>
+              </li>
             </ul>
           </section>
         ) : null}
@@ -78,7 +84,8 @@ export function LeaderboardShell() {
             The top players on the OPTCG Duel ranked ladder and their Bounties. Win ranked matches to raise your Bounty and climb. Playing is free, with no download.
           </p>
           <p className="panel-copy leaderboard-note">
-            <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link> · <Link to="/leaders">Top leaders</Link>
+            <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link> · <Link to="/optcg-sim-online">OPTCG sim online</Link> ·{" "}
+            <Link to="/play-optcg-on-phone">Play on your phone</Link> · <Link to="/leaders">Top leaders</Link>
           </p>
         </section>
       </div>

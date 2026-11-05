@@ -31,6 +31,18 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
       "How to play OPTCG online in your browser with this unofficial fan-made One Piece TCG simulator: pick a deck, play ranked, practice against a bot or invite a friend. Free.",
   },
   {
+    pattern: "/optcg-sim-online",
+    title: "OPTCG Sim Online – Play One Piece TCG in Your Browser, Free | OPTCG Duel",
+    description:
+      "An OPTCG sim that runs in your browser: no download, free, on PC, Mac, Chromebook and phone. Ranked ladder, bots, private rooms and your own decks. Unofficial fan-made.",
+  },
+  {
+    pattern: "/play-optcg-on-phone",
+    title: "Play the One Piece TCG on Your Phone – iPhone & Android, Free | OPTCG Duel",
+    description:
+      "Play the One Piece Trading Card Game on your phone in Safari or Chrome. No app store, free, portrait and landscape layouts, and a Home Screen icon if you want one. Unofficial fan-made.",
+  },
+  {
     pattern: "/decks/meta",
     title: "One Piece TCG meta decks – try them free | OPTCG Duel",
     description:

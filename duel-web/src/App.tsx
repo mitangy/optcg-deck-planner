@@ -9,6 +9,8 @@ import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckConfigurePage } from "./pages/DeckConfigurePage";
 import { DeckListPage } from "./pages/DeckListPage";
 import { PlayOnlinePage } from "./pages/PlayOnlinePage";
+import { OptcgSimOnlinePage } from "./pages/OptcgSimOnlinePage";
+import { PlayOnPhonePage } from "./pages/PlayOnPhonePage";
 import { MetaDecksPage } from "./pages/MetaDecksPage";
 import { LeaderPage } from "./pages/LeaderPage";
 import { LeadersIndexPage } from "./pages/LeadersIndexPage";
@@ -77,6 +79,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<LobbyPage />} />
         <Route path="/play-one-piece-tcg-online" element={<PlayOnlinePage />} />
+        <Route path="/optcg-sim-online" element={<OptcgSimOnlinePage />} />
+        <Route path="/play-optcg-on-phone" element={<PlayOnPhonePage />} />
         <Route path="/leaders" element={<LeadersIndexPage />} />
         <Route path="/leaders/:slug" element={<LeaderPage />} />
         <Route path="/watch/:roomId" element={<LobbyPage />} />

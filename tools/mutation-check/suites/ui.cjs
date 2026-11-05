@@ -103,5 +103,8 @@ module.exports = {
     {"id": "seo914-root-script-unescaped", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": ".replace(/</g, \"\\\\u003c\")", "to": "", "kills": ["fills #root, marks it prerendered and embeds the page data without letting it close the script (#914)"]},
     {"id": "seo914-root-not-marked", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": "<div id=\"root\" data-prerendered>", "to": "<div id=\"root\">", "kills": ["fills #root, marks it prerendered and embeds the page data without letting it close the script (#914)"]},
     {"id": "seo914-root-nonempty-accepted", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": "if (!template.includes(EMPTY_ROOT)) throw", "to": "if (false) throw", "kills": ["refuses a template that already has content in #root (#914)"]},
+    {"id": "seo973-jsonld-unescaped", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": ".replace(/</g, \"\\\\u003c\")", "to": "", "kills": ["writes the structured data as a ld+json script that the page's own text cannot close early (#973)"]},
+    {"id": "seo973-jsonld-dropped", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": "if (head.jsonLd !== undefined) html", "to": "if (false) html", "kills": ["writes the structured data as a ld+json script that the page's own text cannot close early (#973)"]},
+    {"id": "seo973-jsonld-always", "file": "packages/ui/src/seo/prerenderHtml.ts", "from": "if (head.jsonLd !== undefined) html", "to": "if (true) html", "kills": ["adds no script when a page has no structured data (#973)"]},
   ],
 };

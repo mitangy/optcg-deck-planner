@@ -92,6 +92,9 @@ export function PlayOnlinePage() {
               Top leaders
             </Link>
           </div>
+          <p className="play-online-lede">
+            More: <Link to="/optcg-sim-online">OPTCG sim online</Link> and <Link to="/play-optcg-on-phone">play on your phone</Link>.
+          </p>
         </section>
 
         <section className="panel" aria-labelledby="po-start">

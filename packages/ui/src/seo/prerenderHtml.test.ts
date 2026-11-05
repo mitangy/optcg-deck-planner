@@ -39,6 +39,22 @@ describe("pre-rendered page head (#914)", () => {
   });
 });
 
+describe("JSON-LD in the head (#973)", () => {
+  it("writes the structured data as a ld+json script that the page's own text cannot close early (#973)", () => {
+    const data = { "@type": "FAQPage", name: "</script><script>alert(1)</script>" };
+    const html = applyHead(TEMPLATE, { title: "T", description: "D", canonical: "https://example.test/x", jsonLd: data });
+    const head = html.slice(0, html.indexOf("</head>"));
+    const scripts = [...head.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+    expect(scripts).toHaveLength(1);
+    expect(JSON.parse(scripts[0]![1]!)).toEqual(data);
+    expect(head.match(/<script/g)).toHaveLength(1);
+  });
+
+  it("adds no script when a page has no structured data (#973)", () => {
+    expect(applyHead(TEMPLATE, { title: "T", description: "D" })).not.toContain("ld+json");
+  });
+});
+
 describe("injectRoot (#914)", () => {
   it("fills #root, marks it prerendered and embeds the page data without letting it close the script (#914)", () => {
     const html = injectRoot(TEMPLATE, "<h1>Hi</h1>", { id: "seed", value: { text: "</script><b>" } });

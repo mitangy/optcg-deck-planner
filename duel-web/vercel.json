@@ -48,6 +48,14 @@
       "dest": "/play-one-piece-tcg-online/index.html"
     },
     {
+      "src": "/optcg-sim-online/?",
+      "dest": "/optcg-sim-online/index.html"
+    },
+    {
+      "src": "/play-optcg-on-phone/?",
+      "dest": "/play-optcg-on-phone/index.html"
+    },
+    {
       "src": "/leaders/?",
       "dest": "/leaders/index.html"
     },
