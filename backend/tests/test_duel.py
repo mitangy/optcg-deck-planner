@@ -959,3 +959,64 @@ def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypat
         other_worker.commit()
     assert progress_sweep.run_once() == 3
     engine.dispose()
+
+
+def _solo(c, game_id: str, user_id: int, token: str = "test-ingest", **extra):
+    return c.post(
+        "/duel/solo-games",
+        json={"game_id": game_id, "user_id": user_id, "mode": "bot", **extra},
+        headers={"X-Duel-Ingest-Token": token},
+    )
+
+
+def test_solo_game_ingest_needs_the_ingest_secret_988(client):
+    c, _ = client
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    assert _solo(c, "g1", uid, token="wrong").status_code == 401
+    assert c.post("/duel/solo-games", json={"game_id": "g1", "user_id": uid, "mode": "bot"}).status_code == 401
+    assert _solo(c, "g1", uid).status_code == 200
+
+
+def test_solo_game_for_an_unknown_user_is_a_400_988(client):
+    c, _ = client
+    assert _solo(c, "g1", 424242).status_code == 400
+
+
+def test_solo_game_is_recorded_once_per_game_id_988(client):
+    from app.models import DuelSoloGame
+
+    c, S = client
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    first = _solo(c, "g1", uid, won=True, bot_level="hard", leader_id="OP01-001", opponent_leader_id="OP02-001", turns=9, reason="life")
+    assert (first.status_code, first.json()["created"]) == (200, True)
+    again = _solo(c, "g1", uid, won=False)
+    assert (again.status_code, again.json()["created"]) == (200, False)
+    with S() as db:
+        rows = db.query(DuelSoloGame).all()
+        assert [(r.game_id, r.won, r.bot_level, r.leader_id, r.opponent_leader_id, r.turns, r.reason) for r in rows] == [
+            ("g1", True, "hard", "OP01-001", "OP02-001", 9, "life")
+        ]
+
+
+def test_practice_solo_game_never_records_a_winner_988(client):
+    from app.models import DuelSoloGame
+
+    c, S = client
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    r = c.post(
+        "/duel/solo-games",
+        json={"game_id": "p1", "user_id": uid, "mode": "practice", "won": True, "bot_level": "hard"},
+        headers={"X-Duel-Ingest-Token": "test-ingest"},
+    )
+    assert r.status_code == 200
+    with S() as db:
+        row = db.query(DuelSoloGame).one()
+        assert (row.mode, row.won, row.bot_level) == ("practice", None, None)
+
+
+def test_solo_games_do_not_touch_ratings_or_match_history_988(client):
+    c, _ = client
+    me = c.post("/auth/dev-login").json()
+    assert _solo(c, "g1", me["id"], won=True).status_code == 200
+    assert c.get("/duel/matches/me").json()["matches"] == []
+    assert c.get("/duel/rating/me").json()["games_played"] == 0

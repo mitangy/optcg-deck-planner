@@ -1,4 +1,4 @@
-import type { SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role } from "./adminApi";
+import type { SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
 export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
 
@@ -449,4 +449,63 @@ export function canRestoreUpload(actor: { role: Role }, row: Pick<UploadRow, "ta
 
 export function uploadKindLabel(kind: UploadRow["kind"]): string {
   return kind === "cardBack" ? "Card back" : "Playmat";
+}
+
+// ---------------------------------------------------------------- user detail (#988)
+
+/** Game modes in the order every admin table shows them, with a short header for narrow columns. */
+export const GAME_MODES: readonly { mode: GameMode; label: string; short: string; title: string }[] = [
+  { mode: "ranked", label: "Ranked", short: "Rkd", title: "Ranked games (matchmaker queue)" },
+  { mode: "friends", label: "Friends", short: "Frd", title: "Unranked games against an accepted friend" },
+  { mode: "private", label: "Private", short: "Prv", title: "Unranked games in a private room against a non-friend" },
+  { mode: "bot", label: "Bot", short: "Bot", title: "Games against the server bot (counted since tracking began)" },
+  { mode: "practice", label: "Practice", short: "Prc", title: "Hotseat practice games (counted since tracking began)" },
+];
+
+export function modeLabel(mode: GameMode): string {
+  return GAME_MODES.find((m) => m.mode === mode)?.label ?? mode;
+}
+
+/** Every game the account played, all five modes. */
+export function totalGames(games: GameCounts): number {
+  return GAME_MODES.reduce((sum, m) => sum + (games[m.mode] ?? 0), 0);
+}
+
+/** The line under "Games by mode": bot and practice games were not saved before tracking began. */
+export function soloNote(trackedSince: string | null): string {
+  if (!trackedSince) return "Bot and practice games are not tracked yet, so those counts stay 0 until the first one is saved.";
+  return `Bot and practice games are counted since ${dateOf(trackedSince)}; earlier ones were not saved.`;
+}
+
+/** A game's result for the account: practice has no winner. */
+export function resultOf(m: Pick<AdminUserMatch, "mode" | "won">): "Won" | "Lost" | "—" {
+  if (m.mode === "practice" || m.won == null) return "—";
+  return m.won ? "Won" : "Lost";
+}
+
+/** "5 min ago", "3 days ago"; past a month the date. `now` is injected for tests. */
+export function agoText(iso: string, now: number = Date.now()): string {
+  const secs = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 31) return `${days} ${days === 1 ? "day" : "days"} ago`;
+  return dateOf(iso);
+}
+
+/** Where the account is right now, or null when offline. */
+export function presenceText(online: AdminUserDetail["online"]): string | null {
+  if (!online.now) return null;
+  if (online.room_role === "player") return online.ranked ? "In a ranked game" : "In a game";
+  if (online.room_role === "spectator") return "Watching a game";
+  return "Online now";
+}
+
+/** "$1.25"; sub-cent spend keeps a third decimal so a few questions do not read as free. */
+export function usd(v: number): string {
+  if (v > 0 && v < 0.01) return `$${v.toFixed(3)}`;
+  return `$${v.toFixed(2)}`;
 }

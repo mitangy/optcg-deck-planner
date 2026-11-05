@@ -12,8 +12,8 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import AfterValidator, BaseModel, Field, model_validator
-from sqlalchemy import case, func, or_, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy.orm import Session, aliased
 
 from app import admin_hosting
 from app.analyst_credit import month_start, spent_since
@@ -24,14 +24,22 @@ from app.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystFeedback,
+    AnalystThread,
     AnalystUsage,
     Base,
     BotMatch,
     Deck,
     DuelCosmetic,
+    DuelLobbySeen,
     DuelMatch,
+    DuelMatchLog,
     DuelMatchSeat,
+    DuelRating,
+    DuelSavedDeck,
+    DuelSoloGame,
     DuelUserSettings,
+    Friendship,
+    Owned,
     PlayerReport,
     PlayerWarning,
     User,
@@ -40,6 +48,7 @@ from app.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
 from app.routers.analyst import require_service
+from app.routers.friends import ONLINE_TTL, live_presence
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -479,7 +488,15 @@ def _parse_signup_source(raw: str | None) -> dict | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _user_row(u: User, matches: int = 0, last_match_at: datetime | None = None) -> dict:
+MODES = ("ranked", "friends", "private", "bot", "practice")
+
+
+def _user_row(
+    u: User,
+    matches: int = 0,
+    last_match_at: datetime | None = None,
+    games: dict[str, int] | None = None,
+) -> dict:
     return {
         "id": u.id,
         "email": u.email,
@@ -492,7 +509,52 @@ def _user_row(u: User, matches: int = 0, last_match_at: datetime | None = None) 
         "signup_source": _parse_signup_source(u.signup_source),
         "matches": matches,
         "last_match_at": _iso(last_match_at),
+        "games": games if games is not None else {m: 0 for m in MODES},
     }
+
+
+def _friend_pair_on(me, other):
+    """Join condition: ``me`` and ``other`` (user id columns) are an accepted Friendship pair."""
+    low = case((me < other, me), else_=other)
+    high = case((me < other, other), else_=me)
+    return and_(Friendship.status == "accepted", Friendship.user_low_id == low, Friendship.user_high_id == high)
+
+
+def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+    """Games and wins per mode for each user: {user_id: {mode: (games, wins)}} (#988).
+
+    ranked = matchmaker games; friends = casual games against an accepted friend (as things stand
+    now); private = every other casual game; bot and practice come from duel_solo_games. Four
+    grouped queries however many users are asked for.
+    """
+    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
+    if not user_ids:
+        return out
+    me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
+    is_friend = Friendship.id.is_not(None)
+    rows = db.execute(
+        select(me.user_id, me.ranked, is_friend, func.count(), func.coalesce(func.sum(case((me.won, 1), else_=0)), 0))
+        .select_from(me)
+        .outerjoin(opp, and_(opp.match_id == me.match_id, opp.seat != me.seat))
+        .outerjoin(Friendship, _friend_pair_on(me.user_id, opp.user_id))
+        .where(me.user_id.in_(user_ids))
+        .group_by(me.user_id, me.ranked, is_friend)
+    )
+    for uid, ranked, friend, n, wins in rows:
+        mode = "ranked" if ranked else ("friends" if friend else "private")
+        games, won = out[uid][mode]
+        out[uid][mode] = (games + int(n), won + int(wins))
+    for uid, mode, n, wins in db.execute(
+        select(
+            DuelSoloGame.user_id, DuelSoloGame.mode, func.count(),
+            func.coalesce(func.sum(case((DuelSoloGame.won.is_(True), 1), else_=0)), 0),
+        )
+        .where(DuelSoloGame.user_id.in_(user_ids))
+        .group_by(DuelSoloGame.user_id, DuelSoloGame.mode)
+    ):
+        if mode in out[uid]:
+            out[uid][mode] = (int(n), int(wins))
+    return out
 
 
 def _like_escape(q: str) -> str:
@@ -533,7 +595,172 @@ def list_users(
             .group_by(DuelMatchSeat.user_id)
         ):
             stats[uid] = (int(n), last)
-    return {"total": total, "users": [_user_row(u, *stats.get(u.id, (0, None))) for u in page]}
+    modes = mode_counts(db, ids)
+    return {
+        "total": total,
+        "users": [
+            _user_row(u, *stats.get(u.id, (0, None)), games={m: g for m, (g, _w) in modes[u.id].items()})
+            for u in page
+        ],
+    }
+
+
+def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
+    """The user's newest duel matches and solo games merged, newest first."""
+    me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
+    duel = db.execute(
+        select(me, opp.user_id, opp.leader_id, DuelMatch.reason)
+        .select_from(me)
+        .outerjoin(opp, and_(opp.match_id == me.match_id, opp.seat != me.seat))
+        .join(DuelMatch, DuelMatch.match_id == me.match_id)
+        .where(me.user_id == user_id)
+        .order_by(me.created_at.desc(), me.id.desc())
+        .limit(limit)
+    ).all()
+    solo = db.scalars(
+        select(DuelSoloGame).where(DuelSoloGame.user_id == user_id).order_by(DuelSoloGame.created_at.desc(), DuelSoloGame.id.desc()).limit(limit)
+    ).all()
+    opp_ids = {o for _s, o, _l, _r in duel if o is not None and o != user_id}
+    names = {u.id: duel_display_name(u) for u in db.scalars(select(User).where(User.id.in_(opp_ids)))} if opp_ids else {}
+    friends = set()
+    if opp_ids:
+        for low, high in db.execute(
+            select(Friendship.user_low_id, Friendship.user_high_id).where(
+                Friendship.status == "accepted",
+                or_(
+                    and_(Friendship.user_low_id == user_id, Friendship.user_high_id.in_(opp_ids)),
+                    and_(Friendship.user_high_id == user_id, Friendship.user_low_id.in_(opp_ids)),
+                ),
+            )
+        ):
+            friends.add(high if low == user_id else low)
+    replays = set(db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_([s.match_id for s, *_ in duel])))) if duel else set()
+    items: list[tuple[datetime, dict]] = []
+    for seat, opp_uid, opp_leader, reason in duel:
+        mode = "ranked" if seat.ranked else ("friends" if opp_uid in friends else "private")
+        has_opp = opp_uid is not None and opp_uid != user_id
+        items.append((_utc(seat.created_at), {
+            "id": seat.match_id, "created_at": _iso(seat.created_at), "mode": mode,
+            "leader_id": seat.leader_id, "opponent_leader_id": opp_leader,
+            "opponent": {"id": opp_uid, "name": names.get(opp_uid, "Player")} if has_opp else None,
+            "bot_level": None, "won": seat.won, "turns": seat.turns, "reason": reason,
+            "replay": seat.match_id in replays,
+        }))
+    for g in solo:
+        items.append((_utc(g.created_at), {
+            "id": g.game_id, "created_at": _iso(g.created_at), "mode": g.mode,
+            "leader_id": g.leader_id, "opponent_leader_id": g.opponent_leader_id, "opponent": None,
+            "bot_level": g.bot_level, "won": g.won, "turns": g.turns, "reason": g.reason, "replay": False,
+        }))
+    items.sort(key=lambda t: t[0], reverse=True)
+    return [row for _t, row in items[:limit]]
+
+
+def _top_leaders(db: Session, user_id: int, limit: int = 8) -> list[dict]:
+    tally: dict[str, list[int]] = {}
+    for leader, n, wins in db.execute(
+        select(DuelMatchSeat.leader_id, func.count(), func.coalesce(func.sum(case((DuelMatchSeat.won, 1), else_=0)), 0))
+        .where(DuelMatchSeat.user_id == user_id, DuelMatchSeat.leader_id.is_not(None))
+        .group_by(DuelMatchSeat.leader_id)
+    ):
+        tally.setdefault(leader, [0, 0])
+        tally[leader][0] += int(n)
+        tally[leader][1] += int(wins)
+    for leader, n, wins in db.execute(
+        select(DuelSoloGame.leader_id, func.count(), func.coalesce(func.sum(case((DuelSoloGame.won.is_(True), 1), else_=0)), 0))
+        .where(DuelSoloGame.user_id == user_id, DuelSoloGame.leader_id.is_not(None))
+        .group_by(DuelSoloGame.leader_id)
+    ):
+        tally.setdefault(leader, [0, 0])
+        tally[leader][0] += int(n)
+        tally[leader][1] += int(wins)
+    ranked = sorted(tally.items(), key=lambda kv: (-kv[1][0], kv[0]))[:limit]
+    return [{"leader_id": k, "games": v[0], "wins": v[1]} for k, v in ranked]
+
+
+def _count(db: Session, column, *where) -> int:
+    return int(db.scalar(select(func.count()).select_from(column.class_).where(*where)) or 0)
+
+
+@router.get("/users/{user_id}")
+def user_detail(user_id: int, _: Staff, db: DB) -> dict:
+    """Everything staff may want to know about one account (#988)."""
+    u = _target(db, user_id)
+    now = datetime.now(timezone.utc)
+    modes = mode_counts(db, [user_id])[user_id]
+    matches = sum(modes[m][0] for m in ("ranked", "friends", "private"))
+    last_match_at = db.scalar(select(func.max(DuelMatchSeat.created_at)).where(DuelMatchSeat.user_id == user_id))
+    row = _user_row(u, matches, last_match_at, {m: g for m, (g, _w) in modes.items()})
+
+    lobby = db.scalar(select(DuelLobbySeen.seen_at).where(DuelLobbySeen.user_id == user_id))
+    solo_at = db.scalar(select(func.max(DuelSoloGame.created_at)).where(DuelSoloGame.user_id == user_id))
+    pose_at = db.scalar(
+        select(func.max(AnalystUsage.created_at)).where(AnalystUsage.user_id == user_id, AnalystUsage.outcome == "ok")
+    )
+    stamps = {"lobby": lobby, "match": last_match_at, "solo": solo_at, "log_pose": pose_at}
+    seen = [_utc(t) for t in stamps.values() if t is not None]
+
+    presence = [p for p in live_presence(db, [user_id], now).get(user_id, []) if p.phase != "finished"]
+    players = [p for p in presence if p.role == "player"]
+    here = (players or presence or [None])[0]
+    online_now = bool(presence) or (lobby is not None and now - _utc(lobby) <= ONLINE_TTL)
+
+    rating = db.get(DuelRating, user_id)
+    first_solo = db.scalar(select(func.min(DuelSoloGame.created_at)))
+
+    owned_cards, owned_unique = db.execute(
+        select(func.coalesce(func.sum(Owned.qty), 0), func.count()).where(Owned.user_id == user_id, Owned.qty > 0)
+    ).one()
+    friend_pair = or_(Friendship.user_low_id == user_id, Friendship.user_high_id == user_id)
+
+    access = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user_id))
+    chat_ok = (AnalystUsage.user_id == user_id, AnalystUsage.kind == "chat", AnalystUsage.outcome == "ok")
+    month = month_start(now)
+    banned_by = db.get(User, u.banned_by) if u.banned_by else None
+
+    return {
+        "user": row,
+        "last_seen_at": _iso(max(seen)) if seen else None,
+        "last_seen": {k: _iso(v) for k, v in stamps.items()},
+        "online": {
+            "now": online_now,
+            "room_role": here.role if here else None,
+            "ranked": bool(here.ranked) if here else None,
+        },
+        "rating": {"rating": rating.rating, "ranked_games": rating.games_played} if rating else None,
+        "modes": [{"mode": m, "games": modes[m][0], "wins": modes[m][1]} for m in MODES],
+        "solo_tracked_since": _iso(first_solo),
+        "top_leaders": _top_leaders(db, user_id),
+        "recent_matches": _recent_matches(db, user_id),
+        "planner": {
+            "decks": _count(db, Deck.id, Deck.user_id == user_id),
+            "owned_cards": int(owned_cards),
+            "owned_unique": int(owned_unique),
+        },
+        "duel": {
+            "saved_decks": _count(db, DuelSavedDeck.id, DuelSavedDeck.user_id == user_id, DuelSavedDeck.deleted.is_(False)),
+            "uploads": _count(db, DuelCosmetic.id, DuelCosmetic.user_id == user_id),
+            "uploads_taken_down": _count(db, DuelCosmetic.id, DuelCosmetic.user_id == user_id, DuelCosmetic.taken_down_at.is_not(None)),
+            "friends": _count(db, Friendship.id, friend_pair, Friendship.status == "accepted"),
+            "friend_requests_pending": _count(db, Friendship.id, friend_pair, Friendship.status == "pending", Friendship.requester_id != user_id),
+        },
+        "log_pose": {
+            "access": access,
+            "questions_total": _count(db, AnalystUsage.id, *chat_ok),
+            "questions_month": _count(db, AnalystUsage.id, *chat_ok, AnalystUsage.created_at >= month),
+            "spend_total_usd": float(db.scalar(select(func.coalesce(func.sum(AnalystUsage.cost_usd), 0.0)).where(AnalystUsage.user_id == user_id)) or 0.0),
+            "spend_month_usd": float(spent_since(db, month, user_id)),
+            "last_used_at": _iso(pose_at),
+            "threads": _count(db, AnalystThread.id, AnalystThread.user_id == user_id),
+        },
+        "moderation": {
+            "reports_against": _count(db, PlayerReport.id, PlayerReport.reported_id == user_id),
+            "reports_open": _count(db, PlayerReport.id, PlayerReport.reported_id == user_id, PlayerReport.status == "open"),
+            "reports_filed": _count(db, PlayerReport.id, PlayerReport.reporter_id == user_id),
+            "warnings": _count(db, PlayerWarning.id, PlayerWarning.user_id == user_id),
+            "banned_by": {"id": banned_by.id, "name": duel_display_name(banned_by)} if banned_by else None,
+        },
+    }
 
 
 def _target(db: Session, user_id: int) -> User:

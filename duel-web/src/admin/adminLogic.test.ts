@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, agoText, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -247,5 +247,52 @@ describe("formatSignupSource (#905)", () => {
 
   it("keeps the referrer in the tooltip when utm tags take the label (#905)", () => {
     expect(formatSignupSource({ ref: "l.instagram.com", land: "/", utm_source: "ig" }).title).toBe("utm: ig (from l.instagram.com, landed on /)");
+  });
+});
+
+describe("user detail helpers (#988)", () => {
+  it("lists the five game modes in the fixed order the list columns use (#988)", () => {
+    expect(GAME_MODES.map((m) => m.mode)).toEqual(["ranked", "friends", "private", "bot", "practice"]);
+    expect(modeLabel("friends")).toBe("Friends");
+  });
+
+  it("totals games across all five modes, bot and practice included (#988)", () => {
+    expect(totalGames({ ranked: 1, friends: 2, private: 4, bot: 8, practice: 16 })).toBe(31);
+  });
+
+  it("says when bot and practice tracking began, or that it has not yet (#988)", () => {
+    expect(soloNote("2026-11-02T08:00:00Z")).toBe("Bot and practice games are counted since 2026-11-02; earlier ones were not saved.");
+    expect(soloNote(null)).toContain("not tracked yet");
+  });
+
+  it("gives practice no result even when a winner is set, and Won / Lost otherwise (#988)", () => {
+    expect(resultOf({ mode: "practice", won: true })).toBe("—");
+    expect(resultOf({ mode: "bot", won: null })).toBe("—");
+    expect(resultOf({ mode: "bot", won: true })).toBe("Won");
+    expect(resultOf({ mode: "ranked", won: false })).toBe("Lost");
+  });
+
+  it("writes how long ago in minutes, hours and days, and the date after a month (#988)", () => {
+    const now = Date.parse("2026-11-05T12:00:00Z");
+    expect(agoText("2026-11-05T11:59:40Z", now)).toBe("just now");
+    expect(agoText("2026-11-05T11:55:00Z", now)).toBe("5 min ago");
+    expect(agoText("2026-11-05T09:00:00Z", now)).toBe("3 h ago");
+    expect(agoText("2026-11-04T11:00:00Z", now)).toBe("1 day ago");
+    expect(agoText("2026-11-02T11:00:00Z", now)).toBe("3 days ago");
+    expect(agoText("2026-09-01T11:00:00Z", now)).toBe("2026-09-01");
+  });
+
+  it("says where an online account is, and nothing when offline (#988)", () => {
+    expect(presenceText({ now: false, room_role: "player", ranked: true })).toBeNull();
+    expect(presenceText({ now: true, room_role: "player", ranked: true })).toBe("In a ranked game");
+    expect(presenceText({ now: true, room_role: "player", ranked: false })).toBe("In a game");
+    expect(presenceText({ now: true, room_role: "spectator", ranked: null })).toBe("Watching a game");
+    expect(presenceText({ now: true, room_role: null, ranked: null })).toBe("Online now");
+  });
+
+  it("shows sub-cent spend with three decimals and everything else with two (#988)", () => {
+    expect(usd(0)).toBe("$0.00");
+    expect(usd(0.004)).toBe("$0.004");
+    expect(usd(1.256)).toBe("$1.26");
   });
 });

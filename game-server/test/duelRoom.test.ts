@@ -13,7 +13,7 @@ import { MAX_ROOMS_PER_CREATOR } from "../src/matchmakeGuard.js";
 import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
-import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
+import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
@@ -1943,6 +1943,52 @@ describe("DuelRoom", () => {
     await c0.leave(true);
     await c1.leave(true);
     await waitUntil(() => sent.at(-1)!.payload.replay!.intents.length === intents, 5000);
+  });
+
+  describe("practice games (#988)", () => {
+    async function played(seatUids: [number, number], ownerUid?: number) {
+      const prev = process.env.MATCH_OUTBOX_DATABASE_URL;
+      process.env.MATCH_OUTBOX_DATABASE_URL = "postgres://outbox.invalid/db";
+      try {
+        const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 71, autoSkipMulligan: true });
+        const solo: SoloGamePayload[] = [];
+        const matches: MatchResultPayload[] = [];
+        Object.assign(room, {
+          persistSoloGame: async (p: SoloGamePayload) => void solo.push(p),
+          persistMatchResult: async (p: MatchResultPayload) => void matches.push(p),
+          persistMatchProgress: async () => {},
+        });
+        const owner = ownerUid ? { ownerToken: gameToken(ownerUid) } : {};
+        const c0 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(seatUids[0]), preferredSeat: 0, ...owner });
+        const bag: SeatBag = { views: [], errors: [] };
+        attach(c0, bag);
+        await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(seatUids[1]), preferredSeat: 1, ...owner });
+        await syncSeat(c0, bag);
+        c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+        await waitUntil(() => bag.over !== undefined, 5000);
+        await new Promise((r) => setTimeout(r, 100));
+        return { solo, matches };
+      } finally {
+        if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
+        else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
+      }
+    }
+
+    it("a hotseat game under one signed-in owner is a practice game with no winner, not a match (#988)", async () => {
+      const { solo, matches } = await played([811, 812], 810);
+      assert.equal(solo.length, 1);
+      assert.equal(solo[0]!.mode, "practice");
+      assert.equal(solo[0]!.user_id, 810);
+      assert.equal(solo[0]!.won, undefined);
+      assert.equal(solo[0]!.bot_level, undefined);
+      assert.deepEqual(matches, []);
+    });
+
+    it("a game between two different accounts is a match, never a solo game (#988)", async () => {
+      const { solo, matches } = await played([821, 822]);
+      assert.deepEqual(solo, []);
+      assert.equal(matches.length, 1);
+    });
   });
 
   it("a live game's progress snapshots hide the opponent's hand; the result and a cut-off log show it (#359)", async () => {

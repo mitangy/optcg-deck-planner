@@ -143,8 +143,55 @@ export type AdminUser = {
   ban_reason: string | null;
   /** First-touch source captured at sign-up (#905). Null: unknown (account predates tracking); `{}`: direct. */
   signup_source: SignupSource | null;
+  /** Ranked + friends + private games (bot and practice are in `games` only). */
   matches: number;
   last_match_at: string | null;
+  /** Games per mode (#988). */
+  games: GameCounts;
+};
+
+export type GameMode = "ranked" | "friends" | "private" | "bot" | "practice";
+export type GameCounts = Record<GameMode, number>;
+
+export type AdminUserDetail = {
+  user: AdminUser;
+  last_seen_at: string | null;
+  last_seen: { lobby: string | null; match: string | null; solo: string | null; log_pose: string | null };
+  online: { now: boolean; room_role: "player" | "spectator" | null; ranked: boolean | null };
+  rating: { rating: number; ranked_games: number } | null;
+  modes: { mode: GameMode; games: number; wins: number }[];
+  /** When the first bot / practice game of any account was saved; null while none has been. */
+  solo_tracked_since: string | null;
+  top_leaders: LeaderCount[];
+  recent_matches: AdminUserMatch[];
+  planner: { decks: number; owned_cards: number; owned_unique: number };
+  duel: { saved_decks: number; uploads: number; uploads_taken_down: number; friends: number; friend_requests_pending: number };
+  log_pose: {
+    access: "pending" | "approved" | "denied" | null;
+    questions_total: number;
+    questions_month: number;
+    spend_total_usd: number;
+    spend_month_usd: number;
+    last_used_at: string | null;
+    threads: number;
+  };
+  moderation: { reports_against: number; reports_open: number; reports_filed: number; warnings: number; banned_by: { id: number; name: string } | null };
+};
+
+export type AdminUserMatch = {
+  /** Match id (opens /replay/:id when `replay`), or the solo game key. */
+  id: string;
+  created_at: string;
+  mode: GameMode;
+  leader_id: string | null;
+  opponent_leader_id: string | null;
+  /** Null for bot and practice. */
+  opponent: { id: number; name: string } | null;
+  bot_level: string | null;
+  won: boolean | null;
+  turns: number | null;
+  reason: string;
+  replay: boolean;
 };
 
 export type AdminUsers = { total: number; users: AdminUser[] };
@@ -176,6 +223,8 @@ export function fetchAdminUsers(q: string, includeGuests: boolean, limit: number
   if (q.trim()) p.set("q", q.trim());
   return call<AdminUsers>(`/admin/users?${p}`);
 }
+
+export const fetchAdminUser = (id: number) => call<AdminUserDetail>(`/admin/users/${id}`);
 
 export const setUserRole = (id: number, role: "user" | "moderator") =>
   call<AdminUser>(`/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
