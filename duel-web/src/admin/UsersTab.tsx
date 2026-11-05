@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Select } from "@optcg/ui/popups";
-import { type AdminUser, type AdminUsers, type Role, banUser, deleteUser, fetchAdminUsers, setUserRole, unbanUser } from "./adminApi";
-import { canBanUser, canDeleteUser, dateOf, formatSignupSource } from "./adminLogic";
+import { Link } from "react-router-dom";
+import { type AdminUser, type AdminUsers, fetchAdminUsers } from "./adminApi";
+import { GAME_MODES, dateOf, formatSignupSource } from "./adminLogic";
+import { type Actor, RoleControl, UserButtons, useUserActions, userLabel } from "./UserActions";
 
 const PAGE = 50;
 
-export type Actor = { id: number; role: Role };
-
-function label(u: AdminUser): string {
-  return u.username || u.name || u.email;
-}
+export type { Actor };
 
 export function UsersTab({ actor }: { actor: Actor }) {
   const [q, setQ] = useState("");
   const [guests, setGuests] = useState(false);
   const [state, setState] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready"; total: number; users: AdminUser[] }>({ status: "loading" });
-  const [busyId, setBusyId] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const seq = useRef(0);
 
@@ -42,40 +37,14 @@ export function UsersTab({ actor }: { actor: Actor }) {
       .finally(() => setMore(false));
   };
 
-  async function act(u: AdminUser, run: () => Promise<AdminUser | void>) {
-    setBusyId(u.id);
-    setNotice(null);
-    try {
-      const next = await run();
-      setState((s) => {
-        if (s.status !== "ready") return s;
-        if (!next) return { ...s, total: s.total - 1, users: s.users.filter((x) => x.id !== u.id) };
-        return { ...s, users: s.users.map((x) => (x.id === u.id ? { ...x, ...next } : x)) };
-      });
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "That did not work.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const ban = (u: AdminUser) => {
-    const reason = window.prompt(`Ban ${label(u)}? They are signed out everywhere and cannot sign in.\nReason (optional, shown to staff):`, "");
-    if (reason === null) return;
-    void act(u, () => banUser(u.id, reason));
-  };
-  const remove = (u: AdminUser) => {
-    const word = u.username || u.email;
-    const typed = window.prompt(`Delete ${word} and everything tied to the account. This cannot be undone.\nType ${word} to confirm:`, "");
-    if (typed === null) return;
-    if (typed.trim() !== word) {
-      setNotice("Not deleted: what you typed did not match.");
-      return;
-    }
-    void act(u, async () => {
-      await deleteUser(u.id);
-    });
-  };
+  const actions = useUserActions((u, next) =>
+    setState((s) => {
+      if (s.status !== "ready") return s;
+      if (!next) return { ...s, total: s.total - 1, users: s.users.filter((x) => x.id !== u.id) };
+      return { ...s, users: s.users.map((x) => (x.id === u.id ? { ...x, ...next } : x)) };
+    }),
+  );
+  const { notice, setNotice, busyId } = actions;
 
   const users = state.status === "ready" ? state.users : [];
   return (
@@ -108,7 +77,11 @@ export function UsersTab({ actor }: { actor: Actor }) {
           <span>User</span>
           <span>Role</span>
           <span>Source</span>
-          <span className="num">Matches</span>
+          {GAME_MODES.map((m) => (
+            <span key={m.mode} className="num" title={m.title}>
+              {m.short}
+            </span>
+          ))}
           <span>Joined</span>
           <span>Actions</span>
         </div>
@@ -116,14 +89,16 @@ export function UsersTab({ actor }: { actor: Actor }) {
         {state.status === "ready" && users.length === 0 ? <p className="panel-copy adm-muted adm-urows-note">No users match.</p> : null}
         {users.map((u) => {
           const banned = u.banned_at != null;
-          const mayBan = canBanUser(actor, u);
-          const mayDelete = canDeleteUser(actor, u);
           const busy = busyId === u.id;
           const source = formatSignupSource(u.signup_source);
           return (
             <div key={u.id} className={`adm-urow${banned ? " banned" : ""}`}>
               <span className="adm-ucell adm-uname">
-                <b>{label(u)}</b>
+                <b>
+                  <Link to={`/admin/users/${u.id}`} className="adm-ulink" title="Open the user page">
+                    {userLabel(u)}
+                  </Link>
+                </b>
                 <small>{u.email}</small>
                 {banned ? (
                   <small className="adm-banned">
@@ -132,46 +107,21 @@ export function UsersTab({ actor }: { actor: Actor }) {
                 ) : null}
               </span>
               <span className="adm-ucell adm-urole">
-                {actor.role === "admin" ? (
-                  <Select<string>
-                    aria-label={`Role for ${label(u)}`}
-                    value={u.role}
-                    disabled={u.role === "admin" || u.id === actor.id || busy}
-                    onChange={(role) => void act(u, () => setUserRole(u.id, role as "user" | "moderator"))}
-                    options={[
-                      ...(u.role === "admin" ? [{ value: "admin", label: "admin" }] : []),
-                      { value: "user", label: "user" },
-                      { value: "moderator", label: "moderator" },
-                    ]}
-                  />
-                ) : (
-                  <span className={`adm-pill adm-pill-${u.role === "user" ? "mid" : "ok"}`}>{u.role}</span>
-                )}
+                <RoleControl actor={actor} user={u} busy={busy} actions={actions} />
               </span>
               <span className={`adm-ucell adm-usource${u.signup_source ? "" : " adm-muted"}`} data-label="Source" title={source.title}>
                 {source.text}
               </span>
-              <span className="adm-ucell num" data-label="Matches">
-                {u.matches}
-              </span>
-              <span className="adm-ucell" data-label="Joined">
+              {GAME_MODES.map((m) => (
+                <span key={m.mode} className="adm-ucell num adm-ugames" data-label={m.label} data-mode={m.mode} title={`${m.title}: ${u.games?.[m.mode] ?? 0}`}>
+                  {u.games?.[m.mode] ?? 0}
+                </span>
+              ))}
+              <span className="adm-ucell adm-ujoined" data-label="Joined">
                 {dateOf(u.created_at)}
               </span>
               <span className="adm-ucell adm-uact">
-                {banned ? (
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={!mayBan || busy} onClick={() => void act(u, () => unbanUser(u.id))}>
-                    Unban
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={!mayBan || busy} onClick={() => ban(u)}>
-                    Ban
-                  </button>
-                )}
-                {actor.role === "admin" ? (
-                  <button type="button" className="btn btn-secondary btn-sm adm-delete" disabled={!mayDelete || busy} onClick={() => remove(u)}>
-                    Delete
-                  </button>
-                ) : null}
+                <UserButtons actor={actor} user={u} busy={busy} actions={actions} />
               </span>
             </div>
           );

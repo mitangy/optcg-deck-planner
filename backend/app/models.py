@@ -670,6 +670,31 @@ class DuelMatchSeat(Base):
     )
 
 
+class DuelSoloGame(Base):
+    """A finished game with no human opponent: against the server bot or hotseat practice (#988).
+
+    Only the admin user page reads it (games per mode, recent games); ratings, the leaderboard,
+    matchup stats and match history never see these rows. Idempotent on ``game_id`` (the room's key).
+    """
+
+    __tablename__ = "duel_solo_games"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    game_id: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    mode: Mapped[str] = mapped_column(String(16))  # bot | practice
+    bot_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    opponent_leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Bot games: did the human win. Practice has one player on both sides, so it is null.
+    won: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str] = mapped_column(String(64), default="unknown")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class Tournament(Base):
     """A Limitless TCG event whose results feed Log Pose tournament stats. No player data is kept."""
 

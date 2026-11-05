@@ -42,6 +42,7 @@ import { useMediaQuery } from "./board/useMediaQuery";
 const ReplayPage = lazy(() => import("./pages/ReplayPage"));
 // Staff only, so nobody else downloads it.
 const AdminPage = lazy(() => import("./admin/AdminPage"));
+const AdminUserPage = lazy(() => import("./admin/UserPage"));
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();
@@ -97,6 +98,7 @@ export function App() {
         <Route path="/history/:matchId" element={<MatchLogPage />} />
         <Route path="/replay/:matchId" element={<Suspense fallback={null}><ReplayPage /></Suspense>} />
         <Route path="/admin" element={<Suspense fallback={null}><AdminPage /></Suspense>} />
+        <Route path="/admin/users/:id" element={<Suspense fallback={null}><AdminUserPage /></Suspense>} />
         <Route path="/auth/complete" element={<AuthCompletePage />} />
         <Route path="/welcome/username" element={<UsernameSetupPage />} />
         <Route path="/demo" element={<DemoPage />} />

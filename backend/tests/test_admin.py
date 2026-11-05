@@ -23,15 +23,27 @@ from app.auth import (
 )
 from app.config import Settings, get_settings
 from app.models import (
+    AnalystAccess,
     AnalystEvalRun,
+    AnalystThread,
     AnalystToken,
+    AnalystUsage,
     BotMatch,
     Deck,
+    DuelCosmetic,
+    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
     DuelMatchSeat,
+    DuelPresence,
     DuelRating,
+    DuelSavedDeck,
+    DuelSoloGame,
+    Friendship,
+    Owned,
+    PlayerReport,
+    PlayerWarning,
     User,
 )
 from app.roles import can_ban, can_delete, can_set_role
@@ -984,3 +996,223 @@ def test_admin_opens_a_closed_cut_off_game_but_a_game_still_being_played_stays_4
     login(c, S, mod)
     assert c.get("/duel/matches/me/cut/replay").status_code == 404
     assert c.get("/duel/matches/me/live/replay").status_code == 404
+
+
+# ------------------------------------------------------------------ games per mode and the user page (#988)
+
+def duel_game(db: Session, match_id: str, p0: int, p1: int, winner: int, at: datetime, ranked: bool = False,
+              leaders: tuple[str, str] = ("OP01-001", "OP02-001"), log: bool = False) -> None:
+    db.add(
+        DuelMatch(
+            match_id=match_id, seat0_user_id=p0, seat1_user_id=p1, winner_seat=winner, ranked=ranked, turns=7,
+            reason="life", seat0_rating_before=1000, seat1_rating_before=1000,
+            seat0_rating_after=1000, seat1_rating_after=1000, created_at=at,
+        )
+    )
+    db.flush()
+    for i, uid in enumerate((p0, p1)):
+        db.add(DuelMatchSeat(match_id=match_id, seat=i, user_id=uid, leader_id=leaders[i], won=winner == i,
+                             ranked=ranked, turns=7, created_at=at))
+    if log:
+        db.add(DuelMatchLog(match_id=match_id, replay="{}"))
+
+
+def befriend(db: Session, a: int, b: int, status: str = "accepted") -> None:
+    db.add(Friendship(user_low_id=min(a, b), user_high_id=max(a, b), requester_id=a, status=status))
+
+
+def solo(db: Session, game_id: str, uid: int, mode: str, at: datetime, won: bool | None = None, leader: str | None = None, level: str | None = None) -> None:
+    db.add(DuelSoloGame(game_id=game_id, user_id=uid, mode=mode, won=won, leader_id=leader, bot_level=level, turns=5, created_at=at))
+
+
+def test_casual_game_against_a_friend_counts_as_friends_and_one_against_a_stranger_as_private_988(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    # One friend with a lower id than me and one with a higher id, so both orders of the pair are exercised.
+    friend = mk(S, "fr@x.test")
+    me, friend_hi, stranger, pending = (mk(S, f"{n}@x.test") for n in ("me", "frhi", "st", "pe"))
+    with S() as db:
+        befriend(db, friend, me)
+        befriend(db, me, friend_hi)
+        befriend(db, me, pending, "pending")
+        duel_game(db, "f1", me, friend, 0, NOW - timedelta(days=4))
+        duel_game(db, "f2", friend, me, 0, NOW - timedelta(days=3))  # me in seat 1, lost
+        duel_game(db, "p1", me, stranger, 0, NOW - timedelta(days=2))
+        duel_game(db, "p2", me, pending, 1, NOW - timedelta(days=1))
+        duel_game(db, "f3", me, friend_hi, 0, NOW - timedelta(days=2, hours=1))
+        duel_game(db, "r1", me, friend, 0, NOW - timedelta(hours=5), ranked=True)  # friends but ranked: ranked
+        db.commit()
+    login(c, S, admin)
+    rows = {u["id"]: u for u in c.get("/admin/users").json()["users"]}
+    assert rows[me]["games"] == {"ranked": 1, "friends": 3, "private": 2, "bot": 0, "practice": 0}
+    assert rows[me]["matches"] == 6
+    detail = c.get(f"/admin/users/{me}").json()
+    assert [(m["mode"], m["games"], m["wins"]) for m in detail["modes"]] == [
+        ("ranked", 1, 1), ("friends", 3, 2), ("private", 2, 1), ("bot", 0, 0), ("practice", 0, 0),
+    ]
+    assert detail["user"]["games"] == rows[me]["games"]
+    assert rows[stranger]["games"]["private"] == 1 and rows[stranger]["games"]["friends"] == 0
+
+
+def test_bot_and_practice_games_count_per_mode_and_only_bot_games_have_wins_988(api):
+    c, S = api
+    admin, me = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test")
+    with S() as db:
+        solo(db, "b1", me, "bot", NOW - timedelta(hours=3), won=True, level="hard")
+        solo(db, "b2", me, "bot", NOW - timedelta(hours=2), won=False, level="normal")
+        solo(db, "b3", me, "bot", NOW - timedelta(hours=1), won=True)
+        solo(db, "pr1", me, "practice", NOW - timedelta(minutes=5))
+        db.commit()
+    login(c, S, admin)
+    detail = c.get(f"/admin/users/{me}").json()
+    assert {m["mode"]: (m["games"], m["wins"]) for m in detail["modes"]} == {
+        "ranked": (0, 0), "friends": (0, 0), "private": (0, 0), "bot": (3, 2), "practice": (1, 0),
+    }
+    assert detail["user"]["matches"] == 0  # solo games are not duel matches
+    assert detail["solo_tracked_since"] is not None
+
+
+def test_user_detail_is_staff_only_and_404_for_an_unknown_user_988(api):
+    c, S = api
+    admin, mod, plain = mk(S, ADMIN_EMAIL, "admin"), mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
+    assert c.get(f"/admin/users/{plain}").status_code == 401
+    login(c, S, plain)
+    assert c.get(f"/admin/users/{plain}").status_code == 403
+    login(c, S, mod)
+    assert c.get(f"/admin/users/{plain}").status_code == 200
+    assert c.get("/admin/users/99999").status_code == 404
+
+
+def test_user_detail_recent_matches_merge_duel_and_solo_games_newest_first_988(api):
+    c, S = api
+    admin, me = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test")
+    foe = mk(S, "foe@x.test", name="Foe")
+    with S() as db:
+        db.get(User, foe).username = "FoeName"
+        duel_game(db, "old", me, foe, 0, NOW - timedelta(days=3), leaders=("OP01-001", "OP05-060"), log=True)
+        solo(db, "mid", me, "bot", NOW - timedelta(days=2), won=False, leader="OP01-001", level="hard")
+        duel_game(db, "new", foe, me, 0, NOW - timedelta(days=1), ranked=True)
+        db.commit()
+    login(c, S, admin)
+    recent = c.get(f"/admin/users/{me}").json()["recent_matches"]
+    assert [m["id"] for m in recent] == ["new", "mid", "old"]
+    new, mid, old = recent
+    assert (new["mode"], new["won"], new["opponent"]) == ("ranked", False, {"id": foe, "name": "FoeName"})
+    assert (mid["mode"], mid["bot_level"], mid["won"], mid["opponent"], mid["replay"]) == ("bot", "hard", False, None, False)
+    assert (old["mode"], old["opponent_leader_id"], old["replay"], old["turns"], old["reason"]) == ("private", "OP05-060", True, 7, "life")
+
+
+def test_user_detail_recent_matches_stop_at_25_988(api):
+    c, S = api
+    admin, me, foe = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test"), mk(S, "foe@x.test")
+    with S() as db:
+        for i in range(15):  # 30 games in all, interleaved newest first: s0, d0, s1, d1, ...
+            solo(db, f"s{i}", me, "bot", NOW - timedelta(minutes=2 * i), won=True)
+            duel_game(db, f"d{i}", me, foe, 0, NOW - timedelta(minutes=2 * i + 1))
+        db.commit()
+    login(c, S, admin)
+    recent = c.get(f"/admin/users/{me}").json()["recent_matches"]
+    assert len(recent) == 25 and recent[0]["id"] == "s0" and recent[-1]["id"] == "s12"
+
+
+def test_user_detail_top_leaders_count_duel_and_solo_games_together_988(api):
+    c, S = api
+    admin, me, foe = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test"), mk(S, "foe@x.test")
+    with S() as db:
+        duel_game(db, "d1", me, foe, 0, NOW - timedelta(days=3), leaders=("OP01-001", "OP02-001"))
+        solo(db, "s1", me, "bot", NOW - timedelta(days=2), won=True, leader="OP01-001")
+        solo(db, "s2", me, "bot", NOW - timedelta(days=1), won=False, leader="OP09-001")
+        solo(db, "s3", me, "practice", NOW, leader=None)
+        solo(db, "s4", me, "bot", NOW, won=True, leader="OP00-001")
+        db.commit()
+    login(c, S, admin)
+    assert c.get(f"/admin/users/{me}").json()["top_leaders"] == [
+        {"leader_id": "OP01-001", "games": 2, "wins": 2},
+        {"leader_id": "OP00-001", "games": 1, "wins": 1},
+        {"leader_id": "OP09-001", "games": 1, "wins": 0},
+    ]
+
+
+def test_user_detail_log_pose_and_moderation_counts_988(api):
+    c, S = api
+    admin, me, other = mk(S, ADMIN_EMAIL, "admin", name="Boss"), mk(S, "me@x.test"), mk(S, "o@x.test")
+    last_month = NOW.replace(day=1) - timedelta(days=3)
+    with S() as db:
+        db.add(AnalystAccess(user_id=me, status="approved"))
+        for kind, outcome, cost, at in [
+            ("chat", "ok", 0.5, NOW), ("chat", "ok", 0.25, last_month), ("chat", "error", 1.0, NOW), ("review", "ok", 2.0, NOW),
+        ]:
+            db.add(AnalystUsage(user_id=me, kind=kind, outcome=outcome, cost_usd=cost, created_at=at))
+        db.add(AnalystUsage(user_id=other, kind="chat", outcome="ok", cost_usd=9.0, created_at=NOW))
+        db.add(AnalystThread(user_id=me, title="a"))
+        db.add(AnalystThread(user_id=me, title="b"))
+        db.add(PlayerReport(reporter_id=other, reported_id=me, reason="toxic", source="match", status="open"))
+        db.add(PlayerReport(reporter_id=other, reported_id=me, reason="toxic", source="match", status="dismissed"))
+        db.add(PlayerReport(reporter_id=me, reported_id=other, reason="conduct", source="match", status="open"))
+        db.add(PlayerWarning(user_id=me, message="be nice"))
+        u = db.get(User, me)
+        u.banned_at, u.banned_by = NOW, admin
+        db.commit()
+    login(c, S, admin)
+    d = c.get(f"/admin/users/{me}").json()
+    lp = d["log_pose"]
+    assert (lp["access"], lp["questions_total"], lp["questions_month"], lp["threads"]) == ("approved", 2, 1, 2)
+    assert (lp["spend_total_usd"], lp["spend_month_usd"]) == (3.75, 3.5)
+    assert lp["last_used_at"] is not None
+    assert d["moderation"] == {
+        "reports_against": 2, "reports_open": 1, "reports_filed": 1, "warnings": 1, "banned_by": {"id": admin, "name": "Boss"},
+    }
+
+
+def test_user_detail_planner_duel_and_presence_sections_988(api):
+    c, S = api
+    admin, me, f1, f2, f3, f4 = mk(S, ADMIN_EMAIL, "admin"), *(mk(S, f"{n}@x.test") for n in ("me", "f1", "f2", "f3", "f4"))
+    with S() as db:
+        db.add_all([Deck(user_id=me, name="A"), Deck(user_id=me, name="B"), Deck(user_id=f1, name="C")])
+        db.add_all([Owned(user_id=me, card_id="OP01-001", qty=3), Owned(user_id=me, card_id="OP01-002", qty=1),
+                    Owned(user_id=me, card_id="OP01-003", qty=0), Owned(user_id=f1, card_id="OP01-001", qty=9)])
+        db.add_all([DuelSavedDeck(user_id=me, deck_id="a", data="{}"), DuelSavedDeck(user_id=me, deck_id="b", deleted=True)])
+        db.add_all([DuelCosmetic(user_id=me, kind="playmat", mime="image/png", data=b"x", size=1),
+                    DuelCosmetic(user_id=me, kind="cardBack", mime="image/png", data=b"x", size=1, taken_down_at=NOW)])
+        befriend(db, me, f1)
+        befriend(db, f2, me)
+        befriend(db, f3, me, "pending")  # incoming request
+        befriend(db, me, f4, "pending")  # one I sent: not waiting on me
+        db.add(DuelPresence(user_id=f2, room_id="done", instance_id="i", role="player", phase="finished", updated_at=NOW))
+        db.add(DuelRating(user_id=me, rating=1111, games_played=4))
+        db.add(DuelPresence(user_id=me, room_id="r1", instance_id="i", role="player", phase="playing", ranked=True, updated_at=NOW))
+        db.add(DuelLobbySeen(user_id=me, seen_at=NOW - timedelta(hours=1)))
+        db.commit()
+    login(c, S, admin)
+    d = c.get(f"/admin/users/{me}").json()
+    assert d["planner"] == {"decks": 2, "owned_cards": 4, "owned_unique": 2}
+    assert d["duel"] == {"saved_decks": 1, "uploads": 2, "uploads_taken_down": 1, "friends": 2, "friend_requests_pending": 1}
+    assert d["rating"] == {"rating": 1111, "ranked_games": 4}
+    assert d["online"] == {"now": True, "room_role": "player", "ranked": True}
+    assert d["last_seen"]["lobby"] is not None and d["last_seen"]["match"] is None
+    quiet = c.get(f"/admin/users/{f1}").json()
+    assert quiet["online"] == {"now": False, "room_role": None, "ranked": None} and quiet["rating"] is None
+    assert c.get(f"/admin/users/{f2}").json()["online"]["now"] is False, "a finished room is not online"
+    assert quiet["last_seen_at"] is None and quiet["solo_tracked_since"] is None
+
+
+def test_user_detail_presence_older_than_the_ttl_is_offline_988(api):
+    c, S = api
+    admin, me = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test")
+    with S() as db:
+        db.add(DuelPresence(user_id=me, room_id="r1", instance_id="i", role="player", phase="playing", updated_at=NOW - timedelta(minutes=10)))
+        db.commit()
+    login(c, S, admin)
+    assert c.get(f"/admin/users/{me}").json()["online"]["now"] is False
+
+
+def test_deleting_a_user_also_removes_their_solo_games_988(api):
+    c, S = api
+    admin, me = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test")
+    with S() as db:
+        solo(db, "b1", me, "bot", NOW, won=True)
+        db.commit()
+    login(c, S, admin)
+    assert c.delete(f"/admin/users/{me}").status_code == 204
+    with S() as db:
+        assert db.query(DuelSoloGame).count() == 0

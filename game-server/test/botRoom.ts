@@ -7,7 +7,7 @@ import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
 import { BotPool, setSharedBotPool, type BotJobInput, type BotJobOutput } from "../src/botPool.js";
 import { botPacing, botSearch, type DuelRoom } from "../src/rooms/DuelRoom.js";
-import type { MatchProgressPayload, MatchResultPayload } from "../src/writeback.js";
+import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 
 type View = {
   seat: 0 | 1;
@@ -179,6 +179,93 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
         else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
       }
+    });
+
+    /** Run a signed-in bot game with the API calls captured; `finish` ends it. */
+    async function soloGameOf(
+      finish: (room: DuelRoom, human: ClientRoom) => void,
+      opts: { level?: "easy" | "normal" | "hard"; botLeader?: string; persistSoloGame?: (p: SoloGamePayload) => Promise<void> } = {},
+    ) {
+      const prev = process.env.MATCH_OUTBOX_DATABASE_URL;
+      process.env.MATCH_OUTBOX_DATABASE_URL = "postgres://outbox.invalid/db";
+      try {
+        const room = await create(
+          opts.level ? { bot: { level: opts.level, deck: { ...botDeck(), leaderId: opts.botLeader ?? DEFAULT_LEADER_ID } } } : {},
+        );
+        const solo: SoloGamePayload[] = [];
+        const matches: MatchResultPayload[] = [];
+        Object.assign(room, {
+          persistSoloGame: opts.persistSoloGame ?? (async (p: SoloGamePayload) => void solo.push(p)),
+          persistMatchResult: async (p: MatchResultPayload) => void matches.push(p),
+        });
+        const human = await getServer().connectTo(room, join("ignored", 0, { gameToken: gameToken(777) }));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3);
+        finish(room, human);
+        await waitUntil(() => bag.over !== undefined);
+        return { room, solo, matches, bag };
+      } finally {
+        if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
+        else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
+      }
+    }
+    const humanConcedes = (_room: DuelRoom, human: ClientRoom) => human.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    const botConcedes = (room: DuelRoom) => (room as unknown as { concedeSeat(seat: number): void }).concedeSeat(1);
+
+    it("a bot game the human loses is reported as a solo loss with the bot's level and both leaders (#988)", async () => {
+      const { room, solo, matches } = await soloGameOf(humanConcedes, { level: "hard", botLeader: "OP01-001" });
+      await waitUntil(() => solo.length > 0);
+      assert.deepEqual(solo[0], {
+        game_id: room.roomId,
+        user_id: 777,
+        mode: "bot",
+        bot_level: "hard",
+        won: false,
+        leader_id: DEFAULT_LEADER_ID,
+        opponent_leader_id: "OP01-001",
+        turns: internals(room).match.turnNumber,
+        reason: "concede",
+      });
+      assert.equal(solo.length, 1);
+      assert.deepEqual(matches, [], "a bot game is not a match");
+    });
+
+    it("a bot game the human wins is reported as a solo win (#988)", async () => {
+      const { solo } = await soloGameOf(botConcedes);
+      await waitUntil(() => solo.length > 0);
+      assert.equal(solo[0]!.won, true);
+      assert.equal(solo[0]!.user_id, 777);
+    });
+
+    it("a bot game is reported without waiting: a failing API never delays match_over and is retried (#988)", async () => {
+      let calls = 0;
+      const solo: SoloGamePayload[] = [];
+      const { bag } = await soloGameOf(humanConcedes, {
+        persistSoloGame: async (p) => {
+          calls++;
+          if (calls < 3) throw new Error("HTTP 503");
+          solo.push(p);
+        },
+      });
+      assert.equal(bag.over!.result.winner, 1, "match_over arrived while the report was still failing");
+      assert.ok(calls < 3, "the retries had not all run when match_over arrived");
+      await waitUntil(() => solo.length === 1, 6000);
+      assert.equal(calls, 3);
+    });
+
+    it("a bot game is not reported when nothing is configured to save it locally (#988)", async () => {
+      const room = await create();
+      const solo: SoloGamePayload[] = [];
+      Object.assign(room, { persistSoloGame: async (p: SoloGamePayload) => void solo.push(p) });
+      const human = await getServer().connectTo(room, join("ignored", 0, { gameToken: gameToken(778) }));
+      const bag = attach(human);
+      await waitUntil(() => bag.welcomes.length > 0);
+      human.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => bag.over !== undefined);
+      await new Promise((r) => setTimeout(r, 100));
+      assert.deepEqual(solo, []);
     });
 
     it("the bot accepts the human's undo request (#631)", async () => {

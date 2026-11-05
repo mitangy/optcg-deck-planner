@@ -79,8 +79,10 @@ import {
   LatestOnlySender,
   postMatchProgress,
   postMatchResult,
+  postSoloGame,
   type MatchProgressPayload,
   type MatchResultPayload,
+  type SoloGamePayload,
 } from "../writeback.js";
 import { undoLabel } from "../undoLabel.js";
 import { applyHandOrder, idsInHand } from "../handOrder.js";
@@ -222,6 +224,8 @@ export class DuelRoom extends Room implements PresenceSource {
   private matchOverSent = false;
   private resultPending: Promise<void> | null = null;
   private matchUserIds: [number, number] | null = null;
+  /** The one account behind both seats of a practice (hotseat) game, else null. */
+  private practiceOwnerUid: number | null = null;
   /** Names captured at match start so they survive a seat dropping. */
   private seatNames: [string | null, string | null] = [null, null];
   private endReason: string | null = null;
@@ -979,6 +983,9 @@ export class DuelRoom extends Room implements PresenceSource {
     this.refreshMetadata();
     this.recordUndoStep(null, null, []);
     this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
+    // Hotseat practice seats two guest accounts under one signed-in owner (#988).
+    const [owner0, owner1] = this.seatOwnerUids;
+    this.practiceOwnerUid = owner0 != null && owner0 === owner1 ? owner0 : null;
     this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
     this.syncPublicState();
     this.log("info", "match_start", { matchId: this.matchId, seed: this.seed });
@@ -2249,7 +2256,61 @@ export class DuelRoom extends Room implements PresenceSource {
     return [s0, s1];
   }
 
+  /**
+   * A finished bot or practice game as the solo-game report, or null for a game between two
+   * different accounts (which is a match). Practice is one account in both seats; it has no winner.
+   */
+  private soloGamePayload(winner: Seat, reason: string): SoloGamePayload | null {
+    const ids = this.matchUserIds;
+    if (!ids) return null;
+    const practiceUid = ids[0] === ids[1] ? ids[0] : this.practiceOwnerUid;
+    if (!this.bot && practiceUid == null) return null;
+    const humanSeat: Seat = this.bot ? ((1 - BOT_SEAT) as Seat) : 0;
+    const userId = this.bot ? ids[humanSeat] : practiceUid!;
+    if (userId <= 0) return null;
+    const turns = this.match?.turnNumber;
+    return {
+      game_id: this.gameKey(),
+      user_id: userId,
+      mode: this.bot ? "bot" : "practice",
+      ...(this.bot ? { bot_level: this.bot.level, won: winner === humanSeat } : {}),
+      leader_id: this.replay?.players[humanSeat].leaderId,
+      opponent_leader_id: this.replay?.players[1 - humanSeat].leaderId,
+      turns,
+      reason,
+    };
+  }
+
+  /** Fire and forget: match_over never waits on the API, and a few quick retries are all a stats row is worth. */
+  private reportSoloGame(payload: SoloGamePayload): Promise<void> {
+    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") {
+      this.log("info", "solo_game_skip", { matchId: this.matchId, reason: "local_outbox_disabled" });
+      return Promise.resolve();
+    }
+    return (async () => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await this.persistSoloGame(payload);
+          return;
+        } catch {
+          if (attempt === 3) this.log("warn", "solo_game_report_failed", { matchId: this.matchId });
+          else await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        }
+      }
+    })();
+  }
+
+  protected persistSoloGame(payload: SoloGamePayload): Promise<void> {
+    return postSoloGame(payload);
+  }
+
   private async writebackResult(winner: Seat, reason: string) {
+    // Bot and practice games are not matches: they are counted for the admin page and nothing else.
+    const solo = this.soloGamePayload(winner, reason);
+    if (solo) {
+      void this.reportSoloGame(solo); // never awaited: match_over does not wait on the API
+      return;
+    }
     const seats = this.ingestSeats();
     if (!Array.isArray(seats)) {
       this.log(seats.skip === "legacy_dev_users" ? "info" : "warn", "match_ingest_skip", {

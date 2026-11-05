@@ -650,6 +650,20 @@ class DuelMatchIngest(BaseModel):
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
 
 
+class DuelSoloGameIngest(BaseModel):
+    """A finished bot or practice game, reported by the game server (#988)."""
+
+    game_id: str = Field(min_length=1, max_length=80)
+    user_id: int
+    mode: Literal["bot", "practice"]
+    bot_level: str | None = Field(default=None, max_length=16)
+    leader_id: str | None = Field(default=None, max_length=32)
+    opponent_leader_id: str | None = Field(default=None, max_length=32)
+    won: bool | None = None
+    turns: int | None = Field(default=None, ge=0, le=10_000)
+    reason: str = Field(default="unknown", max_length=64)
+
+
 class DuelMatchProgressIngest(BaseModel):
     """A game still being played (or cut short): its log so far. Replaced every turn."""
 

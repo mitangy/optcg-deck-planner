@@ -26,6 +26,21 @@ export type MatchProgressPayload = Pick<
   closed?: boolean;
 };
 
+/** A finished game with no human opponent: against the server bot, or hotseat practice (#988). Not a match: no rating, no history. */
+export type SoloGamePayload = {
+  /** The room's game key; the backend records each key once. */
+  game_id: string;
+  user_id: number;
+  mode: "bot" | "practice";
+  bot_level?: string;
+  leader_id?: string;
+  opponent_leader_id?: string;
+  /** Bot games: did the human win. Practice has no winner, so it is left out. */
+  won?: boolean;
+  turns?: number;
+  reason: string;
+};
+
 export interface OutboxDatabase {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
@@ -271,6 +286,18 @@ export async function postMatchProgress(matchId: string, payload: MatchProgressP
     headers: { "Content-Type": "application/json", "X-Duel-Ingest-Token": getDuelIngestSecret() },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(10000),
+  });
+  await res.body?.cancel();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+/** Report a finished bot or practice game. One attempt; the room retries a few times and never waits on it. */
+export async function postSoloGame(payload: SoloGamePayload): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/duel/solo-games`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Duel-Ingest-Token": getDuelIngestSecret() },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5000),
   });
   await res.body?.cancel();
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

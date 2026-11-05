@@ -39,6 +39,7 @@ from app.models import (
     DuelMatchSeatLog,
     DuelPresence,
     DuelRating,
+    DuelSoloGame,
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
@@ -63,6 +64,7 @@ from app.schemas import (
     DuelMatchReplayOut,
     DuelMatchOut,
     DuelPresenceSnapshot,
+    DuelSoloGameIngest,
     DuelLiveOut,
     DuelRatingOut,
     DuelTokenOut,
@@ -916,6 +918,45 @@ def leaderboard(
 
 LIVE_CACHE_S = 30.0
 _live_clock = time.monotonic
+@router.post("/solo-games")
+def ingest_solo_game(
+    body: DuelSoloGameIngest,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_duel_ingest_token: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Record a finished bot or practice game for the admin user page (#988). Idempotent on game_id."""
+    _require_ingest_secret(settings, x_duel_ingest_token)
+    if not _ingest_rate.allow(f"duel-ingest:{client_ip(request)}"):
+        raise HTTPException(status_code=429, detail="Too many ingest requests")
+    if db.get(User, body.user_id) is None:
+        raise HTTPException(status_code=400, detail=f"Unknown user_id {body.user_id}")
+    if db.scalar(select(DuelSoloGame.id).where(DuelSoloGame.game_id == body.game_id)) is not None:
+        return {"game_id": body.game_id, "created": False}
+    db.add(
+        DuelSoloGame(
+            game_id=body.game_id,
+            user_id=body.user_id,
+            mode=body.mode,
+            bot_level=body.bot_level if body.mode == "bot" else None,
+            leader_id=body.leader_id,
+            opponent_leader_id=body.opponent_leader_id,
+            # Practice has the same player on both sides: nobody won.
+            won=body.won if body.mode == "bot" else None,
+            turns=body.turns,
+            reason=body.reason,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        # A retry racing the first post: the game is already recorded.
+        db.rollback()
+        return {"game_id": body.game_id, "created": False}
+    return {"game_id": body.game_id, "created": True}
+
+
 _live_cache: tuple[float, DuelLiveOut] | None = None
 
 

@@ -1,26 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { NavMenu } from "../nav/NavMenu";
-import { fetchAuthMe } from "../net/api";
 import { BackLink } from "../pages/BackLink";
 import {
   type AdminBots,
   type AdminHosting,
-  type AdminMe,
   type AdminOverview,
   fetchAdminBots,
   fetchAdminHosting,
-  fetchAdminMe,
   fetchAdminOverview,
 } from "./adminApi";
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
+import { Gate, useAdminWho } from "./AdminGate";
 import { BotsTab } from "./BotsTab";
 import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
 import { ReportsTab } from "./ReportsTab";
 import { UploadsTab } from "./UploadsTab";
-import { UsersTab, type Actor } from "./UsersTab";
+import { UsersTab } from "./UsersTab";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
@@ -58,38 +56,9 @@ function useTabData<T>(active: boolean, fetcher: (force: boolean) => Promise<T>,
   return { state, refreshing, run };
 }
 
-function Gate({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="app-shell">
-      <div className="page page-narrow">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">{title}</h1>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export default function AdminPage() {
-  const [who, setWho] = useState<{ status: "loading" } | { status: "none" } | { status: "ok"; me: AdminMe; actor: Actor }>({ status: "loading" });
+  const who = useAdminWho();
   const [tab, setTab] = useState<AdminTab | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    Promise.all([fetchAuthMe(), fetchAdminMe()])
-      .then(([u, me]) => {
-        if (!live) return;
-        if (!u || (me.role !== "admin" && me.role !== "moderator")) return setWho({ status: "none" });
-        setWho({ status: "ok", me, actor: { id: u.id, role: me.role } });
-      })
-      .catch(() => live && setWho({ status: "none" }));
-    return () => {
-      live = false;
-    };
-  }, []);
 
   const tabs = who.status === "ok" ? tabsForRole(who.me.role) : [];
   const current = tab && tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? null);

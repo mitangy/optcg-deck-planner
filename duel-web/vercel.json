@@ -125,6 +125,10 @@
       "dest": "/_app.html"
     },
     {
+      "src": "/admin/users/[^/]+/?",
+      "dest": "/_app.html"
+    },
+    {
       "src": "/auth/complete/?",
       "dest": "/_app.html"
     },
