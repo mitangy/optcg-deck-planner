@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBrief";
+import { briefFoldsAway, briefSeenKey, briefShown, briefStart, matchLogPoseEntry } from "./matchBrief";
 
 const ticket = { ticket: "mb1.x.y", leaderId: "OP01-001", opponentId: "ST01-001", deck: ["OP01-016"] };
 const good = { ranked: false as boolean | null | undefined, role: "player" as const, brief: ticket as unknown, logPoseEnabled: true as boolean | null, setting: true };
@@ -45,5 +45,12 @@ describe("matchup brief on the board", () => {
   it("remembers a room's brief by room id so a reload or rematch doesn't open it again (#401)", () => {
     expect(briefSeenKey("room-1")).not.toBe(briefSeenKey("room-2"));
     expect(briefSeenKey("room-1")).toContain("room-1");
+  });
+
+  it("a match gets one Log Pose button when either the brief or the copilot is on, none when neither is (#993)", () => {
+    expect(matchLogPoseEntry({ briefShown: true, copilotShown: true })).toBe("button");
+    expect(matchLogPoseEntry({ briefShown: true, copilotShown: false })).toBe("button");
+    expect(matchLogPoseEntry({ briefShown: false, copilotShown: true })).toBe("button");
+    expect(matchLogPoseEntry({ briefShown: false, copilotShown: false })).toBe("none");
   });
 });
