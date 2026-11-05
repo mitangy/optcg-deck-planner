@@ -141,6 +141,14 @@ function Glyph({ glyph }: { glyph: StatusGlyph }) {
           <path d="M4.5 4.5 19.5 19.5" />
         </>
       );
+    case "no-rest":
+      return (
+        <>
+          <rect x="8.5" y="4" width="7" height="11" rx="1.5" />
+          <path d="M17.5 17.5a6 6 0 0 1-9.5 2.5M8 16.5V20.5H12" />
+          <path d="M4.5 4.5 19.5 19.5" />
+        </>
+      );
     case "star":
       return <path className="fill" d="M12 2.5 14.2 9.8 21.5 12 14.2 14.2 12 21.5 9.8 14.2 2.5 12 9.8 9.8z" />;
     case "lock":

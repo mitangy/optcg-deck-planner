@@ -28,6 +28,7 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"cannot-be-rested-no-status","file":"packages/rules/src/engine/views.ts","from":"  if (hasRestriction(state, seat, c, \"cannot_be_rested\")) statuses.push(\"Cannot be rested\");\n","to":"","kills":["OP14-033 target shows Cannot be rested until the end of the opponent's next turn (#985)"]},
     {"id":"hand-reveal-not-recorded","file":"packages/rules/src/engine/runtime.ts","from":"        if (loc.zone === \"hand\") {\n          const p = state.players[loc.seat];","to":"        if (false as boolean) {\n          const p = state.players[loc.seat];","kills":["Cards revealed from hand stay visible to the opponent"]},
     {"id":"hand-reveal-survives-turn","file":"packages/rules/src/engine/procedure.ts","from":"  for (const player of state.players) delete player.revealedHandIds;","to":"","kills":["Reveals end when the next turn begins"]},
     {"id":"hand-reveal-survives-leaving-hand","file":"packages/rules/src/engine/state.ts","from":"      if (p.revealedHandIds) p.revealedHandIds = p.revealedHandIds.filter((id) => id !== loc.id);","to":"","kills":["no longer revealed, even if it returns"]},

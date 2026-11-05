@@ -5,6 +5,7 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    {"id": "norest985-table-drops-cannot-be-rested", "edits": [{"file": "duel-web/src/board/statusIcons.ts", "from": "  [\"cannot be rested\", NO_REST],\n", "to": ""}, {"file": "duel-web/src/board/statusIcons.ts", "from": "  [\"can't be rested\", NO_REST],\n", "to": ""}], "kills": ["shows a red no-rest icon for Cannot be rested"], "args": "src/board/statusIcons"},
     // Playing a different line on a replay (#966)
     {"id": "branch966-recorded-never-advances", "file": "duel-web/src/replay/replayBranch.ts", "from": "sameMove(recorded[step], move)", "to": "false", "kills": ["the move that was played just advances the main line (#966)"], "args": "src/replay/replayBranch"},
     {"id": "branch966-recorded-ignores-seat", "file": "duel-web/src/replay/replayBranch.ts", "from": "a !== undefined && a.seat === b.seat && stableJson", "to": "a !== undefined && stableJson", "kills": ["the same intent from the other seat is a different move and branches (#966)"], "args": "src/replay/replayBranch"},

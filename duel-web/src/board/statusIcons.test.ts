@@ -16,6 +16,13 @@ const ENGINE_LABELS = [
 ];
 
 describe("statusGlyph", () => {
+  it("shows a red no-rest icon for Cannot be rested, in either spelling, and the tooltip explains Blocker (#985)", () => {
+    expect(statusGlyph("Cannot be rested")).toEqual({ glyph: "no-rest", tone: "disable" });
+    expect(statusGlyph("Can\u2019t be rested")).toEqual({ glyph: "no-rest", tone: "disable" });
+    expect(statusTooltip("Cannot be rested").text).toMatch(/Blocker/);
+    expect(statusGlyph("Unrestable")!.glyph).not.toBe("no-rest");
+  });
+
   it("gives every engine status label an icon", () => {
     for (const label of ENGINE_LABELS) expect(statusGlyph(label), label).not.toBeNull();
   });
