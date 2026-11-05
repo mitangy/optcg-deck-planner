@@ -63,6 +63,8 @@ import { Dialog, Listbox, ListboxButton, ListboxList, ListboxOption, Select } fr
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
 import {
   BOT_DECK_MIRROR,
+  BOT_DECK_RANDOM,
+  pickRandomDeck,
   BOT_LEVELS,
   DEFAULT_BOT_LEVEL,
   botCreateOptions,
@@ -161,6 +163,7 @@ function DeckPicker({
   value,
   onChange,
   mirror,
+  random,
 }: {
   id: string;
   label: string;
@@ -169,8 +172,14 @@ function DeckPicker({
   onChange: (id: string) => void;
   /** Adds a first option with an empty value that plays this deck (e.g. "Same as your deck"). */
   mirror?: { label: string; deck: SavedDeck | null };
+  /** Adds an option (BOT_DECK_RANDOM) that picks a deck when the game starts; `hint` shows while it is chosen. */
+  random?: { label: string; hint: string };
 }) {
-  const deck = decks.find((d) => d.id === value) ?? (value === "" ? (mirror?.deck ?? null) : null);
+  const isRandom = random !== undefined && value === BOT_DECK_RANDOM;
+  const mirrored = value === "" && mirror !== undefined;
+  const deck = isRandom ? null : (decks.find((d) => d.id === value) ?? (mirrored ? (mirror.deck ?? null) : null));
+  // A mirror of a deck that is itself random is just as unknown: the same "?" placeholder.
+  const unknown = isRandom || (mirrored && mirror.deck === null);
   return (
     <div className="field">
       <label htmlFor={id}>
@@ -180,7 +189,9 @@ function DeckPicker({
         {deck ? (
           <LeaderThumb key={deck.id} deck={deck} className="deck-picker-art" />
         ) : (
-          <span className="deck-picker-art" aria-hidden />
+          <span className={`deck-picker-art${unknown ? " deck-picker-art-random" : ""}`} aria-hidden>
+            {unknown ? "?" : null}
+          </span>
         )}
         <Select
           id={id}
@@ -188,10 +199,12 @@ function DeckPicker({
           onChange={onChange}
           options={[
             ...(mirror ? [{ value: "", label: mirror.label }] : []),
+            ...(random ? [{ value: BOT_DECK_RANDOM, label: random.label }] : []),
             ...decks.map((d) => ({ value: d.id, label: deckLabel(d) })),
           ]}
         />
       </div>
+      {isRandom ? <p className="field-hint">{random.hint}</p> : null}
     </div>
   );
 }
@@ -350,6 +363,8 @@ export function LobbyPage() {
   /** Play vs Bot: how strong the bot is, and which saved deck it plays ("" = a copy of yours). */
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
   const [botDeckId, setBotDeckId] = useState(BOT_DECK_MIRROR);
+  /** Play vs Bot only: "Your deck" is Random, resolved when the game starts. Not saved as the selected deck. */
+  const [yourRandom, setYourRandom] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
   const [showIosHint, setShowIosHint] = useState(() => shouldShowIosInstallHint(readInstallEnv()));
@@ -551,7 +566,7 @@ export function LobbyPage() {
     const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
     setSelectedId(sel.id);
     setSelectedDeckId(sel.id);
-    setBotDeckId((prev) => (prev !== BOT_DECK_MIRROR && !all.some((d) => d.id === prev) ? BOT_DECK_MIRROR : prev));
+    setBotDeckId((prev) => (prev !== BOT_DECK_MIRROR && prev !== BOT_DECK_RANDOM && !all.some((d) => d.id === prev) ? BOT_DECK_MIRROR : prev));
     setOpponentDeckId((prev) => {
       if (prev && all.some((d) => d.id === prev)) return prev;
       // Prefer a different constructed deck for the enemy when available.
@@ -754,10 +769,11 @@ export function LobbyPage() {
       }
       // Online: open the board now and mint / queue / connect behind it, so
       // nobody waits on a Connecting… button (the queue alone can take minutes).
-      const picked = selectedDeck!;
-      const room = roomId.trim();
       const create = mode === "create";
       const vsBot = mode === "bot";
+      // Random in the bot sheet: the deck is drawn now, the saved choice (selectedId) stays as it was.
+      const picked = vsBot && yourRandom ? (pickRandomDeck(decks, null) ?? selectedDeck!) : selectedDeck!;
+      const room = roomId.trim();
       const botDeck = vsBot ? resolveBotDeck(decks, picked, botDeckId) : null;
       startMatch(
         {
@@ -799,7 +815,7 @@ export function LobbyPage() {
           }, gen);
         },
       );
-      if (mode !== "spectate") setSelectedDeckId(picked.id);
+      if (mode !== "spectate" && !(vsBot && yourRandom)) setSelectedDeckId(picked.id);
       navigate("/duel");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connect failed");
@@ -1177,8 +1193,20 @@ export function LobbyPage() {
                   id="setup-deck"
                   label="Your deck"
                   decks={decks}
-                  value={selectedId}
-                  onChange={chooseDeck}
+                  value={mode === "bot" && yourRandom ? BOT_DECK_RANDOM : selectedId}
+                  onChange={(id) => {
+                    if (id === BOT_DECK_RANDOM) {
+                      setYourRandom(true);
+                      return;
+                    }
+                    setYourRandom(false);
+                    chooseDeck(id);
+                  }}
+                  random={
+                    mode === "bot"
+                      ? { label: "Random deck", hint: "Picked from your complete decks when the game starts." }
+                      : undefined
+                  }
                 />
               ) : null}
 
@@ -1220,7 +1248,11 @@ export function LobbyPage() {
                     decks={decks}
                     value={botDeckId}
                     onChange={setBotDeckId}
-                    mirror={{ label: "Same as your deck", deck: selectedDeck }}
+                    mirror={{ label: "Same as your deck", deck: yourRandom ? null : selectedDeck }}
+                    random={{
+                      label: "Random deck",
+                      hint: "Picked from your complete decks when the game starts, and different from yours when it can be.",
+                    }}
                   />
                   <p className="field-hint">
                     A casual game against the computer: not ranked, no timer, and not saved to your match history.
