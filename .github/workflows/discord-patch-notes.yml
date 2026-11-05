@@ -1,0 +1,49 @@
+name: Discord patch notes
+
+# Posts new entries of packages/patch-notes/src/notes.ts to the Discord channel behind the
+# DISCORD_PATCH_NOTES_WEBHOOK secret when they land on main (#974). A note counts as new
+# when its date, app, PR and title are not in notes.ts at the previous commit, so editing an
+# old note never reposts it. Run it by hand with "latest" to repost the newest N notes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/patch-notes/src/notes.ts
+  workflow_dispatch:
+    inputs:
+      latest:
+        description: "Number of newest notes to post"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-patch-notes
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the script reads notes.ts at the push's before commit with git show
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Post new patch notes
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_PATCH_NOTES_WEBHOOK }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          LATEST: ${{ inputs.latest }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            node tools/ci/discord-patch-notes.cjs --latest "$LATEST"
+          else
+            node tools/ci/discord-patch-notes.cjs --before "$BEFORE_SHA" --after "$AFTER_SHA"
+          fi
