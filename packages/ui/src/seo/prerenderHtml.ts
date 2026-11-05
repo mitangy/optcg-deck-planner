@@ -14,6 +14,8 @@ export type PrerenderHead = {
   noindex?: boolean;
   /** Extra markup for the end of `<head>`, e.g. a JSON-LD script. */
   extraHead?: string;
+  /** Structured data (e.g. a FAQPage) written as `<script type="application/ld+json">`, escaped so it cannot close the tag. */
+  jsonLd?: unknown;
 };
 
 export function escapeHtml(s: string): string {
@@ -54,6 +56,7 @@ export function applyHead(template: string, head: PrerenderHead): string {
     html = setMeta(html, "property", "og:image", head.image);
     html = setMeta(html, "name", "twitter:image", head.image);
   }
+  if (head.jsonLd !== undefined) html = html.replace("</head>", () => `    <script type="application/ld+json">${jsonForScript(head.jsonLd)}</script>\n  </head>`);
   if (head.extraHead) html = html.replace("</head>", () => `    ${head.extraHead}\n  </head>`);
   return html;
 }

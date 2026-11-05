@@ -1,0 +1,78 @@
+/* /optcg-sim-online and /play-optcg-on-phone (#973): extras on top of playOnline.css. Colours come from the theme variables. */
+
+.landing-copy {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.landing-copy:last-child {
+  margin-bottom: 0;
+}
+
+.landing-table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.landing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.landing-table th,
+.landing-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.landing-table thead th {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.landing-table tbody th {
+  color: var(--ink);
+  font-weight: 600;
+  width: 28%;
+}
+
+@media (max-width: 480px) {
+  .landing-table th,
+  .landing-table td {
+    padding: 0.45rem 0.35rem;
+    font-size: 0.8rem;
+  }
+}
+
+.landing-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 1rem;
+}
+
+.landing-columns > div {
+  min-width: 0;
+}
+
+.landing-subtitle {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.landing-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

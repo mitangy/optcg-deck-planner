@@ -11,6 +11,8 @@ export function showsSiteFooter(pathname: string): boolean {
 /** Reachable from every page, so the public landing pages are crawlable. */
 export const FOOTER_LINKS = [
   { to: "/play-one-piece-tcg-online", label: "How to play online" },
+  { to: "/optcg-sim-online", label: "OPTCG sim online" },
+  { to: "/play-optcg-on-phone", label: "Play on phone" },
   { to: "/leaders", label: "Top leaders" },
 ] as const;
 
