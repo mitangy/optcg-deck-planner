@@ -5,6 +5,7 @@ import {Background} from '../Background';
 import {COLORS} from '../theme';
 import {LayoutCtx, LeadProvider, OVERLAP, SceneFade, lerp} from './anim';
 import type {MotionLayout} from './layout';
+import {SFX_CUES} from './sfx';
 import {MOTION_TOTAL, S, SCENE_ORDER, sceneEnd} from './timing';
 import {AnywhereScene} from './scenes/Anywhere';
 import {AttackScene} from './scenes/Attack';
@@ -40,6 +41,7 @@ const SweepInner: React.FC<{L: MotionLayout}> = ({L}) => {
   );
 };
 
+const hasMotionSfx = !!(generated as {hasMotionSfx?: boolean}).hasMotionSfx;
 const hasMotionMusic = !!(generated as {hasMotionMusic?: boolean}).hasMotionMusic;
 const CLAMP = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
 /** Ocean ambience envelope: in, hold, duck under the middle, swell for the end card, fade out. Capped lower when music leads. */
@@ -75,6 +77,12 @@ export const MotionPiece: React.FC<{layout: MotionLayout}> = ({layout: L}) => (
         // "Tributary" by Lish Grooves (YouTube Audio Library), beat-matched to 120 BPM by prerender-motion.mjs.
         <Html5Audio src={staticFile('motion/music.wav')} volume={(f) => interpolate(f, [0, 20, MOTION_TOTAL - 45, MOTION_TOTAL], [0, 1, 1, 0], CLAMP)} />
       )}
+      {hasMotionSfx && SFX_CUES.map((c, i) => (
+        // synthesized by scripts/make-motion-sfx.mjs; cue frames and gains live in sfx.ts
+        <Sequence key={`${c.frame}-${c.id}-${i}`} from={c.frame} layout="none">
+          <Html5Audio src={staticFile(`motion/sfx/${c.id}.wav`)} volume={c.gain} playbackRate={c.rate} />
+        </Sequence>
+      ))}
       {!hasMotionMusic && generated.hasMusic && (
         <Html5Audio src={staticFile('music.mp3')} volume={(f) => interpolate(f, [0, 45, MOTION_TOTAL - 90, MOTION_TOTAL], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       )}

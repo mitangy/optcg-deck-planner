@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {makeMotionSfx, sfxSourceHash} from './make-motion-sfx.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -107,9 +108,19 @@ if (musicSrc) {
   if (fs.existsSync(cachedMusic)) { fs.copyFileSync(cachedMusic, path.join(dst, 'music.wav')); hasMotionMusic = true; }
 } else console.log('motion prerender: no music source found, skipping (set MOTION_MUSIC)');
 
-// src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3.
+// Sound effects: synthesized by make-motion-sfx.mjs (WebAudio in Playwright's Chromium, no downloads). Rendered into the
+// card cache dir keyed on the generator's source hash and copied into public/motion/sfx/ (public/motion/ is wiped each run).
+let hasMotionSfx = false;
+try {
+  const sfxCache = path.join(cacheDir, `sfx-${sfxSourceHash()}`);
+  if (!fs.existsSync(path.join(sfxCache, '.hash'))) { fs.rmSync(sfxCache, {recursive: true, force: true}); await makeMotionSfx(sfxCache); }
+  fs.cpSync(sfxCache, path.join(dst, 'sfx'), {recursive: true});
+  hasMotionSfx = true;
+} catch (e) { console.warn(`motion prerender: sfx generation failed (${e.message}), rendering without sound effects`); }
+
+// src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3, ocean, motion music and sfx.
 const gen = path.join(root, 'src/generated.json');
 const hasMusic = fs.existsSync(path.join(root, 'public/music.mp3'));
 let cur = {clips: {}};
 try { cur = JSON.parse(fs.readFileSync(gen, 'utf8')); } catch { /* absent */ }
-fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean, hasMotionMusic}, null, 2) + '\n');
+fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean, hasMotionMusic, hasMotionSfx}, null, 2) + '\n');
