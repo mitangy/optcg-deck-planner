@@ -40,6 +40,15 @@ const SweepInner: React.FC<{L: MotionLayout}> = ({L}) => {
   );
 };
 
+const CLAMP = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
+/** Ocean ambience envelope: in, hold, duck under the middle, swell for the end card, fade out. Capped lower when music leads. */
+const oceanVolume = (f: number) => {
+  const end = S.end;
+  const v = interpolate(f, [0, 20, 90, 120, end, end + 20, MOTION_TOTAL - 30, MOTION_TOTAL], [0, 0.9, 0.9, 0.25, 0.25, 0.8, 0.8, 0], CLAMP);
+  if (!generated.hasMusic) return v;
+  return Math.min(v, interpolate(f, [0, 90, 120, end, end + 20, MOTION_TOTAL], [0.35, 0.35, 0.12, 0.12, 0.35, 0.35], CLAMP));
+};
+
 export const MotionPiece: React.FC<{layout: MotionLayout}> = ({layout: L}) => (
   <LayoutCtx.Provider value={L}>
     <AbsoluteFill style={{background: COLORS.navy1, overflow: 'hidden'}}>
@@ -60,6 +69,7 @@ export const MotionPiece: React.FC<{layout: MotionLayout}> = ({layout: L}) => (
         );
       })}
       {SCENE_ORDER.filter(([, s]) => s > 0).map(([k, s]) => (k === 'end' ? null : <CutSweep key={k} at={s} L={L} />))}
+      {(generated as {hasOcean?: boolean}).hasOcean && <Html5Audio src={staticFile('motion/ocean.mp3')} volume={oceanVolume} />}
       {generated.hasMusic && (
         <Html5Audio src={staticFile('music.mp3')} volume={(f) => interpolate(f, [0, 45, MOTION_TOTAL - 90, MOTION_TOTAL], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       )}

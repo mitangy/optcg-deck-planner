@@ -62,9 +62,20 @@ frame('12-phone-portrait.mp4', process.env.MOTION_PORTRAIT_T ?? 0.5, 'phone-port
 frame('13-phone-landscape.mp4', process.env.MOTION_LANDSCAPE_T ?? 4, 'phone-landscape.png');
 console.log(`motion prerender: ${n} file(s) -> public/motion`);
 
+// Ocean waves + seagulls ambience bed. Source: BigSoundBank "Sea waves and seagulls" (57.6 s),
+// https://bigsoundbank.com/UPLOAD/mp3/0267.mp3 — CC0 / public-domain-equivalent, no attribution required.
+// Cached in the same cache dir as the card art; public/motion/ is wiped each run, so copy it back in.
+const oceanCached = path.join(cacheDir, 'ocean.mp3');
+if (!fs.existsSync(oceanCached) || fs.statSync(oceanCached).size < 100000) {
+  const r = spawnSync('curl', ['-sSfL', '-m', '60', '-o', oceanCached, 'https://bigsoundbank.com/UPLOAD/mp3/0267.mp3'], {encoding: 'utf8'});
+  if (r.status !== 0) { console.warn(`motion prerender: ocean.mp3 download failed ${r.stderr.trim()}`); fs.rmSync(oceanCached, {force: true}); }
+}
+if (fs.existsSync(oceanCached)) fs.copyFileSync(oceanCached, path.join(dst, 'ocean.mp3'));
+const hasOcean = fs.existsSync(path.join(dst, 'ocean.mp3'));
+
 // src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3.
 const gen = path.join(root, 'src/generated.json');
 const hasMusic = fs.existsSync(path.join(root, 'public/music.mp3'));
 let cur = {clips: {}};
 try { cur = JSON.parse(fs.readFileSync(gen, 'utf8')); } catch { /* absent */ }
-fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic}, null, 2) + '\n');
+fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean}, null, 2) + '\n');

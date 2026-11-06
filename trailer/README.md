@@ -108,6 +108,8 @@ node scripts/render-infographics.mjs hand   # only ids containing "hand"
 
 `Motion16x9` (1920x1080) and `Motion9x16` (1080x1920) are a 30 s graphic-led piece: no screen recordings, everything is springs/interpolation on card art, UI stills and SVG (logo build, card storm, attack arrow, 3D feature panels, crew-colour wipes, phone rotation, stat tiles, end card). Cuts sit on the 120 BPM grid and scenes overlap by 9 frames.
 
+Ambience: an ocean waves + seagulls bed (BigSoundBank "Sea waves and seagulls", CC0) is downloaded by `prerender:motion` into `public/motion/ocean.mp3` and ducked under the middle of the piece (further under `music.mp3` if present).
+
 ```bash
 cd trailer/video
 npm run prerender:motion      # copies stills, card art and two phone frames into public/motion/ (gitignored)
