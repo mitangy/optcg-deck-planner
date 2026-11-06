@@ -7,6 +7,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/decks", label: "Decks" },
   { href: "/decks/meta", label: "Meta decks" },
   { href: "/history", label: "Match history" },
+  { href: "/tournaments", label: "Tournaments" },
   { href: "/whats-new", label: "What’s new" },
   { href: "/settings", label: "Settings" },
 ];

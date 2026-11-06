@@ -19,7 +19,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_live, redis_client
+from app import duel_live, duel_tournaments, redis_client
 from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
@@ -408,6 +408,12 @@ def ingest_match(
     db.execute(delete(DuelMatchProgress).where(DuelMatchProgress.match_id == body.match_id))
     db.commit()
     _forget_live_progress(body.match_id, (body.seat0_user_id, body.seat1_user_id))
+    # A tournament game moves its bracket along; never let that fail the ingest.
+    try:
+        duel_tournaments.record_game(db, body.match_id, body.seat0_user_id, body.seat1_user_id, body.winner_seat)
+    except Exception:
+        db.rollback()
+        log.exception("tournament result for %s not recorded", body.match_id)
     return DuelMatchOut(
         match_id=row.match_id,
         created=True,

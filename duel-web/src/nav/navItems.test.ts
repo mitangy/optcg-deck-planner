@@ -41,8 +41,13 @@ describe("menu: which item is the current page (#460)", () => {
     expect(activeNavHref("/settingsx")).toBeNull();
   });
 
-  it("lists Home, Leaderboard, Decks, Meta decks, Match history, What's new, Settings in that order (#460)", () => {
-    expect(NAV_ITEMS.map((i) => i.href)).toEqual(["/", "/leaderboard", "/decks", "/decks/meta", "/history", "/whats-new", "/settings"]);
+  it("lists Home, Leaderboard, Decks, Meta decks, Match history, Tournaments, What's new, Settings in that order (#460)", () => {
+    expect(NAV_ITEMS.map((i) => i.href)).toEqual(["/", "/leaderboard", "/decks", "/decks/meta", "/history", "/tournaments", "/whats-new", "/settings"]);
+  });
+
+  it("marks Tournaments on the list and on one tournament (#997)", () => {
+    expect(activeNavHref("/tournaments")).toBe("/tournaments");
+    expect(activeNavHref("/tournaments/AbC123")).toBe("/tournaments");
   });
 });
 
