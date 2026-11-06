@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
+  { date: "2026-11-06", app: "planner", pr: 1031, title: "Collector copies on top of your decks", text: "Want a gold-stamped or other alt art as a keepsake on top of what your decks need? Open the price on a card in Master Shopping and choose Want a collector copy too. It shows as its own line under the card, owned copies fill it first, and it is counted in your totals. Remove it any time, with Undo." },
   { date: "2026-11-06", app: "planner", pr: 1029, title: "Price alerts are easier to spot and edit", text: "A card's price alert now shows as a colored chip with a bell, your target and whether it is watching or has hit. Edit on a card page opens the alert editor right under it, where it used to do nothing." },
   { date: "2026-11-06", app: "both", pr: 1024, title: "Replace a deck with a pasted deck list", text: "While editing a deck you can now paste an OPTCGSim deck code to overwrite it. In the planner use Replace with deck list in the More menu or above Add cards; in the duel app open Replace with deck list in the deck editor and press Save. The deck keeps its name." },
   { date: "2026-11-06", app: "duel", pr: 1019, title: "Events show their prizes and style", text: "Events now say how they are played (casual, single-elimination bracket, round robin or Swiss, and best of 1 or 3) and what the prizes are. You will see it on the home page banner and in the official rules, and the dates can now be moved when plans change." },
