@@ -24,6 +24,7 @@ npx playwright show-report               # traces and screenshots of failures
 | `spectate-link.spec.ts` | `/watch/<room id>` opens straight into spectating (history replaced, `?seat=2` camera), a bad room says so in the lobby, a pre-start spectator sees waiting not an error, and the HUD / menu copy the link. | ~15s |
 | `replay.spec.ts` | History's Watch button opens a finished game on the board (#476): step, next turn and play, What I saw vs Reveal all, flip, the unavailable and still-being-played pages, and the controls fitting an 812x375 phone. The API is faked; the recording is a golden game re-run in the browser. | ~40s |
 | `tabs719.spec.ts` | The Admin sections and the lobby's Create / Join row on the shared Headless UI Tabs (#719): arrows, Home / End, the panel that follows, no focus ring on a mouse click. The admin is a fake account behind a faked API. | ~10s |
+| `sim-import.spec.ts` | Settings > Log Pose > Import OPTCGSim games (#1030): an export file and a pasted combat log (which player you were, and the result) import through a faked API, the result says what was skipped and why, Clear removes them all, and the controls keep their place with no sideways scroll on desktop, portrait and landscape phone. | ~15s |
 | `demo-audit.spec.ts` | The UI audit on every `/demo` fixture screen (prompts, full board, statuses, match over) at each size. | ~1 min |
 
 Each runs at `desktop-1280` and `phone-375` (the rules scenario on desktop only).

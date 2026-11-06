@@ -124,3 +124,23 @@ export function reviewAnalystLesson(id: number, status: AnalystLessonStatus): Pr
 export function deleteAnalystLesson(id: number): Promise<void> {
   return call<void>(`/analyst/lessons/review/${id}`, { method: "DELETE" }, "Could not delete the lesson");
 }
+
+export type SimImportResult = { imported: number; skipped_duplicates: number; skipped_invalid: number; total: number };
+
+/** Send raw OPTCGSim match records; the server drops player names and skips games you already imported (#1030). */
+export function importSimGames(games: unknown[]): Promise<SimImportResult> {
+  return call<SimImportResult>(
+    "/analyst/sim-games/import",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ games }) },
+    "Could not import the games",
+  );
+}
+
+/** How many OPTCGSim games you have imported. */
+export async function fetchSimGameCount(): Promise<number> {
+  return (await call<{ total: number }>("/analyst/sim-games?limit=1", {}, "Could not count your imported games")).total;
+}
+
+export async function clearSimGames(): Promise<number> {
+  return (await call<{ deleted: number }>("/analyst/sim-games", { method: "DELETE" }, "Could not clear your imported games")).deleted;
+}
