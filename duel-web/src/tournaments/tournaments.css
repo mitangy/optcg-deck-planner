@@ -126,8 +126,9 @@
   min-width: 0;
 }
 
-.trow-name,
-.trow-meta {
+.trow-meta { overflow-wrap: anywhere; }
+
+.trow-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
