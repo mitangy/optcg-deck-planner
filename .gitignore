@@ -48,3 +48,5 @@ artifacts/**/*.jpeg
 artifacts/**/*.gif
 artifacts/**/*.webm
 artifacts/**/*.mp4
+trailer/video/public/motion/
+trailer/video/.motion-card-cache/
