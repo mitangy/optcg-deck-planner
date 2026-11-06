@@ -288,6 +288,11 @@ export function AltArtsRow({
                   Alt
                 </span>
               )}
+              {(alt.collector ?? 0) > 0 ? (
+                <span className="alt-collector" title="You want this art as a collector copy, on top of your decks">
+                  ★ Collector
+                </span>
+              ) : null}
               {showControl(alt.product_id, alt.name)}
             </div>
             {tileExtra?.(alt.product_id)}

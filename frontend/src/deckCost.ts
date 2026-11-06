@@ -1,9 +1,12 @@
 import { shownMarket } from "./altArt";
+import { deckOwnedOfAlt } from "./collectorLines";
 
 type CostAlt = {
   product_id?: number;
   owned?: number | null;
   wanted?: number | null;
+  /** Collector copies wanted on top of decks (#1031): owned copies fill these first. */
+  collector?: number | null;
   market_price?: number | null;
 };
 
@@ -30,8 +33,9 @@ export type BuySplit = {
  * still_need already drops owned alt copies, so counting them in the pick too would
  * price them twice (#908). Mirrors the backend `shopping_list`.
  */
-export function altBuyCopies(alt: Pick<CostAlt, "wanted" | "owned">): number {
-  return Math.max(0, (alt.wanted ?? 0) - (alt.owned ?? 0));
+export function altBuyCopies(alt: Pick<CostAlt, "wanted" | "owned" | "collector">): number {
+  // Owned copies held back as collector copies do not lower the deck's still_need, so they do not lower the pick either (#1031).
+  return Math.max(0, (alt.wanted ?? 0) - deckOwnedOfAlt({ owned: alt.owned ?? 0, collector: alt.collector ?? 0 }));
 }
 
 /**

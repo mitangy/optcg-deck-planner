@@ -1,8 +1,9 @@
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Popover, PopoverBackdrop, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
+import { canOpenBuyPopover, collectorChoices } from "./collectorLines";
 import { altBuyCopies, splitStillNeed } from "./deckCost";
 import { useMediaQuery } from "./DeckStats";
 
@@ -45,18 +46,24 @@ export function BuySplitEditor({
   card,
   busyProductId = null,
   onPick,
+  onCollectorPick,
 }: {
   card: BuySplitCard;
   busyProductId?: number | null;
   onPick: (productId: number, qty: number) => void;
+  /** Planner pages (#1031): adds the "Want a collector copy too" art picker under the split. */
+  onCollectorPick?: (productId: number, qty: number) => void;
 }) {
   const alts = card.alt_arts ?? [];
   const base = baseCopiesLeft(card);
   const blockedTitle = `All ${card.still_need} still-needed ${card.still_need === 1 ? "copy is" : "copies are"} already picked`;
   const total = splitStillNeed(card).cost;
   const titleId = useId();
+  const splitting = card.still_need > 0;
   return (
     <div className="buy-split-editor" aria-labelledby={titleId}>
+      {splitting ? (
+        <>
       <h3 className="buy-split-title" id={titleId}>
         Buy your {card.still_need} {card.still_need === 1 ? "copy" : "copies"} as…
       </h3>
@@ -120,6 +127,86 @@ export function BuySplitEditor({
         <span>Total</span>
         <strong>{total == null ? "—" : money(total)}</strong>
       </p>
+        </>
+      ) : (
+        <h3 className="buy-split-title" id={titleId}>
+          You have every copy your decks need
+        </h3>
+      )}
+      {onCollectorPick ? (
+        <CollectorPicker card={card} startOpen={!splitting} busyProductId={busyProductId} onPick={onCollectorPick} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * "★ Want a collector copy too": an alt art wanted on top of the decks (#1031). Picking sets one copy;
+ * the count is edited on the Master Shopping line it creates.
+ */
+function CollectorPicker({
+  card,
+  startOpen,
+  busyProductId,
+  onPick,
+}: {
+  card: BuySplitCard;
+  startOpen: boolean;
+  busyProductId: number | null;
+  onPick: (productId: number, qty: number) => void;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  const listId = useId();
+  const choices = collectorChoices(card.alt_arts);
+  if (choices.length === 0) return null;
+  return (
+    <div className="collector-add">
+      <button
+        type="button"
+        className="collector-add-toggle"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="collector-star" aria-hidden="true">
+          ★
+        </span>
+        <span className="collector-add-text">Want a collector copy too</span>
+        <span className="collector-add-hint">on top of your decks</span>
+      </button>
+      {open ? (
+        <ul className="collector-picker" id={listId} aria-label="Which art for your collector copy?">
+          {choices.map((alt) => {
+            const added = (alt.collector ?? 0) > 0;
+            return (
+              <li key={alt.product_id} className="collector-picker-row">
+                <span className="buy-split-thumb">
+                  <CardThumb src={alt.image_url || undefined} cardId={card.card_id} alt={alt.name} productId={alt.product_id} />
+                </span>
+                <span className="buy-split-art">
+                  <span className="buy-split-art-name" title={alt.name}>
+                    {alt.name}
+                  </span>
+                  <span className="buy-split-art-price">{money(alt.market_price)}</span>
+                </span>
+                {added ? (
+                  <span className="collector-chip">★ Added</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="collector-pick-btn"
+                    aria-label={`Pick ${alt.name} as a collector copy`}
+                    aria-disabled={busyProductId === alt.product_id}
+                    onClick={() => busyProductId !== alt.product_id && onPick(alt.product_id, 1)}
+                  >
+                    Pick
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -139,6 +226,7 @@ export function BuySplit({
   onPick,
   busyProductId = null,
   plainWhenIdle = true,
+  onCollectorPick,
 }: {
   card: BuySplitCard;
   /** The formatted remaining cost, e.g. "$2.50". */
@@ -149,9 +237,11 @@ export function BuySplit({
   busyProductId?: number | null;
   /** When there is nothing to split: keep the amount as plain text (false renders nothing). */
   plainWhenIdle?: boolean;
+  /** Planner pages (#1031): with this the price opens even when nothing is left to buy, for the collector picker. */
+  onCollectorPick?: (productId: number, qty: number) => void;
 }) {
   const phone = useMediaQuery(PHONE_QUERY);
-  const eligible = Boolean(onPick) && canSplitBuy(card);
+  const eligible = Boolean(onPick) && canOpenBuyPopover(card, Boolean(onCollectorPick));
   if (!eligible || !onPick) {
     return plainWhenIdle ? (
       <span className="buy-split">
@@ -194,7 +284,7 @@ export function BuySplit({
           aria-label={`Buy ${card.name} as`}
           className={`buy-split-panel${phone ? " buy-split-sheet" : ""}`}
         >
-          <BuySplitEditor card={card} busyProductId={busyProductId} onPick={onPick} />
+          <BuySplitEditor card={card} busyProductId={busyProductId} onPick={onPick} onCollectorPick={onCollectorPick} />
         </PopoverPanel>
       </Popover>
     </span>

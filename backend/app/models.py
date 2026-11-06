@@ -164,6 +164,26 @@ class OwnedPrinting(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class CollectorWant(Base):
+    """Copies of one alt printing a user wants on top of what their decks need (#1031).
+
+    One count per user per printing (not per deck). Owned copies of the printing
+    fill this want first; only the rest count toward deck needs.
+    """
+
+    __tablename__ = "collector_wants"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", "product_id", name="uq_user_collector_want"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer, index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CardDisplayChoice(Base):
     """Which art a user wants shown for a card in the planner.
 

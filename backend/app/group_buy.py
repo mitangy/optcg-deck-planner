@@ -122,7 +122,7 @@ def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
     needs: list[MemberNeed] = []
     for member in group.members:
         shopping = services.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         name = _display_name(member.user)
         shop_by_id = {item.card_id.upper(): item for item in shopping.items}
@@ -205,7 +205,7 @@ def _viewer_zero_customs(
     if member is None:
         return {}
     shopping = services.shopping_list(
-        db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+        db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
     )
     shop_by_id = {item.card_id.upper(): item for item in shopping.items}
     name = _display_name(member.user)
@@ -277,7 +277,7 @@ def _build_lines(
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
         shop = services.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         by_card: dict[str, list] = {}
         for item in shop.items:
@@ -764,7 +764,7 @@ def set_member_qty(
 
     # Default (no override) is shopping still-need. If qty matches that, clear override.
     shopping = services.shopping_list(
-        db, user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+        db, user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
     )
     suggested = next(
         (item.still_need for item in shopping.items if item.card_id.upper() == card_id),
@@ -998,7 +998,7 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     member_shop_alts: dict[int, dict[str, list]] = {}
     for member in group.members:
         shop = services.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json)
+            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         # Uppercase keys — line.card_id is uppercased in merge; mismatched case
         # silently dropped AA wants and fell back to whole-line printing.

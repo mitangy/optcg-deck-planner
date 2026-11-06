@@ -1,12 +1,13 @@
 import { BrandWordmark } from "./BrandWordmark";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   api,
   CatalogCardResult,
   CardView,
+  CollectorLine,
   DeckDetail,
   DeckSummary,
   money,
@@ -30,6 +31,21 @@ import {
 import { DUEL_URL, duelPlayUrl } from "./duelLink";
 import { deckRemainingMarket, remainingCostForCard, shoppingShownPrice } from "./deckCost";
 import { BuySplit, canSplitBuy } from "./BuySplit";
+import { CollectorChip, CollectorDeckChip, CollectorRemove, CollectorStepper, UndoToast } from "./CollectorLine";
+import {
+  applyCollectorToShopping,
+  canOpenBuyPopover,
+  collectorCostTotal,
+  collectorHaveText,
+  collectorOnTopOf,
+  collectorSelectKey,
+  collectorStatNote,
+  deckAltsOwned,
+  collectorStillTotal,
+  itemNeedsCopies,
+  refreshCollectorHave,
+  visibleCollectorLines,
+} from "./collectorLines";
 import { DISCORD_INVITE_URL, FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { CornerNotices, UpdateNotice } from "./UpdateNotice";
 import { submitFeedback } from "./feedback";
@@ -411,12 +427,14 @@ function applyAltOwnedOptimistic(
       let patched = item;
       if (item.card_id.toUpperCase() === id) {
         const alt_arts = patchAlts(item.alt_arts);
-        const alts_owned = sumAltOwned(alt_arts);
+        // alts_owned is what counts for decks: owned alt copies minus the collector-reserved ones (#1031).
+        const alts_owned = deckAltsOwned(sumAltOwned(alt_arts), alt_arts);
         const still_need = stillNeedFor(item.need, item.owned, alts_owned);
         patched = {
           ...item,
           alt_arts,
           alts_owned,
+          collector_wants: refreshCollectorHave(item.collector_wants, productId, qty),
           still_need,
           remaining_cost: remainingCostForCard({ still_need, market_price: item.market_price, alt_arts }),
         };
@@ -428,8 +446,8 @@ function applyAltOwnedOptimistic(
     return {
       ...old,
       items,
-      cards_still_needed: cardsStill,
-      remaining_market: Math.round(remaining * 100) / 100,
+      cards_still_needed: cardsStill + collectorStillTotal(items),
+      remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100,
     };
   });
   qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
@@ -442,7 +460,7 @@ function applyAltOwnedOptimistic(
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
         const alt_arts = patchAlts(card.alt_arts);
-        const alts_owned = sumAltOwned(alt_arts);
+        const alts_owned = deckAltsOwned(sumAltOwned(alt_arts), alt_arts);
         return {
           ...card,
           alt_arts,
@@ -487,7 +505,7 @@ function applyAltBuyOptimistic(
       if (patched.remaining_cost != null) remaining += patched.remaining_cost;
       return patched;
     });
-    return { ...old, items, remaining_market: Math.round(remaining * 100) / 100 };
+    return { ...old, items, remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100 };
   });
   qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
     old
@@ -496,6 +514,38 @@ function applyAltBuyOptimistic(
           cards: old.cards.map((card) =>
             card.card_id.toUpperCase() === id ? { ...card, alt_arts: patchAlts(card.alt_arts) } : card,
           ),
+        }
+      : old,
+  );
+}
+
+/** Collector copies change totals and the deck's still-needed copies (owned copies fill them first), so refetch everything. */
+function invalidateCollectorViews(qc: ReturnType<typeof useQueryClient>) {
+  invalidateAltOwnedViews(qc);
+  void qc.invalidateQueries({ queryKey: ["shopping"] });
+  void qc.invalidateQueries({ queryKey: ["deck"] });
+}
+
+/** Sets one collector want in the cached shopping lists and deck pages (#1031). */
+function applyCollectorOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  cardId: string,
+  productId: number,
+  qty: number,
+) {
+  const id = cardId.toUpperCase();
+  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
+    old ? applyCollectorToShopping(old, id, productId, qty) : old,
+  );
+  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+    old
+      ? {
+          ...old,
+          cards: old.cards.map((card) => {
+            if (card.card_id.toUpperCase() !== id) return card;
+            const alt_arts = (card.alt_arts ?? []).map((a) => (a.product_id === productId ? { ...a, collector: qty } : a));
+            return { ...card, alt_arts, collector_want: alt_arts.reduce((n, a) => n + (a.collector ?? 0), 0) };
+          }),
         }
       : old,
   );
@@ -535,27 +585,25 @@ function OwnedClaimNote({ card }: { card: CardView }) {
   );
 }
 
-function shoppingListStats(data: {
+type ShoppingStatsData = {
   unique_cards?: number;
   cards_still_needed?: number;
   remaining_market?: number;
-  items: { still_need: number }[];
-} | null | undefined) {
+  items: { still_need: number; collector_wants?: CollectorLine[] | null }[];
+};
+
+function shoppingListStats(data: ShoppingStatsData | null | undefined) {
   const items = data?.items ?? [];
   return {
     totalUnique: data?.unique_cards ?? items.length,
-    uniqueStillNeeded: items.filter((i) => i.still_need > 0).length,
+    uniqueStillNeeded: items.filter(itemNeedsCopies).length,
     totalStillNeeded: data?.cards_still_needed ?? 0,
     remainingMarket: data?.remaining_market,
+    collectorStill: collectorStillTotal(items),
   };
 }
 
-function formatShoppingListStats(data: {
-  unique_cards?: number;
-  cards_still_needed?: number;
-  remaining_market?: number;
-  items: { still_need: number }[];
-} | null | undefined) {
+function formatShoppingListStats(data: ShoppingStatsData | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
   // Keep to one scannable line on mobile — avoid burying the card list below chrome.
   return (
@@ -564,8 +612,9 @@ function formatShoppingListStats(data: {
   );
 }
 
-function ShoppingStatStrip({ data }: { data: Parameters<typeof shoppingListStats>[0] }) {
-  const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
+function ShoppingStatStrip({ data }: { data: ShoppingStatsData | null | undefined }) {
+  const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket, collectorStill } = shoppingListStats(data);
+  const collectorNote = collectorStatNote(collectorStill);
   return (
     <ul className="stat-strip" aria-label="Shopping totals">
       <li>
@@ -578,6 +627,7 @@ function ShoppingStatStrip({ data }: { data: Parameters<typeof shoppingListStats
       <li>
         <span className="stat-label">Copies</span>
         <span className="stat-value">{totalStillNeeded}</span>
+        {collectorNote ? <span className="stat-note">{collectorNote}</span> : null}
       </li>
       <li>
         <span className="stat-label">Est. cost</span>
@@ -607,8 +657,8 @@ function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: str
     return {
       ...old,
       items,
-      cards_still_needed: cardsStill,
-      remaining_market: Math.round(remaining * 100) / 100,
+      cards_still_needed: cardsStill + collectorStillTotal(items),
+      remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100,
     };
   });
   qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
@@ -654,8 +704,8 @@ function applyWantOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: stri
     return {
       ...old,
       items,
-      cards_still_needed: cardsStill,
-      remaining_market: Math.round(remaining * 100) / 100,
+      cards_still_needed: cardsStill + collectorStillTotal(items),
+      remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100,
     };
   });
 }
@@ -985,6 +1035,18 @@ function ShownMarketPrice({ item }: { item: ShoppingItem }) {
   return <MarketPrice price={price} productId={productId} />;
 }
 
+/** Collector-copy wiring for Master Shopping (#1031). */
+type CollectorControls = {
+  /** Sets a printing's collector want (also used by the popover's art picker). */
+  onChange: (cardId: string, productId: number, qty: number) => void;
+  /** Removes a line (qty 0) and offers Undo. */
+  onRemove: (cardId: string, line: CollectorLine) => void;
+  /** `${cardId}:${productId}` while a collector save is in flight. */
+  busyKey: string | null;
+  /** The "Still need" filter: lines already covered are hidden. */
+  onlyNeed: boolean;
+};
+
 function ShoppingItemsView({
   items,
   layout,
@@ -1001,6 +1063,7 @@ function ShoppingItemsView({
   onOwnedSaved,
   onRemoveExtra,
   removingExtraId,
+  collector,
 }: {
   items: ShoppingItem[];
   layout: CardLayout;
@@ -1019,6 +1082,8 @@ function ShoppingItemsView({
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
+  /** Owner pages: collector copy lines under their card (#1031). */
+  collector?: CollectorControls;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_shopping");
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
@@ -1049,6 +1114,33 @@ function ShoppingItemsView({
       </button>
     ) : null;
 
+  const linesOf = (item: ShoppingItem) => (collector ? visibleCollectorLines(item, collector.onlyNeed) : []);
+  const lineBusy = (item: ShoppingItem, line: CollectorLine) => collector?.busyKey === `${item.card_id}:${line.product_id}`;
+  const lineStepper = (item: ShoppingItem, line: CollectorLine) => (
+    <CollectorStepper
+      line={line}
+      busy={lineBusy(item, line)}
+      onChange={(qty) => collector?.onChange(item.card_id, line.product_id, qty)}
+    />
+  );
+  const lineRemove = (item: ShoppingItem, line: CollectorLine) => (
+    <CollectorRemove
+      line={line}
+      cardId={item.card_id}
+      disabled={lineBusy(item, line)}
+      onRemove={() => collector?.onRemove(item.card_id, line)}
+    />
+  );
+  const lineThumb = (item: ShoppingItem, line: CollectorLine) => (
+    <CardThumb
+      src={line.image_url || undefined}
+      cardId={item.card_id}
+      alt={`${line.label} collector copy`}
+      productId={line.product_id}
+    />
+  );
+  const lineSelectKey = (item: ShoppingItem, line: CollectorLine) => collectorSelectKey(item.card_id, line.product_id);
+
   const buySplit = (item: ShoppingItem, prefix = "") => (
     <BuySplit
       card={item}
@@ -1056,6 +1148,7 @@ function ShoppingItemsView({
       prefix={prefix}
       onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
       busyProductId={busyProductFor(buyBusyKey, item.card_id)}
+      onCollectorPick={collector ? (productId, qty) => collector.onChange(item.card_id, productId, qty) : undefined}
     />
   );
 
@@ -1066,8 +1159,8 @@ function ShoppingItemsView({
           const checked = selectedCardIds.has(item.card_id);
           const tapToSelect = isNarrow;
           return (
+            <Fragment key={item.card_id}>
             <article
-              key={item.card_id}
               className={`grid-card-wrap${checked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
               onClick={tapToSelect ? () => onToggleCard(item.card_id) : undefined}
               onKeyDown={
@@ -1105,7 +1198,9 @@ function ShoppingItemsView({
                 meta={
                   <>
                     {stillNeededText(item.still_need, item.need)}
-                    {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
+                    {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
+                      <span className="buy-split-line">{buySplit(item, "Left ")}</span>
+                    ) : null}
                   </>
                 }
               >
@@ -1148,6 +1243,70 @@ function ShoppingItemsView({
                   )}
               </GridCard>
             </article>
+            {linesOf(item).map((line) => {
+              const key = lineSelectKey(item, line);
+              const lineChecked = selectedCardIds.has(key);
+              return (
+                <article
+                  key={key}
+                  className={`grid-card-wrap collector-wrap${lineChecked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
+                  onClick={tapToSelect ? () => onToggleCard(key) : undefined}
+                  onKeyDown={
+                    tapToSelect
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onToggleCard(key);
+                          }
+                        }
+                      : undefined
+                  }
+                  role={tapToSelect ? "button" : undefined}
+                  tabIndex={tapToSelect ? 0 : undefined}
+                  aria-pressed={tapToSelect ? lineChecked : undefined}
+                  aria-label={tapToSelect ? `${lineChecked ? "Deselect" : "Select"} ${line.label} collector copy of ${item.card_id}` : undefined}
+                >
+                  {!tapToSelect && (
+                    <label className="grid-card-select" onClick={stopCardSelectBubble}>
+                      <input
+                        type="checkbox"
+                        checked={lineChecked}
+                        onChange={() => onToggleCard(key)}
+                        aria-label={`Select ${line.label} collector copy of ${item.card_id}`}
+                      />
+                    </label>
+                  )}
+                  <GridCard
+                    as="div"
+                    className={`collector-card ${line.still_need > 0 ? "need" : "done"}`}
+                    cardId={item.card_id}
+                    name={line.label}
+                    imageSrc={line.image_url || undefined}
+                    imageProductId={line.product_id}
+                    onMediaClick={stopCardSelectBubble}
+                    meta={
+                      <>
+                        <CollectorChip />
+                        <span className="collector-have">{collectorHaveText(line)}</span>
+                      </>
+                    }
+                  >
+                    <div className="grid-card-price" onClick={stopCardSelectBubble}>
+                      <MarketPrice price={line.market_price} productId={line.product_id} />
+                    </div>
+                    <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
+                      <span>Want</span>
+                      {lineStepper(item, line)}
+                    </div>
+                    <div className="grid-card-extra collector-grid-foot" onClick={stopCardSelectBubble}>
+                      <span className="muted">{collectorOnTopOf(item.used_in)}</span>
+                      {lineRemove(item, line)}
+                    </div>
+                  </GridCard>
+                </article>
+              );
+            })}
+            </Fragment>
           );
         })}
       </div>
@@ -1182,10 +1341,11 @@ function ShoppingItemsView({
           <tbody>
             {tableItems.map((item: ShoppingItem) => {
               const checked = selectedCardIds.has(item.card_id);
+              const lines = linesOf(item);
               return (
+                <Fragment key={item.card_id}>
                 <tr
-                  key={item.card_id}
-                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`}
                 >
                   <td className="select-col">
                     <input
@@ -1228,6 +1388,55 @@ function ShoppingItemsView({
                     </td>
                   ) : null}
                 </tr>
+                {lines.map((line, idx) => {
+                  const key = lineSelectKey(item, line);
+                  const lineChecked = selectedCardIds.has(key);
+                  return (
+                    <tr
+                      key={key}
+                      className={`collector-row ${line.still_need > 0 ? "need" : "done"}${lineChecked ? " selected-row" : ""}${idx < lines.length - 1 ? " collector-row-more" : ""}`}
+                    >
+                      <td className="select-col">
+                        <input
+                          type="checkbox"
+                          checked={lineChecked}
+                          onChange={() => onToggleCard(key)}
+                          aria-label={`Select ${line.label} collector copy of ${item.card_id}`}
+                        />
+                      </td>
+                      <td className="collector-cell">
+                        <span className="collector-elbow" aria-hidden="true" />
+                        <div className="collector-cell-inner">
+                          <span className="collector-thumb-wrap">{lineThumb(item, line)}</span>
+                          <div className="collector-name">
+                            <div className="collector-label">{line.label}</div>
+                            <CollectorChip />
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="collector-have">{collectorHaveText(line)}</span>
+                      </td>
+                      <td className="want-col">{lineStepper(item, line)}</td>
+                      <td>
+                        <StillNeededCell still={line.still_need} />
+                      </td>
+                      <td>
+                        <MarketPrice price={line.market_price} productId={line.product_id} />
+                      </td>
+                      <td>{line.remaining_cost == null ? "—" : money(line.remaining_cost)}</td>
+                      <td className="col-cost" />
+                      <td className="used-in">
+                        <div className="used-in-cell collector-used-in">
+                          <span className="used-in-note">{collectorOnTopOf(item.used_in)}</span>
+                          {lineRemove(item, line)}
+                        </div>
+                      </td>
+                      {showAltArts ? <td className="alt-arts-cell" /> : null}
+                    </tr>
+                  );
+                })}
+                </Fragment>
               );
             })}
           </tbody>
@@ -1238,8 +1447,8 @@ function ShoppingItemsView({
         {items.map((item: ShoppingItem) => {
           const checked = selectedCardIds.has(item.card_id);
           return (
+            <Fragment key={item.card_id}>
             <MobileCard
-              key={item.card_id}
               className={`selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
               rootProps={{
                 role: "button",
@@ -1266,7 +1475,9 @@ function ShoppingItemsView({
                   {[item.color, stillNeededText(item.still_need, item.need)]
                     .filter(Boolean)
                     .join(" · ")}
-                  {item.still_need > 0 ? <span className="buy-split-line">{buySplit(item, "Left ")}</span> : null}
+                  {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
+                    <span className="buy-split-line">{buySplit(item, "Left ")}</span>
+                  ) : null}
                 </>
               }
               info={
@@ -1320,6 +1531,49 @@ function ShoppingItemsView({
                 </div>
               )}
             </MobileCard>
+            {linesOf(item).map((line) => {
+              const key = lineSelectKey(item, line);
+              const lineChecked = selectedCardIds.has(key);
+              return (
+                <article
+                  key={key}
+                  className={`mobile-card collector-card selectable ${line.still_need > 0 ? "need" : "done"}${lineChecked ? " selected-row" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={lineChecked}
+                  aria-label={`${lineChecked ? "Deselect" : "Select"} ${line.label} collector copy of ${item.card_id}`}
+                  onClick={() => onToggleCard(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onToggleCard(key);
+                    }
+                  }}
+                >
+                  <div className="collector-card-row">
+                    <div className="collector-card-main">
+                      <span className="collector-thumb-wrap" onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                        {lineThumb(item, line)}
+                      </span>
+                      <div className="collector-card-text">
+                        <div className="collector-label">{line.label}</div>
+                        <CollectorChip />
+                        <div className="collector-card-sub">
+                          {collectorHaveText(line)} · {money(line.market_price)}
+                        </div>
+                        <div className="collector-card-sub" onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                          {lineRemove(item, line)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="collector-card-step" onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
+                      {lineStepper(item, line)}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+            </Fragment>
           );
         })}
       </div>
@@ -1472,6 +1726,36 @@ function ShoppingPage() {
     }
   };
 
+  const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
+  const [collectorUndo, setCollectorUndo] = useState<{ cardId: string; productId: number; qty: number; label: string } | null>(null);
+  const dismissCollectorUndo = useCallback(() => setCollectorUndo(null), []);
+
+  const changeCollector = async (cardId: string, productId: number, qty: number) => {
+    setAltOwnedErr(null);
+    setCollectorBusyKey(`${cardId}:${productId}`);
+    applyCollectorOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setCollectorWant(cardId, productId, qty);
+      applyCollectorOptimistic(qc, cardId, productId, res.qty);
+    } catch (e) {
+      setAltOwnedErr((e as Error).message);
+    } finally {
+      invalidateCollectorViews(qc);
+      setCollectorBusyKey(null);
+    }
+  };
+
+  const removeCollector = async (cardId: string, line: CollectorLine) => {
+    setCollectorUndo({ cardId, productId: line.product_id, qty: line.want, label: line.label });
+    await changeCollector(cardId, line.product_id, 0);
+  };
+
+  const undoCollectorRemove = () => {
+    const undo = collectorUndo;
+    setCollectorUndo(null);
+    if (undo) void changeCollector(undo.cardId, undo.productId, undo.qty);
+  };
+
   const changeShoppingDisplayArt = async (cardId: string, productId: number) => {
     setAltOwnedErr(null);
     applyDisplayArtOptimistic(qc, cardId, productId);
@@ -1482,6 +1766,13 @@ function ShoppingPage() {
     } finally {
       invalidateDisplayArtViews(qc);
     }
+  };
+
+  const collectorControls: CollectorControls = {
+    onChange: (cardId, productId, qty) => void changeCollector(cardId, productId, qty),
+    onRemove: (cardId, line) => void removeCollector(cardId, line),
+    busyKey: collectorBusyKey,
+    onlyNeed,
   };
 
   const shoppingAltRow = (item: ShoppingItem) => (
@@ -1513,7 +1804,7 @@ function ShoppingPage() {
 
   const filteredItems = useMemo(() => {
     let list = data?.items ?? [];
-    if (onlyNeed) list = list.filter((i) => i.still_need > 0);
+    if (onlyNeed) list = list.filter(itemNeedsCopies);
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
     list = [...list].sort((a, b) => compareCardOrder({ ...a, market_price: shoppingShownPrice(a) }, { ...b, market_price: shoppingShownPrice(b) }, effectiveSorts));
     return list;
@@ -1537,6 +1828,16 @@ function ShoppingPage() {
     return list;
   }, [data, selectedCardIds]);
 
+  const selectedCollectorLines = useMemo(() => {
+    const out: { item: ShoppingItem; line: CollectorLine }[] = [];
+    for (const item of data?.items ?? []) {
+      for (const line of item.collector_wants ?? []) {
+        if (selectedCardIds.has(collectorSelectKey(item.card_id, line.product_id))) out.push({ item, line });
+      }
+    }
+    return out;
+  }, [data, selectedCardIds]);
+
   const selectedTotals = useMemo(() => {
     let copies = 0;
     let total = 0;
@@ -1550,10 +1851,31 @@ function ShoppingPage() {
         priced += 1;
       }
     }
+    for (const { line } of selectedCollectorLines) {
+      count += 1;
+      copies += line.still_need;
+      if (line.remaining_cost != null) {
+        total += line.remaining_cost;
+        priced += 1;
+      }
+    }
     return { count, copies, total: Math.round(total * 100) / 100, priced };
-  }, [selectedItems]);
+  }, [selectedItems, selectedCollectorLines]);
 
-  const massEntry = useMemo(() => buildMassEntryExport(selectedItems), [selectedItems]);
+  // Selected collector lines go to Mass Entry as their own printing; Buy in person only adds base copies, so it skips them.
+  const massEntry = useMemo(
+    () =>
+      buildMassEntryExport([
+        ...selectedItems,
+        ...selectedCollectorLines.map(({ item, line }) => ({
+          card_id: item.card_id,
+          name: `${item.name} (${line.label})`,
+          still_need: line.still_need,
+          product_id: line.product_id,
+        })),
+      ]),
+    [selectedItems, selectedCollectorLines],
+  );
 
   async function copyMassEntryList(): Promise<boolean> {
     if (!massEntry.pasteText) {
@@ -1912,7 +2234,7 @@ function ShoppingPage() {
             <button
               type="button"
               className="btn secondary"
-              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
+              disabled={!selectedItems.some((i) => i.still_need > 0) || buyInPerson.isPending}
               onClick={onBuyInPerson}
             >
               {buyInPerson.isPending ? "Updating…" : "Buying in person"}
@@ -1931,6 +2253,13 @@ function ShoppingPage() {
         </p>
       ) : null}
       {altOwnedErr && <p className="error">{altOwnedErr}</p>}
+      {collectorUndo ? (
+        <UndoToast
+          message={`Removed ${collectorUndo.label} collector copy`}
+          onAction={undoCollectorRemove}
+          onDismiss={dismissCollectorUndo}
+        />
+      ) : null}
 
       <div className="list-toolbar">
         <div className="list-toolbar-row">
@@ -2061,6 +2390,7 @@ function ShoppingPage() {
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}
         removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
+        collector={collectorControls}
       />
 
       {showDons && hasDonsInData && (
@@ -2085,6 +2415,7 @@ function ShoppingPage() {
               onOwnedSaved={() => invalidateOwnedViews(qc)}
               onRemoveExtra={(id) => removeExtra.mutate(id)}
               removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
+              collector={collectorControls}
             />
           )}
         </div>
@@ -3510,6 +3841,7 @@ function CardTable({
             meta={
               <>
                 {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>
             }
@@ -3571,6 +3903,7 @@ function CardTable({
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{nameWithBreaks(c.name)}</div>
+                      <CollectorDeckChip count={c.collector_want} />
                       {c.tcgplayer_url && (
                         <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
@@ -3629,6 +3962,7 @@ function CardTable({
             meta={
               <>
                 {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>
             }
