@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1009, title: "Deck editor artwork matches your picks", text: "The Artwork label in the deck editor now shows the alt art you picked during a game, and choosing Standard in a deck now sticks instead of falling back to your in-game pick." },
+  { date: "2026-11-06", app: "duel", pr: 997, title: "Tournaments and round robin with friends", text: "Run a 4, 8 or 16 player bracket, or a round robin of up to 8, with your friends. Open Tournaments in the menu, share the link or invite friends, and press Play when your match is ready. Results are recorded for you and the bracket moves on by itself." },
   { date: "2026-11-06", app: "duel", pr: 1005, title: "Negated Characters skip their On K.O.", text: "A Character whose effects are negated no longer activates its [On K.O.] or \"when this Character is K.O.'d\" effect when it is K.O.'d. For example, a negated Nami (EB03-053) no longer offers to turn a Life card face-up and play a Character." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },

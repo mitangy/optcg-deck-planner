@@ -72,6 +72,7 @@ async function menuWorks(page: Page): Promise<void> {
     "Decks",
     "Meta decks",
     "Match history",
+    "Tournaments",
     "What’s new",
     "Settings",
     "Deck planner ↗",
