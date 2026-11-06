@@ -1138,6 +1138,18 @@ module.exports = {
     { id: "chat970-game-scope-loses-to-client", file: chat, from: "matchScope ?? body.scope ?? \"general\"", to: "body.scope ?? matchScope ?? \"general\"", kills: ["scopes the new thread to the verified game"] },
     { id: "chat970-scope-regex-open", file: chat, from: "z.string().regex(SCOPE_PATTERN).optional()", to: "z.string().optional()", kills: ["rejects a scope that isn't one of the four shapes"] },
     { id: "chat970-game-id-not-returned", file: copilot, from: "matchId: found.match_id ?? \"\" };", to: "matchId: \"\" };", kills: ["scopes the new thread to the verified game"] },
+    // OPTCGSim imports (#1030)
+    {"id": "sim-opp-hand-is-mine", "file": "analyst/src/simGames.ts", "from": "${theirs.knownHandIds.map(handCard).join(\", \") || \"none\"}", "to": "${mine.knownHandIds.map(handCard).join(\", \") || \"none\"}", "kills": ["names none of the opponent's face-down hand"], "args": "src/simGames.test.ts"},
+    {"id": "sim-went-first-flipped", "file": "analyst/src/simGames.ts", "from": "row.went_first ? 0 : 1", "to": "row.went_first ? 1 : 0", "kills": ["maps the stored went_first flag"], "args": "src/simGames.test.ts"},
+    {"id": "sim-result-flipped", "file": "analyst/src/simGames.ts", "from": "won: game.winner === \"me\"", "to": "won: game.winner !== \"me\"", "kills": ["reviews a stored game turn by turn", "tells a second-seat loss"], "args": "src/simGames.test.ts"},
+    {"id": "sim-turn-labels-swapped", "file": "analyst/src/simGames.ts", "from": "turn.active === \"me\" ? \"your\" : \"opponent's\"", "to": "turn.active === \"me\" ? \"opponent's\" : \"your\"", "kills": ["reviews a stored game turn by turn"], "args": "src/simGames.test.ts"},
+    {"id": "sim-turn-range-ignored", "file": "analyst/src/simGames.ts", "from": "    if (turn.number < fromTurn || turn.number > toTurn) continue;\n", "to": "", "kills": ["reads only the asked turns"], "args": "src/simGames.test.ts"},
+    {"id": "sim-max-lines-ignored", "file": "analyst/src/simGames.ts", "from": "    if (log.length >= maxLines) truncated = true;\n    else log.push(line);", "to": "    log.push(line);", "kills": ["reads only the asked turns"], "args": "src/simGames.test.ts"},
+    {"id": "sim-no-log-allowed", "file": "analyst/src/simGames.ts", "from": "  if (!row.combat_log) throw", "to": "  if (false) throw", "kills": ["refuses a game that was imported without a log"], "args": "src/simGames.test.ts"},
+    {"id": "sim-list-matchups-dropped", "file": "analyst/src/simGames.ts", "from": "matchups: matchups.map(", "to": "matchups: matchups.slice(0, 0).map(", "kills": ["lists games with leader names and a matchup tally"], "args": "src/simGames.test.ts"},
+    {"id": "sim-deck-copies-lost", "file": "analyst/src/simGames.ts", "from": "copies: Number(m[1])", "to": "copies: 1", "kills": ["reviews a stored game turn by turn", "sorts a deck by card number"], "args": "src/simGames.test.ts"},
+    {"id": "sim-client-token-dropped", "file": "analyst/src/matches.ts", "from": "plannerCall<{ games: SimGameRow[]; total: number }>(api, token,", "to": "plannerCall<{ games: SimGameRow[]; total: number }>(api, null,", "kills": ["reads and imports sim games with the player's token only"], "args": "src/simGames.test.ts"},
+    {"id": "sim-import-body-unwrapped", "file": "analyst/src/matches.ts", "from": "\"/analyst/sim-games/import\", false, { games })", "to": "\"/analyst/sim-games/import\", false, games)", "kills": ["reads and imports sim games with the player's token only"], "args": "src/simGames.test.ts"},
   ],
 };
 

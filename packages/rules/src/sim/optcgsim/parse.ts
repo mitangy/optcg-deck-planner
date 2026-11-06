@@ -30,7 +30,7 @@ export function parseCardCounts(list: readonly string[] | undefined | null): Sim
   const out: SimCardCount[] = [];
   for (const raw of list ?? []) {
     const m = /^(\d+)x(.+)$/.exec(String(raw).trim());
-    if (m) out.push({ id: m[2], count: Number(m[1]) });
+    if (m) out.push({ id: m[2]!, count: Number(m[1]) });
     else if (String(raw).trim()) out.push({ id: String(raw).trim(), count: 1 });
   }
   return out;
@@ -127,7 +127,7 @@ function refresh(b: Board): void {
 
 /** Remove from an ordered list at `slot`; when the entry there is not `id`, fall back to the first `id` match. */
 function takeAt<T>(list: T[], slot: number, match: (t: T) => boolean): T | undefined {
-  let i = slot >= 0 && slot < list.length && match(list[slot]) ? slot : list.findIndex(match);
+  let i = slot >= 0 && slot < list.length && match(list[slot]!) ? slot : list.findIndex(match);
   if (i < 0 && slot >= 0 && slot < list.length) i = slot;
   return i >= 0 ? list.splice(i, 1)[0] : undefined;
 }
@@ -335,10 +335,10 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
   // A PLY line can be stale (rematch tail) or missing: when only one owner number maps to a side,
   // the other owner number belongs to the other side.
   if (ownerSide.size === 1) {
-    const [[o, s]] = [...ownerSide];
+    const [o, s] = [...ownerSide][0]!;
     ownerSide.set(o === 1 ? 2 : 1, other(s));
   } else if (ownerSide.size === 0 && plyByOwner.size === 1) {
-    const [o] = [...plyByOwner.keys()];
+    const [o] = [...plyByOwner.keys()] as [number];
     ownerSide.set(o, "opp");
     ownerSide.set(o === 1 ? 2 : 1, "me");
   }
@@ -432,7 +432,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
     const side = ownerSide.get(owner);
     if (!side) return;
     startPlayIfGameplay(p);
-    const id = p[3];
+    const id = p[3]!;
     const oz = Number(p[4]);
     const os = Number(p[5]);
     const nz = Number(p[6]);
@@ -501,7 +501,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
     chkChecked++;
     for (const [field, expected] of Object.entries(exp)) {
       if (expected !== act[field]) {
-        chkMismatches.push({ seq: Number(p[2]), side, field, expected, actual: act[field] });
+        chkMismatches.push({ seq: Number(p[2]), side, field, expected, actual: act[field]! });
       }
     }
   };
@@ -518,7 +518,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
       const s = n === "You" ? null : sideOfName(n);
       if (s || n === "You") {
         side = s;
-        body = pm[2];
+        body = pm[2]!;
       }
     }
     if (META.some((r) => r.test(body))) return;
@@ -563,49 +563,49 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
     };
     if ((m = RE.deploy.exec(body))) {
       gameplay();
-      push({ kind: "play", side: sd, cardId: m[2], name: m[1], zone: "unknown" });
+      push({ kind: "play", side: sd, cardId: m[2]!, name: m[1]!, zone: "unknown" });
       return;
     }
     if ((m = RE.attach.exec(body))) {
       gameplay();
-      push({ kind: "attachDon", side: sd, targetId: m[3], count: Number(m[1]), total: Number(m[4]) });
+      push({ kind: "attachDon", side: sd, targetId: m[3]!, count: Number(m[1]!), total: Number(m[4]!) });
       return;
     }
     if ((m = RE.attack.exec(body))) {
       gameplay();
-      setRested(sd, m[2], true);
-      push({ kind: "attack", side: sd, attackerId: m[2], targetId: m[4] });
+      setRested(sd, m[2]!, true);
+      push({ kind: "attack", side: sd, attackerId: m[2]!, targetId: m[4]! });
       return;
     }
     if ((m = RE.block.exec(body))) {
       gameplay();
-      push({ kind: "block", side: sd, blockerId: m[2] });
+      push({ kind: "block", side: sd, blockerId: m[2]! });
       return;
     }
     if ((m = RE.counterDiscard.exec(body))) {
       gameplay();
-      push({ kind: "counter", side: sd, cardId: m[2], value: Number(m[3]), via: "discard" });
+      push({ kind: "counter", side: sd, cardId: m[2]!, value: Number(m[3]!), via: "discard" });
       return;
     }
     if ((m = RE.destroyed.exec(body))) {
       gameplay();
-      push({ kind: "ko", side: sd, cardId: m[2] });
+      push({ kind: "ko", side: sd, cardId: m[2]! });
       return;
     }
     if ((m = RE.battle.exec(body))) {
       gameplay();
       push({
         kind: "battle",
-        attackerId: m[2],
+        attackerId: m[2]!,
         attackerPower: Number(m[3]),
-        targetId: m[5],
+        targetId: m[5]!,
         targetPower: Number(m[6]),
       });
       return;
     }
     if ((m = RE.hit.exec(body))) {
       gameplay();
-      push({ kind: "damage", sourceId: m[2], amount: Number(m[3]) });
+      push({ kind: "damage", sourceId: m[2]!, amount: Number(m[3]!) });
       return;
     }
     if (body === "Attack Fails") {
@@ -615,17 +615,17 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
     }
     if ((m = RE.effect.exec(body))) {
       gameplay();
-      const eff = m[3];
+      const eff = m[3]!;
       const em = RE.counterEffect.exec(eff);
       if (em) {
-        push({ kind: "counter", side: sd, cardId: m[2], value: em[1] ? Number(em[1]) : null, via: "effect" });
+        push({ kind: "counter", side: sd, cardId: m[2]!, value: em[1] ? Number(em[1]) : null, via: "effect" });
         return;
       }
       const rm = RE.restSelf.exec(eff);
-      if (rm && rm[1] !== "Don") setRested(sd, rm[1], true);
+      if (rm && rm[1] !== "Don") setRested(sd, rm[1]!, true);
       const am = RE.setActive.exec(eff);
-      if (am) setRested(sd, am[1], false);
-      push({ kind: "effect", side, sourceId: m[2], text: eff });
+      if (am) setRested(sd, am[1]!, false);
+      push({ kind: "effect", side, sourceId: m[2]!, text: eff });
       return;
     }
     for (const [re, what] of RESULTS) {

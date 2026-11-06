@@ -106,6 +106,39 @@ export async function listMyDecks(api: PlannerApi, token: string): Promise<Plann
   return (await plannerCall<{ decks: PlannerDeck[] }>(api, token, "/analyst/decks")).decks;
 }
 
+/** An imported OPTCGSim game as the planner lists it (no combat log, no player names). */
+export type SimGameRow = {
+  id: string;
+  played_at: string | null;
+  my_leader: string | null;
+  opp_leader: string | null;
+  my_deck: string[];
+  opp_deck: string[];
+  result: "Won" | "Lost";
+  turns: number | null;
+  went_first: boolean | null;
+  has_log: boolean;
+  source: string;
+};
+export type SimGameDetail = SimGameRow & { combat_log: string | null };
+export type SimMatchup = { my_leader: string | null; opp_leader: string | null; games: number; wins: number; losses: number };
+
+export async function listMySimGames(api: PlannerApi, token: string, limit = 20) {
+  return plannerCall<{ games: SimGameRow[]; total: number }>(api, token, `/analyst/sim-games?limit=${limit}`);
+}
+
+export async function getSimGame(api: PlannerApi, token: string, id: string) {
+  return plannerCall<SimGameDetail>(api, token, `/analyst/sim-games/${encodeURIComponent(id)}`);
+}
+
+export async function simMatchups(api: PlannerApi, token: string) {
+  return (await plannerCall<{ matchups: SimMatchup[] }>(api, token, "/analyst/sim-games/matchups")).matchups;
+}
+
+export async function importSimGames(api: PlannerApi, token: string, games: unknown[]) {
+  return plannerCall<{ imported: number; skipped_duplicates: number; skipped_invalid: number; total: number }>(api, token, "/analyst/sim-games/import", false, { games });
+}
+
 export type NarrateOptions = {
   fromTurn?: number;
   toTurn?: number;

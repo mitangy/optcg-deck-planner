@@ -28,6 +28,7 @@ import { GAME_PRIMER } from "./primer";
 import { priceHistory } from "./priceHistory";
 import { analyzePosition, fetchReplayFor, MAX_BUDGET_MS } from "./position";
 import { searchCards } from "./search";
+import { listMySimGamesSummary, reviewSimGame } from "./simGames";
 import { exclusive, simulateDeck } from "./simulate";
 
 export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
@@ -53,7 +54,7 @@ const PERSONAL_INSTRUCTIONS = `
 
 This is the player's personal link, so you can also see their own games and decks:
 - list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game). Finished reviews also give an estimated win chance at each turn start (bot-simulation estimates) and mark the biggest swings: spend the review on those turns, and check a swing turn with analyze_position before saying what the player should have done.
+- list_my_matches lists their recent duels (leaders, result, turns). list_my_sim_games and review_sim_game cover OPTCGSim games they imported: a separate source from the duels (say "in your OPTCGSim games"), and the opponent's hand there is a count plus only the cards the player saw. review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game). Finished reviews also give an estimated win chance at each turn start (bot-simulation estimates) and mark the biggest swings: spend the review on those turns, and check a swing turn with analyze_position before saying what the player should have done.
 - Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
@@ -624,6 +625,49 @@ function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
     async ({ matchId, ...opts }) => {
       try {
         return json(await reviewMatch(api, token, matchId, opts));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "list_my_sim_games",
+    {
+      title: "List my OPTCGSim games",
+      description:
+        "OPTCGSim games the player imported into the deck planner (not optcgduel.app duels), newest first: both leaders, won or lost, turns, who went first, both decklists and whether a combat log was kept (has_log), plus a win/loss tally per leader matchup. " +
+        "Use it when the player talks about their sim games or ladder results. Keep these apart from list_my_matches and matchup_stats, and give the number of games behind any record you quote.",
+      inputSchema: { limit: z.number().int().min(1).max(200).optional().describe("Default 20") },
+      annotations: readOnly,
+    },
+    async ({ limit }) => {
+      try {
+        return json(await listMySimGamesSummary(api, token, limit));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "review_sim_game",
+    {
+      title: "Review OPTCGSim game",
+      description:
+        "Read one imported OPTCGSim game (an id from list_my_sim_games with has_log) turn by turn from the player's seat: their hand after the draw each turn, both boards (power, rested, DON!!, Life, deck, trash), plays, attacks, blocks, counters and K.O.s, both deck lists, the result and the last board. " +
+        "The opponent's hand is a count plus only the cards the player saw go public; their face-down draws are never named. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+      inputSchema: {
+        gameId: z.string().max(64),
+        fromTurn: z.number().int().min(1).max(200).optional(),
+        toTurn: z.number().int().min(1).max(200).optional(),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
+      },
+      annotations: readOnly,
+    },
+    async ({ gameId, ...opts }) => {
+      try {
+        return json(await reviewSimGame(api, token, gameId, opts));
       } catch (err) {
         return failure(err);
       }
