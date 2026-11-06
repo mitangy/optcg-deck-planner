@@ -160,7 +160,7 @@ for (const width of [200, 250]) {
     const row = page.locator(".col-actions");
     await expect(row).toBeVisible();
     const buttons = row.locator(":scope > button");
-    for (const name of ["Matchup brief", "Full screen", "Match menu"]) await expect(row.getByRole("button", { name, exact: true })).toBeVisible();
+    for (const name of ["Log Pose", "Full screen", "Match menu"]) await expect(row.getByRole("button", { name, exact: true })).toBeVisible();
     await expect(row.locator(".hud-copilot-btn")).toBeVisible();
     await expect(row.locator(".hud-pass-btn")).toBeVisible();
     const count = await buttons.count();

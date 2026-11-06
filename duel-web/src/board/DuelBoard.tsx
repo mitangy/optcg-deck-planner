@@ -169,8 +169,10 @@ import { MatchMenu } from "./MatchMenu";
 import type { ArtToggle } from "./HideArtItems";
 import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
 import { useMatchBrief } from "./MatchBrief";
-import { fitDock, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
+import { fitDock, useLogPose, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
 import { useLogPoseCopilot } from "./LogPoseCopilot";
+import { LogPoseMatchButton } from "./LogPoseMatchButton";
+import { matchLogPoseEntry } from "./matchBrief";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
@@ -687,6 +689,12 @@ export function DuelBoard({
     ticketSeat: matchBrief?.ticketSeat ?? seat,
     errorBanner,
   });
+  const logPoseEntry = matchLogPoseEntry({ briefShown: brief.shown, copilotShown: copilot.shown });
+  const lpAnalyst = useLogPose();
+  const logPoseOpen = logPoseEntry === "button" && lpAnalyst.panelOpen;
+  // One Log Pose button for the brief and the copilot alike (#993).
+  const logPoseButton =
+    logPoseEntry === "button" ? <LogPoseMatchButton layout={lp ? "landscape" : wide ? "desktop" : "portrait"} over={over} busy={brief.busy || copilot.running} /> : null;
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
     // The room's reason (concede / clock) beats the engine's view.winReason.
@@ -2164,8 +2172,7 @@ export function DuelBoard({
   /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
   const columnActions = (
     <div className="col-actions">
-      {brief.trigger}
-      {copilot.trigger}
+      {logPoseButton}
       {hudUndoPass}
       {fullscreenOffered ? (
         <button
@@ -2258,8 +2265,7 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
-            {brief.trigger}
-            {copilot.trigger}
+            {logPoseButton}
             {hudUndoPass}
             {matchMenuEl("top")}
           </div>
@@ -2334,8 +2340,7 @@ export function DuelBoard({
             ) : null}
           </div>
           <div className="hud-actions">
-            {brief.trigger}
-            {copilot.trigger}
+            {logPoseButton}
             {hotseatPass || isReplay ? null : <RoomChip roomId={matchId} />}
             {undo && undoState?.enabled && !spectating && !over ? (
               undoPendingMine ? (
@@ -2480,18 +2485,19 @@ export function DuelBoard({
         {panelDrag.overlay}
         {lp ? (
           <LandscapeRail
-            open={brief.open ? "brief" : lpPanel}
+            open={logPoseOpen ? "brief" : lpPanel}
             onToggle={(panel) => {
               if (panel === "brief") {
                 setLpPanel(null);
-                brief.setOpen(!brief.open);
+                if (logPoseOpen) lpAnalyst.closePanel();
+                else lpAnalyst.openPanel();
               } else {
-                brief.setOpen(false);
+                lpAnalyst.closePanel();
                 setLpPanel((cur) => (cur === panel ? null : panel));
               }
             }}
-            hasBrief={brief.shown}
-            extra={copilot.railTrigger}
+            hasBrief={logPoseEntry === "button"}
+            briefBusy={brief.busy || copilot.running}
             hasChat={chatPanel != null}
             logCount={battleLog.length}
             menu={matchMenuEl("left")}

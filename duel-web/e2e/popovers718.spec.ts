@@ -187,7 +187,7 @@ for (const size of SIZES) {
     await stubLogPose(page);
     await duel.startPractice({ seed: 11 });
     const panel = page.getByRole("dialog", { name: /Log Pose/ });
-    if (!(await panel.isVisible())) await page.getByRole("button", { name: "Matchup brief", exact: true }).click();
+    if (!(await panel.isVisible())) await page.getByRole("button", { name: "Log Pose", exact: true }).click();
     await expect(panel).toBeVisible();
     await expect.poll(() => panel.evaluate((el) => el.getAnimations().length)).toBe(0);
     await panel.getByRole("button", { name: "Get brief" }).click();
