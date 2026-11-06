@@ -13,14 +13,9 @@ export function useFanFit(
   active: boolean,
   /** Changes when the fan moves between the centre spot, floating and docked. */
   variant: string,
-  /**
-   * Spectators: both hands are only for reading, so the cards spread out wider
-   * (`openSpread`, share of a card each one adds) and may use the whole board
-   * column (`capSelector`) rather than just your mat.
-   */
-  opts: { openSpread?: number; capSelector?: string } = {},
+  /** The mat that caps the fan's width: yours by default, the opponent's for a spectator's far fan. */
+  capSelector = ".arena .side-you",
 ): void {
-  const { openSpread = 0.8, capSelector = ".arena .side-you" } = opts;
   useLayoutEffect(() => {
     const fan = fanRef.current;
     if (!active || !fan) return;
@@ -36,18 +31,12 @@ export function useFanFit(
       if (fan.classList.contains("hand-fan-center")) {
         // The handle sits beside the cards inside the same column.
         const head = fan.querySelector<HTMLElement>(".hand-fan-head");
-        if (head && getComputedStyle(head).position === "absolute") {
-          // Spectators: the label hangs in the column's top corner, so the cards
-          // keep clear of it on both sides and stay centred.
-          maxW -= 2 * (head.offsetWidth + 16);
-        } else {
-          const gap = parseFloat(getComputedStyle(fan).columnGap) || 0;
-          maxW -= (head?.offsetWidth ?? 0) + gap;
-        }
+        const gap = parseFloat(getComputedStyle(fan).columnGap) || 0;
+        maxW -= (head?.offsetWidth ?? 0) + gap;
       }
       const cardW = card.offsetWidth;
       fan.style.setProperty("--fan-tuck-w", `${fanSpan(count, cardW, 0.5, maxW)}px`);
-      fan.style.setProperty("--fan-open-w", `${fanSpan(count, cardW, openSpread, maxW)}px`);
+      fan.style.setProperty("--fan-open-w", `${fanSpan(count, cardW, 0.8, maxW)}px`);
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -57,5 +46,5 @@ export function useFanFit(
       ro.disconnect();
       clear();
     };
-  }, [fanRef, count, active, variant, openSpread, capSelector]);
+  }, [fanRef, count, active, variant, capSelector]);
 }

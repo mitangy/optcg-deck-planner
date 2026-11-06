@@ -342,7 +342,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
   await expect(spec.locator(".board-root")).toBeVisible({ timeout: 30_000 });
-  await expect(spec.locator(":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile")).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(":is(.rail-hand-cards, .hand-row-inner, .hand-fan:not(.hand-fan-top) .hand-fan-cards, .hand-dock-cards) .card-tile")).toHaveCount(5, { timeout: 30_000 });
   // Nothing of the brief, and no Log Pose compass or panel on the board.
   await spec.waitForTimeout(500);
   await expect(spec.locator(".match-brief-pinned")).toHaveCount(0);

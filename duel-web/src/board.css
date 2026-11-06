@@ -2065,6 +2065,16 @@ body.is-panel-drag * {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
 }
 
+/* A spectator's two fans: both strips, also in the bigger playing area (whose
+   own padding would otherwise win). */
+.arena.arena-spec-fans.arena-fan-center .playmat {
+  padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
+}
+
+.arena.arena-spec-fans.arena-fan-top .playmat {
+  padding-top: calc(var(--fan-ch) * var(--fan-peek-center) + 4px);
+}
+
 .hand-fan {
   --fan-gap: 0.5rem;
   --fan-peek: 0.42;
@@ -2210,7 +2220,7 @@ body.is-panel-drag * {
    tucked strip, so it is lifted until its bottom sits on the strip's bottom
    edge: nothing is clipped by the window. Held in the free space left of the
    mat, so it never covers the mat's DON!! deck or the cards. */
-.hand-fan-center:not(.hand-fan-spec) .hand-fan-head {
+.hand-fan-center .hand-fan-head {
   justify-self: start;
   flex-direction: column;
   align-items: flex-start;
@@ -2417,6 +2427,62 @@ body.is-panel-drag * {
 
 .hand-fan-center.is-hidden .hand-fan-cards {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
+}
+
+/* —— The far hand's fan (spectators): the same fan, mirrored ——
+   .hand-fan-top hangs from the top of the board column (--board-top, set by
+   useHudHeight) instead of standing on the bottom edge. Tucked, it is pushed up
+   so only the card bottoms peek below the top edge; raised, it moves down onto
+   the board. Cards hang from their top corners, outer cards lean out and sit
+   higher, and the hover lift goes down. The board keeps a strip free under the
+   tucked cards (.arena-fan-top). Dragged by its grip it floats like a match fan,
+   fully shown, with the cards still hanging. */
+
+.hand-fan-center.hand-fan-top {
+  --fan-lower: calc(0.5rem + var(--fan-ch) * 0.06);
+  bottom: auto;
+  top: var(--board-top, 0px);
+  padding-bottom: 0;
+  transform: translateY(calc(var(--fan-ch) * (var(--fan-peek) - 1)));
+}
+
+.hand-fan-center.hand-fan-top:is(.is-open, :has(:focus-visible)) {
+  transform: translateY(var(--fan-lower));
+}
+
+@media (hover: hover) {
+  .hand-fan-center.hand-fan-top.is-hover-up {
+    transform: translateY(var(--fan-lower));
+  }
+
+  .hand-fan-center.hand-fan-top.is-tucking:hover:not(:has(:focus-visible)) {
+    transform: translateY(calc(var(--fan-ch) * (var(--fan-peek) - 1)));
+  }
+}
+
+/* The handle starts where the visible strip starts, beside the cards. */
+.hand-fan-center.hand-fan-top .hand-fan-head {
+  transform: translateY(calc(var(--fan-ch) * (1 - var(--fan-peek)) + 4px));
+}
+
+.hand-fan-top .hand-fan-cards {
+  align-items: flex-start;
+}
+
+.arena .hand-fan-top .hand-fan-cards > * {
+  transform-origin: 50% 0;
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1)) rotate(calc(var(--rot, 0deg) * -1));
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.35);
+}
+
+.arena .hand-fan-top .hand-fan-cards > .card-tile:hover,
+.arena .hand-fan-top .hand-fan-cards > .card-tile:focus-visible {
+  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
+}
+
+/* Floating: room above the cards for the outer ones, which sit higher. */
+.hand-fan-top.hand-fan-float .hand-fan-cards {
+  margin-top: calc(var(--fan-ch) * 0.11);
 }
 
 /* —— Hand in the corner of a shortened column (#633) ——
@@ -6256,51 +6322,17 @@ body.is-panel-resize-row .col-cut {
 .kw-keyword { background: #d9772b; }
 .kw-don { background: #26262b; border: 1px solid rgba(255, 255, 255, 0.5); }
 
-/* —— Spectators of unranked rooms: both hands fanned (#346) ——
+/* —— Spectators of unranked rooms: both hands face up (#346, #1007) ——
 
-   The near hand is the usual fan (centre spot, raised, no handle controls) or,
-   on portrait phones, the usual overlapped strip. The far hand is its mirror
-   (.spec-far): hanging from the top of the board on desktop, in the row above
-   the top mat on portrait phones, and the top of the right column on landscape
-   phones. Both strips are reserved space, so no fan covers a mat. Cards stay
-   upright; the arc and tilt are mirrored (middle card lowest, outer cards lean
-   out and sit higher). */
+   Desktop: both hands are the match's hand fan (HandFan.tsx, same card size,
+   overlap, tuck and rise); the far one is its mirror, .hand-fan-top, further
+   down with the other fan rules. Phones: the near hand is the usual overlapped
+   strip on portrait, and both hands are grids of small upright cards
+   (SpectatorFarHand, below). */
 
-/* Desktop: two fans must leave the mats room, so they run a little smaller. */
-.arena.arena-spec-top.arena-wide {
-  --fan-cw: clamp(54px, min(4.7vw, 8.8vh), 112px);
-  --fan-ch: calc(var(--fan-cw) * 1.4);
-  --spec-reserve: calc(var(--fan-ch) * 1.06 + 0.5rem);
-}
-
-.arena.arena-spec-top.arena-wide .playmat {
-  /* The far fan's row, where the opponent-hand hint row used to be. */
-  --hint-h: var(--spec-reserve);
-}
-
-.arena.arena-spec-top.arena-wide.arena-fan-center .playmat {
-  padding-bottom: calc(var(--spec-reserve) + var(--safe-b) + 4px);
-}
-
-/* Smaller mats: "DON!! DECK 10" is wider than its column, so it ran off the
-   mat's edge (and was clipped). Tighter type keeps it inside. */
-.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-meta {
-  gap: 0.2em;
-}
-
-.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-label {
-  font-size: 0.5rem;
-  letter-spacing: 0;
-}
-
-.arena.arena-spec-top.arena-wide .side-field .zone-don-deck .zone-pile-count {
-  font-size: 0.75rem;
-}
-
-/* The hand label (HandLabel.tsx): one pill for the near and the far fan in every
-   layout, so font, padding and colours match. Only its spot differs, by layout:
-   desktop pins both to the board column's top-left corner of their fan (the
-   same x), portrait phones centre both, landscape phones left-align both. */
+/* The hand label (HandLabel.tsx): one pill for the near and the far hand on
+   phones, so font, padding and colours match. Portrait phones centre both,
+   landscape phones left-align both. */
 .hand-label-head {
   display: flex;
   align-items: center;
@@ -6342,82 +6374,12 @@ body.is-panel-resize-row .col-cut {
   font-variant-numeric: tabular-nums;
 }
 
-/* Desktop, default spots: the label hangs in the top-left corner of the board
-   column (the playmat's 8px padding + 0.5rem), in the near fan's box and in
-   the far fan's strip alike. */
-.hand-fan-center.hand-fan-spec .hand-fan-head {
-  position: absolute;
-  /* The whole box, not the grid's first column inside its padding. */
-  grid-column: auto;
-  grid-row: auto;
-  left: calc(8px + 0.5rem);
-  top: 0;
-}
-
-.hand-fan-spec .hand-fan-head {
-  pointer-events: auto;
-}
-
-/* Moved fans: the label sits above the cards, over their left edge. */
-.hand-fan-free.hand-fan-spec .hand-fan-head {
-  align-self: flex-start;
-}
-
+/* Portrait phones: the far label hangs in the strip's top. */
 .arena .spec-far .hand-label-head {
   position: absolute;
   z-index: 4;
   left: 0.5rem;
-  top: calc(var(--hint-h) - var(--fan-ch));
-}
-
-/* Grip beside it: the cards keep clear of the label and grip on both sides. */
-.arena .spec-far {
-  --spec-head-room: 9rem;
-}
-
-.arena .spec-far.has-grip {
-  --spec-head-room: 11.4rem;
-}
-
-/* A moved far fan: the board gets its strip back, and the fan floats over it,
-   fully shown, with the label above the cards (like a moved near fan). */
-.arena.arena-spec-top.arena-wide.arena-spec-far-free .playmat {
-  --hint-h: 0px;
-}
-
-.arena .spec-far.spec-far-float {
-  --fan-w: calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1) + var(--fan-cw) * 0.7);
-  position: fixed;
-  z-index: 16;
-  left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
-  bottom: clamp(
-    0px,
-    calc((1 - var(--fan-y)) * 100dvh),
-    calc(100dvh - var(--fan-ch) * 1.15 - 2.4rem - 3.75rem)
-  );
-  width: var(--fan-w);
-  max-width: 100vw;
-  height: auto;
-  box-sizing: border-box;
-  padding-inline: calc(var(--fan-cw) * 0.35);
-  padding-bottom: calc(var(--fan-ch) * 0.1);
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.35rem;
-}
-
-.arena .spec-far.spec-far-float .hand-label-head {
-  position: static;
-}
-
-.arena .spec-far.spec-far-float .spec-far-cards {
-  width: 100%;
-  /* Room for the outer cards, which sit higher than the middle one. */
-  margin-top: calc(var(--fan-ch) * 0.11);
-}
-
-.arena .spec-far.is-moving {
-  z-index: 92;
+  top: 0.35rem;
 }
 
 /* Phones: both hands are grids of small upright cards (SpectatorFarHand grid
@@ -6456,10 +6418,7 @@ body.is-panel-resize-row .col-cut {
   justify-content: center;
   box-sizing: border-box;
   height: var(--fan-ch);
-  /* Room for the leaning outer cards, and for the label beside the cards. */
-  width: min(calc(100% - 2 * var(--spec-head-room)), calc(var(--fan-cw) * (var(--spec-spread) * (var(--n) - 1) + 1)));
   margin-top: calc(var(--hint-h) - var(--fan-ch));
-  --fan-gap: 0.5rem;
 }
 
 .arena .spec-far-cards > * {
@@ -6467,21 +6426,6 @@ body.is-panel-resize-row .col-cut {
   width: var(--fan-cw);
   height: var(--fan-ch);
   margin-block: 0;
-  transform-origin: 50% 0;
-  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1)) rotate(calc(var(--rot, 0deg) * -1));
-  transition: transform 140ms ease;
-  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.35);
-}
-
-.arena .spec-far-cards > * + * {
-  margin-left: min(var(--fan-gap), calc((100% - var(--n) * var(--fan-cw)) / (var(--n) - 1)));
-}
-
-/* Lift toward the board without straightening, so the card keeps the pointer. */
-.arena .spec-far-cards > .card-tile:hover,
-.arena .spec-far-cards > .card-tile:focus-visible {
-  z-index: 2;
-  transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
 }
 
 /* The grid: cards side by side, no overlap, rotation or drop. A hand wider than

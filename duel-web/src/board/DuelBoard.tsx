@@ -85,7 +85,7 @@ import { ChoicePrompt } from "./ChoicePrompt";
 import { HandConfirmPrompt } from "./HandConfirmPrompt";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
 import { isHandPick } from "./fieldTargets";
-import { SPECTATOR_FAN_SPREAD, spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
 import { SpectatorFarHand } from "./SpectatorFarHand";
 import { HandLabel } from "./HandLabel";
 import { useHandOrderSync } from "./handOrderSync";
@@ -158,7 +158,8 @@ import type { RematchDeckOption } from "../decks/rematchDecks";
 import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
-import { fanPose, handDrawer } from "./handFan";
+import { fanPoseStyle, handDrawer } from "./handFan";
+import { HandFan } from "./HandFan";
 import { farHandWithReveals, revealedIdSet } from "./handReveal";
 import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
 import { TurnSplash, type SplashMessage } from "./TurnSplash";
@@ -421,7 +422,7 @@ export function DuelBoard({
   const specNearPos = useMemo(() => parseFanPos(prefs.spectatorNearFanPos), [prefs.spectatorNearFanPos]);
   const specFarPos = useMemo(() => parseFanPos(prefs.spectatorFarFanPos), [prefs.spectatorFarFanPos]);
   const fanRef = useRef<HTMLDivElement | null>(null);
-  const farRef = useRef<HTMLElement | null>(null);
+  const farRef = useRef<HTMLDivElement | null>(null);
   const boardCentreX = () => {
     const r = document.querySelector(".arena .playmat")?.getBoundingClientRect();
     return r ? r.left + r.width / 2 : window.innerWidth / 2;
@@ -448,15 +449,13 @@ export function DuelBoard({
       const mat = document.querySelector(".arena .playmat")?.getBoundingClientRect();
       return farFanPosForDrop(centreX, bottom, height, vp, mat?.top ?? 0);
     },
-    { bodySelector: ".spec-far-cards", anchorGrip: true },
+    { bodySelector: ".hand-fan-cards", anchorGrip: true },
   );
   const shownFanPos = fanMove.livePos ?? (specFans ? specNearPos : fanPos);
   /** The far fan is off its strip along the top of the board, floating where it was dragged. */
   const shownFarPos = specFans === "desktop" ? (farMove.livePos ?? specFarPos) : null;
   /** Off the bottom edge: fully shown unless tucked to its handle ("Let the hand tuck away"). */
-  // A spectator's fans are always shown in full, so a moved one never tucks, whatever edge it sits on.
-  const fanFloating =
-    fanHand && shownFanPos != null && (specFans != null || fanMove.livePos != null || !fanDocked(shownFanPos));
+  const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
   const [floatTucked, setFloatTucked] = useState(false);
   /**
    * Just tucked by its own button or H: the pointer is usually still on the
@@ -471,6 +470,14 @@ export function DuelBoard({
   const [fanHoverUp, setFanHoverUp] = useState(false);
   /** Raised by the player (pin), as the hand button shows it. */
   const handUp = fanFloating ? !floatTucked : handPinned;
+  // A spectator's far fan: the same states as the near one, of its own.
+  const [farPinned, setFarPinned] = useState(false);
+  const [farFloatTucked, setFarFloatTucked] = useState(false);
+  const [farTuckUnderPointer, setFarTuckUnderPointer] = useState(false);
+  const [farHoverUp, setFarHoverUp] = useState(false);
+  const farUp = shownFarPos ? !farFloatTucked : farPinned;
+  /** Default spot of the far fan: the board keeps a strip free along its top for the tucked cards. */
+  const farTop = shownFarPos == null;
   /** Default spot: the board keeps a strip free under it for the tucked cards. */
   const fanCenter = fanHand && shownFanPos == null;
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
@@ -1010,6 +1017,16 @@ export function DuelBoard({
     }
   }
 
+  /** The far fan's hand button: keep it up, or let it tuck away (it stays down until the pointer leaves). */
+  function toggleFarUp() {
+    if (shownFarPos) setFarFloatTucked(farUp);
+    else setFarPinned(!farUp);
+    if (farUp) {
+      setFarHoverUp(false);
+      setFarTuckUnderPointer(document.querySelector(".hand-fan-top:hover") != null);
+    }
+  }
+
   /** Portrait phones: fold the hand away under its title row, or open it again. */
   function toggleHandCollapsed() {
     setHandCollapsed((v) => !v);
@@ -1383,8 +1400,16 @@ export function DuelBoard({
     fanRef,
     view ? (spectating ? (view.you.handCount ?? 0) : view.you.hand.length) : 0,
     fanHand && view != null,
-    shownFanPos == null ? "centre" : specFans || fanMove.livePos || !fanDocked(shownFanPos) ? "float" : "docked",
-    specFans ? { openSpread: SPECTATOR_FAN_SPREAD, capSelector: ".arena .playmat" } : undefined,
+    shownFanPos == null ? "centre" : fanMove.livePos || !fanDocked(shownFanPos) ? "float" : "docked",
+  );
+  // The far fan (spectators) is fitted to the opponent's mat the same way.
+  const farHandCount = specFans === "desktop" && view ? (view.revealedHands?.[(mySeat ?? view.seat) === 0 ? 1 : 0]?.length ?? 0) : 0;
+  useFanFit(
+    farRef,
+    farHandCount,
+    farHandCount > 0,
+    shownFarPos == null ? "top" : "float",
+    ".arena .side-opp",
   );
 
   if (!view) {
@@ -1479,7 +1504,7 @@ export function DuelBoard({
   // Hearthstone-style dock: peeks until hovered; stays open while you pick
   // your opening hand or have a hand card selected.
   const drawer = handDrawer({
-    pinned: handUp || specFans != null,
+    pinned: handUp,
     hidden: handHidden && specFans == null,
     mulligan: decidingMulligan,
     selected: handFilter != null,
@@ -1554,13 +1579,30 @@ export function DuelBoard({
     );
   }
 
+  /** A spectator's hand button: the match's Hand pill, titled with the seat's name; raises or tucks that fan. */
+  function specHandToggle(which: "near" | "far", count: number) {
+    const near = which === "near";
+    const up = near ? handUp : farUp;
+    return (
+      <button
+        type="button"
+        className="hand-fan-toggle"
+        aria-expanded={near ? handOpen : farUp}
+        title={up ? "Let the hand tuck away" : "Keep the hand up"}
+        onClick={near ? toggleHandUp : toggleFarUp}
+      >
+        <span className="hand-fan-title">{seatLabel(players, near ? boardSeat : oppSeat)} hand</span>
+        <span className="hand-rail-count">{count}</span>
+        <span className="hand-dock-caret" aria-hidden>
+          {up ? "▾" : "▴"}
+        </span>
+      </button>
+    );
+  }
+
   /** `fanned`: each card gets its tilt and arc drop (see handFan.ts). */
   function renderHandCards(fanned = false) {
-    const pose = (i: number, n: number): CSSProperties | undefined => {
-      if (!fanned) return undefined;
-      const p = fanPose(i, n);
-      return { "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties;
-    };
+    const pose = (i: number, n: number): CSSProperties | undefined => (fanned ? fanPoseStyle(i, n) : undefined);
     if (spectating && nearHand) {
       return nearHand.map((c, i) => (
         <CardTile
@@ -2198,8 +2240,8 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${shownFarPos ? " arena-spec-far-free" : ""}${
-        specFans === "landscape" ? " arena-spec-lp" : specFans ? " arena-spec-top" : ""
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
+        specFans === "landscape" ? " arena-spec-lp" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
       }${singleSide ? " arena-single-col" : ""}${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
@@ -2514,16 +2556,9 @@ export function DuelBoard({
 
         <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
           <div className="playmat-inner">
-            {farHand && (specFans === "portrait" || (specFans === "desktop" && !shownFarPos)) ? (
-              <SpectatorFarHand
-                cards={farHand}
-                ownerSeat={oppSeat}
-                mode={specFans}
-                name={seatLabel(players, oppSeat)}
-                grip={specFans === "desktop" ? specGrip("far") : undefined}
-                rootRef={farRef}
-              />
-            ) : oppHandOnMat ? (
+            {farHand && specFans === "portrait" ? (
+              <SpectatorFarHand cards={farHand} ownerSeat={oppSeat} mode="portrait" name={seatLabel(players, oppSeat)} />
+            ) : farHand && specFans === "desktop" ? null : oppHandOnMat ? (
               <div
                 className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}${oppHandOnMat === "centre" ? "" : " opp-hand-mat-side"}`}
               >
@@ -2875,18 +2910,39 @@ export function DuelBoard({
           })()
         : null}
 
-      {farHand && specFans === "desktop" && shownFarPos ? (
-        // Off its strip, so it floats over the board (a fixed box inside the mat would be clipped by it).
-        <SpectatorFarHand
-          cards={farHand}
-          ownerSeat={oppSeat}
-          mode="desktop"
-          name={seatLabel(players, oppSeat)}
-          grip={specGrip("far")}
-          pos={shownFarPos}
-          moving={farMove.livePos != null}
+      {farHand && specFans === "desktop" ? (
+        // Fixed to the top of the board column, or floating where it was dragged: outside the mat, which would clip it.
+        <HandFan
           rootRef={farRef}
-        />
+          edge="top"
+          spot={shownFarPos ? "float" : "center"}
+          drawer={farUp ? "open" : "tucked"}
+          tucking={farTuckUnderPointer}
+          moving={farMove.livePos != null}
+          hoverUp={farHoverUp}
+          onHoverUp={setFarHoverUp}
+          count={farHand.length}
+          pos={shownFarPos}
+          ariaLabel={`${seatLabel(players, oppSeat)} hand: ${farHand.length} cards`}
+          onClick={dropHandClickFocus}
+          onLeave={() => setFarTuckUnderPointer(false)}
+          head={
+            <>
+              {specGrip("far")}
+              {specHandToggle("far", farHand.length)}
+            </>
+          }
+        >
+          {farHand.map((c, i) => (
+            <CardTile
+              key={c.id}
+              defId={c.defId}
+              ownerSeat={oppSeat}
+              inspectOnClick
+              style={fanPoseStyle(i, farHand.length)}
+            />
+          ))}
+        </HandFan>
       ) : null}
 
       {(["left", "right"] as const).map((col) =>
@@ -2901,95 +2957,78 @@ export function DuelBoard({
 
       {fanHand ? (
         <>
-        <div
-          ref={fanRef}
-          className={`hand-fan${specFans ? " hand-fan-spec" : ""} ${
-            fanCorner
-              ? "hand-fan-corner"
-              : shownFanPos == null
-                ? "hand-fan-center"
-                : fanFloating
-                ? "hand-fan-free hand-fan-float"
-                : "hand-fan-free hand-fan-docked"
-          }${fanMove.livePos ? " is-moving" : ""}${drawerClass}${handTucked ? " is-dragging" : ""}${fanHoverUp ? " is-hover-up" : ""}`}
-          style={
-            {
-              "--n": Math.max(handCount, 1),
-              ...(fanCorner ? { "--corner-cut": fanCorner.cut } : null),
-              ...(shownFanPos ? { "--fan-x": shownFanPos.x, "--fan-y": shownFanPos.y } : null),
-            } as CSSProperties
-          }
-          aria-label={`Your hand: ${handCount} cards`}
+        <HandFan
+          rootRef={fanRef}
+          cardsRef={handRowRef}
+          spot={fanCorner ? "corner" : shownFanPos == null ? "center" : fanFloating ? "float" : "docked"}
+          drawer={drawer}
+          tucking={tuckUnderPointer}
+          moving={fanMove.livePos != null}
+          dragging={handTucked}
+          hoverUp={fanHoverUp}
+          onHoverUp={setFanHoverUp}
+          count={handCount}
+          cornerCut={fanCorner?.cut}
+          pos={shownFanPos}
+          ariaLabel={`${specFans ? `${seatLabel(players, boardSeat)} hand` : "Your hand"}: ${handCount} cards`}
+          inert={handHidden && specFans == null}
           onClick={dropHandClickFocus}
-          onPointerLeave={() => {
-            setTuckUnderPointer(false);
-            setFanHoverUp(false);
-          }}
-        >
-          <div className="hand-fan-head">
-            {specFans ? (
-              <HandLabel name={seatLabel(players, boardSeat)} count={handCount} grip={specGrip("near")} />
-            ) : null}
-            {specFans ? null : prefs.layoutGrips ? (
-              <button
-                type="button"
-                className="hand-fan-grip"
-                aria-label="Move your hand (drag, or arrow keys)"
-                title="Drag to move your hand anywhere"
-                {...fanMove.gripProps}
-              >
-                <span aria-hidden />
-              </button>
-            ) : null}
-            {specFans ? null : (
-              <button
-                type="button"
-                className="hand-fan-toggle"
-                aria-expanded={handOpen}
-                title={
-                  handHidden
-                    ? "Show your hand (H)"
-                    : handUp
-                      ? prefs.keepHandOpen
-                        ? "Let the hand tuck away"
-                        : "Let the hand tuck away (H)"
-                      : "Keep the hand up (H)"
-                }
-                onClick={() => {
-                  if (handHidden) {
-                    setHandHidden(false);
-                    setHandPinned(true);
-                    return;
+          onLeave={() => setTuckUnderPointer(false)}
+          head={
+            specFans ? (
+              <>
+                {specGrip("near")}
+                {specHandToggle("near", handCount)}
+              </>
+            ) : (
+              <>
+                {prefs.layoutGrips ? (
+                  <button
+                    type="button"
+                    className="hand-fan-grip"
+                    aria-label="Move your hand (drag, or arrow keys)"
+                    title="Drag to move your hand anywhere"
+                    {...fanMove.gripProps}
+                  >
+                    <span aria-hidden />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="hand-fan-toggle"
+                  aria-expanded={handOpen}
+                  title={
+                    handHidden
+                      ? "Show your hand (H)"
+                      : handUp
+                        ? prefs.keepHandOpen
+                          ? "Let the hand tuck away"
+                          : "Let the hand tuck away (H)"
+                        : "Keep the hand up (H)"
                   }
-                  toggleHandUp();
-                }}
-              >
-                <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
-                <span className="hand-rail-count">{handCount}</span>
-                <span className="hand-dock-caret" aria-hidden>
-                  {handOpen ? "▾" : "▴"}
-                </span>
-              </button>
-            )}
-            {!spectating ? (
-              sortHandBtn
-            ) : null}
-            {specFans ? null : hideHandBtn}
-          </div>
-          <div
-            className="hand-fan-cards"
-            ref={handRowRef}
-            inert={handHidden || undefined}
-            onPointerEnter={(e) => {
-              if (e.pointerType !== "touch") setFanHoverUp(true);
-            }}
-            onPointerMove={(e) => {
-              if (e.pointerType !== "touch" && !fanHoverUp) setFanHoverUp(true);
-            }}
-          >
-            {renderHandCards(true)}
-          </div>
-        </div>
+                  onClick={() => {
+                    if (handHidden) {
+                      setHandHidden(false);
+                      setHandPinned(true);
+                      return;
+                    }
+                    toggleHandUp();
+                  }}
+                >
+                  <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
+                  <span className="hand-rail-count">{handCount}</span>
+                  <span className="hand-dock-caret" aria-hidden>
+                    {handOpen ? "▾" : "▴"}
+                  </span>
+                </button>
+                {!spectating ? sortHandBtn : null}
+                {hideHandBtn}
+              </>
+            )
+          }
+        >
+          {renderHandCards(true)}
+        </HandFan>
         {/* After the fan, so its ref is set when the corner measures. */}
         {fanCorner ? <CornerFit fanRef={fanRef} column={fanCorner.column} /> : null}
         </>
