@@ -557,6 +557,18 @@ def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[i
     return out
 
 
+def _counted_row(db: Session, u: User) -> dict:
+    """``_user_row`` with the same counts the list shows, for the action endpoints (#991).
+
+    The page merges an action's response over the row it holds, so zeros here would blank the counts.
+    """
+    modes = mode_counts(db, [u.id])[u.id]
+    matches, last = db.execute(
+        select(func.count(), func.max(DuelMatchSeat.created_at)).where(DuelMatchSeat.user_id == u.id)
+    ).one()
+    return _user_row(u, int(matches), last, {m: g for m, (g, _w) in modes.items()})
+
+
 def _like_escape(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
@@ -785,7 +797,7 @@ def set_role(user_id: int, body: RoleIn, actor: Admin, db: DB) -> dict:
     target.role = body.role
     db.commit()
     db.refresh(target)
-    return _user_row(target)
+    return _counted_row(db, target)
 
 
 class BanIn(BaseModel):
@@ -796,7 +808,7 @@ class BanIn(BaseModel):
 def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     target = _target(db, user_id)
     _apply_ban(db, actor, target, (body.reason if body else None) or "")
-    return _user_row(target)
+    return _counted_row(db, target)
 
 
 def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
@@ -825,7 +837,7 @@ def unban_user(user_id: int, actor: Staff, db: DB) -> dict:
     target.banned_by = None
     db.commit()
     db.refresh(target)
-    return _user_row(target)
+    return _counted_row(db, target)
 
 
 @router.delete("/users/{user_id}", status_code=204)

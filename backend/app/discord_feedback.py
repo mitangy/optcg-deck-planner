@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone  # noqa: F401
 
@@ -58,6 +59,10 @@ class PollState:
 
     cutoff_id: int = field(default_factory=lambda: snowflake_from_datetime(datetime.now(timezone.utc) - STARTUP_GRACE))
     channel: dict | None = None
+    # Text channel: the newest message id already looked at, filed or not (bot replies, system
+    # messages and sticker-only posts are never filed, so the ticket ids alone would stall here).
+    text_after: int = 0
+    text_scanned_to: int = 0
 
 
 def make_client(token: str) -> httpx.AsyncClient:
@@ -166,13 +171,14 @@ async def _text_new_posts(client, db: Session, state: PollState, channel: dict) 
         (int(i) for i in db.scalars(select(Feedback.discord_message_id).where(Feedback.app == "discord")).all() if i),
         default=0,
     )
-    params = {"limit": 50, "after": str(max(newest, state.cutoff_id))}
+    params = {"limit": 50, "after": str(max(newest, state.cutoff_id, state.text_after))}
     messages = (await _request(client, "GET", f"/channels/{channel_id}/messages", params=params)).json()
     messages = sorted((m for m in messages if int(m["id"]) > state.cutoff_id), key=lambda m: int(m["id"]))
     seen = _known(db, [str(m["id"]) for m in messages])
     posts: list[_Post] = []
     for message in messages:
         mid = str(message["id"])
+        state.text_scanned_to = int(mid)
         author_obj = message.get("author") or {}
         if mid in seen or author_obj.get("bot") or message.get("type", 0) not in USER_MESSAGE_TYPES:
             continue
@@ -200,10 +206,15 @@ ISSUE_RETRY_WINDOW = timedelta(days=1)
 MAX_ISSUE_RETRIES_PER_POLL = 3
 
 
+def _defang(text: str) -> str:
+    """Player text goes into a public issue: a zero-width space after every @ stops GitHub pinging users and teams."""
+    return text.replace("@", "@\u200b")
+
+
 def issue_title(message: str) -> str:
     """The thread title of a forum post (its message's first line), else the start of the message."""
     first = next((line.strip() for line in message.splitlines() if line.strip()), "")
-    return f"[Discord] {first[:80]}"
+    return f"[Discord] {_defang(first[:80])}"
 
 
 def make_github_client(token: str) -> httpx.AsyncClient:
@@ -219,12 +230,27 @@ def make_github_client(token: str) -> httpx.AsyncClient:
     )
 
 
-async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Feedback) -> None:
-    """Open the GitHub issue for a ticket and remember its number. Failure leaves github_issue null."""
+async def _find_issue(github: httpx.AsyncClient, settings, row: Feedback) -> int | None:
+    """The issue already opened for a ticket (its body ends with the ticket marker), else None."""
+    query = f'repo:{settings.github_issues_repo} is:issue label:discord-feedback in:body "Feedback ticket #{row.id}"'
+    resp = await github.get("/search/issues", params={"q": query})
+    resp.raise_for_status()
+    marker = re.compile(rf"Feedback ticket #{row.id}\b")
+    for item in resp.json().get("items") or []:
+        if marker.search(item.get("body") or ""):
+            return int(item["number"])
+    return None
+
+
+async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Feedback, retry: bool = False) -> None:
+    """Open the GitHub issue for a ticket and remember its number. Failure leaves github_issue null.
+
+    A retry first looks for an issue the earlier try created but whose reply was lost.
+    """
     if row.github_issue is not None:
         return
     body = (
-        f"{row.message}\n\nFrom Discord: {row.discord_author} · {row.page}\n\nFeedback ticket #{row.id}"
+        f"{_defang(row.message)}\n\nFrom Discord: {_defang(row.discord_author or '')} · {row.page}\n\nFeedback ticket #{row.id}"
     )
     payload = {
         "title": issue_title(row.message),
@@ -232,9 +258,13 @@ async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Fee
         "labels": ["discord-feedback", row.kind],
     }
     try:
-        resp = await github.post(f"/repos/{settings.github_issues_repo}/issues", json=payload)
-        resp.raise_for_status()
-        row.github_issue = int(resp.json()["number"])
+        found = await _find_issue(github, settings, row) if retry else None
+        if found is not None:
+            row.github_issue = found
+        else:
+            resp = await github.post(f"/repos/{settings.github_issues_repo}/issues", json=payload)
+            resp.raise_for_status()
+            row.github_issue = int(resp.json()["number"])
         db.commit()
     except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
         db.rollback()
@@ -251,7 +281,7 @@ async def _retry_issues(github: httpx.AsyncClient, db: Session, settings) -> Non
         .limit(MAX_ISSUE_RETRIES_PER_POLL)
     ).all()
     for row in pending:
-        await _open_issue(github, db, settings, row)
+        await _open_issue(github, db, settings, row, retry=True)
 
 
 async def _reply(client, post: _Post, ticket_id: int) -> None:
@@ -285,6 +315,7 @@ async def poll_once(
         if channel.get("type") in (GUILD_FORUM, GUILD_MEDIA):
             posts = await _forum_new_posts(client, db, state, channel)
         else:
+            state.text_scanned_to = 0
             posts = await _text_new_posts(client, db, state, channel)
         for post in posts:
             row = Feedback(
@@ -306,6 +337,8 @@ async def poll_once(
             if github is not None:
                 await _open_issue(github, db, settings, row)
             await _reply(client, post, row.id)
+        # Every post of the page is handled: the next poll starts after the last message looked at.
+        state.text_after = max(state.text_after, state.text_scanned_to)
     except RateLimited as limited:
         log.warning("discord feedback: rate limited, retry after %.1fs", limited.retry_after)
         await asyncio.sleep(min(limited.retry_after, MAX_RETRY_WAIT_S))
