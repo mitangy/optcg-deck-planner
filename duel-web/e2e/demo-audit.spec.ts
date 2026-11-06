@@ -577,6 +577,49 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   expect(duel.errors).toEqual([]);
 });
 
+// The dock sits at z-index 17 above the fan's 16, so a fan dropped with its head row on End turn lost its grip (#1004).
+test("the moved hand's grip stays on top of End turn so it can be dragged again (#1004)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
+  await page.addInitScript(() => {
+    const key = "optcg-duel:settings";
+    const stored = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
+    localStorage.setItem(key, JSON.stringify({ ...stored, handLayout: "fan", actionsBeside: false }));
+  });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  const fan = page.locator(".hand-fan");
+  const centre = async (sel: string) => {
+    const b = (await page.locator(sel).first().boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  const dragGrip = async (to: { x: number; y: number }) => {
+    const from = await centre(".hand-fan-grip");
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.mouse.up();
+  };
+
+  const endTurn = await centre(".primary-dock .intent-btn-primary");
+  // The first drag out of the docked spot is not anchored to the grip; once the fan floats it is, so a second drag puts the grip's centre on End turn.
+  await dragGrip(endTurn);
+  await expect(fan).toHaveClass(/hand-fan-free/);
+  await dragGrip(endTurn);
+  const at = await centre(".hand-fan-grip");
+  expect(Math.abs(at.x - endTurn.x), "grip lands on End turn").toBeLessThan(12);
+  expect(Math.abs(at.y - endTurn.y), "grip lands on End turn").toBeLessThan(12);
+
+  const topmostIsGrip = await page.evaluate(
+    ({ x, y }) => document.elementFromPoint(x, y)?.closest(".hand-fan-grip") != null,
+    at,
+  );
+  expect(topmostIsGrip, "the grip is not covered by the action dock").toBe(true);
+
+  const before = (await fan.boundingBox())!;
+  await dragGrip({ x: at.x, y: 230 });
+  await expect.poll(async () => Math.abs((await fan.boundingBox())!.y - before.y)).toBeGreaterThan(100);
+});
+
 // The Battle log's own heading sat above the grip, so its drag selected text instead.
 test("the Battle log drags by its grip into the right column (#261)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");

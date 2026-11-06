@@ -2262,6 +2262,11 @@ body.is-panel-drag * {
   width: 100%;
 }
 
+/* A moved fan stacks above the action dock (17) so its grip can always be grabbed again (#1004); the attack arrow/motion layer (18, later in the DOM), prompts, HUD and modals stay above. */
+.hand-fan.hand-fan-free {
+  z-index: 18;
+}
+
 /* Docked on the bottom edge: tucked cards overlap by half like the default
    fan, and spread out when it rises. */
 .hand-fan.hand-fan-docked {
