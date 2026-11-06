@@ -2042,3 +2042,91 @@
     display: none;
   }
 }
+
+/* —— Traffic tab (#1020) —— */
+
+.adm-traffic {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.adm-traffic-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.adm-traffic-name {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.adm-traffic-name small {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-toplists {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.adm-toplist {
+  min-width: 0;
+}
+
+.adm-toplist ul {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.adm-toplist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.adm-toplist li:last-child {
+  border-bottom: 0;
+}
+
+.adm-toplist-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-toplist b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .adm-toplists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .adm-toplists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

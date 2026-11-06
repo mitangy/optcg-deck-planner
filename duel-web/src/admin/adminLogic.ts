@@ -1,10 +1,11 @@
 import type { SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
+export type AdminTab = "players" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
   { id: "bots", label: "Bots & Log Pose" },
+  { id: "traffic", label: "Traffic" },
   { id: "hosting", label: "Hosting" },
   { id: "event", label: "Event" },
   { id: "reports", label: "Reports" },
@@ -12,7 +13,7 @@ export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "users", label: "Users" },
 ];
 
-/** The admin tabs a role may open: the admin sees all seven, a moderator Reports, Uploads then Users, anyone else none. */
+/** The admin tabs a role may open: the admin sees all eight, a moderator Reports, Uploads then Users, anyone else none. */
 export function tabsForRole(role: Role | undefined | null): readonly { id: AdminTab; label: string }[] {
   if (role === "admin") return ADMIN_TABS;
   if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "uploads" || t.id === "users");
@@ -440,6 +441,49 @@ export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ---------------------------------------------------------------- traffic tab (#1020)
+
+/** Memory sizes the way Render shows them: "207 MB", "1.5 GB". */
+export function memoryText(bytes: number | null | undefined): string {
+  if (bytes == null) return "—";
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${Math.round(mb)} MB`;
+}
+
+/** A value next to its limit: "207 MB · 40% of 512 MB". Without a limit, just the value. */
+export function againstLimit(value: number | null | undefined, limit: number | null | undefined, show: (n: number) => string): string {
+  if (value == null) return "—";
+  if (!limit) return show(value);
+  return `${show(value)} · ${Math.round((value / limit) * 100)}% of ${show(limit)}`;
+}
+
+/** CPU in cores: "0.006 cores", "0.25 cores". */
+export function coresText(cores: number | null | undefined): string {
+  if (cores == null) return "—";
+  return `${cores >= 0.1 ? Number(cores.toFixed(2)) : Number(cores.toPrecision(2))} cores`;
+}
+
+/** An empty referrer is a visit that came straight to the site. */
+export function referrerLabel(host: string): string {
+  return host === "" ? "Direct" : host;
+}
+
+/** "US" as "United States"; the code itself when the browser cannot name it. */
+export function countryName(code: string): string {
+  if (!code) return "Unknown";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** "mobile" as "Mobile". */
+export function deviceLabel(kind: string): string {
+  return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : "Unknown";
 }
 
 /** Only the admin undoes a take-down; the server refuses a moderator. */
