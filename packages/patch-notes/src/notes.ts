@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1015, title: "Spectators see the same hand fans as a match", text: "When you watch a match on a computer, both hands are now the same fan you see when you play: the same card size, overlapping cards that tuck away and rise when you hover them. Hover a hand, or click its Hand button, to raise it." },
+  { date: "2026-11-06", app: "duel", pr: 1005, title: "Negated Characters skip their On K.O.", text: "A Character whose effects are negated no longer activates its [On K.O.] or \"when this Character is K.O.'d\" effect when it is K.O.'d. For example, a negated Nami (EB03-053) no longer offers to turn a Life card face-up and play a Character." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },
   { date: "2026-11-05", app: "duel", pr: 995, title: "Random decks against the bot", text: "In Play vs Bot you can now pick Random deck for the bot, for yourself, or both. A random deck is drawn from your complete decks when the game starts, and the bot gets a different one than yours when it can." },

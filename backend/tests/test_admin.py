@@ -1072,6 +1072,31 @@ def test_bot_and_practice_games_count_per_mode_and_only_bot_games_have_wins_988(
     assert detail["solo_tracked_since"] is not None
 
 
+def test_ban_unban_and_role_change_return_the_same_game_counts_as_the_list_991(api):
+    c, S = api
+    admin, me, other = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test"), mk(S, "other@x.test")
+    with S() as db:
+        duel_game(db, "m1", me, other, 0, NOW - timedelta(hours=2), ranked=True)
+        duel_game(db, "m2", me, other, 1, NOW - timedelta(hours=1))
+        solo(db, "b1", me, "bot", NOW - timedelta(minutes=30), won=True)
+        db.commit()
+    login(c, S, admin)
+
+    def listed():
+        return next(u for u in c.get("/admin/users").json()["users"] if u["id"] == me)
+
+    want = listed()
+    assert want["matches"] == 2 and want["games"]["ranked"] == 1 and want["games"]["bot"] == 1
+    for r in (
+        c.post(f"/admin/users/{me}/ban", json={"reason": "x"}),
+        c.post(f"/admin/users/{me}/unban"),
+        c.put(f"/admin/users/{me}/role", json={"role": "moderator"}),
+    ):
+        assert r.status_code == 200
+        body = r.json()
+        assert (body["matches"], body["games"], body["last_match_at"]) == (want["matches"], want["games"], want["last_match_at"])
+
+
 def test_user_detail_is_staff_only_and_404_for_an_unknown_user_988(api):
     c, S = api
     admin, mod, plain = mk(S, ADMIN_EMAIL, "admin"), mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
