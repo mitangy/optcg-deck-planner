@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -56,7 +58,11 @@ class FakeDiscord:
         if path == f"/guilds/{GUILD}/threads/active":
             return httpx.Response(200, json={"threads": self.threads})
         if path == f"/channels/{CHANNEL}/messages":
-            return httpx.Response(200, json=self.messages)
+            # Like Discord: the oldest `limit` messages after `after`.
+            after = int(request.url.params.get("after", 0))
+            limit = int(request.url.params.get("limit", 50))
+            page = sorted((m for m in self.messages if int(m["id"]) > after), key=lambda m: int(m["id"]))
+            return httpx.Response(200, json=page[:limit])
         parts = path.split("/")
         if len(parts) == 5 and parts[1] == "channels" and parts[3] == "messages" and parts[2] in self.starters:
             return httpx.Response(200, json=self.starters[parts[2]])
@@ -88,14 +94,21 @@ def db():
 
 
 class FakeGitHub:
-    def __init__(self, status=201):
+    def __init__(self, status=201, lose_response_once=False):
         self.status = status
+        self.lose_response_once = lose_response_once  # GitHub creates the issue, the reply never arrives
         self.issues: list[tuple[str, dict, httpx.Headers]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         if self.status != 201:
             return httpx.Response(self.status, json={"message": "nope"})
+        if request.method == "GET" and request.url.path == "/search/issues":
+            items = [{"number": 100 + i, "body": b["body"]} for i, (_, b, _) in enumerate(self.issues, 1)]
+            return httpx.Response(200, json={"items": items})
         self.issues.append((request.url.path, json.loads(request.content), request.headers))
+        if self.lose_response_once:
+            self.lose_response_once = False
+            raise httpx.ReadTimeout("response lost", request=request)
         return httpx.Response(201, json={"number": 100 + len(self.issues)})
 
     def client(self) -> httpx.AsyncClient:
@@ -384,3 +397,43 @@ def test_github_client_is_only_used_with_a_token_979(db, monkeypatch: pytest.Mon
     monkeypatch.setattr(discord_feedback, "poll_once", fake_poll)
     asyncio.run(discord_feedback.run_once(settings(github_issues_token=token), PollState()))
     assert (seen["github"] is not None) is expect_github
+
+
+def test_text_channel_moves_past_a_burst_of_unfiled_messages_989(db):
+    # 50 bot replies fill a whole page; the user message behind them must still be reached.
+    bots = [
+        {"id": str(int(sid(9)) + i * 1000), "type": 0, "content": "Logged", "author": {**USER, "bot": True}, "attachments": []}
+        for i in range(50)
+    ]
+    mid = sid(1)
+    fake = FakeDiscord({"type": 0}, messages=[*bots, {"id": mid, "type": 0, "content": "Real bug", "author": USER, "attachments": []}])
+
+    async def go():
+        state = PollState(cutoff_id=CUTOFF)
+        async with fake.client() as client:
+            return [await poll_once(client, db, settings(), state) for _ in range(2)]
+
+    assert asyncio.run(go()) == [0, 1]
+    assert [r.discord_message_id for r in rows(db)] == [mid]
+
+
+def test_issue_lost_to_a_timeout_is_adopted_not_opened_twice_989(db):
+    t, tid = thread(2)
+    fake, gh = forum_with((t, tid)), FakeGitHub(lose_response_once=True)
+    assert poll(fake, db, gh) == 1  # the same poll's retry pass finds the issue the lost reply created
+    (row,) = rows(db)
+    assert row.github_issue == 101 and len(gh.issues) == 1
+    poll(fake, db, gh)
+    assert len(gh.issues) == 1
+
+
+def test_discord_mentions_cannot_ping_github_users_989(db):
+    t, tid = thread(2, "Ping @octocat")
+    fake = forum_with((t, tid))
+    fake.starters[tid] = starter(tid, content="cc @octocat and @some-org/team", author={**USER, "global_name": "@evil"})
+    gh = FakeGitHub()
+    poll(fake, db, gh)
+    ((_, issue, _),) = gh.issues
+    for text in (issue["body"], issue["title"]):
+        assert "@" in text and re.search(r"@(?!\u200b)", text) is None
+    assert "octocat" in issue["body"] and "some-org/team" in issue["body"] and "evil" in issue["body"]
