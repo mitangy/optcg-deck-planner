@@ -48,6 +48,45 @@ describe("deck sync (#619)", () => {
     expect(listSavedDecks().map((d) => d.id).sort()).toEqual(["mine", "theirs"]);
   });
 
+  it("first sign-in: an uploaded deck the account merged into a synced one is removed and the selection moves (#1027)", async () => {
+    saveDeck({ id: "guest", name: "Guest", leaderId: "ST01-001", cards: [] });
+    setSelectedDeckId("guest");
+    api.fetchAccountDecks.mockResolvedValue({ decks: [wire("planner-9", 5)] });
+    api.putAccountDecks.mockImplementationOnce(async (items: { id: string; updatedAt: number }[]) => ({
+      decks: items.map((i) => ({ id: i.id, updatedAt: i.updatedAt + 1, deleted: true, mergedInto: "planner-9" })),
+    }));
+    await syncDecks(7);
+    expect(listSavedDecks().map((d) => d.id)).toEqual(["planner-9"]);
+    expect(getSelectedDeckId()).toBe("planner-9");
+  });
+
+  it("a single save the account merged into a synced deck drops it, and only moves the selection if it was selected (#1027)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [wire("planner-9", 5), wire("other", 5)] });
+    await syncDecks(7);
+    setSelectedDeckId("other");
+    api.putAccountDeck.mockImplementationOnce(async (id, _deck, updatedAt) => ({
+      id,
+      updatedAt: updatedAt + 1,
+      deleted: true,
+      mergedInto: "planner-9",
+    }));
+    saveDeck({ id: "dup", name: "Dup", leaderId: "ST01-001", cards: [] });
+    await flushDeckSync();
+    expect(listSavedDecks().map((d) => d.id).sort()).toEqual(["other", "planner-9"]);
+    expect(getSelectedDeckId()).toBe("other");
+
+    setSelectedDeckId("dup2");
+    api.putAccountDeck.mockImplementationOnce(async (id, _deck, updatedAt) => ({
+      id,
+      updatedAt: updatedAt + 1,
+      deleted: true,
+      mergedInto: "planner-9",
+    }));
+    saveDeck({ id: "dup2", name: "Dup2", leaderId: "ST01-001", cards: [] });
+    await flushDeckSync();
+    expect(getSelectedDeckId()).toBe("planner-9");
+  });
+
   it("sends the planner art map with a deck (#1003)", async () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(7);

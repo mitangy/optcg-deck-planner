@@ -20,7 +20,19 @@ Code: `backend/app/deck_link.py`.
 - **Planner -> duel.** Every planner deck mutation (create, clone, copy shared,
   rename, card add/edit/remove) rewrites the linked duel row (name, leader, main
   deck without the leader and DON!!; art maps are kept), or creates it as
-  `planner-<id>`. Planner decks without a leader are not mirrored until they have one.
+  `planner-<id>`. A planner deck that is not linked yet gets its duel copy only
+  once its main deck (no leader, no DON!!) has exactly 50 cards
+  (`deck_link.COMPLETE_MAIN`); partial decks stay planner-only, in both
+  `mirror_planner_deck` and the merge. Once linked, a deck keeps syncing even if
+  edits take it below 50, so the duel copy never vanishes mid-edit. Duel ->
+  planner is unchanged (incomplete duel decks still reach the planner).
+- **Guest duplicates.** A brand-new duel deck (no row, or a tombstone) with no
+  `plannerDeckId` that has the same leader and main-deck multiset as a live,
+  linked duel row is not created again: the server stores it as a tombstone
+  (`updatedAt + 1`), merges its `artPrefs` into the survivor for cards the
+  survivor has no pick for, and answers `mergedInto: <survivor id>`. The client
+  (`adoptIfNewer`) removes the local copy and moves the selected deck to the
+  survivor. Edits to an existing deck id are never merged.
 - **Deletes** go both ways (`deck_link.DELETE_PROPAGATES`).
 - **One-time merge.** `reconcile_user` runs when `GET /duel/decks` or
   `GET /decks` is read and links everything not linked yet: a duel deck and a

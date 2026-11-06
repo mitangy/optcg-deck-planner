@@ -4838,7 +4838,7 @@ function ImportPage() {
         <a href={`${DUEL_URL}/decks`} target="_blank" rel="noopener">
           Duel app
         </a>{" "}
-        show up here on their own, and decks you add here show up in the Duel app.
+        show up here on their own. Decks you add here show up in the Duel app once they have 50 cards.
       </p>
       <form className="import-form" onSubmit={onSubmit}>
         {fromLogPose ? (

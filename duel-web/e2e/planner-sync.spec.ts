@@ -45,7 +45,7 @@ test("the Decks page says decks sync with the planner and offers no planner colu
   await fakeAccount(page, []);
   await seed(page, false);
   await page.goto("/decks");
-  const note = page.getByText("Signed in: your decks stay in sync with the deck planner.");
+  const note = page.getByText("Signed in: your decks stay in sync with the deck planner. Planner decks show up here once they have 50 cards.");
   await expect(note).toBeVisible();
   await expect(page.getByRole("heading", { name: "From your planner" })).toHaveCount(0);
   await page.getByRole("button", { name: "Actions for Red Alt" }).click();

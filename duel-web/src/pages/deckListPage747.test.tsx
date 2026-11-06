@@ -92,7 +92,7 @@ describe("Decks page sync line (#1017)", () => {
 
   it("tells a signed-in player their decks stay in sync with the planner (#1017)", async () => {
     const note = await noteFor(true);
-    expect(note.textContent).toBe("Signed in: your decks stay in sync with the deck planner.");
+    expect(note.textContent).toBe("Signed in: your decks stay in sync with the deck planner. Planner decks show up here once they have 50 cards.");
     expect(note.querySelector("a")).toBeNull();
   });
 

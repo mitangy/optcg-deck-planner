@@ -352,7 +352,7 @@ export function DeckListPage() {
         <p className={`${linkErr ? "error-text" : "meta"} deck-sync-note`} role={linkErr ? "alert" : undefined}>
           {linkErr ??
             (signedIn === null ? null : signedIn ? (
-              "Signed in: your decks stay in sync with the deck planner."
+              "Signed in: your decks stay in sync with the deck planner. Planner decks show up here once they have 50 cards."
             ) : (
               <>
                 <a className="linkish" href={googleLoginUrl(window.location.origin + "/decks")}>

@@ -10,6 +10,11 @@ service functions that trigger a mirror), so there are no loops:
 * ``reconcile_user`` links and fills in every deck that is not linked yet; it runs
   when a deck list is read, so existing accounts are merged on their next visit.
 
+A planner deck that is not linked yet gets its duel copy only once its main deck has exactly
+``COMPLETE_MAIN`` cards (partial planner decks stay planner-only). Once linked it keeps syncing
+even when later edits make it incomplete, so a duel copy never vanishes mid-edit. Duel -> planner
+has no such rule.
+
 Decks that cannot be mirrored stay unlinked and are retried by the next reconcile:
 no leader (or a leader the catalog does not know), a deck limit on the other side,
 or a main deck longer than the duel row can hold. Built-in ``test-`` seed decks are
@@ -39,6 +44,8 @@ DELETE_PROPAGATES = True
 SEED_PREFIX = "test-"
 # Longest main deck a duel row can hold (DuelDeckBody.cards).
 MAX_DUEL_CARDS = 60
+# Main-deck size (without the leader and DON!!) an unlinked planner deck needs to get a duel copy.
+COMPLETE_MAIN = 50
 
 
 # --- duel row helpers -------------------------------------------------------
@@ -137,6 +144,10 @@ def _planner_main(db: Session, deck: Deck) -> Counter:
     ).all()
     catalog = _catalog(db, {r[0] for r in rows})
     return _main_counts([(r[0], r[1]) for r in rows], deck.leader_card_id, catalog)
+
+
+def _is_complete(db: Session, deck: Deck) -> bool:
+    return sum(_planner_main(db, deck).values()) == COMPLETE_MAIN
 
 
 def _expand(counts: Counter) -> list[str]:
@@ -259,6 +270,46 @@ def after_duel_upsert(db: Session, user_id: int, row: DuelSavedDeck) -> None:
     _finish_link(row, body, deck)
 
 
+def find_duplicate_survivor(
+    db: Session, user_id: int, deck_id: str, body: dict
+) -> DuelSavedDeck | None:
+    """A live, linked duel row of the user with the same leader and main deck as a brand-new
+    unlinked incoming deck (a guest deck uploaded on sign-in), or None."""
+    if deck_id.startswith(SEED_PREFIX) or body.get("plannerDeckId") is not None:
+        return None
+    leader = str(body.get("leaderId") or "").strip().upper()
+    if not leader:
+        return None
+    key = _duel_main(body)
+    for other in _live_rows(db, user_id):
+        other_body = _body(other)
+        if (
+            other_body is None
+            or other.deck_id == deck_id
+            or _is_seed(other)
+            or other.planner_deck_id is None
+            or str(other_body.get("leaderId") or "").strip().upper() != leader
+            or _duel_main(other_body) != key
+        ):
+            continue
+        return other
+    return None
+
+
+def merge_into_survivor(survivor: DuelSavedDeck, body: dict) -> None:
+    """Carry the duplicate's art picks over to the surviving row (only cards it has no pick for)."""
+    survivor_body = _body(survivor)
+    extra = body.get("artPrefs") or {}
+    if survivor_body is None or not extra:
+        return
+    prefs = dict(survivor_body.get("artPrefs") or {})
+    added = {k: v for k, v in extra.items() if k not in prefs}
+    if not added:
+        return
+    prefs.update(added)
+    _store(survivor, {**survivor_body, "artPrefs": prefs}, at=max(_now_ms(), survivor.updated_at_ms + 1))
+
+
 def _finish_link(row: DuelSavedDeck, body: dict, deck: Deck) -> None:
     """Record the link in the row; the client adopts the change through its newer updatedAt."""
     linked = {k: v for k, v in body.items() if k != "editedLocally"}
@@ -315,13 +366,13 @@ def _new_duel_row(db: Session, user_id: int, deck: Deck, body: dict) -> DuelSave
 
 
 def mirror_planner_deck(db: Session, user_id: int, deck: Deck) -> None:
-    """A planner deck changed: write its duel copy (created when there is none yet)."""
+    """A planner deck changed: write its duel copy (created when there is none yet and the deck has 50 cards)."""
     rows = _linked_rows(db, user_id, deck.id)
     if rows:
         _write_from_planner(db, rows[0], deck)
         return
     body = _duel_body_from_planner(db, deck, None)
-    if body is not None:
+    if body is not None and len(body["cards"]) == COMPLETE_MAIN:
         _new_duel_row(db, user_id, deck, body)
 
 
@@ -377,14 +428,15 @@ def _needs_reconcile(db: Session, user_id: int) -> bool:
         DuelSavedDeck.deleted.is_(False),
         DuelSavedDeck.planner_deck_id.is_not(None),
     )
-    unlinked_planner = db.scalar(
-        select(func.count(Deck.id)).where(
+    unlinked = db.scalars(
+        select(Deck).where(
             Deck.user_id == user_id,
             Deck.leader_card_id.is_not(None),
             Deck.id.not_in(linked_ids),
         )
-    )
-    return bool(unlinked_planner)
+    ).all()
+    # Incomplete ones stay planner-only, so they are no work (else the merge would re-run on every read).
+    return any(_is_complete(db, d) for d in unlinked)
 
 
 def reconcile_user(db: Session, user: User) -> None:
@@ -406,7 +458,8 @@ def _reconcile(db: Session, user: User) -> None:
     deck with the same leader and main deck are linked to each other, so identical decks are
     not duplicated; (4) the remaining duel decks get a new planner deck (a plannerDeckId whose
     planner deck is gone counts as unlinked here: the deck is re-created rather than lost);
-    (5) the remaining planner decks with a leader get a new duel deck. Idempotent.
+    (5) the remaining planner decks with a leader and exactly 50 main cards get a new duel deck
+    (smaller ones stay planner-only until they are complete). Idempotent.
     """
     uid = user.id
     if not _needs_reconcile(db, uid):

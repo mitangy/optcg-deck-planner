@@ -4528,6 +4528,13 @@ details.deck-config-section.deck-collapsible {
   overflow-wrap: anywhere;
 }
 
+/* The signed-in note wraps to two lines on a phone: reserve them so the decks below do not jump. */
+@media (max-width: 640px) {
+  .deck-sync-note {
+    min-height: 2.6em;
+  }
+}
+
 .deck-list-section {
   display: flex;
   flex-direction: column;

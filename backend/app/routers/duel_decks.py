@@ -44,7 +44,12 @@ def _check_id(deck_id: str) -> str:
 
 def _out(row: DuelSavedDeck) -> DuelDeckOut:
     if row.deleted or not row.data:
-        return DuelDeckOut(id=row.deck_id, updatedAt=row.updated_at_ms, deleted=True)
+        return DuelDeckOut(
+            id=row.deck_id,
+            updatedAt=row.updated_at_ms,
+            deleted=True,
+            mergedInto=getattr(row, "merged_into", None),
+        )
     return DuelDeckOut(
         id=row.deck_id,
         updatedAt=row.updated_at_ms,
@@ -88,6 +93,24 @@ def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelS
     row = _row(db, user_id, deck_id)
     if row is not None and row.updated_at_ms > body.updatedAt:
         return row  # the stored copy is newer: the client adopts it
+    is_new = row is None or row.deleted
+    survivor = deck_link.find_duplicate_survivor(db, user_id, deck_id, body.deck.model_dump()) if is_new else None
+    if survivor is not None:
+        # Same deck as one already synced: keep one copy. The client adopts the tombstone and
+        # switches to the survivor, so the planner never gets a second deck.
+        if row is None:
+            if _row_count(db, user_id) >= MAX_ROWS:
+                raise HTTPException(status_code=413, detail="Too many saved decks")
+            row = DuelSavedDeck(user_id=user_id, deck_id=deck_id)
+            db.add(row)
+        row.data = ""
+        row.deleted = True
+        row.planner_deck_id = None
+        row.updated_at_ms = body.updatedAt + 1
+        deck_link.merge_into_survivor(survivor, body.deck.model_dump())
+        db.flush()
+        row.merged_into = survivor.deck_id  # type: ignore[attr-defined]  # response only, not stored
+        return row
     if (row is None or row.deleted) and _live_count(db, user_id) >= MAX_DECKS:
         raise HTTPException(status_code=413, detail=f"You can save up to {MAX_DECKS} decks")
     if row is None:
