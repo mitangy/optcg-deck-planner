@@ -218,6 +218,9 @@ export function DeckConfigurePage() {
           sideTop={
             <DeckImportPanel
               collapsible
+              heading="Replace with deck list"
+              buttonLabel="Replace deck"
+              hint="Paste an OPTCGSim deck code (one card per line like 4xST01-003). Replaces the leader and main deck; press Save to keep it."
               importText={importText}
               onImportTextChange={setImportText}
               onImport={onImportIntoDeck}

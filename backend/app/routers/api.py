@@ -25,6 +25,7 @@ from app.schemas import (
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
+    DeckListReplace,
     DeckRename,
     DeckDetail,
     DeckOwnedResetResult,
@@ -161,6 +162,21 @@ def get_deck(
         return services.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/decks/{deck_id}/decklist", response_model=DeckDetail)
+def put_deck_decklist(
+    deck_id: int,
+    body: DeckListReplace,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    try:
+        return services.replace_deck_list(db, user, deck_id, body.decklist)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)

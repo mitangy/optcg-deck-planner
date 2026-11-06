@@ -42,6 +42,12 @@ class DeckCreate(BaseModel):
     decklist: str = Field(min_length=1, max_length=100_000)
 
 
+class DeckListReplace(BaseModel):
+    """PUT /decks/{id}/decklist: overwrite a deck's cards with a pasted code (#1016)."""
+
+    decklist: str = Field(min_length=1, max_length=100_000)
+
+
 class DeckRename(BaseModel):
     """PATCH /decks/{id}: rename, hide from friends, or both (#703)."""
 

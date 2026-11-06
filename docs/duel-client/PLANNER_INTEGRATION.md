@@ -56,6 +56,8 @@ Code: `backend/app/deck_link.py`.
   "Deck planner" icon (`VITE_PLANNER_URL`, default
   `https://optcg-deck-planner.app`).
 
+- The deck editor's "Replace with deck list" and "Add cards" sections start collapsed.
+
 ## Not done yet (ideas, best first)
 
 1. **Win rates per planner deck.** Record which planner deck was played with

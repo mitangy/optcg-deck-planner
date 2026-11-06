@@ -522,3 +522,14 @@ def test_a_guest_deck_with_a_planner_link_or_a_seed_id_is_never_merged_away_1027
     seed = _put(c, "test-seed", 100, _duel("Seed", cards=same)).json()
     assert linked["deleted"] is False and seed["deleted"] is False
     assert seed["deck"]["plannerDeckId"] is None
+
+
+def test_replacing_a_planner_deck_list_updates_the_duel_deck_1027(client):
+    c, S = client
+    uid = _user(S)
+    pid = _new_planner(_as(c, uid), "Blue", _full())
+    res = c.put(f"/decks/{pid}/decklist", json={"decklist": f"1x{OTHER_LEADER}\n50x OP01-017"})
+    assert res.status_code == 200, res.text
+    out = c.get("/duel/decks").json()["decks"][0]
+    assert out["deck"]["leaderId"] == OTHER_LEADER
+    assert out["deck"]["cards"] == ["OP01-017"] * 50
