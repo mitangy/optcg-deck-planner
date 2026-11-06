@@ -8095,19 +8095,104 @@ button.ghost.scan-tray-fix {
   min-width: 0;
 }
 
-.lightbox-alert-text {
+/* A set alert reads as a chip (#1028): tinted by what it is doing, one button tall so nothing shifts. */
+.alert-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 2.5rem;
   min-width: 0;
+  box-sizing: border-box;
+  padding: 0 0.3rem 0 0.7rem;
+  border: 1px solid var(--info-line);
+  border-left-width: 4px;
+  border-radius: 12px;
+  color: var(--info-ink);
+  background: var(--info-bg);
+}
+
+.alert-pill.hit {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+}
+
+.alert-pill.met {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.alert-pill.paused {
+  color: var(--muted);
+  background: var(--card-sunk);
+  border-color: var(--line-strong);
+}
+
+.alert-pill-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.alert-pill-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.alert-pill-goal,
+.alert-pill-status {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.88rem;
+}
+
+.alert-pill-goal {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.alert-pill-status {
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
-.lightbox-alert-row .ghost {
-  min-height: 2.5rem;
-  padding: 0 0.15rem;
+.alert-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
+  min-width: 2rem;
+  height: 1.9rem;
+  margin: 0;
+  padding: 0 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert-pill-btn:hover,
+.alert-pill-btn[aria-expanded="true"] {
+  background: var(--card);
+  border-color: var(--line-strong);
+}
+
+.alert-pill-btn.danger {
+  padding: 0;
+  color: var(--danger);
+}
+
+.alert-pill-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .lightbox-alert .lightbox-alert-btn {
@@ -9422,7 +9507,18 @@ button.ghost.scan-tray-fix {
 }
 
 .card-actions .lightbox-alert {
+  position: relative;
   max-width: 100%;
+}
+
+/* On the card page the editor drops under the alert, over the content below (#1028);
+   floating above like in the lightbox put it off the top of the page. */
+.card-actions .lightbox-alert-pop {
+  top: calc(100% + 0.5rem);
+  bottom: auto;
+  left: 0;
+  transform: none;
+  z-index: 5;
 }
 
 .card-cols {

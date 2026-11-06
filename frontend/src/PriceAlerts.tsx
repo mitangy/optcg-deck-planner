@@ -202,6 +202,52 @@ function AlertForm({
   );
 }
 
+// ---------------------------------------------------------------- alert pill
+
+/** A set alert as a chip (#1028): bell, "Below $15.00", what it is doing now, and Edit / Remove. */
+function AlertPill({
+  alert,
+  editing,
+  removing,
+  onEdit,
+  onRemove,
+}: {
+  alert: PriceAlert;
+  editing: boolean;
+  removing: boolean;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const status = alertStatus(alert);
+  const goal = `${alert.direction === "below" ? "Below" : "Above"} ${money(alert.target_price)}`;
+  return (
+    <div className={`alert-pill ${status.tone}`} role="group" aria-label="Your price alert">
+      <span className="alert-pill-icon">
+        <BellIcon size={16} />
+      </span>
+      <span className="alert-pill-text" title={`Price alert: ${goal}. ${status.label}`}>
+        <strong className="alert-pill-goal">{goal}</strong>
+        <span className="alert-pill-status">{status.label}</span>
+      </span>
+      <button type="button" className="alert-pill-btn" aria-expanded={editing} onClick={onEdit}>
+        Edit
+      </button>
+      <button
+        type="button"
+        className="alert-pill-btn danger"
+        aria-label="Remove price alert"
+        title="Remove price alert"
+        disabled={removing}
+        onClick={onRemove}
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- lightbox control
 
 /** Under an enlarged card art: set, edit or remove the price alert for that exact art. */
@@ -221,17 +267,13 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
     <div className="lightbox-alert">
       <div className="lightbox-alert-row">
         {existing ? (
-          <>
-            <span className="lightbox-alert-text" title={alertStatus(existing).label}>
-              Alert: {existing.direction === "below" ? "below" : "above"} {money(existing.target_price)}
-            </span>
-            <button type="button" className="ghost" onClick={() => setEditing((v) => !v)}>
-              Edit
-            </button>
-            <button type="button" className="ghost danger" disabled={remove.isPending} onClick={() => remove.mutate(existing.id)}>
-              Remove
-            </button>
-          </>
+          <AlertPill
+            alert={existing}
+            editing={editing}
+            removing={remove.isPending}
+            onEdit={() => setEditing((v) => !v)}
+            onRemove={() => remove.mutate(existing.id)}
+          />
         ) : (
           <button
             type="button"
@@ -532,9 +574,9 @@ export function BellBadge({ unread }: { unread: number }) {
   );
 }
 
-function BellIcon() {
+function BellIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9Z" />
       <path d="M10 19a2 2 0 0 0 4 0" />
     </svg>
