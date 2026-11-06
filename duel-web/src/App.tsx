@@ -27,6 +27,8 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { MatchLogPage } from "./pages/MatchLogPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 import { WhatsNewPage } from "./pages/WhatsNewPage";
+import { TournamentsPage } from "./tournaments/TournamentsPage";
+import { TournamentPage } from "./tournaments/TournamentPage";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
 import { ReportHost } from "./reports/ReportHost";
@@ -94,6 +96,8 @@ export function App() {
         <Route path="/hotseat" element={<HotseatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/tournaments" element={<TournamentsPage />} />
+        <Route path="/tournaments/:code" element={<TournamentPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:matchId" element={<MatchLogPage />} />
         <Route path="/replay/:matchId" element={<Suspense fallback={null}><ReplayPage /></Suspense>} />

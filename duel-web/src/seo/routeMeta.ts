@@ -85,6 +85,8 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/settings", title: `Settings – ${NAME}`, noindex: true },
   { pattern: "/history", title: `Match history – ${NAME}`, noindex: true },
   { pattern: "/history/:matchId", title: `Match log – ${NAME}`, noindex: true },
+  { pattern: "/tournaments", title: `Tournaments – ${NAME}`, noindex: true },
+  { pattern: "/tournaments/:code", title: `Tournament – ${NAME}`, noindex: true },
   { pattern: "/replay/:matchId", title: `Replay – ${NAME}`, noindex: true },
   { pattern: "/admin", title: `Admin – ${NAME}`, noindex: true },
   { pattern: "/auth/complete", title: `Signing in – ${NAME}`, noindex: true },
