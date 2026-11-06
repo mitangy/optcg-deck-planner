@@ -513,6 +513,9 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     db.flush()
     for card in parsed:
         db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
+    from app import deck_link
+
+    deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     db.refresh(deck)
     # Open group buys with an explicit deck filter should pick up new imports.
@@ -552,6 +555,9 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
     db.flush()
     for card in source.cards:
         db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
+    from app import deck_link
+
+    deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     db.refresh(deck)
     from app import group_buy
@@ -560,12 +566,17 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
     return deck
 
 
-def delete_deck(db: Session, user: User, deck_id: int) -> None:
+def delete_deck(db: Session, user: User, deck_id: int, *, mirror: bool = True) -> None:
+    """Delete a deck. ``mirror=False`` is for the duel side deleting its own linked deck (#1017)."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
         raise LookupError("Deck not found")
     leader_id = deck.leader_card_id
     was_main = bool(deck.is_main)
+    if mirror:
+        from app import deck_link
+
+        deck_link.on_planner_deleted(db, user.id, deck_id)
     db.delete(deck)
     db.flush()
     if was_main and leader_id:
@@ -588,6 +599,9 @@ def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
     if not name or len(name) > 200:
         raise ValueError("Deck name must be 1 to 200 characters")
     deck.name = name
+    from app import deck_link
+
+    deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     return get_deck_detail(db, user, deck_id)
 
@@ -978,6 +992,40 @@ def search_catalog(
     return out
 
 
+def set_deck_leader(db: Session, user_id: int, deck: Deck, new_leader: str | None) -> None:
+    """Point ``deck`` at a leader and keep each leader's Main deck consistent."""
+    prev_leader = deck.leader_card_id
+    was_main = bool(deck.is_main)
+    deck.leader_card_id = new_leader
+    if prev_leader != new_leader:
+        deck.is_main = False
+        db.flush()
+        if was_main and prev_leader:
+            remaining = db.scalars(
+                select(Deck)
+                .where(
+                    Deck.user_id == user_id,
+                    Deck.leader_card_id == prev_leader,
+                    Deck.id != deck.id,
+                )
+                .order_by(Deck.sort_order, Deck.id)
+            ).all()
+            if remaining and not any(d.is_main for d in remaining):
+                remaining[0].is_main = True
+        if new_leader:
+            peers = db.scalars(
+                select(Deck).where(
+                    Deck.user_id == user_id,
+                    Deck.leader_card_id == new_leader,
+                    Deck.id != deck.id,
+                )
+            ).all()
+            if not peers:
+                deck.is_main = True
+    elif not new_leader:
+        deck.is_main = False
+
+
 def upsert_deck_card(
     db: Session,
     user: User,
@@ -1050,43 +1098,13 @@ def upsert_deck_card(
             _apply_alt_want_clamp_to_rows(printing_rows, needed)
             _delete_zero_printing_rows(db, printing_rows)
 
-    _set_deck_leader(db, user, deck, find_leader_id(projected_lines, catalog))
+    new_leader = find_leader_id(projected_lines, catalog)
+    set_deck_leader(db, user.id, deck, new_leader)
+    from app import deck_link
+
+    deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     return get_deck_detail(db, user, deck_id)
-
-
-def _set_deck_leader(db: Session, user: User, deck: Deck, new_leader: str | None) -> None:
-    """Point ``deck`` at ``new_leader`` and fix Main flags for the old and new leader."""
-    prev_leader = deck.leader_card_id
-    was_main = bool(deck.is_main)
-    deck.leader_card_id = new_leader
-    if prev_leader != new_leader:
-        deck.is_main = False
-        db.flush()
-        if was_main and prev_leader:
-            remaining = db.scalars(
-                select(Deck)
-                .where(
-                    Deck.user_id == user.id,
-                    Deck.leader_card_id == prev_leader,
-                    Deck.id != deck.id,
-                )
-                .order_by(Deck.sort_order, Deck.id)
-            ).all()
-            if remaining and not any(d.is_main for d in remaining):
-                remaining[0].is_main = True
-        if new_leader:
-            peers = db.scalars(
-                select(Deck).where(
-                    Deck.user_id == user.id,
-                    Deck.leader_card_id == new_leader,
-                    Deck.id != deck.id,
-                )
-            ).all()
-            if not peers:
-                deck.is_main = True
-    elif not new_leader:
-        deck.is_main = False
 
 
 def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> DeckDetail:
@@ -1129,7 +1147,10 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
         if new_id not in existing:
             db.add(DeckCard(deck_id=deck.id, card_id=new_id, needed=new_qty))
 
-    _set_deck_leader(db, user, deck, find_leader_id(parsed, catalog))
+    set_deck_leader(db, user.id, deck, find_leader_id(parsed, catalog))
+    from app import deck_link
+
+    deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     return get_deck_detail(db, user, deck_id)
 

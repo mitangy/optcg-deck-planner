@@ -65,7 +65,7 @@ from app.schemas import (
     ShareInfo,
     ShoppingResponse,
 )
-from app import group_buy, price_history, services
+from app import deck_link, group_buy, price_history, services
 from app.services import DeckOversizeError
 
 router = APIRouter(tags=["api"])
@@ -89,6 +89,7 @@ def get_decks(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    deck_link.reconcile_user(db, user)
     return services.list_decks(db, user)
 
 

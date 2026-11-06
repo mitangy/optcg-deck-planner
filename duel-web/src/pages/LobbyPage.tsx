@@ -466,7 +466,7 @@ export function LobbyPage() {
     }
   }
 
-  /** Online matches pull a planner-linked deck fresh first; on any failure the local copy plays. */
+  /** Online matches pick up the art the planner shows for a linked deck first; on any failure the local copy plays. */
   async function freshDeck(d: SavedDeck): Promise<SavedDeck> {
     if (!d.plannerDeckId) return d;
     const fresh = await refreshLinkedDeck(d, 4000);

@@ -1178,6 +1178,8 @@ class DuelSavedDeck(Base):
     data: Mapped[str] = mapped_column(Text, default="")
     updated_at_ms: Mapped[int] = mapped_column(BigInteger, default=0)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The planner deck this one is kept in sync with (#1017); mirrors data.plannerDeckId.
+    planner_deck_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
 
 
 class DuelCosmetic(Base):

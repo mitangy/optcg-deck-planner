@@ -370,9 +370,55 @@ export function plannerLocalId(plannerId: number): string {
 }
 
 /**
+ * Art after taking on the planner's shown art: a card whose art here still equals what the last pull set
+ * takes the planner's art now; one the player changed here (even back to base) keeps their pick (#1003).
+ */
+function followPlannerArt(
+  existing: SavedDeck | undefined,
+  inDeckIds: ReadonlySet<string>,
+  incoming: Record<string, string>,
+): { artPrefs: Record<string, string>; plannerArt: Record<string, string> } {
+  const previous = existing?.plannerArt ?? {};
+  const current = existing?.artPrefs ?? {};
+  const artPrefs: Record<string, string> = {};
+  for (const defId of inDeckIds) {
+    const alt = current[defId] === previous[defId] ? incoming[defId] : current[defId];
+    if (alt) artPrefs[defId] = alt;
+  }
+  const plannerArt = Object.fromEntries(Object.entries(incoming).filter(([defId]) => inDeckIds.has(defId)));
+  return { artPrefs, plannerArt };
+}
+
+/** Take on the art the planner shows for a deck's cards, leaving its name and cards alone. Unchanged art writes nothing. */
+export function applyPlannerArt(deckId: string, incoming: Record<string, string>): SavedDeck | undefined {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return undefined;
+  const next = followPlannerArt(deck, new Set([deck.leaderId, ...deck.cards]), incoming);
+  const same = (a: Record<string, string> | undefined, b: Record<string, string>) => {
+    const x = a ?? {};
+    return Object.keys(x).length === Object.keys(b).length && Object.entries(b).every(([k, v]) => x[k] === v);
+  };
+  if (same(deck.artPrefs, next.artPrefs) && same(deck.plannerArt, next.plannerArt)) return deck;
+  return saveDeck({ id: deck.id, name: deck.name, leaderId: deck.leaderId, cards: deck.cards, ...next });
+}
+
+/** Note the alt arts just sent to the planner, so they are not sent again. */
+export function recordPlannerArt(deckId: string, sent: Record<string, string>): SavedDeck | undefined {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return undefined;
+  return saveDeck({
+    id: deck.id,
+    name: deck.name,
+    leaderId: deck.leaderId,
+    cards: deck.cards,
+    plannerArt: { ...deck.plannerArt, ...sent },
+  });
+}
+
+/**
  * Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck).
- * A deck already linked to this planner id (e.g. one saved to the planner from here) is updated in place
- * under its own id; only an unlinked planner deck gets the `planner-<id>` local id.
+ * A deck already linked to this planner id is updated in place under its own id; only an unlinked
+ * planner deck gets the `planner-<id>` local id (the id the account sync gives its copy too).
  */
 export function upsertPlannerDeck(input: {
   plannerId: number;
@@ -388,17 +434,7 @@ export function upsertPlannerDeck(input: {
   const existing = readAll().find((d) => d.plannerDeckId === input.plannerId);
   const id = existing?.id ?? plannerLocalId(input.plannerId);
   const inDeckIds = new Set([v.leaderId, ...v.cards]);
-  // A card whose art here still equals what the last pull set takes the planner's art now; one the
-  // player changed here (even back to base) keeps their pick (#1003).
-  const incoming = input.plannerArt ?? {};
-  const previous = existing?.plannerArt ?? {};
-  const current = existing?.artPrefs ?? {};
-  const kept: Record<string, string> = {};
-  for (const defId of inDeckIds) {
-    const alt = current[defId] === previous[defId] ? incoming[defId] : current[defId];
-    if (alt) kept[defId] = alt;
-  }
-  const plannerArt = Object.fromEntries(Object.entries(incoming).filter(([defId]) => inDeckIds.has(defId)));
+  const { artPrefs: kept, plannerArt } = followPlannerArt(existing, inDeckIds, input.plannerArt ?? {});
   const deck = saveDeck({
     id,
     name: input.name,
@@ -407,8 +443,6 @@ export function upsertPlannerDeck(input: {
     artPrefs: kept,
     plannerArt,
     plannerDeckId: input.plannerId,
-    // A planner pull replaces local edits on purpose.
-    editedLocally: false,
   });
   return { ok: true, deck, warnings: v.warnings };
 }
