@@ -11,7 +11,7 @@ import {
   listAtlasTypes,
   searchAtlas,
 } from "../cards/searchAtlas";
-import { resolveCardImageUrl } from "../decks/artPrefs";
+import { resolveCardImageUrl, resolveDeckAltId, setDeckArtChoice } from "../decks/artPrefs";
 import {
   addCard,
   countCardInDeck,
@@ -23,7 +23,7 @@ import {
 } from "../decks/editDeck";
 import { DeckStatsSection } from "../decks/DeckStatsSection";
 import { groupDeckStacks } from "../decks/groupStacks";
-import { setDeckArtPref, type SavedDeck } from "../decks/storage";
+import { type SavedDeck } from "../decks/storage";
 import { useDuelSettings } from "../settings";
 
 const ATTRIBUTE_OPTIONS = [
@@ -58,7 +58,7 @@ function StackCard({
   const entry = lookupCard(defId);
   const imageUrl = resolveCardImageUrl(defId, deck) ?? entry.imageUrl;
   const alts = entry.altArts ?? [];
-  const selectedAlt = deck.artPrefs?.[defId] ?? "";
+  const selectedAlt = resolveDeckAltId(defId, deck);
   const [editError, setEditError] = useState<string | null>(null);
 
   function bump(delta: -1 | 1) {
@@ -146,7 +146,7 @@ function StackCard({
               buttonClassName="deck-stack-art-select"
               value={selectedAlt}
               onChange={(id) => {
-                setDeckArtPref(deck.id, defId, id || null);
+                setDeckArtChoice(deck.id, defId, id || null);
                 onChanged();
               }}
               options={[{ value: "", label: "Standard" }, ...alts.map((a) => ({ value: a.id, label: a.label }))]}
