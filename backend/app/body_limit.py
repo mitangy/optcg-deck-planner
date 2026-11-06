@@ -21,6 +21,8 @@ ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     # Up to 40 base64 crops of at most 64 KB each (#852).
     ("/scan-samples", 4 * 1024 * 1024),
     ("/analyst/bot-games", 8 * 1024 * 1024),
+    # Up to 500 OPTCGSim games, ~50 KB of combat log each (#1030).
+    ("/analyst/sim-games/import", 32 * 1024 * 1024),
 )
 
 

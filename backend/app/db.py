@@ -360,6 +360,15 @@ def _ensure_analyst_access_credit_columns() -> None:
     )
 
 
+def _ensure_sim_games() -> None:
+    """Create sim_games (imported OPTCGSim games, #1030) and its user index on existing DBs."""
+    from app.models import SimGame
+
+    SimGame.__table__.create(bind=engine, checkfirst=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_games_user_id ON sim_games (user_id)"))
+
+
 def _ensure_duel_progress_closed() -> None:
     """Add duel_match_progress.closed (room closed; its recording can be watched) on existing DBs (#476)."""
     false = "FALSE" if engine.dialect.name == "postgresql" else "0"
@@ -515,6 +524,7 @@ def init_db() -> None:
     _ensure_cosmetic_takedown_columns()
     _ensure_feedback_discord_columns()
     _ensure_admin_role()
+    _ensure_sim_games()
     _seed_eval_runs()
     if events_table_is_new:
         _seed_default_event()

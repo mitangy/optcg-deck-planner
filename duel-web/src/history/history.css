@@ -633,3 +633,66 @@
   justify-content: flex-end;
   margin: 0.4rem 0 0;
 }
+
+/* Import OPTCGSim games (Settings > Log Pose). Rows keep their height whether or not a log is pasted. */
+.sim-import {
+  min-width: 0;
+}
+
+.sim-import > * + * {
+  margin-top: 0.6rem;
+}
+
+.sim-import-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 6rem;
+  resize: vertical;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.sim-import-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sim-import-pick label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.sim-import-pick select {
+  min-width: 0;
+  min-height: 44px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+}
+
+.sim-import-count {
+  min-height: 1.4em;
+}
+
+/* Room for two lines, so a message that wraps on a phone does not push what is below it. */
+.sim-import-status {
+  min-height: 2.8em;
+}
