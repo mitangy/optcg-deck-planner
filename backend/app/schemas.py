@@ -1031,6 +1031,8 @@ class DuelDeckOut(BaseModel):
     updatedAt: int
     deleted: bool
     deck: DuelDeckBody | None = None
+    # Set on the tombstone of an uploaded deck that was identical to this synced deck.
+    mergedInto: str | None = None
 
 
 class DuelDecksOut(BaseModel):

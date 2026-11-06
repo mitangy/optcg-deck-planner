@@ -4870,6 +4870,13 @@ function ImportPage() {
         Paste an OPTCGSim deck code from your clipboard, or upload a <code>.txt</code> /{" "}
         <code>.deck</code> file.
       </p>
+      <p className="muted">
+        Decks you make in the{" "}
+        <a href={`${DUEL_URL}/decks`} target="_blank" rel="noopener">
+          Duel app
+        </a>{" "}
+        show up here on their own. Decks you add here show up in the Duel app once they have 50 cards.
+      </p>
       <form className="import-form" onSubmit={onSubmit}>
         {fromLogPose ? (
           <p className="import-note" role="status">

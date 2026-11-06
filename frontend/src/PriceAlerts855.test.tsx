@@ -169,8 +169,8 @@ describe("lightbox price alert per art (#855)", () => {
       </>,
     );
     expect(document.querySelector("#base")!.textContent).toContain("Price alert");
-    expect(document.querySelector("#base")!.textContent).not.toContain("Alert: below");
-    expect(document.querySelector("#alt")!.textContent).toContain("Alert: below $30.00");
+    expect(document.querySelector("#base")!.textContent).not.toContain("Below $");
+    expect(document.querySelector("#alt")!.textContent).toContain("Below $30.00");
   });
 });
 

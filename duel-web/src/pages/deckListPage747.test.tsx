@@ -34,8 +34,8 @@ const SEEDED = [
   { id: "d2", name: "Bravo", leaderId: "OP13-079", cards: Array(42).fill("ST01-003"), updatedAt: 2 },
 ];
 
-async function mount() {
-  localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(SEEDED));
+async function mount(seed: object[] = SEEDED) {
+  localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(seed));
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -75,5 +75,30 @@ describe("Decks page cards (#750)", () => {
     await mount();
     const warns = Array.from(document.querySelectorAll(".deck-card-warn")).map((w) => w.textContent);
     expect(warns).toEqual(["Incomplete: 42 of 50 main-deck cards"]);
+  });
+});
+
+describe("Decks page sync line (#1017)", () => {
+  async function noteFor(signedIn: boolean) {
+    vi.stubGlobal("fetch", (url: string) => {
+      if (String(url).includes("/auth/me")) {
+        return Promise.resolve(new Response(signedIn ? JSON.stringify({ id: 1, email: "a@b.c" }) : "{}", { status: signedIn ? 200 : 401 }));
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    await mount();
+    return document.querySelector(".deck-sync-note")!;
+  }
+
+  it("tells a signed-in player their decks stay in sync with the planner (#1017)", async () => {
+    const note = await noteFor(true);
+    expect(note.textContent).toBe("Signed in: your decks stay in sync with the deck planner. Planner decks show up here once they have 50 cards.");
+    expect(note.querySelector("a")).toBeNull();
+  });
+
+  it("offers Google sign-in to a guest instead (#1017)", async () => {
+    const note = await noteFor(false);
+    expect(note.querySelector("a")?.textContent).toBe("Sign in with Google");
+    expect(note.textContent).not.toContain("Signed in");
   });
 });
