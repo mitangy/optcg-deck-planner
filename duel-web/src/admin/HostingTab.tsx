@@ -16,7 +16,7 @@ function Status({ value }: { value: string | null | undefined }) {
   return <span className={`adm-pill adm-pill-${tone}`}>{value ?? "unknown"}</span>;
 }
 
-function Card<T>({ title, result, hint, children }: { title: string; result: ProviderResult<T> | undefined; hint: string; children: (d: T) => ReactNode }) {
+export function Card<T>({ title, result, hint, children }: { title: string; result: ProviderResult<T> | undefined; hint: string; children: (d: T) => ReactNode }) {
   let body: ReactNode;
   if (!result) body = <p className="panel-copy adm-muted">No data.</p>;
   else if (!result.configured) {

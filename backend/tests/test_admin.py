@@ -11,7 +11,7 @@ from authlib.integrations.httpx_client import AsyncOAuth2Client
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from app import admin_hosting
+from app import admin_hosting, admin_traffic
 from app import db as app_db
 from app.auth import (
     OAUTH_NONCE_COOKIE,
@@ -64,8 +64,10 @@ def api(client, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
     admin_hosting.clear_cache()
+    admin_traffic.clear_cache()
     yield client
     admin_hosting.clear_cache()
+    admin_traffic.clear_cache()
     get_settings.cache_clear()
 
 
@@ -145,11 +147,11 @@ def test_analytics_are_admin_only_and_the_user_list_is_staff_only_667(api):
     login(c, S, mod)
     assert c.get("/admin/users").status_code == 200
     assert c.get("/admin/me").json() == {"role": "moderator", "can": {"analytics": False, "set_roles": False, "ban": True, "delete": False}}
-    for path in ("/admin/overview", "/admin/bots", "/admin/hosting"):
+    for path in ("/admin/overview", "/admin/bots", "/admin/hosting", "/admin/traffic"):
         assert c.get(path).status_code == 403, path
     login(c, S, admin)
     assert c.get("/admin/me").json()["can"] == {"analytics": True, "set_roles": True, "ban": True, "delete": True}
-    for path in ("/admin/overview", "/admin/bots", "/admin/hosting"):
+    for path in ("/admin/overview", "/admin/bots", "/admin/hosting", "/admin/traffic"):
         assert c.get(path).status_code == 200, path
 
 
@@ -918,6 +920,184 @@ def test_hosting_reads_github_and_treats_hidden_traffic_as_null_667(api, monkeyp
     gh = c.get("/admin/hosting").json()["github"]
     assert (gh["stars"], gh["open_issues"], gh["open_prs"], gh["commits_7d"], gh["traffic_views"]) == (7, 3, 2, 5, None)
     assert gh["ci_runs"][0]["conclusion"] == "success" and gh["bot_runs"][0]["conclusion"] == "failure"
+
+
+# ------------------------------------------------------------------ traffic
+
+def _day(offset: int = 0) -> str:
+    return (datetime.now(timezone.utc).date() - timedelta(days=offset)).isoformat()
+
+
+def _web(request: httpx.Request, *, broken: tuple[str, ...] = ()) -> httpx.Response:
+    path, q = request.url.path, request.url.params
+    if path == "/v9/projects":
+        return httpx.Response(200, json={"projects": [{"id": "prj_1", "name": "optcg-duel-web"}, {"id": "prj_2", "name": "optcg-deck-planner"}]})
+    assert path.startswith("/v1/query/web-analytics/visits/")
+    if q["projectId"] in broken:
+        return httpx.Response(403, json={"error": {"message": "analytics off, token vtok-secret"}})
+    if path.endswith("/count"):
+        return httpx.Response(200, json={"data": {"pageviews": 90, "visitors": 20}})
+    by = q["by"]
+    if by == "day":
+        # Two active days; the days between have no row at all.
+        return httpx.Response(200, json={"data": [
+            {"timestamp": f"{_day(2)}T00:00:00.000Z", "visitors": 14, "pageviews": 76},
+            {"timestamp": f"{_day(0)}T00:00:00.000Z", "visitors": 9, "pageviews": 14},
+        ]})
+    rows = {
+        "requestPath": [{"requestPath": "/", "visitors": 12, "pageviews": 40}],
+        "referrerHostname": [{"referrerHostname": "", "visitors": 66, "pageviews": 321}, {"referrerHostname": "google.com", "visitors": 23, "pageviews": 31}],
+        "country": [{"country": "US", "visitors": 8, "pageviews": 9}],
+        "deviceType": [{"deviceType": "mobile", "visitors": 5, "pageviews": 6}],
+    }[by]
+    return httpx.Response(200, json={"data": rows})
+
+
+def test_traffic_without_tokens_is_not_configured_and_makes_no_calls_1020(api, monkeypatch):
+    c, S = api
+    seen = _mock(monkeypatch, lambda r: httpx.Response(500))
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    assert c.get("/admin/traffic", params={"days": 7}).json() == {"days": 7, "vercel": {"configured": False}, "render": {"configured": False}}
+    assert seen == []
+
+
+def test_traffic_days_must_be_one_of_the_picker_windows_1020(api):
+    c, S = api
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    assert c.get("/admin/traffic", params={"days": 5}).status_code == 422
+
+
+def test_traffic_reads_vercel_with_zero_filled_days_and_totals_from_the_count_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret", VERCEL_TEAM_ID="team_1")
+    seen = _mock(monkeypatch, _web)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    v = r.json()["vercel"]
+    assert v["configured"] is True and [p["name"] for p in v["projects"]] == ["optcg-duel-web", "optcg-deck-planner"]
+    p = v["projects"][0]
+    assert [d["date"] for d in p["daily"]] == [_day(i) for i in range(6, -1, -1)]
+    assert [(d["visitors"], d["pageviews"]) for d in p["daily"]] == [(0, 0)] * 4 + [(14, 76), (0, 0), (9, 14)]
+    # 14 + 9 would be wrong: a visitor on two days is one visitor.
+    assert p["totals"] == {"visitors": 20, "pageviews": 90}
+    assert p["pages"] == [{"key": "/", "visitors": 12, "pageviews": 40}]
+    assert p["referrers"][0] == {"key": "", "visitors": 66, "pageviews": 321}
+    assert p["countries"][0]["key"] == "US" and p["devices"][0]["key"] == "mobile"
+    queries = [rq.url.params for rq in seen if rq.url.path.startswith("/v1/query")]
+    assert {q["teamId"] for q in queries} == {"team_1"}
+    assert {q["by"] for q in queries if "by" in q} == {"day", "requestPath", "referrerHostname", "country", "deviceType"}
+    assert all(q["since"] < q["until"] for q in queries)
+    assert "vtok-secret" not in r.text
+    assert all(rq.headers["authorization"] == "Bearer vtok-secret" for rq in seen)
+    assert r.json()["render"] == {"configured": False}
+
+
+def test_a_project_whose_analytics_call_fails_is_an_error_row_and_the_other_still_loads_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret")
+    _mock(monkeypatch, lambda r: _web(r, broken=("prj_1",)))
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    v = r.json()["vercel"]
+    assert v["configured"] is True and "error" not in v
+    assert v["projects"][0] == {"name": "optcg-duel-web", "error": "HTTP 403"}
+    assert v["projects"][1]["totals"] == {"visitors": 20, "pageviews": 90}
+    assert "secret" not in r.text
+
+
+def test_traffic_caches_each_window_for_ten_minutes_unless_refreshed_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok")
+    seen = _mock(monkeypatch, _web)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    c.get("/admin/traffic", params={"days": 7})
+    n = len(seen)
+    c.get("/admin/traffic", params={"days": 7})
+    assert len(seen) == n
+    c.get("/admin/traffic", params={"days": 14})
+    assert len(seen) == 2 * n  # the other window is its own cache entry
+    c.get("/admin/traffic", params={"days": 7, "refresh": 1})
+    assert len(seen) == 3 * n
+
+
+def _series(code: str | None, points: list[tuple[str, float]], **extra) -> dict:
+    labels = [{"field": "resource", "value": "srv-1"}] + ([{"field": "statusCode", "value": code}] if code else [])
+    return {"labels": labels, "unit": "unitless", "values": [{"timestamp": t, "value": v} for t, v in points], **extra}
+
+
+def _render_handler(request: httpx.Request) -> httpx.Response:
+    path, q = request.url.path, request.url.params
+    if path == "/v1/services":
+        return httpx.Response(200, json=[
+            {"service": {"id": "srv-1", "name": "optcg-api", "type": "web_service", "suspended": "not_suspended"}},
+            {"service": {"id": "srv-2", "name": "old", "type": "web_service", "suspended": "suspended"}},
+            {"service": {"id": "srv-3", "name": "flaky", "type": "web_service", "suspended": "not_suspended"}},
+        ])
+    if q["resource"] == "srv-3":
+        return httpx.Response(500, json={"message": "rtok-secret"})
+    assert q["resource"] == "srv-1"
+    today, yesterday = f"{_day(0)}T00:00:00Z", f"{_day(1)}T00:00:00Z"
+    if path == "/v1/metrics/http-requests":
+        assert q["aggregateBy"] == "statusCode" and q["resolutionSeconds"] == "86400"
+        return httpx.Response(200, json=[
+            _series("200", [(yesterday, 100), (today, 50)]),
+            _series("404", [(today, 4)]),
+            _series("500", [(yesterday, 2)]),
+            _series("503", [(yesterday, 1), (today, 3)]),
+        ])
+    if path in ("/v1/metrics/cpu", "/v1/metrics/memory"):
+        assert int(q["resolutionSeconds"]) * 100 >= 30 * 86400
+        two = path.endswith("cpu")
+        a, b = (0.25, 0.5) if two else (100.0, 300.0)
+        # Two instances: they add up at each timestamp (0.25 + 0.25, 0.5 + 0.5).
+        return httpx.Response(200, json=[_series(None, [(yesterday, a), (today, b)]), _series(None, [(yesterday, a), (today, b)])])
+    if path == "/v1/metrics/cpu-limit":
+        return httpx.Response(200, json=[_series(None, [(today, 1.0)])])
+    assert path == "/v1/metrics/memory-limit"
+    return httpx.Response(404, json={})
+
+
+def test_traffic_reads_render_summing_instances_counting_5xx_and_clamping_to_30_days_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, RENDER_API_KEY="rtok-secret")
+    seen = _mock(monkeypatch, _render_handler)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 90})
+    rd = r.json()["render"]
+    assert rd["configured"] is True and rd["days"] == 30
+    assert [s["name"] for s in rd["services"]] == ["optcg-api", "flaky"]  # the suspended one is skipped
+    svc = rd["services"][0]
+    assert len(svc["requests_daily"]) == 30
+    assert svc["requests_daily"][0] == {"date": _day(29), "total": 0, "errors_5xx": 0}
+    assert svc["requests_daily"][-2:] == [{"date": _day(1), "total": 103, "errors_5xx": 3}, {"date": _day(0), "total": 57, "errors_5xx": 3}]
+    assert (svc["requests"], svc["errors_5xx"], svc["errors_4xx"]) == (160, 6, 4)
+    assert (svc["cpu_avg"], svc["cpu_peak"], svc["cpu_limit"]) == (0.75, 1.0, 1.0)
+    assert (svc["memory_avg"], svc["memory_peak"], svc["memory_limit"]) == (400, 600, None)  # a missing limit is null, not an error
+    assert rd["services"][1] == {"name": "flaky", "error": "HTTP 500"}
+    starts = {rq.url.params["startTime"] for rq in seen if "startTime" in rq.url.params}
+    assert starts == {f"{_day(29)}T00:00:00Z"}
+    assert "secret" not in r.text
+    assert all(rq.headers["authorization"] == "Bearer rtok-secret" for rq in seen)
+
+
+def test_a_traffic_provider_error_never_carries_the_token_and_is_not_cached_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret", RENDER_API_KEY="rtok-secret")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.vercel.com":
+            return httpx.Response(401, json={"error": "bad token vtok-secret"})
+        raise httpx.ConnectTimeout("timed out for rtok-secret", request=request)
+
+    seen = _mock(monkeypatch, handler)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    data = r.json()
+    assert data["vercel"]["error"] == "HTTP 401" and "ConnectTimeout" in data["render"]["error"]
+    assert "secret" not in r.text
+    n = len(seen)
+    c.get("/admin/traffic", params={"days": 7})
+    assert len(seen) == 2 * n
 
 
 # ------------------------------------------------------------------ startup

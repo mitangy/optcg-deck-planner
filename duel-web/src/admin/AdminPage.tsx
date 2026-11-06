@@ -6,9 +6,11 @@ import {
   type AdminBots,
   type AdminHosting,
   type AdminOverview,
+  type AdminTraffic,
   fetchAdminBots,
   fetchAdminHosting,
   fetchAdminOverview,
+  fetchAdminTraffic,
 } from "./adminApi";
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
 import { Gate, useAdminWho } from "./AdminGate";
@@ -16,6 +18,7 @@ import { BotsTab } from "./BotsTab";
 import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
+import { TrafficTab } from "./TrafficTab";
 import { ReportsTab } from "./ReportsTab";
 import { UploadsTab } from "./UploadsTab";
 import { UsersTab } from "./UsersTab";
@@ -68,6 +71,8 @@ export default function AdminPage() {
   const [botsDays, setBotsDays] = useState<RangeDays>(14);
   const overview = useTabData<AdminOverview>(current === "players", () => fetchAdminOverview(overviewDays), overviewDays);
   const bots = useTabData<AdminBots>(current === "bots", () => fetchAdminBots(botsDays), botsDays);
+  const [trafficDays, setTrafficDays] = useState<RangeDays>(30);
+  const traffic = useTabData<AdminTraffic>(current === "traffic", (force) => fetchAdminTraffic(trafficDays, force), trafficDays);
   const hosting = useTabData<AdminHosting>(current === "hosting", fetchAdminHosting);
 
   if (who.status === "loading") {
@@ -89,7 +94,7 @@ export default function AdminPage() {
     );
   }
 
-  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "hosting" ? hosting : null;
+  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : null;
   const refreshing = tabData?.refreshing ?? false;
 
   function body() {
@@ -113,6 +118,10 @@ export default function AdminPage() {
     if (current === "bots") {
       const d = s.data as AdminBots;
       return <BotsTab data={d} days={botsDays} onDaysChange={setBotsDays} stale={refreshing || d.days !== botsDays} />;
+    }
+    if (current === "traffic") {
+      const d = s.data as AdminTraffic;
+      return <TrafficTab data={d} days={trafficDays} onDaysChange={setTrafficDays} stale={refreshing || d.days !== trafficDays} />;
     }
     return <HostingTab data={s.data as AdminHosting} />;
   }
