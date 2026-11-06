@@ -109,6 +109,23 @@ export type PrintingView = {
   wanted?: number;
   /** Copies of this alt the user owns. */
   owned?: number;
+  /** Collector copies of this alt the user wants on top of their decks (#1031); 0 when none. */
+  collector?: number;
+};
+
+/** One collector copy line under a Master Shopping card (#1031). */
+export type CollectorLine = {
+  product_id: number;
+  /** The printing's label as the alt tiles show it, e.g. "Gold-stamped". */
+  label: string;
+  image_url: string | null;
+  market_price: number | null;
+  want: number;
+  /** min(owned of this printing, want). */
+  have: number;
+  still_need: number;
+  /** still_need * price; null when unpriced and something is still needed. */
+  remaining_cost: number | null;
 };
 
 export type AlertDirection = "below" | "above";
@@ -213,6 +230,8 @@ export type CardView = {
   alt_arts: PrintingView[];
   /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
+  /** Collector copies wanted on top of this deck's needs, summed over the card's alt printings (#1031). */
+  collector_want?: number;
 };
 
 export type DeckDetail = {
@@ -262,6 +281,8 @@ export type ShoppingItem = {
   extra_qty?: number;
   /** Need from decks alone (`need` also folds in `extra_qty` by max). */
   deck_need?: number;
+  /** Collector copies wanted on top of the decks, one line per printing (#1031). */
+  collector_wants?: CollectorLine[];
 };
 
 /** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
@@ -307,6 +328,8 @@ export type ShoppingResponse = {
   cards_still_needed: number;
   remaining_market: number;
   unique_cards: number;
+  /** Collector copies wanted across all lines (#1031); the totals above already include what is still needed. */
+  collector_copies?: number;
 };
 
 export type OwnedCard = {
@@ -725,6 +748,14 @@ export const api = {
   setAltOwned: (cardId: string, productId: number, qty: number) =>
     request<{ card_id: string; product_id: number; qty: number }>(
       `/owned/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty }),
+      },
+    ),
+  setCollectorWant: (cardId: string, productId: number, qty: number) =>
+    request<{ card_id: string; product_id: number; qty: number }>(
+      `/cards/${encodeURIComponent(cardId)}/collector/${productId}`,
       {
         method: "PUT",
         body: JSON.stringify({ qty }),

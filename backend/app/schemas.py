@@ -123,6 +123,8 @@ class PrintingView(BaseModel):
     wanted: int = 0
     # Copies of this alt the user owns (per user, not per deck).
     owned: int = 0
+    # Collector copies the user wants of this printing on top of their decks (#1031).
+    collector: int = 0
 
 
 class DisplayArtUpdate(BaseModel):
@@ -142,6 +144,18 @@ class OwnedPrintingUpdate(BaseModel):
 
 
 class OwnedPrintingResult(BaseModel):
+    card_id: str
+    product_id: int
+    qty: int
+
+
+class CollectorWantUpdate(BaseModel):
+    """Set how many collector copies of an alt printing the user wants (0 removes)."""
+
+    qty: int = Field(ge=0, le=9)
+
+
+class CollectorWantResult(BaseModel):
     card_id: str
     product_id: int
     qty: int
@@ -234,6 +248,8 @@ class CardView(BaseModel):
     art_wants: list[GroupBuyArtWantOut] = []
     # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
+    # Collector copies the user wants of this card's alt printings, on top of the deck (#1031).
+    collector_want: int = 0
 
 
 class DeckDetail(BaseModel):
@@ -253,6 +269,20 @@ class DeckDetail(BaseModel):
 class LeaderNeed(BaseModel):
     label: str
     need: int
+
+
+class CollectorLine(BaseModel):
+    """One alt printing the user wants a collector copy of, on top of their decks (#1031)."""
+
+    product_id: int
+    label: str
+    image_url: str | None = None
+    market_price: float | None = None
+    want: int
+    # min(owned copies of this printing, want); still_need = want - have.
+    have: int
+    still_need: int
+    remaining_cost: float | None = None
 
 
 class ShoppingItem(BaseModel):
@@ -292,6 +322,8 @@ class ShoppingItem(BaseModel):
     extra_qty: int = 0
     # Need from selected decks alone (``need`` also folds in ``extra_qty`` by max).
     deck_need: int = 0
+    # Collector copies wanted on top of the decks, one line per alt printing (#1031).
+    collector_wants: list[CollectorLine] = []
 
 
 class ShoppingResponse(BaseModel):
@@ -299,6 +331,8 @@ class ShoppingResponse(BaseModel):
     cards_still_needed: int
     remaining_market: float
     unique_cards: int
+    # Sum of collector wants across all lines (#1031).
+    collector_copies: int = 0
 
 
 class OwnedCardItem(BaseModel):

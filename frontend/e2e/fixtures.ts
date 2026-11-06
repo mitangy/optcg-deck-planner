@@ -105,6 +105,10 @@ type Planner = {
   altOwned: Map<string, number>;
   /** JSON bodies the page POSTed to /owned/add (Collection photo scan). */
   ownedAdds: { items: { card_id: string; add: number }[] }[];
+  /** Collector copies wanted on top of decks (#1031), as the fake backend holds them, keyed `CARD-ID:productId`. */
+  collectors: Map<string, number>;
+  /** Give a card one more alt art in every view (call before `open`), e.g. a gold-stamped printing. */
+  addAlt(cardId: string, alt: { product_id: number; name: string; market_price: number }): void;
   /** Alt-art copies picked to buy (`wanted`) as the fake backend holds them, keyed `CARD-ID:productId` (#906). */
   altWants: Map<string, number>;
   /** Chosen display art per card (0 = base, >0 = product id), as the fake backend holds it. */
@@ -129,6 +133,8 @@ type Planner = {
   addSecondDeck(): void;
   /** Bodies the page PUT to the shopping-level /cards/:card/printings/:product (the alt buy pick). */
   printingPuts: { path: string; body: { qty: number; deck_ids?: number[] } }[];
+  /** PUT /cards/:card/collector/:product calls the page made (#1031). */
+  collectorPuts: { path: string; qty: number }[];
   /** Whether the fake deck is hidden from friends (set by PATCH /decks/:id with hidden_from_friends). */
   readonly deckHidden: boolean;
   /** Decks the page created through POST /decks (name and decklist as sent). */
@@ -156,6 +162,8 @@ export const test = base.extend<{ planner: Planner }>({
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
     const altWants = new Map<string, number>();
+    const collectors = new Map<string, number>();
+    const addedAlts = new Map<string, { product_id: number; name: string; market_price: number }[]>();
     const extras = new Map<string, number>();
     const ownedAdds: Planner["ownedAdds"] = [];
     const priceAlertPosts: Planner["priceAlertPosts"] = [];
@@ -165,6 +173,7 @@ export const test = base.extend<{ planner: Planner }>({
     let hasDecks = true;
     let secondDeck = false;
     const printingPuts: Planner["printingPuts"] = [];
+    const collectorPuts: Planner["collectorPuts"] = [];
     let deckHidden = false;
     const extraAlts = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
@@ -177,8 +186,10 @@ export const test = base.extend<{ planner: Planner }>({
         group_name: "Extra Booster: Memorial Collection",
         is_special: false,
       }));
-      const alt_arts = [...(c.alt_arts ?? []), ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
-      const altsOwned = alt_arts.reduce((n, a) => n + a.owned, 0);
+      const added = (addedAlts.get(c.card_id) ?? []).map((a) => ({ low_price: a.market_price, group_name: "Extra Booster: Memorial Collection", is_special: true, ...a }));
+      const alt_arts = [...(c.alt_arts ?? []), ...added, ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0, collector: collectors.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
+      // Owned copies fill the collector want first; only the rest count for decks (#1031).
+      const deckAlts = alt_arts.reduce((n, a) => n + a.owned - Math.min(a.owned, a.collector), 0);
       return {
         card_id: c.card_id,
         name: c.name,
@@ -188,8 +199,10 @@ export const test = base.extend<{ planner: Planner }>({
         cost: c.cost,
         needed: c.needed,
         owned: o,
-        alts_owned: altsOwned,
-        still_need: Math.max(0, c.needed - o - altsOwned),
+        // Like the API: alt copies available to decks (collector-reserved ones excluded).
+        alts_owned: deckAlts,
+        still_need: Math.max(0, c.needed - o - deckAlts),
+        collector_want: alt_arts.reduce((n, a) => n + a.collector, 0),
         market_price: c.market_price,
         low_price: c.low_price,
         image_url: img(c.product_id),
@@ -224,6 +237,15 @@ export const test = base.extend<{ planner: Planner }>({
       }
       return Math.round((total + left * v.market_price) * 100) / 100;
     };
+    const deckAltsOf = (v: ReturnType<typeof cardView>) => v.alt_arts.reduce((n, a) => n + a.owned - Math.min(a.owned, a.collector), 0);
+    const collectorLines = (v: ReturnType<typeof cardView>) =>
+      v.alt_arts
+        .filter((a) => a.collector > 0)
+        .map((a) => {
+          const have = Math.min(a.owned, a.collector);
+          const still = a.collector - have;
+          return { product_id: a.product_id, label: a.name, image_url: a.image_url, market_price: a.market_price, want: a.collector, have, still_need: still, remaining_cost: Math.round(still * a.market_price * 100) / 100 };
+        });
     const shopping = (withExtras = true) => {
       // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
       const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
@@ -231,7 +253,7 @@ export const test = base.extend<{ planner: Planner }>({
         const v = cardView(c);
         const extra = withExtras ? (extras.get(c.card_id) ?? 0) : 0;
         const need = Math.max(v.needed, extra);
-        const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
+        const item = { ...v, need, still_need: Math.max(0, need - v.owned - deckAltsOf(v)) };
         return {
           ...item,
           remaining_cost: remainingCost(item),
@@ -247,7 +269,7 @@ export const test = base.extend<{ planner: Planner }>({
         ? CARDS.filter((c) => !deckCards.includes(c) && (extras.get(c.card_id) ?? 0) > 0).map((c) => {
             const v = cardView(c);
             const need = extras.get(c.card_id)!;
-            const item = { ...v, need, still_need: Math.max(0, need - v.owned - v.alts_owned) };
+            const item = { ...v, need, still_need: Math.max(0, need - v.owned - deckAltsOf(v)) };
             return {
               ...item,
               remaining_cost: remainingCost(item),
@@ -261,12 +283,19 @@ export const test = base.extend<{ planner: Planner }>({
             };
           })
         : [];
-      const items = [...fromDecks, ...onlyExtras];
+      // A card with only a collector want still gets a row, so the line has a parent (#1031).
+      const onlyCollector = CARDS.filter((c) => !deckCards.includes(c) && !onlyExtras.some((i) => i.card_id === c.card_id) && collectorLines(cardView(c)).length > 0).map((c) => {
+        const v = cardView(c);
+        return { ...v, need: 0, still_need: 0, remaining_cost: 0, used_in: [] as string[], primary_leader_card_id: null, primary_leader_name: null, leader_count: 1, deck_sort_key: "9999-9999-9999", extra_qty: 0, deck_need: 0 };
+      });
+      const items = [...fromDecks, ...onlyExtras, ...onlyCollector].map((i) => ({ ...i, collector_wants: collectorLines(i as ReturnType<typeof cardView>) }));
+      const lines = items.flatMap((i) => i.collector_wants);
       return {
         items,
-        cards_still_needed: items.reduce((s, i) => s + i.still_need, 0),
-        remaining_market: items.reduce((s, i) => s + (i.remaining_cost ?? 0), 0),
+        cards_still_needed: items.reduce((s, i) => s + i.still_need, 0) + lines.reduce((s, l) => s + l.still_need, 0),
+        remaining_market: items.reduce((s, i) => s + (i.remaining_cost ?? 0), 0) + lines.reduce((s, l) => s + l.remaining_cost, 0),
         unique_cards: items.length,
+        collector_copies: lines.reduce((s, l) => s + l.want, 0),
       };
     };
 
@@ -423,7 +452,8 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/owned" && method === "GET") {
         // Like the backend: a card is listed once any copy is owned (base or alt), alt copies are valued at the alt's own price,
         // and every alt printing comes with the viewer's count (0 when unowned).
-        const holds = (c: FixtureCard) => cardView(c).owned + cardView(c).alts_owned > 0;
+        const trueAlts = (v: ReturnType<typeof cardView>) => v.alt_arts.reduce((n, a) => n + a.owned, 0);
+        const holds = (c: FixtureCard) => cardView(c).owned + trueAlts(cardView(c)) > 0;
         const items = CARDS.filter(holds).map((c) => {
           const v = cardView(c);
           const buying = shopping().items.find((i) => i.card_id === c.card_id)?.still_need ?? 0;
@@ -433,7 +463,7 @@ export const test = base.extend<{ planner: Planner }>({
         return json({
           items,
           unique_cards: items.length,
-          total_copies: items.reduce((s, i) => s + i.owned + i.alts_owned, 0),
+          total_copies: items.reduce((s, i) => s + i.owned + trueAlts(i), 0),
           total_value: Math.round(items.reduce((s, i) => s + i.value, 0) * 100) / 100,
           unpriced_cards: 0,
         });
@@ -467,6 +497,15 @@ export const test = base.extend<{ planner: Planner }>({
             group_name: "Extra Booster: Memorial Collection",
           })),
         );
+      }
+      // Collector copies (#1031): PUT /cards/:card/collector/:product, 0..9, alt printings only.
+      if ((m = path.match(/^\/cards\/([^/]+)\/collector\/(\d+)$/)) && method === "PUT") {
+        const cardId = decodeURIComponent(m[1]!).toUpperCase();
+        const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
+        collectorPuts.push({ path, qty });
+        if (qty > 0) collectors.set(`${cardId}:${m[2]}`, qty);
+        else collectors.delete(`${cardId}:${m[2]}`);
+        return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
       // Alt-art copies owned: PUT /owned/:card/printings/:product (must match before /owned/:card).
       if ((m = path.match(/^\/owned\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
@@ -593,6 +632,11 @@ export const test = base.extend<{ planner: Planner }>({
       owned,
       altOwned,
       altWants,
+      collectors,
+      collectorPuts,
+      addAlt(cardId, alt) {
+        addedAlts.set(cardId, [...(addedAlts.get(cardId) ?? []), alt]);
+      },
       displayArt,
       extras,
       ownedAdds,

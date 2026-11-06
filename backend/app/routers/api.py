@@ -46,6 +46,8 @@ from app.schemas import (
     OwnedCollectionResponse,
     DisplayArtResult,
     DisplayArtUpdate,
+    CollectorWantResult,
+    CollectorWantUpdate,
     OwnedPrintingResult,
     OwnedPrintingUpdate,
     OwnedAddRequest,
@@ -398,6 +400,25 @@ def put_owned_printing(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
+
+
+@router.put(
+    "/cards/{card_id}/collector/{product_id}",
+    response_model=CollectorWantResult,
+)
+def put_collector_want(
+    card_id: str,
+    product_id: int,
+    body: CollectorWantUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Set how many collector copies of an alt printing the user wants (0 removes)."""
+    try:
+        qty = services.set_collector_want(db, user, card_id, product_id, body.qty)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CollectorWantResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
 @router.put("/owned/{card_id}/display", response_model=DisplayArtResult)
