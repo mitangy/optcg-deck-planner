@@ -1447,3 +1447,60 @@ class EventDraw(Base):
     eligible_ids: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     # JSON list of user ids that forfeited; the next person in the ranking moves up.
     forfeited: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
+
+
+class DuelTournament(Base):
+    """A friends tournament: single elimination (4/8/16) or round robin, every match Bo1."""
+
+    __tablename__ = "duel_tournaments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    format: Mapped[str] = mapped_column(String(16))  # single_elim | round_robin
+    # single_elim: bracket size (4 | 8 | 16); round_robin: most players allowed.
+    size: Mapped[int] = mapped_column(Integer)
+    timer: Mapped[str] = mapped_column(String(24), default="seat_15m")  # off | turn_30 | seat_15m | turn_30_seat_15m
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | running | finished | cancelled
+    organizer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    winner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DuelTournamentPlayer(Base):
+    __tablename__ = "duel_tournament_players"
+    __table_args__ = (UniqueConstraint("tournament_id", "user_id", name="uq_duel_tournament_player"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[int] = mapped_column(ForeignKey("duel_tournaments.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="joined")  # invited | joined
+    seed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DuelTournamentMatch(Base):
+    """One pairing. ``room_id`` is the private game-server room the players meet in."""
+
+    __tablename__ = "duel_tournament_matches"
+    __table_args__ = (UniqueConstraint("tournament_id", "round", "slot", name="uq_duel_tournament_slot"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tournament_id: Mapped[int] = mapped_column(ForeignKey("duel_tournaments.id", ondelete="CASCADE"), index=True)
+    round: Mapped[int] = mapped_column(Integer)
+    slot: Mapped[int] = mapped_column(Integer)
+    player_a_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    player_b_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    winner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # waiting (a player is still coming from an earlier round) | ready | done
+    status: Mapped[str] = mapped_column(String(16), default="waiting")
+    decided_by: Mapped[str | None] = mapped_column(String(16), nullable=True)  # game | bye | walkover
+    room_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    server_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    host_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    host_claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    room_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_match_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

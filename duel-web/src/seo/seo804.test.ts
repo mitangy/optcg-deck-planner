@@ -6,7 +6,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 
 // Realistic URLs for every route that holds one player's own data or a live session.
 const PRIVATE = [
-  "/duel", "/hotseat", "/settings", "/history", "/history/m_123", "/replay/m_123", "/admin", "/admin/users/123", "/auth/complete",
+  "/duel", "/hotseat", "/settings", "/history", "/history/m_123", "/tournaments", "/tournaments/aB3dE5fG7h", "/replay/m_123", "/admin", "/admin/users/123", "/auth/complete",
   "/welcome/username", "/demo", "/decks", "/decks/new", "/decks/abc123/configure", "/watch/room-7",
 ];
 const PUBLIC = ["/", "/play-one-piece-tcg-online", "/decks/meta", "/leaderboard", "/whats-new", "/terms", "/privacy", "/cookies", "/events/stress-test-2026-11/rules", "/leaders", "/leaders/op17-039-rocks-d-xebec"];
