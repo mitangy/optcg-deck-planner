@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -92,14 +93,21 @@ def db():
 
 
 class FakeGitHub:
-    def __init__(self, status=201):
+    def __init__(self, status=201, lose_response_once=False):
         self.status = status
+        self.lose_response_once = lose_response_once  # GitHub creates the issue, the reply never arrives
         self.issues: list[tuple[str, dict, httpx.Headers]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         if self.status != 201:
             return httpx.Response(self.status, json={"message": "nope"})
+        if request.method == "GET" and request.url.path == "/search/issues":
+            items = [{"number": 100 + i, "body": b["body"]} for i, (_, b, _) in enumerate(self.issues, 1)]
+            return httpx.Response(200, json={"items": items})
         self.issues.append((request.url.path, json.loads(request.content), request.headers))
+        if self.lose_response_once:
+            self.lose_response_once = False
+            raise httpx.ReadTimeout("response lost", request=request)
         return httpx.Response(201, json={"number": 100 + len(self.issues)})
 
     def client(self) -> httpx.AsyncClient:
@@ -406,4 +414,14 @@ def test_text_channel_moves_past_a_burst_of_unfiled_messages_989(db):
 
     assert asyncio.run(go()) == [0, 1]
     assert [r.discord_message_id for r in rows(db)] == [mid]
+
+
+def test_issue_lost_to_a_timeout_is_adopted_not_opened_twice_989(db):
+    t, tid = thread(2)
+    fake, gh = forum_with((t, tid)), FakeGitHub(lose_response_once=True)
+    assert poll(fake, db, gh) == 1  # the same poll's retry pass finds the issue the lost reply created
+    (row,) = rows(db)
+    assert row.github_issue == 101 and len(gh.issues) == 1
+    poll(fake, db, gh)
+    assert len(gh.issues) == 1
 

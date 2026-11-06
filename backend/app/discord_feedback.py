@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone  # noqa: F401
 
@@ -224,8 +225,23 @@ def make_github_client(token: str) -> httpx.AsyncClient:
     )
 
 
-async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Feedback) -> None:
-    """Open the GitHub issue for a ticket and remember its number. Failure leaves github_issue null."""
+async def _find_issue(github: httpx.AsyncClient, settings, row: Feedback) -> int | None:
+    """The issue already opened for a ticket (its body ends with the ticket marker), else None."""
+    query = f'repo:{settings.github_issues_repo} is:issue label:discord-feedback in:body "Feedback ticket #{row.id}"'
+    resp = await github.get("/search/issues", params={"q": query})
+    resp.raise_for_status()
+    marker = re.compile(rf"Feedback ticket #{row.id}\b")
+    for item in resp.json().get("items") or []:
+        if marker.search(item.get("body") or ""):
+            return int(item["number"])
+    return None
+
+
+async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Feedback, retry: bool = False) -> None:
+    """Open the GitHub issue for a ticket and remember its number. Failure leaves github_issue null.
+
+    A retry first looks for an issue the earlier try created but whose reply was lost.
+    """
     if row.github_issue is not None:
         return
     body = (
@@ -237,9 +253,13 @@ async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Fee
         "labels": ["discord-feedback", row.kind],
     }
     try:
-        resp = await github.post(f"/repos/{settings.github_issues_repo}/issues", json=payload)
-        resp.raise_for_status()
-        row.github_issue = int(resp.json()["number"])
+        found = await _find_issue(github, settings, row) if retry else None
+        if found is not None:
+            row.github_issue = found
+        else:
+            resp = await github.post(f"/repos/{settings.github_issues_repo}/issues", json=payload)
+            resp.raise_for_status()
+            row.github_issue = int(resp.json()["number"])
         db.commit()
     except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
         db.rollback()
@@ -256,7 +276,7 @@ async def _retry_issues(github: httpx.AsyncClient, db: Session, settings) -> Non
         .limit(MAX_ISSUE_RETRIES_PER_POLL)
     ).all()
     for row in pending:
-        await _open_issue(github, db, settings, row)
+        await _open_issue(github, db, settings, row, retry=True)
 
 
 async def _reply(client, post: _Post, ticket_id: int) -> None:
