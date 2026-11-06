@@ -72,32 +72,18 @@ import {
   type BotLevel,
 } from "../home/botGame";
 import { modeTiles, primaryAction } from "../home/primaryAction";
+import { TIMER_PRESET_OPTIONS, timerFromPreset, type TimerPreset } from "../home/timerPreset";
+import { claimMatchRoom } from "../tournaments/playLoop";
+import { playTournamentMatch } from "../tournaments/tournamentApi";
+import { TournamentsCard } from "../tournaments/TournamentsCard";
+
+type TournamentPlay = { code: string; matchId: number; opponent: string; timer: TimerPreset };
 
 const SPECTATE_GONE = /not found|locked/i;
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
 /** Which play mode the user is configuring inside the Play sheet. */
 type PlayMode = "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
-
-/** Private-room timer presets (ranked always forces a 15 minute chess clock per player). */
-type TimerPreset = "off" | "turn_30" | "seat_15m" | "turn_30_seat_15m";
-
-function timerFromPreset(preset: TimerPreset): {
-  turnSeconds?: number;
-  seatSeconds?: number;
-} {
-  switch (preset) {
-    case "turn_30":
-      return { turnSeconds: 30 };
-    // Chess clock: 15 minutes each, ticking only while it's that player's move.
-    case "seat_15m":
-      return { seatSeconds: 15 * 60 };
-    case "turn_30_seat_15m":
-      return { turnSeconds: 30, seatSeconds: 15 * 60 };
-    default:
-      return {};
-  }
-}
 
 const MODE_CARDS: Array<{
   mode: PlayMode;
@@ -548,6 +534,37 @@ export function LobbyPage() {
     });
   }
 
+  /** Tournament Play: the API says whether to open the match room or take the seat in it. */
+  function launchTournamentMatch(tp: TournamentPlay) {
+    if (!selectedDeck) {
+      setFriendError("Select a deck first.");
+      return;
+    }
+    const launch = { status: `Playing ${tp.opponent}…`, leaderId: selectedDeck.leaderId, invite: false };
+    runFriendAction(launch, async (gen) => {
+      const claim = await claimMatchRoom(
+        () => playTournamentMatch(tp.code, tp.matchId),
+        (ms) => new Promise((r) => setTimeout(r, ms)),
+      );
+      const opts = await authOpts();
+      const wire = deckToWire(await freshDeck(selectedDeck));
+      if (claim.action === "join") {
+        await connect({ ...opts, serverUrl: roomServerUrl(opts.serverUrl, claim.server_url), roomId: claim.room_id, deck: wire }, gen);
+        return;
+      }
+      await connect({
+        ...opts,
+        preferredSeat: 0,
+        deck: wire,
+        createOptions: { ranked: false, players: [wire, wire], timer: timerFromPreset(tp.timer) },
+      }, gen);
+      // The room is open either way; the opponent finds it once this is reported.
+      if (client.roomId) {
+        await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
+      }
+    });
+  }
+
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
@@ -647,6 +664,17 @@ export function LobbyPage() {
     // Back from the match must not land here and join again.
     navigate("/", { replace: true, state: null });
     joinInvite(invite);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friendsEnabled, selectedDeck]);
+
+  /** Play tapped on a tournament page: wait for sign-in and the deck, then open or join the match room. */
+  const handoffTournament = useRef((location.state as { tournamentPlay?: TournamentPlay } | null)?.tournamentPlay ?? null);
+  useEffect(() => {
+    const tp = handoffTournament.current;
+    if (!tp || !friendsEnabled || !selectedDeck) return;
+    handoffTournament.current = null;
+    navigate("/", { replace: true, state: null });
+    launchTournamentMatch(tp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendsEnabled, selectedDeck]);
 
@@ -1105,6 +1133,7 @@ export function LobbyPage() {
           {busy && busyStatus && !sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
           {authMode === "google" ? <VoyageCard me={me} /> : null}
+          <TournamentsCard signedIn={friendsEnabled} />
           <FriendsPanel
             signedIn={friendsEnabled}
             state={friends.state}
@@ -1267,12 +1296,7 @@ export function LobbyPage() {
                     id="timer-preset"
                     value={timerPreset}
                     onChange={setTimerPreset}
-                    options={[
-                      { value: "off", label: "No timer" },
-                      { value: "turn_30", label: "30 second turns" },
-                      { value: "seat_15m", label: "15 minutes per player" },
-                      { value: "turn_30_seat_15m", label: "30s turns + 15 min per player" },
-                    ]}
+                    options={TIMER_PRESET_OPTIONS}
                   />
                   <p className="field-hint">
                     {timerPreset === "seat_15m" || timerPreset === "turn_30_seat_15m"
