@@ -471,11 +471,11 @@ function firstVisible(selectors: string[]): HTMLElement | null {
 }
 
 function handZone(): HTMLElement | null {
-  return firstVisible([".hand-fan-cards", ".rail-hand-cards", ".hand-dock-cards", ".hand-row"]);
+  return firstVisible([".hand-fan:not(.hand-fan-top) .hand-fan-cards", ".hand-row-inner.hand-fan-cards", ".rail-hand-cards", ".hand-dock-cards", ".hand-row"]);
 }
 
 function oppHand(): HTMLElement | null {
-  return firstVisible([".spec-far-cards", ".opp-hand-fan-cards", ".opp-hand-backs", ".opp-hand-hint"]);
+  return firstVisible([".hand-fan-top .hand-fan-cards", ".spec-far-cards", ".opp-hand-fan-cards", ".opp-hand-backs", ".opp-hand-hint"]);
 }
 
 /** The DON!! that just arrived: active chips come first, so they end the active run. */

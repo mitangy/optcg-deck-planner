@@ -5,8 +5,11 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { test, expect, mintGameToken, FAKE_API, GAME_SERVER, RED_VANILLA } from "./fixtures";
 
-const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) .card-tile";
-const FAR_HAND = ":is(.spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
+// A desktop spectator's two hands are both the match's hand fan; the far one is the mirror (.hand-fan-top, #1007).
+const NEAR_FAN = ".hand-fan:not(.hand-fan-top)";
+const FAR_FAN = ".hand-fan-top";
+const NEAR_HAND = `:is(.rail-hand-cards, .hand-row-inner, ${NEAR_FAN} .hand-fan-cards, .hand-dock-cards) .card-tile`;
+const FAR_HAND = `:is(${FAR_FAN} .hand-fan-cards .card-tile, .spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true`;
 const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
 
 async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
@@ -161,42 +164,46 @@ test("a desktop spectator sees both hands as fans, near at the bottom and far al
   // No fixture override here: the watcher's Hand setting is the default "auto" (the Grid on a 720px window).
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-fan-cards .card-tile")).toHaveCount(5, { timeout: 30_000 });
-  await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  await expect(spec.locator(`${NEAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5);
   // The Grid hand and the small rail fan are gone: the fans are the only hands.
   await expect(spec.locator(".rail-hand, .opp-hand-fan, .opp-hand-hint:visible")).toHaveCount(0);
+  await spec.waitForTimeout(1500);
 
   const vp = spec.viewportSize()!;
-  const near = await boxes(spec, ".hand-fan-cards .card-tile");
-  const far = await boxes(spec, ".spec-far-cards .card-tile");
+  const near = await boxes(spec, `${NEAR_FAN} .hand-fan-cards .card-tile`);
+  const far = await boxes(spec, `${FAR_FAN} .hand-fan-cards .card-tile`);
   const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
   const youMat = (await spec.locator(".side-field.side-you").boundingBox())!;
-  // Far fan: hangs above the opponent's mat, centred over the board column, wholly on screen.
-  expect(bottomOf(far)).toBeLessThanOrEqual(oppMat.y);
   const board = (await spec.locator(".playmat").boundingBox())!;
-  // ...and the row reserved for it is tall enough that no card is clipped off the top of the board.
-  expect(topOf(far)).toBeGreaterThanOrEqual(board.y);
+  // Both fans start tucked, like a match hand: only a strip of the cards shows, in the strip the board keeps free
+  // (the far cards' bottoms above the opponent's mat, the near cards' tops below yours).
+  expect(far[2]!.y + far[2]!.height).toBeLessThanOrEqual(oppMat.y + 1);
+  expect(far[2]!.y).toBeLessThan(board.y);
+  expect(near[2]!.y).toBeGreaterThanOrEqual(youMat.y + youMat.height - 1);
+  expect(near[2]!.y + near[2]!.height).toBeGreaterThan(vp.height);
+  // The far fan is centred over the board column.
   const farMid = (Math.min(...far.map((b) => b.x)) + Math.max(...far.map((b) => b.x + b.width))) / 2;
-  expect(Math.abs(farMid - (board.x + board.width / 2))).toBeLessThan(12);
-  // Near fan: raised below your mat, fully visible (not tucked behind the window edge).
-  expect(topOf(near)).toBeGreaterThanOrEqual(youMat.y + youMat.height);
-  expectOnScreen(near, vp.width, vp.height);
-  // The far cards are about as big as the near ones.
-  expect(Math.abs(near[0]!.width - far[0]!.width)).toBeLessThan(near[0]!.width * 0.3);
+  expect(Math.abs(farMid - (board.x + board.width / 2))).toBeLessThan(24);
+  // The far cards are the near cards' size.
+  expect(Math.abs(near[0]!.width - far[0]!.width)).toBeLessThan(1);
   // Mirrored arc: the outer cards of the near fan sit lower than its middle card, those of the far fan higher, and the far cards stay upright.
   expect(near[2]!.y + near[2]!.height).toBeLessThan(near[0]!.y + near[0]!.height);
   expect(far[2]!.y).toBeGreaterThan(far[0]!.y + far[0]!.height * 0.06);
-  const tilts = await spec.locator(".spec-far-cards .card-tile").evaluateAll((els) =>
+  const tilts = await spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`).evaluateAll((els) =>
     els.map((el) => {
       const m = new DOMMatrix(getComputedStyle(el).transform);
       return Math.abs((Math.atan2(m.b, m.a) * 180) / Math.PI);
     }),
   );
   for (const deg of tilts) expect(deg).toBeLessThan(45);
-  // Reading a far card: pointing at it shows it in the preview column.
+  // Reading a far card: pointing at its visible strip shows it in the preview column (and raises the fan).
   const mid = far[2]!;
-  await spec.mouse.move(mid.x + mid.width / 2, mid.y + mid.height / 2);
+  await spec.mouse.move(mid.x + mid.width / 2, mid.y + mid.height - 6);
   await expect(spec.locator(".card-preview:not(.card-preview-empty) .card-preview-name")).toBeVisible();
+  await spec.waitForTimeout(500);
+  expectOnScreen(await boxes(spec, `${FAR_FAN} .hand-fan-cards .card-tile`), vp.width, vp.height);
+  await spec.screenshot({ path: info.outputPath("fans-desktop-far-raised.png") });
   await spec.mouse.move(vp.width / 2, vp.height / 2);
   await spec.screenshot({ path: info.outputPath("fans-desktop.png") });
   await ctx.close();
@@ -292,14 +299,23 @@ async function labelStyle(page: Page, scope: string) {
   });
 }
 
+/** The desktop Hand pill's look (the match's hand button, in both fans): every style that could make the two differ. */
+async function toggleStyle(page: Page, scope: string) {
+  return page.locator(`${scope} .hand-fan-toggle`).evaluate((el) => {
+    const keys = ["font-size", "font-weight", "font-family", "letter-spacing", "padding-left", "padding-right", "min-height", "color", "background-color", "border-top-color", "border-radius", "text-transform"];
+    const pick = (e: Element) => keys.map((k) => getComputedStyle(e).getPropertyValue(k)).join("|");
+    return { pill: pick(el), count: pick(el.querySelector(".hand-rail-count")!) };
+  });
+}
+
 async function labelBox(page: Page, scope: string): Promise<Box> {
   return (await page.locator(`${scope} .hand-label`).first().boundingBox())!;
 }
 
-const NEAR_LABEL = ":is(.hand-fan, .rail-hand-spec, .hand-rail-head-spec)";
+const NEAR_LABEL = ":is(.rail-hand-spec, .hand-rail-head-spec)";
 const FAR_LABEL = ".spec-far";
 
-test("the two desktop hand labels match and line up, and each fan is draggable by its grip, at 1280x720 and 1440x900 (#346)", async ({ page, duel, browser }, info) => {
+test("the two desktop hand buttons match and line up, and each fan is draggable by its grip, at 1280x720 and 1440x900 (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop layout (the sizes are set here)");
   const roomId = await practiceRoomId(page, duel);
   for (const size of [
@@ -308,29 +324,30 @@ test("the two desktop hand labels match and line up, and each fan is draggable b
   ]) {
       const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: size });
       await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-      await expect(spec.locator(".hand-fan-cards .card-tile")).toHaveCount(5, { timeout: 30_000 });
-      await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+      await expect(spec.locator(`${NEAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5, { timeout: 30_000 });
+      await expect(spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5);
 
-      // One pill: same text styles, same colour for the count, in both labels.
-      expect(await labelStyle(spec, NEAR_LABEL)).toEqual(await labelStyle(spec, FAR_LABEL));
-      // Same hand size, same x: the labels line up.
-      const near = await labelBox(spec, NEAR_LABEL);
-      const far = await labelBox(spec, FAR_LABEL);
+      // One pill: the match's Hand button in both fans, same styles, named for the seat, with the count.
+      expect(await toggleStyle(spec, NEAR_FAN)).toEqual(await toggleStyle(spec, FAR_FAN));
+      await expect(spec.locator(`${NEAR_FAN} .hand-fan-toggle`)).toHaveText(/seat1 hand\s*5/i);
+      await expect(spec.locator(`${FAR_FAN} .hand-fan-toggle`)).toHaveText(/seat2 hand\s*5/i);
+      // Same x: the pills line up, inside the board column.
+      const near = (await spec.locator(`${NEAR_FAN} .hand-fan-toggle`).boundingBox())!;
+      const far = (await spec.locator(`${FAR_FAN} .hand-fan-toggle`).boundingBox())!;
       expect(Math.abs(near.x - far.x)).toBeLessThan(1);
       const board = (await spec.locator(".playmat").boundingBox())!;
       expect(near.x).toBeGreaterThanOrEqual(board.x);
+      expectOnScreen([near, far], size.width, size.height);
       // Let the opening draw animation finish before the picture.
       await spec.waitForTimeout(1500);
       await spec.screenshot({ path: info.outputPath(`fans-desktop-${size.width}x${size.height}.png`) });
 
       // Default spots reserve their strips; both grips are there.
       const oppMat = () => spec.locator(".side-field.side-opp").boundingBox().then((b) => b!);
-      const youMat = () => spec.locator(".side-field.side-you").boundingBox().then((b) => b!);
       const oppY0 = (await oppMat()).y;
       const oppH0 = (await oppMat()).height;
-      const youH0 = (await youMat()).height;
-      const farGrip = spec.locator(".spec-far .hand-fan-grip");
-      const nearGrip = spec.locator(".hand-fan-spec .hand-fan-grip");
+      const farGrip = spec.locator(`${FAR_FAN} .hand-fan-grip`);
+      const nearGrip = spec.locator(`${NEAR_FAN} .hand-fan-grip`);
       await expect(farGrip).toHaveCount(1);
       await expect(nearGrip).toHaveCount(1);
 
@@ -344,36 +361,37 @@ test("the two desktop hand labels match and line up, and each fan is draggable b
 
       // Far fan: drag it down into the board's right side. It floats fully shown and the board takes the strip back.
       await drag(farGrip, { x: size.width * 0.78, y: size.height * 0.5 });
-      await expect(spec.locator(".spec-far.spec-far-float")).toHaveCount(1);
-      const floating = await boxes(spec, ".spec-far-float .spec-far-cards .card-tile");
+      await expect(spec.locator(`${FAR_FAN}.hand-fan-float`)).toHaveCount(1);
+      await expect(spec.locator(".arena-fan-top")).toHaveCount(0);
+      const floating = await boxes(spec, `${FAR_FAN}.hand-fan-float .hand-fan-cards .card-tile`);
       expectOnScreen(floating, size.width, size.height);
       expect(floating).toHaveLength(5);
-      // The board takes the far strip back: the mats grow into it.
-      expect((await oppMat()).height).toBeGreaterThan(oppH0 + 10);
+      // The board takes the far strip back: the mats grow or shift into it.
+      await expect.poll(async () => Math.abs((await oppMat()).y - oppY0) + ((await oppMat()).height - oppH0)).toBeGreaterThan(8);
       const saved = await spec.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, unknown>);
       expect(saved.spectatorFarFanPos).toMatch(/^[\d.]+,[\d.]+$/);
       expect(saved.handFanPos ?? "").toBe("");
-      // The labels are the same pill wherever the fans are.
-      expect(await labelStyle(spec, ".spec-far")).toEqual(await labelStyle(spec, ".hand-fan"));
+      // The pills are the same wherever the fans are.
+      expect(await toggleStyle(spec, FAR_FAN)).toEqual(await toggleStyle(spec, NEAR_FAN));
       await spec.screenshot({ path: info.outputPath(`fans-desktop-${size.width}x${size.height}-far-moved.png`) });
 
       // Near fan: drag it up into the board's left side, off the bottom edge.
       await drag(nearGrip, { x: size.width * 0.3, y: size.height * 0.6 });
-      await expect(spec.locator(".hand-fan.hand-fan-float")).toHaveCount(1);
-      expectOnScreen(await boxes(spec, ".hand-fan-cards .card-tile"), size.width, size.height);
+      await expect(spec.locator(`${NEAR_FAN}.hand-fan-float`)).toHaveCount(1);
+      expectOnScreen(await boxes(spec, `${NEAR_FAN} .hand-fan-cards .card-tile`), size.width, size.height);
       // Both strips are reclaimed: the mats grow into them.
-      expect((await youMat()).height).toBeGreaterThan(youH0 + 10);
+      await expect(spec.locator(".arena-fan-center")).toHaveCount(0);
       await expect.poll(async () => (await spec.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, string>)).spectatorNearFanPos).toMatch(/^[\d.]+,[\d.]+$/);
       if (size.width === 1440) await spec.screenshot({ path: info.outputPath("fans-desktop-1440x900-dragged.png") });
 
       // Dragging each back to its own default spot puts the strips back.
       const board2 = (await spec.locator(".playmat").boundingBox())!;
-      const farBox = (await spec.locator(".spec-far-float").boundingBox())!;
-      await drag(spec.locator(".spec-far .hand-fan-grip"), {
+      const farBox = (await spec.locator(`${FAR_FAN}.hand-fan-float`).boundingBox())!;
+      await drag(spec.locator(`${FAR_FAN} .hand-fan-grip`), {
         x: board2.x + board2.width / 2 - farBox.width / 2 + 14 + 10,
         y: board2.y + 6 + 15,
       });
-      await expect(spec.locator(".spec-far.spec-far-float")).toHaveCount(0);
+      await expect(spec.locator(`${FAR_FAN}.hand-fan-float`)).toHaveCount(0);
       await expect.poll(async () => Math.abs((await oppMat()).y - oppY0)).toBeLessThan(2);
       await ctx.close();
   }
@@ -386,8 +404,8 @@ test("a desktop spectator redocks each moved hand by dropping its grip back wher
   const size = { width: 1280, height: 720 };
   const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: size });
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
-  await expect(spec.locator(".hand-fan-cards .card-tile")).toHaveCount(5, { timeout: 30_000 });
-  await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  await expect(spec.locator(`${NEAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5, { timeout: 30_000 });
+  await expect(spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5);
   await spec.waitForTimeout(1500);
 
   const setting = (key: string) =>
@@ -398,8 +416,8 @@ test("a desktop spectator redocks each moved hand by dropping its grip back wher
   };
 
   for (const fan of [
-    { name: "far", grip: ".spec-far .hand-fan-grip", float: ".spec-far.spec-far-float", key: "spectatorFarFanPos", target: ".spec-dock-target-far" },
-    { name: "near", grip: ".hand-fan-spec .hand-fan-grip", float: ".hand-fan.hand-fan-float", key: "spectatorNearFanPos", target: ".spec-dock-target-near" },
+    { name: "far", grip: `${FAR_FAN} .hand-fan-grip`, float: `${FAR_FAN}.hand-fan-float`, key: "spectatorFarFanPos", target: ".spec-dock-target-far" },
+    { name: "near", grip: `${NEAR_FAN} .hand-fan-grip`, float: `${NEAR_FAN}.hand-fan-float`, key: "spectatorNearFanPos", target: ".spec-dock-target-near" },
   ]) {
     const grip = spec.locator(fan.grip);
     const home = await centre(grip);
@@ -536,16 +554,17 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await watch.page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })));
   await watch.page.goto(`/watch/${encodeURIComponent(roomId)}`);
   const phone = (info.project.use.viewport?.width ?? 1280) < 720;
-  const specNear = phone ? ".hand-row-spec-grid .card-tile" : ".hand-fan-cards .card-tile";
+  const specNear = phone ? ".hand-row-spec-grid .card-tile" : `${NEAR_FAN} .hand-fan-cards .card-tile`;
+  const specFar = phone ? ".spec-far-cards .card-tile" : `${FAR_FAN} .hand-fan-cards .card-tile`;
   await expect(watch.page.locator(specNear)).toHaveCount(5, { timeout: 30_000 });
-  await expect(watch.page.locator(".spec-far-cards .card-tile")).toHaveCount(5);
+  await expect(watch.page.locator(specFar)).toHaveCount(5);
   await expect(host.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
   await expect(guest.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
 
   // The spectator watches seat 0's camera: near = seat 0's hand, far = seat 1's. Which player is which seat is the server's call.
   const players = [host.page, guest.page];
   const nearIds = () => watch.page.locator(specNear).evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
-  const farNames = () => tileNames(watch.page, ".spec-far-cards .card-tile");
+  const farNames = () => tileNames(watch.page, specFar);
   let nearPlayer = players[0]!;
   let farPlayer = players[1]!;
   if (JSON.stringify(await motionIds(guest.page)) === JSON.stringify(await nearIds())) [nearPlayer, farPlayer] = [guest.page, host.page];

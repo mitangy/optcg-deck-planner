@@ -8,6 +8,8 @@ import { useEffect, type RefObject } from "react";
  * takes, so pop-ups keep above it and never cover the hand (#663).
  * Both are 0 on wide layouts or when there is nothing to measure. `ready` flips once
  * the root has mounted.
+ * `--board-top` (every layout): where the board area starts in the viewport, i.e. just
+ * below the top bar, so the spectator's far fan can hang from it (it is a fixed box).
  */
 export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boolean, ready: boolean) {
   useEffect(() => {
@@ -16,11 +18,13 @@ export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boole
     let bar: HTMLElement | null = null;
     let hand: HTMLElement | null = null;
     let rail: HTMLElement | null = null;
+    let body: HTMLElement | null = null;
     const set = (name: string, px: number) => {
       if (root.style.getPropertyValue(name) !== `${px}px`) root.style.setProperty(name, `${px}px`);
     };
     const write = () => {
       set("--hud-h", bar ? Math.max(0, Math.round(bar.getBoundingClientRect().bottom)) : 0);
+      set("--board-top", body ? Math.max(0, Math.round(body.getBoundingClientRect().top)) : 0);
       const top = hand && hand.getBoundingClientRect().height > 0 ? hand.getBoundingClientRect().top : null;
       set("--hand-room", top == null ? 0 : Math.max(0, Math.round(window.innerHeight - top)));
     };
@@ -33,6 +37,7 @@ export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boole
       return next;
     };
     const find = () => {
+      body = swap(body, root.querySelector<HTMLElement>(":scope > .arena-body"));
       bar = swap(bar, wide ? null : root.querySelector<HTMLElement>(":scope > .hud-bar"));
       // The hand rail, or whatever fills its place (the defend tray).
       rail = swap(rail, wide ? null : root.querySelector<HTMLElement>(".arena-rail"));

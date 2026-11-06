@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 /**
  * Pose of each card in a fanned hand, like cards held in one hand: the middle
  * card stands straight, outer cards lean out and sit a little lower on an arc.
@@ -25,6 +27,12 @@ export function fanPose(i: number, n: number): FanPose {
   const rot = k * step;
   const drop = FAN_RADIUS * (1 - Math.cos((rot * Math.PI) / 180));
   return { rot, drop };
+}
+
+/** The `--rot` / `--drop` vars board.css reads for card `i` of `n` (the near fan and the far, mirrored one). */
+export function fanPoseStyle(i: number, n: number): CSSProperties {
+  const p = fanPose(i, n);
+  return { "--rot": `${p.rot.toFixed(2)}deg`, "--drop": p.drop.toFixed(4) } as CSSProperties;
 }
 
 /** Share of a card's width that each card in a crowded fan keeps showing, at least. */
