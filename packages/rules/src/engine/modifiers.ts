@@ -13,7 +13,9 @@ export function expiryFor(state: MatchState, seat: Seat, duration: Duration): Mo
     case "battle": return state.battle ? { kind: "battle" } : { kind: "end_of_turn", turn: state.turnNumber };
     case "turn": return { kind: "end_of_turn", turn: state.turnNumber };
     case "until_start_of_your_next_turn": return { kind: "start_of_turn", turn: nextTurnOf(state, seat) };
-    case "until_end_of_opponent_next_turn": return { kind: "end_of_turn", turn: nextTurnOf(state, seat === 0 ? 1 : 0) };
+    // Resolved on the opponent's own turn, "the end of your opponent's next turn" is the end of that current turn
+    // (ST21-015 Q&A); resolved on your turn it is the end of their following turn.
+    case "until_end_of_opponent_next_turn": return { kind: "end_of_turn", turn: state.activeSeat === seat ? state.turnNumber + 1 : state.turnNumber };
     case "until_end_of_your_next_turn": return { kind: "end_of_turn", turn: nextTurnOf(state, seat) };
     case "permanent": return { kind: "permanent" };
   }
