@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
-  { date: "2026-11-06", app: "duel", pr: 1002, title: "Deck editor artwork matches your picks", text: "The Artwork label in the deck editor now shows the alt art you picked during a game, and choosing Standard in a deck now sticks instead of falling back to your in-game pick." },
+  { date: "2026-11-06", app: "duel", pr: 1009, title: "Deck editor artwork matches your picks", text: "The Artwork label in the deck editor now shows the alt art you picked during a game, and choosing Standard in a deck now sticks instead of falling back to your in-game pick." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },
   { date: "2026-11-05", app: "duel", pr: 995, title: "Random decks against the bot", text: "In Play vs Bot you can now pick Random deck for the bot, for yourself, or both. A random deck is drawn from your complete decks when the game starts, and the bot gets a different one than yours when it can." },
