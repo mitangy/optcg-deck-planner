@@ -90,6 +90,7 @@ export type AccountDeckBody = {
   leaderId: string;
   cards: string[];
   artPrefs?: Record<string, string>;
+  plannerArt?: Record<string, string>;
   plannerDeckId?: number;
   editedLocally?: boolean;
 };

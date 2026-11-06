@@ -1,4 +1,6 @@
 /** Deck planner ↔ duel decks: API helpers, list mapping, and linked local copies. */
+import { lookupCard } from "../cards/atlas";
+import { productIdFromImageUrl } from "../cards/productId";
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
 import {
@@ -24,6 +26,10 @@ export type PlannerCard = {
   card_type?: string;
   section?: string;
   needed: number;
+  /** Printings the planner lists for this card; `owned` picks the shown art when none is chosen. */
+  alt_arts?: { product_id: number; owned?: number | null }[];
+  /** Planner art choice: null/absent = automatic, 0 = base art, else a product id. */
+  display_art?: number | null;
 };
 
 export type PlannerDeckDetail = {
@@ -107,12 +113,46 @@ export function savedDeckToPlannerList(deck: Pick<SavedDeck, "leaderId" | "cards
   return [`1x${deck.leaderId}`, ...[...counts].map(([id, n]) => `${n}x${id}`)].join("\n");
 }
 
+/**
+ * Product id of the art the planner shows for a card (0 = base). Same rule as `featuredAlt` in the
+ * planner's `altArt.ts`: base when chosen, the chosen alt when listed, else the most-owned alt.
+ */
+export function plannerShownProductId(card: PlannerCard): number {
+  const chosen = card.display_art;
+  if (chosen === 0) return 0;
+  const alts = card.alt_arts ?? [];
+  if (chosen != null && chosen > 0 && alts.some((a) => a.product_id === chosen)) return chosen;
+  let best: { product_id: number; owned?: number | null } | null = null;
+  for (const alt of alts) {
+    const n = alt.owned ?? 0;
+    if (n > 0 && (best === null || n > (best.owned ?? 0))) best = alt;
+  }
+  return best?.product_id ?? 0;
+}
+
+/** Duel alt art ids (`p1`, …) for the alt arts the planner shows; cards on base art or without a matching alt are left out (#1003). */
+export function plannerDeckArt(deck: PlannerDeckDetail): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const c of deck.cards) {
+    const defId = c.card_id.trim().toUpperCase();
+    if (c.needed <= 0 || isDonCard(c) || out[defId]) continue;
+    const shown = plannerShownProductId(c);
+    if (!shown) continue;
+    const alt = lookupCard(defId)?.altArts?.find(
+      (a) => (a.productId ?? productIdFromImageUrl(a.imageUrl)) === shown,
+    );
+    if (alt) out[defId] = alt.id;
+  }
+  return out;
+}
+
 /** Validate a fetched planner deck and upsert its linked local copy. */
 export function importPlannerDeckDetail(detail: PlannerDeckDetail): ImportIntoDeckResult {
   return upsertPlannerDeck({
     plannerId: detail.id,
     name: detail.name,
     text: plannerDeckToDecklist(detail),
+    plannerArt: plannerDeckArt(detail),
   });
 }
 
