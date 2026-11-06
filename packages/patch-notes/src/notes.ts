@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-06
+  { date: "2026-11-06", app: "duel", pr: 997, title: "Tournaments and round robin with friends", text: "Run a 4, 8 or 16 player bracket, or a round robin of up to 8, with your friends. Open Tournaments in the menu, share the link or invite friends, and press Play when your match is ready. Results are recorded for you and the bracket moves on by itself." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },
   { date: "2026-11-05", app: "duel", pr: 995, title: "Random decks against the bot", text: "In Play vs Bot you can now pick Random deck for the bot, for yourself, or both. A random deck is drawn from your complete decks when the game starts, and the bot gets a different one than yours when it can." },
