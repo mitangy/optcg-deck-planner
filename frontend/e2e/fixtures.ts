@@ -133,6 +133,8 @@ type Planner = {
   readonly deckHidden: boolean;
   /** Decks the page created through POST /decks (name and decklist as sent). */
   createdDecks: { name: string; decklist: string }[];
+  /** Deck codes the page PUT to /decks/:id/decklist (Replace with deck list, #1016). */
+  replacedLists: string[];
   /** JSON bodies the page POSTed to the fake analyst's /chat. */
   chats: { message: string; thread_id?: number; context?: { page?: string; deck?: { leaderId: string | null; plannerDeckId?: number }; hint?: { id: string } } }[];
 };
@@ -148,6 +150,9 @@ export const test = base.extend<{ planner: Planner }>({
 
     let signedIn = true;
     const createdDecks: Planner["createdDecks"] = [];
+    const replacedLists: string[] = [];
+    // The fake deck's cards; PUT /decks/:id/decklist keeps the fixture cards the pasted list names, at its counts.
+    let deckCards: FixtureCard[] = CARDS;
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
     const altWants = new Map<string, number>();
@@ -203,8 +208,8 @@ export const test = base.extend<{ planner: Planner }>({
       leader_name: "Kouzuki Oden",
       prior_decks: [],
       is_main: true,
-      cards: CARDS.map(cardView),
-      main_cards: mainCards,
+      cards: deckCards.map(cardView),
+      main_cards: deckCards === CARDS ? mainCards : deckCards.reduce((s, c) => s + c.needed, 0),
       don_cards: 0,
       hidden_from_friends: deckHidden,
     });
@@ -387,6 +392,17 @@ export const test = base.extend<{ planner: Planner }>({
         ];
         if (secondDeck) decks.push({ ...decks[0]!, id: DECK_ID + 1, name: `${d.name} 2`, sort_order: 1, is_main: false });
         return json(decks);
+      }
+      if (path === `/decks/${DECK_ID}/decklist` && method === "PUT") {
+        const list = (JSON.parse(req.postData() ?? "{}") as { decklist: string }).decklist;
+        replacedLists.push(list);
+        const counts = new Map<string, number>();
+        for (const line of list.split("\n")) {
+          const hit = line.trim().match(/^(\d+)x(.+)$/i);
+          if (hit) counts.set(hit[2]!.toUpperCase(), Number(hit[1]));
+        }
+        deckCards = CARDS.filter((c) => counts.has(c.card_id)).map((c) => ({ ...c, needed: counts.get(c.card_id)! }));
+        return json(deckDetail());
       }
       if (path === `/decks/${DECK_ID}`) {
         if (method === "PATCH") {
@@ -594,6 +610,7 @@ export const test = base.extend<{ planner: Planner }>({
       errors,
       chats,
       createdDecks,
+      replacedLists,
       addSecondDeck() {
         secondDeck = true;
       },

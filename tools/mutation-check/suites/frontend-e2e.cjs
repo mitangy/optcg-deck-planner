@@ -359,5 +359,8 @@ module.exports = {
       { file: "frontend/src/styles.css", from: ".card-actions .lightbox-alert-pop {\n  top: calc(100% + 0.5rem);", to: ".card-actions .lightbox-alert-pop-off {\n  top: calc(100% + 0.5rem);" },
     ], kills: ["cardPageAlertEdit1028.spec.ts > Card page: Price alert and Edit open the alert editor on screen (#1028) [desktop-1200]"] },
     { id: "e2e-1028-chip-shows-current-price", args: "cardPageAlertEdit1028 --project=desktop-1200 -g \"#1028\"", file: "frontend/src/PriceAlerts.tsx", from: "\"Above\"} ${money(alert.target_price)}", to: "\"Above\"} ${money(alert.current_price)}", kills: ["cardPageAlertEdit1028.spec.ts > Card page: Price alert and Edit open the alert editor on screen (#1028) [desktop-1200]"] },
+    // Replace with deck list (#1016)
+    {"id": "e2e-replace1016-menu-item-inert", "file": "frontend/src/App.tsx", "from": "setResetMsg(null);\n                  setReplaceOpen(true);", "to": "setResetMsg(null);", "kills": ["replaceDeckList1016.spec.ts > More menu replaces the deck with the pasted list and keeps its name (#1016) [desktop-1200]"], "args": "replaceDeckList1016 --project=desktop-1200 -g \"More menu\""},
+    {"id": "e2e-replace1016-panel-button-missing", "file": "frontend/src/App.tsx", "from": "{onReplaceList ? (", "to": "{false ? (", "kills": ["replaceDeckList1016.spec.ts > Edit deck panel opens the same dialog, and Cancel changes nothing (#1016) [desktop-1200]", "replaceDeckList1016.spec.ts > Edit deck panel opens the same dialog, and Cancel changes nothing (#1016) [phone-375]"], "args": "replaceDeckList1016 -g \"Edit deck panel\""},
 ],
 };
