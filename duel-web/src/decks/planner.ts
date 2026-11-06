@@ -3,6 +3,7 @@ import { lookupCard } from "../cards/atlas";
 import { productIdFromImageUrl } from "../cards/productId";
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
+import { resolveDeckAltId } from "./artPrefs";
 import {
   createDeckFromInput,
   saveDeck,
@@ -220,16 +221,77 @@ export async function refreshLinkedDeck(
   }
 }
 
-/** Push a local deck to the planner and remember the returned id on the local copy. */
-export async function saveDeckToPlanner(deck: SavedDeck): Promise<SavedDeck> {
-  const created = await createPlannerDeck(deck.name, savedDeckToPlannerList(deck));
-  return saveDeck({
+/** Alt arts a deck shows (leader + main deck) that the planner can display: one entry per card with a product id (#1017). */
+export function deckArtForPlanner(
+  deck: Pick<SavedDeck, "leaderId" | "cards" | "artPrefs">,
+): { defId: string; productId: number; altId: string }[] {
+  const out: { defId: string; productId: number; altId: string }[] = [];
+  for (const defId of new Set([deck.leaderId, ...deck.cards])) {
+    const altId = resolveDeckAltId(defId, deck as SavedDeck);
+    if (!altId) continue;
+    const alt = lookupCard(defId)?.altArts?.find((a) => a.id === altId);
+    const productId = alt && (alt.productId ?? productIdFromImageUrl(alt.imageUrl));
+    if (productId) out.push({ defId, productId, altId });
+  }
+  return out;
+}
+
+/** Choose the art the planner shows for a card (`PUT /owned/{id}/display`). Global per card in the planner. */
+export function setPlannerDisplayArt(
+  cardId: string,
+  productId: number | null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<unknown> {
+  return plannerJson(
+    `/owned/${encodeURIComponent(cardId)}/display`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productId }),
+    },
+    timeoutMs,
+  );
+}
+
+export type SaveToPlannerResult = {
+  deck: SavedDeck;
+  planner: PlannerDeckSummary;
+  artsSet: number;
+  artsFailed: number;
+};
+
+/**
+ * Push a local deck to the planner, set the planner's shown art for the deck's alt-art cards, and
+ * keep a linked local copy (with its art prefs). One art failing never fails the save (#1017).
+ */
+export async function saveDeckToPlanner(
+  deck: SavedDeck,
+  deps: {
+    create?: (name: string, decklist: string) => Promise<PlannerDeckSummary>;
+    setArt?: (cardId: string, productId: number) => Promise<unknown>;
+  } = {},
+): Promise<SaveToPlannerResult> {
+  const create = deps.create ?? createPlannerDeck;
+  const setArt = deps.setArt ?? setPlannerDisplayArt;
+  const created = await create(deck.name, savedDeckToPlannerList(deck));
+  const arts = deckArtForPlanner(deck);
+  const settled = await Promise.allSettled(arts.map((a) => setArt(a.defId, a.productId)));
+  const plannerArt: Record<string, string> = {};
+  arts.forEach((a, i) => {
+    if (settled[i].status === "fulfilled") plannerArt[a.defId] = a.altId;
+  });
+  const saved = saveDeck({
     id: deck.id,
     name: deck.name,
     leaderId: deck.leaderId,
     cards: deck.cards,
+    artPrefs: deck.artPrefs ?? {},
+    plannerArt,
     plannerDeckId: created.id,
+    editedLocally: false,
   });
+  const artsSet = Object.keys(plannerArt).length;
+  return { deck: saved, planner: created, artsSet, artsFailed: arts.length - artsSet };
 }
 
 export type PlannerDeepLink = {

@@ -169,8 +169,8 @@ export function DeckConfigurePage() {
 
   function onSaveToPlanner() {
     void runPlannerAction(async () => {
-      await saveDeckToPlanner(saved!);
-      return "Saved to your planner.";
+      const { artsSet } = await saveDeckToPlanner(saved!);
+      return `Saved to your planner${artsSet > 0 ? ` with ${artsSet} alt art${artsSet === 1 ? "" : "s"}` : ""}.`;
     });
   }
 

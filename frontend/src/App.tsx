@@ -4833,6 +4833,13 @@ function ImportPage() {
         Paste an OPTCGSim deck code from your clipboard, or upload a <code>.txt</code> /{" "}
         <code>.deck</code> file.
       </p>
+      <p className="muted">
+        Have decks in the Duel app? Open{" "}
+        <a href={`${DUEL_URL}/decks`} target="_blank" rel="noopener">
+          Duel → Decks
+        </a>{" "}
+        and choose Add to planner from a deck&apos;s … menu.
+      </p>
       <form className="import-form" onSubmit={onSubmit}>
         {fromLogPose ? (
           <p className="import-note" role="status">

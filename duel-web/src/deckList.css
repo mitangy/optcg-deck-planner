@@ -459,6 +459,13 @@
   cursor: pointer;
 }
 
+/* Phones held sideways: the four deck actions fit beside the card instead of scrolling (#1017). */
+@media (max-height: 480px) {
+  .deck-card-menu-item {
+    min-height: 34px;
+  }
+}
+
 /* Headless UI keeps focus on the list and marks the active row [data-focus] (arrow keys and pointer alike). */
 .deck-card-menu-item[data-focus],
 .deck-card-menu-item:hover {

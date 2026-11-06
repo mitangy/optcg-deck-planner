@@ -9,6 +9,7 @@ import {
   plannerDecksNotLocal,
   plannerDeckToDecklist,
   refreshLinkedDeck,
+  saveDeckToPlanner,
   savedDeckToPlannerList,
   type PlannerDeckDetail,
 } from "./planner";
@@ -386,5 +387,51 @@ describe("alt arts picked in the planner (#1003)", () => {
     const deck = getSavedDeck("planner-7")!;
     expect(deck.artPrefs).toBeUndefined();
     expect(deck.plannerArt).toBeUndefined();
+  });
+});
+
+describe("Add a duel deck to the planner with its alt arts (#1017)", () => {
+  // OP09-118: p2 = product 597066. OP09-093 has alts too but this deck leaves it on base art.
+  const mk = () =>
+    saveDeck({
+      name: "Art deck",
+      leaderId: "ST01-001",
+      cards: ["OP09-118", "OP09-118", "OP09-093", "ST01-003"],
+      artPrefs: { "OP09-118": "p2" },
+    });
+  const summary = (id: number) => ({ id, name: "Art deck", leader_card_id: "ST01-001", card_count: 5 });
+
+  it("sets the planner art for an alt-art card, not for base-art cards, and records it in plannerArt (#1017)", async () => {
+    const puts: [string, number][] = [];
+    const r = await saveDeckToPlanner(mk(), {
+      create: async () => summary(42),
+      setArt: async (id, product) => void puts.push([id, product]),
+    });
+    expect(puts).toEqual([["OP09-118", 597066]]);
+    expect(r.deck.plannerArt).toEqual({ "OP09-118": "p2" });
+    expect([r.artsSet, r.artsFailed]).toEqual([1, 0]);
+  });
+
+  it("a failing art request does not fail the save and is left out of plannerArt (#1017)", async () => {
+    const deck = mk();
+    saveDeck({ id: deck.id, name: deck.name, leaderId: deck.leaderId, cards: deck.cards, artPrefs: { "OP09-118": "p2", "OP09-093": "p1" } });
+    const r = await saveDeckToPlanner(getSavedDeck(deck.id)!, {
+      create: async () => summary(42),
+      setArt: async (id) => {
+        if (id === "OP09-118") throw new Error("boom");
+      },
+    });
+    expect(r.deck.plannerDeckId).toBe(42);
+    expect(r.deck.plannerArt).toEqual({ "OP09-093": "p1" });
+    expect([r.artsSet, r.artsFailed]).toEqual([1, 1]);
+  });
+
+  it("the local copy keeps its art picks and links to the planner deck (#1017)", async () => {
+    const deck = mk();
+    await saveDeckToPlanner(deck, { create: async () => summary(42), setArt: async () => ({}) });
+    const local = getSavedDeck(deck.id)!;
+    expect(local.artPrefs).toEqual({ "OP09-118": "p2" });
+    expect(local.plannerDeckId).toBe(42);
+    expect(listSavedDecks()).toHaveLength(1);
   });
 });

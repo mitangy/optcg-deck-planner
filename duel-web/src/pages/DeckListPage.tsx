@@ -21,6 +21,7 @@ import {
   listPlannerDecks,
   parsePlannerDeepLink,
   plannerDecksNotLocal,
+  saveDeckToPlanner,
   type PlannerDeckSummary,
 } from "../decks/planner";
 import { useDeckDrag, type DeckDragItem } from "../decks/useDeckDrag";
@@ -245,9 +246,13 @@ function DeckCard({
   onPlay,
   onDelete,
   arrived,
+  signedIn,
+  onAddToPlanner,
 }: {
   deck: SavedDeck;
   arrived: boolean;
+  signedIn: boolean;
+  onAddToPlanner: () => void;
   onOpen: () => void;
   onPlay: () => void;
   onDelete: () => void;
@@ -258,6 +263,7 @@ function DeckCard({
     deck.leaderId,
   );
   const canDelete = !deck.id.startsWith("test-");
+  const canAddToPlanner = signedIn && canDelete && !deck.plannerDeckId;
   const incomplete = isIncompleteDeck(deck);
   const count = deck.cards.length;
   const colorNames = leader.colors.map((c) => c.charAt(0).toUpperCase() + c.slice(1));
@@ -340,6 +346,13 @@ function DeckCard({
               Play with this deck
             </button>
           </MenuItem>
+          {canAddToPlanner ? (
+            <MenuItem>
+              <button type="button" className="deck-card-menu-item" onClick={onAddToPlanner}>
+                Add to planner
+              </button>
+            </MenuItem>
+          ) : null}
           {canDelete ? (
             <MenuItem>
               <button type="button" className="deck-card-menu-item is-danger" onClick={onDelete}>
@@ -411,7 +424,7 @@ export function DeckListPage() {
   const [importErr, setImportErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   /** Phones: what the last swipe did, with a way to undo it. */
-  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: () => void; anyWidth?: boolean } | null>(null);
   /** Decks that just changed lists, flashed once where they landed. */
   const [arrived, setArrived] = useState<Set<number | string>>(() => new Set());
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -476,6 +489,26 @@ export function DeckListPage() {
       return swipedId != null ? plannerDeckImported(imported, swipedId) : imported.length > 0;
     } finally {
       setImporting(false);
+      refresh();
+    }
+  }
+
+  async function addDeckToPlanner(deck: SavedDeck) {
+    try {
+      const { planner: created, artsSet } = await saveDeckToPlanner(deck);
+      setPlanner((p) =>
+        p.status === "ready" && !p.decks.some((d) => d.id === created.id)
+          ? { status: "ready", decks: [...p.decks, created] }
+          : p,
+      );
+      // A toast, so the result shows next to the deck on phones too (the notice line sits below the lists).
+      setToast({
+        text: `Added “${deck.name}” to your planner${artsSet > 0 ? ` · ${artsSet} alt art${artsSet === 1 ? "" : "s"}` : ""}`,
+        anyWidth: true,
+      });
+    } catch (e) {
+      setToast({ text: e instanceof Error ? e.message : "Could not add the deck to your planner", anyWidth: true });
+    } finally {
       refresh();
     }
   }
@@ -687,6 +720,8 @@ export function DeckListPage() {
                         }}
                         onPlay={() => playWith(deck)}
                         onDelete={() => confirmDelete(deck)}
+                        signedIn={planner.status === "ready" || planner.status === "error"}
+                        onAddToPlanner={() => void addDeckToPlanner(deck)}
                         arrived={arrived.has(deck.id)}
                       />
                     ))}
@@ -793,7 +828,7 @@ export function DeckListPage() {
           </section>
         </div>
       </div>
-      {phone && toast ? (
+      {toast && (phone || toast.anyWidth) ? (
         <div className="deck-swipe-toast" role="status" key={toast.text}>
           <span className="deck-swipe-toast-text">{toast.text}</span>
           {toast.undo ? (
