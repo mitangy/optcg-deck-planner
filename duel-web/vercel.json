@@ -117,6 +117,14 @@
       "dest": "/_app.html"
     },
     {
+      "src": "/tournaments/?",
+      "dest": "/_app.html"
+    },
+    {
+      "src": "/tournaments/[^/]+/?",
+      "dest": "/_app.html"
+    },
+    {
       "src": "/replay/[^/]+/?",
       "dest": "/_app.html"
     },
