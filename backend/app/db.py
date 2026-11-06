@@ -467,7 +467,17 @@ def _ensure_feedback_discord_columns() -> None:
         )
 
 
+def _seed_default_event() -> None:
+    """Stress Test Sunday as the first admin-managed event (#1019)."""
+    from app import events as ev
+
+    with Session(engine) as session:
+        ev.seed_default_event(session)
+
+
 def init_db() -> None:
+    # Only the startup that creates duel_events seeds it, so deleting every event stays deleted.
+    events_table_is_new = not inspect(engine).has_table("duel_events")
     Base.metadata.create_all(bind=engine)
     _ensure_group_buy_columns()
     _ensure_user_session_version()
@@ -492,6 +502,8 @@ def init_db() -> None:
     _ensure_feedback_discord_columns()
     _ensure_admin_role()
     _seed_eval_runs()
+    if events_table_is_new:
+        _seed_default_event()
 
 
 # Connections kept free for background jobs (advisory locks pin one for a whole run).

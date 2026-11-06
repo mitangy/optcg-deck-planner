@@ -41,6 +41,7 @@
 }
 
 .event-when,
+.event-style,
 .event-prize {
   margin: 0;
   font-size: 0.8rem;
@@ -209,4 +210,9 @@
 
 .rules-caps {
   font-weight: 700;
+}
+
+/* The admin's description keeps its line breaks. */
+.rules-description {
+  white-space: pre-line;
 }
