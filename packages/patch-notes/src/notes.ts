@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1015, title: "Spectators see the same hand fans as a match", text: "When you watch a match on a computer, both hands are now the same fan you see when you play: the same card size, overlapping cards that tuck away and rise when you hover them. Hover a hand, or click its Hand button, to raise it." },
+  { date: "2026-11-06", app: "duel", pr: 1011, title: "Planner alt arts come with your decks", text: "Decks you bring over from the deck planner now use the alt arts you picked there. Art you change in the duel app stays your pick." },
   { date: "2026-11-06", app: "duel", pr: 1010, title: "Hand drag handle stays reachable", text: "Moved your hand onto the End turn button? Its drag handle now stays on top, so you can always move it again." },
   { date: "2026-11-06", app: "duel", pr: 1009, title: "Deck editor artwork matches your picks", text: "The Artwork label in the deck editor now shows the alt art you picked during a game, and choosing Standard in a deck now sticks instead of falling back to your in-game pick." },
   { date: "2026-11-06", app: "duel", pr: 997, title: "Tournaments and round robin with friends", text: "Run a 4, 8 or 16 player bracket, or a round robin of up to 8, with your friends. Open Tournaments in the menu, share the link or invite friends, and press Play when your match is ready. Results are recorded for you and the bracket moves on by itself." },

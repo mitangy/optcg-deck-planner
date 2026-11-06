@@ -48,6 +48,28 @@ describe("deck sync (#619)", () => {
     expect(listSavedDecks().map((d) => d.id).sort()).toEqual(["mine", "theirs"]);
   });
 
+  it("sends the planner art map with a deck (#1003)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "pa", name: "PA", leaderId: "ST01-001", cards: [], plannerArt: { "OP09-118": "p2" } });
+    await flushDeckSync();
+    expect(api.putAccountDeck.mock.calls[0][1].plannerArt).toEqual({ "OP09-118": "p2" });
+  });
+
+  it("adopts the planner art map of a newer account copy (#1003)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    api.putAccountDeck.mockImplementationOnce(async (id, _deck, updatedAt) => ({
+      id,
+      updatedAt: updatedAt + 1000,
+      deleted: false,
+      deck: { name: "Theirs", leaderId: "ST01-001", cards: [], plannerArt: { "OP09-118": "p1" } },
+    }));
+    saveDeck({ id: "pb", name: "PB", leaderId: "ST01-001", cards: [] });
+    await flushDeckSync();
+    expect(listSavedDecks().find((d) => d.id === "pb")).toMatchObject({ name: "Theirs", plannerArt: { "OP09-118": "p1" } });
+  });
+
   it("sign-out flush sends an edit still waiting on the push delay (#619)", async () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(7);

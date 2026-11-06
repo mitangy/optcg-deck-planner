@@ -19,6 +19,11 @@ export type SavedDeck = {
   cards: string[];
   /** Preferred alt art id per card def (`p1`, `p2`, …). */
   artPrefs?: Record<string, string>;
+  /**
+   * Alt arts the planner had picked at the last pull (card def → alt id; absent = base). An `artPrefs`
+   * entry that differs from this is a pick made here, and a later pull keeps it (#1003).
+   */
+  plannerArt?: Record<string, string>;
   /** Deck planner deck this copy is linked to (see `decks/planner.ts`). */
   plannerDeckId?: number;
   /** Saved edits on a planner-linked deck: games keep this version instead of re-importing the planner's (#481). */
@@ -211,6 +216,8 @@ export function saveDeck(input: {
   cards: string[];
   /** Omit to keep existing prefs; pass `{}` / object to replace. */
   artPrefs?: Record<string, string>;
+  /** Omit to keep the existing planner art map; pass `{}` to clear. */
+  plannerArt?: Record<string, string>;
   /** Omit to keep the existing planner link. */
   plannerDeckId?: number;
   /** Omit to keep the existing value. */
@@ -226,12 +233,15 @@ export function saveDeck(input: {
   } else if (existing?.artPrefs && Object.keys(existing.artPrefs).length > 0) {
     artPrefs = { ...existing.artPrefs };
   }
+  const plannerSrc = input.plannerArt ?? existing?.plannerArt;
+  const plannerArt = plannerSrc && Object.keys(plannerSrc).length > 0 ? { ...plannerSrc } : undefined;
   const next: SavedDeck = {
     id,
     name: input.name.trim() || "Untitled deck",
     leaderId: input.leaderId,
     cards: [...input.cards],
     artPrefs,
+    plannerArt,
     plannerDeckId: input.plannerDeckId ?? existing?.plannerDeckId,
     editedLocally: input.editedLocally ?? existing?.editedLocally,
     updatedAt: Date.now(),
@@ -368,6 +378,8 @@ export function upsertPlannerDeck(input: {
   plannerId: number;
   name: string;
   text: string;
+  /** Alt arts picked in the planner (card def → alt id); absent = base art (#1003). */
+  plannerArt?: Record<string, string>;
 }): ImportIntoDeckResult {
   const v = validateImportedList(input.text);
   if (!v.ok || !v.leaderId) {
@@ -376,15 +388,24 @@ export function upsertPlannerDeck(input: {
   const existing = readAll().find((d) => d.plannerDeckId === input.plannerId);
   const id = existing?.id ?? plannerLocalId(input.plannerId);
   const inDeckIds = new Set([v.leaderId, ...v.cards]);
-  const kept = Object.fromEntries(
-    Object.entries(existing?.artPrefs ?? {}).filter(([defId]) => inDeckIds.has(defId)),
-  );
+  // A card whose art here still equals what the last pull set takes the planner's art now; one the
+  // player changed here (even back to base) keeps their pick (#1003).
+  const incoming = input.plannerArt ?? {};
+  const previous = existing?.plannerArt ?? {};
+  const current = existing?.artPrefs ?? {};
+  const kept: Record<string, string> = {};
+  for (const defId of inDeckIds) {
+    const alt = current[defId] === previous[defId] ? incoming[defId] : current[defId];
+    if (alt) kept[defId] = alt;
+  }
+  const plannerArt = Object.fromEntries(Object.entries(incoming).filter(([defId]) => inDeckIds.has(defId)));
   const deck = saveDeck({
     id,
     name: input.name,
     leaderId: v.leaderId,
     cards: v.cards,
     artPrefs: kept,
+    plannerArt,
     plannerDeckId: input.plannerId,
     // A planner pull replaces local edits on purpose.
     editedLocally: false,
