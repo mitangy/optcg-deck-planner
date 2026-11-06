@@ -5691,6 +5691,12 @@ body.is-panel-resize-row .col-cut {
   display: none;
 }
 
+/* The mats hug the left of the play area (the leftover width is right of the dock) instead of
+   floating in the middle with empty felt on both sides. Bigger playing area already fills it. */
+.arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner {
+  align-items: flex-start;
+}
+
 .arena.arena-side-actions .playmat-inner > .side-field.side-you {
   margin-top: calc(-1 * var(--mat-gap));
 }
@@ -5995,6 +6001,43 @@ body.is-panel-resize-row .col-cut {
 
   .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-right {
     right: 0;
+  }
+
+  /* Buttons beside the board: the mats and the dock hug the left of the play area and the leftover
+     width ends up right of the dock. The hand gets a gutter of its own (like Bigger playing area):
+     on the left the mats start right after it; on the right the play area ends where the gutter
+     does, so the dock sits right of the hand and the mats are not pushed around. */
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {
+    --hand-gutter: calc(var(--dock-cw, 4.6rem) * 1.9);
+  }
+
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-left) {
+    padding-left: var(--hand-gutter);
+  }
+
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-right) {
+    width: min(
+      100cqw,
+      calc(
+        var(--hand-gutter) +
+          min(
+            calc(100cqw - var(--hand-gutter)),
+            calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2 * 1.95)
+          )
+      )
+    );
+  }
+
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) .side-field {
+    width: min(calc(100cqw - var(--hand-gutter)), calc(var(--mat-h) * 1.95));
+  }
+
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .opp-hand-mat-left {
+    width: calc(var(--hand-gutter) - 0.6rem);
+  }
+
+  .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .opp-hand-mat-right {
+    width: calc(var(--hand-gutter) - 0.6rem);
   }
 
   /* Bigger playing area: the mats fill the width, so they give up a gutter on the hand's side

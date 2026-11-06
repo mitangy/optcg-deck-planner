@@ -146,3 +146,35 @@ test("with the setting off the dock floats between the mats (#564)", async ({ pa
     expect(await page.locator(".primary-dock").evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
   }
 });
+
+for (const spot of ["", "left", "right"]) {
+  test(`with the buttons beside the board the mats hug the left of the play area${spot ? ` with the opponent's hand on the ${spot}` : ""} (#1008)`, async ({ page }) => {
+    await openDemo(page, "", { bigBoard: false, bigBoardChosen: true, actionsBeside: true, oppHandSpot: spot }, { width: 1920, height: 1080 });
+    const playmat = await page.locator(".playmat").first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return { left: r.left + parseFloat(cs.paddingLeft), right: r.right };
+    });
+    const opp = await box(page, ".side-opp");
+    const you = await box(page, ".side-you");
+    const dock = await box(page, ".primary-dock");
+    const hand = spot ? await box(page, ".opp-hand-mat-side") : null;
+    // The mats are not centred: the leftover width is right of the dock.
+    const flush = hand && spot === "left" ? hand.left : opp.left;
+    expect(flush - playmat.left, "left space before the board").toBeLessThanOrEqual(4);
+    expect(dock.left - Math.max(opp.right, you.right, hand?.right ?? 0), "dock against the mats / hand").toBeLessThanOrEqual(9);
+    expect(playmat.right - dock.right, "leftover width is right of the dock").toBeGreaterThan(100);
+    if (hand && spot === "left") {
+      expect(overlaps(hand, opp), "hand over the mat").toBe(false);
+      expect(hand.right, "hand left of the mats").toBeLessThanOrEqual(opp.left);
+      expect(opp.left - hand.right, "hand hugs the mat").toBeLessThanOrEqual(12);
+    }
+    if (hand && spot === "right") {
+      expect(overlaps(hand, opp), "hand over the mat").toBe(false);
+      expect(hand.left - opp.right, "hand hugs the mat").toBeGreaterThanOrEqual(0);
+      expect(hand.left - opp.right, "hand hugs the mat").toBeLessThanOrEqual(12);
+      expect(hand.right, "hand left of the dock").toBeLessThanOrEqual(dock.left);
+    }
+    if (hand) expect(Math.abs(hand.top - opp.top), "hand top-aligned with the opponent mat").toBeLessThanOrEqual(2);
+  });
+}
