@@ -36,7 +36,7 @@ session cookie (see ADR-016 in `DECISIONS.md`).
 - Drag is pointer based (`duel-web/src/decks/useDeckDrag.ts`) so it works with
   touch; the page scrolls near the top and bottom edges while dragging and Esc
   cancels.
-- The deck editor's "Import deck list" and "Add cards" sections start collapsed.
+- The deck editor's "Replace with deck list" and "Add cards" sections start collapsed.
 
 ## Not done yet (ideas, best first)
 
