@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-06
+  { date: "2026-11-06", app: "duel", pr: 1001, title: "Negated Characters keep quiet when K.O.'d", text: "A Character whose effects are negated no longer activates its [On K.O.] or \"when this Character is K.O.'d\" effect when it is K.O.'d. For example, a negated Nami (EB03-053) no longer offers to turn a Life card face-up and play a Character." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },
   { date: "2026-11-05", app: "duel", pr: 995, title: "Random decks against the bot", text: "In Play vs Bot you can now pick Random deck for the bot, for yourself, or both. A random deck is drawn from your complete decks when the game starts, and the bot gets a different one than yours when it can." },
