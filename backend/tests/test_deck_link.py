@@ -360,7 +360,7 @@ def test_startup_adds_the_planner_link_column_to_existing_duel_decks_1017(monkey
     engine = make_bare_engine()
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE duel_saved_decks (id INTEGER PRIMARY KEY, user_id INTEGER, deck_id VARCHAR(64))"))
-        conn.execute(text("INSERT INTO duel_saved_decks (user_id, deck_id) VALUES (1, 'd1')"))
+        conn.execute(text("INSERT INTO duel_saved_decks (id, user_id, deck_id) VALUES (1, 1, 'd1')"))
     monkeypatch.setattr(app_db, "engine", engine)
     app_db._ensure_duel_saved_deck_planner_link()
     app_db._ensure_duel_saved_deck_planner_link()
