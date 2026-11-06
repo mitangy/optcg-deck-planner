@@ -5,7 +5,13 @@ import {
   isSeatArtPrefsLive,
   type Seat,
 } from "./seatArtPrefs";
-import { getArtPrefs, getSelectedDeck, type SavedDeck } from "./storage";
+import { getArtPrefs, getSelectedDeck, setDeckArtPref, type SavedDeck } from "./storage";
+
+/**
+ * Stored in a deck's artPrefs to pin standard art over a global alt pick.
+ * It never matches a real alt id, so image lookup falls back to the base art.
+ */
+export const STANDARD_ART_ID = "standard";
 
 export type ResolveCardImageOpts = {
   /**
@@ -91,4 +97,29 @@ export function resolveCardImageUrl(
   const raw = rawCardImageUrl(defId, { deck, ownerSeat });
   if (!raw) return undefined;
   return cardImageUrl(raw, size) || raw;
+}
+
+/**
+ * The alt id a deck actually shows for a card (deck pref, else the global pref,
+ * the same order the image uses). "" means standard art.
+ */
+export function resolveDeckAltId(defId: string, deck: SavedDeck): string {
+  const id = deck.artPrefs?.[defId] ?? getArtPrefs()[defId];
+  if (!id || id === STANDARD_ART_ID) return "";
+  return lookupCard(defId).altArts?.some((a) => a.id === id) ? id : "";
+}
+
+/**
+ * Save a deck's art choice. Standard (null / "") is stored as STANDARD_ART_ID
+ * when a global alt pref exists, so the global pick cannot show through.
+ */
+export function setDeckArtChoice(
+  deckId: string,
+  defId: string,
+  altId: string | null,
+): SavedDeck | undefined {
+  if (!altId && getArtPrefs()[defId]) {
+    return setDeckArtPref(deckId, defId, STANDARD_ART_ID);
+  }
+  return setDeckArtPref(deckId, defId, altId || null);
 }

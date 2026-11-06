@@ -1,4 +1,4 @@
-import { resolveCardImageUrl } from "../decks/artPrefs";
+import { resolveCardImageUrl, setDeckArtChoice } from "../decks/artPrefs";
 import {
   getArtPrefsTick,
   setSeatArtPref,
@@ -7,7 +7,6 @@ import {
 } from "../decks/seatArtPrefs";
 import {
   setArtPref,
-  setDeckArtPref,
   type SavedDeck,
 } from "../decks/storage";
 import { lookupCard } from "../cards/atlas";
@@ -42,7 +41,7 @@ type Props = {
   viewingSeat?: Seat;
   /**
    * Saved deck for configure-page inspect: resolves deck-scoped art and
-   * writes alt picks via `setDeckArtPref` (no duel seats involved).
+   * writes alt picks via `setDeckArtChoice` (no duel seats involved).
    */
   deck?: SavedDeck;
   /** Fired after a deck-scoped art pref changes so the parent can refresh. */
@@ -107,7 +106,7 @@ export function CardInspect({
   function applyAlt(altId: string | null) {
     if (!canEditArt) return;
     if (deck) {
-      setDeckArtPref(deck.id, defId, altId);
+      setDeckArtChoice(deck.id, defId, altId);
       onDeckArtChange?.();
       return;
     }
