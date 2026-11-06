@@ -100,6 +100,8 @@ export type AccountDeck = {
   updatedAt: number;
   deleted: boolean;
   deck?: AccountDeckBody | null;
+  /** On the tombstone of an uploaded deck that duplicated this synced deck. */
+  mergedInto?: string | null;
 };
 
 export function fetchAccountDecks(): Promise<{ decks: AccountDeck[] }> {

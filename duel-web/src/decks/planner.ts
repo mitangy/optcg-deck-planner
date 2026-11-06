@@ -1,25 +1,22 @@
-/** Deck planner ↔ duel decks: API helpers, list mapping, and linked local copies. */
+/**
+ * Deck planner ↔ duel decks. The decks themselves are kept in sync by the account (the server mirrors both
+ * ways, #1017); this file carries what the server cannot: the planner's shown art, and deep links.
+ */
 import { lookupCard } from "../cards/atlas";
 import { productIdFromImageUrl } from "../cards/productId";
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
+import { resolveDeckAltId } from "./artPrefs";
 import {
+  applyPlannerArt,
   createDeckFromInput,
-  saveDeck,
+  getSavedDeck,
+  listSavedDecks,
+  recordPlannerArt,
   upsertPlannerDeck,
   type ImportIntoDeckResult,
   type SavedDeck,
 } from "./storage";
-
-export type PlannerDeckSummary = {
-  id: number;
-  name: string;
-  leader_card_id: string | null;
-  leader_name?: string | null;
-  leader_image_url?: string;
-  card_count: number;
-  main_cards?: number;
-};
 
 export type PlannerCard = {
   card_id: string;
@@ -60,28 +57,8 @@ async function plannerJson<T>(path: string, init: RequestInit, timeoutMs: number
   return (await res.json()) as T;
 }
 
-export function listPlannerDecks(timeoutMs = DEFAULT_TIMEOUT_MS): Promise<PlannerDeckSummary[]> {
-  return plannerJson("/decks", {}, timeoutMs);
-}
-
 export function fetchPlannerDeck(id: number, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<PlannerDeckDetail> {
   return plannerJson(`/decks/${id}`, {}, timeoutMs);
-}
-
-export function createPlannerDeck(
-  name: string,
-  decklist: string,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
-): Promise<PlannerDeckSummary> {
-  return plannerJson(
-    "/decks",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, decklist }),
-    },
-    timeoutMs,
-  );
 }
 
 /** DON!! rows are a separate deck in the planner; duel has no use for them. */
@@ -104,13 +81,6 @@ export function plannerDeckToDecklist(deck: PlannerDeckDetail): string {
   const lines = leaderId ? [`1x${leaderId}`] : [];
   for (const [id, n] of counts) lines.push(`${n}x${id}`);
   return lines.join("\n");
-}
-
-/** Local deck → planner decklist text (1x leader + Nx per main-deck card). */
-export function savedDeckToPlannerList(deck: Pick<SavedDeck, "leaderId" | "cards">): string {
-  const counts = new Map<string, number>();
-  for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return [`1x${deck.leaderId}`, ...[...counts].map(([id, n]) => `${n}x${id}`)].join("\n");
 }
 
 /**
@@ -146,7 +116,7 @@ export function plannerDeckArt(deck: PlannerDeckDetail): Record<string, string> 
   return out;
 }
 
-/** Validate a fetched planner deck and upsert its linked local copy. */
+/** Validate a fetched planner deck and upsert its linked local copy (deep links). */
 export function importPlannerDeckDetail(detail: PlannerDeckDetail): ImportIntoDeckResult {
   return upsertPlannerDeck({
     plannerId: detail.id,
@@ -156,53 +126,11 @@ export function importPlannerDeckDetail(detail: PlannerDeckDetail): ImportIntoDe
   });
 }
 
-/** Pull a planner deck fresh and upsert the linked copy. Throws on network/API failure. */
-export async function pullPlannerDeck(id: number): Promise<ImportIntoDeckResult> {
-  return importPlannerDeckDetail(await fetchPlannerDeck(id));
-}
-
-/** Planner decks that have no linked local copy yet; a copied deck lives under "Your decks". */
-export function plannerDecksNotLocal(
-  planner: PlannerDeckSummary[],
-  local: Pick<SavedDeck, "plannerDeckId">[],
-): PlannerDeckSummary[] {
-  const linked = new Set(local.map((d) => d.plannerDeckId));
-  return planner.filter((d) => !linked.has(d.id));
-}
-
-export type PlannerBulkImport = { imported: SavedDeck[]; errors: string[] };
-
 /**
- * Pull several planner decks at once. One deck failing (network, or invalid for
- * duel) never stops the others; each failure is reported with the deck's name.
- */
-export async function importPlannerDecks(
-  decks: Pick<PlannerDeckSummary, "id" | "name">[],
-  fetchDeck: (id: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
-): Promise<PlannerBulkImport> {
-  const settled = await Promise.allSettled(decks.map((d) => fetchDeck(d.id)));
-  const out: PlannerBulkImport = { imported: [], errors: [] };
-  settled.forEach((s, i) => {
-    const name = decks[i].name;
-    if (s.status === "rejected") {
-      out.errors.push(`${name}: ${s.reason instanceof Error ? s.reason.message : "could not load"}`);
-      return;
-    }
-    const result = importPlannerDeckDetail(s.value);
-    if (result.ok) out.imported.push(result.deck);
-    else out.errors.push(`${name}: ${result.errors.join(" · ") || "invalid deck"}`);
-  });
-  return out;
-}
-
-/** Whether a bulk import brought in this planner deck (a swiped row stays gone only then). */
-export function plannerDeckImported(imported: readonly Pick<SavedDeck, "plannerDeckId">[], plannerId: number): boolean {
-  return imported.some((d) => d.plannerDeckId === plannerId);
-}
-
-/**
- * Best-effort refresh before a match: any failure (offline, timeout, invalid
- * planner list) keeps the local copy as-is.
+ * Best-effort refresh before a match: take on the art the planner now shows for the deck's cards (a card
+ * whose art here still equals what the last refresh set follows the planner; one you changed here keeps
+ * your pick, #1003). Cards and name are not touched, the account sync owns those. Any failure (offline,
+ * timeout) keeps the local copy as-is.
  */
 export async function refreshLinkedDeck(
   deck: SavedDeck,
@@ -210,26 +138,73 @@ export async function refreshLinkedDeck(
   fetchDeck: (id: number, timeoutMs: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
 ): Promise<SavedDeck> {
   if (!deck.plannerDeckId) return deck;
-  // Edits saved in the deck editor win over the planner's version (#481).
-  if (deck.editedLocally) return deck;
   try {
-    const result = importPlannerDeckDetail(await fetchDeck(deck.plannerDeckId, timeoutMs));
-    return result.ok ? result.deck : deck;
+    return applyPlannerArt(deck.id, plannerDeckArt(await fetchDeck(deck.plannerDeckId, timeoutMs))) ?? deck;
   } catch {
     return deck;
   }
 }
 
-/** Push a local deck to the planner and remember the returned id on the local copy. */
-export async function saveDeckToPlanner(deck: SavedDeck): Promise<SavedDeck> {
-  const created = await createPlannerDeck(deck.name, savedDeckToPlannerList(deck));
-  return saveDeck({
-    id: deck.id,
-    name: deck.name,
-    leaderId: deck.leaderId,
-    cards: deck.cards,
-    plannerDeckId: created.id,
+/** Alt arts a deck shows (leader + main deck) that the planner can display: one entry per card with a product id (#1017). */
+export function deckArtForPlanner(
+  deck: Pick<SavedDeck, "leaderId" | "cards" | "artPrefs">,
+): { defId: string; productId: number; altId: string }[] {
+  const out: { defId: string; productId: number; altId: string }[] = [];
+  for (const defId of new Set([deck.leaderId, ...deck.cards])) {
+    const altId = resolveDeckAltId(defId, deck as SavedDeck);
+    if (!altId) continue;
+    const alt = lookupCard(defId)?.altArts?.find((a) => a.id === altId);
+    const productId = alt && (alt.productId ?? productIdFromImageUrl(alt.imageUrl));
+    if (productId) out.push({ defId, productId, altId });
+  }
+  return out;
+}
+
+/** Choose the art the planner shows for a card (`PUT /owned/{id}/display`). Global per card in the planner. */
+export function setPlannerDisplayArt(
+  cardId: string,
+  productId: number | null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<unknown> {
+  return plannerJson(
+    `/owned/${encodeURIComponent(cardId)}/display`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productId }),
+    },
+    timeoutMs,
+  );
+}
+
+/**
+ * Show the alt arts picked in a linked duel deck in the planner too: every alt whose id differs from
+ * `plannerArt[card]` (what the planner was last set to) is sent, and the ones that went through are
+ * recorded in `plannerArt`. Best effort: a failing card is left for the next call, never thrown.
+ * Resolves to the saved deck when something was recorded (#1017).
+ */
+export async function pushDeckArtToPlanner(
+  deckId: string,
+  setArt: (cardId: string, productId: number) => Promise<unknown> = setPlannerDisplayArt,
+): Promise<SavedDeck | undefined> {
+  const deck = getSavedDeck(deckId);
+  if (!deck?.plannerDeckId) return undefined;
+  const todo = deckArtForPlanner(deck).filter((a) => deck.plannerArt?.[a.defId] !== a.altId);
+  const settled = await Promise.allSettled(todo.map((a) => setArt(a.defId, a.productId)));
+  const done: Record<string, string> = {};
+  todo.forEach((a, i) => {
+    if (settled[i].status === "fulfilled") done[a.defId] = a.altId;
   });
+  return Object.keys(done).length > 0 ? recordPlannerArt(deckId, done) : undefined;
+}
+
+/** `pushDeckArtToPlanner` for every linked deck, one after another so the planner is not flooded. */
+export async function pushLinkedDeckArt(
+  setArt?: (cardId: string, productId: number) => Promise<unknown>,
+): Promise<void> {
+  for (const deck of listSavedDecks()) {
+    if (deck.plannerDeckId) await pushDeckArtToPlanner(deck.id, setArt);
+  }
 }
 
 export type PlannerDeepLink = {

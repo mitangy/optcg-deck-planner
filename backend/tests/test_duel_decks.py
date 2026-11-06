@@ -65,7 +65,7 @@ def test_decks_round_trip_for_the_account_that_saved_them_619(client):
     deck = _deck("Red", artPrefs={"OP17-002": "p1"}, plannerArt={"OP17-002": "p2"}, plannerDeckId=7, editedLocally=True)
     assert _put(c, "d1", 1000, deck).status_code == 200
     assert c.get("/duel/decks").json()["decks"] == [
-        {"id": "d1", "updatedAt": 1000, "deleted": False, "deck": deck}
+        {"id": "d1", "updatedAt": 1000, "deleted": False, "deck": deck, "mergedInto": None}
     ]
 
 
@@ -97,7 +97,7 @@ def test_delete_leaves_a_tombstone_other_devices_can_see_619(client):
     _put(_as(c, _user(S, "luffy")), "d1", 1000)
     assert c.delete("/duel/decks/d1", params={"updatedAt": 2000}).status_code == 200
     assert c.get("/duel/decks").json()["decks"] == [
-        {"id": "d1", "updatedAt": 2000, "deleted": True, "deck": None}
+        {"id": "d1", "updatedAt": 2000, "deleted": True, "deck": None, "mergedInto": None}
     ]
 
 
