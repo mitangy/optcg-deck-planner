@@ -17,8 +17,7 @@ import {
   type DeckDraft,
 } from "../decks/editDeck";
 import { useLeaveGuard } from "../decks/useLeaveGuard";
-import { pullPlannerDeck, saveDeckToPlanner } from "../decks/planner";
-import { fetchAuthMe } from "../net/api";
+import { pushDeckArtToPlanner } from "../decks/planner";
 import {
   getSavedDeck,
   setSelectedDeckId,
@@ -38,13 +37,7 @@ export function DeckConfigurePage() {
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const location = useLocation();
-  const [notice, setNotice] = useState<string | null>(
-    () => (location.state as { importNotice?: string } | null)?.importNotice ?? null,
-  );
-  /** `null` until /auth/me answers; the actions row is reserved meanwhile so nothing shifts. */
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const [plannerBusy, setPlannerBusy] = useState(false);
-  const [plannerErr, setPlannerErr] = useState<string | null>(null);
+  const notice = (location.state as { importNotice?: string } | null)?.importNotice ?? null;
 
   const navigate = useNavigate();
   /** Unsaved edits to the open deck; null while the editor shows the saved deck as is (#481). */
@@ -87,20 +80,6 @@ export function DeckConfigurePage() {
     if (savedId) setSelectedDeckId(savedId);
   }, [savedId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchAuthMe()
-      .then((u) => {
-        if (!cancelled) setSignedIn(Boolean(u));
-      })
-      .catch(() => {
-        if (!cancelled) setSignedIn(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   useLogPosePage(
     deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), scope: deckEditorScope(deck), starters: DECK_EDITOR_STARTERS } : null,
   );
@@ -117,7 +96,7 @@ export function DeckConfigurePage() {
               if (!result.ok) throw new Error(result.error);
               if (!commit({ name: deck.name, leaderId: deck.leaderId, cards: result.cards })) throw new Error("Could not save the deck");
             },
-            note: deck.plannerDeckId ? "Saved in the duel app; it stays your game deck until you refresh from the planner." : undefined,
+            note: deck.plannerDeckId ? "Saved in the duel app; your planner deck follows." : undefined,
           }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,6 +110,15 @@ export function DeckConfigurePage() {
 
   function refresh() {
     setTick((n) => n + 1);
+  }
+
+  /** A picked alt art also becomes the art the planner shows for that card (best effort, #1017). */
+  function onArtChanged() {
+    refresh();
+    if (!saved!.plannerDeckId) return;
+    void pushDeckArtToPlanner(saved!.id).then((next) => {
+      if (next) refresh();
+    });
   }
 
   function onChangeDraft(next: DeckDraft) {
@@ -150,40 +138,6 @@ export function DeckConfigurePage() {
       return;
     }
     leave.go(to, navigate);
-  }
-
-  async function runPlannerAction(fn: () => Promise<string | null>) {
-    setPlannerErr(null);
-    setNotice(null);
-    setPlannerBusy(true);
-    try {
-      const msg = await fn();
-      refresh();
-      if (msg) setNotice(msg);
-    } catch (e) {
-      setPlannerErr(e instanceof Error ? e.message : "Planner request failed");
-    } finally {
-      setPlannerBusy(false);
-    }
-  }
-
-  function onSaveToPlanner() {
-    void runPlannerAction(async () => {
-      const { artsSet } = await saveDeckToPlanner(saved!);
-      return `Saved to your planner${artsSet > 0 ? ` with ${artsSet} alt art${artsSet === 1 ? "" : "s"}` : ""}.`;
-    });
-  }
-
-  function onRefreshFromPlanner() {
-    if ((saved!.editedLocally || dirty) && !window.confirm("Replace your edits with the planner version?")) return;
-    void runPlannerAction(async () => {
-      const result = await pullPlannerDeck(saved!.plannerDeckId!);
-      if (!result.ok) throw new Error(result.errors.join(" · ") || "Planner deck is not valid for duel");
-      setEdits(null);
-      return `Refreshed from planner (${result.deck.cards.length} main)${
-        result.warnings.length ? ` — ${result.warnings.join(" ")}` : ""
-      }`;
-    });
   }
 
   function onImportIntoDeck() {
@@ -242,34 +196,10 @@ export function DeckConfigurePage() {
             >
               {dirty ? "Save" : "Saved"}
             </button>
-            {signedIn !== false || deck.plannerDeckId ? (
-              <>
-              {deck.plannerDeckId ? (
-                <>
-                  <span className="deck-planner-badge">From planner</span>
-                  {signedIn ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={onRefreshFromPlanner}
-                      disabled={plannerBusy}
-                    >
-                      {plannerBusy ? "Refreshing…" : "Refresh from planner"}
-                    </button>
-                  ) : null}
-                </>
-              ) : signedIn ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={onSaveToPlanner}
-                  disabled={plannerBusy || dirty}
-                  title={dirty ? "Save your edits first" : undefined}
-                >
-                  {plannerBusy ? "Saving…" : "Save to planner"}
-                </button>
-              ) : null}
-              </>
+            {deck.plannerDeckId ? (
+              <span className="deck-planner-badge" title="Edits here and in the planner reach both">
+                Synced with planner
+              </span>
             ) : null}
           </div>
         </header>
@@ -279,13 +209,12 @@ export function DeckConfigurePage() {
           {saveMsg}
         </p>
         {saveErr ? <p className="error-text deck-config-notice">{saveErr}</p> : null}
-        {plannerErr ? <p className="error-text deck-config-notice">{plannerErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
 
         <DeckEditor
           deck={deck}
           onChange={onChangeDraft}
-          onArtChanged={refresh}
+          onArtChanged={onArtChanged}
           sideTop={
             <DeckImportPanel
               collapsible

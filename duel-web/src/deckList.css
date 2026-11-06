@@ -131,7 +131,7 @@
   gap: 0.85rem;
 }
 
-.deck-grid > .deck-swipe-slot {
+.deck-grid > .deck-card-slot {
   border-radius: 12px;
 }
 
@@ -492,11 +492,6 @@
 @media (min-width: 1024px) {
   .deck-list-page {
     max-width: 1400px;
-  }
-
-  /* Your decks take the room; the planner list stays a narrow column to drag from. */
-  .deck-list-columns {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
   }
 }
 

@@ -2,15 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyPlannerDeepLink,
   importPlannerDeckDetail,
-  importPlannerDecks,
-  plannerDeckArt,
   parsePlannerDeepLink,
-  plannerDeckImported,
-  plannerDecksNotLocal,
   plannerDeckToDecklist,
+  pushDeckArtToPlanner,
+  pushLinkedDeckArt,
   refreshLinkedDeck,
-  saveDeckToPlanner,
-  savedDeckToPlannerList,
   type PlannerDeckDetail,
 } from "./planner";
 import { getSavedDeck, listSavedDecks, saveDeck, setDeckArtPref, upsertPlannerDeck } from "./storage";
@@ -73,14 +69,6 @@ describe("plannerDeckToDecklist", () => {
   });
 });
 
-describe("savedDeckToPlannerList", () => {
-  it("writes one leader line and a count line per distinct card", () => {
-    expect(savedDeckToPlannerList({ leaderId: "ST01-001", cards: ["ST01-003", "ST01-006", "ST01-003"] })).toBe(
-      "1xST01-001\n2xST01-003\n1xST01-006",
-    );
-  });
-});
-
 describe("upsertPlannerDeck", () => {
   const text = "1xST01-001\n4xST01-003";
 
@@ -122,42 +110,37 @@ describe("saveDeck planner link", () => {
   });
 });
 
-describe("editedLocally (#481)", () => {
-  it("is cleared when the planner version replaces the deck, and kept by plain saves", () => {
-    saveDeck({ id: "planner-7", name: "A", leaderId: "ST01-001", cards: ["ST01-003"], plannerDeckId: 7, editedLocally: true });
-    saveDeck({ id: "planner-7", name: "A2", leaderId: "ST01-001", cards: ["ST01-003", "ST01-006"] });
-    expect(getSavedDeck("planner-7")?.editedLocally).toBe(true);
-    upsertPlannerDeck({ plannerId: 7, name: "A", text: "1xST01-001\n3xST01-003" });
-    expect(getSavedDeck("planner-7")?.editedLocally).toBe(false);
-  });
-});
-
 describe("refreshLinkedDeck", () => {
+  // OP09-118: p1 = product 597065, p2 = 597066.
+  const alts = [{ product_id: 597065 }, { product_id: 597066 }];
+  const planner = (display_art: number) =>
+    detail({
+      cards: [
+        { card_id: "ST01-001", card_type: "Leader", needed: 1 },
+        { card_id: "OP09-118", needed: 4, alt_arts: alts, display_art },
+      ],
+    });
   const linked = () =>
-    saveDeck({ id: "planner-7", name: "Old", leaderId: "ST01-001", cards: [], plannerDeckId: 7 });
+    saveDeck({ id: "planner-7", name: "Mine", leaderId: "ST01-001", cards: ["OP09-118"], plannerDeckId: 7 });
 
-  it("replaces the local copy with the fresh planner deck", async () => {
-    const deck = await refreshLinkedDeck(linked(), 100, async () => detail());
-    expect(deck.cards).toHaveLength(6);
-    expect(getSavedDeck("planner-7")?.name).toBe("Red Luffy");
+  it("takes on the planner's shown art and leaves the cards and name alone", async () => {
+    const deck = await refreshLinkedDeck(linked(), 100, async () => planner(597066));
+    expect(deck.artPrefs).toEqual({ "OP09-118": "p2" });
+    expect(getSavedDeck("planner-7")).toMatchObject({ name: "Mine", cards: ["OP09-118"], plannerArt: { "OP09-118": "p2" } });
   });
 
-  it("refreshes a deck saved to the planner in place instead of duplicating it", async () => {
-    const saved = saveDeck({
-      id: "local-uuid",
-      name: "Mine",
-      leaderId: "ST01-001",
-      cards: ["ST01-003"],
-      artPrefs: { "ST01-003": "p1" },
-      plannerDeckId: 42,
-    });
-    const deck = await refreshLinkedDeck(saved, 100, async () => detail({ id: 42 }));
-    expect(deck.id).toBe("local-uuid");
-    const original = getSavedDeck("local-uuid")!;
-    expect(original.cards).toHaveLength(6);
-    expect(original.name).toBe("Red Luffy");
-    expect(original.artPrefs).toEqual({ "ST01-003": "p1" });
-    expect(listSavedDecks().filter((d) => d.plannerDeckId === 42).map((d) => d.id)).toEqual(["local-uuid"]);
+  it("keeps an art pick made here over a later planner change", async () => {
+    await refreshLinkedDeck(linked(), 100, async () => planner(597065));
+    setDeckArtPref("planner-7", "OP09-118", "p2");
+    await refreshLinkedDeck(getSavedDeck("planner-7")!, 100, async () => planner(597065));
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
+  });
+
+  it("writes nothing when the art is already what the planner shows", async () => {
+    const first = await refreshLinkedDeck(linked(), 100, async () => planner(597066));
+    await new Promise((r) => setTimeout(r, 5));
+    const again = await refreshLinkedDeck(first, 100, async () => planner(597066));
+    expect(again.updatedAt).toBe(first.updatedAt);
   });
 
   it("keeps the local copy when the fetch fails", async () => {
@@ -166,25 +149,6 @@ describe("refreshLinkedDeck", () => {
       throw new Error("offline");
     });
     expect(deck).toBe(local);
-    expect(getSavedDeck("planner-7")?.name).toBe("Old");
-  });
-
-  it("keeps the local copy when the planner deck is invalid for duel", async () => {
-    const local = linked();
-    const deck = await refreshLinkedDeck(local, 100, async () => detail({ leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] }));
-    expect(deck).toBe(local);
-  });
-
-  it("keeps a linked deck you saved edits to and does not fetch (#481)", async () => {
-    const edited = saveDeck({ id: "planner-7", name: "Old", leaderId: "ST01-001", cards: ["ST01-003"], plannerDeckId: 7, editedLocally: true });
-    let called = false;
-    const deck = await refreshLinkedDeck(edited, 100, async () => {
-      called = true;
-      return detail();
-    });
-    expect(called).toBe(false);
-    expect(deck.cards).toEqual(["ST01-003"]);
-    expect(getSavedDeck("planner-7")?.cards).toEqual(["ST01-003"]);
   });
 
   it("does not fetch for an unlinked deck", async () => {
@@ -222,6 +186,14 @@ describe("applyPlannerDeepLink", () => {
     expect(r.ok && r.deck.id).toBe("planner-7");
   });
 
+  it("a deep link to a planner deck that is already linked updates that deck in place (#1017)", async () => {
+    saveDeck({ id: "from-duel", name: "Mine", leaderId: "ST01-001", cards: ["ST01-003"], plannerDeckId: 7 });
+    const r = await applyPlannerDeepLink(link, true, async () => detail());
+    expect(r.ok && r.deck.id).toBe("from-duel");
+    expect(getSavedDeck("from-duel")?.name).toBe("Red Luffy");
+    expect(listSavedDecks().filter((d) => d.plannerDeckId === 7)).toHaveLength(1);
+  });
+
   it("falls back to the list when signed out, without calling the API", async () => {
     let called = false;
     const r = await applyPlannerDeepLink(link, false, async () => {
@@ -243,54 +215,6 @@ describe("applyPlannerDeepLink", () => {
   it("reports an error when there is nothing to fall back on", async () => {
     const r = await applyPlannerDeepLink({ plannerId: 7, list: null, name: "x" }, false);
     expect(r.ok).toBe(false);
-  });
-});
-
-describe("plannerDecksNotLocal", () => {
-  const summary = (id: number) => ({ id, name: `D${id}`, leader_card_id: "ST01-001", card_count: 50 });
-
-  it("hides planner decks that already have a linked copy, keeping the rest in order", () => {
-    const local = [{ plannerDeckId: 2 }, { plannerDeckId: undefined }, { plannerDeckId: 9 }];
-    expect(plannerDecksNotLocal([summary(1), summary(2), summary(3)], local).map((d) => d.id)).toEqual([1, 3]);
-  });
-});
-
-describe("importPlannerDecks", () => {
-  it("adds every deck that loads, even when another fails or is invalid", async () => {
-    const r = await importPlannerDecks(
-      [
-        { id: 7, name: "Red Luffy" },
-        { id: 8, name: "Offline" },
-        { id: 9, name: "No leader" },
-        { id: 10, name: "Green" },
-      ],
-      async (id) => {
-        if (id === 8) throw new Error("timeout");
-        if (id === 9) return detail({ id, leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] });
-        return detail({ id, name: id === 10 ? "Green" : "Red Luffy" });
-      },
-    );
-    expect(r.imported.map((d) => d.id)).toEqual(["planner-7", "planner-10"]);
-    expect(getSavedDeck("planner-10")?.plannerDeckId).toBe(10);
-    expect(getSavedDeck("planner-9")).toBeUndefined();
-    expect(r.errors).toHaveLength(2);
-    expect(r.errors[0]).toBe("Offline: timeout");
-    expect(r.errors[1]).toMatch(/^No leader: /);
-  });
-});
-
-describe("plannerDeckImported", () => {
-  it("is false for a swiped deck that failed while another ticked deck was added", async () => {
-    const { imported } = await importPlannerDecks(
-      [
-        { id: 7, name: "Red Luffy" },
-        { id: 9, name: "No leader" },
-      ],
-      async (id) =>
-        id === 9 ? detail({ id, leader_card_id: null, cards: [{ card_id: "ST01-003", needed: 4 }] }) : detail({ id }),
-    );
-    expect(plannerDeckImported(imported, 9)).toBe(false);
-    expect(plannerDeckImported(imported, 7)).toBe(true);
   });
 });
 
@@ -390,48 +314,59 @@ describe("alt arts picked in the planner (#1003)", () => {
   });
 });
 
-describe("Add a duel deck to the planner with its alt arts (#1017)", () => {
+describe("Duel alt arts shown in the planner (#1017)", () => {
   // OP09-118: p2 = product 597066. OP09-093 has alts too but this deck leaves it on base art.
   const mk = () =>
     saveDeck({
+      id: "linked",
       name: "Art deck",
       leaderId: "ST01-001",
       cards: ["OP09-118", "OP09-118", "OP09-093", "ST01-003"],
       artPrefs: { "OP09-118": "p2" },
+      plannerDeckId: 42,
     });
-  const summary = (id: number) => ({ id, name: "Art deck", leader_card_id: "ST01-001", card_count: 5 });
 
-  it("sets the planner art for an alt-art card, not for base-art cards, and records it in plannerArt (#1017)", async () => {
+  it("sends the alt art of a card whose pick differs from what the planner was last set to, and records it (#1017)", async () => {
+    mk();
     const puts: [string, number][] = [];
-    const r = await saveDeckToPlanner(mk(), {
-      create: async () => summary(42),
-      setArt: async (id, product) => void puts.push([id, product]),
-    });
+    const saved = await pushDeckArtToPlanner("linked", async (id, product) => void puts.push([id, product]));
     expect(puts).toEqual([["OP09-118", 597066]]);
-    expect(r.deck.plannerArt).toEqual({ "OP09-118": "p2" });
-    expect([r.artsSet, r.artsFailed]).toEqual([1, 0]);
+    expect(saved?.plannerArt).toEqual({ "OP09-118": "p2" });
+    puts.length = 0;
+    await pushDeckArtToPlanner("linked", async (id, product) => void puts.push([id, product]));
+    expect(puts).toEqual([]);
+    setDeckArtPref("linked", "OP09-118", "p1");
+    await pushDeckArtToPlanner("linked", async (id, product) => void puts.push([id, product]));
+    expect(puts).toEqual([["OP09-118", 597065]]);
   });
 
-  it("a failing art request does not fail the save and is left out of plannerArt (#1017)", async () => {
-    const deck = mk();
-    saveDeck({ id: deck.id, name: deck.name, leaderId: deck.leaderId, cards: deck.cards, artPrefs: { "OP09-118": "p2", "OP09-093": "p1" } });
-    const r = await saveDeckToPlanner(getSavedDeck(deck.id)!, {
-      create: async () => summary(42),
-      setArt: async (id) => {
-        if (id === "OP09-118") throw new Error("boom");
-      },
+  it("a failing request is not recorded, is retried later, and never throws (#1017)", async () => {
+    mk();
+    saveDeck({ id: "linked", name: "Art deck", leaderId: "ST01-001", cards: getSavedDeck("linked")!.cards, artPrefs: { "OP09-118": "p2", "OP09-093": "p1" } });
+    const saved = await pushDeckArtToPlanner("linked", async (id) => {
+      if (id === "OP09-118") throw new Error("boom");
     });
-    expect(r.deck.plannerDeckId).toBe(42);
-    expect(r.deck.plannerArt).toEqual({ "OP09-093": "p1" });
-    expect([r.artsSet, r.artsFailed]).toEqual([1, 1]);
+    expect(saved?.plannerArt).toEqual({ "OP09-093": "p1" });
+    const retried: string[] = [];
+    await pushDeckArtToPlanner("linked", async (id) => void retried.push(id));
+    expect(retried).toEqual(["OP09-118"]);
+    expect(getSavedDeck("linked")?.plannerArt).toEqual({ "OP09-093": "p1", "OP09-118": "p2" });
   });
 
-  it("the local copy keeps its art picks and links to the planner deck (#1017)", async () => {
-    const deck = mk();
-    await saveDeckToPlanner(deck, { create: async () => summary(42), setArt: async () => ({}) });
-    const local = getSavedDeck(deck.id)!;
-    expect(local.artPrefs).toEqual({ "OP09-118": "p2" });
-    expect(local.plannerDeckId).toBe(42);
-    expect(listSavedDecks()).toHaveLength(1);
+  it("goes through every linked deck and skips the others (#1017)", async () => {
+    mk();
+    saveDeck({ id: "plain", name: "Plain", leaderId: "ST01-001", cards: ["OP09-118"], artPrefs: { "OP09-118": "p1" } });
+    const sent: string[] = [];
+    await pushLinkedDeckArt(async (id, product) => void sent.push(`${id}:${product}`));
+    expect(sent).toEqual(["OP09-118:597066"]);
+    expect(getSavedDeck("linked")?.plannerArt).toEqual({ "OP09-118": "p2" });
+    expect(getSavedDeck("plain")?.plannerArt).toBeUndefined();
+  });
+
+  it("sends nothing for a deck that is not linked to a planner deck (#1017)", async () => {
+    saveDeck({ id: "plain", name: "Plain", leaderId: "ST01-001", cards: ["OP09-118"], artPrefs: { "OP09-118": "p2" } });
+    let called = false;
+    await pushDeckArtToPlanner("plain", async () => void (called = true));
+    expect(called).toBe(false);
   });
 });

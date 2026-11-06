@@ -4834,11 +4834,11 @@ function ImportPage() {
         <code>.deck</code> file.
       </p>
       <p className="muted">
-        Have decks in the Duel app? Open{" "}
+        Decks you make in the{" "}
         <a href={`${DUEL_URL}/decks`} target="_blank" rel="noopener">
-          Duel → Decks
+          Duel app
         </a>{" "}
-        and choose Add to planner from a deck&apos;s … menu.
+        show up here on their own, and decks you add here show up in the Duel app.
       </p>
       <form className="import-form" onSubmit={onSubmit}>
         {fromLogPose ? (

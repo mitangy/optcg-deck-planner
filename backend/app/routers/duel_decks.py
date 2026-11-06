@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import deck_link
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import DuelSavedDeck, User
@@ -98,6 +99,7 @@ def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelS
     row.updated_at_ms = body.updatedAt
     row.deleted = False
     db.flush()
+    deck_link.after_duel_upsert(db, user_id, row)
     return row
 
 
@@ -106,6 +108,7 @@ def list_decks(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> DuelDecksOut:
+    deck_link.reconcile_user(db, user)
     rows = db.scalars(
         select(DuelSavedDeck)
         .where(DuelSavedDeck.user_id == user.id)
@@ -156,8 +159,10 @@ def delete_deck(
         db.add(row)
     elif row.updated_at_ms > updated_at:
         return _out(row)  # edited after this delete: keep it
+    planner_id = row.planner_deck_id
     row.data = ""
     row.deleted = True
     row.updated_at_ms = updated_at
+    deck_link.on_duel_deleted(db, user, row, planner_id)
     db.commit()
     return _out(row)

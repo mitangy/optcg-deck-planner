@@ -4,17 +4,37 @@ Both apps share one FastAPI backend and one `users` table. A Google login on
 either site is the same account, but each site keeps its own first-party
 session cookie (see ADR-016 in `DECISIONS.md`).
 
-## Shipped (PRs #202, #203)
+## Always-on sync (#1017)
 
-- **Planner decks in duel-web.** Signed-in users see "From your planner" on
-  `/decks`. Tapping a deck calls `GET /decks/{id}`, converts it to decklist text
-  (leader once, DON!! dropped) and runs it through `validateImportedList`. It is
-  stored as a linked local copy `planner-<id>` (`SavedDeck.plannerDeckId`), so
-  lobby and gameplay code are unchanged. Code: `duel-web/src/decks/planner.ts`.
-- **Save to planner.** Unlinked local decks can be pushed with `POST /decks`;
-  linked decks show a "From planner" badge and "Refresh from planner".
-- **Pre-match refresh.** Online matches re-pull a linked deck (4s timeout). On
-  any failure the local copy plays.
+Signed-in players have one set of decks: a duel saved deck (`duel_saved_decks`)
+and a planner deck (`decks`) are linked by `duel_saved_decks.planner_deck_id`
+(mirrored in the row's `data.plannerDeckId`) and each side writes the other.
+Code: `backend/app/deck_link.py`.
+
+- **Duel -> planner.** An accepted duel deck write (`PUT /duel/decks`, single or
+  bulk) creates the planner deck, or replaces the linked one's name, leader and
+  non-DON!! rows (DON!! rows are kept; alt-art wants of removed cards are
+  dropped and the rest clamped). When the server changes the stored copy (adds
+  the link, clears `editedLocally`) it answers with `updatedAt + 1`, so the
+  client adopts it.
+- **Planner -> duel.** Every planner deck mutation (create, clone, copy shared,
+  rename, card add/edit/remove) rewrites the linked duel row (name, leader, main
+  deck without the leader and DON!!; art maps are kept), or creates it as
+  `planner-<id>`. Planner decks without a leader are not mirrored until they have one.
+- **Deletes** go both ways (`deck_link.DELETE_PROPAGATES`).
+- **One-time merge.** `reconcile_user` runs when `GET /duel/decks` or
+  `GET /decks` is read and links everything not linked yet: a duel deck and a
+  planner deck with the same leader and main deck are linked, otherwise the
+  missing copy is created. A `plannerDeckId` whose planner deck is gone is
+  re-created, not dropped. `test-` seeds are never linked.
+- Limits: a side that is full (300 planner decks, 200 duel decks, 60 main
+  cards) leaves the deck unlinked; the next read retries.
+- **Client.** The account sync re-runs when the tab regains focus (at most once
+  a minute). Alt arts picked in a linked duel deck are sent to the planner
+  (`pushDeckArtToPlanner`, `PUT /owned/{id}/display`) after a sync and after an
+  art pick in the editor; the pre-match refresh (`refreshLinkedDeck`, 4s
+  timeout) takes the planner's shown art the other way. The Decks page has no
+  planner column any more; it only says decks stay in sync.
 - **Deep link.** `/decks?planner=<id>#list=<decklist>&name=<name>`: signed-in
   users load the planner deck; guests (or a failed fetch) get a copy from the
   `#list` hash.
@@ -23,20 +43,6 @@ session cookie (see ADR-016 in `DECISIONS.md`).
 - **Cross-app nav.** Planner top bar "Play Duel" pill; duel lobby header
   "Deck planner" icon (`VITE_PLANNER_URL`, default
   `https://optcg-deck-planner.app`).
-
-## Decks page: pick several, drag between lists
-
-- "From your planner" lists only planner decks with no local copy yet
-  (`plannerDecksNotLocal`). Tick decks and press "Add selected", or drag a row
-  by its grip up to "Your decks". Dragging a ticked row carries every ticked
-  deck. Decks load with `importPlannerDecks`: one failure never stops the rest.
-- A linked copy (`planner-<id>`) under "Your decks" has a grip too; dragging it
-  back down to "From your planner" deletes the local copy (the planner deck is
-  untouched). Unlinked local decks cannot be dragged.
-- Drag is pointer based (`duel-web/src/decks/useDeckDrag.ts`) so it works with
-  touch; the page scrolls near the top and bottom edges while dragging and Esc
-  cancels.
-- The deck editor's "Import deck list" and "Add cards" sections start collapsed.
 
 ## Not done yet (ideas, best first)
 
@@ -58,9 +64,6 @@ session cookie (see ADR-016 in `DECISIONS.md`).
    duel app on Render cold starts.
 7. **Play links on the planner Decks list.** Needs card data in the list
    response (`DeckSummary` has none today).
-
-Known edge: pasting an import into a linked duel deck keeps the link, so the
-next refresh from the planner overwrites that local edit.
 
 Rejected: merging both apps into one SPA (see the duel-web ADR in
 `DECISIONS.md`).

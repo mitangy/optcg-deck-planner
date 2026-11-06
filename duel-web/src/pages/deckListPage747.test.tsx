@@ -78,32 +78,27 @@ describe("Decks page cards (#750)", () => {
   });
 });
 
-describe("Add to planner menu item (#1017)", () => {
-  async function menuLabels(deckName: string, signedIn: boolean, seed: object[] = SEEDED) {
+describe("Decks page sync line (#1017)", () => {
+  async function noteFor(signedIn: boolean) {
     vi.stubGlobal("fetch", (url: string) => {
       if (String(url).includes("/auth/me")) {
         return Promise.resolve(new Response(signedIn ? JSON.stringify({ id: 1, email: "a@b.c" }) : "{}", { status: signedIn ? 200 : 401 }));
       }
-      if (String(url).endsWith("/decks")) return Promise.resolve(new Response("[]", { status: signedIn ? 200 : 401 }));
       return Promise.resolve(new Response("{}", { status: 404 }));
     });
-    await mount(seed);
-    const btn = document.querySelector<HTMLButtonElement>(`button[aria-label="Actions for ${deckName}"]`)!;
-    await act(async () => btn.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    return Array.from(document.querySelectorAll(".deck-card-menu-item")).map((n) => n.textContent);
+    await mount();
+    return document.querySelector(".deck-sync-note")!;
   }
 
-  it("is offered to a signed-in player for a deck not in the planner (#1017)", async () => {
-    expect(await menuLabels("Alpha", true)).toContain("Add to planner");
+  it("tells a signed-in player their decks stay in sync with the planner (#1017)", async () => {
+    const note = await noteFor(true);
+    expect(note.textContent).toBe("Signed in: your decks stay in sync with the deck planner.");
+    expect(note.querySelector("a")).toBeNull();
   });
 
-  it("is not offered for a deck already linked to a planner deck (#1017)", async () => {
-    const seed = [{ ...SEEDED[0], plannerDeckId: 5 }, SEEDED[1]];
-    expect(await menuLabels("Alpha", true, seed)).not.toContain("Add to planner");
-  });
-
-  it("is not offered when signed out (#1017)", async () => {
-    expect(await menuLabels("Alpha", false)).not.toContain("Add to planner");
+  it("offers Google sign-in to a guest instead (#1017)", async () => {
+    const note = await noteFor(false);
+    expect(note.querySelector("a")?.textContent).toBe("Sign in with Google");
+    expect(note.textContent).not.toContain("Signed in");
   });
 });

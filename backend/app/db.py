@@ -197,6 +197,19 @@ def _ensure_duel_match_replay_columns() -> None:
             conn.execute(text(f"ALTER TABLE duel_matches ADD COLUMN {name} {typ}"))
 
 
+def _ensure_duel_saved_deck_planner_link() -> None:
+    """Add duel_saved_decks.planner_deck_id and its index on existing DBs (#1017)."""
+    _add_columns("duel_saved_decks", [("planner_deck_id", "INTEGER")])
+    if "duel_saved_decks" in inspect(engine).get_table_names():
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_duel_saved_decks_planner_deck_id "
+                    "ON duel_saved_decks (planner_deck_id)"
+                )
+            )
+
+
 # pg_advisory_xact_lock key for startup work (schema creation, migrations, backfills).
 # "optcg_s2": the key changed after #733, when a session-level lock on the old key
 # ("optcg_st" = 0x6F707463675F7374) was stranded on a pooled Neon backend.
@@ -478,6 +491,7 @@ def init_db() -> None:
     _ensure_user_signup_source()
     _ensure_share_link_include_extras()
     _ensure_duel_match_replay_columns()
+    _ensure_duel_saved_deck_planner_link()
     _ensure_duel_progress_closed()
     _ensure_duel_server_urls()
     _ensure_analyst_review_citations()
