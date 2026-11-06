@@ -154,6 +154,8 @@ export const test = base.extend<{ planner: Planner }>({
     const extras = new Map<string, number>();
     const ownedAdds: Planner["ownedAdds"] = [];
     const priceAlertPosts: Planner["priceAlertPosts"] = [];
+    // The API keeps one alert per card + art; saving again replaces it.
+    const alertsByArt = new Map<string, Planner["priceAlertPosts"][number]>();
     const displayArt = new Map<string, number>();
     let hasDecks = true;
     let secondDeck = false;
@@ -485,8 +487,9 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/price-alerts" && method === "POST") {
         const body = JSON.parse(req.postData() ?? "{}") as Planner["priceAlertPosts"][number];
         priceAlertPosts.push(body);
+        alertsByArt.set(`${body.card_id}:${body.product_id}`, body);
         return json({
-          id: priceAlertPosts.length, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: body.product_id !== 0,
+          id: [...alertsByArt.keys()].indexOf(`${body.card_id}:${body.product_id}`) + 1, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: body.product_id !== 0,
           current_price: null, notify_email: false, notify_app: true, paused: false, armed: true, met_now: false,
           triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...body,
         });
@@ -494,7 +497,7 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/price-alerts") {
         return json({
           email_enabled: false,
-          alerts: priceAlertPosts.map((b, i) => ({
+          alerts: [...alertsByArt.values()].map((b, i) => ({
             id: i + 1, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: b.product_id !== 0, current_price: null,
             notify_email: false, notify_app: true, paused: false, armed: true, met_now: false, triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...b,
           })),

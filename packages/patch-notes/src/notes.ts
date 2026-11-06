@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
+  { date: "2026-11-06", app: "planner", pr: 1029, title: "Price alerts are easier to spot and edit", text: "A card's price alert now shows as a colored chip with a bell, your target and whether it is watching or has hit. Edit on a card page opens the alert editor right under it, where it used to do nothing." },
   { date: "2026-11-06", app: "duel", pr: 1019, title: "Events show their prizes and style", text: "Events now say how they are played (casual, single-elimination bracket, round robin or Swiss, and best of 1 or 3) and what the prizes are. You will see it on the home page banner and in the official rules, and the dates can now be moved when plans change." },
   { date: "2026-11-06", app: "duel", pr: 1008, title: "Board stays on the left with buttons beside it", text: "With Buttons beside the board on, the board now sits against the left of the play area with the buttons right next to it, instead of floating in the middle with empty space on both sides. The opponent's hand still sits beside the board, wherever you put it." },
   { date: "2026-11-06", app: "duel", pr: 1015, title: "Spectators see the same hand fans as a match", text: "When you watch a match on a computer, both hands are now the same fan you see when you play: the same card size, overlapping cards that tuck away and rise when you hover them. Hover a hand, or click its Hand button, to raise it." },
