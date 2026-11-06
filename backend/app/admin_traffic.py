@@ -21,6 +21,7 @@ from app.config import Settings
 CACHE_SECONDS = 600
 RENDER_KEEPS_DAYS = 30
 POOL_SIZE = 6
+PROJECT_PREFIX = "optcg-"
 _cache: dict[tuple[str, int], tuple[float, dict]] = {}
 _lock = threading.Lock()
 
@@ -94,6 +95,8 @@ def fetch_vercel(settings: Settings, client: httpx.Client, days: int) -> dict:
     headers = {"Authorization": f"Bearer {settings.vercel_token}"}
     team = {"teamId": settings.vercel_team_id} if settings.vercel_team_id else {}
     projects = _get(client, f"{VERCEL}/v9/projects", headers=headers, params=team).get("projects", [])
+    # The team also holds unrelated projects (a personal budget app); only the OPTCG sites belong here.
+    projects = [p for p in projects if str(p.get("name", "")).startswith(PROJECT_PREFIX)]
     now = datetime.now(timezone.utc)
     start, dates = _window(now, days)
 

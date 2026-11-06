@@ -931,7 +931,7 @@ def _day(offset: int = 0) -> str:
 def _web(request: httpx.Request, *, broken: tuple[str, ...] = ()) -> httpx.Response:
     path, q = request.url.path, request.url.params
     if path == "/v9/projects":
-        return httpx.Response(200, json={"projects": [{"id": "prj_1", "name": "optcg-duel-web"}, {"id": "prj_2", "name": "optcg-deck-planner"}]})
+        return httpx.Response(200, json={"projects": [{"id": "prj_1", "name": "optcg-duel-web"}, {"id": "prj_3", "name": "tang-budget"}, {"id": "prj_2", "name": "optcg-deck-planner"}]})
     assert path.startswith("/v1/query/web-analytics/visits/")
     if q["projectId"] in broken:
         return httpx.Response(403, json={"error": {"message": "analytics off, token vtok-secret"}})
