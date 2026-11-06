@@ -84,6 +84,7 @@ function clearPending(id: string, value: number) {
 function toBody(d: SavedDeck): AccountDeckBody {
   const body: AccountDeckBody = { name: d.name.slice(0, MAX_NAME), leaderId: d.leaderId, cards: d.cards };
   if (d.artPrefs) body.artPrefs = d.artPrefs;
+  if (d.plannerArt) body.plannerArt = d.plannerArt;
   if (d.plannerDeckId !== undefined) body.plannerDeckId = d.plannerDeckId;
   if (d.editedLocally !== undefined) body.editedLocally = d.editedLocally;
   return body;
@@ -91,12 +92,13 @@ function toBody(d: SavedDeck): AccountDeckBody {
 
 function fromAccount(r: AccountDeck): SavedDeck | null {
   if (r.deleted || !r.deck) return null;
-  const { artPrefs, plannerDeckId, editedLocally, ...rest } = r.deck;
+  const { artPrefs, plannerArt, plannerDeckId, editedLocally, ...rest } = r.deck;
   return {
     ...rest,
     id: r.id,
     updatedAt: r.updatedAt,
     ...(artPrefs ? { artPrefs } : {}),
+    ...(plannerArt ? { plannerArt } : {}),
     ...(plannerDeckId != null ? { plannerDeckId } : {}),
     ...(editedLocally != null ? { editedLocally } : {}),
   };
