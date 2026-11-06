@@ -2,8 +2,10 @@
 // Copies the stills / card art / phone frames the motion piece uses into public/motion/ (gitignored).
 // Sources: MOTION_STILLS (default ../clips/stills, else /mnt/project-files/trailer/clips/stills),
 //          MOTION_CLIPS (default ../clips, else /mnt/project-files/trailer/clips),
-//          MOTION_CARDS (default ../../duel-web/public/cards).
+//          MOTION_CARDS (default ../../duel-web/public/cards),
+//          MOTION_MUSIC / MOTION_MUSIC_START / MOTION_MUSIC_BPM (music track, see below).
 import {spawnSync} from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -73,9 +75,41 @@ if (!fs.existsSync(oceanCached) || fs.statSync(oceanCached).size < 100000) {
 if (fs.existsSync(oceanCached)) fs.copyFileSync(oceanCached, path.join(dst, 'ocean.mp3'));
 const hasOcean = fs.existsSync(path.join(dst, 'ocean.mp3'));
 
+// Music: "Tributary" by Lish Grooves, from the YouTube Audio Library (licensed, chosen by the project owner).
+// The audio is NEVER committed (CI rejects media): the source stays outside the repo, the prepared clip lives in
+// public/motion/ (gitignored) and is cached in the card cache dir keyed on source + params.
+// Prep: take 29.23 s from MOTION_MUSIC_START (a beat, 6 beats before the full groove re-enters), time-stretch with
+// rubberband from MOTION_MUSIC_BPM to exactly 120 BPM (pitch unchanged) so beat k lands at k*0.5 s and the re-entry
+// hits at 3.0 s = frame 90 (Storm scene), then loudnorm to -14 LUFS (two-pass). Written as 48 kHz stereo WAV
+// (no MP3 encoder delay to shift the beat grid).
+const musicSrc = pick('MOTION_MUSIC', '/mnt/user-data/uploads/hearth/e728063e-04d7-4ae7-b290-834a89aa50cd/e728063e-04d7-4ae7-b290-834a89aa50cd.mp3', path.resolve(root, '../motion-music-src.mp3'));
+const musicStart = Number(process.env.MOTION_MUSIC_START ?? 164.37);
+const musicBpm = Number(process.env.MOTION_MUSIC_BPM ?? 129.2);
+let hasMotionMusic = false;
+if (musicSrc) {
+  const st = fs.statSync(musicSrc);
+  const key = crypto.createHash('sha1').update(JSON.stringify([path.resolve(musicSrc), st.size, st.mtimeMs, musicStart, musicBpm, 'v1'])).digest('hex').slice(0, 12);
+  const cachedMusic = path.join(cacheDir, `music-${key}.wav`);
+  if (!fs.existsSync(cachedMusic)) {
+    const tempo = 120 / musicBpm;
+    const pre = `atrim=start=${musicStart}:end=${musicStart + 29.23},asetpts=PTS-STARTPTS,rubberband=tempo=${tempo.toFixed(6)}`;
+    const LN = 'I=-14:TP=-1.5:LRA=11';
+    const m = spawnSync('ffmpeg', ['-hide_banner', '-i', musicSrc, '-af', `${pre},loudnorm=${LN}:print_format=json`, '-f', 'null', '-'], {encoding: 'utf8'});
+    let norm = `loudnorm=${LN}`;
+    const j = m.stderr?.match(/\{[^{}]*"input_i"[^{}]*\}/s);
+    if (j) {
+      const d = JSON.parse(j[0]);
+      norm = `loudnorm=${LN}:measured_I=${d.input_i}:measured_TP=${d.input_tp}:measured_LRA=${d.input_lra}:measured_thresh=${d.input_thresh}:offset=${d.target_offset}:linear=true`;
+    }
+    const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', musicSrc, '-af', `${pre},${norm},aresample=48000`, '-ac', '2', '-c:a', 'pcm_s16le', cachedMusic], {encoding: 'utf8'});
+    if (r.status !== 0) { console.warn(`motion prerender: music prep failed ${r.stderr.trim()}`); fs.rmSync(cachedMusic, {force: true}); }
+  }
+  if (fs.existsSync(cachedMusic)) { fs.copyFileSync(cachedMusic, path.join(dst, 'music.wav')); hasMotionMusic = true; }
+} else console.log('motion prerender: no music source found, skipping (set MOTION_MUSIC)');
+
 // src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3.
 const gen = path.join(root, 'src/generated.json');
 const hasMusic = fs.existsSync(path.join(root, 'public/music.mp3'));
 let cur = {clips: {}};
 try { cur = JSON.parse(fs.readFileSync(gen, 'utf8')); } catch { /* absent */ }
-fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean}, null, 2) + '\n');
+fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean, hasMotionMusic}, null, 2) + '\n');

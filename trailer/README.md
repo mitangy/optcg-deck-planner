@@ -110,6 +110,8 @@ node scripts/render-infographics.mjs hand   # only ids containing "hand"
 
 Ambience: an ocean waves + seagulls bed (BigSoundBank "Sea waves and seagulls", CC0) is downloaded by `prerender:motion` into `public/motion/ocean.mp3` and ducked under the middle of the piece (further under `music.mp3` if present).
 
+Music: "Tributary" by Lish Grooves (YouTube Audio Library). `prerender:motion` cuts 29.23 s from the source at `MOTION_MUSIC_START` (default 164.37 s, a beat 6 beats before the full groove returns), time-stretches it with ffmpeg's rubberband from `MOTION_MUSIC_BPM` (default 129.2) to exactly 120 BPM, loudnorms it to -14 LUFS (two-pass) and writes `public/motion/music.wav`, cached in `.motion-card-cache/` keyed on source and params. The groove re-enters at 3.0 s (frame 90, the Storm scene) and the ocean bed ducks under it. `MOTION_MUSIC` is the source file (default: the project-upload path, else `../motion-music-src.mp3`; none found means no music). The audio is never committed (`public/motion/` and the cache are gitignored).
+
 ```bash
 cd trailer/video
 npm run prerender:motion      # copies stills, card art and two phone frames into public/motion/ (gitignored)
