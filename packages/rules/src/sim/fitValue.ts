@@ -2,10 +2,14 @@
  * Fits the learned value model (#635): logistic regression over bot/features.ts on positions from self-play games.
  *
  * Usage: npx tsx src/sim/fitValue.ts --in a.jsonl,dir [--out src/bot/valueWeights.json] [--holdout 0.2] [--l2 0.01] [--iters 3000] [--every-intent 0] [--cache samples.json] [--refit-all]
- *   [--compare current.json] [--gate] [--report report.json] [--min-gain 0.002] [--min-samples 2000]
+ *   [--compare current.json] [--gate] [--report report.json] [--min-gain 0.002] [--min-samples 2000] [--sim exports.json,dir]
  * --in entries may be directories (every *.jsonl inside, recursively). --compare scores the committed weights and the new
  * fit on the same held-out games (#915); --gate writes --out only when refitDecision accepts (final model refit on all
  * games) and always writes the --report JSON.
+ * --sim adds OPTCGSim exports (#1030): each entry is a Card Kaizoku /matches JSON array (or a directory of *.json). Games are parsed
+ * by sim/optcgsim, sampled from the recording player's seat only (samplesFromSimGame) and held out BY GAME with the same stride as
+ * replays (game numbers continue after the replays). Held-out numbers are printed for replay games and sim games separately.
+ *   npx tsx src/sim/fitValue.ts --in corpus.jsonl --sim ~/optcgsim-matches.json --compare src/bot/valueWeights.json --gate --report r.json
  * Each line of the input is a MatchReplay. Every game is replayed with replayMatch; at the start of every turn the
  * position is sampled from both seats' points of view with label 1 when that seat went on to win. Games without a
  * winner are skipped. Every 1/holdout-th game is held out; the report compares log-loss and accuracy on those games
@@ -17,6 +21,7 @@ import { evaluate } from "../bot/evaluate.js";
 import { extractFeatures, FEATURE_NAMES } from "../bot/features.js";
 import { sigmoid, type ValueWeights } from "../bot/valueModel.js";
 import { replayMatch, type MatchReplay } from "../matchReplay.js";
+import { parseSimExport, samplesFromSimGame, type SimMatchRecord } from "./optcgsim/index.js";
 import type { Seat } from "../types.js";
 
 export interface Sample { x: number[]; y: 0 | 1; hand: number; turn: number; game: number }
@@ -177,6 +182,32 @@ export function buildDataset(lines: Iterable<string>, opts: { holdout: number; e
   return { train, test, games: game, skipped };
 }
 
+/** Expand `--sim` entries: files stay, directories become every *.json inside (recursively, sorted). */
+export function expandSimInputs(entries: string[]): string[] {
+  return entries.flatMap((e) => (statSync(e).isDirectory() ? readdirSync(e, { recursive: true, encoding: "utf8" }).filter((n) => n.endsWith(".json")).sort().map((n) => join(e, n)) : [e]));
+}
+
+/**
+ * Samples of parsed sim exports split into train and held-out BY GAME (every stride-th game is held out), numbering games
+ * from `firstGame` so they never collide with replay games. Games with no winner or an unknown card id yield no rows and count as skipped.
+ */
+export function buildSimDataset(exports: Iterable<readonly SimMatchRecord[]>, opts: { holdout: number; firstGame: number }): { train: Sample[]; test: Sample[]; games: number; skipped: number } {
+  const stride = Math.max(2, Math.round(1 / opts.holdout));
+  const train: Sample[] = [];
+  const test: Sample[] = [];
+  let games = 0;
+  let skipped = 0;
+  for (const matches of exports) {
+    for (const g of parseSimExport(matches).games) {
+      const rows = samplesFromSimGame(g, opts.firstGame + games);
+      if (!rows.length) skipped += 1;
+      (games % stride === stride - 1 ? test : train).push(...rows);
+      games += 1;
+    }
+  }
+  return { train, test, games, skipped };
+}
+
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -211,6 +242,17 @@ function main(): void {
     ({ train, test, games: game, skipped } = buildDataset(readLines(files), { holdout, every }));
     if (cache) writeFileSync(cache, JSON.stringify({ train, test, game }));
   }
+  const simEntries = (arg("sim") ?? "").split(",").filter(Boolean);
+  const replayGames = game;
+  if (simEntries.length) {
+    // With --cache the replay samples are cached; sim samples are cheap to rebuild and always added after the cache is read.
+    const sim = buildSimDataset(expandSimInputs(simEntries).map((f) => JSON.parse(readFileSync(f, "utf8")) as SimMatchRecord[]), { holdout, firstGame: game });
+    train = [...train, ...sim.train];
+    test = [...test, ...sim.test];
+    game += sim.games;
+    skipped += sim.skipped;
+    console.log(`sim games ${sim.games} (skipped ${sim.skipped}): train samples ${sim.train.length}, held-out samples ${sim.test.length}`);
+  }
   console.log(`games ${game} (skipped ${skipped}), train samples ${train.length}, held-out samples ${test.length}`);
   if (!train.length || !test.length) {
     const reason = "no usable train or held-out samples";
@@ -233,6 +275,14 @@ function main(): void {
     const part = test.filter((s) => s.turn >= lo && s.turn <= hi);
     if (!part.length) continue;
     console.log(`turns ${lo}-${hi}: n=${part.length} learned ${JSON.stringify(evalModel(part, model))} hand(cal) ${JSON.stringify(handStats(part, (h) => cal.a * h + cal.c))}`);
+  }
+  if (simEntries.length) {
+    const cmp = comparePath ? (JSON.parse(readFileSync(comparePath, "utf8")) as ValueWeights) : null;
+    for (const [label, part] of [["replay games", test.filter((s) => s.game < replayGames)], ["sim games", test.filter((s) => s.game >= replayGames)]] as const) {
+      if (!part.length) continue;
+      const committed = cmp && namesMatch(cmp.names) ? ` committed ${JSON.stringify(evalModel(part, cmp))}` : "";
+      console.log(`held-out ${label}: n=${part.length} learned ${JSON.stringify(evalModel(part, model))}${committed}`);
+    }
   }
   if (comparePath) {
     const cur = JSON.parse(readFileSync(comparePath, "utf8")) as ValueWeights;

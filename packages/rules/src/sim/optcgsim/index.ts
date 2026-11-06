@@ -8,3 +8,5 @@ export {
   parseSimGame,
   unknownLinePattern,
 } from "./parse.js";
+export { samplesFromSimGame, simGameIsKnown } from "./samples.js";
+export { opponentDecksFromSimGames } from "./decks.js";
