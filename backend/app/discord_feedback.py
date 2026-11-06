@@ -206,10 +206,15 @@ ISSUE_RETRY_WINDOW = timedelta(days=1)
 MAX_ISSUE_RETRIES_PER_POLL = 3
 
 
+def _defang(text: str) -> str:
+    """Player text goes into a public issue: a zero-width space after every @ stops GitHub pinging users and teams."""
+    return text.replace("@", "@\u200b")
+
+
 def issue_title(message: str) -> str:
     """The thread title of a forum post (its message's first line), else the start of the message."""
     first = next((line.strip() for line in message.splitlines() if line.strip()), "")
-    return f"[Discord] {first[:80]}"
+    return f"[Discord] {_defang(first[:80])}"
 
 
 def make_github_client(token: str) -> httpx.AsyncClient:
@@ -245,7 +250,7 @@ async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Fee
     if row.github_issue is not None:
         return
     body = (
-        f"{row.message}\n\nFrom Discord: {row.discord_author} · {row.page}\n\nFeedback ticket #{row.id}"
+        f"{_defang(row.message)}\n\nFrom Discord: {_defang(row.discord_author or '')} · {row.page}\n\nFeedback ticket #{row.id}"
     )
     payload = {
         "title": issue_title(row.message),

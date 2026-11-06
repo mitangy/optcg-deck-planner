@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -425,3 +426,14 @@ def test_issue_lost_to_a_timeout_is_adopted_not_opened_twice_989(db):
     poll(fake, db, gh)
     assert len(gh.issues) == 1
 
+
+def test_discord_mentions_cannot_ping_github_users_989(db):
+    t, tid = thread(2, "Ping @octocat")
+    fake = forum_with((t, tid))
+    fake.starters[tid] = starter(tid, content="cc @octocat and @some-org/team", author={**USER, "global_name": "@evil"})
+    gh = FakeGitHub()
+    poll(fake, db, gh)
+    ((_, issue, _),) = gh.issues
+    for text in (issue["body"], issue["title"]):
+        assert "@" in text and re.search(r"@(?!\u200b)", text) is None
+    assert "octocat" in issue["body"] and "some-org/team" in issue["body"] and "evil" in issue["body"]
