@@ -28,6 +28,8 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"opponent-next-turn-skips-current-turn","file":"packages/rules/src/engine/modifiers.ts","from":"turn: state.activeSeat === seat ? state.turnNumber + 1 : state.turnNumber };","to":"turn: nextTurnOf(state, seat === 0 ? 1 : 0) };","kills":["On K.O. cannot-attack ends with the opponent's current turn (#1012)"]},
+    {"id":"opponent-next-turn-always-current-turn","file":"packages/rules/src/engine/modifiers.ts","from":"turn: state.activeSeat === seat ? state.turnNumber + 1 : state.turnNumber };","to":"turn: state.turnNumber };","kills":["On Play on my own turn still lasts through the opponent's whole next turn (#1012)"]},
     {"id":"cannot-be-rested-no-status","file":"packages/rules/src/engine/views.ts","from":"  if (hasRestriction(state, seat, c, \"cannot_be_rested\")) statuses.push(\"Cannot be rested\");\n","to":"","kills":["OP14-033 target shows Cannot be rested until the end of the opponent's next turn (#985)"]},
     {"id":"hand-reveal-not-recorded","file":"packages/rules/src/engine/runtime.ts","from":"        if (loc.zone === \"hand\") {\n          const p = state.players[loc.seat];","to":"        if (false as boolean) {\n          const p = state.players[loc.seat];","kills":["Cards revealed from hand stay visible to the opponent"]},
     {"id":"hand-reveal-survives-turn","file":"packages/rules/src/engine/procedure.ts","from":"  for (const player of state.players) delete player.revealedHandIds;","to":"","kills":["Reveals end when the next turn begins"]},

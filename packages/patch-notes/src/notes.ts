@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-06
+  { date: "2026-11-06", app: "duel", pr: 1012, title: "Perona's restriction ends on time", text: "Effects that last \"until the end of your opponent's next turn\", like Perona's cannot-attack, now end with your opponent's current turn when they happen on your opponent's turn (for example when Perona is K.O.'d). They used to last through your opponent's following turn as well." },
   // 2026-11-05
   { date: "2026-11-05", app: "duel", pr: 993, title: "One Log Pose button in a match", text: "The Brief and Log Pose buttons in a match are now a single Log Pose button. It opens the same panel, with the matchup brief at the top and the chat below, and tapping it again closes it." },
   { date: "2026-11-05", app: "duel", pr: 995, title: "Random decks against the bot", text: "In Play vs Bot you can now pick Random deck for the bot, for yourself, or both. A random deck is drawn from your complete decks when the game starts, and the bot gets a different one than yours when it can." },
