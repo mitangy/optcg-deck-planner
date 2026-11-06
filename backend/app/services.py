@@ -435,6 +435,11 @@ MAX_DECK_DISTINCT_CARDS = 250
 MAX_DECKS_PER_USER = 300
 
 
+def _check_distinct_card_cap(parsed: list[ParsedCard]) -> None:
+    if len(parsed) >= MAX_DECK_DISTINCT_CARDS + 1:
+        raise ValueError(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
+
+
 def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     parsed = parse_decklist(decklist)
     if len(parsed) > MAX_DECK_DISTINCT_CARDS:
@@ -1003,9 +1008,15 @@ def upsert_deck_card(
             _apply_alt_want_clamp_to_rows(printing_rows, needed)
             _delete_zero_printing_rows(db, printing_rows)
 
+    _set_deck_leader(db, user, deck, find_leader_id(projected_lines, catalog))
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
+
+
+def _set_deck_leader(db: Session, user: User, deck: Deck, new_leader: str | None) -> None:
+    """Point ``deck`` at ``new_leader`` and fix Main flags for the old and new leader."""
     prev_leader = deck.leader_card_id
     was_main = bool(deck.is_main)
-    new_leader = find_leader_id(projected_lines, catalog)
     deck.leader_card_id = new_leader
     if prev_leader != new_leader:
         deck.is_main = False
@@ -1034,6 +1045,49 @@ def upsert_deck_card(
                 deck.is_main = True
     elif not new_leader:
         deck.is_main = False
+
+
+def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> DeckDetail:
+    """Overwrite a deck's leader and cards with a pasted deck code (#1016).
+
+    Keeps the deck's id, name, order and visibility.
+    """
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise LookupError("Deck not found")
+    parsed = parse_decklist(decklist)  # ValueError("No cards found...") when empty
+    _check_distinct_card_cap(parsed)
+    catalog = _catalog_map(db, {c.card_id for c in parsed})
+    _main, don_count = deck_size_counts(parsed, catalog)
+    if don_count > DON_DECK_LIMIT:
+        raise ValueError(f"DON!! deck would have {don_count} cards (maximum {DON_DECK_LIMIT})")
+
+    new_needed = {c.card_id: c.needed for c in parsed}
+    existing = {c.card_id: c for c in deck.cards}
+    for card_id, row in existing.items():
+        if card_id not in new_needed:
+            db.delete(row)
+            _clear_deck_card_printings(db, deck.id, card_id)
+            continue
+        row.needed = new_needed[card_id]
+        printing_rows = db.scalars(
+            select(DeckCardPrinting).where(
+                DeckCardPrinting.deck_id == deck.id,
+                DeckCardPrinting.card_id == card_id,
+            )
+        ).all()
+        if printing_rows:
+            _apply_alt_want_clamp_to_rows(printing_rows, row.needed)
+            _delete_zero_printing_rows(db, printing_rows)
+    for new_id, new_qty in new_needed.items():
+        if new_id not in existing:
+            db.add(DeckCard(deck_id=deck.id, card_id=new_id, needed=new_qty))
+
+    _set_deck_leader(db, user, deck, find_leader_id(parsed, catalog))
     db.commit()
     return get_deck_detail(db, user, deck_id)
 

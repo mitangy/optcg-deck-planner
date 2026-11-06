@@ -672,6 +672,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, decklist }),
     }),
+  /** Overwrite a deck's leader and cards with a pasted OPTCGSim deck code (#1016). Name and id stay. */
+  replaceDeckList: (id: number, decklist: string) =>
+    request<DeckDetail>(`/decks/${id}/decklist`, {
+      method: "PUT",
+      body: JSON.stringify({ decklist }),
+    }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
   renameDeck: (id: number, name: string) =>

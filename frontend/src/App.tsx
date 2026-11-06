@@ -87,6 +87,7 @@ import { CompassIcon } from "./ThemeIcons";
 import { MenuItem, Select } from "@optcg/ui/popups";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "./HeadPopover";
+import { ReplaceDeckListDialog } from "./ReplaceDeckListDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { LightboxPriceAlertControl, NotificationsBell, PriceAlertsPage } from "./PriceAlerts";
 import { CardPage } from "./CardPage";
@@ -3740,12 +3741,15 @@ function DeckEditorPanel({
   deck,
   onUpdated,
   onChanged,
+  onReplaceList,
 }: {
   deckId: number;
   deck: DeckDetail;
   onUpdated: (detail: DeckDetail) => void;
   /** Fired after a save that leaves the card in the deck, so the list can point at its row. */
   onChanged?: (cardId: string) => void;
+  /** Opens the "Replace with deck list" dialog (#1016). */
+  onReplaceList?: () => void;
 }) {
   const qc = useQueryClient();
   const atlas = useStatsAtlas().data;
@@ -3862,6 +3866,13 @@ function DeckEditorPanel({
 
   return (
     <div className="deck-editor">
+      {onReplaceList ? (
+        <div className="deck-editor-replace">
+          <button type="button" className="btn secondary" onClick={onReplaceList}>
+            Replace with deck list
+          </button>
+        </div>
+      ) : null}
       <div className="dh-delta-slot" role="status" aria-live="polite">
         {delta ? (
           <span key={delta.key} className="dh-delta">
@@ -4186,6 +4197,7 @@ function DeckDetailPage() {
   const [altOwnedBusyKey, setAltOwnedBusyKey] = useState<string | null>(null);
   const [altOwnedErr, setAltOwnedErr] = useState<string | null>(null);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [replaceOpen, setReplaceOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameText, setRenameText] = useState("");
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -4611,6 +4623,18 @@ function DeckDetailPage() {
                 </button>
               </MenuItem>
             )}
+            <MenuItem>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetMsg(null);
+                  setReplaceOpen(true);
+                }}
+              >
+                Replace with deck list…
+                <span className="muted">Paste a deck code to overwrite this deck</span>
+              </button>
+            </MenuItem>
             <MenuItem disabled={resetOwned.isPending || data.cards.length === 0}>
               <button
                 type="button"
@@ -4643,8 +4667,21 @@ function DeckDetailPage() {
         </p>
       )}
 
+      <ReplaceDeckListDialog
+        open={replaceOpen}
+        deckId={deckId}
+        deckName={data.name}
+        onClose={() => setReplaceOpen(false)}
+        onReplaced={(detail) => {
+          applyDeckUpdate(detail);
+          setReplaceOpen(false);
+          const count = detail.cards.reduce((n, c) => n + c.needed, 0);
+          setResetMsg(`Replaced with the pasted list (${count} card${count === 1 ? "" : "s"}).`);
+        }}
+      />
+
       {editing && !sideEdit && (
-        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} />
+        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} onReplaceList={() => setReplaceOpen(true)} />
       )}
 
       <DeckProgressSummary cards={progressCards} />
@@ -4758,7 +4795,7 @@ function DeckDetailPage() {
     </section>
     {sideEdit && (
       <aside className="deck-editor-side" aria-label="Add cards">
-        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} />
+        <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} onReplaceList={() => setReplaceOpen(true)} />
       </aside>
     )}
     <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} compact={sideEdit} />
