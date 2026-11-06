@@ -1444,3 +1444,55 @@ class NotificationList(BaseModel):
 
 class NotificationsRead(BaseModel):
     ids: list[int] | None = Field(default=None, max_length=500)
+
+
+class SimGamesImportIn(BaseModel):
+    """Raw OPTCGSim match records (the optcgsim-matches export). Each is validated on its own."""
+
+    games: list[dict] = Field(max_length=500)
+
+
+class SimGamesImportOut(BaseModel):
+    imported: int
+    skipped_duplicates: int
+    skipped_invalid: int
+    total: int
+
+
+class SimGameOut(BaseModel):
+    id: str
+    played_at: str | None
+    my_leader: str | None
+    opp_leader: str | None
+    my_deck: list[str]
+    opp_deck: list[str]
+    result: str
+    turns: int | None
+    went_first: bool | None
+    has_log: bool
+    source: str
+
+
+class SimGameDetailOut(SimGameOut):
+    combat_log: str | None
+
+
+class SimGamesOut(BaseModel):
+    games: list[SimGameOut]
+    total: int
+
+
+class SimMatchupOut(BaseModel):
+    my_leader: str | None
+    opp_leader: str | None
+    games: int
+    wins: int
+    losses: int
+
+
+class SimMatchupsOut(BaseModel):
+    matchups: list[SimMatchupOut]
+
+
+class SimGamesClearedOut(BaseModel):
+    deleted: int

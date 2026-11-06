@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     LargeBinary,
     String,
     Text,
@@ -991,6 +992,33 @@ class AnalystToken(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class SimGame(Base):
+    """One OPTCGSim game a player imported (#1030). Owner-only: every read filters on user_id.
+
+    No player or opponent names are stored, and the names inside combat_log are replaced on import.
+    """
+
+    __tablename__ = "sim_games"
+    __table_args__ = (UniqueConstraint("user_id", "match_key", name="uq_sim_games_user_match"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    match_key: Mapped[str] = mapped_column(Text)
+    played_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    my_leader: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    opp_leader: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # JSON arrays of "4xOP17-040" entries.
+    my_deck: Mapped[list] = mapped_column(JSON)
+    opp_deck: Mapped[list] = mapped_column(JSON)
+    result: Mapped[str] = mapped_column(String(8))  # Won | Lost
+    turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    went_first: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    has_log: Mapped[bool] = mapped_column(Boolean, default=False)
+    combat_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(16), default="optcgsim", server_default="optcgsim")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Friendship(Base):

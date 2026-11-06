@@ -9,18 +9,19 @@ import secrets
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
-from sqlalchemy import delete, func, or_, select
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.analyst_stats import matchup_stats
 from app.tournament_stats import tournament_stats
 from app.tournament_sync import sync_status
 from app.auth import get_current_user
+from app.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.roles import is_banned
-from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
+from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
 from app.routers.duel import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -35,6 +36,14 @@ from app.schemas import (
     AnalystTokenCreated,
     AnalystTokenStatus,
     DuelMatchHistoryOut,
+    SimGameDetailOut,
+    SimGameOut,
+    SimGamesClearedOut,
+    SimGamesImportIn,
+    SimGamesImportOut,
+    SimGamesOut,
+    SimMatchupOut,
+    SimMatchupsOut,
 )
 from app.usernames import duel_display_name
 
@@ -448,3 +457,119 @@ def delete_lesson(
     db.delete(_own_lesson(db, user, lesson_id))
     db.commit()
     return Response(status_code=204)
+
+
+# --- Imported OPTCGSim games (#1030) -------------------------------------------------------------
+# Every query filters on user_id: a player only ever reads or deletes their own rows.
+
+
+def sim_games_user(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_analyst_token: Annotated[str | None, Header()] = None,
+) -> User:
+    """The Log Pose link owner (X-Analyst-Token) for the analyst, or the signed-in player for duel-web."""
+    if x_analyst_token:
+        return analyst_user(db, settings, x_analyst_token)
+    return get_current_user(request, db, settings)
+
+
+def _sim_out(row: SimGame) -> dict:
+    return {
+        "id": row.id,
+        "played_at": row.played_at.isoformat() if row.played_at else None,
+        "my_leader": row.my_leader,
+        "opp_leader": row.opp_leader,
+        "my_deck": row.my_deck,
+        "opp_deck": row.opp_deck,
+        "result": row.result,
+        "turns": row.turns,
+        "went_first": row.went_first,
+        "has_log": row.has_log,
+        "source": row.source,
+    }
+
+
+@router.post("/sim-games/import", response_model=SimGamesImportOut)
+def import_sim_games(
+    body: SimGamesImportIn,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGamesImportOut:
+    """Store the player's OPTCGSim games. Names are dropped; games already imported are skipped."""
+    if len(body.games) > MAX_IMPORT_GAMES:
+        raise HTTPException(status_code=413, detail=f"At most {MAX_IMPORT_GAMES} games per import")
+    return SimGamesImportOut(**import_games(db, user.id, body.games))
+
+
+@router.get("/sim-games", response_model=SimGamesOut)
+def list_sim_games(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> SimGamesOut:
+    """The player's imported games, newest first, without the combat logs."""
+    rows = db.scalars(
+        select(SimGame)
+        .where(SimGame.user_id == user.id)
+        .order_by(SimGame.played_at.desc(), SimGame.created_at.desc(), SimGame.id)
+        .limit(limit)
+    ).all()
+    total = db.scalar(select(func.count()).select_from(SimGame).where(SimGame.user_id == user.id)) or 0
+    return SimGamesOut(games=[SimGameOut(**_sim_out(r)) for r in rows], total=total)
+
+
+@router.get("/sim-games/matchups", response_model=SimMatchupsOut)
+def sim_game_matchups(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimMatchupsOut:
+    won = func.sum(case((SimGame.result == "Won", 1), else_=0))
+    rows = db.execute(
+        select(SimGame.my_leader, SimGame.opp_leader, func.count(), won)
+        .where(SimGame.user_id == user.id)
+        .group_by(SimGame.my_leader, SimGame.opp_leader)
+        .order_by(func.count().desc(), SimGame.my_leader, SimGame.opp_leader)
+    ).all()
+    return SimMatchupsOut(
+        matchups=[
+            SimMatchupOut(my_leader=m, opp_leader=o, games=n, wins=int(w or 0), losses=n - int(w or 0)) for m, o, n, w in rows
+        ]
+    )
+
+
+@router.get("/sim-games/{game_id}", response_model=SimGameDetailOut)
+def get_sim_game(
+    game_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGameDetailOut:
+    """One imported game with its combat log. Someone else's game is a 404, same as a missing one."""
+    row = db.scalar(select(SimGame).where(SimGame.id == game_id, SimGame.user_id == user.id))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return SimGameDetailOut(**_sim_out(row), combat_log=row.combat_log)
+
+
+@router.delete("/sim-games/{game_id}", status_code=204)
+def delete_sim_game(
+    game_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> Response:
+    row = db.scalar(select(SimGame).where(SimGame.id == game_id, SimGame.user_id == user.id))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    db.delete(row)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/sim-games", response_model=SimGamesClearedOut)
+def clear_sim_games(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGamesClearedOut:
+    """Remove every game the player imported."""
+    return SimGamesClearedOut(deleted=clear_games(db, user.id))
