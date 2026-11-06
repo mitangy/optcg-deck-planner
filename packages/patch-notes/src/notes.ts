@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-06
+  { date: "2026-11-06", app: "duel", pr: 1015, title: "Spectators see the same hand fans as a match", text: "When you watch a match on a computer, both hands are now the same fan you see when you play: the same card size, overlapping cards that tuck away and rise when you hover them. Hover a hand, or click its Hand button, to raise it." },
   { date: "2026-11-06", app: "duel", pr: 1013, title: "Perona freeze ends on time", text: "Effects that last \"until the end of your opponent's next turn\", like Perona's cannot-attack, now end with your opponent's current turn when they happen on your opponent's turn (for example when Perona is K.O.'d). They used to last through your opponent's following turn as well." },
   { date: "2026-11-06", app: "duel", pr: 1011, title: "Planner alt arts come with your decks", text: "Decks you bring over from the deck planner now use the alt arts you picked there. Art you change in the duel app stays your pick." },
   { date: "2026-11-06", app: "duel", pr: 1010, title: "Hand drag handle stays reachable", text: "Moved your hand onto the End turn button? Its drag handle now stays on top, so you can always move it again." },

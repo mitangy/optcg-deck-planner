@@ -21,8 +21,8 @@ export type SpectatorFans = "desktop" | "portrait" | "landscape";
 /**
  * Spectators of unranked rooms get both hands face up. They have nothing to
  * play, so both are drawn whatever their Hand setting says (the saved setting
- * is left alone): the desktop fans hang off the top and bottom edges of the
- * board; phones get compact grids (see `spectatorHandGrid`): a row above the
+ * is left alone): the desktop fans are the match's hand fan, the far one
+ * mirrored along the top edge of the board; phones get compact grids (see `spectatorHandGrid`): a row above the
  * top mat and one under the bottom mat in portrait, two wrapping grids in the
  * right column in landscape. Null when the hands are hidden (ranked) or this
  * is not a spectator.
@@ -36,11 +36,8 @@ export function spectatorFans(revealed: boolean, wide: boolean, landscapePhone: 
 /**
  * Phones show a spectator's hands as grids of small upright cards side by side
  * (no overlap, tilt or drop) so the freed height goes to the mats; only the
- * desktop keeps the two fans.
+ * desktop keeps the two fans (the match's `HandFan`).
  */
 export function spectatorHandGrid(fans: SpectatorFans | null): boolean {
   return fans === "portrait" || fans === "landscape";
 }
-
-/** Share of a card each card adds in a spectator's fans: just past 1, so cards sit side by side with a sliver of gap. */
-export const SPECTATOR_FAN_SPREAD = 1.08;
