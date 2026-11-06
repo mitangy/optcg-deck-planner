@@ -788,7 +788,7 @@
 
 .adm-urow {
   display: grid;
-  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(0, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
+  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(4.5rem, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
   align-items: center;
   gap: 0.75rem;
   padding: 0.55rem 0.25rem;
@@ -803,6 +803,14 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* A title never spills into its neighbour (#1018). */
+.adm-uhead > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .adm-ucell {
@@ -884,29 +892,13 @@
   min-width: 8rem;
 }
 
-@media (max-width: 760px) {
-  .adm-grid2 {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+/* Below ~1030px the desktop grid (about 57rem of columns inside the panel) no longer fits, so each user stacks (#1018). */
+@media (max-width: 1030px) {
   .adm-uhead {
     display: none;
   }
 
-  .adm-col-date {
-    display: none;
-  }
-
-  .adm-run-date {
-    display: block;
-  }
-
-  .adm-run {
-    min-width: 8rem;
-    max-width: 11rem;
-  }
-
-  /* Phone list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
+  /* Stacked list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
   .adm-urow {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-areas:
@@ -918,16 +910,16 @@
     padding: 0.7rem 0.25rem;
   }
 
-  .adm-uname {
+  .adm-urow > .adm-uname {
     grid-area: name;
   }
 
-  .adm-urole {
+  .adm-urow > .adm-urole {
     grid-area: role;
     justify-self: end;
   }
 
-  .adm-usource {
+  .adm-urow > .adm-usource {
     grid-area: source;
     text-align: right;
     color: var(--muted);
@@ -969,6 +961,30 @@
 
   .adm-urow > .adm-ujoined::before {
     content: "Joined ";
+  }
+
+  .adm-urow > .adm-uact {
+    grid-area: act;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 760px) {
+  .adm-grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-col-date {
+    display: none;
+  }
+
+  .adm-run-date {
+    display: block;
+  }
+
+  .adm-run {
+    min-width: 8rem;
+    max-width: 11rem;
   }
 
   .adm-uact {
