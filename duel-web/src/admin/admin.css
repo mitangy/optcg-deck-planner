@@ -1543,6 +1543,84 @@
   color: var(--muted);
 }
 
+/* Event picker and form (#1019). The picker row never changes height, so opening the form or switching events moves nothing above it. */
+.adm-evt-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.adm-evt-picker .adm-evt-select {
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+
+.adm-evt-picker .btn {
+  flex: 0 0 auto;
+}
+
+.adm-evt-head-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.adm-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.adm-danger:disabled {
+  color: inherit;
+  border-color: var(--line);
+}
+
+.adm-evt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.adm-evt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adm-evt-grid > * {
+  min-width: 0;
+}
+
+.adm-evt-wide {
+  grid-column: 1 / -1;
+}
+
+.adm-evt-form textarea {
+  resize: vertical;
+}
+
+/* Reserved so a message never resizes the form. */
+.adm-evt-error {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .adm-evt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-evt-head {
+    flex-wrap: wrap;
+  }
+
+  .adm-evt-head-actions {
+    flex-wrap: wrap;
+  }
+}
+
 /* Advisory flag pills (#809): they wrap inside a fixed-width cell so the row never grows sideways. */
 .adm-evt-flags {
   display: flex;

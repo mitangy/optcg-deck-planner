@@ -1,4 +1,4 @@
-import type { SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
+import type { AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
 export type AdminTab = "players" | "bots" | "hosting" | "event" | "reports" | "uploads" | "users";
 
@@ -6,7 +6,7 @@ export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
   { id: "bots", label: "Bots & Log Pose" },
   { id: "hosting", label: "Hosting" },
-  { id: "event", label: "Event" },
+  { id: "event", label: "Events" },
   { id: "reports", label: "Reports" },
   { id: "uploads", label: "Uploads" },
   { id: "users", label: "Users" },
@@ -378,6 +378,176 @@ export function canDrawEvent(event: { status: string; draw: { drawn_at: string |
 /** The seed can be committed only while the event is upcoming and none exists. */
 export function canCommitSeed(event: { status: string; draw: unknown | null }): boolean {
   return event.status === "upcoming" && event.draw === null;
+}
+
+// ---------------------------------------------------------------- events (#1019)
+
+export const EVENT_FORMAT_OPTIONS: readonly { value: EventFormat; label: string }[] = [
+  { value: "casual", label: "Casual play" },
+  { value: "single_elim", label: "Single-elimination bracket" },
+  { value: "round_robin", label: "Round robin" },
+  { value: "swiss", label: "Swiss" },
+];
+export const EVENT_PRIZE_METHOD_OPTIONS: readonly { value: EventPrizeMethod; label: string }[] = [
+  { value: "draw", label: "Random draw among eligible players" },
+  { value: "placement", label: "Top finishers" },
+];
+export const EVENT_BRACKET_SIZES = [4, 8, 16, 32] as const;
+
+/** The event the tab opens on: the live one, else the soonest upcoming, else the newest. The list is newest start first. */
+export function defaultEventId(events: readonly Pick<AdminEventSummary, "id" | "status" | "starts_at">[]): string | null {
+  const live = events.find((e) => e.status === "live");
+  if (live) return live.id;
+  const upcoming = events.filter((e) => e.status === "upcoming").sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+  return upcoming[0]?.id ?? events[0]?.id ?? null;
+}
+
+/** "2026-11-22T12:00" for a datetime-local input, in the admin's own time zone. */
+export function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** The UTC ISO time for a datetime-local value read in the admin's own time zone, or null when it is empty or not a date. */
+export function fromLocalInput(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** "EST", "PDT": the zone the datetime-local fields are read in, for their labels. */
+export function zoneAbbr(iso: string, locale?: string): string {
+  return new Intl.DateTimeFormat(locale, { timeZoneName: "short" }).formatToParts(new Date(iso)).find((p) => p.type === "timeZoneName")?.value ?? "";
+}
+
+/** The form's values as typed: dates are datetime-local strings and numbers are strings, so a half-typed field is allowed. */
+export type EventForm = {
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  format: EventFormat;
+  bracketSize: number;
+  bestOf: 1 | 3;
+  prize: string;
+  prizeDetails: string;
+  prizeMethod: EventPrizeMethod;
+  winners: string;
+  minGames: string;
+  minOpponents: string;
+  minTurns: string;
+};
+
+/** A new event: a week out at noon for three hours, with the same requirements the first event used. */
+export function newEventForm(now: Date): EventForm {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 12, 0);
+  const end = new Date(start.getTime() + 3 * 3_600_000);
+  return {
+    title: "",
+    description: "",
+    startsAt: toLocalInput(start.toISOString()),
+    endsAt: toLocalInput(end.toISOString()),
+    format: "casual",
+    bracketSize: 8,
+    bestOf: 1,
+    prize: "",
+    prizeDetails: "",
+    prizeMethod: "draw",
+    winners: "3",
+    minGames: "3",
+    minOpponents: "2",
+    minTurns: "3",
+  };
+}
+
+export function eventToForm(e: AdminEvent): EventForm {
+  return {
+    title: e.title,
+    description: e.description,
+    startsAt: toLocalInput(e.starts_at),
+    endsAt: toLocalInput(e.ends_at),
+    format: e.format,
+    bracketSize: e.bracket_size ?? 8,
+    bestOf: e.best_of,
+    prize: e.prize,
+    prizeDetails: e.prize_details,
+    prizeMethod: e.prize_method,
+    winners: String(e.winners),
+    minGames: String(e.min_games),
+    minOpponents: String(e.min_opponents),
+    minTurns: String(e.min_turns),
+  };
+}
+
+const wholeNumber = (v: string): number | null => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : null);
+
+/** The API payload for the form, or the first thing wrong with it. Mirrors the server's checks so most mistakes show before saving. */
+export function eventFormPayload(f: EventForm): { ok: true; fields: EventFields } | { ok: false; error: string } {
+  const title = f.title.trim();
+  if (title.length < 1 || title.length > 80) return { ok: false, error: "Give the event a title of 1 to 80 characters." };
+  const starts = fromLocalInput(f.startsAt);
+  const ends = fromLocalInput(f.endsAt);
+  if (!starts || !ends) return { ok: false, error: "Pick a start and an end time." };
+  if (Date.parse(ends) <= Date.parse(starts)) return { ok: false, error: "The end must be after the start." };
+  if (f.prize.trim().length > 200) return { ok: false, error: "The prize summary can be at most 200 characters." };
+  const winners = wholeNumber(f.winners);
+  if (winners === null || winners < 1 || winners > 50) return { ok: false, error: "Winners must be a whole number from 1 to 50." };
+  const minGames = wholeNumber(f.minGames);
+  const minOpponents = wholeNumber(f.minOpponents);
+  const minTurns = wholeNumber(f.minTurns);
+  if (minGames === null || minOpponents === null || minTurns === null) return { ok: false, error: "Minimum games, opponents and turns must be whole numbers, 0 or more." };
+  return {
+    ok: true,
+    fields: {
+      title,
+      description: f.description.trim(),
+      starts_at: starts,
+      ends_at: ends,
+      format: f.format,
+      bracket_size: f.format === "single_elim" ? f.bracketSize : null,
+      best_of: f.bestOf,
+      prize: f.prize.trim(),
+      prize_details: f.prizeDetails.trim(),
+      prize_method: f.prizeMethod,
+      winners,
+      min_games: minGames,
+      min_opponents: minOpponents,
+      min_turns: minTurns,
+    },
+  };
+}
+
+export type EventLockKey = "starts_at" | "ends_at" | "winners" | "min_games" | "min_opponents" | "min_turns" | "prize_method";
+
+/** Fields the server will not change any more, with why. Mirrors its rules: the draw fixes who was eligible; a committed seed fixes the method and, once started, the start. */
+export function eventLocks(event: Pick<AdminEvent, "status" | "draw">): { fields: ReadonlySet<EventLockKey>; reason: string | null } {
+  const fields = new Set<EventLockKey>();
+  if (event.draw?.drawn_at) {
+    for (const k of ["starts_at", "ends_at", "winners", "min_games", "min_opponents", "min_turns", "prize_method"] as const) fields.add(k);
+    return { fields, reason: "The draw already ran, so the dates, winners, minimums and prize method are locked." };
+  }
+  if (event.draw) {
+    fields.add("prize_method");
+    if (event.status !== "upcoming") fields.add("starts_at");
+    return { fields, reason: "A seed is committed, so the prize method is locked" + (fields.has("starts_at") ? " and the start can't move." : ".") };
+  }
+  return { fields, reason: null };
+}
+
+/** The edit request: every field except the locked ones, which are left out so a round trip through the form cannot look like a change. */
+export function eventEditBody(fields: EventFields, locked: ReadonlySet<EventLockKey>): Partial<EventFields> {
+  return Object.fromEntries(Object.entries(fields).filter(([k]) => !locked.has(k as EventLockKey))) as Partial<EventFields>;
+}
+
+/** An event can be deleted until its draw has run. */
+export function canDeleteEvent(event: Pick<AdminEvent, "draw">): boolean {
+  return !event.draw?.drawn_at;
+}
+
+/** Seed and draw only exist for events that pick winners by draw. */
+export function eventUsesDraw(event: Pick<AdminEvent, "prize_method">): boolean {
+  return event.prize_method === "draw";
 }
 
 // ---------------------------------------------------------------- player reports

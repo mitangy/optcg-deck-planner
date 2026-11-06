@@ -7,19 +7,31 @@ import hmac
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session
 
 from app import events as ev
-from app.models import DuelMatch, EventEntry, User
+from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry, User
 from tests.test_admin import ADMIN_EMAIL, login, mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
-EVENT = ev.get_event("stress-test-2026-11")
+EVENT = ev.SEED_EVENT
 START, END = EVENT.starts_at, EVENT.ends_at
 MID = START + timedelta(hours=1)
 BEFORE = START - timedelta(days=3)
 AFTER = END + timedelta(hours=2)
 _n = [0]
+
+
+@pytest.fixture(autouse=True)
+def _seeded_event(request):
+    """Tests that use the API start with Stress Test Sunday in the table, like a fresh deploy."""
+    if "api" in request.fixturenames:
+        _, S = request.getfixturevalue("api")
+        with S() as db:
+            ev.seed_default_event(db)
+    yield
 
 
 @pytest.fixture()
@@ -89,11 +101,13 @@ def test_forfeited_players_are_skipped_so_the_next_one_moves_up_794():
     assert ev.pick_winners([4, 8], [], 3) == [4, 8]
 
 
-def test_the_banner_event_stays_for_a_week_after_it_ends_794():
-    assert ev.current_event(BEFORE) is EVENT
-    assert ev.current_event(AFTER) is EVENT
-    assert ev.current_event(END + timedelta(days=6)) is EVENT
-    assert ev.current_event(END + timedelta(days=8)) is None
+def test_the_banner_event_stays_for_a_week_after_it_ends_794(api):
+    c, S = api
+    with S() as db:
+        assert ev.current_event(db, BEFORE) == EVENT
+        assert ev.current_event(db, AFTER) == EVENT
+        assert ev.current_event(db, END + timedelta(days=6)) == EVENT
+        assert ev.current_event(db, END + timedelta(days=8)) is None
 
 
 # ------------------------------------------------------------------ counting games
@@ -602,3 +616,291 @@ def test_admin_json_and_csv_carry_flags_and_flagged_players_still_win_809(api, c
     clock["now"] = AFTER
     draw = c.post(f"/admin/events/{EVENT.id}/draw").json()["draw"]
     assert sorted(r["user_id"] for r in draw["ranking"]) == sorted(ids + wide)
+
+
+# ------------------------------------------------------------------ admin create / edit / delete (#1019)
+
+def payload(**over) -> dict:
+    base = {
+        "title": "Friday Bracket",
+        "starts_at": (START + timedelta(days=14)).isoformat(),
+        "ends_at": (START + timedelta(days=14, hours=4)).isoformat(),
+        "prize": "Booster box",
+        "prize_details": "Winner takes a booster box.",
+        "prize_method": "placement",
+        "format": "single_elim",
+        "bracket_size": 8,
+        "best_of": 3,
+    }
+    return {**base, **over}
+
+
+def create(c, **over) -> dict:
+    r = c.post("/admin/events", json=payload(**over))
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_event_management_routes_are_admin_only_1019(api, clock):
+    c, S = api
+    calls = [
+        ("get", "/admin/events", None),
+        ("post", "/admin/events", payload()),
+        ("patch", f"/admin/events/{EVENT.id}", {"title": "x"}),
+        ("delete", f"/admin/events/{EVENT.id}", None),
+    ]
+    for method, url, body in calls:
+        assert getattr(c, method)(url, **({"json": body} if body else {})).status_code == 401
+    login(c, S, mk(S, "mod@x.test", "moderator"))
+    for method, url, body in calls:
+        assert getattr(c, method)(url, **({"json": body} if body else {})).status_code == 403
+    with S() as db:
+        assert [e.id for e in ev.list_events(db)] == [EVENT.id]
+        assert ev.get_event(db, EVENT.id).title == EVENT.title
+
+
+def test_admin_creates_an_event_with_prizing_and_style_details_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    out = create(c, description="Bring your best deck.")
+    assert out["id"] == "friday-bracket-2026-12"
+    assert (out["format"], out["bracket_size"], out["best_of"]) == ("single_elim", 8, 3)
+    assert (out["prize_method"], out["prize"], out["prize_details"]) == ("placement", "Booster box", "Winner takes a booster box.")
+    assert out["description"] == "Bring your best deck."
+    assert out["status"] == "upcoming" and out["rules_version"]
+    assert create(c)["id"] == "friday-bracket-2026-12-2"
+    listed = c.get("/admin/events").json()["events"]
+    assert [e["id"] for e in listed] == ["friday-bracket-2026-12", "friday-bracket-2026-12-2", EVENT.id]
+    assert listed[-1]["joined"] == 0 and listed[0]["format"] == "single_elim"
+    pub = c.get("/duel/events/friday-bracket-2026-12").json()["event"]
+    assert (pub["format"], pub["bracket_size"], pub["best_of"], pub["prize_method"]) == ("single_elim", 8, 3, "placement")
+    assert pub["prize_details"] == "Winner takes a booster box." and pub["description"] == "Bring your best deck."
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"title": "   "},
+        {"title": "x" * 81},
+        {"ends_at": (START + timedelta(days=14)).isoformat()},
+        {"ends_at": (START + timedelta(days=13)).isoformat()},
+        {"winners": 0},
+        {"winners": 51},
+        {"min_games": -1},
+        {"min_opponents": -1},
+        {"min_turns": -1},
+        {"format": "double_elim"},
+        {"format": "single_elim", "bracket_size": None},
+        {"format": "single_elim", "bracket_size": 6},
+        {"prize_method": "raffle"},
+        {"best_of": 2},
+        {"prize": "x" * 201},
+    ],
+)
+def test_event_fields_are_validated_on_create_and_edit_1019(api, clock, bad):
+    c, S = api
+    admin_login(c, S)
+    assert c.post("/admin/events", json=payload(**bad)).status_code == 422
+    assert c.patch(f"/admin/events/{EVENT.id}", json=payload(**bad)).status_code == 422
+    with S() as db:
+        assert ev.list_events(db) == [EVENT]
+
+
+def test_bracket_size_only_applies_to_single_elimination_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    assert create(c, format="swiss")["bracket_size"] is None
+    out = c.patch(f"/admin/events/{EVENT.id}", json={"format": "single_elim", "bracket_size": 16}).json()
+    assert (out["format"], out["bracket_size"]) == ("single_elim", 16)
+    out = c.patch(f"/admin/events/{EVENT.id}", json={"format": "round_robin"}).json()
+    assert (out["format"], out["bracket_size"]) == ("round_robin", None)
+
+
+def test_admin_moves_the_event_date_and_the_public_page_follows_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    new_start, new_end = START + timedelta(days=7), END + timedelta(days=7)
+    out = c.patch(f"/admin/events/{EVENT.id}", json={"starts_at": new_start.isoformat(), "ends_at": new_end.isoformat()})
+    assert out.status_code == 200
+    pub = c.get(f"/duel/events/{EVENT.id}").json()["event"]
+    assert pub["starts_at"] == new_start.isoformat() and pub["ends_at"] == new_end.isoformat()
+    clock["now"] = MID  # the old window: now the event has not started
+    assert c.get(f"/duel/events/{EVENT.id}").json()["event"]["status"] == "upcoming"
+    setup_players(S)  # their games sit in the old window
+    assert c.get(f"/admin/events/{EVENT.id}").json()["counters"]["games_in_window"] == 0
+    c.patch(f"/admin/events/{EVENT.id}", json={"starts_at": START.isoformat(), "ends_at": END.isoformat()})
+    assert c.get(f"/admin/events/{EVENT.id}").json()["counters"]["games_in_window"] > 0
+
+
+def test_a_naive_edit_time_is_read_as_utc_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    out = c.patch(f"/admin/events/{EVENT.id}", json={"starts_at": "2026-11-22T18:00:00", "ends_at": "2026-11-22T22:00:00"}).json()
+    assert out["starts_at"] == "2026-11-22T18:00:00+00:00"
+
+
+def test_rules_version_changes_only_when_the_rules_change_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    url = f"/admin/events/{EVENT.id}"
+    v0 = c.get(url).json()["rules_version"]
+    assert c.patch(url, json={"title": "Renamed", "description": "New blurb"}).json()["rules_version"] == v0
+    seen = {v0}
+    for change in ({"min_games": 4}, {"prize_details": "Now a trophy"}, {"format": "swiss"}, {"best_of": 3}, {"winners": 5}):
+        v = c.patch(url, json=change).json()["rules_version"]
+        assert v not in seen
+        seen.add(v)
+    # Re-sending the form unchanged is not a rules change either.
+    cur = c.get(url).json()
+    again = c.patch(url, json={k: cur[k] for k in ("title", "starts_at", "ends_at", "min_games", "prize")}).json()
+    assert again["rules_version"] == cur["rules_version"]
+
+
+def test_a_rules_change_makes_a_stale_join_page_reload_1019(api, clock):
+    c, S = api
+    player = mk(S, "p@x.test")
+    old_version = EVENT.rules_version
+    admin_login(c, S)
+    assert c.patch(f"/admin/events/{EVENT.id}", json={"min_games": 5}).status_code == 200
+    login(c, S, player)
+    r = c.post(f"/duel/events/{EVENT.id}/join", json={"accept_rules": True, "rules_version": old_version})
+    assert r.status_code == 409
+    fresh = c.get(f"/duel/events/{EVENT.id}").json()["event"]
+    assert c.post(f"/duel/events/{EVENT.id}/join", json={"accept_rules": True, "rules_version": fresh["rules_version"]}).status_code == 200
+
+
+def test_edits_that_change_who_wins_are_refused_after_the_draw_1019(api, clock):
+    c, S = api
+    setup_players(S, 5)
+    admin_login(c, S)
+    url = f"/admin/events/{EVENT.id}"
+    clock["now"] = BEFORE
+    c.post(url + "/commit")
+    clock["now"] = AFTER
+    assert c.post(url + "/draw").status_code == 200
+    for change in (
+        {"starts_at": (START + timedelta(hours=1)).isoformat()},
+        {"ends_at": (END + timedelta(hours=1)).isoformat()},
+        {"winners": 2},
+        {"min_games": 1},
+        {"min_opponents": 1},
+        {"min_turns": 1},
+        {"prize_method": "placement"},
+    ):
+        r = c.patch(url, json=change)
+        assert r.status_code == 409 and "draw already ran" in r.json()["detail"], change
+    cur = c.get(url).json()
+    assert (cur["winners_count"], cur["min_games"], cur["starts_at"]) == (3, 3, START.isoformat())
+    # Wording can still be fixed, and re-sending the locked values unchanged is fine.
+    ok = c.patch(url, json={"prize_details": "Gift cards by email", "winners": 3, "starts_at": START.isoformat(), "title": "Stress Test Sunday!"})
+    assert ok.status_code == 200 and ok.json()["prize_details"] == "Gift cards by email" and ok.json()["title"] == "Stress Test Sunday!"
+
+
+def test_the_start_cannot_move_once_a_seed_is_committed_and_the_event_began_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    url = f"/admin/events/{EVENT.id}"
+    clock["now"] = BEFORE
+    c.post(url + "/commit")
+    later = (START + timedelta(days=1)).isoformat()
+    later_end = (END + timedelta(days=1)).isoformat()
+    assert c.patch(url, json={"starts_at": later, "ends_at": later_end}).status_code == 200  # not started yet
+    clock["now"] = START + timedelta(days=1, minutes=5)
+    r = c.patch(url, json={"starts_at": (START + timedelta(days=2)).isoformat(), "ends_at": (END + timedelta(days=2)).isoformat()})
+    assert r.status_code == 409 and "start can't move" in r.json()["detail"]
+
+
+def test_the_prize_method_is_locked_once_a_seed_is_committed_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    url = f"/admin/events/{EVENT.id}"
+    clock["now"] = BEFORE
+    c.post(url + "/commit")
+    assert c.patch(url, json={"prize_method": "placement"}).status_code == 409
+    other = create(c)["id"]
+    assert c.patch(f"/admin/events/{other}", json={"prize_method": "draw"}).json()["prize_method"] == "draw"
+
+
+def test_placement_events_have_no_seed_commit_or_draw_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    eid = create(c)["id"]
+    clock["now"] = BEFORE
+    assert c.post(f"/admin/events/{eid}/commit").status_code == 409
+    with S() as db:
+        assert db.scalar(select(func.count()).select_from(EventDraw)) == 0
+        # Even with a seed on file (say, left from when it was a draw event) nothing can be drawn.
+        db.add(EventDraw(event_id=eid, seed="ab" * 32, seed_hash=ev.seed_hash("ab" * 32)))
+        db.commit()
+    clock["now"] = END + timedelta(days=15)
+    r = c.post(f"/admin/events/{eid}/draw")
+    assert r.status_code == 409 and "no draw" in r.json()["detail"]
+    with S() as db:
+        assert db.scalar(select(EventDraw.drawn_at).where(EventDraw.event_id == eid)) is None
+
+
+def test_deleting_an_event_removes_its_entries_and_seed_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    eid = create(c, prize_method="draw")["id"]
+    other = create(c, title="Other night")["id"]
+    p = mk(S, "p@x.test")
+    with S() as db:
+        db.add_all([
+            EventEntry(event_id=eid, user_id=p, rules_version="v"),
+            EventEntry(event_id=other, user_id=p, rules_version="v"),
+        ])
+        db.commit()
+    clock["now"] = BEFORE
+    assert c.post(f"/admin/events/{eid}/commit").status_code == 200
+    assert c.delete(f"/admin/events/{eid}").json() == {"deleted": eid}
+    assert c.get(f"/admin/events/{eid}").status_code == 404
+    assert c.get(f"/duel/events/{eid}").status_code == 404
+    assert c.delete(f"/admin/events/{eid}").status_code == 404
+    with S() as db:
+        assert [e.event_id for e in db.scalars(select(EventEntry)).all()] == [other]
+        assert db.scalar(select(func.count()).select_from(EventDraw)) == 0
+        assert {e.id for e in ev.list_events(db)} == {EVENT.id, other}
+
+
+def test_a_drawn_event_cannot_be_deleted_1019(api, clock):
+    c, S = api
+    setup_players(S, 5)
+    admin_login(c, S)
+    url = f"/admin/events/{EVENT.id}"
+    clock["now"] = BEFORE
+    c.post(url + "/commit")
+    clock["now"] = AFTER
+    assert c.post(url + "/draw").status_code == 200
+    r = c.delete(url)
+    assert r.status_code == 409 and "draw already ran" in r.json()["detail"]
+    assert c.get(url).status_code == 200
+    with S() as db:
+        assert db.scalar(select(func.count()).select_from(EventEntry)) == 5
+
+
+def test_the_default_event_is_seeded_once_and_not_resurrected_after_delete_1019(monkeypatch):
+    from app import db as app_db
+    from tests.db_support import make_bare_engine
+
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    app_db.init_db()
+    with Session(engine) as db:
+        assert [e.id for e in ev.list_events(db)] == [EVENT.id]
+        db.execute(delete(DuelEvent))
+        db.commit()
+    app_db.init_db()
+    with Session(engine) as db:
+        assert ev.list_events(db) == []
+    engine.dispose()
+
+
+def test_the_latest_event_is_the_one_that_ends_last_1019(api, clock):
+    c, S = api
+    admin_login(c, S)
+    assert c.get("/admin/events/latest").json()["id"] == EVENT.id
+    new = create(c)
+    assert c.get("/admin/events/latest").json()["id"] == new["id"]
+    # The public banner still prefers the soonest live or upcoming event.
+    assert c.get("/duel/events/current").json()["event"]["id"] == EVENT.id
