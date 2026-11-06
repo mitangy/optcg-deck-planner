@@ -1002,6 +1002,7 @@ class DuelDeckBody(BaseModel):
     leaderId: str = Field(max_length=32)
     cards: list[Annotated[str, StringConstraints(max_length=32)]] = Field(max_length=60)
     artPrefs: dict[str, str] | None = None
+    plannerArt: dict[str, str] | None = None
     plannerDeckId: int | None = None
     editedLocally: bool | None = None
 

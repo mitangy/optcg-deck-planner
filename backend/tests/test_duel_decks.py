@@ -62,7 +62,7 @@ def test_decks_round_trip_for_the_account_that_saved_them_619(client):
     c, S = client
     luffy = _user(S, "luffy")
     assert _as(c, luffy).get("/duel/decks").json() == {"decks": []}
-    deck = _deck("Red", artPrefs={"OP17-002": "p1"}, plannerDeckId=7, editedLocally=True)
+    deck = _deck("Red", artPrefs={"OP17-002": "p1"}, plannerArt={"OP17-002": "p2"}, plannerDeckId=7, editedLocally=True)
     assert _put(c, "d1", 1000, deck).status_code == 200
     assert c.get("/duel/decks").json()["decks"] == [
         {"id": "d1", "updatedAt": 1000, "deleted": False, "deck": deck}
