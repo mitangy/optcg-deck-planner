@@ -96,10 +96,10 @@ export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: Ins
 }
 
 /** Queue every ability of `source` for `window` whose gates are open. */
-export function queueWindow(state: MatchState, window: Trigger, seat: Seat, source: { id: InstanceId; defId: string }, opts: { eventCardId?: InstanceId; ignoreNegation?: boolean; card?: CardInstance } = {}): void {
+export function queueWindow(state: MatchState, window: Trigger, seat: Seat, source: { id: InstanceId; defId: string }, opts: { eventCardId?: InstanceId; card?: CardInstance } = {}): void {
   const loc = locate(state, source.id);
   const card = opts.card ?? loc?.card;
-  if (card && isOnField(loc) && !opts.ignoreNegation && isNegated(state, card)) return;
+  if (card && isOnField(loc) && isNegated(state, card)) return;
   for (const ability of abilitiesFor(source.defId)) {
     if (ability.trigger !== window) continue;
     if (!abilityGateOpen(state, seat, { ...source, ...(card ? { card } : {}) }, ability, opts.eventCardId)) continue;
@@ -193,11 +193,13 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
   // [DON!! xN] gates read the card as it was on the field: leaving returns its DON!!.
   const live = loc.card ?? locate(state, loc.id)?.card;
   const koed = live ? { ...live, attachedDonIds: [...live.attachedDonIds] } : undefined;
+  // A negated Character cannot activate [On K.O.] or "when K.O.'d"; negation reads the field, so judge it before the card leaves (#1001).
+  const negated = live ? isNegated(state, live) : false;
   const entry = takeCard(state, loc);
   putCard(state, loc.seat, "trash", entry);
   sim.events.push({ type: "character_ko", seat: loc.seat, defId: entry.defId });
-  queueWindow(state, "on_ko", loc.seat, entry, { ignoreNegation: true, ...(koed ? { card: koed } : {}) });
-  for (const ability of abilitiesFor(entry.defId)) {
+  if (!negated) queueWindow(state, "on_ko", loc.seat, entry, koed ? { card: koed } : {});
+  for (const ability of negated ? [] : abilitiesFor(entry.defId)) {
     const et = ability.eventTrigger;
     if (ability.trigger !== "on_event" || et?.event !== "self_ko") continue;
     if (et.byOpponentEffect && (cause.byEffectOf == null || cause.byEffectOf === loc.seat)) continue;
