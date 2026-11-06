@@ -15,7 +15,7 @@ from pydantic import AfterValidator, BaseModel, Field, model_validator
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from app import admin_hosting
+from app import admin_hosting, admin_traffic
 from app.analyst_credit import month_start, spent_since
 from app.auth import get_current_user
 from app.config import Settings, get_settings
@@ -473,6 +473,12 @@ def feedback_export(
 @router.get("/hosting")
 def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refresh: int = 0) -> dict:
     return admin_hosting.hosting(settings, refresh=bool(refresh))
+
+
+@router.get("/traffic")
+def traffic(_: Admin, settings: Annotated[Settings, Depends(get_settings)], days: Annotated[RangeDays, Query()] = 30, refresh: int = 0) -> dict:
+    """Vercel Web Analytics and Render metrics (#1020), read with the owner's tokens and cached for ten minutes."""
+    return admin_traffic.traffic(settings, days, refresh=bool(refresh))
 
 
 # ---------------------------------------------------------------- users

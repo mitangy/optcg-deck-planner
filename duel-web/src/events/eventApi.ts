@@ -5,12 +5,22 @@ export type EventStatus = "upcoming" | "live" | "ended" | "drawn";
 
 export type EventProgress = { games: number; opponents: number; eligible: boolean };
 
+export type EventFormat = "casual" | "single_elim" | "round_robin" | "swiss";
+
 export type DuelEvent = {
   id: string;
   title: string;
   starts_at: string;
   ends_at: string;
+  /** Short prize summary. */
   prize: string;
+  description: string;
+  prize_details: string;
+  /** draw: a seeded giveaway among eligible players. placement: top finishers, awarded by hand. */
+  prize_method: "draw" | "placement";
+  format: EventFormat;
+  bracket_size: number | null;
+  best_of: 1 | 3;
   winners: number;
   rules_version: string;
   min_games: number;

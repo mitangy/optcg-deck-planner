@@ -1414,6 +1414,38 @@ class TradeApplyLine(Base):
     qty_before: Mapped[int] = mapped_column(Integer)
 
 
+class DuelEvent(Base):
+    """An event the admin runs from the Events tab (#1019): dates, prizing and tourney style.
+
+    The id is a slug that EventEntry/EventDraw rows point at (kept as plain strings, no FK)."""
+
+    __tablename__ = "duel_events"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Bumped whenever a rules-affecting field changes, so a stale rules page cannot join.
+    rules_version: Mapped[str] = mapped_column(String(32))
+    winners: Mapped[int] = mapped_column(Integer, default=3)
+    min_games: Mapped[int] = mapped_column(Integer, default=3)
+    min_opponents: Mapped[int] = mapped_column(Integer, default=2)
+    min_turns: Mapped[int] = mapped_column(Integer, default=3)
+    prize: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    prize_details: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # "draw" (seeded giveaway among eligible players) or "placement" (top finishers, awarded by hand).
+    prize_method: Mapped[str] = mapped_column(String(16), default="draw", server_default="draw")
+    # casual | single_elim | round_robin | swiss
+    format: Mapped[str] = mapped_column(String(24), default="casual", server_default="casual")
+    bracket_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    best_of: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class EventEntry(Base):
     """A signed-in player's opt-in to a giveaway event (#794). One per player per event."""
 

@@ -788,7 +788,7 @@
 
 .adm-urow {
   display: grid;
-  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(0, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
+  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(4.5rem, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
   align-items: center;
   gap: 0.75rem;
   padding: 0.55rem 0.25rem;
@@ -803,6 +803,14 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* A title never spills into its neighbour (#1018). */
+.adm-uhead > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .adm-ucell {
@@ -884,29 +892,13 @@
   min-width: 8rem;
 }
 
-@media (max-width: 760px) {
-  .adm-grid2 {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+/* Below ~1030px the desktop grid (about 57rem of columns inside the panel) no longer fits, so each user stacks (#1018). */
+@media (max-width: 1030px) {
   .adm-uhead {
     display: none;
   }
 
-  .adm-col-date {
-    display: none;
-  }
-
-  .adm-run-date {
-    display: block;
-  }
-
-  .adm-run {
-    min-width: 8rem;
-    max-width: 11rem;
-  }
-
-  /* Phone list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
+  /* Stacked list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
   .adm-urow {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-areas:
@@ -918,16 +910,16 @@
     padding: 0.7rem 0.25rem;
   }
 
-  .adm-uname {
+  .adm-urow > .adm-uname {
     grid-area: name;
   }
 
-  .adm-urole {
+  .adm-urow > .adm-urole {
     grid-area: role;
     justify-self: end;
   }
 
-  .adm-usource {
+  .adm-urow > .adm-usource {
     grid-area: source;
     text-align: right;
     color: var(--muted);
@@ -969,6 +961,30 @@
 
   .adm-urow > .adm-ujoined::before {
     content: "Joined ";
+  }
+
+  .adm-urow > .adm-uact {
+    grid-area: act;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 760px) {
+  .adm-grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-col-date {
+    display: none;
+  }
+
+  .adm-run-date {
+    display: block;
+  }
+
+  .adm-run {
+    min-width: 8rem;
+    max-width: 11rem;
   }
 
   .adm-uact {
@@ -1543,6 +1559,84 @@
   color: var(--muted);
 }
 
+/* Event picker and form (#1019). The picker row never changes height, so opening the form or switching events moves nothing above it. */
+.adm-evt-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.adm-evt-picker .adm-evt-select {
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+
+.adm-evt-picker .btn {
+  flex: 0 0 auto;
+}
+
+.adm-evt-head-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.adm-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.adm-danger:disabled {
+  color: inherit;
+  border-color: var(--line);
+}
+
+.adm-evt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.adm-evt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adm-evt-grid > * {
+  min-width: 0;
+}
+
+.adm-evt-wide {
+  grid-column: 1 / -1;
+}
+
+.adm-evt-form textarea {
+  resize: vertical;
+}
+
+/* Reserved so a message never resizes the form. */
+.adm-evt-error {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .adm-evt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-evt-head {
+    flex-wrap: wrap;
+  }
+
+  .adm-evt-head-actions {
+    flex-wrap: wrap;
+  }
+}
+
 /* Advisory flag pills (#809): they wrap inside a fixed-width cell so the row never grows sideways. */
 .adm-evt-flags {
   display: flex;
@@ -2040,5 +2134,93 @@
 
   .adm-modes td small {
     display: none;
+  }
+}
+
+/* —— Traffic tab (#1020) —— */
+
+.adm-traffic {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.adm-traffic-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.adm-traffic-name {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.adm-traffic-name small {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-toplists {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.adm-toplist {
+  min-width: 0;
+}
+
+.adm-toplist ul {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+}
+
+.adm-toplist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.adm-toplist li:last-child {
+  border-bottom: 0;
+}
+
+.adm-toplist-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-toplist b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .adm-toplists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .adm-toplists {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

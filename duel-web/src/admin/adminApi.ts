@@ -130,6 +130,40 @@ export type AdminHosting = {
   github: ProviderResult<GithubData>;
 };
 
+export type TrafficRow = { key: string; visitors: number; pageviews: number };
+export type TrafficProject =
+  | { name: string; error: string }
+  | {
+      name: string;
+      error?: undefined;
+      totals: { visitors: number; pageviews: number };
+      daily: { date: string; visitors: number; pageviews: number }[];
+      pages: TrafficRow[];
+      referrers: TrafficRow[];
+      countries: TrafficRow[];
+      devices: TrafficRow[];
+    };
+export type TrafficService =
+  | { name: string; error: string }
+  | {
+      name: string;
+      error?: undefined;
+      type: string;
+      requests_daily: { date: string; total: number; errors_5xx: number }[];
+      requests: number;
+      errors_5xx: number;
+      errors_4xx: number;
+      cpu_avg: number | null;
+      cpu_peak: number | null;
+      cpu_limit: number | null;
+      memory_avg: number | null;
+      memory_peak: number | null;
+      memory_limit: number | null;
+    };
+export type TrafficVercel = { fetched_at?: string; projects: TrafficProject[] };
+export type TrafficRender = { fetched_at?: string; days: number; services: TrafficService[] };
+export type AdminTraffic = { days: number; vercel: ProviderResult<TrafficVercel>; render: ProviderResult<TrafficRender> };
+
 export type SignupSource = { ref?: string; land?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
 export type AdminUser = {
@@ -216,6 +250,7 @@ export function fetchAdminFeedback(rating: FeedbackRating | null, limit: number,
   if (rating) p.set("rating", rating);
   return call<AdminFeedback>(`/admin/feedback?${p}`);
 }
+export const fetchAdminTraffic = (days = 30, refresh = false) => call<AdminTraffic>(`/admin/traffic?days=${days}${refresh ? "&refresh=1" : ""}`);
 export const fetchAdminHosting = (refresh = false) => call<AdminHosting>(`/admin/hosting${refresh ? "?refresh=1" : ""}`);
 
 export function fetchAdminUsers(q: string, includeGuests: boolean, limit: number, offset: number): Promise<AdminUsers> {
@@ -247,20 +282,54 @@ export type EventDrawState = {
   ranking: EventDrawee[];
   winners: EventDrawee[];
 };
-export type AdminEvent = {
+export type EventFormat = "casual" | "single_elim" | "round_robin" | "swiss";
+export type EventPrizeMethod = "draw" | "placement";
+export type EventStatus = "upcoming" | "live" | "ended" | "drawn";
+/** What an admin sets on an event (#1019). Dates are ISO strings in UTC. */
+export type EventFields = {
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  format: EventFormat;
+  /** Only for single elimination, otherwise null. */
+  bracket_size: number | null;
+  best_of: 1 | 3;
+  prize: string;
+  prize_details: string;
+  prize_method: EventPrizeMethod;
+  winners: number;
+  min_games: number;
+  min_opponents: number;
+  min_turns: number;
+};
+export type AdminEventSummary = {
   id: string;
   title: string;
   starts_at: string;
   ends_at: string;
-  status: "upcoming" | "live" | "ended" | "drawn";
+  status: EventStatus;
+  format: EventFormat;
+  prize: string;
+  joined: number;
+};
+export type AdminEvent = EventFields & {
+  id: string;
+  status: EventStatus;
+  rules_version: string;
   winners_count: number;
-  min_games: number;
-  min_opponents: number;
   counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number; flagged_eligible: number };
   participants: EventParticipant[];
   draw: EventDrawState | null;
 };
 
+/** Every event, newest start first (#1019). */
+export const fetchAdminEvents = () => call<{ events: AdminEventSummary[] }>("/admin/events").then((r) => r.events);
+export const fetchAdminEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`);
+export const createAdminEvent = (fields: EventFields) => call<AdminEvent>("/admin/events", { method: "POST", body: JSON.stringify(fields) });
+export const updateAdminEvent = (id: string, fields: Partial<EventFields>) =>
+  call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(fields) });
+export const deleteAdminEvent = (id: string) => call<{ deleted: string }>(`/admin/events/${encodeURIComponent(id)}`, { method: "DELETE" });
 /** The newest event whatever the date (the banner's /current stops after a week, but forfeits come later). */
 export const fetchLatestAdminEvent = () => call<AdminEvent>("/admin/events/latest");
 export const commitEventSeed = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/commit`, { method: "POST" });
