@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyPlannerDeepLink,
+  importPlannerDeckDetail,
   importPlannerDecks,
+  plannerDeckArt,
   parsePlannerDeepLink,
   plannerDeckImported,
   plannerDecksNotLocal,
@@ -10,7 +12,7 @@ import {
   savedDeckToPlannerList,
   type PlannerDeckDetail,
 } from "./planner";
-import { getSavedDeck, listSavedDecks, saveDeck, upsertPlannerDeck } from "./storage";
+import { getSavedDeck, listSavedDecks, saveDeck, setDeckArtPref, upsertPlannerDeck } from "./storage";
 
 const memory = new Map<string, string>();
 
@@ -288,5 +290,101 @@ describe("plannerDeckImported", () => {
     );
     expect(plannerDeckImported(imported, 9)).toBe(false);
     expect(plannerDeckImported(imported, 7)).toBe(true);
+  });
+});
+
+describe("alt arts picked in the planner (#1003)", () => {
+  // OP09-118: p1 = product 597065, p2 = 597066. OP09-093: p1 = 597035, p2 = 597036.
+  const alts118 = [
+    { product_id: 597065, owned: 1 },
+    { product_id: 597066, owned: 3 },
+  ];
+  const withArt = (cards: PlannerDeckDetail["cards"]) =>
+    detail({ cards: [{ card_id: "ST01-001", card_type: "Leader", needed: 1 }, ...cards] });
+
+  it("carries an explicit planner pick", () => {
+    const d = withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 597065 }]);
+    expect(importPlannerDeckDetail(d).ok).toBe(true);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p1" });
+  });
+
+  it("uses the most-owned alt when the planner is on automatic, even when it is not the first (#1003)", () => {
+    const d = withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: null }]);
+    importPlannerDeckDetail(d);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
+  });
+
+  it("falls back to the owned alt when the picked product is not listed", () => {
+    const d = withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 111 }]);
+    importPlannerDeckDetail(d);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
+  });
+
+  it("keeps base art when the planner chose base, even with an alt owned", () => {
+    const d = withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 0 }]);
+    importPlannerDeckDetail(d);
+    expect(getSavedDeck("planner-7")?.artPrefs).toBeUndefined();
+  });
+
+  it("carries nothing for a product the duel card has no alt for, or when no alt is owned", () => {
+    const d = withArt([
+      { card_id: "OP09-118", needed: 4, alt_arts: [{ product_id: 1, owned: 5 }], display_art: null },
+      { card_id: "OP09-093", needed: 2, alt_arts: [{ product_id: 597036, owned: 0 }], display_art: null },
+    ]);
+    importPlannerDeckDetail(d);
+    expect(getSavedDeck("planner-7")?.artPrefs).toBeUndefined();
+  });
+
+  it("carries the leader's art too", () => {
+    const d = detail({
+      leader_card_id: "OP17-001",
+      cards: [
+        { card_id: "OP17-001", card_type: "Leader", needed: 1, alt_arts: [{ product_id: 705924 }], display_art: 705924 },
+        { card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 597066 },
+      ],
+    });
+    importPlannerDeckDetail(d);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP17-001": "p1", "OP09-118": "p2" });
+  });
+
+  it("a pick made in duel survives a later pull, and so does picking base", () => {
+    const pull = (display_art: number) =>
+      importPlannerDeckDetail(withArt([
+        { card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art },
+        { card_id: "OP09-093", needed: 2, alt_arts: [{ product_id: 597036 }, { product_id: 597035 }], display_art: 597036 },
+      ]));
+    pull(597065);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p1", "OP09-093": "p2" });
+    setDeckArtPref("planner-7", "OP09-118", "p2"); // changed in duel
+    setDeckArtPref("planner-7", "OP09-093", null); // back to base in duel
+    pull(597065);
+    pull(597065);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
+  });
+
+  it("a planner change propagates when the player has not changed that card", () => {
+    const pull = (display_art: number) =>
+      importPlannerDeckDetail(withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art }]));
+    pull(597065);
+    pull(597066);
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
+    pull(0);
+    expect(getSavedDeck("planner-7")?.artPrefs).toBeUndefined();
+    expect(getSavedDeck("planner-7")?.plannerArt).toBeUndefined();
+  });
+
+  it("keeps the prefs of a deck that never had planner art", () => {
+    saveDeck({ id: "planner-7", name: "A", leaderId: "ST01-001", cards: ["OP09-118"], artPrefs: { "OP09-118": "p1" }, plannerDeckId: 7 });
+    importPlannerDeckDetail(withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 597066 }]));
+    expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p1" });
+  });
+
+  it("drops art for cards that left the deck", () => {
+    importPlannerDeckDetail(withArt([{ card_id: "OP09-118", needed: 4, alt_arts: alts118, display_art: 597066 }]));
+    setDeckArtPref("planner-7", "OP09-118", "p1");
+    importPlannerDeckDetail(withArt([{ card_id: "ST01-003", needed: 4 }]));
+    const deck = getSavedDeck("planner-7")!;
+    expect(deck.artPrefs).toBeUndefined();
+    expect(deck.plannerArt).toBeUndefined();
   });
 });

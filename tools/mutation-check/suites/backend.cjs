@@ -1556,5 +1556,7 @@ module.exports = {
     {"id": "solo988-practice-keeps-bot-level", "file": "backend/app/routers/duel.py", "from": "bot_level=body.bot_level if body.mode == \"bot\" else None,", "to": "bot_level=body.bot_level,", "kills": ["test_practice_solo_game_never_records_a_winner_988"], "args": "tests/test_duel.py"},
     {"id": "solo988-fields-dropped", "file": "backend/app/routers/duel.py", "from": "            leader_id=body.leader_id,\n            opponent_leader_id=body.opponent_leader_id,\n            # Practice", "to": "            # Practice", "kills": ["test_solo_game_is_recorded_once_per_game_id_988"], "args": "tests/test_duel.py"},
     {"id": "solo988-feeds-rating", "file": "backend/app/routers/duel.py", "from": "    db.add(\n        DuelSoloGame(", "to": "    _get_or_create_rating(db, body.user_id).games_played += 1\n    db.add(\n        DuelSoloGame(", "kills": ["test_solo_games_do_not_touch_ratings_or_match_history_988"], "args": "tests/test_duel.py"},
+    // Planner art on duel decks (#1003)
+    {"id": "planner1003-backend-drops-planner-art", "file": "backend/app/schemas.py", "from": "    plannerArt: dict[str, str] | None = None\n", "to": "", "kills": ["test_decks_round_trip_for_the_account_that_saved_them_619"], "args": "tests/test_duel_decks.py"},
   ],
 };
