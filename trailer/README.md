@@ -103,3 +103,17 @@ node scripts/render-infographics.mjs hand   # only ids containing "hand"
 - `capture/infographics.ts` (groups: `lobby`, `match`, `hand`, `phone`; `TRAILER_MAIN=infographics.ts ./run.sh match`) walks the app and records, next to each screenshot, the box of every control a callout points at. The compositions look boxes up by name, so a re-capture after a UI change moves the rings with it.
 - `video/src/infographics/data.ts` holds the copy and crops (one entry per infographic: title, steps of at most 12 words, shots with `focus` controls, `rings`, `arrow`), `Infographic.tsx` the two layouts, `kit.tsx` the crop maths, rings, key caps.
 - Desktop shots are 1440x900 (the hand ones 1040x700, so the Hand button and the cards sit close enough to crop together) at 2x, phones 390x844 at 3x. The pointer overlay is hidden; the hover card pop-up is hidden in the hand group only (it covered the hand while dragging).
+
+## Motion design
+
+`Motion16x9` (1920x1080) and `Motion9x16` (1080x1920) are a 30 s graphic-led piece: no screen recordings, everything is springs/interpolation on card art, UI stills and SVG (logo build, card storm, attack arrow, 3D feature panels, crew-colour wipes, phone rotation, stat tiles, end card). Cuts sit on the 120 BPM grid and scenes overlap by 9 frames.
+
+```bash
+cd trailer/video
+npm run prerender:motion      # copies stills, card art and two phone frames into public/motion/ (gitignored)
+npm run render:motion         # -> trailer/out/motion-16x9.mp4  (about 2 min on 4 CPUs)
+npm run render:motion-9x16    # -> trailer/out/motion-9x16.mp4
+npm run still:motion -- out.png --frame=300
+```
+
+Sources default to `../clips/stills` (else `/mnt/project-files/trailer/clips/stills`) and `../clips` for the phone videos. Card art is downloaded from TCGplayer's CDN by product id (clean ST01/ST02 prints, cached in `.motion-card-cache/`, gitignored); the local `duel-web/public/cards` files carry a SAMPLE watermark, so only `DON.jpg` comes from there. Override with `MOTION_STILLS`, `MOTION_CLIPS`, `MOTION_CARDS`. Tune in `src/motion/`: `timing.ts` (scene start frames, overlap), `layout.ts` (every position/size for both aspect ratios; 9:16 keeps text in y 220..1580), `scenes/*.tsx` (per-scene timing in local frames). Optional `public/music.mp3` is picked up as in the trailer.
