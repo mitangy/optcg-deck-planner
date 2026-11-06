@@ -56,7 +56,11 @@ class FakeDiscord:
         if path == f"/guilds/{GUILD}/threads/active":
             return httpx.Response(200, json={"threads": self.threads})
         if path == f"/channels/{CHANNEL}/messages":
-            return httpx.Response(200, json=self.messages)
+            # Like Discord: the oldest `limit` messages after `after`.
+            after = int(request.url.params.get("after", 0))
+            limit = int(request.url.params.get("limit", 50))
+            page = sorted((m for m in self.messages if int(m["id"]) > after), key=lambda m: int(m["id"]))
+            return httpx.Response(200, json=page[:limit])
         parts = path.split("/")
         if len(parts) == 5 and parts[1] == "channels" and parts[3] == "messages" and parts[2] in self.starters:
             return httpx.Response(200, json=self.starters[parts[2]])
@@ -384,3 +388,22 @@ def test_github_client_is_only_used_with_a_token_979(db, monkeypatch: pytest.Mon
     monkeypatch.setattr(discord_feedback, "poll_once", fake_poll)
     asyncio.run(discord_feedback.run_once(settings(github_issues_token=token), PollState()))
     assert (seen["github"] is not None) is expect_github
+
+
+def test_text_channel_moves_past_a_burst_of_unfiled_messages_989(db):
+    # 50 bot replies fill a whole page; the user message behind them must still be reached.
+    bots = [
+        {"id": str(int(sid(9)) + i * 1000), "type": 0, "content": "Logged", "author": {**USER, "bot": True}, "attachments": []}
+        for i in range(50)
+    ]
+    mid = sid(1)
+    fake = FakeDiscord({"type": 0}, messages=[*bots, {"id": mid, "type": 0, "content": "Real bug", "author": USER, "attachments": []}])
+
+    async def go():
+        state = PollState(cutoff_id=CUTOFF)
+        async with fake.client() as client:
+            return [await poll_once(client, db, settings(), state) for _ in range(2)]
+
+    assert asyncio.run(go()) == [0, 1]
+    assert [r.discord_message_id for r in rows(db)] == [mid]
+

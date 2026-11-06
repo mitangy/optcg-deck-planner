@@ -58,6 +58,10 @@ class PollState:
 
     cutoff_id: int = field(default_factory=lambda: snowflake_from_datetime(datetime.now(timezone.utc) - STARTUP_GRACE))
     channel: dict | None = None
+    # Text channel: the newest message id already looked at, filed or not (bot replies, system
+    # messages and sticker-only posts are never filed, so the ticket ids alone would stall here).
+    text_after: int = 0
+    text_scanned_to: int = 0
 
 
 def make_client(token: str) -> httpx.AsyncClient:
@@ -166,13 +170,14 @@ async def _text_new_posts(client, db: Session, state: PollState, channel: dict) 
         (int(i) for i in db.scalars(select(Feedback.discord_message_id).where(Feedback.app == "discord")).all() if i),
         default=0,
     )
-    params = {"limit": 50, "after": str(max(newest, state.cutoff_id))}
+    params = {"limit": 50, "after": str(max(newest, state.cutoff_id, state.text_after))}
     messages = (await _request(client, "GET", f"/channels/{channel_id}/messages", params=params)).json()
     messages = sorted((m for m in messages if int(m["id"]) > state.cutoff_id), key=lambda m: int(m["id"]))
     seen = _known(db, [str(m["id"]) for m in messages])
     posts: list[_Post] = []
     for message in messages:
         mid = str(message["id"])
+        state.text_scanned_to = int(mid)
         author_obj = message.get("author") or {}
         if mid in seen or author_obj.get("bot") or message.get("type", 0) not in USER_MESSAGE_TYPES:
             continue
@@ -285,6 +290,7 @@ async def poll_once(
         if channel.get("type") in (GUILD_FORUM, GUILD_MEDIA):
             posts = await _forum_new_posts(client, db, state, channel)
         else:
+            state.text_scanned_to = 0
             posts = await _text_new_posts(client, db, state, channel)
         for post in posts:
             row = Feedback(
@@ -306,6 +312,8 @@ async def poll_once(
             if github is not None:
                 await _open_issue(github, db, settings, row)
             await _reply(client, post, row.id)
+        # Every post of the page is handled: the next poll starts after the last message looked at.
+        state.text_after = max(state.text_after, state.text_scanned_to)
     except RateLimited as limited:
         log.warning("discord feedback: rate limited, retry after %.1fs", limited.retry_after)
         await asyncio.sleep(min(limited.retry_after, MAX_RETRY_WAIT_S))
