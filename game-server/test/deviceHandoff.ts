@@ -8,6 +8,7 @@ import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { PROTOCOL_VERSION, TAKEN_OVER_CLOSE_CODE } from "../src/protocol.js";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import { withFakeTime } from "./fakeTime.js";
+import { withRoomEnv } from "./roomEnv.js";
 
 type View = { seat: 0 | 1; phase: string; winner: 0 | 1 | null; legalIntents: { type: string }[] };
 type Bag = {
@@ -162,9 +163,7 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
   }));
 
   it("taking over a dropped seat during the reconnect grace works and the old reconnection token can no longer reclaim (#451)", async () => {
-    const prev = process.env.RECONNECT_GRACE_SECONDS;
-    process.env.RECONNECT_GRACE_SECONDS = "1";
-    try {
+    await withRoomEnv({ reconnectGraceSeconds: 1 }, async () => {
       const { room, c0, b0, c1, b1 } = await startedPair();
       const oldToken = c0.reconnectionToken;
       // Abnormal drop (no close handshake): the seat is held for reconnection.
@@ -195,10 +194,7 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
       await sendLegalIntent(n, nb);
       assert.equal(nb.errors.length, 0);
       await c1.leave(true);
-    } finally {
-      if (prev === undefined) delete process.env.RECONNECT_GRACE_SECONDS;
-      else process.env.RECONNECT_GRACE_SECONDS = prev;
-    }
+    });
   });
 
   it("another account cannot take over a seat it does not hold (#451)", async () => {

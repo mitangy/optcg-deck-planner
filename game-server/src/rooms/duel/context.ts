@@ -6,9 +6,11 @@ import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "
 import type { BotDriver } from "./bots.js";
 import type { MatchClocks } from "./clocks.js";
 import type { RoomChat } from "./chat.js";
+import type { RoomConfig } from "./config.js";
 import type { SeatCosmetics } from "./cosmetics.js";
 import type { MatchPersistence } from "./persistence.js";
 import type { Rematch } from "./rematch.js";
+import type { SeatRegistry } from "./seats.js";
 import type { Spectators } from "./spectators.js";
 import type { SyncSender } from "./sync.js";
 import type { DuelTime } from "./time.js";
@@ -50,13 +52,7 @@ export class DuelGame {
   matchOverSent = false;
   resultPending: Promise<void> | null = null;
   disposed = false;
-  seats: [SeatSlot | null, SeatSlot | null] = [null, null];
   seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
-  /**
-   * Account that controls each seat: the verified ownerToken uid (practice, where
-   * seats are guest ids), else the seat's own userId. Who may take the seat over (#451).
-   */
-  seatOwnerUids: [number | null, number | null] = [null, null];
   /** Names captured at match start so they survive a seat dropping. */
   seatNames: [string | null, string | null] = [null, null];
   matchUserIds: [number, number] | null = null;
@@ -67,8 +63,6 @@ export class DuelGame {
   gameNumber = 0;
   /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
   firstSeatPickedBy: Seat | null = null;
-  /** Seats that dropped and may still reconnect, with their grace deadline. */
-  awayUntil: [number | null, number | null] = [null, null];
   /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
   bot: BotSeatConfig | null = null;
 
@@ -78,11 +72,20 @@ export class DuelGame {
   }
 }
 
+/**
+ * The body of an outgoing message: everything but `protocolVersion`, which `RoomIO.send` and
+ * `broadcast` put first on every message. Type a payload as `WireBody<XMessage>` to keep it checked.
+ */
+export type WireBody<T extends { protocolVersion: unknown } = { protocolVersion: unknown }> = Omit<T, "protocolVersion">;
+
 /** What the collaborators may ask of the Colyseus room itself. */
 export interface RoomIO {
   /** Every connected client (players, spectators and strays). */
   allClients(): readonly Client[];
-  broadcast(type: string, message: unknown): void;
+  /** Send one message to everyone, stamped with the protocol version. */
+  broadcast(type: string, body: WireBody): void;
+  /** Send one message to one client, stamped with the protocol version. */
+  send(client: Client, type: string, body: WireBody): void;
   /** The connected client with this session id, if any. */
   clientFor(sessionId: string): Client | undefined;
   sendError(client: Client, code: ErrorCode, message: string): void;
@@ -97,6 +100,9 @@ export interface RoomIO {
  */
 export interface DuelCore {
   readonly game: DuelGame;
+  /** What shapes this room, fixed when it was created. */
+  readonly config: RoomConfig;
+  readonly seats: SeatRegistry;
   readonly io: RoomIO;
   readonly time: DuelTime;
   readonly clocks: MatchClocks;
@@ -109,8 +115,6 @@ export interface DuelCore {
   readonly bots: BotDriver;
   readonly persistence: MatchPersistence;
 
-  /** The seat `client` holds, or null. */
-  seatForClient(client: Client): Seat | null;
   /** Apply a parsed intent for `seat` and everything that follows a state change. One path for every caller. */
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult;
   concedeSeat(seat: Seat): void;
