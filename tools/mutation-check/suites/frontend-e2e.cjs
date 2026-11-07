@@ -20,6 +20,8 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Lightbox action controls share one width (#1034)
+    { id: "e2e-lightbox1034-shopping-control-narrower", args: "lightboxButtonWidths1034 --project=desktop-1200", file: "frontend/src/styles.css", from: ".lightbox-action > .shopping-extra-control,\n", to: "", kills: ["lightboxButtonWidths1034.spec.ts > the enlarged card's four action controls are the same width, before and after Add (#1034) [desktop-1200]"] },
     // Lightbox price alert follows the main art (#896)
     { id: "e2e-alert855-collection-main-art-ignores-shown-alt", args: "priceAlertMainArt855 --project=desktop-1200 -g \"#855 follow-up\"", edits: [
       { file: "frontend/src/App.tsx", from: "<CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />\n                  <span className=\"copies-badge\"", to: "<CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} />\n                  <span className=\"copies-badge\"" },
