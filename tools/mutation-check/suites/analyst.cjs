@@ -1150,6 +1150,11 @@ module.exports = {
     {"id": "sim-deck-copies-lost", "file": "analyst/src/simGames.ts", "from": "copies: Number(m[1])", "to": "copies: 1", "kills": ["reviews a stored game turn by turn", "sorts a deck by card number"], "args": "src/simGames.test.ts"},
     {"id": "sim-client-token-dropped", "file": "analyst/src/matches.ts", "from": "plannerCall<{ games: SimGameRow[]; total: number }>(api, token,", "to": "plannerCall<{ games: SimGameRow[]; total: number }>(api, null,", "kills": ["reads and imports sim games with the player's token only"], "args": "src/simGames.test.ts"},
     {"id": "sim-import-body-unwrapped", "file": "analyst/src/matches.ts", "from": "\"/analyst/sim-games/import\", false, { games })", "to": "\"/analyst/sim-games/import\", false, games)", "kills": ["reads and imports sim games with the player's token only"], "args": "src/simGames.test.ts"},
+    {"id": "usage-write-not-retried", "file": "analyst/src/chat.ts", "from": "      if (retryable && attempt === 1) {", "to": "      if (false) {", "kills": ["retries a failed usage write once, then logs it", "does not log when the retry of a usage write succeeds"]},
+    {"id": "usage-write-retries-4xx", "file": "analyst/src/chat.ts", "from": "      const retryable = status === null || status >= 500;", "to": "      const retryable = true;", "kills": ["does not retry a usage write the planner refused with a 4xx"]},
+    {"id": "usage-write-failure-not-logged", "file": "analyst/src/chat.ts", "from": "      logEvent(\"usage_record_failed\",", "to": "      void (", "kills": ["retries a failed usage write once, then logs it", "does not retry a usage write the planner refused with a 4xx", "logs a failed review usage write too"]},
+    {"id": "refusal-check-fail-open-silent", "file": "analyst/src/chat.ts", "from": "    logEvent(\"refusal_check_failed_open\",", "to": "    void (", "kills": ["logs refusal_check_failed_open when the mid-answer cap check fails"]},
+    {"id": "usage-log-leaks-token", "file": "analyst/src/chat.ts", "from": "user: userKey(token), kind, model, cost_usd: cost", "to": "user: token, kind, model, cost_usd: cost", "kills": ["retries a failed usage write once, then logs it"]},
   ],
 };
 

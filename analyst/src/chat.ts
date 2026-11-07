@@ -390,11 +390,24 @@ type Kind = "chat" | "review" | "brief";
 /** The model a budget answer names, if it is one we offer; else the env/default CHAT_MODEL. */
 export const modelOf = (budget: { model?: unknown }): string => (typeof budget.model === "string" && CHAT_MODELS.includes(budget.model) ? budget.model : CHAT_MODEL);
 
+/** One JSON line on stderr, like the other `console.error(JSON.stringify({ event, ... }))` lines, so a log drain can alert on an event name. Never pass secrets or message text. */
+function logEvent(event: string, fields: Record<string, unknown>) {
+  console.error(JSON.stringify({ event, ...fields }));
+}
+
+/** The user id inside a chat token (`chat.<user>.<exp>.<sig>`): safe to log, unlike the token itself. */
+const userKey = (token: string) => token.split(".")[1] ?? "unknown";
+
+/** HTTP status of a failed planner call, or null for a network error / timeout. */
+const statusOf = (err: unknown): number | null => (err instanceof PlannerApiError ? err.status : null);
+const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
 /** The model Log Pose runs on right now (the planner holds the one setting both apps share). A failed lookup means CHAT_MODEL. */
 async function currentModel(api: PlannerApi, token: string): Promise<string> {
   try {
     return modelOf(await plannerCall<Budget>(api, token, "/analyst/chat/budget", true));
-  } catch {
+  } catch (err) {
+    logEvent("model_lookup_failed", { route: "/analyst/chat/budget", status: statusOf(err), user: userKey(token), fallback: CHAT_MODEL, message: errorMessage(err) });
     return CHAT_MODEL;
   }
 }
@@ -433,8 +446,17 @@ export async function admit(api: PlannerApi, token: string | null, kind: Kind = 
 /** How a request went, for the usage log. */
 type UsageMeta = { threadId?: number; outcome?: "ok" | "error" | "aborted"; toolCalls?: number; durationMs?: number };
 
+/** Wait before the one retry of a usage write. */
+const USAGE_RETRY_DELAY_MS = 250;
+
+/**
+ * Writes the usage row; the daily, monthly and credit caps are computed from these rows, so a lost one means
+ * undercounting. Retries once after a short pause on a network error or a 5xx (never on a 4xx: the planner
+ * said no). If it still fails it logs `usage_record_failed` and returns: the answer is already streamed, so
+ * this never throws.
+ */
 async function recordUsage(api: PlannerApi, token: string, kind: Kind, usage: Usage, cost: number, model: string = CHAT_MODEL, meta: UsageMeta = {}) {
-  await plannerCall(api, token, "/analyst/chat/usage", true, {
+  const body = {
     kind,
     model,
     input_tokens: usage.input_tokens,
@@ -446,7 +468,22 @@ async function recordUsage(api: PlannerApi, token: string, kind: Kind, usage: Us
     outcome: meta.outcome ?? "ok",
     tool_calls: meta.toolCalls ?? 0,
     duration_ms: Math.max(0, Math.round(meta.durationMs ?? 0)),
-  });
+  };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await plannerCall(api, token, "/analyst/chat/usage", true, body);
+      return;
+    } catch (err) {
+      const status = statusOf(err);
+      const retryable = status === null || status >= 500;
+      if (retryable && attempt === 1) {
+        await new Promise((r) => setTimeout(r, USAGE_RETRY_DELAY_MS));
+        continue;
+      }
+      logEvent("usage_record_failed", { route: "/analyst/chat/usage", status, user: userKey(token), kind, model, cost_usd: cost, outcome: body.outcome, attempts: attempt, message: errorMessage(err) });
+      return;
+    }
+  }
 }
 
 /** A request turned away: a $0 row saying why, so "who ran out and when" is a query. Never blocks the refusal itself. */
@@ -457,15 +494,21 @@ async function recordRefusal(api: PlannerApi, token: string, kind: Kind, refusal
     outcome: "refused",
     refusal,
     ...(threadId ? { thread_id: threadId } : {}),
-  }).catch(() => undefined);
+  }).catch((err) => logEvent("refusal_record_failed", { route: "/analyst/chat/usage", status: statusOf(err), user: userKey(token), kind, refusal, message: errorMessage(err) }));
 }
 
-/** The limit that stops the player now, counting `extra` dollars an unsaved answer has cost so far; null when none (or the planner can't say). */
+/**
+ * The limit that stops the player now, counting `extra` dollars an unsaved answer has cost so far; null when none.
+ * Deliberately FAILS OPEN when the planner can't answer: the player keeps their answer and a cap can be overshot
+ * by one turn's tool rounds. The owner has not decided to fail closed. Every fail-open is logged as
+ * `refusal_check_failed_open` so it can be alerted on.
+ */
 async function refusalNow(api: PlannerApi, token: string, extra: number): Promise<Refusal | null> {
   try {
     const budget = await plannerCall<Budget>(api, token, `/analyst/chat/budget?extra=${extra.toFixed(6)}`, true);
     return budget.refusal ?? null;
-  } catch {
+  } catch (err) {
+    logEvent("refusal_check_failed_open", { route: "/analyst/chat/budget", status: statusOf(err), user: userKey(token), extra_usd: extra, message: errorMessage(err) });
     return null;
   }
 }
@@ -705,7 +748,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     const cost = state.cost;
     const outcome = finished || state.refusal ? "ok" : failed && signal.aborted ? "aborted" : "error";
     if (usage.input_tokens || usage.output_tokens) {
-      await recordUsage(api, token, "chat", usage, cost, state.model ?? model, { threadId, outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started }).catch(() => undefined);
+      await recordUsage(api, token, "chat", usage, cost, state.model ?? model, { threadId, outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started });
     }
     if (state.refusal) await recordRefusal(api, token, "chat", state.refusal, threadId);
     // A turn is stored only once the model has answered, so the thread always ends on an assistant message.
@@ -819,13 +862,13 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   } catch (err) {
     const partial = partialUsageOf(err);
     if (partial.input_tokens || partial.output_tokens) {
-      await recordUsage(api, token, "review", partial, costUsd(partial, model), model, { outcome: signal.aborted ? "aborted" : "error", durationMs: Date.now() - started }).catch(() => undefined);
+      await recordUsage(api, token, "review", partial, costUsd(partial, model), model, { outcome: signal.aborted ? "aborted" : "error", durationMs: Date.now() - started });
     }
     throw err;
   }
   out.flush();
   const cost = costUsd(reply.usage, reply.model ?? model);
-  await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model, { durationMs: Date.now() - started }).catch(() => undefined);
+  await recordUsage(api, token, "review", reply.usage, cost, reply.model ?? model, { durationMs: Date.now() - started });
   const cited = flattenCited(reply.content);
   const final = cited.text || text.trim();
   if (!final) {
@@ -924,7 +967,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     } finally {
       const outcome = state.finished || state.refusal ? "ok" : failed && signal.aborted ? "aborted" : "error";
       if (state.usage.input_tokens || state.usage.output_tokens) {
-        await recordUsage(api, token, "brief", state.usage, state.cost, state.model ?? model, { outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started }).catch(() => undefined);
+        await recordUsage(api, token, "brief", state.usage, state.cost, state.model ?? model, { outcome, toolCalls: state.toolCalls, durationMs: Date.now() - started });
       }
     }
     if (state.refusal) {
