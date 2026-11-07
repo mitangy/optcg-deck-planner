@@ -20,7 +20,7 @@ import {
   todayIso,
   toPoints,
   type PricePoint,
-} from "./priceHistory";
+} from "./priceHistoryModel";
 
 // Chart geometry in viewBox units; the SVG scales to its box, so the aspect ratio (and height) never changes.
 const W = 360;

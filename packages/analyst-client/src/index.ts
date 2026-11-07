@@ -93,7 +93,7 @@ export { readThreadHint, writeThreadHint, THREAD_KEY, THREADS_KEY } from "./thre
 export { GENERAL_SCOPE, canStartNewChat, duelDeckScope, groupThreads, isValidScope, matchScope, pageScope, plannerDeckScope, scopeKind, scopeLabel, type LogPoseScope, type ScopeKind, type ThreadGroup, type ThreadRow } from "./scopes";
 export { chatBody, resolveScopeChat } from "./threads";
 export { ChatsMenu } from "./ChatsMenu";
-export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdown";
+export { parseMarkdown, parseInline, safeHref, type Block, type Inline } from "./markdownParser";
 export { Markdown } from "./Markdown";
 export { LogPoseProvider, type OwnClaude, LogPoseCompass, useLogPose, useLogPosePage, useLogPoseAsk, useLogPoseLayer, useLogPoseDeckEditor, useLogPoseGame, useLogPoseDock, useLogPoseDockHost, type DockHosts, type GameAskResult, type LogPoseGame, type LogPosePage } from "./LogPose";
 export { askContext, canAsk, gameMessageContext, hintAsk, HINT_LIMITS, messageContext, requestAction, type HintContext, type LogPoseAsk } from "./ask";
@@ -122,4 +122,4 @@ export { UsageView } from "./UsageView";
 export { getModelSetting, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 export { ModelPicker } from "./ModelPicker";
 export { FeedbackBar, useFeedback } from "./Feedback";
-export { answerStart, fetchVotes, postFeedback, targetKey, type FeedbackTarget, type Rating, type Vote } from "./feedback";
+export { answerStart, fetchVotes, postFeedback, targetKey, type FeedbackTarget, type Rating, type Vote } from "./feedbackModel";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { narrateEvents, type BattleLogEntry, type CardSpotlight } from "./battleLog";
-import { newSpotlightBatch, spotlightTiming, SPOTLIGHT_MAX_CARDS, SPOTLIGHT_MS } from "./cardSpotlight";
+import { newSpotlightBatch, spotlightTiming, SPOTLIGHT_MAX_CARDS, SPOTLIGHT_MS } from "./spotlightModel";
 
 const narrate = (events: unknown[]) => narrateEvents(events, { youSeat: 0, turnNumber: 3 });
 

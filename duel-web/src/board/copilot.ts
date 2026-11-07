@@ -17,7 +17,7 @@ import {
 } from "@optcg/analyst-client";
 import type { CardView, ChoiceOptionView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { arrangementAnswer, groupAnswer } from "./deckOrder";
-import { briefShown } from "./matchBrief";
+import { briefShown } from "./matchBriefModel";
 
 /**
  * Whether the game offers the copilot at all: everything the matchup brief needs (an unranked room, a player, a

@@ -3,7 +3,7 @@ import { Link, useInRouterContext } from "react-router-dom";
 import { useLogPose } from "@optcg/analyst-client";
 import type { MatchHistoryEntry } from "../history/historyApi";
 import type { ReplayNavState } from "../replay/replayRetry";
-import { matchOverFacts, pollMatchRecord } from "./matchOverFacts";
+import { matchOverFacts, pollMatchRecord } from "./matchOverFactsModel";
 
 /** Loads the saved match for History facts (rating, log); resolves to its entry or throws. */
 export type LoadMatchRecord = (matchId: string) => Promise<MatchHistoryEntry>;

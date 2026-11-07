@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { usePageMeta } from "@optcg/ui/seo";
-import { routeMetaFor, SITE_ORIGIN } from "./routeMeta";
+import { routeMetaFor, SITE_ORIGIN } from "./routeMetaTable";
 
 /**
  * Keeps the tab title, description, canonical link and robots tag in step with the

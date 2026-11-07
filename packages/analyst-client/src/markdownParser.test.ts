@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseInline, parseMarkdown, type Inline } from "./markdown";
+import { parseInline, parseMarkdown, type Inline } from "./markdownParser";
 
 /** Flattens inline nodes to a compact string so assertions stay readable. */
 function show(nodes: Inline[]): string {

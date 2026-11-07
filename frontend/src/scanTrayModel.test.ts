@@ -10,7 +10,7 @@ import {
   trayNeedText,
   trayReadyCount,
   traySamples,
-} from "./scanTray";
+} from "./scanTrayModel";
 
 const quad: MultiScanItem["quad"] = [
   { x: 0, y: 0 },

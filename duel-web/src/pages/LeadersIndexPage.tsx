@@ -5,7 +5,7 @@ import { dataTail } from "../leaders/leaderIntro";
 import { leaderPath } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
 import { NavMenu } from "../nav/NavMenu";
-import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMeta";
+import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
 import { BackLink } from "./BackLink";
 import { ColorChips } from "./LeaderPage";
 import { LeaderArt } from "./MetaDecksPage";

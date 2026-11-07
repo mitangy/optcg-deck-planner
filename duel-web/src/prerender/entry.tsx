@@ -27,7 +27,7 @@ import { leaderPath } from "../leaders/slug";
 import { EMBEDDED_SNAPSHOT_ID, SnapshotContext } from "../leaders/useMetaView";
 import { sitemapXml, snapshotFor, snapshotPaths, type MetaSnapshot } from "../leaders/snapshot";
 import { loadBuildSnapshot } from "../leaders/snapshotBuild";
-import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "../seo/routeMeta";
+import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "../seo/routeMetaTable";
 import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS } from "../siteFooter";
 import { HomeShell, LeaderboardShell } from "./shells";
 

@@ -20,7 +20,7 @@ import {
   type SpotlightBatch,
   type SpotlightCard,
   type SpotlightTiming,
-} from "./cardSpotlight";
+} from "./spotlightModel";
 import { motionPlan } from "./motionSpeed";
 
 /** Batches waiting beyond this are dropped (oldest first): the board moved on. */

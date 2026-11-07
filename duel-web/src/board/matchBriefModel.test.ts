@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefFoldsAway, briefSeenKey, briefShown, briefStart, matchLogPoseEntry } from "./matchBrief";
+import { briefFoldsAway, briefSeenKey, briefShown, briefStart, matchLogPoseEntry } from "./matchBriefModel";
 
 const ticket = { ticket: "mb1.x.y", leaderId: "OP01-001", opponentId: "ST01-001", deck: ["OP01-016"] };
 const good = { ranked: false as boolean | null | undefined, role: "player" as const, brief: ticket as unknown, logPoseEnabled: true as boolean | null, setting: true };

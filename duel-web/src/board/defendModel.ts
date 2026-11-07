@@ -4,7 +4,7 @@ import type { Intent, PlayerView } from "../net/protocol";
 import { battleEndpoints } from "./battleArc";
 import { counterAfterBlock } from "./counterSkipBlock";
 import { findCard } from "./battleBanner";
-import { defenseStatus, stagedCounterTotal } from "./defendTray";
+import { defenseStatus, stagedCounterTotal } from "./defendTrayModel";
 
 export type DefendPhase = "block" | "counter";
 

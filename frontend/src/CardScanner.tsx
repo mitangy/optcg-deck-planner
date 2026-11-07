@@ -22,7 +22,7 @@ import { matchCard } from "./cardScanMatch";
 import { waitForModels } from "./modelsReady";
 import { matchAllCards as defaultMatchAll, type MatchAllCards, type MultiScanItem } from "./cardScanMulti";
 import { ScanAdded, ScanTray, type ScanTarget } from "./ScanTray";
-import { uploadScanSamples } from "./scanShare";
+import { uploadScanSamples } from "./scanSampleUpload";
 import {
   buildTrayRows,
   dropUnknownCards,
@@ -32,7 +32,7 @@ import {
   trayReadyCount,
   traySamples,
   type TrayRow,
-} from "./scanTray";
+} from "./scanTrayModel";
 import { MULTI_MAX_WORK_EDGE, loadImageForScan, readDroppedImage } from "./cardScanImage";
 import { useScanData, type ScanDataState } from "./useScanData";
 import {

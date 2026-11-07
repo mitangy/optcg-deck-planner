@@ -577,7 +577,7 @@ module.exports = {
     { id: "e2e-panel-header-button-drags", args: "log-pose-dock --project=desktop-1280 -g \"header button\"", file: "packages/analyst-client/src/PanelResize.tsx", from: "closest(\"button:not(.lp-move)\")", to: "closest(\"button.nope\")", kills: ["log-pose-dock.spec.ts > pressing a header button and moving the pointer does not drag the window (#432) [desktop-1280]"] },
     { id: "e2e-brief-to-spectators", args: "match-brief --project=desktop-1280 -g \"spectator of a practice room\"", edits: [
       { file: "game-server/src/rooms/DuelRoom.ts", from: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n    };", to: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n      brief: this.briefFor(cameraSeat),\n    };" },
-      { file: "duel-web/src/board/matchBrief.ts", from: "o.role === \"player\" && ", to: "" },
+      { file: "duel-web/src/board/matchBriefModel.ts", from: "o.role === \"player\" && ", to: "" },
       { file: "duel-web/src/pages/DuelPage.tsx", from: "matchBrief={role === \"player\" ? { brief, ranked } : undefined}", to: "matchBrief={{ brief, ranked }}" },
       { file: "duel-web/src/net/protocol.ts", from: "role === \"spectator\" || view.spectator ? undefined : parseBriefTicket(o.brief)", to: "parseBriefTicket(o.brief)" },
       { file: "duel-web/src/state/DuelSession.tsx", from: "setBrief(r === \"player\" ? (b ?? null) : null);", to: "setBrief(b ?? null);" },

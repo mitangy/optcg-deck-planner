@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode, Ref } from "react";
-import type { HandDrawer } from "./handFan";
+import type { HandDrawer } from "./handFanGeometry";
 import type { FanPos } from "./handFanPos";
 
 /** Where the fan sits: the board column's edge, the corner of a cut column, or dragged somewhere. */

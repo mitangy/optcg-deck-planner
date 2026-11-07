@@ -6,7 +6,7 @@ import {
   defenseStatus,
   resolveStagedCounters,
   stagedCounterTotal,
-} from "./defendTray";
+} from "./defendTrayModel";
 
 describe("defenseGap", () => {
   it("needs +1000 on equal power, because the attacker wins ties", () => {

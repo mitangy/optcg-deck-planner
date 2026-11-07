@@ -13,7 +13,7 @@ import {
   statusText,
   targetKey,
   type FeedbackTarget,
-} from "./feedback";
+} from "./feedbackModel";
 
 const chat: FeedbackTarget = { kind: "chat", threadId: 5, index: 2, startsWith: "Play Zoro" };
 const review: FeedbackTarget = { kind: "review", matchId: "m1" };

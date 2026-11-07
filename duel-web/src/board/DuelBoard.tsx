@@ -98,7 +98,7 @@ import { waitingOnOpponent } from "./waitingOnOpponent";
 import { DefendTray } from "./DefendTray";
 import { useHudHeight } from "./useHudHeight";
 import { deriveDefend } from "./defendModel";
-import { clockFraction, resolveStagedCounters } from "./defendTray";
+import { clockFraction, resolveStagedCounters } from "./defendTrayModel";
 import { ReplacePrompt } from "./ReplacePrompt";
 import {
   attackTargetIdsForAttacker,
@@ -158,7 +158,7 @@ import type { RematchDeckOption } from "../decks/rematchDecks";
 import { RematchPanel, type RematchDecks } from "./RematchPanel";
 import { RoomChip } from "./RoomShare";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
-import { fanPoseStyle, handDrawer } from "./handFan";
+import { fanPoseStyle, handDrawer } from "./handFanGeometry";
 import { HandFan } from "./HandFan";
 import { farHandWithReveals, revealedIdSet } from "./handReveal";
 import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
@@ -173,7 +173,7 @@ import { useMatchBrief } from "./MatchBrief";
 import { fitDock, useLogPose, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
 import { useLogPoseCopilot } from "./LogPoseCopilot";
 import { LogPoseMatchButton } from "./LogPoseMatchButton";
-import { matchLogPoseEntry } from "./matchBrief";
+import { matchLogPoseEntry } from "./matchBriefModel";
 import type { BriefTicketWire } from "../net/protocol";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
