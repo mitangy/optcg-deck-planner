@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "../config";
+import { ApiError } from "../net/api";
 import { getMatchContext } from "../matchContext";
 import { reportErrorMessage, type ReportRequest } from "./reportLogic";
 
@@ -11,9 +12,9 @@ export async function submitReport(body: ReportRequest, fetchImpl: typeof fetch 
   try {
     res = await fetchImpl(`${getApiBaseUrl()}/duel/reports`, { method: "POST", credentials: "include", headers, body: JSON.stringify(body) });
   } catch {
-    throw new Error("Could not reach the server. Check your connection and try again.");
+    throw new ApiError(0, "Could not reach the server. Check your connection and try again.");
   }
-  if (!res.ok) throw new Error(reportErrorMessage(res.status));
+  if (!res.ok) throw new ApiError(res.status, reportErrorMessage(res.status));
   try {
     const out = (await res.json()) as { id?: number; duplicate?: boolean };
     return { id: Number(out.id ?? 0), duplicate: out.duplicate === true };

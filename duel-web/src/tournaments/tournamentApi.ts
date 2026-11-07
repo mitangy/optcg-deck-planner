@@ -1,6 +1,6 @@
 /** Duel-web ↔ FastAPI tournaments (single elimination and round robin among friends). */
 import { getApiBaseUrl } from "../config";
-import { ApiError } from "../net/api";
+import { ApiError, withJsonHeaders } from "../net/api";
 import type { TimerPreset } from "../home/timerPreset";
 
 export type TournamentFormat = "single_elim" | "round_robin";
@@ -74,11 +74,11 @@ export type PlayResult = {
   server_url?: string | null;
 };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
+export async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     credentials: "include",
     ...init,
-    headers: init.body ? { "Content-Type": "application/json" } : undefined,
+    headers: withJsonHeaders(init),
   });
   if (!res.ok) {
     let detail = `${fallback} (${res.status})`;
