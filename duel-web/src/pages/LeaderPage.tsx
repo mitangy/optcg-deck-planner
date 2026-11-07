@@ -7,7 +7,7 @@ import { dataTail, leaderIntro, colorList } from "../leaders/leaderIntro";
 import { leaderPath, parseLeaderSlug, resolveLeaderRoute } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
 import { NavMenu } from "../nav/NavMenu";
-import { SITE_ORIGIN } from "../seo/routeMeta";
+import { SITE_ORIGIN } from "../seo/routeMetaTable";
 import { BackLink } from "./BackLink";
 import { DeckCards, LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";

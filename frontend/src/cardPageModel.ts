@@ -1,5 +1,5 @@
 import type { CardPageFinish, CardPageLeader, CardPagePrinting, CardPageUsage } from "./api";
-import { artLabel } from "./priceHistory";
+import { artLabel } from "./priceHistoryModel";
 import { formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } from "./meta";
 
 /** `?art=` as a product id; anything that is not a positive whole number means the base art (0). */

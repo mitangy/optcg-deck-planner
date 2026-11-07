@@ -66,7 +66,9 @@ jobs:
     # Pull requests only. Fails a PR that adds screenshots or recordings outside
     # public/, assets/ and *-snapshots/ folders (tools/ci/pr-media.cjs, #783):
     # they belong on the `pr-assets` branch (tools/pr-assets/upload.sh). The base
-    # is found as in `changes`. Needs no installs.
+    # is found as in `changes`. It also fails on tracked files that .gitignore
+    # ignores and on paths that differ only by case (tools/ci/case-collisions.cjs).
+    # Needs no installs.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -88,6 +90,16 @@ jobs:
         run: |
           set -o pipefail
           git diff --no-renames --diff-filter=A --name-only "$BASE_SHA" HEAD | node tools/ci/pr-media.cjs
+      - name: Block tracked files that .gitignore ignores
+        run: |
+          IGNORED="$(git ls-files -ci --exclude-standard)"
+          if [ -n "$IGNORED" ]; then
+            echo "Tracked files matching .gitignore (git rm --cached them, or fix the ignore rule):"
+            echo "$IGNORED"
+            exit 1
+          fi
+      - name: Block paths that differ only by case
+        run: node tools/ci/case-collisions.cjs
 
   rules-and-game-server:
     needs: changes

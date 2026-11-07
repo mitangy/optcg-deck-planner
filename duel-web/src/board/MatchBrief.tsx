@@ -14,7 +14,7 @@ import { deckContext, setBoardBrief } from "../logPose";
 import { liveMatchScope } from "../logPoseScopes";
 import type { BriefTicketWire } from "../net/protocol";
 import { useDuelSettings } from "../settings";
-import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBrief";
+import { briefFoldsAway, briefSeenKey, briefShown, briefStart } from "./matchBriefModel";
 
 export type BriefLayout = "desktop" | "portrait" | "landscape";
 

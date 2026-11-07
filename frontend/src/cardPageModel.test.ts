@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CardPagePrinting } from "./api";
-import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPage";
+import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPageModel";
 
 const p = (product_id: number, name: string): CardPagePrinting => ({
   product_id,

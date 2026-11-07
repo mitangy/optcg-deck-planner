@@ -23,6 +23,10 @@
  *   - analyst: imported by nothing else; it reads packages/rules and
  *     packages/deck-analytics data (covered by the packages rule).
  *   - scripts: the Python script tests mock the data files they touch.
+ *   - scripts/seo and scripts/vercel-ignore-build.sh: duel-web and frontend
+ *     import the prerender plugin in vite.config.ts, their prerender tests read
+ *     vercel-routes.mjs, and frontend/src/seo/vercelIgnore956.test.ts reads the
+ *     ignore script (the duel e2e builds the app); no backend test reads them.
  */
 "use strict";
 
@@ -47,6 +51,7 @@ const RULES = [
   { test: (p) => p.startsWith("game-server/"), flags: ["rules", "duel_e2e"] },
   { test: (p) => p.startsWith("analyst/"), flags: ["rules"] },
   { test: (p) => p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"] },
+  { test: (p) => p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("backend/") || p.startsWith("scripts/"), flags: ["backend"] },
   { test: (p) => p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"] },
   { test: (p) => p.startsWith("frontend/"), flags: ["frontend"] },

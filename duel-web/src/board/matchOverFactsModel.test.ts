@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MatchHistoryEntry } from "../history/historyApi";
-import { matchOverFacts, pollMatchRecord } from "./matchOverFacts";
+import { matchOverFacts, pollMatchRecord } from "./matchOverFactsModel";
 
 const record = (over: Partial<MatchHistoryEntry> = {}): MatchHistoryEntry => ({
   match_id: "room-1",

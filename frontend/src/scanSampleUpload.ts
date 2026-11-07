@@ -2,7 +2,7 @@
 
 import { api } from "./api";
 import { scanLog } from "./scanLog";
-import type { ScanSample } from "./scanTray";
+import type { ScanSample } from "./scanTrayModel";
 
 /** The API accepts at most this many crops per request. */
 export const SAMPLE_UPLOAD_CHUNK = 40;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAN_MAX_SPREAD_DEG, FAN_MIN_STEP, FAN_STEP_DEG, fanPose, fanSpan, handDrawer } from "./handFan";
+import { FAN_MAX_SPREAD_DEG, FAN_MIN_STEP, FAN_STEP_DEG, fanPose, fanSpan, handDrawer } from "./handFanGeometry";
 
 describe("fanPose", () => {
   it("leans the outer cards of a full hand no further apart than the max spread", () => {

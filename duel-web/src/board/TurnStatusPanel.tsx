@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../net/protocol";
 import { cardBackCssValue } from "../cardBack";
-import { fanPose } from "./handFan";
+import { fanPose } from "./handFanGeometry";
 import { playerLabel, seatName } from "./playerNames";
 import { CardTile } from "./CardTile";
 import { HIDDEN_HAND_DEF } from "./handReveal";

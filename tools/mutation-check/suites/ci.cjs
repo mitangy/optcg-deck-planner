@@ -7,6 +7,7 @@ module.exports = {
   args: '"tools/ci/*.test.cjs"',
   mutations: [
     m("ci-duel-web-skips-e2e", 'p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"]', 'p.startsWith("duel-web/"), flags: ["duel_web"]', ["a duel-web change runs the duel-web unit and e2e jobs only"]),
+    m("ci-seo-scripts-backend-only", 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["backend"]', ["prerender and vercel-ignore scripts run the apps that import or read them"]),
     m("ci-backend-runs-e2e", 'p.startsWith("scripts/"), flags: ["backend"]', 'p.startsWith("scripts/"), flags: ["backend", "duel_e2e"]', ["a backend-only change leaves the duel e2e shards off"]),
     m("ci-packages-skips-duel-web", 'p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p.startsWith("packages/"), flags: ["rules", "duel_e2e", "frontend"]', ["a packages change runs duel-web"]),
     m("ci-fixtures-skip-mobile", 'flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"]', 'flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["protocol fixtures also run the mobile tests"]),
@@ -34,6 +35,11 @@ module.exports = {
       ["ci-media-no-snapshots", ' || dir.endsWith("-snapshots")', "", "card art, app assets and Playwright baselines are allowed"],
       ["ci-media-no-assets", 'dir === "public" || dir === "assets"', 'dir === "public"', "card art, app assets and Playwright baselines are allowed"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/pr-media.cjs", from, to, kills: [kill] })),
+    ...[
+      ["case-collisions-exact-stem-only", 'const key = (MODULE_EXT.test(p) ? p.replace(MODULE_EXT, "") : p).toLowerCase();', 'const key = p.toLowerCase();', "a component and a module that share a stem in different case collide"],
+      ["case-collisions-case-sensitive", 'p.replace(MODULE_EXT, "") : p).toLowerCase();', 'p.replace(MODULE_EXT, "") : p);', "two paths that differ only by case collide whatever their extension"],
+      ["case-collisions-same-stem-flagged", "if (stems.size > 1) out.push", "if (stems.size > 0) out.push", "a test, a stylesheet or a same-case sibling does not collide"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/case-collisions.cjs", from, to, kills: [kill], args: '"tools/ci/case-collisions.test.cjs"' })),
     ...[
       ["retrain-gate-min-test", "if (newM.n < minTest)", "if (newM.n < 0)", "refuses a test set smaller than the minimum"],
       ["retrain-gate-top1-tie", "!(newM.top1 > oldM.top1)", "newM.top1 < oldM.top1", "refuses a tie on top1"],

@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, money, type CardPageFinish, type CardPageLeader, type CardPageResponse } from "./api";
-import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPage";
+import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPageModel";
 import { loadCardRules, type CardRules } from "./cardRules";
 import { CardArtImg, CardLightbox, useCardArt } from "./CardThumb";
 import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } from "./meta";
 import { PriceHistory } from "./PriceHistory";
-import { SITE_ORIGIN } from "./seo/routeMeta";
+import { SITE_ORIGIN } from "./seo/routeMetaTable";
 import { Skeleton } from "./Skeleton";
 
 const STALE_MS = 5 * 60_000;

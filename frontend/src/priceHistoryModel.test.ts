@@ -14,7 +14,7 @@ import {
   rangeChangePct,
   releasedAgo,
   type PricePoint,
-} from "./priceHistory";
+} from "./priceHistoryModel";
 
 const range = (id: string) => HISTORY_RANGES.find((r) => r.id === id)!;
 const pts = (rows: [string, number][]): PricePoint[] => rows.map(([date, price]) => ({ date, price }));

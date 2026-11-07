@@ -74,3 +74,9 @@ test("other workflows do not trigger the app jobs, and flags union across paths 
 test("an empty path list runs everything (#739)", () => {
   assert.deepEqual(on([]), ALL);
 });
+
+test("prerender and vercel-ignore scripts run the apps that import or read them, not the backend (refactor 0.1)", () => {
+  assert.deepEqual(on(["scripts/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["scripts/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["scripts/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
+});
