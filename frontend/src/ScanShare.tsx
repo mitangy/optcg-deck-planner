@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type User } from "./api";
+import { meQueryKey, useMe } from "./auth/useMe";
 
 export const SCAN_PRIVACY_HREF = "/privacy#scanner-crops";
 
 export function ScanShare() {
   const qc = useQueryClient();
-  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const me = useMe();
   const shared = useQuery({ queryKey: ["scan-samples", "mine"], queryFn: api.myScanSamples });
   const [confirming, setConfirming] = useState(false);
   const [deleted, setDeleted] = useState(false);
@@ -16,14 +17,14 @@ export function ScanShare() {
   const setShare = useMutation({
     mutationFn: (value: boolean) => api.updatePreferences({ share_scans: value }),
     onMutate: (value) => {
-      const prev = qc.getQueryData<User | null>(["me"]);
-      qc.setQueryData<User | null>(["me"], (old) => (old ? { ...old, share_scans: value } : old));
+      const prev = qc.getQueryData<User | null>(meQueryKey);
+      qc.setQueryData<User | null>(meQueryKey, (old) => (old ? { ...old, share_scans: value } : old));
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["me"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(meQueryKey, ctx.prev);
     },
-    onSettled: () => void qc.invalidateQueries({ queryKey: ["me"] }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: meQueryKey }),
   });
 
   const remove = useMutation({

@@ -17,6 +17,14 @@ export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   }
 }
 
+export function saveShoppingDeckFilter(ids: number[]): void {
+  try {
+    localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(ids));
+  } catch {
+    /* private mode / blocked storage: the choice still applies for this visit */
+  }
+}
+
 /**
  * The decks ticked under Master Shopping's "Include decks", for views that count the same decks
  * (deck pages, Buying hints). undefined means all decks, so those requests stay unfiltered.

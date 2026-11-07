@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { meQueryKey, useMe } from "../auth/useMe";
 import { SharingCard } from "./SharingCard";
 import { TradesPanel } from "./TradesPanel";
 import { MySparesPanel } from "./MySparesPanel";
@@ -15,7 +16,7 @@ const TABS: FriendsTab[] = ["friends", "trades", "spares"];
 const friendPath = (username: string) => `/friends/${encodeURIComponent(username)}`;
 
 export function FriendsPage() {
-  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const me = useMe();
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab");
   const tab: FriendsTab = TABS.includes(raw as FriendsTab) ? (raw as FriendsTab) : "friends";
@@ -66,7 +67,7 @@ function UsernamePicker() {
   const formatError = name ? usernameFormatError(name) : null;
   const save = useMutation({
     mutationFn: () => friendsApi.setUsername(name.trim()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: meQueryKey }),
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
