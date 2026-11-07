@@ -10,6 +10,9 @@
  *
  * --check-anchors only verifies that every mutation's anchors still match
  * exactly once and json patches apply (no tests run); exit 1 when any is stale.
+ * An anchor with no exact match falls back to a whitespace-tolerant match
+ * (anchors.cjs); --check-anchors lists those so they can be cleaned up.
+ * --locate-stale [suite] [--locate-scope <dir>] finds where stale anchors moved.
  *
  * Suites: see SUITES below (default: all). Exit code 1 when any
  * mutation survives or its anchor no longer matches the source exactly once.
@@ -20,6 +23,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
+const { applyAnchor } = require("./anchors.cjs");
 
 const REPO = path.resolve(__dirname, "../..");
 
@@ -56,10 +60,10 @@ const SUITES = {
 const args = process.argv.slice(2);
 const onlyIndex = args.indexOf("--only");
 const only = onlyIndex >= 0 ? new RegExp(args[onlyIndex + 1]) : null;
-const suiteNames = args.filter((a, i) => !a.startsWith("--") && !(onlyIndex >= 0 && i === onlyIndex + 1));
+const scopeIndex = args.indexOf("--locate-scope");
+const locateScope = scopeIndex >= 0 ? args[scopeIndex + 1] : null;
+const suiteNames = args.filter((a, i) => !a.startsWith("--") && !(onlyIndex >= 0 && i === onlyIndex + 1) && !(scopeIndex >= 0 && i === scopeIndex + 1));
 const selected = suiteNames.length ? suiteNames : Object.keys(SUITES);
-
-const crlf = (x) => x.split("\n").join("\r\n");
 
 // --check-anchors: verify every mutation still applies (each anchor matches
 // exactly once, json patches run) without running any tests. Read-only, so it
@@ -68,16 +72,33 @@ if (args.includes("--check-anchors")) {
   for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
   let stale = 0;
   let checked = 0;
+  const loose = [];
   for (const name of selected) {
     for (const mutation of SUITES[name].mutations) {
       if (only && !only.test(mutation.id)) continue;
       checked += 1;
-      const { error } = planEdits(mutation, (file) => fs.readFileSync(file, "utf8"));
+      const { error, loose: usedLoose } = planEdits(mutation, (file) => fs.readFileSync(file, "utf8"));
       if (error) { stale += 1; console.log(`STALE    [${name}] ${mutation.id}: ${error}`); }
+      else if (usedLoose) loose.push(`${name} ${mutation.id}`);
     }
   }
   console.log(stale ? `\n${stale} of ${checked} mutation(s) stale.` : `All ${checked} mutation anchors match.`);
+  if (loose.length) {
+    console.log(`${loose.length} anchor(s) matched only via the whitespace-tolerant fallback (update their \`from\` to the current text):`);
+    for (const l of loose) console.log(`  loose    ${l}`);
+  }
   process.exit(stale ? 1 : 0);
+}
+
+// --locate-stale: for every stale anchor, find the tracked file it moved to.
+// Read-only, like --check-anchors.
+if (args.includes("--locate-stale")) {
+  for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
+  const { locateStale } = require("./locate.cjs");
+  const result = locateStale({ repo: REPO, suites: Object.fromEntries(selected.map((n) => [n, SUITES[n]])), only, scope: locateScope });
+  for (const line of result.output) console.log(line);
+  console.log(result.unlocated ? `\n${result.unlocated} of ${result.stale} stale anchor(s) not located.` : result.stale ? `\nAll ${result.stale} stale anchor(s) located.` : "No stale anchors.");
+  process.exit(result.unlocated ? 1 : 0);
 }
 
 // Restore everything we touched, whatever happens. Originals are also journaled
@@ -196,15 +217,21 @@ const runners = {
 /**
  * Resolve a mutation's edits against the current sources without writing:
  * returns { error } when an anchor does not match exactly once or a json patch
- * throws, else { next } mapping each file to its mutated text. `read` supplies
+ * throws, else { next } mapping each file to its mutated text, plus { loose }
+ * when any anchor needed the whitespace-tolerant fallback. `read` supplies
  * the pristine text of a file.
  */
 function planEdits(mutation, read) {
   const edits = mutation.edits ?? (mutation.json ? [{ json: mutation.json, patch: mutation.patch }] : [{ file: mutation.file, from: mutation.from, to: mutation.to }]);
   const next = new Map();
+  let loose = false;
   for (const edit of edits) {
     const file = path.join(REPO, edit.json ?? edit.file);
-    const current = next.get(file) ?? read(file);
+    let current;
+    try { current = next.get(file) ?? read(file); } catch (e) {
+      if (e.code === "ENOENT") return { error: `file ${edit.json ?? edit.file} does not exist (moved?)` };
+      throw e;
+    }
     let updated;
     if (edit.json) {
       try {
@@ -215,15 +242,14 @@ function planEdits(mutation, read) {
         return { error: `json patch for ${edit.json} failed: ${e.message}` };
       }
     } else {
-      let { from, to } = edit;
-      if (!current.includes(from) && current.includes(crlf(from))) { from = crlf(from); to = crlf(to); }
-      const count = current.split(from).length - 1;
-      if (count !== 1) return { error: `anchor in ${edit.file} matched ${count} times: ${JSON.stringify(edit.from.slice(0, 80))}` };
-      updated = current.replace(from, to);
+      const applied = applyAnchor(current, edit.from, edit.to);
+      if (applied.error) return { error: `anchor in ${edit.file} matched ${applied.count} times: ${JSON.stringify(edit.from.slice(0, 80))}` };
+      if (applied.mode === "loose") loose = true;
+      updated = applied.updated;
     }
     next.set(file, updated);
   }
-  return { next };
+  return { next, loose };
 }
 
 function applyEdits(mutation) {
