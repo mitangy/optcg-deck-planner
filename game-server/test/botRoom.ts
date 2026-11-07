@@ -8,6 +8,7 @@ import { PROTOCOL_VERSION } from "../src/protocol.js";
 import { BotPool, setSharedBotPool, type BotJobInput, type BotJobOutput } from "../src/botPool.js";
 import { botPacing, botSearch, type DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
+import { ManualSleepTime } from "./fakeTime.js";
 
 type View = {
   seat: 0 | 1;
@@ -61,8 +62,14 @@ async function waitUntil(pred: () => boolean, timeoutMs = 8000): Promise<void> {
 
 const humanSend = (c: ClientRoom, intent: object) => c.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
 const last = (bag: Bag) => bag.views.at(-1)!;
-type Internals = { match: MatchState; replay: MatchReplay | null };
-const internals = (room: DuelRoom) => room as unknown as Internals;
+const internals = (room: DuelRoom) => ({
+  get match(): MatchState {
+    return room.game.match!;
+  },
+  get replay(): MatchReplay | null {
+    return room.game.replay;
+  },
+});
 
 function gameToken(uid: number): string {
   const b64url = (buf: Buffer) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -120,7 +127,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       humanSend(human, { type: "end_turn" });
       await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0 && last(bag).legalIntents.length > 0);
       assert.ok(internals(room).replay!.intents.filter((i) => i.seat === 1).length > 1, "the bot played its turn");
-      const stats = (room as unknown as { botStats: { decisions: number; searches: number } }).botStats;
+      const stats = room.bots.stats;
       assert.ok(stats.searches > 0, "at least one of its decisions was a real search");
       assert.deepEqual(bag.errors, []);
     });
@@ -239,20 +246,31 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       assert.equal(solo[0]!.user_id, 777);
     });
 
-    it("a bot game is reported without waiting: a failing API never delays match_over and is retried (#988)", async () => {
-      let calls = 0;
-      const solo: SoloGamePayload[] = [];
-      const { bag } = await soloGameOf(humanConcedes, {
-        persistSoloGame: async (p) => {
-          calls++;
-          if (calls < 3) throw new Error("HTTP 503");
-          solo.push(p);
-        },
-      });
-      assert.equal(bag.over!.result.winner, 1, "match_over arrived while the report was still failing");
-      assert.ok(calls < 3, "the retries had not all run when match_over arrived");
-      await waitUntil(() => solo.length === 1, 6000);
-      assert.equal(calls, 3);
+    it("a bot game is reported without waiting: a failing API never delays match_over and is retried after a growing pause (#988)", async () => {
+      const pauses = new ManualSleepTime().install();
+      try {
+        let calls = 0;
+        const solo: SoloGamePayload[] = [];
+        const { bag } = await soloGameOf(humanConcedes, {
+          persistSoloGame: async (p) => {
+            calls++;
+            if (calls < 3) throw new Error("HTTP 503");
+            solo.push(p);
+          },
+        });
+        assert.equal(bag.over!.result.winner, 1, "match_over arrived while the report was still failing");
+        await waitUntil(() => pauses.requested.length === 1);
+        assert.equal(calls, 1, "the retry is waiting out its pause");
+        pauses.release();
+        await waitUntil(() => pauses.requested.length === 2);
+        assert.equal(calls, 2);
+        pauses.release();
+        await waitUntil(() => solo.length === 1);
+        assert.equal(calls, 3);
+        assert.deepEqual(pauses.requested, [500, 1000]);
+      } finally {
+        pauses.uninstall();
+      }
     });
 
     it("a bot game is not reported when nothing is configured to save it locally (#988)", async () => {
@@ -453,8 +471,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         humanSend(human, { type: "end_turn" });
         await waitUntil(() => jobs.length === 1);
         // The room's state moves on while the first search runs (an undo, here replaced by a state swap).
-        const inner = internals(room) as unknown as { match: MatchState };
-        inner.match = { ...inner.match };
+        room.game.match = { ...room.game.match! };
         const before = internals(room).replay!.intents.length;
         releases[0]!({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 });
         await waitUntil(() => jobs.length === 2);

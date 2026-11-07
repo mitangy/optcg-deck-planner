@@ -16,6 +16,7 @@ import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
+import { withFakeTime } from "./fakeTime.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -80,6 +81,23 @@ async function waitUntil(pred: () => boolean, timeoutMs: number): Promise<void> 
   }
 }
 
+let pingSeq = 0;
+/**
+ * Resolves once everything the server sent this client before now has arrived: a client's messages are
+ * handled in order and its socket delivers in order, so the pong comes after every earlier send.
+ */
+function roundTrip(client: ClientRoom): Promise<void> {
+  const t = (pingSeq += 1);
+  return new Promise((resolve) => {
+    const off = client.onMessage("pong", (msg: { t?: number }) => {
+      if (msg.t !== t) return;
+      off();
+      resolve();
+    });
+    client.send("ping", { t });
+  });
+}
+
 async function syncSeat(client: ClientRoom, bag: SeatBag) {
   client.send("sync", { protocolVersion: PROTOCOL_VERSION });
   await waitUntil(() => bag.welcome != null && bag.views.length > 0, 8000);
@@ -114,17 +132,32 @@ function presenceFor(roomId: string): PresenceEntry[] {
     .sort((a, b) => a.user_id - b.user_id);
 }
 
-/** Server-side room internals the replay tests read. */
-type RoomInternals = {
-  match: MatchState;
-  replay: MatchReplay | null;
-  expireTurnClock(): void;
-  matchEndsAt: number | null;
-  clockSeat: 0 | 1 | null;
-  seatRemainingMs: [number, number];
-  resultPayload(s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload;
-};
-const internals = (room: DuelRoom) => room as unknown as RoomInternals;
+/** The room's live game and clocks, as the replay and clock tests read (and sometimes set) them. */
+function internals(room: DuelRoom) {
+  return {
+    get match(): MatchState {
+      return room.game.match!;
+    },
+    get replay(): MatchReplay | null {
+      return room.game.replay;
+    },
+    expireTurnClock: () => room.clocks.expireTurnClock(),
+    get matchEndsAt(): number | null {
+      return room.clocks.matchEndsAt;
+    },
+    set matchEndsAt(at: number | null) {
+      room.clocks.matchEndsAt = at;
+    },
+    get clockSeat(): 0 | 1 | null {
+      return room.clocks.clockSeat;
+    },
+    get seatRemainingMs(): [number, number] {
+      return room.clocks.seatRemainingMs;
+    },
+    resultPayload: (s0: number, s1: number, winner: 0 | 1, reason: string): MatchResultPayload =>
+      room.persistence.resultPayload(s0, s1, winner, reason),
+  };
+}
 
 /** Send `steps` legal intents from whichever seat can act, ending the turn now and then. */
 async function playSome(clients: [ClientRoom, ClientRoom], bags: [SeatBag, SeatBag], steps: number) {
@@ -371,15 +404,15 @@ describe("DuelRoom", () => {
 
     // A state the engine cannot clone-and-run makes applyIntent throw; the sender still gets the normal error.
     // Called directly (not over the socket) so an escaped throw fails this assertion instead of crashing the runner.
-    const internals = room as unknown as { match: { rng: unknown }; handleIntent(client: unknown, message: unknown): void };
-    const goodRng = internals.match.rng;
-    internals.match.rng = null;
+    const internals = room as unknown as { game: { match: { rng: unknown } }; handleIntent(client: unknown, message: unknown): void };
+    const goodRng = internals.game.match.rng;
+    internals.game.match.rng = null;
     const serverClient = room.clients.find((c) => c.sessionId === client.sessionId);
     assert.ok(serverClient);
     assert.doesNotThrow(() => internals.handleIntent(serverClient, { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } }));
     await waitUntil(() => bag.errors.length >= 1, 5000);
     assert.equal(bag.errors[0]!.code, "illegal_intent");
-    internals.match.rng = goodRng;
+    internals.game.match.rng = goodRng;
     bag.errors.length = 0;
 
     const viewsBefore = bags[0].views.length + bags[1].views.length;
@@ -538,7 +571,9 @@ describe("DuelRoom", () => {
     });
     spec.send("sync", { protocolVersion: PROTOCOL_VERSION });
     await waitUntil(() => welcome != null && specViews.length > 0, 8000);
-    // Views from here on are updates, not the join's own.
+    // The join and the sync each send a welcome and a view; the first of them satisfies the wait above and the
+    // second can still be in flight. Wait for the pong that follows both, so views counted from here are updates only.
+    await roundTrip(spec);
     specViews.length = 0;
     return { welcome: welcome!, bags, room, c0, c1, spec, specViews, specErrors };
   }
@@ -655,7 +690,7 @@ describe("DuelRoom", () => {
   });
 
   it("a player's hand_order reorders the hands spectators see, and the other player is unaffected (#346)", async () => {
-    const { welcome, bags, c0, specViews } = await watchRoom({});
+    const { welcome, bags, c0, c1, specViews } = await watchRoom({});
     const engine = handIds(welcome.view.revealedHands?.[0]);
     const mine = bags[0].welcome!.you.hand.map((c) => c.id);
     assert.deepEqual(engine, mine);
@@ -667,7 +702,7 @@ describe("DuelRoom", () => {
     // The other hand is untouched, and a new spectator joining later sees the order too.
     assert.deepEqual(handIds(specViews.at(-1)?.revealedHands?.[1]), seatOneBefore);
     // Nothing about it reaches the other player.
-    await new Promise((r) => setTimeout(r, 200));
+    await roundTrip(c1);
     assert.equal(bags[1].views.length, opponentViews);
     assert.deepEqual(bags[1].views.at(-1)!.you.hand.map((c) => c.id), seatOneBefore);
   });
@@ -702,19 +737,22 @@ describe("DuelRoom", () => {
   });
 
   it("an unchanged hand_order does not resend the spectator view (#346)", async () => {
-    const { welcome, c0, specViews } = await watchRoom({});
+    const { welcome, c0, spec, specViews } = await watchRoom({});
     const reversed = handIds(welcome.view.revealedHands?.[0]).reverse();
     c0.send("hand_order", { ids: reversed });
     await waitUntil(() => specViews.length === 1, 5000);
     c0.send("hand_order", { ids: reversed });
-    await new Promise((r) => setTimeout(r, 300));
+    // c0's second order has been handled once its pong is back, and the spectator's pong follows any view sent to it.
+    await roundTrip(c0);
+    await roundTrip(spec);
     assert.equal(specViews.length, 1);
   });
 
   it("a ranked room keeps hands hidden whatever hand_order says (#346)", async () => {
-    const { welcome, bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
+    const { welcome, bags, c0, spec, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
     c0.send("hand_order", { ids: bags[0].welcome!.you.hand.map((c) => c.id).reverse() });
-    await new Promise((r) => setTimeout(r, 300));
+    await roundTrip(c0);
+    await roundTrip(spec);
     assert.equal(specViews.length, 0);
     assert.equal(welcome.view.revealedHands, undefined);
   });
@@ -886,7 +924,7 @@ describe("DuelRoom", () => {
     assert.deepEqual(specCos.find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
     // Once the card is played face-up, everyone gets the entry.
-    (room as unknown as { broadcastViews(e: unknown[]): void }).broadcastViews([
+    room.spectators.broadcastViews([
       { type: "card_played", seat: 0, defId: hidden, instanceId: "x", costPaid: 0 },
     ]);
     await waitUntil(() => cosmetics[1].some((m) => m.seat === 0 && m.artPrefs[hidden] === "p1"), 5000);
@@ -1264,6 +1302,11 @@ describe("DuelRoom", () => {
       const n = steps();
       clients[seat].send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
       await waitUntil(() => steps() === n + 1, 5000);
+      // The server has applied it; wait until both seats hold the views it sent, so `give(seat)` (read from the
+      // seat's latest view) never reflects the turn before this action. Without this a slow run sent an intent
+      // built from the old view, the server refused it, and the step count never moved (a flaky timeout).
+      await roundTrip(c0);
+      await roundTrip(c1);
     };
     const give = (seat: 0 | 1) => bags[seat].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
     /** Swap the first hand card for Nami (looks at the deck: a reveal) and make sure there is a DON!! to pay with. */
@@ -1467,7 +1510,7 @@ describe("DuelRoom", () => {
     await t.act(t.active, t.give(t.active));
     await t.act(t.active, { type: "end_turn" });
     // Pad the history to the limit with turn-2 snapshots, then take two more turn-2 actions: the oldest one falls off.
-    const stack = (t.room as unknown as { undoStack: { turnNumber: number }[] }).undoStack;
+    const stack = t.room.undo.stack;
     const template = stack.at(-1)!;
     stack.length = 0;
     for (let i = 0; i < 39; i += 1) stack.push({ ...template, turnNumber: 2 });
@@ -1493,7 +1536,7 @@ describe("DuelRoom", () => {
       autoSkipMulligan: true,
     });
     // Force the ranked flag the matchmaker would attest.
-    (room as unknown as { ranked: boolean }).ranked = true;
+    room.game.ranked = true;
     const bag: SeatBag = { views: [], errors: [] };
     const states: { enabled: boolean }[] = [];
     const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
@@ -1549,7 +1592,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("per-player clock: the seat whose bank runs out loses", async () => {
+  it("per-player clock: the seat whose bank runs out loses", () => withFakeTime(async (time) => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 32,
@@ -1576,13 +1619,59 @@ describe("DuelRoom", () => {
     const active = bags[0].views.at(-1)!.activeSeat;
     assert.equal(running.clockSeat, active);
     // Nobody acts: the active seat's 1s bank runs out.
-    await waitUntil(() => bags[0].over != null, 8000);
+    await time.advance(1000);
+    await waitUntil(() => bags[0].over != null, 5000);
     assert.equal(bags[0].over!.result.winner, active === 0 ? 1 : 0);
     assert.equal(bags[0].over!.result.reason, "timeout");
 
     await c0.leave(true);
     await c1.leave(true);
-  });
+  }));
+
+  it("turn clock: when the turn timer runs out the seat to act plays its automatic move through the normal path and the next turn gets a fresh clock (refactor 3.5a)", () => withFakeTime(async (time) => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 33,
+      autoSkipMulligan: true,
+      timer: { turnSeconds: 30 },
+    });
+    type Timer = { turnSeconds: number | null; turnEndsAt: number | null; activeSeat: 0 | 1 };
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const timers: Timer[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    c0.onMessage("timer", (msg: Timer) => timers.push(msg));
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const start = time.now();
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const played = internals(room).replay!.intents.length;
+    await time.advance(29_750);
+    await roundTrip(c0);
+    assert.equal(internals(room).replay!.intents.length, played, "nothing is played before the turn clock runs out");
+
+    await time.advance(250);
+    await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
+    assert.equal(internals(room).replay!.intents.length, played + 1);
+    assert.deepEqual(internals(room).replay!.intents.at(-1), { seat: active, intent: { type: "end_turn" } });
+    assertReplayRebuilds(room);
+    // Both seats are told: a new view, and a turn clock that restarts from the moment the move was made.
+    await roundTrip(c0);
+    await roundTrip(c1);
+    assert.equal(bags[0].views.at(-1)!.activeSeat, 1 - active);
+    assert.equal(bags[1].views.at(-1)!.activeSeat, 1 - active);
+    assert.equal(timers.at(-1)!.turnEndsAt, start + 60_000);
+    assert.equal(timers.at(-1)!.activeSeat, 1 - active);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  }));
 
   it("conceding flips both hands and all Life face up for players and ranked spectators, never before (#482)", async () => {
     const { bags, c0, specViews } = await watchRoom({ ranked: true, rankedAttestation: getRankedMatchCreateSecret() });
@@ -2142,7 +2231,7 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", async () => {
+  it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", () => withFakeTime(async (time) => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -2167,15 +2256,16 @@ describe("DuelRoom", () => {
     clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
     await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
 
-    internals(room).matchEndsAt = Date.now() - 1;
+    internals(room).matchEndsAt = time.now() - 1;
+    await time.advance(250);
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: active, reason: "match_timeout" });
 
     await c0.leave(true);
     await c1.leave(true);
-  });
+  }));
 
-  it("per-player clock: a seat that stalls its mulligan runs its own bank down and loses on time (#349)", async () => {
+  it("per-player clock: a seat that stalls its mulligan runs its own bank down and loses on time (#349)", () => withFakeTime(async (time) => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
       seed: 42,
@@ -2207,12 +2297,13 @@ describe("DuelRoom", () => {
 
     // The staller's bank empties while the answered seat's bank is untouched.
     internals(room).seatRemainingMs[other] = 1;
+    await time.advance(250);
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: active, reason: "timeout" });
 
     await c0.leave(true);
     await c1.leave(true);
-  });
+  }));
 
   /** Seat 1 brings an Imu leader (mandatory start-of-game Stage prompt); seat 0 is the first player. */
   async function imuSecondRoom(timer: Record<string, number>) {
@@ -2243,34 +2334,36 @@ describe("DuelRoom", () => {
     return { room, c0, c1, bags };
   }
 
-  it("per-player clock: the Imu seat's open Stage prompt drains its own bank, not the first player's (#353)", async () => {
+  it("per-player clock: the Imu seat's open Stage prompt drains its own bank, not the first player's (#353)", () => withFakeTime(async (time) => {
     const { room, c0, c1, bags } = await imuSecondRoom({ seatSeconds: 900 });
     assert.equal(internals(room).clockSeat, 1);
 
     // Seat 0 cannot mulligan yet, so its bank must hold while seat 1's runs out.
     internals(room).seatRemainingMs[0] = 1;
-    await new Promise((r) => setTimeout(r, 300));
+    await time.advance(500);
     assert.equal(internals(room).match.winner, null);
     assert.equal(bags[0].over, undefined);
 
     internals(room).seatRemainingMs[1] = 1;
+    await time.advance(250);
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "timeout" });
 
     await c0.leave(true);
     await c1.leave(true);
-  });
+  }));
 
-  it("match clock: expiry while the Imu seat's Stage prompt is open names the prompt owner the loser (#353)", async () => {
+  it("match clock: expiry while the Imu seat's Stage prompt is open names the prompt owner the loser (#353)", () => withFakeTime(async (time) => {
     const { room, c0, c1, bags } = await imuSecondRoom({ matchSeconds: 900 });
 
-    internals(room).matchEndsAt = Date.now() - 1;
+    internals(room).matchEndsAt = time.now() - 1;
+    await time.advance(250);
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: 0, reason: "match_timeout" });
 
     await c0.leave(true);
     await c1.leave(true);
-  });
+  }));
 
   it("match clock: a defender sitting on the block step loses on time, not the attacker (#248)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
