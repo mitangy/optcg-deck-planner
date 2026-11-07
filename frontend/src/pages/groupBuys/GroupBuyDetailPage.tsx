@@ -1,17 +1,17 @@
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
-import { AltArtsRow } from "../../MarketPrice";
-import { ReceiptImportPanel, type ReceiptApplyDraft } from "../../ReceiptImport";
-import { GroupBuyDetailSkeleton } from "../../Skeleton";
-import { shownProductId } from "../../altArt";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { AltArtsRow } from "../../cards/MarketPrice";
+import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
+import { GroupBuyDetailSkeleton } from "../../ui/Skeleton";
+import { shownProductId } from "../../cards/altArt";
 import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from "../../api";
 import { useMe } from "../../auth/useMe";
-import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, useShowAltArts, type SortKey } from "../../cardListControls";
-import { SortableTh, sortByColumn, useColumnSort } from "../../columnSort";
-import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../displayArtViews";
-import { altIncBlocked, myArtSplit } from "../../groupBuyArt";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { blankMassEntryUrl } from "../../tcgplayerMassEntry";
-import { useNarrowLayout } from "../../useNarrowLayout";
+import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
+import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
+import { altIncBlocked, myArtSplit } from "./groupBuyArt";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { blankMassEntryUrl } from "../shopping/tcgplayerMassEntry";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 import { Select } from "@optcg/ui/popups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -25,7 +25,7 @@ import { ArtWantChips } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 export function GroupBuyDetailPage() {
   const { id } = useParams();

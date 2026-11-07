@@ -2,10 +2,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { DUEL_URL } from "../duelLink";
-import { useLogPoseDraft } from "../logPose";
+import { DUEL_URL } from "../app/duelLink";
+import { useLogPoseDraft } from "./decks/logPose";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 export function ImportPage() {
   const navigate = useNavigate();

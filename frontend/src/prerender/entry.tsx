@@ -12,13 +12,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, StaticRouter } from "react-router-dom";
 import { LEGAL_PATHS, SiteFooter, type LegalKind } from "@optcg/site-legal";
 import { applyHead, injectRoot, type PrerenderHead } from "@optcg/ui/seo";
-import { PlannerLandingPage } from "../LandingPage";
-import { LegalPage } from "../LegalPage";
-import { META_SEED_ID } from "../prerendered";
-import { PublicMetaScreen } from "../PublicMetaScreen";
+import { PlannerLandingPage } from "../pages/LandingPage";
+import { LegalPage } from "../pages/LegalPage";
+import { META_SEED_ID } from "../app/prerendered";
+import { PublicMetaScreen } from "../meta/PublicMetaScreen";
 import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
 import type { MetaLeadersResponse } from "../api";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 export type PrerenderedFile = { file: string; content: string };
 

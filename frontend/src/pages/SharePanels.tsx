@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { DeckDetail } from "../api";
-import { buildOptcgSimExport } from "../optcgsimExport";
-import { HeadPopover } from "../HeadPopover";
+import { buildOptcgSimExport } from "./shopping/optcgsimExport";
+import { HeadPopover } from "../ui/HeadPopover";
 
 function ShareStatus({
   message,

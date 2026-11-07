@@ -4,8 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { api, type User } from "../api";
-import { ScanShare } from "../ScanShare";
-import { SIGNED_IN_HINT_KEY } from "../prerendered";
+import { ScanShare } from "../scanner/ui/ScanShare";
+import { SIGNED_IN_HINT_KEY } from "../app/prerendered";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MenuItem } from "@optcg/ui/popups";
 import type { DeckDetail } from "../api";
 import { friendsApi } from "./friendsApi";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** Deck editor "More" menu row (a `MenuItem`): keep this deck off your friends' view of your decks. The label says which way it is set. */
 export function HideFromFriendsItem({ deck, onUpdated }: { deck: DeckDetail; onUpdated: (d: DeckDetail) => void }) {
