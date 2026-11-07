@@ -42,6 +42,9 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // Alembic baseline must build the schema init_db builds (refactor 3.8)
+    { id: "alembic-baseline-drops-a-column", file: "backend/migrations/versions/0001_baseline.py", from: "    sa.Column('signup_source', sa.Text(), nullable=True),\n", to: "", kills: ["test_alembic_baseline_builds_the_schema_init_db_builds"], args: "tests/test_alembic_baseline.py" },
+    { id: "alembic-baseline-drops-username-index", file: "backend/migrations/versions/0001_baseline.py", from: "    op.create_index('ix_users_username_lower', 'users', [sa.text('lower(username)')], unique=True)\n", to: "", kills: ["test_alembic_baseline_builds_the_schema_init_db_builds"], args: "tests/test_alembic_baseline.py" },
     // Test harness must not write backend/optcg.db (refactor 0.7)
     {"id": "tests-app-engine-uses-default-sqlite-file", "file": "backend/tests/conftest.py", "from": "os.environ[\"DATABASE_URL\"] = f\"sqlite:///{_APP_DB_DIR}/app.db\"", "to": "os.environ.pop(\"DATABASE_URL\", None)", "kills": ["test_running_the_app_lifespan_in_tests_does_not_create_backend_optcg_db_refactor_0_7"], "args": "tests/test_no_stray_db.py"},
     // Den Den Mushi: Discord posts become feedback tickets and GitHub issues (#979)
