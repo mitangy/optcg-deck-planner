@@ -331,3 +331,138 @@ class SimMatchupsOut(BaseModel):
 
 class SimGamesClearedOut(BaseModel):
     deleted: int
+
+
+# ---------------------------------------------------------------- giveaway events (refactor 2.1c)
+# Field order follows the dicts routers/events.py builds, so the JSON is unchanged.
+
+EventFormat = Literal["casual", "single_elim", "round_robin", "swiss"]
+EventPrizeMethod = Literal["draw", "placement"]
+EventStatus = Literal["upcoming", "live", "ended", "drawn"]
+
+
+class EventProgress(BaseModel):
+    games: int
+    opponents: int
+    eligible: bool
+
+
+class EventPublic(BaseModel):
+    id: str
+    title: str
+    starts_at: str
+    ends_at: str
+    description: str
+    prize: str
+    prize_details: str
+    prize_method: EventPrizeMethod
+    format: EventFormat
+    # Only for single elimination, otherwise null.
+    bracket_size: int | None
+    best_of: Literal[1, 3]
+    winners: int
+    rules_version: str
+    min_games: int
+    min_opponents: int
+    min_turns: int
+    status: EventStatus
+    seed_hash: str | None
+    # Null until the draw runs.
+    seed: str | None
+    eligible_user_ids: list[int] | None
+    viewer: Literal["anonymous", "guest", "staff", "player"]
+    can_join: bool
+    cant_join_reason: str | None
+    opted_in: bool
+    progress: EventProgress | None
+
+
+class EventEnvelope(BaseModel):
+    """`event` is null when no event is live, upcoming or recently ended."""
+
+    event: EventPublic | None
+
+
+class EventJoined(BaseModel):
+    opted_in: bool
+
+
+class EventCounters(BaseModel):
+    opted_in: int
+    games_in_window: int
+    players_with_game: int
+    eligible: int
+    flagged_eligible: int
+
+
+class EventParticipant(BaseModel):
+    user_id: int
+    name: str
+    email: str
+    games: int
+    opponents: int
+    eligible: bool
+    excluded: Literal["guest", "banned", "staff"] | None
+    # Advisory cheat-review flags (#809). They never change eligibility.
+    flags: list[Literal["new_account", "new_opponents", "isolated_group", "private_only"]]
+
+
+class EventDrawee(BaseModel):
+    user_id: int
+    name: str
+    email: str
+    forfeited: bool
+
+
+class EventDrawState(BaseModel):
+    seed_hash: str
+    committed_at: str | None
+    drawn_at: str | None
+    # Null until the draw runs.
+    seed: str | None
+    forfeited: list[int]
+    ranking: list[EventDrawee]
+    winners: list[EventDrawee]
+
+
+class AdminEvent(BaseModel):
+    id: str
+    title: str
+    starts_at: str
+    ends_at: str
+    status: EventStatus
+    description: str
+    prize: str
+    prize_details: str
+    prize_method: EventPrizeMethod
+    format: EventFormat
+    bracket_size: int | None
+    best_of: Literal[1, 3]
+    winners: int
+    rules_version: str
+    min_games: int
+    min_opponents: int
+    min_turns: int
+    winners_count: int
+    counters: EventCounters
+    participants: list[EventParticipant]
+    draw: EventDrawState | None
+
+
+class AdminEventSummary(BaseModel):
+    id: str
+    title: str
+    starts_at: str
+    ends_at: str
+    status: EventStatus
+    format: EventFormat
+    prize: str
+    joined: int
+
+
+class AdminEventList(BaseModel):
+    events: list[AdminEventSummary]
+
+
+class AdminEventDeleted(BaseModel):
+    deleted: str

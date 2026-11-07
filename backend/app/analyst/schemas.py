@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, field_validator
 
@@ -394,3 +394,93 @@ class AnalystReviewOut(BaseModel):
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     created_at: str | None
+
+
+# ---------------------------------------------------------------- bot self-play corpus (refactor 2.1c)
+# Field order follows app/analyst/bots.py, so the JSON is unchanged.
+
+class BotRejected(BaseModel):
+    index: int
+    reason: str
+
+
+class BotBatchOut(BaseModel):
+    accepted: int
+    duplicates: int
+    rejected: list[BotRejected]
+
+
+class BotGameSide(BaseModel):
+    leader: str
+    won: bool | None
+    went_first: bool | None
+
+
+class BotSideSeats(BaseModel):
+    A: int
+    B: int
+
+
+class BotGameSummary(BaseModel):
+    game_id: str
+    source: str
+    date: str | None
+    levels: str
+    rules_version: str
+    turns: int | None
+    has_replay: bool
+    A: BotGameSide
+    B: BotGameSide
+    sides: BotSideSeats
+
+
+class BotGameSearchOut(BaseModel):
+    total: int
+    offset: int
+    games: list[BotGameSummary]
+    source: str
+
+
+class BotReplayOut(BaseModel):
+    game_id: str
+    source: str
+    date: str | None
+    levels: str
+    rules_version: str
+    sides: BotSideSeats
+    replay: dict[str, Any]
+
+
+class BotSimStatsOut(BaseModel):
+    """One of four shapes (all leaders, a mirror, a matchup, one leader); served with exclude_unset so a shape keeps only its own keys."""
+
+    source: str | None = None
+    label: str | None = None
+    days: int | None = None
+    levels: str | None = None
+    rules_versions: dict[str, int] | None = None
+    min_games: int | None = None
+    total_games: int | None = None
+    leaders: list[dict[str, Any]] | None = None
+    leader: str | None = None
+    opponent: str | None = None
+    mirror: bool | None = None
+    games: int | None = None
+    wins: int | None = None
+    win_rate: float | None = None
+    interval: Any = None
+    too_few_games: bool | None = None
+    going_first: dict[str, Any] | None = None
+    going_second: dict[str, Any] | None = None
+    average_turns: float | None = None
+    overall: dict[str, Any] | None = None
+    opponents: list[dict[str, Any]] | None = None
+    lines: list[dict[str, Any]] | None = None
+    lessons: list[dict[str, Any]] | None = None
+
+
+class BotLessonSavedOut(BaseModel):
+    """`id` is only there for a lesson that was saved, not for a skipped duplicate."""
+
+    skipped: bool
+    id: int | None = None

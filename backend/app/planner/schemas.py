@@ -487,3 +487,165 @@ class NotificationList(BaseModel):
 
 class NotificationsRead(BaseModel):
     ids: list[int] | None = Field(default=None, max_length=500)
+
+
+# ---------------------------------------------------------------- scan samples (refactor 2.1c)
+
+class ScanSamplesSaved(BaseModel):
+    saved: int
+
+
+class ScanSamplesCount(BaseModel):
+    count: int
+
+
+class ScanSamplesDeleted(BaseModel):
+    deleted: int
+
+
+class ScanSampleExportItem(BaseModel):
+    id: int
+    split: str
+    final_id: str
+    predicted_id: str | None
+    confidence: str
+    label: str
+    image_b64: str
+
+
+class ScanSamplesExport(BaseModel):
+    items: list[ScanSampleExportItem]
+    next_after_id: int
+
+
+# ---------------------------------------------------------------- public meta deck browser (refactor 2.1c)
+# Field order follows planner/meta_decks.py, so the JSON is unchanged.
+
+class MetaRecord(BaseModel):
+    wins: int
+    losses: int
+    ties: int
+
+
+class MetaLeader(BaseModel):
+    leader_id: str
+    name: str
+    color: str
+    image_url: str
+    decks: int
+    share: float
+    top8: int
+    wins: int
+    losses: int
+    ties: int
+    win_rate: float | None
+
+
+class MetaLeaders(BaseModel):
+    days: int
+    min_players: int
+    events: int
+    total_decks: int
+    source: str
+    source_url: str
+    leaders: list[MetaLeader]
+
+
+class MetaDeckCard(BaseModel):
+    card_id: str
+    count: int
+    name: str
+    cost: str
+    card_type: str
+    image_url: str
+
+
+class MetaDeck(BaseModel):
+    id: int
+    event_id: str
+    event: str
+    event_url: str
+    set_label: str | None
+    date: str
+    players: int
+    placing: int | None
+    record: MetaRecord
+    cards: list[MetaDeckCard]
+    card_count: int
+    text: str
+
+
+class MetaDecks(BaseModel):
+    leader_id: str
+    name: str
+    image_url: str
+    decks: list[MetaDeck]
+
+
+class MetaCard(BaseModel):
+    card_id: str
+    name: str
+    rarity: str
+    color: str
+    card_type: str
+    cost: str | None
+    group_name: str
+    image_url: str
+    tcgplayer_url: str
+    market_price: float | None
+
+
+class MetaPrinting(BaseModel):
+    product_id: int
+    name: str
+    market_price: float | None
+    image_url: str
+    tcgplayer_url: str
+    group_name: str
+    is_special: bool
+
+
+class MetaCardLeader(BaseModel):
+    leader_id: str
+    name: str
+    color: str
+    image_url: str
+    leader_decks: int
+    decks_with_card: int
+    rate: float
+    average_copies: float
+
+
+class MetaCardTopDeck(BaseModel):
+    id: int
+    event: str
+    event_url: str
+    date: str
+    players: int
+    placing: int | None
+    record: MetaRecord
+    leader_id: str
+    leader_name: str
+    leader_image_url: str
+    copies: int
+
+
+class MetaCardUsage(BaseModel):
+    days: int
+    min_players: int
+    events: int
+    total_decks: int
+    is_leader: bool
+    decks_with_card: int
+    rate: float
+    average_copies: float | None
+    leaders: list[MetaCardLeader]
+    top_decks: list[MetaCardTopDeck]
+    source: str
+    source_url: str
+
+
+class MetaCardDetail(BaseModel):
+    card: MetaCard
+    printings: list[MetaPrinting]
+    usage: MetaCardUsage

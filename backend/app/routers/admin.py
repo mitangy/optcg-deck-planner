@@ -18,6 +18,25 @@ from sqlalchemy.orm import Session, aliased
 from app.admin import hosting as admin_hosting
 from app.admin import traffic as admin_traffic
 from app.admin.overview import build_overview, bucket_by_day, is_guest, last_days
+from app.admin.schemas import (
+    AdminBots,
+    AdminDayMatches,
+    AdminFeedback,
+    AdminMe,
+    AdminOverview,
+    AdminReports,
+    AdminUser,
+    AdminUserDetail,
+    AdminUsers,
+    EvalRun,
+    FeedbackExport,
+    HostingOut,
+    ReportRow,
+    TrafficOut,
+    UploadRestored,
+    UploadRow,
+    UploadsPage,
+)
 from app.core.statuses import FriendshipStatus, ReportStatus
 from app.core.time import as_utc_or_none
 from app.analyst.credit import month_start, spent_since
@@ -79,7 +98,7 @@ def _iso(dt: datetime | None) -> str | None:
 
 # ---------------------------------------------------------------- who am I
 
-@router.get("/me")
+@router.get("/me", response_model=AdminMe)
 def admin_me(user: Staff) -> dict:
     admin = is_admin(user)
     return {"role": user.role, "can": {"analytics": admin, "set_roles": admin, "ban": True, "delete": admin}}
@@ -87,12 +106,12 @@ def admin_me(user: Staff) -> dict:
 
 # ---------------------------------------------------------------- players
 
-@router.get("/overview")
+@router.get("/overview", response_model=AdminOverview)
 def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
     return build_overview(db, days)
 
 
-@router.get("/matches")
+@router.get("/matches", response_model=AdminDayMatches)
 def matches_on_day(_: Admin, db: DB, day: Annotated[date, Query()]) -> dict:
     """Every duel finished on one UTC day (oldest first, at most 200), for the drill-down under the matches chart (#691).
 
@@ -162,7 +181,7 @@ def _eval_out(run: AnalystEvalRun) -> dict:
     }
 
 
-@router.get("/bots")
+@router.get("/bots", response_model=AdminBots)
 def bots(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 14) -> dict:
     now = datetime.now(timezone.utc)
     rows = db.execute(
@@ -231,7 +250,7 @@ class EvalRunIn(BaseModel):
         return self
 
 
-@router.post("/evals", status_code=201)
+@router.post("/evals", status_code=201, response_model=EvalRun)
 def record_eval(
     body: EvalRunIn,
     db: DB,
@@ -286,7 +305,7 @@ def _feedback_out(f: AnalystFeedback, name: str | None) -> dict:
     }
 
 
-@router.get("/feedback")
+@router.get("/feedback", response_model=AdminFeedback)
 def list_feedback(
     _: Admin,
     db: DB,
@@ -309,7 +328,7 @@ def list_feedback(
     return {"days": FEEDBACK_DAYS, "counts": counts, "items": [_feedback_out(f, duel_display_name(u)) for f, u in rows]}
 
 
-@router.get("/feedback/export")
+@router.get("/feedback/export", response_model=FeedbackExport)
 def feedback_export(
     db: DB,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -332,12 +351,12 @@ def feedback_export(
 
 # ---------------------------------------------------------------- hosting
 
-@router.get("/hosting")
+@router.get("/hosting", response_model=HostingOut)
 def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refresh: int = 0) -> dict:
     return admin_hosting.hosting(settings, refresh=bool(refresh))
 
 
-@router.get("/traffic")
+@router.get("/traffic", response_model=TrafficOut)
 def traffic(_: Admin, settings: Annotated[Settings, Depends(get_settings)], days: Annotated[RangeDays, Query()] = 30, refresh: int = 0) -> dict:
     """Vercel Web Analytics and Render metrics (#1020), read with the owner's tokens and cached for ten minutes."""
     return admin_traffic.traffic(settings, days, refresh=bool(refresh))
@@ -441,7 +460,7 @@ def _like_escape(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-@router.get("/users")
+@router.get("/users", response_model=AdminUsers, response_model_exclude_unset=True)
 def list_users(
     _: Staff,
     db: DB,
@@ -562,7 +581,7 @@ def _count(db: Session, column, *where) -> int:
     return int(db.scalar(select(func.count()).select_from(column.class_).where(*where)) or 0)
 
 
-@router.get("/users/{user_id}")
+@router.get("/users/{user_id}", response_model=AdminUserDetail, response_model_exclude_unset=True)
 def user_detail(user_id: int, _: Staff, db: DB) -> dict:
     """Everything staff may want to know about one account (#988)."""
     u = _target(db, user_id)
@@ -654,7 +673,7 @@ class RoleIn(BaseModel):
     role: str = Field(max_length=32)
 
 
-@router.put("/users/{user_id}/role")
+@router.put("/users/{user_id}/role", response_model=AdminUser, response_model_exclude_unset=True)
 def set_role(user_id: int, body: RoleIn, actor: Admin, db: DB) -> dict:
     if body.role not in ASSIGNABLE_ROLES:
         raise HTTPException(status_code=400, detail="Role must be user or moderator")
@@ -672,7 +691,7 @@ class BanIn(BaseModel):
     reason: str | None = Field(default=None, max_length=200)
 
 
-@router.post("/users/{user_id}/ban")
+@router.post("/users/{user_id}/ban", response_model=AdminUser, response_model_exclude_unset=True)
 def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     target = _target(db, user_id)
     _apply_ban(db, actor, target, (body.reason if body else None) or "")
@@ -694,7 +713,7 @@ def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
     db.refresh(target)
 
 
-@router.post("/users/{user_id}/unban")
+@router.post("/users/{user_id}/unban", response_model=AdminUser, response_model_exclude_unset=True)
 def unban_user(user_id: int, actor: Staff, db: DB) -> dict:
     target = _target(db, user_id)
     refusal = can_ban(actor, target)
@@ -844,7 +863,7 @@ def _close_report(report: PlayerReport, actor: User, status: str, action: str, n
     report.handled_at = datetime.now(timezone.utc)
 
 
-@router.get("/reports")
+@router.get("/reports", response_model=AdminReports)
 def list_reports(
     _: Staff,
     db: DB,
@@ -870,7 +889,7 @@ def report_image(report_id: int, _: Staff, db: DB) -> Response:
     )
 
 
-@router.post("/reports/{report_id}/dismiss")
+@router.post("/reports/{report_id}/dismiss", response_model=ReportRow)
 def dismiss_report(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
     report = _open_report(db, report_id)
     _close_report(report, actor, ReportStatus.DISMISSED, "", body.note if body else None)
@@ -878,7 +897,7 @@ def dismiss_report(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | No
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/remove-image")
+@router.post("/reports/{report_id}/remove-image", response_model=ReportRow)
 def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
     report = _open_report(db, report_id)
     note = body.note if body else None
@@ -909,7 +928,7 @@ def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNote
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/warn")
+@router.post("/reports/{report_id}/warn", response_model=ReportRow)
 def warn_reported_player(report_id: int, body: ReportWarnIn, actor: Staff, db: DB) -> dict:
     report = _open_report(db, report_id)
     target = _target(db, report.reported_id)
@@ -924,7 +943,7 @@ def warn_reported_player(report_id: int, body: ReportWarnIn, actor: Staff, db: D
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/ban")
+@router.post("/reports/{report_id}/ban", response_model=ReportRow)
 def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     report = _open_report(db, report_id)
     target = _target(db, report.reported_id)
@@ -989,7 +1008,7 @@ def _cosmetic_rows(db: Session, rows: list) -> list[dict]:
     return out
 
 
-@router.get("/cosmetics")
+@router.get("/cosmetics", response_model=UploadsPage)
 def list_cosmetics(
     _: Staff,
     db: DB,
@@ -1040,7 +1059,7 @@ def cosmetic_image(cosmetic_id: int, _: Staff, db: DB) -> Response:
     )
 
 
-@router.post("/cosmetics/{cosmetic_id}/take-down")
+@router.post("/cosmetics/{cosmetic_id}/take-down", response_model=UploadRow)
 def take_down_uploaded_cosmetic(cosmetic_id: int, body: TakeDownIn, actor: Staff, db: DB) -> dict:
     """Remove an upload nobody reported (a copyright notice, say). Soft: the bytes stay as evidence."""
     cosmetic = db.get(DuelCosmetic, cosmetic_id)
@@ -1054,7 +1073,7 @@ def take_down_uploaded_cosmetic(cosmetic_id: int, body: TakeDownIn, actor: Staff
     return _cosmetic_rows(db, [cosmetic])[0]
 
 
-@router.post("/cosmetics/{cosmetic_id}/restore")
+@router.post("/cosmetics/{cosmetic_id}/restore", response_model=UploadRestored)
 def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
     """Undo an image takedown. The owner has to choose it as active again."""
     cosmetic = db.get(DuelCosmetic, cosmetic_id)
