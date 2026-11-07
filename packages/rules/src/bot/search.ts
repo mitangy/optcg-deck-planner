@@ -35,11 +35,13 @@ export const HARD_DEFAULTS = {
   /** The same, in log odds, when the learned score is used (#635). */
   marginLearned: 0.1,
   /**
-   * Defaults of the #635 options (see BotOptions). The learned score stays off: in a paired batch of 160 games (equal evaluations per decision)
-   * Hard with the learned score won 48% (95% CI 41-56%) against Hard with the hand-tuned score, so it was not kept as the default; it still
-   * produces the win probabilities of position analysis.
+   * Defaults of the #635 options (see BotOptions). The learned score is the default since the v2 MLP (feature set v2 dense features, one
+   * 32-unit hidden layer, no card bag; held-out log-loss 0.445 / accuracy 78.1% on 4200 games against 0.580 / 67.0% for the linear v1 model):
+   * in paired self-play (equal evaluations per decision, 1000 games) Hard with the learned score won 54.6% (95% CI 52-58%) against Hard with the
+   * hand-tuned score, confirmed at 54.7% (52-58%) on fresh deals. The earlier linear v1 model only reached 48.1% (45-51%), so the score stayed
+   * hand-tuned until then (#VALUE_PR). The same model produces the win probabilities of position analysis.
    */
-  evalMode: "hand" as "learned" | "hand",
+  evalMode: "learned" as "learned" | "hand",
   opponentModel: "normal" as "normal" | "greedy",
   mulligan: "sim" as "sim" | "rule",
   /** How many candidates are re-checked on the other copies. */

@@ -1,6 +1,6 @@
 /**
- * Learned win-probability model (#635): logistic regression over `extractFeatures`, fitted by src/sim/fitValue.ts on
- * self-play positions and committed as valueWeights.json. Pure and tiny; no card knowledge beyond the features.
+ * Learned win-probability model (#635): fitted by src/sim/fitValue.ts on self-play positions and committed as valueWeights.json
+ * (currently the v2 MLP without the card bag, see HARD_DEFAULTS.evalMode in search.ts). Pure and tiny; no card knowledge beyond the features.
  *
  * A model file is one of two kinds (experiments load others through BotOptions.valueWeights / versus.ts `weights=`):
  *  - linear (the committed format, `kind` absent): bias + weights . features. With `featureSet: "v2"` it also has `vocab`
@@ -47,7 +47,7 @@ export interface MlpModel {
 
 export type ValueModel = ValueWeights | MlpModel;
 
-export const VALUE_WEIGHTS: ValueWeights = weightsFile as ValueWeights;
+export const VALUE_WEIGHTS: ValueModel = weightsFile as ValueModel;
 
 export const isMlp = (m: ValueModel): m is MlpModel => m.kind === "mlp";
 export const featureSetOf = (m: ValueModel): FeatureSet => m.featureSet ?? "v1";

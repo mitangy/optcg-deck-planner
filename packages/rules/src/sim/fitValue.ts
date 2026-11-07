@@ -20,6 +20,9 @@
  *   --model linear|mlp   mlp = one ReLU hidden layer (--hidden 32). Anything other than v1+linear trains with seeded mini-batch Adam:
  *   --epochs 20 --batch 512 --lr 0.003 --l2 (default 0.01 full batch, 1e-4 mini-batch) --seed 1 --min-card-count 200
  * The v2 card vocabulary is every card that is on a field or in the fitted seat's own hand in at least --min-card-count training positions.
+ *   --no-bag             v2 without the card bag: the vocabulary is empty (what the committed model uses; the bag did not help, see HARD_DEFAULTS.evalMode)
+ *   --like-compare       take --features, --model, --hidden, --epochs, --batch, --lr, --l2, --seed and --no-bag from the --compare model (its `fit` record),
+ *                        so a refit makes the same kind of model as the committed one. A flag given on the command line still wins.
  * --cache stores the samples (with the feature set and, for v2, the card table), so changing model options never replays games again.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -167,6 +170,8 @@ export interface BatchFitOptions {
   l2: number;
   seed: number;
   minCardCount: number;
+  /** v2 only: false = no card bag (empty vocabulary), whatever minCardCount is. Default true. */
+  bag?: boolean;
   /** Held-out positions to report on while training. */
   monitor?: Sample[];
   log?: (line: string) => void;
@@ -207,7 +212,7 @@ function seededRandom(seed: number): () => number {
 export function fitBatched(train: Sample[], table: CardTable | undefined, o: BatchFitOptions): ValueModel {
   const names: string[] = o.featureSet === "v2" ? [...FEATURE_NAMES_V2] : [...FEATURE_NAMES];
   const dd = names.length;
-  const vocab = o.featureSet === "v2" ? buildVocab(train, table!, o.minCardCount) : undefined;
+  const vocab = o.featureSet === "v2" ? (o.bag === false ? [] : buildVocab(train, table!, o.minCardCount)) : undefined;
   const ns = (vocab?.length ?? 0) * BAG_SLOTS;
   const toVocab = vocab && table ? vocabMap(table, vocab) : null;
   const n = train.length;
@@ -475,6 +480,40 @@ export function buildSimDataset(exports: Iterable<readonly SimMatchRecord[]>, op
   return { train, test, games, skipped };
 }
 
+/**
+ * The fit options that reproduce `model` (--like-compare): flag name -> value, from the model's own fields and the `fit` record
+ * written by a refit. A model without such a record (the old linear v1 file) is the plain `--features v1 --model linear` fit.
+ */
+export function likeOptions(model: ValueModel): { values: Record<string, string>; noBag: boolean } {
+  const values: Record<string, string> = { features: featureSetOf(model), model: model.kind === "mlp" ? "mlp" : "linear" };
+  const fit = (model.fit ?? {}) as Record<string, unknown>;
+  for (const key of ["hidden", "epochs", "batch", "lr", "l2", "seed"]) {
+    if (typeof fit[key] === "number") values[key] = String(fit[key]);
+  }
+  return { values, noBag: featureSetOf(model) === "v2" && (model.vocab?.length ?? 0) === 0 };
+}
+
+/** The model-shaping command-line options of a fit, with the --like-compare model's values as defaults (`compare` is that model, or null). */
+export function fitFlags(argv: string[], compare: ValueModel | null) {
+  const get = (name: string): string | undefined => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
+  const like = compare ? likeOptions(compare) : { values: {} as Record<string, string>, noBag: false };
+  /** A command-line flag, else the --compare model's value under --like-compare. */
+  const opt = (name: string): string | undefined => get(name) ?? like.values[name];
+  const featureSet = (opt("features") ?? "v1") as FeatureSet;
+  const kind = (opt("model") ?? "linear") as "linear" | "mlp";
+  if (featureSet !== "v1" && featureSet !== "v2") throw new Error(`--features must be v1 or v2, got ${featureSet}`);
+  if (kind !== "linear" && kind !== "mlp") throw new Error(`--model must be linear or mlp, got ${kind}`);
+  const noBag = argv.includes("--no-bag") || like.noBag;
+  if (noBag && featureSet !== "v2") throw new Error("--no-bag only applies to --features v2");
+  const classic = featureSet === "v1" && kind === "linear";
+  return {
+    featureSet, kind, noBag, classic,
+    l2: Number(opt("l2") ?? (classic ? 0.01 : 1e-4)),
+    hidden: Number(opt("hidden") ?? 32), epochs: Number(opt("epochs") ?? 20), batch: Number(opt("batch") ?? 512),
+    lr: Number(opt("lr") ?? 0.003), seed: Number(opt("seed") ?? 1),
+  };
+}
+
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -488,15 +527,11 @@ function main(): void {
   const files = expandInputs((arg("in") ?? "").split(",").filter(Boolean));
   const out = arg("out") ?? "src/bot/valueWeights.json";
   const holdout = Number(arg("holdout") ?? 0.2);
-  const featureSet = (arg("features") ?? "v1") as FeatureSet;
-  const kind = (arg("model") ?? "linear") as "linear" | "mlp";
-  if (featureSet !== "v1" && featureSet !== "v2") throw new Error(`--features must be v1 or v2, got ${featureSet}`);
-  if (kind !== "linear" && kind !== "mlp") throw new Error(`--model must be linear or mlp, got ${kind}`);
-  const classic = featureSet === "v1" && kind === "linear";
-  const l2 = Number(arg("l2") ?? (classic ? 0.01 : 1e-4));
+  const comparePath = arg("compare");
+  const flags = fitFlags(process.argv, comparePath && process.argv.includes("--like-compare") ? (JSON.parse(readFileSync(comparePath, "utf8")) as ValueModel) : null);
+  const { featureSet, kind, noBag, l2, classic } = flags;
   const iters = Number(arg("iters") ?? 3000);
   const every = Number(arg("every-intent") ?? 0);
-  const comparePath = arg("compare");
   const gate = process.argv.includes("--gate");
   const reportPath = arg("report");
   const minGain = Number(arg("min-gain") ?? DEFAULT_MIN_GAIN);
@@ -537,8 +572,8 @@ function main(): void {
     throw new Error(reason);
   }
   const batched: BatchFitOptions = {
-    model: kind, featureSet, hidden: Number(arg("hidden") ?? 32), epochs: Number(arg("epochs") ?? 20), batch: Number(arg("batch") ?? 512),
-    lr: Number(arg("lr") ?? 0.003), l2, seed: Number(arg("seed") ?? 1), minCardCount: Number(arg("min-card-count") ?? 200),
+    model: kind, featureSet, hidden: flags.hidden, epochs: flags.epochs, batch: flags.batch,
+    lr: flags.lr, l2, seed: flags.seed, minCardCount: Number(arg("min-card-count") ?? 200), bag: !noBag,
     monitor: test, log: console.log,
   };
   const fit = (rows: Sample[]): ValueModel => (classic ? fitLogistic(rows, { l2, iters }) : fitBatched(rows, table, batched));

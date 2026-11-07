@@ -3,11 +3,11 @@ import { actingSeat } from "../bot/index.js";
 import { denseFeaturesV2, extractFeatures, extractFeaturesV2, FEATURE_NAMES, FEATURE_NAMES_V2 } from "../bot/features.js";
 import { peekNormalIntent } from "../bot/policy.js";
 import { candidatesFor, searchCandidates } from "../bot/search.js";
-import { learnedLogit, logitOf, logitOfParts, sigmoid, type MlpModel, type ValueWeights } from "../bot/valueModel.js";
+import { learnedLogit, logitOf, logitOfParts, sigmoid, VALUE_WEIGHTS, type MlpModel, type ValueWeights } from "../bot/valueModel.js";
 import { getPlayerView } from "../engine.js";
 import { replayMatch } from "../matchReplay.js";
 import { createSeededRng } from "../rng.js";
-import { buildVocab, CardTable, fitBatched, type Sample } from "../sim/fitValue.js";
+import { buildVocab, CardTable, fitBatched, fitFlags, type Sample } from "../sim/fitValue.js";
 import { playBotGame } from "../sim/selfPlay.js";
 import { Harness } from "../testing/harness.js";
 import type { MatchState, Seat } from "../types.js";
@@ -167,6 +167,31 @@ describe("fitting the card bag", () => {
     const samples = [row([0, 1]), row([2, 1]), row([3, 1, 2, 1]), row([2, 1, 0, 1]), row([4, 1])];
     expect(buildVocab(samples, table, 2)).toEqual(["B", "A"]);
     expect(buildVocab(samples, table, 3)).toEqual(["B"]);
+  });
+
+  it("a fit without the card bag has an empty vocabulary even when cards would pass the minimum count (#VALUE_PR)", () => {
+    const { samples, table } = bagCorpus();
+    expect(fitBatched(samples, table, { ...opts, model: "mlp", epochs: 1 }).vocab).toEqual(["A", "B"]);
+    const model = fitBatched(samples, table, { ...opts, model: "mlp", epochs: 1, bag: false });
+    expect(model.vocab).toEqual([]);
+    expect(model.kind === "mlp" && model.hidden.W1[0]!.length).toBe(FEATURE_NAMES_V2.length);
+  });
+});
+
+describe("fitValue command line", () => {
+  it("--no-bag turns the card bag off and needs feature set v2 (#VALUE_PR)", () => {
+    expect(fitFlags(["--features", "v2", "--model", "mlp"], null).noBag).toBe(false);
+    expect(fitFlags(["--features", "v2", "--model", "mlp", "--no-bag"], null).noBag).toBe(true);
+    expect(() => fitFlags(["--no-bag"], null)).toThrow(/v2/);
+  });
+
+  it("--like-compare reproduces the committed model's kind and hyperparameters, and a flag still overrides them (#VALUE_PR)", () => {
+    const like = fitFlags(["--like-compare"], VALUE_WEIGHTS);
+    expect(like).toMatchObject({ featureSet: "v2", kind: "mlp", noBag: true, hidden: 32, epochs: 20, batch: 512, l2: 0.003, seed: 1 });
+    expect(fitFlags(["--like-compare", "--l2", "0.1", "--hidden", "8"], VALUE_WEIGHTS)).toMatchObject({ l2: 0.1, hidden: 8, kind: "mlp" });
+    // Without a fit record a model is the plain linear v1 fit.
+    const old: ValueWeights = { names: [...FEATURE_NAMES], weights: FEATURE_NAMES.map(() => 0), bias: 0 };
+    expect(fitFlags([], old)).toMatchObject({ featureSet: "v1", kind: "linear", noBag: false, l2: 0.01 });
   });
 });
 

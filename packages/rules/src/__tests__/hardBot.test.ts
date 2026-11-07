@@ -143,7 +143,7 @@ describe("hard bot: lines (#631)", () => {
     expect(h.state.players[0].donDeck.length).toBeGreaterThan(0);
     h.attack(h.state.players[0].leader, "leader");
     expect(h.choice).toMatchObject({ seat: 0, kind: "effect", cardDefId: PUDDING });
-    expect(chooseBotIntentFromState(h.state, 0, { ...exact, rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: true });
+    expect(chooseBotIntentFromState(h.state, 0, { ...exact, evalMode: "hand", rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: true });
   });
 
   it("declines the Pudding ramp when no DON!! is left to add, instead of showing two Life cards for nothing (#631)", () => {
@@ -154,7 +154,7 @@ describe("hard bot: lines (#631)", () => {
     expect(h.choice).toMatchObject({ seat: 0, kind: "effect", cardDefId: PUDDING });
     // Normal says yes to every "may"; hard looks at what the answer buys.
     expect(chooseBotIntent(getPlayerView(h.state, 0), { level: "normal", rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: true });
-    expect(chooseBotIntentFromState(h.state, 0, { ...exact, rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: false });
+    expect(chooseBotIntentFromState(h.state, 0, { ...exact, evalMode: "hand", rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: false });
   });
 
   /** Seat 0's Leader (6000 + 1 DON!! = 7000) attacks seat 1's 5000 Leader, which has no Life left. */
@@ -170,21 +170,23 @@ describe("hard bot: lines (#631)", () => {
   }
 
   it("plays a Counter Event that shrinks the attacker, then a Character Counter, to survive lethal (#631)", () => {
-    const h = lethalAttack((x) => x.hand(1, FILLER, RAFFLESIA));
-    expect(h.state.phase).toBe("counter");
-    // Normal sees only the +1000 Counter on the Character, which is not enough, and takes the hit.
-    expect(chooseBotIntent(getPlayerView(h.state, 1), { level: "normal", rng: rng() })).toEqual({ type: "pass_counter" });
+    for (const evalMode of ["hand", "learned"] as const) {
+      const h = lethalAttack((x) => x.hand(1, FILLER, RAFFLESIA));
+      expect(h.state.phase).toBe("counter");
+      // Normal sees only the +1000 Counter on the Character, which is not enough, and takes the hit.
+      expect(chooseBotIntent(getPlayerView(h.state, 1), { level: "normal", rng: rng() })).toEqual({ type: "pass_counter" });
 
-    const first = chooseBotIntentFromState(h.state, 1, { ...exact, rng: rng() });
-    expect(first).toEqual({ type: "counter_event", handIndex: 1 });
-    h.act(1, first!);
-    // Rafflesia asks for its target before the battle goes on.
-    while (h.choice) h.act(1, chooseBotIntentFromState(h.state, 1, { ...exact, rng: rng() })!);
-    const second = chooseBotIntentFromState(h.state, 1, { ...exact, rng: rng() });
-    expect(second).toMatchObject({ type: "counter_from_hand" });
-    h.act(1, second!);
-    h.act(1, chooseBotIntentFromState(h.state, 1, { ...exact, rng: rng() })!);
-    expect(h.state.winner).toBeNull();
+      const first = chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() });
+      expect(first).toEqual({ type: "counter_event", handIndex: 1 });
+      h.act(1, first!);
+      // Rafflesia asks for its target before the battle goes on.
+      while (h.choice) h.act(1, chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() })!);
+      const second = chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() });
+      expect(second).toMatchObject({ type: "counter_from_hand" });
+      h.act(1, second!);
+      h.act(1, chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() })!);
+      expect(h.state.winner).toBeNull();
+    }
   });
 
   it("plays Chopper, whose [On Play] puts a 4-cost Character into play for free, instead of paying 4 DON!! for that Character (#631)", () => {
@@ -194,8 +196,9 @@ describe("hard bot: lines (#631)", () => {
     // Normal buys the most expensive card it can pay for.
     const normal = chooseBotIntent(getPlayerView(h.state, 0), { level: "normal", rng: rng() }) as Extract<Intent, { type: "play_card" }>;
     expect(h.state.players[0].hand[normal.handIndex]!.defId).toBe(ANIMAL);
-    // Hard sees that Chopper (3 DON!!) brings the {Animal} along.
-    const hard = chooseBotIntentFromState(h.state, 0, { ...exact, rng: rng() }) as Extract<Intent, { type: "play_card" }>;
+    // Hard sees that Chopper (3 DON!!) brings the {Animal} along. Scored with the hand-tuned evaluator: this checks that the rollout
+    // sees the free Character, and the learned model's opinion of this position is not what the test is about.
+    const hard = chooseBotIntentFromState(h.state, 0, { ...exact, evalMode: "hand", rng: rng() }) as Extract<Intent, { type: "play_card" }>;
     expect(hard.type).toBe("play_card");
     expect(h.state.players[0].hand[hard.handIndex]!.defId).toBe(CHOPPER);
   });
