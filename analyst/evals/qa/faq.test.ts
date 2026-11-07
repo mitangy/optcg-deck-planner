@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortHash } from "../src/sources";
+import { shortHash } from "../../src/sources";
 import { polarity, resolveCardRuling } from "./faq";
 
 // Synthetic rows: made-up questions, never Bandai's.

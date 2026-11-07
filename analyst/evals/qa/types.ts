@@ -6,7 +6,7 @@
  * answer is read live at run time and only ever written to the gitignored `out/` folder.
  */
 import type { CardScenario } from "@optcg/rules/src/testing/scenario";
-import type { Usage } from "../src/chat";
+import type { Usage } from "../../src/chat";
 
 export type { CardScenario };
 

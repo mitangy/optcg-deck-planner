@@ -5,19 +5,19 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Catalog } from "../src/catalog";
-import { costUsd, MAX_TOOL_ROUNDS, runChat, type CallModel, type Usage } from "../src/chat";
-import type { OfficialLibrary } from "../src/official/library";
-import { banListProblems } from "../src/official/banlist";
-import { within } from "../src/official/library";
-import { buildTools, type Knowledge } from "../src/server";
+import type { Catalog } from "../../src/catalog";
+import { costUsd, MAX_TOOL_ROUNDS, runChat, type CallModel, type Usage } from "../../src/chat";
+import type { OfficialLibrary } from "../../src/official/library";
+import { banListProblems } from "../../src/official/banlist";
+import { within } from "../../src/official/library";
+import { buildTools, type Knowledge } from "../../src/server";
 import { messageOf } from "./cases";
 import { gradeAnswer } from "./grade";
-import { judgeCostUsd, type Judge } from "./grade/judge";
+import { judgeCostUsd, type Judge } from "../grade/judge";
 import { OfficialUnavailable, goldFor } from "./gold";
-import { evalPlanner, type PlannerOptions } from "./planner";
-import { withRetry } from "./retry";
-import { summarizeTurn } from "./trace";
+import { evalPlanner, type PlannerOptions } from "../shared/planner";
+import { withRetry } from "../shared/retry";
+import { summarizeTurn } from "../shared/trace";
 import type { ErrorRow, EvalCase, Gold, Group, Row } from "./types";
 import { createHash } from "node:crypto";
 

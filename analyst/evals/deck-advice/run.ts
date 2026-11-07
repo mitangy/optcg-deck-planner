@@ -21,21 +21,19 @@
  *       --judge-model <id>       default the D-group rubric judge (RUBRIC_MODEL)
  *       --reveal-planted         tell the judge which cards were planted   --max-usd <n>   default 5
  */
-import Anthropic from "@anthropic-ai/sdk";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { cpus } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { BotLevel } from "@optcg/rules";
 import { loadCatalog } from "../../src/catalog";
 import { anthropicModel, CHAT_MODEL } from "../../src/chat";
 import { banListProblems, type BanList } from "../../src/official/banlist";
-import { OfficialLibrary, within } from "../../src/official/library";
+import { within } from "../../src/official/library";
 import { loadPlaybook } from "../../src/playbook";
-import { postEvalRun } from "../post";
+import { postEvalRun } from "../shared/post";
 import { RUBRIC_MODEL } from "../grade/judge";
-import type { PlannerOptions, StatsFixtures, TournamentFixtures } from "../planner";
+import { anthropicClient, commonOptions, defaultVariant, fakePlanner, libraryFor, metaDecksFile, modelApi, suiteOutDir } from "../shared/cli";
 import { anthropicPairLlm, judgeCase, judgedBothWays, judgmentCost, positionBias, preference, scriptedPairLlm, type CaseComparison } from "./compare";
 import { buildCases, type AdviceCase, type CaseMode } from "./cases";
 import { evaluateCase, type AnswerRow, type SimConfig } from "./pipeline";
@@ -45,9 +43,7 @@ import { scriptedAdviceModel } from "./scriptedAdvice";
 import { inProcess } from "./sim";
 import { simPool } from "./simPool";
 
-const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
-const META_DECKS = "/mnt/project-files/self-play-bots/meta-decks-2026-10-18.json";
-const OUT = here("../out/deck-advice");
+const OUT = suiteOutDir("deck-advice");
 /** Games per version the default aims for. */
 const TARGET_GAMES = 300;
 
@@ -62,14 +58,9 @@ const { values: f, positionals } = parseArgs({
     "no-sim": { type: "boolean", default: false },
     levels: { type: "string", default: "normal,normal" },
     "sim-threads": { type: "string" },
-    variant: { type: "string" },
+    ...commonOptions({ maxUsd: "5", concurrency: "3", timeoutS: "240" }),
     model: { type: "string" },
     library: { type: "string" },
-    "max-usd": { type: "string", default: "5" },
-    concurrency: { type: "string", default: "3" },
-    "timeout-s": { type: "string", default: "240" },
-    "model-api": { type: "string", default: "anthropic" },
-    post: { type: "boolean", default: false },
     compare: { type: "boolean", default: false },
     "both-orders": { type: "string", default: "0.25" },
     "judge-model": { type: "string" },
@@ -77,12 +68,7 @@ const { values: f, positionals } = parseArgs({
   },
 });
 
-const scripted = f["model-api"] === "scripted";
-if (!scripted && f["model-api"] !== "anthropic") throw new Error("--model-api must be anthropic or scripted");
-if (!scripted && !process.env.ANTHROPIC_API_KEY) {
-  console.error("npm run eval:deck-advice spends Anthropic API money and needs ANTHROPIC_API_KEY. For a free dry run use --model-api scripted.");
-  process.exit(2);
-}
+const { scripted } = modelApi(f["model-api"], { script: "eval:deck-advice" });
 const seed = Number(f.seed);
 const maxUsd = Number(f["max-usd"]);
 const concurrency = Math.max(1, Number(f.concurrency));
@@ -129,7 +115,7 @@ async function compareRuns() {
     process.exit(2);
   }
   const judgeModel = scripted ? "scripted-judge" : (f["judge-model"] ?? RUBRIC_MODEL);
-  const llm = scripted ? scriptedPairLlm : anthropicPairLlm(new Anthropic() as never, { model: judgeModel });
+  const llm = scripted ? scriptedPairLlm : anthropicPairLlm(anthropicClient(scripted) as never, { model: judgeModel });
   const share = Number(f["both-orders"]);
   const results: CaseComparison[] = [];
   let spent = 0;
@@ -175,21 +161,21 @@ async function compareRuns() {
 async function generate() {
   const mode = f.cases as CaseMode;
   if (!["all", "meta", "sabotaged"].includes(mode)) throw new Error("--cases must be all, meta or sabotaged");
-  const deckFile = f.decks ?? (existsSync(META_DECKS) ? META_DECKS : undefined);
+  const deckFile = metaDecksFile(f.decks);
   if (!deckFile) {
     console.error("No meta decks: pass --decks <json> (see `npm run meta-decks -w @optcg/analyst`).");
     process.exit(2);
   }
   const decks = JSON.parse(readFileSync(deckFile, "utf8")) as MetaDeck[];
   if (decks.length < 2) throw new Error("The meta deck list needs at least 2 decks.");
-  const variant = f.variant ?? (scripted ? "dry-run" : "baseline");
+  const variant = defaultVariant(f.variant, scripted);
   const model = f.model ?? CHAT_MODEL;
   const [la, lb] = f.levels!.split(",") as BotLevel[];
   const levels: [BotLevel, BotLevel] = [la ?? "normal", lb ?? la ?? "normal"];
 
   const catalog = loadCatalog();
-  const client = scripted ? null : new Anthropic();
-  const library = (f.library ?? (scripted ? "none" : "live")) === "none" ? undefined : new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined });
+  const client = anthropicClient(scripted);
+  const library = libraryFor(f.library ?? (scripted ? "none" : "live"));
   const banList: BanList | undefined = library ? await within(library.banList(), 15_000).catch(() => undefined) : undefined;
 
   const cases = buildCases(catalog, decks, { mode, seed, n: f.n === undefined ? undefined : Number(f.n), banned: new Set(banList?.banned), restricted: new Set(banList?.restricted) });
@@ -202,11 +188,7 @@ async function generate() {
   const pool = f["no-sim"] || threads < 1 ? null : simPool(threads);
   const sim: SimConfig | null = f["no-sim"] ? null : { field: decks, games: gamesPerOpponent, seed: seed * 1_000_000, levels, run: pool?.run ?? inProcess, cache: new Map() };
 
-  const planner: PlannerOptions = {
-    mode: "fake",
-    stats: JSON.parse(readFileSync(here("../fixtures/stats.json"), "utf8")) as StatsFixtures,
-    tournaments: JSON.parse(readFileSync(here("../fixtures/tournaments.json"), "utf8")) as TournamentFixtures,
-  };
+  const planner = fakePlanner();
   const dir = join(OUT, variant);
   mkdirSync(dir, { recursive: true });
   const answersFile = join(dir, "answers.jsonl");

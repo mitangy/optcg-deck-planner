@@ -3,7 +3,7 @@
  * validates the real case list and re-derives the gold of every non-live case from the same tools the model
  * calls, so a case that no longer matches what Log Pose computes fails here before any paid run.
  */
-import { loadCatalog } from "../src/catalog";
+import { loadCatalog } from "../../src/catalog";
 import { CASES } from "./cases";
 import { goldFor } from "./gold";
 import { loadCases } from "./load";

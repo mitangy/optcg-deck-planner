@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { RANGE_OPTIONS, type RangeDays, tipPlacement, tooltipFor, tooltipText, toggleSeries, visibleMax, visibleTotals } from "./adminLogic";
+import { RANGE_OPTIONS, type RangeDays, spendText, tipPlacement, tooltipFor, tooltipText, toggleSeries, visibleMax, visibleTotals } from "./adminLogic";
 
 export function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
   return (
@@ -287,7 +287,7 @@ export function TrendChart({
             className={`adm-dot${x(p.at) > 70 ? " flip" : ""}${p.id === activeId ? " on" : ""}`}
             style={{ left: `${x(p.at)}%`, bottom: `${yScale(p.value)}%` }}
             data-run={p.id}
-            aria-label={`${p.label}, ${p.date}, ${format(p.value)}${p.spend != null ? `, spend $${p.spend.toFixed(2)}` : ""}. Show in the table`}
+            aria-label={`${p.label}, ${p.date}, ${format(p.value)}${p.spend != null ? `, spend ${spendText(p.spend)}` : ""}. Show in the table`}
             onClick={() => onSelectPoint?.(p.id)}
             onPointerEnter={(e) => e.pointerType !== "touch" && setActiveId(p.id)}
             onPointerLeave={() => setActiveId((cur) => (cur === p.id ? null : cur))}
@@ -308,7 +308,7 @@ export function TrendChart({
               <em>{format(tip.value)}</em>
             </span>
             <span className="adm-tip-row">
-              Spend<em>{tip.spend == null ? "—" : `$${tip.spend.toFixed(2)}`}</em>
+              Spend<em>{spendText(tip.spend)}</em>
             </span>
           </Tip>
         ) : null}

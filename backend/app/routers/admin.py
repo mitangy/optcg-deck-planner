@@ -317,7 +317,7 @@ class EvalGroupIn(BaseModel):
     total: int = Field(ge=0, le=10_000)
 
 
-# The evals that post here (analyst/evals/post.ts); each gets its own trend on the admin page (#679).
+# The evals that post here (analyst/evals/shared/post.ts); each gets its own trend on the admin page (#679).
 EvalSuite = Literal["main", "review_facts", "puzzles", "deck_advice"]
 
 

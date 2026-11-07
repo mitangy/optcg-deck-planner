@@ -2,10 +2,10 @@
  * `--selftest`: three known-bad answers (empty, "I don't know", an answer to a different question) for A01, C10
  * and D01 go through every grader, and each must score correct 0. A grader that passes any of them is broken.
  */
-import type { Catalog } from "../src/catalog";
+import type { Catalog } from "../../src/catalog";
 import { CASES } from "./cases";
 import { gradeAnswer } from "./grade";
-import type { Judge } from "./grade/judge";
+import type { Judge } from "../grade/judge";
 import { resolveCites } from "./gold";
 import type { EvalCase, Gold } from "./types";
 

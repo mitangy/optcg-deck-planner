@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
-import type { Gold, Verdict } from "../types";
+import type { Gold, Verdict } from "../qa/types";
 import { gradeC, gradeVerdict } from "./exact";
 
 const catalog = loadCatalog();

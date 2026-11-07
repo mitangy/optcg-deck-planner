@@ -4,11 +4,11 @@
  * needs, then answers with the gold's facts and cites the sources the gold wants. It proves the plumbing
  * and the graders, not Log Pose.
  */
-import type { CallModel, ModelReply, Usage } from "../src/chat";
-import { streamReply } from "../src/testkit";
-import type { Catalog } from "../src/catalog";
+import type { CallModel, ModelReply, Usage } from "../../src/chat";
+import { streamReply } from "../../src/testkit";
+import type { Catalog } from "../../src/catalog";
 import { messageOf } from "./cases";
-import { CARD_ID } from "./grade/extract";
+import { CARD_ID } from "../grade/extract";
 import type { EvalCase, Gold } from "./types";
 
 type Block = Record<string, unknown> & { type: string };
