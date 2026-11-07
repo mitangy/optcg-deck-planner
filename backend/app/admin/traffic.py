@@ -16,7 +16,7 @@ from typing import Any, Callable
 import httpx
 
 from app.admin.hosting import ProviderError, _client, _get
-from app.config import Settings
+from app.core.config import Settings
 
 CACHE_SECONDS = 600
 RENDER_KEEPS_DAYS = 30

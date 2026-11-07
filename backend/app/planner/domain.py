@@ -129,7 +129,7 @@ def parse_decklist(text: str) -> list[ParsedCard]:
     return [ParsedCard(card_id=cid, needed=qty) for cid, qty in cards.items()]
 
 
-ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent / "data" / "alt_art_products.json"
+ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "data" / "alt_art_products.json"
 
 
 @lru_cache(maxsize=1)

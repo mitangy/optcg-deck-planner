@@ -338,7 +338,7 @@ def test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lesso
     """An existing analyst_lessons table gets `source`, and its rows read back as player lessons (#915)."""
     from sqlalchemy import text
 
-    from app import db as app_db
+    from app.core import db as app_db
     from tests.db_support import make_bare_engine
 
     engine = make_bare_engine()

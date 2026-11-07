@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests.db_support import make_bare_engine, make_test_engine, requires_postgres
-from app.config import get_settings
-from app.db import get_db
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.duel.ratings import apply_elo
 from app.duel.tokens import mint_game_token, verify_game_token
 from app.main import app
@@ -645,7 +645,7 @@ def test_watching_a_replay_needs_sign_in_476(client):
 
 
 def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, SessionLocal = client
@@ -667,7 +667,7 @@ def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: py
 
 
 def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -684,7 +684,7 @@ def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: py
 
 
 def test_dev_token_new_accounts_share_the_cap_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -904,7 +904,7 @@ def test_progress_sweep_only_runs_with_redis_682():
     import asyncio
 
     from app.duel import progress_sweep
-    from app.config import Settings
+    from app.core.config import Settings
 
     async def go():
         assert progress_sweep.start_background(Settings(redis_url="")) is None
@@ -919,7 +919,7 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
     """No idle snapshot, no query: a sweep every 10 minutes must not keep Neon awake."""
     from datetime import datetime, timedelta, timezone
 
-    from app import db as app_db
+    from app.core import db as app_db
     from app.duel import live as duel_live
     from app.duel import progress_sweep
 
@@ -944,7 +944,7 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
 def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypatch):
     from sqlalchemy import text
 
-    from app import db as app_db
+    from app.core import db as app_db
     from app.duel import live as duel_live
     from app.duel import progress_sweep
     engine = make_bare_engine()

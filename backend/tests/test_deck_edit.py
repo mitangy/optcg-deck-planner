@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain import (
+from app.planner.domain import (
     DON_DECK_LIMIT,
     MAIN_DECK_LIMIT,
     deck_size_counts,
@@ -17,8 +17,8 @@ from tests.conftest import add_catalog, add_deck_with_cards, make_user
 
 
 def test_don_and_leader_type_helpers():
-    from app.domain import is_don_product, synthetic_don_card_id
-    from app.catalog_sync import resolve_catalog_card_id
+    from app.planner.domain import is_don_product, synthetic_don_card_id
+    from app.planner.catalog_sync import resolve_catalog_card_id
 
     assert is_don_type("DON!!")
     assert is_don_type("Don")

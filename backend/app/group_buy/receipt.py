@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.domain import SPECIAL_NAME_MARKERS
+from app.planner.domain import SPECIAL_NAME_MARKERS
 from app.models import CatalogCard, CatalogPrinting
 
 PRODUCT_LINE_PREFIXES = (

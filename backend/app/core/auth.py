@@ -11,8 +11,8 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import LoginTicket, User
 from app.roles import is_banned
 

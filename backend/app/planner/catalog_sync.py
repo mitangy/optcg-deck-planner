@@ -12,7 +12,7 @@ import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.domain import is_don_product, is_special_printing, synthetic_don_card_id
+from app.planner.domain import is_don_product, is_special_printing, synthetic_don_card_id
 from app.models import CatalogCard, CatalogGroup, CatalogMeta, CatalogPrinting
 
 CATEGORY_ID = 68
@@ -55,7 +55,7 @@ def try_claim_sync_slot() -> bool:
         return False
     # The thread lock only covers this worker; the advisory lock keeps the others out too.
     global _sync_advisory
-    from app.db import CATALOG_SYNC_LOCK_KEY, try_advisory_lock
+    from app.core.db import CATALOG_SYNC_LOCK_KEY, try_advisory_lock
 
     try:
         _sync_advisory = try_advisory_lock(CATALOG_SYNC_LOCK_KEY)
@@ -76,7 +76,7 @@ def try_claim_sync_slot() -> bool:
 
 def _default_session_factory() -> Session:
     # Imported lazily so importing this module never triggers engine creation.
-    from app.db import SessionLocal
+    from app.core.db import SessionLocal
 
     return SessionLocal()
 
@@ -102,7 +102,7 @@ def run_catalog_sync_job(
     try:
         result = sync_catalog(db)
         _sync_state["last_result"] = result
-        from app.price_alerts import check_alerts_safely
+        from app.planner.price_alerts import check_alerts_safely
 
         check_alerts_safely(db)
         return result
@@ -431,7 +431,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
     db.commit()
 
     # Today's market price for every stored printing joins the price history (#946).
-    from app.price_history import record_prices_safely
+    from app.planner.price_history import record_prices_safely
 
     record_prices_safely(
         db,

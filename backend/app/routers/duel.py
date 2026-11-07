@@ -17,16 +17,16 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import redis_client
+from app.core import redis_client
 from app.duel import live as duel_live
 from app.duel import tournaments as duel_tournaments
 from app.analyst.stats import seats_for
-from app.auth import get_current_user, get_optional_user
+from app.core.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
-from app.db import get_db
+from app.core.db import get_db
 from app.duel.ratings import INITIAL_RATING, apply_elo
 from app.duel.tokens import mint_game_token
 from app.duel.moderation import recent_takedowns
@@ -42,7 +42,7 @@ from app.models import (
     DuelSoloGame,
     User,
 )
-from app.rate_limit import RateLimiter, client_ip
+from app.core.rate_limit import RateLimiter, client_ip
 from app.duel.server_urls import GAME_SERVER_KNOWN_KEY, GAME_SERVER_POOL_KEY, game_server_url, normalize_server_url
 from app.duel.matches import (
     has_result,

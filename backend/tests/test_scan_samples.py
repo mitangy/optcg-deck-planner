@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth import get_current_user
-from app.config import get_settings
-from app.db import get_db
+from app.core.auth import get_current_user
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from app.models import ScanSample
 from app.routers import scan_samples

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app import catalog_sync
+from app.planner import catalog_sync
 from app.models import CatalogCard, CatalogPrinting
 
 

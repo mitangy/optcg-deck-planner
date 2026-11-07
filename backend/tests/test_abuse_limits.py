@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.planner import decks as deck_svc
-from app.auth import SESSION_COOKIE, create_session_token
-from app.body_limit import DEFAULT_MAX_BODY_BYTES
-from app.config import get_settings
-from app.db import get_db
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.body_limit import DEFAULT_MAX_BODY_BYTES
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from app.models import User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 from app.routers import api as api_router
 from tests.conftest import add_catalog
 from tests.db_support import make_test_engine

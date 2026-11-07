@@ -7,13 +7,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Qu
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_optional_user
-from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
+from app.core.auth import get_current_user, get_optional_user
+from app.planner.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.core.security import CatalogToken
-from app.db import get_db
+from app.core.db import get_db
 from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
-from app.rate_limit import RateLimiter, client_ip
-from app.recent_sales import fetch_recent_sales, is_cached
+from app.core.rate_limit import RateLimiter, client_ip
+from app.planner.recent_sales import fetch_recent_sales, is_cached
 from app.schemas import (
     UserOut,
     UserPreferencesUpdate,
@@ -51,7 +51,7 @@ from app.schemas import (
     ShareInfo,
     ShoppingResponse,
 )
-from app import deck_link, price_history
+from app.planner import deck_link, price_history
 from app.planner import catalog_search as search_svc
 from app.planner import decks as deck_svc
 from app.planner import owned as owned_svc

@@ -32,7 +32,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.duel import decks
-from app.domain import is_don_card, is_leader_card
+from app.planner.domain import is_don_card, is_leader_card
 from app.models import Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
 from app.planner.catalog_repo import catalog_map
 

@@ -14,7 +14,7 @@ from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 from app.core.statuses import FriendshipStatus
 from app.core.time import as_utc
-from app.domain import is_don_card, parse_cost
+from app.planner.domain import is_don_card, parse_cost
 from app.social.schemas import SparePrinting, SpareItem
 from app.models import CatalogCard, CatalogPrinting, Friendship, TradeKeep, User, UserSharing
 from app.roles import is_banned

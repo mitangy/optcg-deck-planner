@@ -9,11 +9,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import sessionmaker
 
-from app import db as app_db
-from app import deck_link
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.core import db as app_db
+from app.planner import deck_link
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from app.models import CatalogCard, Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
 from app.duel import decks as duel_decks

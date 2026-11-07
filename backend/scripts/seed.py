@@ -12,7 +12,7 @@ from sqlalchemy import select
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.db import SessionLocal, init_db  # noqa: E402
+from app.core.db import SessionLocal, init_db  # noqa: E402
 from app.models import CatalogCard, CatalogMeta, User  # noqa: E402
 from app.planner import decks as deck_svc  # noqa: E402
 

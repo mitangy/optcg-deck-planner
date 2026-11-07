@@ -15,11 +15,11 @@ from sqlalchemy.orm import Session
 from app.duel import tournaments as logic
 from app.core.statuses import FriendshipStatus, TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
 from app.core.time import as_utc, utcnow
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer, User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 from app.duel.server_urls import known_game_server_urls
 from app.social.presence import friendship, live_presence, room_server_url
 from app.duel.server_urls import normalize_server_url

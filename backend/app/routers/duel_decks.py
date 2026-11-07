@@ -15,9 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import deck_link
-from app.auth import get_current_user
-from app.db import get_db
+from app.planner import deck_link
+from app.core.auth import get_current_user
+from app.core.db import get_db
 from app.duel import decks as store
 from app.models import DuelSavedDeck, User
 from app.schemas import (

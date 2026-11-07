@@ -41,8 +41,8 @@ does not fail on them; update their `from` when convenient. The logic lives in
 Moving or reformatting code makes anchors stale. Fix them in this order:
 
 ```bash
-git mv backend/app/config.py backend/app/core/config.py   # 1. move the files (a folder works too)
-node tools/mutation-check/move.cjs backend/app/config.py backend/app/core/config.py   # 2. rewrite suite references
+git mv backend/app/reporter.py backend/app/duel/reporter.py   # 1. move the files (a folder works too)
+node tools/mutation-check/move.cjs backend/app/reporter.py backend/app/duel/reporter.py   # 2. rewrite suite references
 node tools/mutation-check/run.cjs --check-anchors                  # 3. which anchors are still stale or loose?
 node tools/mutation-check/run.cjs --locate-stale [suite]           # 4. where did the stale ones go?
 # 5. fix what is left by hand (edit `file`/`from`), then re-run step 3

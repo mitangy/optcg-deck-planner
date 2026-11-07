@@ -7,8 +7,8 @@ from collections import defaultdict
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app import fuzzy
-from app.domain import (
+from app.planner import fuzzy
+from app.planner.domain import (
     parse_cost,
 )
 from app.models import (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 
 @pytest.fixture()
@@ -101,7 +101,7 @@ def test_postgres_urls_use_the_installed_psycopg2_driver(url):
     # but only psycopg2-binary is installed; the app must name its driver.
     from sqlalchemy import create_engine
 
-    from app.config import Settings
+    from app.core.config import Settings
 
     engine = create_engine(Settings(database_url=url).sqlalchemy_url)
     assert engine.dialect.driver == "psycopg2"

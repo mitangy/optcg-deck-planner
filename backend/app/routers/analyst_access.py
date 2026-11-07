@@ -14,11 +14,11 @@ from app.core.statuses import AccessStatus
 from app.core.time import as_utc
 from app.analyst.credit import TOPUP_USD, credit_for, month_key, month_start, spent_since
 from app.analyst.access import FREE_SPOTS_KEY, free_spots, is_chat_owner, requests_open, spots_used
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import AnalystAccess, AnalystSetting, User
-from app.rate_limit import RateLimiter, client_ip
+from app.core.rate_limit import RateLimiter, client_ip
 from app.schemas import (
     AnalystAccessDecisionIn,
     AnalystAccessList,

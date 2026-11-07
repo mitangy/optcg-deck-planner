@@ -40,7 +40,7 @@ def _special_markers() -> tuple[str, ...]:
     """Prefer planner domain markers when the backend package is importable."""
     try:
         sys.path.insert(0, str(ROOT / "backend"))
-        from app.domain import SPECIAL_NAME_MARKERS  # type: ignore
+        from app.planner.domain import SPECIAL_NAME_MARKERS  # type: ignore
 
         # Union cosmetics + planner markers so either source stays consistent.
         merged = tuple(dict.fromkeys((*SPECIAL_MARKERS, *SPECIAL_NAME_MARKERS)))

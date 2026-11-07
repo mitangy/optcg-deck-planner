@@ -9,8 +9,8 @@ import uuid
 import weakref
 from collections import defaultdict, deque
 
-from app import redis_client
-from app.config import get_settings
+from app.core import redis_client
+from app.core.config import get_settings
 
 
 class RateLimiter:

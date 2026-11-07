@@ -7,7 +7,7 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain import (
+from app.planner.domain import (
     parse_cost,
 )
 from app.models import (

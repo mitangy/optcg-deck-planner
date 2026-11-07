@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.admin import hosting as admin_hosting
 from app.admin import traffic as admin_traffic
-from app import db as app_db
-from app.auth import (
+from app.core import db as app_db
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     SESSION_COOKIE,
     create_login_ticket,
@@ -22,7 +22,7 @@ from app.auth import (
     create_session_token,
     new_oauth_nonce,
 )
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.models import (
     AnalystAccess,
     AnalystEvalRun,

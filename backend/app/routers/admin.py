@@ -20,8 +20,8 @@ from app.admin import traffic as admin_traffic
 from app.core.statuses import AccessStatus, FriendshipStatus, ReportStatus
 from app.core.time import as_utc_or_none
 from app.analyst.credit import month_start, spent_since
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import (
     AnalystAccess,
     AnalystEvalRun,

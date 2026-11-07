@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.planner import decks as deck_svc, shopping as shopping_svc, owned as owned_svc
-from app.domain import parse_decklist
+from app.planner.domain import parse_decklist
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 

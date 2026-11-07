@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.planner import decks as deck_svc, shopping as shopping_svc, owned as owned_svc, share as share_svc
-from app.auth import get_current_user
-from app.db import get_db
+from app.core.auth import get_current_user
+from app.core.db import get_db
 from app.main import app
 from app.models import OwnedPrinting
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned

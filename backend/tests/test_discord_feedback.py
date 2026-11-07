@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.admin import discord_feedback
-from app.config import Settings
+from app.core.config import Settings
 from app.admin.discord_feedback import PollState, poll_once, snowflake_from_datetime
 from app.models import Feedback
 from app.routers.feedback import list_feedback
@@ -294,7 +294,7 @@ def test_admin_list_names_the_discord_author_as_reporter_979(db):
 
 
 def test_migration_adds_the_discord_columns_and_unique_index_to_an_old_table_979(monkeypatch: pytest.MonkeyPatch):
-    from app import db as app_db
+    from app.core import db as app_db
 
     old = create_engine("sqlite://")
     with old.begin() as conn:
@@ -385,7 +385,7 @@ def test_github_requests_carry_the_token_and_api_version_979():
 
 @pytest.mark.parametrize("token,expect_github", [("", False), ("ghp", True)])
 def test_github_client_is_only_used_with_a_token_979(db, monkeypatch: pytest.MonkeyPatch, token, expect_github):
-    from app import db as app_db
+    from app.core import db as app_db
 
     seen = {}
 

@@ -7,7 +7,7 @@ from collections import defaultdict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.domain import (
+from app.planner.domain import (
     DON_DECK_LIMIT,
     MAIN_DECK_LIMIT,
     ParsedCard,
@@ -256,7 +256,7 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     db.flush()
     for card in parsed:
         db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
-    from app import deck_link
+    from app.planner import deck_link
 
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
@@ -298,7 +298,7 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
     db.flush()
     for card in source.cards:
         db.add(DeckCard(deck_id=deck.id, card_id=card.card_id, needed=card.needed))
-    from app import deck_link
+    from app.planner import deck_link
 
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
@@ -317,7 +317,7 @@ def delete_deck(db: Session, user: User, deck_id: int, *, mirror: bool = True) -
     leader_id = deck.leader_card_id
     was_main = bool(deck.is_main)
     if mirror:
-        from app import deck_link
+        from app.planner import deck_link
 
         deck_link.on_planner_deleted(db, user.id, deck_id)
     db.delete(deck)
@@ -342,7 +342,7 @@ def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
     if not name or len(name) > 200:
         raise ValueError("Deck name must be 1 to 200 characters")
     deck.name = name
-    from app import deck_link
+    from app.planner import deck_link
 
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
@@ -604,7 +604,7 @@ def upsert_deck_card(
 
     new_leader = find_leader_id(projected_lines, catalog)
     set_deck_leader(db, user.id, deck, new_leader)
-    from app import deck_link
+    from app.planner import deck_link
 
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
@@ -652,7 +652,7 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
             db.add(DeckCard(deck_id=deck.id, card_id=new_id, needed=new_qty))
 
     set_deck_leader(db, user.id, deck, find_leader_id(parsed, catalog))
-    from app import deck_link
+    from app.planner import deck_link
 
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()

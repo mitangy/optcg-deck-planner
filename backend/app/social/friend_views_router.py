@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.social import friend_view as fv
 from app.planner import decks as deck_svc, owned as owned_svc
 from app.planner import catalog_repo
-from app.auth import get_current_user
-from app.db import get_db
-from app.domain import deck_size_counts, is_don_card, parse_cost
+from app.core.auth import get_current_user
+from app.core.db import get_db
+from app.planner.domain import deck_size_counts, is_don_card, parse_cost
 from app.social.schemas import (
     FriendCollectionOut,
     FriendDeckCard,

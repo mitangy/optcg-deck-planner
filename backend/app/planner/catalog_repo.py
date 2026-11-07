@@ -1,6 +1,6 @@
 """Catalog and ownership lookups shared by planner services, group buy and the social views (refactor D-02).
 
-Lived as private helpers in services.py; other modules reached in with underscore imports.
+Lived as private helpers in the former services module; other modules reached in with underscore imports.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain import ParsedCard
+from app.planner.domain import ParsedCard
 from app.models import CatalogCard, CatalogPrinting, Deck, Owned, OwnedPrinting
 from app.schemas import PrintingView
 
