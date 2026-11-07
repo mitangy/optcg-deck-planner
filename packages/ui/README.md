@@ -1,14 +1,16 @@
 # @optcg/ui
 
-Shared UI code for the planner (`frontend/`) and duel-web. Both apps compile it
-from source through a Vite alias (and a `tsconfig` path), like
-`@optcg/patch-notes`.
+Shared UI code for the planner (`frontend/`) and duel-web. Both apps list it as a
+dependency (npm workspace) and compile it from source: `exports` maps `.` to
+`src/index.ts` and `@optcg/ui/<folder>` (`popups`, `cardArt`, `seo`, `tabs`,
+`firstTouch`) to that folder's `index.ts`. A new folder with an `index.ts` is
+importable at once.
 
-`@headlessui/react` is a dependency of each app (`frontend/` and `duel-web/`), not
-of this package: Vercel installs only the app's own `node_modules`. Each app lists
-it in `resolve.dedupe` (vite configs and `duel-web/vitest.config.ts`) and maps it in
-`tsconfig` `paths`, so imports from `packages/ui/src` resolve to the app's copy,
-the same way `react` does. Do the same for any new dependency this package gets.
+`react`, `react-dom` and `@headlessui/react` are peer dependencies of this package
+(and dev dependencies for its own tests). Every workspace installs from the one
+root `package-lock.json`, so there is a single copy of each and no `dedupe` or
+`paths` workaround in the apps. A new third-party import here becomes a peer
+dependency of the package and a dependency of the apps that use it.
 
 ## cardArt
 
