@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_VIEW } from "../pages/DemoPage";
+import { DEMO_VIEW } from "./fixtures/demoViews";
 import type { PlayerView } from "../net/protocol";
 import { describeBattle } from "./battleBanner";
 

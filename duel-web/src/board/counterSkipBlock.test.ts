@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Intent, PlayerView } from "../net/protocol";
-import { DEMO_VIEW } from "../pages/DemoPage";
+import { DEMO_VIEW } from "./fixtures/demoViews";
 import { counterAfterBlock, followUpCounter } from "./counterSkipBlock";
 import { deriveDefend } from "./defendModel";
 import { parseDropAttr, resolveDropIntents } from "./dragIntents";

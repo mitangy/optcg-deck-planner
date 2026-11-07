@@ -129,6 +129,11 @@ body,
   background: transparent;
 }
 
+/* Suspense fallback for lazy routes: reserves the viewport so the footer and chrome do not jump when the page lands. */
+.route-fallback {
+  min-height: 100dvh;
+}
+
 button,
 input {
   font: inherit;
