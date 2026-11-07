@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { deckAdviceRunPayload } from "./deck-advice/report";
-import type { AnswerRow } from "./deck-advice/pipeline";
+import { deckAdviceRunPayload } from "../deck-advice/report";
+import type { AnswerRow } from "../deck-advice/pipeline";
 import { postEvalRun } from "./post";
-import type { PuzzleRow } from "./puzzles/pipeline";
-import { puzzlesRunPayload } from "./puzzles/report";
-import type { ReviewRow } from "./review-facts/pipeline";
-import { reviewFactsRunPayload } from "./review-facts/report";
+import type { PuzzleRow } from "../puzzles/pipeline";
+import { puzzlesRunPayload } from "../puzzles/report";
+import type { ReviewRow } from "../review-facts/pipeline";
+import { reviewFactsRunPayload } from "../review-facts/report";
 
 const env = { ANALYST_API_URL: "https://api.test/", ANALYST_SERVICE_SECRET: "svc" };
 

@@ -11,23 +11,23 @@
  *   --model-api anthropic|scripted      --library live|none     --resume     --selftest     --write-baseline
  *   --post                  send the run's score to the admin page (POST /admin/evals; needs ANALYST_API_URL + ANALYST_SERVICE_SECRET)
  */
-import Anthropic from "@anthropic-ai/sdk";
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { loadCatalog } from "../src/catalog";
-import { anthropicModel, apiTools, CHAT_INSTRUCTIONS, CHAT_MODEL } from "../src/chat";
-import { OfficialLibrary } from "../src/official/library";
-import { loadPlaybook } from "../src/playbook";
-import { instructionsFor } from "../src/prompts/connector";
-import { buildTools } from "../src/server";
+import { loadCatalog } from "../../src/catalog";
+import { anthropicModel, apiTools, CHAT_INSTRUCTIONS, CHAT_MODEL } from "../../src/chat";
+import { loadPlaybook } from "../../src/playbook";
+import { instructionsFor } from "../../src/prompts/connector";
+import { buildTools } from "../../src/server";
 import { CASES } from "./cases";
-import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "./grade/judge";
+import { anthropicJudge, JUDGE_MODEL, RUBRIC_MODEL, offlineJudge, type Judge } from "../grade/judge";
 import { loadCases } from "./load";
-import { evalPlanner, type PlannerOptions, type StatsFixtures, type TournamentFixtures } from "./planner";
-import { postEvalRun } from "./post";
+import { anthropicClient, commonOptions, defaultVariant, libraryFor, modelApi, OUT_ROOT, plannerFixtures } from "../shared/cli";
+import { evalPlanner, type PlannerOptions } from "../shared/planner";
+import { postEvalRun } from "../shared/post";
 import { baselineFrom, evalRunPayload, renderReport, stateFile, summaryLine } from "./report";
 import { runEval } from "./runner";
 import { oracleScript, scriptedModel } from "./scripted";
@@ -39,35 +39,25 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 const { values: f } = parseArgs({
   options: {
-    variant: { type: "string" },
+    ...commonOptions({ maxUsd: "15", concurrency: "4", timeoutS: "180" }),
     reps: { type: "string", default: "2" },
     only: { type: "string" },
     group: { type: "string", default: "A,B,C,D" },
-    concurrency: { type: "string", default: "4" },
-    "timeout-s": { type: "string", default: "180" },
-    "max-usd": { type: "string", default: "15" },
     planner: { type: "string", default: "fake" },
-    "model-api": { type: "string", default: "anthropic" },
     library: { type: "string", default: "live" },
     resume: { type: "boolean", default: false },
     selftest: { type: "boolean", default: false },
     "write-baseline": { type: "boolean", default: false },
-    post: { type: "boolean", default: false },
   },
 });
 
-const scripted = f["model-api"] === "scripted";
-if (!scripted && f["model-api"] !== "anthropic") throw new Error("--model-api must be anthropic or scripted");
-if (!scripted && !process.env.ANTHROPIC_API_KEY) {
-  console.error("npm run eval spends Anthropic API money and needs ANTHROPIC_API_KEY. For a free dry run use --model-api scripted.");
-  process.exit(2);
-}
+const { scripted } = modelApi(f["model-api"], { script: "eval" });
 if (scripted && f["write-baseline"]) throw new Error("A scripted run cannot write the baseline.");
-const variant = f.variant ?? (scripted ? "dry-run" : "baseline");
+const variant = defaultVariant(f.variant, scripted);
 
 const catalog = loadCatalog();
 const cases = loadCases(catalog, CASES);
-const client = scripted ? null : new Anthropic();
+const client = anthropicClient(scripted);
 const judge: Judge = client ? anthropicJudge(client as never) : offlineJudge();
 
 if (f.selftest) {
@@ -76,20 +66,17 @@ if (f.selftest) {
   process.exit(r.ok ? 0 : 1);
 }
 
-const library = f.library === "none" ? undefined : new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined });
+const library = libraryFor(f.library);
 const playbook = loadPlaybook();
-const stats = JSON.parse(readFileSync(here("fixtures/stats.json"), "utf8")) as StatsFixtures;
-const tournaments = JSON.parse(readFileSync(here("fixtures/tournaments.json"), "utf8")) as TournamentFixtures;
 const planner: PlannerOptions = {
   mode: f.planner === "live" ? "live" : "fake",
-  stats,
-  tournaments,
+  ...plannerFixtures(),
   liveUrl: process.env.PLANNER_API_URL,
   secret: process.env.ANALYST_SERVICE_SECRET,
 };
 if (planner.mode === "live" && !(planner.liveUrl && planner.secret)) throw new Error("--planner live needs PLANNER_API_URL and ANALYST_SERVICE_SECRET.");
 
-const model = anthropicModel((client ?? ({} as Anthropic)) as never);
+const model = anthropicModel((client ?? {}) as never);
 const started = Date.now();
 const result = await runEval(
   {
@@ -102,7 +89,7 @@ const result = await runEval(
   },
   {
     variant,
-    outDir: here("out"),
+    outDir: OUT_ROOT,
     cases,
     reps: Number(f.reps),
     groups: f.group!.split(",").map((g) => g.trim().toUpperCase()) as Group[],
@@ -141,12 +128,12 @@ try {
   /* no baseline yet */
 }
 writeFileSync(`${result.dir}/report.md`, renderReport({ ...result, meta, wallS, cases, baseline }));
-writeFileSync(here("out/_state.json"), JSON.stringify(stateFile(result.rows, meta), null, 2));
+writeFileSync(join(OUT_ROOT, "_state.json"), JSON.stringify(stateFile(result.rows, meta), null, 2));
 console.log(summaryLine(result.rows, result.errors, wallS));
 console.log(`report: ${result.dir}/report.md`);
 if (f["write-baseline"]) {
   writeFileSync(here("baseline.json"), `${JSON.stringify(baselineFrom(result.rows, meta, wallS), null, 2)}\n`);
-  console.log("wrote evals/baseline.json (commit it with the change it measured)");
+  console.log("wrote evals/qa/baseline.json (commit it with the change it measured)");
 }
 if (f.post) console.log((await postEvalRun(evalRunPayload(result.rows, meta))).message);
 process.exit(result.errors.length ? 1 : 0);

@@ -5,13 +5,13 @@
  *  - C: the tool the model calls, run again here and compared with the committed `expect`.
  *  - D, E: nothing computed; the rubric judge grades them.
  */
-import { deckSourceId } from "../src/sources";
-import type { Catalog } from "../src/catalog";
-import { parseDeckText } from "../src/decks";
-import { cardRulings } from "../src/knowledge";
-import type { OfficialLibrary } from "../src/official/library";
-import { within } from "../src/official/library";
-import { buildTools } from "../src/server";
+import { deckSourceId } from "../../src/sources";
+import type { Catalog } from "../../src/catalog";
+import { parseDeckText } from "../../src/decks";
+import { cardRulings } from "../../src/knowledge";
+import type { OfficialLibrary } from "../../src/official/library";
+import { within } from "../../src/official/library";
+import { buildTools } from "../../src/server";
 import { dateForms, resolveCardRuling, resolveErrata, resolveGeneral } from "./faq";
 import type { CaseA, CaseB, CaseC, Cites, EvalCase, Gold } from "./types";
 

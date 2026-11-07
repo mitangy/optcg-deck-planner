@@ -1,7 +1,7 @@
 /** Validates the eval cases before anything runs, so a typo fails here and not halfway through a paid run. */
-import type { Catalog } from "../src/catalog";
+import type { Catalog } from "../../src/catalog";
 import { CASES } from "./cases";
-import { CARD_ID } from "./grade/extract";
+import { CARD_ID } from "../grade/extract";
 import type { EvalCase } from "./types";
 
 export const EXPECTED_COUNTS = { A: 15, B: 12, C: 13, D: 10 } as const;

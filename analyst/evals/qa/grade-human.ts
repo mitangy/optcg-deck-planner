@@ -1,7 +1,7 @@
 /**
  * `npm run eval:grade -w @optcg/analyst -- out/<variant>`: Miko grades the D answers (rep 0) by hand so the
  * rubric judge can be calibrated against him. Per answer: y/n per rubric item (blank = does not apply), an overall
- * 1-5 and a note. Lines are appended to evals/human-grades.jsonl, which keeps the answer text only when it repeats
+ * 1-5 and a note. Lines are appended to evals/qa/human-grades.jsonl, which keeps the answer text only when it repeats
  * fewer than 12 consecutive words of official text; otherwise just its hash.
  */
 import { execSync } from "node:child_process";
@@ -9,11 +9,11 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { rubricItems } from "./grade/judge";
-import { shareable } from "./grade/overlap";
+import { rubricItems } from "../grade/judge";
+import { shareable } from "../grade/overlap";
 import { CASES } from "./cases";
-import { summarizeTurn } from "./trace";
-import type { Message } from "../src/chat";
+import { summarizeTurn } from "../shared/trace";
+import type { Message } from "../../src/chat";
 import type { Rubric } from "./types";
 
 type HumanGrade = { case: string; run: string; git_sha: string; answer_sha256: string; answer?: string; items: Record<string, 0 | 1 | null>; overall: number; note: string; grader: "miko"; graded_at: string };

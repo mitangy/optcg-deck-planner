@@ -1,12 +1,12 @@
 /** One answer through every grader: correct (by group), cited, grounded and, for D, the rubric. */
-import type { Catalog } from "../src/catalog";
-import { citationCheck } from "./grade/citations";
-import { checkEdits } from "./grade/edits";
-import { gradeC, gradeVerdict, type Graded } from "./grade/exact";
-import { grounded } from "./grade/grounding";
-import { rubricScore, type Judge, type JudgeMeta } from "./grade/judge";
+import type { Catalog } from "../../src/catalog";
+import { citationCheck } from "../grade/citations";
+import { checkEdits } from "../grade/edits";
+import { gradeC, gradeVerdict, type Graded } from "../grade/exact";
+import { grounded } from "../grade/grounding";
+import { rubricScore, type Judge, type JudgeMeta } from "../grade/judge";
 import type { EvalCase, Gold, Grade, Rubric, Verdict } from "./types";
-import type { TurnSummary } from "./trace";
+import type { TurnSummary } from "../shared/trace";
 
 export type Gradable = Pick<TurnSummary, "answer" | "citations" | "toolText" | "userText">;
 

@@ -8,7 +8,7 @@
 import type { Catalog } from "../../src/catalog";
 import { PROPOSE_TOOL } from "../../src/proposals";
 import type { Delta } from "../grade/edits";
-import { scriptedModel, textReply, toolReply } from "../scripted";
+import { scriptedModel, textReply, toolReply } from "../qa/scripted";
 import type { AdviceCase } from "./cases";
 import { applyAdvice } from "./edits";
 import { seedOf } from "./sabotage";

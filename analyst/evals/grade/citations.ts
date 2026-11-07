@@ -1,5 +1,5 @@
 /** Did the answer cite the right sources? A tool-free answer from memory cites nothing, so this is the check that catches it. */
-import type { Cites, SourceRule } from "../types";
+import type { Cites, SourceRule } from "../qa/types";
 
 /** A source id matches a rule exactly (a `rule:` section also matches its subsections), by a `*` suffix wildcard, or with `<n>` standing for digits. */
 export function sourceMatches(rule: SourceRule, source: string): boolean {

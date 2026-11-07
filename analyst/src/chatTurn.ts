@@ -1,14 +1,14 @@
 import type { z } from "zod";
 import { PlannerApiError, plannerCall } from "./matches";
 import { buildTools } from "./server";
-import { answerChoiceTool, gameContextBlock, turnPlanTool, verifyGame, type ChoiceAnswer, type TurnPlan } from "./copilot";
+import { answerChoiceTool, gameContextBlock, turnPlanTool, verifyGame } from "./copilot";
 import { parseEditLines } from "./editLines";
 import { newDeckTool, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { claimStream, currentModel, recordRefusal, recordUsage, refusalNow, type Budget } from "./budget";
 import { ChatHttpError, refusalError, UserFacingError } from "./errors";
 import { systemFor } from "./prompts/system";
-import { MAX_TOOL_ROUNDS, newRounds, runToolRounds } from "./rounds";
+import { MAX_TOOL_ROUNDS, newRounds, runToolRounds, type ClientActions } from "./rounds";
 import type { chatBody } from "./schemas";
 import type { Block, ChatDeps, Message, SseEvent } from "./types";
 
@@ -121,16 +121,18 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const drafts: NewDeckDraft[] = [];
   // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
   const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
-  const onProposal = (p: DeckEditProposal) => {
-    proposals.push(p);
-    emit({ event: "proposal", data: p });
+  const clientActions: ClientActions = {
+    proposal: (p) => {
+      proposals.push(p);
+      emit({ event: "proposal", data: p });
+    },
+    deck_draft: (d) => {
+      drafts.push(d);
+      emit({ event: "deck_draft", data: d });
+    },
+    plan: (p) => emit({ event: "plan", data: p }),
+    choice: (a) => emit({ event: "choice", data: a }),
   };
-  const onDraft = (d: NewDeckDraft) => {
-    drafts.push(d);
-    emit({ event: "deck_draft", data: d });
-  };
-  const onPlan = (p: TurnPlan) => emit({ event: "plan", data: p });
-  const onChoice = (a: ChoiceAnswer) => emit({ event: "choice", data: a });
   const system = systemFor({ kind: "chat", game });
   const state = newRounds(userMessage);
   const turn = state.turn;
@@ -139,7 +141,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   let checked = false;
   try {
     await runToolRounds(state, {
-      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", onProposal, onPlan, onDraft, onChoice,
+      deps, model, system, tools, history, emit, signal, maxRounds: MAX_TOOL_ROUNDS, maxTokens: 8000, effort: "medium", clientActions,
       recheck: (cost) => refusalNow(api, token, cost),
       afterAnswer: async (st) => {
         const deck = body.context?.deck;
