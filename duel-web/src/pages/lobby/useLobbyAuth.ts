@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { needsUsername } from "@optcg/ui/username";
-import { fetchAuthMe, fetchRatingMe, type AuthUser, type RatingMe } from "../../net/api";
+import { useAuth } from "../../auth/session";
+import { fetchRatingMe, type RatingMe } from "../../net/api";
 import { devKeyAllowed, loadSettings } from "../../settings";
 
 /**
@@ -11,34 +12,29 @@ import { devKeyAllowed, loadSettings } from "../../settings";
 export function useLobbyAuth(watchRoomId: string | null) {
   const navigate = useNavigate();
   const [settings] = useState(loadSettings);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const { status, user: authUser } = useAuth();
   /** Sign-in has settled, so a spectate link knows which token to mint. */
-  const [authChecked, setAuthChecked] = useState(false);
+  const authChecked = status !== "loading";
   const [bounty, setBounty] = useState<number | null>(null);
   /** Your Bounty, record and rank: undefined while loading, null when signed out or the call failed. */
   const [me, setMe] = useState<RatingMe | null | undefined>(undefined);
 
   useEffect(() => {
-    void fetchAuthMe()
-      .then((u) => {
-        if (u) {
-          setAuthUser(u);
-          // Fills the top bar's Bounty and the Your voyage card without minting a token.
-          void fetchRatingMe()
-            .then((r) => {
-              setMe(r);
-              if (r) setBounty(r.rating);
-            })
-            .catch(() => setMe(null));
-        }
-        // Signed in but never picked a username (e.g. closed the tab mid-setup).
-        // A spectate link works without one.
-        if (needsUsername(u) && !watchRoomId) navigate("/welcome/username", { replace: true });
-      })
-      .catch(() => undefined)
-      .finally(() => setAuthChecked(true));
+    if (status === "loading") return;
+    if (authUser) {
+      // Fills the top bar's Bounty and the Your voyage card without minting a token.
+      void fetchRatingMe()
+        .then((r) => {
+          setMe(r);
+          if (r) setBounty(r.rating);
+        })
+        .catch(() => setMe(null));
+    }
+    // Signed in but never picked a username (e.g. closed the tab mid-setup).
+    // A spectate link works without one.
+    if (needsUsername(authUser) && !watchRoomId) navigate("/welcome/username", { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status, authUser?.id]);
 
   const authMode: "guest" | "google" | "dev" = authUser ? "google" : devKeyAllowed() && settings.useDevKey ? "dev" : "guest";
 

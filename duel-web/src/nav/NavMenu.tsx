@@ -4,7 +4,7 @@ import { Dialog } from "@optcg/ui/popups";
 import { DISCORD_INVITE_URL } from "@optcg/site-legal";
 import { getPlannerUrl } from "../config";
 import { activeNavHref, navItemsFor } from "./navItems";
-import { useAccountRole } from "./useAccountRole";
+import { useAccountRole } from "../auth/session";
 import { useStickyHeadHeight } from "./useStickyHeadHeight";
 
 /**

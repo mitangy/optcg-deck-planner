@@ -8,17 +8,13 @@ import {
   saveCosmetic,
   useAccountCosmetics,
 } from "../account/cosmeticsSync";
-import { flushAccountSync, startAccountSync, stopAccountSync } from "../account/accountSync";
+import { flushAccountSync, stopAccountSync } from "../account/accountSync";
+import { clearAuth, useAuthUser } from "../auth/session";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { DonArtPicker } from "./DonArtPicker";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
-import {
-  fetchAuthMe,
-  googleLoginUrl,
-  logoutSession,
-  type AuthUser,
-} from "../net/api";
+import { googleLoginUrl, logoutSession } from "../net/api";
 import { PLAYMAT_ASPECT, usePlaymatUrl } from "../playmat";
 import { GameplaySettingsFields } from "../board/GameplaySettings";
 import {
@@ -43,7 +39,7 @@ const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
 export function SettingsPage() {
   const { setRating } = useDuelSession();
   const settings = useDuelSettings();
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const authUser = useAuthUser();
   const showDevKey = devKeyAllowed();
   const playmatUrl = usePlaymatUrl();
   const [matBusy, setMatBusy] = useState(false);
@@ -86,15 +82,6 @@ export function SettingsPage() {
       setBackBusy(false);
     }
   }
-
-  useEffect(() => {
-    void fetchAuthMe()
-      .then((u) => {
-        setAuthUser(u);
-        void startAccountSync(u);
-      })
-      .catch(() => undefined);
-  }, []);
 
   function update(patch: Partial<DuelSettings>) {
     updateSettings(patch);
@@ -141,7 +128,7 @@ export function SettingsPage() {
               Signed in as <strong>{authUser.email}</strong>. Your ranked Bounty
               follows this account.
             </p>
-            <UsernameSettings user={authUser} onChange={setAuthUser} />
+            <UsernameSettings user={authUser} />
             <div className="btn-row">
               <Link to="/history" className="btn btn-secondary">
                 Match history
@@ -152,7 +139,7 @@ export function SettingsPage() {
                 onClick={() => {
                   void flushAccountSync().then(logoutSession).then(() => {
                     stopAccountSync({ clearDecks: true });
-                    setAuthUser(null);
+                    clearAuth();
                     setRating(null);
                   });
                 }}

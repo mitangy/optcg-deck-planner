@@ -1,6 +1,6 @@
 /** "Report this card": testers flag cards that do not play as printed. */
 import { BUILD_SHA } from "@optcg/ui/appShell";
-import { getApiBaseUrl } from "../config";
+import { ApiError, request } from "../api/http";
 import { getMatchContext } from "../matchContext";
 
 /** Matches the API floor so the form can explain before a round trip. */
@@ -33,23 +33,26 @@ export async function submitCardReport(
   const invalid = reportDescriptionError(description);
   if (invalid) throw new Error(invalid);
   const matchContext = getMatchContext();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
   if (matchContext.gameToken) headers.Authorization = `Bearer ${matchContext.gameToken}`;
-  const res = await fetchImpl(`${getApiBaseUrl()}/duel/card-reports`, {
-    method: "POST",
-    credentials: "include",
-    headers,
-    body: JSON.stringify({
-      card_id: cardId,
-      description: description.trim(),
-      source: reportSource(typeof window === "undefined" ? "" : window.location.pathname),
-      room_id: matchContext.roomId ?? "",
-      client_build: BUILD_SHA,
-    }),
-  });
-  if (res.ok) return;
-  if (res.status === 429) {
-    throw new Error("You've sent a lot of reports. Try again in a few minutes.");
+  try {
+    await request<unknown>("/duel/card-reports", {
+      method: "POST",
+      headers,
+      json: {
+        card_id: cardId,
+        description: description.trim(),
+        source: reportSource(typeof window === "undefined" ? "" : window.location.pathname),
+        room_id: matchContext.roomId ?? "",
+        client_build: BUILD_SHA,
+      },
+      fetchImpl,
+    });
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status === 0) throw e;
+    if (e.status === 429) {
+      throw new Error("You've sent a lot of reports. Try again in a few minutes.");
+    }
+    throw new Error(`Could not send the report (${e.status}). Try again.`);
   }
-  throw new Error(`Could not send the report (${res.status}). Try again.`);
 }

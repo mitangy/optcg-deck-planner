@@ -7,8 +7,10 @@ vi.mock("./settingsSync", () => ({ syncSettings: vi.fn(async () => undefined), s
 vi.mock("./deckSync", () => ({ syncDecks: vi.fn(), stopDeckSync: vi.fn(), clearAccountDecks: vi.fn(), flushDeckSync: vi.fn() }));
 
 import { pushLinkedDeckArt } from "../decks/planner";
+import { fetchAuthMe } from "../net/api";
 import { syncDecks } from "./deckSync";
-import { resyncOnReturn, startAccountSync, stopAccountSync } from "./accountSync";
+import { resetAuthForTests, setAuthUser } from "../auth/session";
+import { resyncOnReturn, startAccountSync, stopAccountSync, watchAccountSync } from "./accountSync";
 
 describe("deck re-sync when the tab comes back (#1017)", () => {
   let doc: EventTarget & { visibilityState: string };
@@ -100,5 +102,21 @@ describe("account sync start (#1017)", () => {
     vi.mocked(pushLinkedDeckArt).mockImplementation(async () => void order.push("art"));
     await startAccountSync({ id: 5 } as never);
     expect(order).toEqual(["sync", "art"]);
+  });
+
+  it("starts syncing for an account that signs in later, without asking the server who it is (refactor 2.1b)", async () => {
+    vi.stubGlobal("document", Object.assign(new EventTarget(), { visibilityState: "visible" }));
+    vi.stubGlobal("window", new EventTarget());
+    resetAuthForTests();
+    vi.mocked(syncDecks).mockClear();
+    vi.mocked(fetchAuthMe).mockResolvedValue(null);
+    const stop = watchAccountSync();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncDecks).not.toHaveBeenCalled();
+    setAuthUser({ id: 9 } as never);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncDecks).toHaveBeenCalledWith(9);
+    expect(fetchAuthMe).toHaveBeenCalledTimes(1);
+    stop();
   });
 });

@@ -5,10 +5,8 @@ import { UsernameForm } from "./UsernameForm";
 /** Settings → Account: view / change the public duel username. */
 export function UsernameSettings({
   user,
-  onChange,
 }: {
   user: AuthUser;
-  onChange: (user: AuthUser) => void;
 }) {
   const [initial, setInitial] = useState<string | null>(user.username ?? null);
 
@@ -32,7 +30,7 @@ export function UsernameSettings({
       initial={initial}
       current={user.username ?? null}
       submitLabel={user.username ? "Save" : "Set username"}
-      onSaved={onChange}
+      onSaved={() => undefined}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { PageShell } from "../layout/PageShell";
 import { useEffect, useState } from "react";
-import { fetchAuthMe } from "../net/api";
+import { ensureAuth } from "../auth/session";
 import { type AdminMe, fetchAdminMe } from "./adminApi";
 import type { Actor } from "./UserActions";
 
@@ -11,7 +11,7 @@ export function useAdminWho(): Who {
   const [who, setWho] = useState<Who>({ status: "loading" });
   useEffect(() => {
     let live = true;
-    Promise.all([fetchAuthMe(), fetchAdminMe()])
+    Promise.all([ensureAuth(), fetchAdminMe()])
       .then(([u, me]) => {
         if (!live) return;
         if (!u || (me.role !== "admin" && me.role !== "moderator")) return setWho({ status: "none" });

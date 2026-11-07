@@ -1,7 +1,6 @@
 /** Meta deck browser (#443): Limitless tournament data from the backend's public /meta endpoints, plus the pure helpers the page uses. */
 import { DECK_NAME_MAX, META_DEFAULT_DAYS, formatDeckRow as formatMetaDeckRow, formatPercent, metaDeckName, ordinal } from "@optcg/deck-analytics/metaFormat";
-import { getApiBaseUrl } from "../config";
-import { ApiError, fetchWithTimeout } from "../net/api";
+import { apiCall, withTimeoutWording } from "../api/http";
 import { createDeckFromInput, listSavedDecks, setSelectedDeckId, type ImportIntoDeckResult, type SavedDeck } from "./storage";
 
 // One copy of the meta-deck text rules for both apps.
@@ -66,18 +65,11 @@ export const META_WINDOWS = [7, 14, 30] as const;
 const TIMEOUT_MS = 15000;
 
 async function metaJson<T>(path: string, timeoutMs: number): Promise<T> {
-  const res = await fetchWithTimeout(`${getApiBaseUrl()}${path}`, { credentials: "include" }, timeoutMs);
-  if (!res.ok) {
-    let detail = `Meta request failed (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
+  try {
+    return await apiCall<T>(path, { timeoutMs }, "Meta request failed");
+  } catch (e) {
+    throw withTimeoutWording(e, timeoutMs);
   }
-  return (await res.json()) as T;
 }
 
 export function fetchMetaLeaders(days: number, timeoutMs = TIMEOUT_MS): Promise<MetaLeadersResponse> {
