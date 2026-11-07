@@ -1,10 +1,13 @@
 name: CI
 
 # Runs every test suite on pull requests and on main, so a PR shows red before
-# merge instead of after a deploy. Each app has its own lockfile, so each gets
-# its own job and runs in parallel. A job holds everything one app needs after
-# one install (unit tests, build, browser checks), because a runner is cheap to
-# keep busy and expensive to queue for: the repo is capped at 20 concurrent jobs.
+# merge instead of after a deploy. frontend/, duel-web/, packages/*, game-server/
+# and analyst/ are npm workspaces of the root package.json with one root
+# package-lock.json, so every one of those jobs installs with `npm ci` at the
+# root. mobile/ has its own lockfile. Each app still gets its own job and runs in
+# parallel. A job holds everything one app needs after one install (unit tests,
+# build, browser checks), because a runner is cheap to keep busy and expensive to
+# queue for: the repo is capped at 20 concurrent jobs.
 #
 # On pull requests the `changes` job decides which jobs run, from the changed
 # paths (tools/ci/changes.cjs, #739). A path it does not know runs everything.
@@ -130,7 +133,9 @@ jobs:
       - run: npm run typecheck -w @optcg/rules
       - run: npm run typecheck -w @optcg/game-server
       - run: npm run typecheck -w @optcg/analyst
-      - run: npm test
+      # The packages, game-server and analyst. (A bare `npm test` also runs the two
+      # apps' unit tests, which have their own jobs.)
+      - run: npm test -w packages -w game-server -w analyst
       - run: npm run eval:validate -w @optcg/analyst
       # The path filter that decides which of these jobs a pull request runs.
       - run: node --test "tools/ci/*.test.cjs"
@@ -163,8 +168,10 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: duel-web/package-lock.json
+          cache-dependency-path: package-lock.json
+      # One install for every workspace, from the repo root.
       - run: npm ci
+        working-directory: .
       - run: npm test
       - run: npm run build
         id: build
@@ -215,12 +222,8 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: |
-            package-lock.json
-            duel-web/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm ci
-        working-directory: duel-web
       - run: npx playwright install --with-deps chromium
         working-directory: duel-web
       - name: Run this shard's specs
@@ -303,9 +306,11 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
+      # One install for every workspace, from the repo root.
       - run: npm ci
         id: deps
+        working-directory: .
       - run: npm test
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
       - run: npm run build
@@ -489,16 +494,9 @@ jobs:
         with:
           node-version: "22"
       - name: Install root workspace deps
-        if: contains(fromJSON('["rules","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server"]'), matrix.suite)
+        # frontend and duel-web are workspaces too: one root install serves them.
+        if: contains(fromJSON('["rules","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","frontend","duel-web"]'), matrix.suite)
         run: npm ci
-      - name: Install duel-web deps
-        if: matrix.suite == 'duel-web'
-        run: npm ci
-        working-directory: duel-web
-      - name: Install frontend deps
-        if: matrix.suite == 'frontend'
-        run: npm ci
-        working-directory: frontend
       - name: Install mobile deps
         if: matrix.suite == 'mobile'
         run: npm ci

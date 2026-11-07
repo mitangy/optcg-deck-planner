@@ -66,6 +66,12 @@ test("the workflow, root manifests and tools/ci turn every job on (#739)", () =>
   assert.deepEqual(on(["tools/ci/changes.cjs"]), ALL);
 });
 
+test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
+  assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["frontend/src/App.tsx"]), ["frontend"]);
+});
+
 test("other workflows do not trigger the app jobs, and flags union across paths (#739)", () => {
   assert.deepEqual(on([".github/workflows/nightly.yml"]), []);
   assert.deepEqual(on(["mobile/src/a.ts", "backend/app/main.py"]), ["backend", "mobile"]);

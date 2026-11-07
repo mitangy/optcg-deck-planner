@@ -28,9 +28,10 @@ Or from the repo root: `start-backend.bat` (runs inside `backend/`).
 Seed is **local-only** — it imports catalog from `../optcg_tracker/cache/catalog.json` (if present) and sample deck `.txt` files.
 
 ### Frontend
+`frontend/` and `duel-web/` are npm workspaces (with `packages/*`, `game-server` and `analyst`): install once from the repo root, then work inside the app. `mobile/` and `trailer/` are not workspaces and keep their own installs.
 ```bash
+npm install            # repo root, one package-lock.json for every workspace
 cd frontend
-npm install
 copy .env.example .env
 npm run dev
 ```
@@ -51,7 +52,7 @@ Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or
 ## Deploy
 
 ### Current prod
-- **Vercel** project `miko21/optcg-deck-planner` — **Root Directory = `.`** (repo root), config in the root `vercel.json` (install/build via `npm --prefix frontend`, output `frontend/dist`, `/api/*` rewrite → Render). Do **not** set Vercel's Root Directory to `frontend/` — the root `vercel.json` is the single source of truth.
+- **Vercel** project `miko21/optcg-deck-planner` — **Root Directory = `.`** (repo root), config in the root `vercel.json` (install with `npm ci` at the repo root, build with `cd frontend && npx vite build`, output `frontend/dist`, `/api/*` rewrite → Render). Do **not** set Vercel's Root Directory to `frontend/` — the root `vercel.json` is the single source of truth.
 - **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root `backend`)
 - **Neon** project `optcg-deck-planner` (`DATABASE_URL` on Render)
 

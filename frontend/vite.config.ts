@@ -67,19 +67,6 @@ export default defineConfig(({ mode }) => {
       // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
       prerenderPlugin({ name: "planner", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
     ],
-    resolve: {
-      // Shared deck analytics and the legal footer / pages are compiled from source; see packages/.
-      alias: [
-        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
-        { find: /^@optcg\/price-timing/, replacement: fileURLToPath(new URL("../packages/price-timing/src", import.meta.url)) },
-        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
-        { find: /^@optcg\/patch-notes/, replacement: fileURLToPath(new URL("../packages/patch-notes/src", import.meta.url)) },
-        { find: /^@optcg\/ui/, replacement: fileURLToPath(new URL("../packages/ui/src", import.meta.url)) },
-        { find: /^@optcg\/analyst-client/, replacement: fileURLToPath(new URL("../packages/analyst-client/src", import.meta.url)) },
-      ],
-      // Package sources sit outside this app, so pin React and Headless UI (used by @optcg/ui) to this app's copy.
-      dedupe: ["react", "react-dom", "@headlessui/react"],
-    },
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
     },

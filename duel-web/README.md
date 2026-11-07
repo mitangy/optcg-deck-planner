@@ -11,9 +11,11 @@ This package is **outside** root npm workspaces (same isolation as `frontend/` a
 
 ## Setup
 
+duel-web is an npm workspace: install once from the repo root (there is no `duel-web/package-lock.json`).
+
 ```bash
+npm install            # repo root
 cd duel-web
-npm install
 ```
 
 Regenerate the card atlas after editing `@optcg/rules` defs:

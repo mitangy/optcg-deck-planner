@@ -2,8 +2,8 @@
 
 The "What's new" notes shared by the planner (`frontend/`) and duel-web: the
 `/whats-new` page, the link in the footer and Settings, and the once-per-update
-card. Both apps compile it from source through a Vite alias, like
-`@optcg/site-legal`.
+card. Both apps list it as a dependency (npm workspace) and compile it from
+source through its `exports` map, like `@optcg/site-legal`.
 
 ## Adding an entry
 
