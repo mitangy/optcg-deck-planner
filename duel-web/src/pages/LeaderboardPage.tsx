@@ -1,5 +1,6 @@
 import { PageShell } from "../layout/PageShell";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { BountyAmount } from "../Bounty";
 import { pinnedYou } from "../home/bounties";
 import { ensureAuth } from "../auth/session";
@@ -14,21 +15,13 @@ type State =
   | { status: "ready"; entries: LeaderboardEntry[] };
 
 export function LeaderboardPage() {
-  const [state, setState] = useState<State>({ status: "loading" });
+  const res = useAsyncResource(() => fetchLeaderboard(LIMIT), []);
+  const state = useMemo<State>(
+    () => (res.status === "ready" ? { status: "ready", entries: res.data } : { status: res.status }),
+    [res],
+  );
   /** Your Bounty and rank; null when signed out, no ranked games yet, or the call failed. */
   const [me, setMe] = useState<RatingMe | null>(null);
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let live = true;
-    setState({ status: "loading" });
-    fetchLeaderboard(LIMIT)
-      .then((entries) => live && setState({ status: "ready", entries }))
-      .catch(() => live && setState({ status: "error" }));
-    return () => {
-      live = false;
-    };
-  }, [attempt]);
 
   useEffect(() => {
     let live = true;
@@ -41,7 +34,7 @@ export function LeaderboardPage() {
     };
   }, []);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = res.reload;
   const entries = state.status === "ready" ? state.entries : [];
   const you = pinnedYou(me, entries.map((e) => e.user_id));
 

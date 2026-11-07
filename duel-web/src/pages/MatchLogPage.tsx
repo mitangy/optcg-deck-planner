@@ -12,6 +12,8 @@ import { useClickCopy } from "../board/clickCopy";
 import { openReport } from "../reports/reportDialog";
 import { historyReportTarget } from "../reports/reportTargets";
 import { ApiError, googleLoginUrl } from "../net/api";
+import { errorMessage } from "../lib/errors";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { useLogPose, useLogPosePage } from "@optcg/analyst-client";
 import { matchLogScope } from "../logPoseScopes";
 import { LogPoseReview } from "../history/LogPoseReview";
@@ -39,23 +41,14 @@ function CardButton({ defId, name, onInspect }: { defId: string; name: string; o
 
 export function MatchLogPage() {
   const { matchId = "" } = useParams();
-  const [state, setState] = useState<State>({ status: "loading" });
+  const res = useAsyncResource(() => fetchMatchDetail(matchId), [matchId]);
+  const state = useMemo<State>(() => {
+    if (res.status === "ready") return { status: "ready", detail: res.data };
+    if (res.status === "loading") return { status: "loading" };
+    if (res.error instanceof ApiError && res.error.status === 401) return { status: "signed-out" };
+    return { status: "error", message: errorMessage(res.error, "Could not load this match") };
+  }, [res]);
   const [inspect, setInspect] = useState<Inspect | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    setState({ status: "loading" });
-    fetchMatchDetail(matchId)
-      .then((detail) => live && setState({ status: "ready", detail }))
-      .catch((e: unknown) => {
-        if (!live) return;
-        if (e instanceof ApiError && e.status === 401) setState({ status: "signed-out" });
-        else setState({ status: "error", message: e instanceof Error ? e.message : "Could not load this match" });
-      });
-    return () => {
-      live = false;
-    };
-  }, [matchId]);
 
   const detail = state.status === "ready" ? state.detail : null;
 

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Select } from "@optcg/ui/popups";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { BackLink } from "../layout/BackLink";
+import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { CardArt } from "../cards/CardArt";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { loadCardData } from "../cards/cardData";
@@ -22,7 +22,8 @@ import {
   type MetaLeader,
   type MetaLeadersResponse,
 } from "../decks/meta";
-import { NavMenu } from "../nav/NavMenu";
+import { errorMessage } from "../lib/errors";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { readEmbeddedSnapshot, SnapshotContext } from "../leaders/useMetaView";
 import type { MetaSnapshot } from "../leaders/snapshot";
 
@@ -185,21 +186,15 @@ function MetaDeckItem({
 function DeckPanel({ leader, days }: { leader: MetaLeader | undefined; days: number }) {
   const leaderId = leader?.leader_id ?? "";
   const [top8, setTop8] = useState(false);
-  const [state, setState] = useState<Load<MetaDecksResponse>>({ status: "loading" });
-  const [tries, setTries] = useState(0);
+  const res = useAsyncResource(() => fetchMetaDecks(leaderId, days, top8), [leaderId, days, top8]);
+  const state = useMemo<Load<MetaDecksResponse>>(() => {
+    if (res.status === "ready") return { status: "ready", data: res.data };
+    if (res.status === "loading") return { status: "loading" };
+    return { status: "error", message: errorMessage(res.error, "Could not load decks") };
+  }, [res]);
   const [openId, setOpenId] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: "loading" });
-    setOpenId(null);
-    fetchMetaDecks(leaderId, days, top8)
-      .then((data) => !cancelled && setState({ status: "ready", data }))
-      .catch((e) => !cancelled && setState({ status: "error", message: e instanceof Error ? e.message : "Could not load decks" }));
-    return () => {
-      cancelled = true;
-    };
-  }, [leaderId, days, top8, tries]);
+  useEffect(() => setOpenId(null), [leaderId, days, top8]);
 
   const name = leader?.name || state.status === "ready" && state.data.name || leaderId;
   return (
@@ -216,7 +211,7 @@ function DeckPanel({ leader, days }: { leader: MetaLeader | undefined; days: num
       ) : state.status === "error" ? (
         <p className="error-text meta-status">
           Couldn&apos;t load decklists.{" "}
-          <button type="button" className="linkish" onClick={() => setTries((n) => n + 1)}>
+          <button type="button" className="linkish" onClick={res.reload}>
             Try again
           </button>
         </p>
@@ -299,19 +294,19 @@ export function MetaDecksPage() {
   return (
     <div className="app-shell">
       <div className="deck-config deck-config-wide meta-page">
-        <header className="deck-config-header">
-          <div className="deck-config-nav">
-            <NavMenu />
-            <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
-          </div>
-          <div className="deck-config-heading">
-            <h1 className="deck-config-title">Meta decks</h1>
-            <p className="meta">
-              {data
-                ? `${data.total_decks} decks from ${data.events} events in the last ${data.days} days.`
-                : "Top decks from recent online tournaments."}
-            </p>
-          </div>
+        <DeckConfigHeader
+          back={{ to: "/decks", label: "Decks", ariaLabel: "Back to decks" }}
+          heading={
+            <>
+              <h1 className="deck-config-title">Meta decks</h1>
+              <p className="meta">
+                {data
+                  ? `${data.total_decks} decks from ${data.events} events in the last ${data.days} days.`
+                  : "Top decks from recent online tournaments."}
+              </p>
+            </>
+          }
+        >
           <div className="field meta-window">
             <label htmlFor="meta-window">Window</label>
             <Select
@@ -321,7 +316,7 @@ export function MetaDecksPage() {
               options={META_WINDOWS.map((d) => ({ value: d, label: `Last ${d} days` }))}
             />
           </div>
-        </header>
+        </DeckConfigHeader>
 
         <div className={`meta-layout${showDetail ? " has-leader" : ""}`}>
           <section className="meta-leaders" aria-label="Leaders">

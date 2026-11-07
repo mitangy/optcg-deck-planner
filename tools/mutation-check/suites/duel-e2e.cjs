@@ -1036,7 +1036,7 @@ module.exports = {
     { id: "e2e-settings-appearance-heading-missing", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "        <h2 className=\"settings-section-title\" id=\"appearance-title\">Appearance</h2>\n", to: "", kills: [
       "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
-    { id: "e2e-settings-jump-no-appearance", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "        <a href=\"#appearance\">Appearance</a>\n", to: "", kills: [
+    { id: "e2e-settings-jump-no-appearance", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "  { id: \"appearance\", label: \"Appearance\" },\n", to: "", kills: [
       "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
     // One-tap actions skip a pop-up with a single button, and answer an exactly-N pick on the Nth (#502)

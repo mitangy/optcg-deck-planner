@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { NavMenu } from "../nav/NavMenu";
 import { BackLink } from "./BackLink";
 
-export type PageBack = { to: string; label: string; ariaLabel?: string };
+export type PageBack = { to: string; label: string; ariaLabel?: string; variant?: "ghost" };
 
 /**
  * The page chrome the menu pages share: `.app-shell` > `.page` > a `.page-header` that starts with the menu,

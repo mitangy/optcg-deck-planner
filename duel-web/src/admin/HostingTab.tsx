@@ -1,14 +1,7 @@
 import type { ReactNode } from "react";
+import { compactAgo } from "../lib/relativeTime";
 import { externalUrl } from "./adminLogic";
 import type { AdminHosting, GithubData, ProviderResult, RenderData, VercelData } from "./adminApi";
-
-function ago(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  if (mins < 2880) return `${Math.round(mins / 60)}h ago`;
-  return `${Math.round(mins / 1440)}d ago`;
-}
 
 function Status({ value }: { value: string | null | undefined }) {
   const v = (value ?? "unknown").toLowerCase();
@@ -77,7 +70,7 @@ export function HostingTab({ data }: { data: AdminHosting }) {
               href: p.latest?.url,
               sub: `${p.deploys_7d} production deploys in 7 days${p.latest?.commit ? ` · ${p.latest.commit}` : ""}`,
               status: <Status value={p.latest?.state} />,
-              when: ago(p.latest?.created_at),
+              when: compactAgo(p.latest?.created_at),
             }))}
           />
         )}
@@ -91,7 +84,7 @@ export function HostingTab({ data }: { data: AdminHosting }) {
               href: s.url,
               sub: `${s.type}${s.suspended && s.suspended !== "not_suspended" ? " · suspended" : ""}${s.latest?.commit ? ` · ${s.latest.commit}` : ""}`,
               status: <Status value={s.latest?.status} />,
-              when: ago(s.latest?.finished_at),
+              when: compactAgo(s.latest?.finished_at),
             }))}
           />
         )}
@@ -107,9 +100,9 @@ export function HostingTab({ data }: { data: AdminHosting }) {
               <span>{d.traffic_views ? <><b>{d.traffic_views.count}</b> views ({d.traffic_views.uniques} unique)</> : "Traffic not available"}</span>
             </div>
             <h3 className="adm-sub">CI on main</h3>
-            <Rows rows={d.ci_runs.map((r, i) => ({ key: `ci${i}`, name: r.name, href: r.html_url, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
+            <Rows rows={d.ci_runs.map((r, i) => ({ key: `ci${i}`, name: r.name, href: r.html_url, status: <Status value={r.conclusion ?? "running"} />, when: compactAgo(r.created_at) }))} />
             <h3 className="adm-sub">Nightly bot games</h3>
-            <Rows rows={d.bot_runs.map((r, i) => ({ key: `bot${i}`, name: r.name, href: r.html_url, status: <Status value={r.conclusion ?? "running"} />, when: ago(r.created_at) }))} />
+            <Rows rows={d.bot_runs.map((r, i) => ({ key: `bot${i}`, name: r.name, href: r.html_url, status: <Status value={r.conclusion ?? "running"} />, when: compactAgo(r.created_at) }))} />
           </>
         )}
       </Card>
