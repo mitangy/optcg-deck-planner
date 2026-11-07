@@ -556,3 +556,22 @@ def test_a_single_deck_save_never_merges_a_new_deck_into_an_identical_synced_one
     assert first["deleted"] is False and second["deleted"] is False
     assert len(_planner_decks(S, uid)) == 4
 
+
+def test_a_duel_save_keeps_the_planner_cards_of_an_oversized_linked_deck_1027(client):
+    c, S = client
+    uid = _user(S)
+    pid = _mirrored_planner_deck(c, S, uid)
+    assert c.put(f"/decks/{pid}/cards/OP01-017", json={"needed": 15, "confirm_oversize": True}).status_code == 200  # 65 main cards
+    with S() as db:
+        db.add(DeckCardPrinting(deck_id=pid, card_id="OP01-017", product_id=78, qty=2))
+        db.commit()
+    before = _planner_cards(S, pid)
+    assert before["OP01-017"] == 15
+    row = _duel_rows(S, uid)[0]
+    stale = {**json.loads(row.data), "name": "Renamed in duel", "artPrefs": {"OP01-016": "p1"}}
+    assert _put(c, row.deck_id, row.updated_at_ms + 10, stale).status_code == 200
+    assert _planner_cards(S, pid) == before
+    with S() as db:
+        assert db.get(Deck, pid).name == "Renamed in duel"
+        left = db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.deck_id == pid)).all()
+        assert [(p.card_id, p.qty) for p in left] == [("OP01-017", 2)]
