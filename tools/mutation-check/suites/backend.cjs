@@ -1798,5 +1798,6 @@ module.exports = {
     {"id":"link1027-art-prefs-not-merged","file":"backend/app/deck_link.py","from":"    if survivor_body is None or not extra:","to":"    if True:","kills":["test_a_guest_deck_identical_to_a_synced_deck_is_dropped_not_duplicated_1027"],"args":"tests/test_deck_link.py"},
     {"id":"link1027-art-prefs-override-survivor","file":"backend/app/deck_link.py","from":"    added = {k: v for k, v in extra.items() if k not in prefs}","to":"    added = dict(extra)","kills":["test_a_guest_deck_identical_to_a_synced_deck_is_dropped_not_duplicated_1027"],"args":"tests/test_deck_link.py"},
     {"id":"link1027-survivor-not-bumped","file":"backend/app/deck_link.py","from":"    _store(survivor, {**survivor_body, \"artPrefs\": prefs}, at=max(_now_ms(), survivor.updated_at_ms + 1))","to":"    _store(survivor, {**survivor_body, \"artPrefs\": prefs}, at=survivor.updated_at_ms)","kills":["test_a_guest_deck_identical_to_a_synced_deck_is_dropped_not_duplicated_1027"],"args":"tests/test_deck_link.py"},
+    {"id":"collector1032-spares-ignore-collector-copies","file":"backend/app/friend_view.py","from":"i.need + sum(line.have for line in i.collector_wants)","to":"i.need","kills":["test_collector_copies_are_not_tradeable_spares_for_friends_1032"],"args":"tests/test_collector_wants.py"},
   ],
 };
