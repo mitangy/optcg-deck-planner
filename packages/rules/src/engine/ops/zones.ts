@@ -10,6 +10,7 @@ import { beginPlay, moveToZone, performKo } from "../zoneActions.js";
 import { promptPrefix, pushChoice } from "../vm.js";
 import { removedByEffect } from "../replacement.js";
 import { type OpTable, forEachTarget, seatOf } from "./shared.js";
+import { B, CB, V, getBinding, recordAffected } from "../../effects/bindings.js";
 
 export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | "to_trash" | "to_life" | "play" | "activate" | "activate_event" | "mill" | "shuffle"> = {
   draw(effect, { sim, state, frame, ctx }) {
@@ -25,7 +26,7 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
   },
   rest(effect, { sim, state, frame, targetsOf }) {
     const all = targetsOf(effect.target);
-    if (!Array.isArray(frame.bindings._actTargets)) for (const loc of all) if (loc.zone === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = true; }
+    if (getBinding(frame, B.actTargets) === undefined) for (const loc of all) if (loc.zone === "don") { const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id); if (d) d.rested = true; }
     return forEachTarget(sim, frame, all.filter((l) => l.zone !== "don" && l.card && isOnField(l)), "rest", (loc) => {
       if (!loc.card) return;
       if (!loc.card.rested) {
@@ -48,18 +49,18 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
     });
   },
   to_deck(effect, { sim, state, frame, targetsOf }) {
-    if (effect.position === "top_or_bottom" && frame.bindings._end === undefined) {
+    if (effect.position === "top_or_bottom" && frame.bindings[B.end] === undefined) {
       if (targetsOf(effect.target).length === 0) return "next";
-      pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the deck?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { __bind: "_end", __repeat: "1" } });
+      pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the deck?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { [CB.bind]: B.end, [CB.repeat]: "1" } });
       return "wait";
     }
-    const position: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
+    const position: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings[B.end] === 0 ? "top" : "bottom") : effect.position;
     const targets = targetsOf(effect.target);
     return forEachTarget(sim, frame, targets, "remove", (loc) => {
       if (loc.zone === "leader") return;
       removedByEffect(state, frame, loc);
       moveToZone(sim, loc, "deck", { position });
-    }, () => { delete frame.bindings._end; });
+    }, () => { delete frame.bindings[B.end]; });
   },
   to_trash(effect, { sim, state, frame, targetsOf }) {
     const targets = targetsOf(effect.target);
@@ -71,12 +72,12 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
     });
   },
   to_life(effect, { sim, state, frame, targetsOf }) {
-    if (effect.position === "top_or_bottom" && frame.bindings._end === undefined) {
+    if (effect.position === "top_or_bottom" && frame.bindings[B.end] === undefined) {
       if (targetsOf(effect.target).length === 0) return "next";
-      pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the Life cards?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { __bind: "_end", __repeat: "1" } });
+      pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — place at the top or bottom of the Life cards?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { [CB.bind]: B.end, [CB.repeat]: "1" } });
       return "wait";
     }
-    const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings._end === 0 ? "top" : "bottom") : effect.position;
+    const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings[B.end] === 0 ? "top" : "bottom") : effect.position;
     // Same path as to_hand / to_deck / to_trash, so "cannot be removed by effects" and removal replacements apply (#656).
     return forEachTarget(sim, frame, targetsOf(effect.target), "remove", (loc) => {
       if (loc.zone === "leader" || loc.zone === "life") return;
@@ -85,10 +86,10 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
       putCard(state, loc.seat, "life", entry, { position: lifePosition, faceUp: effect.faceUp });
       if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, byEffectOf: frame.seat });
       sim.events.push({ type: "life_added", seat: loc.seat, defId: entry.defId, source: loc.zone === "hand" ? "hand" : loc.zone === "trash" ? "trash" : loc.zone === "deck" ? "deck_top" : "field", ...(effect.faceUp ? { faceUp: true } : {}) });
-    }, () => { delete frame.bindings._end; });
+    }, () => { delete frame.bindings[B.end]; });
   },
   play(effect, { sim, state, frame, targetsOf }) {
-    frame.bindings._affected = [];
+    frame.bindings[V.affected] = [];
     for (const target of targetsOf(effect.target)) {
       // Re-locate: an earlier play shifted the indexes of the zone it left.
       const loc = locate(state, target.id);
@@ -99,20 +100,20 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
       if (abilitiesFor(loc.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === "not_playable_by_effect"))) continue;
       const entry = takeCard(state, loc);
       beginPlay(sim, loc.seat, entry, Boolean(effect.rested), 0, loc.zone);
-      frame.bindings._affected = [...(Array.isArray(frame.bindings._affected) ? frame.bindings._affected : []), entry.id];
+      recordAffected(frame, entry.id);
     }
     return "next";
   },
   activate(effect, { state, frame, targetsOf }) {
     // Like `play`: "set X as active. If you do, ..." gates on the cards this step actually set active.
-    frame.bindings._affected = [];
+    frame.bindings[V.affected] = [];
     for (const loc of targetsOf(effect.target)) {
       if (loc.zone === "don") {
         const d = state.players[loc.seat].costArea.find((x) => x.id === loc.id);
-        if (d) { d.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
+        if (d) { d.rested = false; recordAffected(frame, loc.id); }
         continue;
       }
-      if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }
+      if (loc.card && isOnField(loc)) { loc.card.rested = false; recordAffected(frame, loc.id); }
     }
     return "next";
   },

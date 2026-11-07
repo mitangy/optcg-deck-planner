@@ -7,6 +7,7 @@ import type { BindingValue, CardInstance, InstanceId, MatchState, ResolutionFram
 import { type EvalCtx, ctxFor, evalCond, filterMatches, isNegated } from "./queries.js";
 import { alloc, fieldCards, isOnField, locate } from "./state.js";
 import { actingSource, type Sim, turnLog } from "./sim.js";
+import { B, getBinding } from "../effects/bindings.js";
 
 // ---------------------------------------------------------------------------
 // Trigger dispatch
@@ -35,8 +36,8 @@ export function markUsed(state: MatchState, sourceId: InstanceId, ability: Abili
  */
 export function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionFrame): void {
   if (frame.program !== "ability" && frame.program !== "replacement") return;
-  if (typeof frame.bindings._delay === "number") return;
-  if (!frame.bindings.__declined || frame.bindings.__acted) return;
+  if (getBinding(frame, B.delay) !== undefined) return;
+  if (!frame.bindings[B.declined] || frame.bindings[B.acted]) return;
   const ability = abilityById(frame.abilityId)?.ability;
   if (!ability?.oncePerTurn) return;
   const card = locate(state, frame.sourceInstanceId)?.card;

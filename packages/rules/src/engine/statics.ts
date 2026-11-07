@@ -20,6 +20,11 @@ export interface StaticEntry {
   ability: Ability;
 }
 
+// Call-scoped module state (query cache below, and the static / negate / cost re-entrancy guards): all of
+// it is entered and left inside one synchronous call (`try`/`finally`), so it never outlives a call and
+// never crosses an `await`. The guards are recursion breakers that must also hold for uncached calls and
+// across nested queries, so a per-call context would have to be threaded through every query function;
+// they stay module-level (see the synchronous-only invariant documented in `engine.ts`).
 let staticGuard = 0;
 
 /** True while the general static pass is resolving (cost lookups then use the cost-only pass). */
