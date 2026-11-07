@@ -95,6 +95,7 @@ import {
   invalidateOwnedViews,
   patchOwnedCollection,
   patchOwnedCollectionAlt,
+  patchOwnedCollectionCollector,
 } from "./ownedCollection";
 import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "./DeckStats";
 import { deckDelta, type DeckHint, type DeckStatsCard } from "@optcg/deck-analytics";
@@ -524,9 +525,10 @@ function invalidateCollectorViews(qc: ReturnType<typeof useQueryClient>) {
   invalidateAltOwnedViews(qc);
   void qc.invalidateQueries({ queryKey: ["shopping"] });
   void qc.invalidateQueries({ queryKey: ["deck"] });
+  void qc.invalidateQueries({ queryKey: ["owned"] });
 }
 
-/** Sets one collector want in the cached shopping lists and deck pages (#1031). */
+/** Sets one collector want in the cached shopping lists, deck pages and Collection (#1031, #1035). */
 function applyCollectorOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -549,6 +551,41 @@ function applyCollectorOptimistic(
         }
       : old,
   );
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+    old ? patchOwnedCollectionCollector(old, id, productId, qty) : old,
+  );
+}
+
+/**
+ * Saves a collector want (#1035) from any planner page: optimistic patch of every cached view,
+ * the save, then a refetch. `onError` lets a page show the message in its own error slot.
+ */
+function useCollectorWantEditing(onError?: (message: string | null) => void) {
+  const qc = useQueryClient();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const report = (message: string | null) => {
+    setError(message);
+    onError?.(message);
+  };
+  const changeCollector = async (cardId: string, productId: number, qty: number) => {
+    report(null);
+    setBusyKey(`${cardId}:${productId}`);
+    applyCollectorOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setCollectorWant(cardId, productId, qty);
+      applyCollectorOptimistic(qc, cardId, productId, res.qty);
+    } catch (e) {
+      report((e as Error).message);
+    } finally {
+      invalidateCollectorViews(qc);
+      setBusyKey(null);
+    }
+  };
+  /** The alt printing of `cardId` whose collector save is in flight, if any. */
+  const busyProductId = (cardId: string) =>
+    busyKey?.startsWith(`${cardId}:`) ? Number(busyKey.slice(cardId.length + 1)) : null;
+  return { changeCollector, busyKey, busyProductId, error };
 }
 
 function patchOwnedQty(
@@ -1726,24 +1763,9 @@ function ShoppingPage() {
     }
   };
 
-  const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
+  const { changeCollector, busyKey: collectorBusyKey } = useCollectorWantEditing(setAltOwnedErr);
   const [collectorUndo, setCollectorUndo] = useState<{ cardId: string; productId: number; qty: number; label: string } | null>(null);
   const dismissCollectorUndo = useCallback(() => setCollectorUndo(null), []);
-
-  const changeCollector = async (cardId: string, productId: number, qty: number) => {
-    setAltOwnedErr(null);
-    setCollectorBusyKey(`${cardId}:${productId}`);
-    applyCollectorOptimistic(qc, cardId, productId, qty);
-    try {
-      const res = await api.setCollectorWant(cardId, productId, qty);
-      applyCollectorOptimistic(qc, cardId, productId, res.qty);
-    } catch (e) {
-      setAltOwnedErr((e as Error).message);
-    } finally {
-      invalidateCollectorViews(qc);
-      setCollectorBusyKey(null);
-    }
-  };
 
   const removeCollector = async (cardId: string, line: CollectorLine) => {
     setCollectorUndo({ cardId, productId: line.product_id, qty: line.want, label: line.label });
@@ -1794,6 +1816,16 @@ function ShoppingPage() {
       showBuyPicks={item.still_need > 0}
       shownProductId={shownProductId(item)}
       onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
+      onCollectorChange={(productId, qty) => {
+        const line = (item.collector_wants ?? []).find((l) => l.product_id === productId);
+        if (qty === 0 && line) void removeCollector(item.card_id, line);
+        else void changeCollector(item.card_id, productId, qty);
+      }}
+      collectorBusyProductId={
+        collectorBusyKey?.startsWith(`${item.card_id}:`)
+          ? Number(collectorBusyKey.slice(item.card_id.length + 1))
+          : null
+      }
       busyProductId={
         altOwnedBusyKey?.startsWith(`${item.card_id}:`)
           ? Number(altOwnedBusyKey.slice(item.card_id.length + 1))
@@ -3209,6 +3241,7 @@ function CollectionPage() {
   };
 
   const altArt = useAltArtEditing();
+  const collectorEdit = useCollectorWantEditing();
   const altRow = (item: OwnedCard) => (
     <AltArtsRow
       alts={item.alt_arts ?? []}
@@ -3222,6 +3255,8 @@ function CollectionPage() {
       shownProductId={shownProductId(item)}
       onShow={(productId) => void altArt.changeDisplayArt(item.card_id, productId)}
       busyProductId={altArt.busyProductId(item.card_id)}
+      onCollectorChange={(productId, qty) => void collectorEdit.changeCollector(item.card_id, productId, qty)}
+      collectorBusyProductId={collectorEdit.busyProductId(item.card_id)}
     />
   );
 
@@ -3289,7 +3324,7 @@ function CollectionPage() {
             </div>
           </div>
 
-          {altArt.error && <p className="error">{altArt.error}</p>}
+          {(altArt.error || collectorEdit.error) && <p className="error">{altArt.error || collectorEdit.error}</p>}
           {/* Always present, so narrowing the list never shifts the cards below it. */}
           <p className="collection-count muted" role="status">
             {narrowed ? `Showing ${shown.cards} of ${allItems.length} cards` : `${allItems.length} ${allItems.length === 1 ? "card" : "cards"}`}
@@ -3757,6 +3792,8 @@ function CardTable({
   altOwnedBusyKey = null,
   onDisplayArtChange,
   onAltBuyChange,
+  onCollectorChange,
+  collectorBusyKey = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -3772,6 +3809,10 @@ function CardTable({
   onDisplayArtChange?: (cardId: string, productId: number) => void;
   /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
+  /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
+  onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while a collector save is in flight. */
+  collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort("optcg_colsort_deck");
   // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
@@ -3784,6 +3825,7 @@ function CardTable({
         onPick={(productId, qty) => onAltBuyChange(c.card_id, productId, qty)}
         busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
         plainWhenIdle={false}
+        onCollectorPick={onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined}
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
@@ -3824,6 +3866,10 @@ function CardTable({
           ? Number(altOwnedBusyKey.slice(c.card_id.length + 1))
           : null
       }
+      onCollectorChange={
+        onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined
+      }
+      collectorBusyProductId={busyProductFor(collectorBusyKey, c.card_id)}
     />
   );
   if (layout === "grid") {
@@ -4642,6 +4688,8 @@ function DeckDetailPage() {
     }
   };
 
+  const { changeCollector, busyKey: collectorBusyKey } = useCollectorWantEditing(setAltOwnedErr);
+
   const changeAltBuy = async (cardId: string, productId: number, qty: number) => {
     setAltOwnedErr(null);
     setAltOwnedBusyKey(`${cardId}:${productId}`);
@@ -5078,6 +5126,8 @@ function DeckDetailPage() {
         onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
         onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+        onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+        collectorBusyKey={collectorBusyKey}
       />
       {additional.length > 0 && (
         <>
@@ -5096,6 +5146,8 @@ function DeckDetailPage() {
             onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
             onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+            onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+            collectorBusyKey={collectorBusyKey}
           />
         </>
       )}
@@ -5124,6 +5176,8 @@ function DeckDetailPage() {
           onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
           onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+          onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+          collectorBusyKey={collectorBusyKey}
         />
       )}
     </section>
