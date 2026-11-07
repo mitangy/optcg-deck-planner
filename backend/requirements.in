@@ -19,4 +19,4 @@ httpx>=0.28.0,<0.29
 itsdangerous>=2.2.0,<3
 python-multipart>=0.0.17,<0.1
 # Optional shared state (rate limits, presence, live-game progress) when REDIS_URL is set.
-redis>=7.0,<8
+redis>=8.1.0,<9
