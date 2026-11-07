@@ -1525,7 +1525,8 @@ describe("DuelRoom", () => {
     assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: turnSteps, toStep: 0 });
     assert.equal(t.steps(), 0);
     assert.equal(JSON.stringify(internals(t.room).match), atStart);
-    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    // undo_state follows undo_applied, so wait for it rather than reading the state the applied message beat.
+    await waitUntil(() => t.last(t.other).blockedReason === "Nothing to undo yet", 5000);
     await t.close();
   });
 
