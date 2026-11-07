@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { costUsd, type Usage } from "../../src/chat";
 import { MODELS } from "../../src/models";
-import { withRetry } from "../retry";
+import { withRetry } from "../shared/retry";
 
 export const CLAIM_KINDS = ["played", "attacked", "ko", "life_taken", "countered", "blocked", "trigger", "life_total", "don", "hand_size", "on_board", "trashed", "result", "went_first", "mulligan", "other"] as const;
 

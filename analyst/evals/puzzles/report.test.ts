@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wilson } from "../stats";
+import { wilson } from "../qa/stats";
 import type { PuzzleRow } from "./pipeline";
 import { headline, puzzlesRunPayload, renderReport, scoreOf, worstMisses } from "./report";
 

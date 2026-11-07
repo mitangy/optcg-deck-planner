@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { PROTOCOL_VERSION, type ChatLine, type PlayerView, type RematchState, type UndoState } from "../net/protocol";
-import { narrateEvents, type BattleLogEntry } from "../board/battleLog";
+import { PROTOCOL_VERSION, type PlayerView, type RematchState } from "../net/protocol";
+import { createMatchStore } from "../state/matchStore";
+import { useMatchStore } from "../state/useMatch";
 import { DuelBoard } from "../board/DuelBoard";
 import {
   DEMO_BATTLE_LOG,
@@ -34,6 +35,17 @@ import { buildDemoView, demoPickedBy } from "./demo/demoParams";
  * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
  * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
  */
+function demoRematch(params: URLSearchParams): RematchState {
+  const mode = params.get("rematch");
+  return {
+    available: mode !== "left",
+    requested: mode === "ask" ? [false, true] : mode === "wait" ? [true, false] : mode === "choose" ? [true, true] : [false, false],
+    newDeck: [false, params.has("oppdeck")],
+    declinedBy: null,
+    chooser: mode === "choose" ? 0 : null,
+  };
+}
+
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
   const view = buildDemoView(params);
@@ -57,16 +69,28 @@ export function DemoPage() {
   const [motionStep, setMotionStep] = useState(0);
   const [motionRun, setMotionRun] = useState(0);
   const nextMotion = motionSteps?.[motionStep + 1];
-  const [undo, setUndo] = useState<UndoState | null>(() => (params.has("undo") ? demoUndoState(params.get("undo")) : null));
-  const [chat, setChat] = useState<ChatLine[]>(DEMO_CHAT);
+  // Chat, battle log, undo and rematch go through the same match store (and reducer) a real match uses.
+  const [store] = useState(() =>
+    createMatchStore("demo", {
+      seat: 0,
+      battleLog: DEMO_BATTLE_LOG,
+      chat: DEMO_CHAT,
+      instances: DEMO_INSTANCES,
+      undo: params.has("undo") ? demoUndoState(params.get("undo")) : null,
+      rematch: demoRematch(params),
+    }),
+  );
+  const undo = useMatchStore(store, (m) => m.undo);
+  const chat = useMatchStore(store, (m) => m.chat);
+  const log = useMatchStore(store, (m) => m.battleLog);
+  const rematch = useMatchStore(store, (m) => m.rematch)!;
   // `?reveal`: the opponent reveals a card (then another) a moment after load.
-  const [log, setLog] = useState<BattleLogEntry[]>(DEMO_BATTLE_LOG);
   useEffect(() => {
     if (!params.has("reveal")) return;
     const t = window.setTimeout(() => {
       const events = [{ type: "card_revealed", seat: 1, defId: "ST01-009" }];
       if (params.get("reveal") === "2") events.push({ type: "card_revealed", seat: 1, defId: "ST01-006" });
-      setLog((prev) => [...prev, ...narrateEvents(events, { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES })]);
+      store.dispatch({ type: "events", events, turn: 3 });
     }, 1200);
     return () => window.clearTimeout(t);
   }, []);
@@ -74,20 +98,10 @@ export function DemoPage() {
   useEffect(() => {
     const events = motionSteps?.[motionStep]?.events;
     if (!events) return;
-    setLog((prev) => [...prev, ...narrateEvents(events, { youSeat: 0, turnNumber: 3, instances: DEMO_INSTANCES })]);
+    store.dispatch({ type: "events", events, turn: 3 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motionStep, motionRun]);
   const [demoClockEnds] = useState(() => Date.now() + 612_000);
-  const [rematch, setRematch] = useState<RematchState>(() => {
-    const mode = params.get("rematch");
-    return {
-      available: mode !== "left",
-      requested: mode === "ask" ? [false, true] : mode === "wait" ? [true, false] : mode === "choose" ? [true, true] : [false, false],
-      newDeck: [false, params.has("oppdeck")],
-      declinedBy: null,
-      chooser: mode === "choose" ? 0 : null,
-    };
-  });
   return (
     <div className="duel-root">
       {motionSteps ? (
@@ -122,14 +136,18 @@ export function DemoPage() {
             ? {
                 state: rematch,
                 deckOptions: DEMO_REMATCH_DECKS,
-                onAction: (action) =>
-                  setRematch((r) =>
-                    action === "request"
-                      ? { ...r, requested: [true, true], chooser: 0 }
-                      : action === "decline"
-                        ? { ...r, requested: [false, false], chooser: null }
-                        : r,
-                  ),
+                onAction: (action) => {
+                  const r = store.getSnapshot().rematch ?? rematch;
+                  store.dispatch({
+                    type: "rematchState",
+                    state:
+                      action === "request"
+                        ? { ...r, requested: [true, true], chooser: 0 }
+                        : action === "decline"
+                          ? { ...r, requested: [false, false], chooser: null }
+                          : r,
+                  });
+                },
               }
             : undefined
         }
@@ -144,10 +162,10 @@ export function DemoPage() {
             ? {
                 lines: chat,
                 onSend: (text) =>
-                  setChat((prev) => [
-                    ...prev,
-                    { id: `demo-chat-${prev.length + 1}`, seat: 0, text, at: Date.now() },
-                  ]),
+                  store.dispatch({
+                    type: "chat",
+                    lines: [{ id: `demo-chat-${store.getSnapshot().chat.length + 1}`, seat: 0, text, at: Date.now() }],
+                  }),
               }
             : undefined
         }
@@ -181,26 +199,28 @@ export function DemoPage() {
             ? {
                 state: undo,
                 defaultOpen: ["menu", "blocked", "limit", "nothing", "full"].includes(params.get("undo") ?? ""),
-                onAction: (action, opts) =>
-                  setUndo((u) =>
-                    u
-                      ? {
-                          ...u,
-                          pending:
-                            action === "request"
-                              ? {
-                                  from: 0,
-                                  toTurn: u.targetTurn ?? 1,
-                                  action: u.action,
-                                  scope: opts?.scope ?? "action",
-                                  steps: opts?.scope === "turn" ? (u.options?.turn.steps ?? 1) : 1,
-                                  force: opts?.force === true,
-                                  revealReason: opts?.force ? "a deck or Life card was looked at" : null,
-                                }
-                              : null,
-                        }
-                      : u,
-                  ),
+                onAction: (action, opts) => {
+                  const u = store.getSnapshot().undo;
+                  if (!u) return;
+                  store.dispatch({
+                    type: "undoState",
+                    state: {
+                      ...u,
+                      pending:
+                        action === "request"
+                          ? {
+                              from: 0,
+                              toTurn: u.targetTurn ?? 1,
+                              action: u.action,
+                              scope: opts?.scope ?? "action",
+                              steps: opts?.scope === "turn" ? (u.options?.turn.steps ?? 1) : 1,
+                              force: opts?.force === true,
+                              revealReason: opts?.force ? "a deck or Life card was looked at" : null,
+                            }
+                          : null,
+                    },
+                  });
+                },
               }
             : undefined
         }

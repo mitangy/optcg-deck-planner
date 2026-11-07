@@ -5,8 +5,8 @@
  *  - matchup stats come from fixtures/stats.json (synthetic, in the backend's shape) or, with mode "live",
  *    stats, corpus and tournament reads are forwarded to the real planner with the service secret.
  */
-import type { Message, Usage } from "../src/chat";
-import type { PlannerApi } from "../src/matches";
+import type { Message, Usage } from "../../src/chat";
+import type { PlannerApi } from "../../src/matches";
 
 export type StatsFixtures = { synthetic: true; responses: Record<string, unknown> };
 export type TournamentFixtures = { synthetic: true; responses: Record<string, unknown> };

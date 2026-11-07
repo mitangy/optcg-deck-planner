@@ -5,7 +5,7 @@
  */
 import { runScenario } from "@optcg/rules/src/testing/scenario";
 import { describe, expect, it } from "vitest";
-import { loadCatalog } from "../src/catalog";
+import { loadCatalog } from "../../src/catalog";
 import { CASES } from "./cases";
 import { goldFor } from "./gold";
 

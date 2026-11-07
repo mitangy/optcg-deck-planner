@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadCatalog } from "../src/catalog";
+import { loadCatalog } from "../../src/catalog";
 import { validateCases } from "./load";
 import type { EvalCase } from "./types";
 

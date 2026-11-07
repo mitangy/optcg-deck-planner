@@ -8,8 +8,8 @@
  */
 import { costUsd, type Usage } from "../../src/chat";
 import { RUBRIC_MODEL } from "../grade/judge";
-import { withRetry } from "../retry";
-import { wilson } from "../stats";
+import { withRetry } from "../shared/retry";
+import { wilson } from "../qa/stats";
 import { seedOf } from "./sabotage";
 
 export type Slot = "first" | "second";
