@@ -1,0 +1,120 @@
+/* Buttons, top bar, panels, fields and the Play sheet live in ui.css. */
+
+.duel-root {
+  /* Pinned to the real viewport, not 100dvh: a Home Screen app on iOS can
+     measure 100dvh taller than the screen, so the page scrolled a few px and
+     clipped the top bar under the status bar. */
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* While a match is up, the document itself never scrolls or rubber-bands. */
+html:has(.duel-root),
+html:has(.duel-root) body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Overlay, not in flow: a drop/reclaim must not shove the board down and back. */
+.reconnect-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-modal);
+  background: var(--warn);
+  padding: calc(0.65rem + var(--safe-t)) max(0.75rem, var(--safe-r)) 0.65rem
+    max(0.75rem, var(--safe-l));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.reconnect-banner button {
+  background: #fff;
+  color: var(--warn);
+  border: none;
+  border-radius: var(--radius-6);
+  padding: 0.45rem 0.75rem;
+  font-weight: 800;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.reconnect-banner button:disabled {
+  opacity: 0.6;
+}
+
+/* Match moved to another device: fixed over the frozen board, never in flow. */
+.moved-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-moved);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  background: rgb(var(--abyss-rgb) / 0.78);
+  overflow-y: auto;
+}
+
+.moved-card {
+  width: min(24rem, 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--arena-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-12);
+  padding: 1.1rem 1.1rem 1rem;
+  text-align: center;
+  color: var(--ink);
+}
+
+.moved-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.moved-card p {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.moved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.moved-actions .btn {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+@media (max-height: 460px) {
+  .moved-card {
+    padding: 0.7rem 0.9rem;
+  }
+  .moved-card p {
+    margin-bottom: 0.6rem;
+  }
+}
+
+.rating-chip {
+  color: var(--muted);
+  font-size: 0.7rem;
+  padding: 0.35rem 0.75rem 0;
+}
+

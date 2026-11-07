@@ -1,0 +1,291 @@
+/* —— Opponent hand: backs hanging from the top of the rail —— */
+
+.opp-hand-fan {
+  --fan-w: calc(var(--dock-cw) * 0.6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0 0.7rem 0.35rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.opp-hand-fan-cards {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: calc(var(--fan-w) * 0.95);
+}
+
+.opp-hand-fan .opp-fan-card {
+  flex: 0 0 auto;
+  width: var(--fan-w);
+  height: calc(var(--fan-w) * 1.4);
+  /* Top ~third tucked above the rail edge, like a hand held across the table. */
+  margin-top: calc(var(--fan-w) * -0.45);
+  border-radius: var(--radius-4);
+  transform: rotate(calc(var(--i) * -4deg));
+  transform-origin: 50% 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.opp-hand-fan .opp-fan-card + .opp-fan-card {
+  /* 1.5rem slack keeps the rotated outer cards inside the rail. */
+  margin-left: min(0.2rem, calc((100% - 1.5rem - var(--n) * var(--fan-w)) / max(var(--n) - 1, 1)));
+}
+
+/* Spectators of unranked rooms: the far hand face up. Not tucked, so the cost
+   and name at the top of the card stay visible; tap a card to read it. */
+.opp-hand-fan .card-tile.opp-fan-face {
+  width: var(--fan-w);
+  height: calc(var(--fan-w) * 1.4);
+  margin-top: 0;
+  border-width: 1px;
+}
+
+.opp-fan-face .card-caption,
+.opp-corner-face .card-caption,
+.opp-corner-face .card-overlays,
+.opp-compact-face .card-caption,
+.opp-compact-face .card-overlays,
+.opp-fan-face .card-overlays,
+.opp-hand-face .card-caption,
+.opp-hand-face .card-overlays {
+  display: none;
+}
+
+.opp-hand-fan-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* —— Game state panel —— */
+
+.turn-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+}
+
+.turn-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.55rem 0.6rem 0.6rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: rgb(var(--deep-rgb) / 0.55);
+  /* The heading sizes from this card's width, not the window's: a column dragged to its narrowest is
+     250px wide in a 1920px window (#774). The banner is a stretched child of .turn-panel, so it has a width. */
+  container-type: inline-size;
+}
+
+.turn-banner-kicker {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-banner-clock {
+  color: #c8e4f5;
+}
+
+.turn-banner-title {
+  font-family: var(--font-display);
+  /* The cap keeps the longest word ("OPPONENT'S") inside the card at the narrowest column; wide columns keep the clamp. */
+  font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 11cqi);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  line-height: 1.15;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.turn-banner-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.turn-panel-mine .turn-banner {
+  border-color: var(--chrome);
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.3), rgb(var(--chrome-rgb) / 0.08));
+  animation: turn-banner-glow 2.2s ease-in-out infinite;
+}
+
+.turn-panel-mine .turn-banner-title {
+  color: var(--chrome-bright);
+}
+
+.turn-panel-theirs .turn-banner {
+  border-color: rgb(var(--sea-bright-rgb) / 0.6);
+  background: linear-gradient(180deg, rgb(var(--sea-rgb) / 0.28), rgb(var(--sea-rgb) / 0.06));
+}
+
+.turn-panel-theirs .turn-banner-title {
+  color: #d6ecf8;
+}
+
+.turn-panel-respond .turn-banner {
+  border-color: var(--crimson-bright);
+  background: linear-gradient(180deg, rgba(178, 55, 47, 0.35), rgba(178, 55, 47, 0.1));
+  animation: turn-banner-alert 1.2s ease-in-out infinite;
+}
+
+.turn-panel-respond .turn-banner-title {
+  color: #ffe0da;
+}
+
+/* What you are answering can be a sentence: two lines, never cut mid-word.
+   Two lines are always reserved here, so a prompt opening or closing
+   mid-response does not nudge the panels below. */
+.turn-panel-respond .turn-banner-sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+.arena.arena-lp .turn-panel-respond .turn-banner-sub {
+  min-height: 0;
+}
+
+@keyframes turn-banner-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgb(var(--chrome-rgb) / 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgb(var(--chrome-rgb) / 0.45);
+  }
+}
+
+@keyframes turn-banner-alert {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(210, 74, 63, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(210, 74, 63, 0.55);
+  }
+}
+
+.turn-player {
+  padding: 0.4rem 0.5rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.turn-player-you.is-active {
+  border-color: var(--line-strong);
+  background: rgb(var(--chrome-rgb) / 0.1);
+}
+
+.turn-player-opp.is-active {
+  border-color: rgb(var(--sea-bright-rgb) / 0.55);
+  background: rgb(var(--sea-rgb) / 0.12);
+}
+
+.turn-player-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.turn-player-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.turn-player-you.is-active .turn-player-dot {
+  background: var(--chrome-bright);
+  box-shadow: 0 0 8px var(--chrome);
+}
+
+.turn-player-opp.is-active .turn-player-dot {
+  background: #9cd3f0;
+  box-shadow: 0 0 8px #5aa6cf;
+}
+
+.turn-player-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.turn-order-badge {
+  flex: none;
+  padding: 0.08rem 0.5rem;
+  border: 1px solid rgb(var(--sea-bright-rgb) / 0.55);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--sea-rgb) / 0.18);
+  color: #c8e4f5;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.turn-order-badge.first {
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.5);
+}
+
+.turn-player-stats {
+  display: grid;
+  /* Never narrower than the label, so HAND and DECK cannot run together. */
+  grid-template-columns: repeat(4, minmax(min-content, 1fr));
+  gap: var(--space-1);
+  margin: 0.35rem 0 0;
+}
+
+.turn-player-stats > div {
+  min-width: 0;
+  text-align: center;
+}
+
+.turn-player-stats dt {
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.turn-player-stats dd {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
