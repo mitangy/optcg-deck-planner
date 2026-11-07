@@ -14,7 +14,7 @@ vi.mock("./api", async (orig) => ({
   api: { setAltOwned, setOwned },
 }));
 
-import { CollectionAltControl } from "./App";
+import { CollectionAltControl } from "./pages/collection/CollectionAddPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

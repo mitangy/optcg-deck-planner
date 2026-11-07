@@ -3,7 +3,7 @@ import { act } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { LightboxShoppingControl } from "./App";
+import { LightboxShoppingControl } from "./pages/shopping/lightboxActions";
 
 const h = vi.hoisted(() => ({
   shopping: null as null | ((v: unknown) => void),
