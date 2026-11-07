@@ -12,14 +12,14 @@ import { OptcgSimOnlinePage } from "./pages/OptcgSimOnlinePage";
 import { PlayOnPhonePage } from "./pages/PlayOnPhonePage";
 import { MetaDecksPage } from "./pages/MetaDecksPage";
 import { LeaderPage } from "./pages/LeaderPage";
+import { CardDataGate } from "./cards/CardDataGate";
 import { LeadersIndexPage } from "./pages/LeadersIndexPage";
 import { EventRulesPage } from "./pages/EventRulesPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { LegalPage } from "./pages/LegalPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { UsernameSetupPage } from "./pages/UsernameSetupPage";
-import { WhatsNewPage } from "./pages/WhatsNewPage";
-import { AdminPage, AdminUserPage, DeckConfigurePage, DemoPage, DuelPage, HistoryPage, HotseatPage, MatchLogPage, NewDeckPage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage } from "./lazyRoutes";
+import { AdminPage, AdminUserPage, DeckConfigurePage, DemoPage, DuelPage, HistoryPage, HotseatPage, MatchLogPage, NewDeckPage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage, WhatsNewPage } from "./lazyRoutes";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
 import { ReportHost } from "./reports/ReportHost";
@@ -74,7 +74,7 @@ export function App() {
           <Route path="/leaders" element={<LeadersIndexPage />} />
           <Route path="/leaders/:slug" element={<LeaderPage />} />
           <Route path="/watch/:roomId" element={<LobbyPage />} />
-          <Route path="/decks" element={<DeckListPage />} />
+          <Route path="/decks" element={<CardDataGate><DeckListPage /></CardDataGate>} />
           <Route path="/decks/meta" element={<MetaDecksPage />} />
           <Route path="/decks/new" element={<NewDeckPage />} />
           <Route path="/decks/:deckId/configure" element={<DeckConfigurePage />} />
