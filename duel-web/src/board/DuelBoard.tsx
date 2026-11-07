@@ -226,7 +226,10 @@ export function DuelBoard({
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   /** Card last used from the hand and where it sat, for a Yes/No it asks next. */
   const [handUse, setHandUse] = useState<HandUse | null>(null);
+  /** Set once useDefendFlow exists below; a hand-sent answer marks the defend step answered (#1140). */
+  const noteAnsweredRef = useRef<((intent: Intent) => void) | null>(null);
   function onSendIntent(intent: Intent) {
+    noteAnsweredRef.current?.(intent);
     // Blocking after all: a skip-block Counter must not follow onto the Blocker.
     if (intent.type === "declare_block") setQueuedCounter(null);
     if (view && handIndexOf(intent) !== undefined) {
@@ -482,6 +485,7 @@ export function DuelBoard({
     setStagedBlockerId,
     setQueuedCounter,
     skipBlockToCounter,
+    noteAnswered,
   } = useDefendFlow({
     view,
     intents,
@@ -494,6 +498,7 @@ export function DuelBoard({
     lp,
     onSendIntent,
   });
+  noteAnsweredRef.current = noteAnswered;
 
   const { tabMute, tabMuteText, reveals, spotlights, replayQuiet } = useBoardAudio({
     view,

@@ -73,14 +73,20 @@ export function useDefendFlow({
   });
   autoPassRef.current = { intent: autoPass, send: onSendIntent };
   const autoPassSent = useRef<string | null>(null);
+  const autoPassKeyRef = useRef(autoPassKey);
+  autoPassKeyRef.current = autoPassKey;
+  /** The player answered this step by hand: the automatic pass waiting out its beat must not follow it out. */
+  function noteAnswered(_intent: Intent) {
+    if (autoPassKeyRef.current) autoPassSent.current = autoPassKeyRef.current;
+  }
   useEffect(() => {
     if (!autoPassKey || autoPassSent.current === autoPassKey) return;
     // A beat so the attack registers; against a person a human-length wait, so
     // an instant pass does not reveal there was no usable Counter (#369). You can
-    // still answer by hand meanwhile: acting changes the key and cancels this.
+    // still answer by hand meanwhile: that marks the step answered (noteAnswered), so this stays quiet.
     return scheduleAutoPass(() => {
       const { intent, send } = autoPassRef.current;
-      if (!intent) return;
+      if (!intent || autoPassSent.current === autoPassKey) return;
       autoPassSent.current = autoPassKey;
       send(intent);
     }, vsHuman);
@@ -164,6 +170,7 @@ export function useDefendFlow({
     !trayHere && defend?.phase === "counter" ? counterPrimaryLabel(defend, false) : undefined;
 
   return {
+    noteAnswered,
     autoPass,
     defend,
     trayHere,

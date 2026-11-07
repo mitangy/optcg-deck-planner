@@ -110,6 +110,20 @@ describe("response stops (refactor 3.2)", () => {
     expect(sent).toEqual([{ type: "pass_counter" }]);
   });
 
+  it("a Pass block sent by hand during the beat is not followed by the automatic one (#1140)", () => {
+    vi.useFakeTimers();
+    const forcedBlock: Intent[] = [{ type: "pass_block" }];
+    render(forcedBlock, { stopMode: "auto" });
+    expect(flow.autoPass).toEqual({ type: "pass_block" });
+    // The player taps Pass block before the beat ends; the next view (the counter step) is still on its way.
+    act(() => {
+      sent.push({ type: "pass_block" });
+      flow.noteAnswered({ type: "pass_block" });
+    });
+    act(() => void vi.advanceTimersByTime(AUTO_PASS_BEAT_MS));
+    expect(sent).toEqual([{ type: "pass_block" }]);
+  });
+
   it("never passes for a replay viewer, who only watches (refactor 3.2)", () => {
     vi.useFakeTimers();
     render(onlyPass, { stopMode: "auto", isReplay: true });
