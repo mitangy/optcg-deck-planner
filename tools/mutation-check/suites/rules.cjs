@@ -9,7 +9,10 @@ const GF = "packages/rules/src/sim/goldfish.ts";
 const ABILITIES = "packages/rules/src/cards/generated/abilities.json";
 const MANUAL = "packages/rules/src/cards/manualAbilities.ts";
 const COMPILE_FILE = "packages/rules/src/tools/cardText/compileCard.ts";
-const GRAMMAR_FILE = "packages/rules/src/tools/cardText/grammar.ts";
+const GRAMMAR_DIR = "packages/rules/src/tools/cardText/grammar";
+const GRAMMAR_CONDITIONS = `${GRAMMAR_DIR}/conditions.ts`;
+const GRAMMAR_COSTS = `${GRAMMAR_DIR}/costs.ts`;
+const GRAMMAR_EFFECTS = `${GRAMMAR_DIR}/effects.ts`;
 const LINT = "packages/rules/src/tools/cardText/programLint.ts";
 const LINT_REGISTRY = "no compiled program reads an unbound variable or pays off an ungated may";
 /** Scenario rows (src/__tests__/scenarios): alter one card's generated abilities; `kills` are row-name fragments. */
@@ -209,16 +212,20 @@ module.exports = {
     { id: "fire-fist-trash-forced", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const steps = a["OP15-020"].abilities[0].effect.steps; steps[1] = steps[1].then; }, kills: ["declining leaves the 0-power Character alive"] },
     { id: "fire-fist-decline-ignored", file: "packages/rules/src/engine/choices.ts", from: "frame.bindings[b.__bind!] = answer.accept;", to: "frame.bindings[b.__bind!] = true;", kills: ["declining leaves the 0-power Character alive"] },
     { id: "fire-fist-generic-prompt", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "prompt: restoreNames(m[1]!, ctx.ph) };", to: "};" },
+      { file: GRAMMAR_EFFECTS, from: "prompt: restoreNames(m[1]!, ctx.ph) };", to: "};" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP15-020"].abilities[0].effect.steps[1].prompt; } },
     ], kills: ["asks whether to trash 2 cards for the K.O."] },
     // OP15-002 Lucy: "you may trash any number of Event or Stage cards" asks first, then picks from the hand (#263)
     { id: "lucy-trash-unasked", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "then: { do: \"may\", then: { do: \"discard\", player: \"you\", count: 99, min: 0, ...filter }, prompt: restoreNames(`trash ${m[1]!} from your hand`, ctx.ph) } };", to: "then: { do: \"discard\", player: \"you\", count: 99, min: 0, ...filter } };" },
+      { file: GRAMMAR_EFFECTS, from: `return when(exists({ player: "you", zone: "hand", ...filter }), {
+      do: "may",
+      then: { do: "discard", player: "you", count: 99, min: 0, ...filter },
+      prompt: restoreNames(\`trash \${m[1]!} from your hand\`, ctx.ph),
+    });`, to: `return when(exists({ player: "you", zone: "hand", ...filter }), { do: "discard", player: "you", count: 99, min: 0, ...filter });` },
       { json: ABILITIES, patch: (a) => { const g = a["OP15-002"].abilities[1].effect.steps[0]; g.then = g.then.then; } },
     ], kills: ["asks before trashing from hand on the opponent's attack"] },
     { id: "lucy-asks-with-nothing-to-trash", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"if\", cond: { c: \"exists\", selector: { player: \"you\", zone: \"hand\", ...filter } }, then:", to: "return { do: \"if\", cond: { c: \"not\", cond: { c: \"exists\", selector: { player: \"you\", zone: \"hand\", ...filter } } }, then:" },
+      { file: GRAMMAR_EFFECTS, from: "return when(exists({ player: \"you\", zone: \"hand\", ...filter }), {\n      do: \"may\"", to: "return when({ c: \"not\", cond: exists({ player: \"you\", zone: \"hand\", ...filter }) }, {\n      do: \"may\"" },
       { json: ABILITIES, patch: (a) => { const steps = a["OP15-002"].abilities[1].effect.steps; steps[0] = steps[0].then; } },
     ], kills: ["does not ask when the hand has no Event or Stage"] },
     { id: "lucy-decline-ignored", file: "packages/rules/src/engine/choices.ts", from: "frame.bindings[b.__bind!] = answer.accept;", to: "frame.bindings[b.__bind!] = true;", kills: ["declining the prompt trashes nothing"] },
@@ -226,43 +233,43 @@ module.exports = {
     { id: "fire-fist-did-unbound", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1].bind = "_paid"; }, kills: ["trashing 2 cards K.O.s the 0-power Character"] },
     // "you may X. If you do, Y": X is a real cost when it parses as one; "If you do" after a plain action gates on it having happened
     { id: "may-cost-partial-payment", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "  if (costs?.length) steps[steps.length - 1] = {", to: "  if (false) steps[steps.length - 1] = {" },
+      { file: GRAMMAR_EFFECTS, from: "  if (costs?.length) {\n    steps[steps.length - 1] =", to: "  if (false) {\n    steps[steps.length - 1] =" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP15-020"].abilities[0].effect.steps[1] = { do: "may", then: { do: "discard", player: "you", count: 2 }, bind: "_did", prompt: "trash 2 cards from your hand" }; } },
     ], kills: ["does not offer the trash, so 1 card in hand stays"] },
     { id: "if-you-do-after-action-unset", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "gate.cond = { ...gate.cond, name: \"_affected\" };", to: "void 0;" },
+      { file: GRAMMAR_EFFECTS, from: "gate.cond = { ...gate.cond, name: \"_affected\" };", to: "void 0;" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP09-103"].abilities[1].effect.steps[1].cond.name = "_did"; } },
     ], kills: ["draws 1 after playing a Revolutionary Army Character"] },
     { id: "if-you-do-after-action-always", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const steps = a["OP09-103"].abilities[1].effect.steps; steps[1] = steps[1].then; }, kills: ["does not draw when nothing is played"] },
     { id: "if-you-do-may-chose-nothing", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "  else gate.cond = { c: \"and\", conds: [gate.cond, { c: \"var_count\", name: \"_affected\", op: \">=\", value: 1 }] };", to: "" },
+      { file: GRAMMAR_EFFECTS, from: "    gate.cond = and(gate.cond, varCount(\"_affected\", \">=\", 1));\n  }\n  (steps", to: "  }\n  (steps" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const g = a["OP13-119"].abilities[1].effect.steps[2]; g.cond = g.cond.conds[0]; } },
     ], kills: ["accepting but returning nothing does not let the opponent play"] },
     // "The revealed card" after a reveal cost, "the trashed card" after a mill, "that Character" in an On Event ability (#515)
     { id: "reveal-cost-not-bound-to-last", file: "packages/rules/src/effects/compile.ts", from: "cost.count, \"reveal (cost)\", \"_last\"); out.push({ op: \"act\", effect: { do: \"reveal\", target: { ref: \"var\", name: \"_last\" } } }); return;", to: "cost.count, \"reveal (cost)\"); out.push({ op: \"act\", effect: { do: \"reveal\", target: costVar } }); return;", kills: ["ST22-001 puts the revealed card on top of the deck"] },
     { id: "mill-bind-dropped", file: "packages/rules/src/engine/ops.ts", from: "      if (effect.bind) frame.bindings[effect.bind] = trashed;\n", to: "", kills: ["OP08-096 asks for the Leader or Character to buff when the trashed card costs 6", "OP08-096 gives +5000 when the trashed card costs 6"] },
     { id: "trashed-card-not-bound", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "bindTrashedCard(steps[steps.length - 1]!);", to: "void 0;" },
+      { file: GRAMMAR_EFFECTS, from: "bindTrashedCard(steps[steps.length - 1]!);", to: "void 0;" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP08-096"].abilities[0].effect.steps[0].bind; } },
     ], kills: ["OP08-096 asks for the Leader or Character to buff when the trashed card costs 6", "OP08-096 gives +5000 when the trashed card costs 6"] },
     { id: "trashed-card-condition-reads-cost", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP08-096"].abilities[0].effect.steps[1].cond.name = "_cost"; }, kills: ["OP08-096 asks for the Leader or Character to buff when the trashed card costs 6", "OP08-096 gives +5000 when the trashed card costs 6"] },
     { id: "trashed-card-cost-5-counts", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP08-096"].abilities[0].effect.steps[1].cond.filter.cost.value = 5; }, kills: ["OP08-096 gives nothing when the trashed card costs 5"] },
     { id: "event-card-reads-last", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "name: ctx.eventCard ? \"_event\" : \"_last\"", to: "name: \"_last\"" },
+      { file: GRAMMAR_CONDITIONS, from: "name: ctx.eventCard ? \"_event\" : \"_last\"", to: "name: \"_last\"" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { a["OP11-088"].abilities[1].effect.then.cond.name = "_last"; } },
     ], kills: ["OP11-088 gains +5000 when the attacking Character has <Slash>"] },
     { id: "event-card-any-attacker", json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { const e = a["OP11-088"].abilities[1]; e.effect.then = e.effect.then.then; }, kills: ["OP11-088 gains nothing when the attacking Character does not have <Slash>"] },
     // "Your opponent may PAY. If they do not, Y": PAY is offered only when payable in full, from the opponent's own zones (#515)
     { id: "opponent-may-pay-free-maser-saber", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
+      { file: GRAMMAR_EFFECTS, from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP17-117"].abilities[1].effect.steps[0].costs; } },
     ], kills: ["OP17-117 does not offer the trash with 2 cards in hand", "OP17-117 accept: trashing 3 cards from the hand prevents the K.O."] },
     { id: "opponent-may-pay-free-amazon-life", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
+      { file: GRAMMAR_EFFECTS, from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP05-099"].abilities[0].effect.steps[0].costs; } },
     ], kills: ["OP05-099 does not offer the Life trash with 0 Life", "OP05-099 accept: trashing the last Life card prevents the -2000"] },
     { id: "opponent-may-pay-free-amazon-don", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
+      { file: GRAMMAR_EFFECTS, from: "return { do: \"may\", chooser: \"opponent\", costs: [cost], then: { do: \"nothing\" }, bind: \"_did\", prompt };", to: "return { do: \"may\", chooser: \"opponent\", then: { do: \"nothing\" }, bind: \"_did\", prompt };" },
       { json: "packages/rules/src/cards/generated/abilities.json", patch: (a) => { delete a["OP15-059"].abilities[0].effect.steps[0].costs; } },
     ], kills: ["OP15-059 does not offer the DON!! return with no active DON!!", "OP15-059 accept: returning the last active DON!! prevents the -2000"] },
     { id: "opponent-may-checks-controller-resources", file: "packages/rules/src/engine/vm.ts", from: "const payCtx: EvalCtx = instr.chooser === \"opponent\" ? { ...ctx, seat: otherSeat(frame.seat) } : ctx;", to: "const payCtx: EvalCtx = ctx;", kills: ["OP17-117 accept: trashing 3 cards from the hand prevents the K.O.", "OP05-099 does not offer the Life trash with 0 Life", "OP15-059 does not offer the DON!! return with no active DON!!"] },
@@ -557,8 +564,8 @@ module.exports = {
     {"id": "eb05-build-tcgplayer-beats-bandai", "file": "packages/rules/src/tools/buildCardData.ts", "from": "if (cards[id] || row.source !== \"tcgplayer\") continue;", "to": "if (row.source !== \"tcgplayer\") continue;", "kills": ["the Bandai row wins once the candidate has the id"]},
     {"id": "eb05-build-keeps-bundled", "file": "packages/rules/src/tools/buildCardData.ts", "from": "if (cards[id] || row.source !== \"tcgplayer\") continue;", "to": "if (cards[id] || row.source === \"bandai\") continue;", "kills": ["does not carry over a previous bundled row"]},
     {"id": "eb05-tcgplayer-traits-unknown", "file": "packages/rules/src/cards/sourceRecords.ts", "from": "official ? \"verified\" : row.source === \"tcgplayer\" ? \"unverified\" : \"unknown\"", "to": "official ? \"verified\" : \"unknown\"", "kills": ["traits from TCGPlayer are unverified"]},
-    {"id": "eb05-grammar-rest-named-leader", "file": "packages/rules/src/tools/cardText/grammar.ts", "from": "[/^rest your leader (§N", "to": "[/^rest your leader X(§N", "kills": ["matches deterministic regeneration"]},
-    {"id": "eb05-grammar-ko-or-rest", "file": "packages/rules/src/tools/cardText/grammar.ts", "from": "[/^(KO|rest) or (rest|KO) (up to", "to": "[/^(KO|rest) or X(rest|KO) (up to", "kills": ["matches deterministic regeneration"]},
+    {"id": "eb05-grammar-rest-named-leader", "file": GRAMMAR_COSTS, "from": "rule(/^rest your leader (§N", "to": "rule(/^rest your leader X(§N", "kills": ["matches deterministic regeneration"]},
+    {"id": "eb05-grammar-ko-or-rest", "file": GRAMMAR_EFFECTS, "from": "rule(/^(KO|rest) or (rest|KO) (up to", "to": "rule(/^(KO|rest) or X(rest|KO) (up to", "kills": ["matches deterministic regeneration"]},
     {"id": "eb05-grammar-they-trash", "file": "packages/rules/src/tools/cardText/normalize.ts", "from": ".replace(/\\bthey trash\\b/g, \"your opponent trashes\")", "to": "", "kills": ["matches deterministic regeneration"]},
     {"id": "eb05-grammar-leader-or-up-to-characters", "file": "packages/rules/src/tools/cardText/phrases.ts", "from": "(leader(?: card)?) or up to \\1 of \\2 (characters?)", "to": "x", "kills": ["matches deterministic regeneration"]},
     {"id": "eb05-grammar-both-types-and-trigger", "file": "packages/rules/src/tools/cardText/phrases.ts", "from": "take(/^(?:with |and )?(?:both )?(?:the )?(§T", "to": "take(/^(?:with |and )?(?:the )?(§T", "kills": ["matches deterministic regeneration"]},
@@ -672,12 +679,12 @@ module.exports = {
     { id: "lint-op13-119-if-you-do-without-affected", json: ABILITIES, patch: (a) => { const g = a["OP13-119"].abilities[1].effect.steps[2]; g.cond = g.cond.conds[0]; }, kills: [LINT_REGISTRY] },
     // "If that card is X, you may play that card. If you do, Y": the payoff needs the play to have happened (ST13-007/010/014)
     { id: "if-you-do-nested-may-ignores-affected", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "if (nested.every((m) => !m.costs?.length)) gate.cond", to: "if (false as boolean) gate.cond" },
+      { file: GRAMMAR_EFFECTS, from: "if (nested.every((m) => !m.costs?.length)) gate.cond", to: "if (false as boolean) gate.cond" },
       { json: ABILITIES, patch: (a) => { for (const [card, i] of [["ST13-007", 0], ["ST13-010", 0], ["ST13-014", 0]]) { const g = a[card].abilities[i].effect.steps[2]; g.cond = g.cond.conds[0]; } } },
     ], kills: ["ST13-007 accept but the play cannot happen", "ST13-010 accept but the play cannot happen", "ST13-014 accept but the play cannot happen", LINT_REGISTRY] },
     // A nested may whose action never writes `_affected` is a cost, so the payoff trusts `_did` (ST22-015 Life add) (#519)
     { id: "if-you-do-nested-may-stale-affected", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "if (m.costs?.length || !m.prompt || writesAffected(m.then)) continue;", to: "if (true as boolean) continue;" },
+      { file: GRAMMAR_EFFECTS, from: "if (m.costs?.length || !m.prompt || writesAffected(m.then)) continue;", to: "if (true as boolean) continue;" },
       { json: ABILITIES, patch: (a) => { const e = a["ST22-015"].abilities[0].effect; delete e.steps[0].then.steps[1].costs; const g = e.steps[1]; g.cond = { c: "and", conds: [g.cond, { c: "var_count", name: "_affected", op: ">=", value: 1 }] }; } },
     ], kills: ["ST22-015 gives the Leader +2000 when you add a Life card without playing Newgate"] },
     { id: "lint-event-table-says-no-card", file: LINT, from: "  attack_declared: true,", to: "  attack_declared: false,", kills: [LINT_REGISTRY, "EVENT_CARRIES_CARD matches what dispatchEvent passes"] },
@@ -753,7 +760,7 @@ module.exports = {
     scnManual("goner-threshold", `filter: { cost: ge(4) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }`, `filter: { cost: ge(3) } }, seq({ do: "to_hand", target: upTo(1, myChar(CHAR), { bind: "_ret" }) }`, ["EB01-029 leaves the revealed cost 3 card on top of the deck"]),
     // Searches that say "reveal" show the card to the opponent.
     { id: "scn-orochi-no-reveal", edits: [
-      { file: GRAMMAR_FILE, from: `if (target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }`, to: `if (false as boolean && target.ref === "choose" && target.bind) return { do: "seq", steps: [{ do: "reveal", target }` },
+      { file: GRAMMAR_EFFECTS, from: `if (target.ref === "choose" && target.bind) {`, to: `if (false as boolean && target.ref === "choose" && target.bind) {` },
       { json: ABILITIES, patch: (a) => { const st = a["OP01-098"].abilities[0].effect.steps[0].steps; st.splice(0, 2, { do: "to_hand", target: st[0].target }); } },
     ], kills: ["OP01-098 Kurozumi Orochi reveals the [Artificial Devil Fruit SMILE]"] },
     { id: "hand-to-life-no-reveal", file: "packages/rules/src/effects/compile.ts", from: `if (effect.reveal) out.push(`, to: `if (false as boolean) out.push(`, kills: ["OP10-119 Trafalgar Law reveals", "ST13-005 Emporio.Ivankov reveals"] },
@@ -852,18 +859,18 @@ module.exports = {
       { json: ABILITIES, patch: (a) => { a["OP18-060"].abilities[0].eventTrigger.fromZone = "hand"; } },
     ], kills: ["OP18-060 draws 2 and trashes 1 when a Character is played from your trash"] },
     { id: "op18-shark-leader-unfiltered", edits: [
-      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"you\", zone: \"leader\" } }" },
+      { file: GRAMMAR_EFFECTS, from: "selector: sel(\"you\", \"leader\", { power: le(num(m[1]!)) }) }", to: "selector: sel(\"you\", \"leader\") }" },
       { json: ABILITIES, patch: (a) => { delete a["OP18-076"].abilities[1].effect.steps[0].target.selector.filter; } },
     ], kills: ["OP18-076 leaves a Leader above 5000 power alone"] },
     { id: "op18-shark-wrong-leader", edits: [
-      { file: GRAMMAR_FILE, from: "selector: { player: \"you\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }", to: "selector: { player: \"opponent\", zone: \"leader\", filter: { power: { op: \"<=\", value: num(m[1]!) } } } }" },
+      { file: GRAMMAR_EFFECTS, from: "selector: sel(\"you\", \"leader\", { power: le(num(m[1]!)) }) }", to: "selector: sel(\"opponent\", \"leader\", { power: le(num(m[1]!)) }) }" },
       { json: ABILITIES, patch: (a) => { a["OP18-076"].abilities[1].effect.steps[0].target.selector.player = "opponent"; } },
     ], kills: ["OP18-076 gives a 5000 power Leader and the chosen Characters +1000"] },
     { id: "op18-activate-not-affected", file: "packages/rules/src/engine/ops.ts", from: "if (loc.card && isOnField(loc)) { loc.card.rested = false; frame.bindings._affected = [...(frame.bindings._affected as string[]), loc.id]; }", to: "if (loc.card && isOnField(loc)) { loc.card.rested = false; }", kills: ["OP18-022 Monkey.D.Luffy setting the Leader active (and attacking again) keeps it rested through the next Refresh Phase"] },
     { id: "op18-lint-activate-not-affected", file: LINT, from: `"play", "activate"])`, to: `"play"])`, kills: [LINT_REGISTRY] },
     scn("op18-luffy-restrict-ungated", "OP18-022", (a) => { const s = a[0].effect.steps; s[1] = s[1].then; }, ["declining leaves the Leader rested and refreshes it normally"]),
     { id: "op18-event-card-rush-target", edits: [
-      { file: GRAMMAR_FILE, from: "target: ctx.eventCard && /^that character/i.test(m[0]) ? { ref: \"event_card\" } : { ref: \"var\", name: \"_affected\" }", to: "target: { ref: \"var\", name: \"_affected\" }" },
+      { file: GRAMMAR_EFFECTS, from: "keyword(ctx.eventCard && /^that character/i.test(m[0]) ? { ref: \"event_card\" } : v(\"_affected\"), k, \"turn\")", to: "keyword(v(\"_affected\"), k, \"turn\")" },
       { json: ABILITIES, patch: (a) => { a["OP16-079"].abilities[0].effect.target = { ref: "var", name: "_affected" }; } },
     ], kills: ["OP16-079 the Character played from the trash gains Rush"] },
     // #594 card text compiler fixes
@@ -889,18 +896,18 @@ module.exports = {
     { id: "eb05-robin-opt-simultaneous-ko", file: "packages/rules/src/engine/triggers.ts", from: "        if (ability.oncePerTurn && state.triggerQueue.some((t) => t.sourceInstanceId === card.id && t.abilityId === ability.id && t.batch === state.triggerBatch)) continue;\n", to: "", kills: ["asks once when two Wisdom Characters are K.O.'d at the same time (#600)", "asks once when both Gorgon sisters are K.O.'d at the same time (#600)", "declining once covers both simultaneous K.O.s (#600)", "fires a [Once Per Turn] trigger once when two Characters are K.O.'d together"] },
     // OP18-101 Kumadori (#612): hand_to_life learned "to the top or bottom" and the CP type filter.
     { id: "op18-101-life-position-fixed-top", edits: [
-      { file: GRAMMAR_FILE, from: "const position = m[3]!.toLowerCase() === \"top\" ? \"top\" : \"top_or_bottom\";", to: "const position = \"top\";" },
+      { file: GRAMMAR_EFFECTS, from: "const position = m[3]!.toLowerCase() === \"top\" ? \"top\" : \"top_or_bottom\";", to: "const position = \"top\";" },
       { json: ABILITIES, patch: (a) => { a["OP18-101"].abilities[0].effect.position = "top"; } },
     ], kills: ["OP18-101 On K.O. adds a CP card from hand to the bottom of Life face-up when Bottom is chosen (#612)"] },
     scn("op18-101-any-card-not-just-cp", "OP18-101", (a) => { delete a[0].effect.filter; }, ["OP18-101 On K.O. offers nothing when the hand holds no CP card (#612)"]),
     scn("op18-101-life-face-down", "OP18-101", (a) => { a[0].effect.faceUp = false; }, ["OP18-101 On K.O. adds a CP card from hand to the top of Life face-up when Top is chosen (#612)"]),
     // October 2026 TCGPlayer imports (scenarios/newCardsOct2026.test.ts): keyword choice, OR card filter, "by your opponent", names with parentheses.
     { id: "oct26-cerberus-first-keyword-only", edits: [
-      { file: GRAMMAR_FILE, from: "keyword: keywordOf(k)!, duration: d } })) }] };", to: "keyword: keywordOf(keywords[0]!)!, duration: d } })) }] };" },
+      { file: GRAMMAR_EFFECTS, from: "effect: keyword(v(\"_last\"), keywordOf(k)!, d),", to: "effect: keyword(v(\"_last\"), keywordOf(keywords[0]!)!, d)," },
       { json: ABILITIES, patch: (a) => { for (const o of a["OP18-085"].abilities[0].effect.steps[1].options) o.effect.keyword = "rush"; } },
     ], kills: ["OP18-085 grants only the chosen keyword", "OP18-085 grants the last listed keyword"] },
     { id: "oct26-cerberus-drops-last-keyword", edits: [
-      { file: GRAMMAR_FILE, from: ".map((k) => k[1]!);\n    if (!target || target.ref !== \"choose\" || !d ||", to: ".map((k) => k[1]!).slice(0, 2);\n    if (!target || target.ref !== \"choose\" || !d ||" },
+      { file: GRAMMAR_EFFECTS, from: ".map((k) => k[1]!);\n      if (!target || target.ref !== \"choose\" || !d ||", to: ".map((k) => k[1]!).slice(0, 2);\n      if (!target || target.ref !== \"choose\" || !d ||" },
       { json: ABILITIES, patch: (a) => { a["OP18-085"].abilities[0].effect.steps[1].options.pop(); } },
     ], kills: ["OP18-085 grants the last listed keyword"] },
     { id: "oct26-lilith-trait-and-trigger", edits: [
@@ -1033,7 +1040,7 @@ module.exports = {
     scnManual("656-arlong-activate-gives-own-don", "effect: { do: \"give_don\", target: upTo(1, sel(\"opponent\", \"leader_or_character\")), count: 1, donState: \"rested\", player: \"opponent\" } }]),\n  card(\"OP15-024\"", "effect: giveDonChoice(\"any\") }]),\n  card(\"OP15-024\"", ["gives the opponent's rested DON!! to their Character, then up to 1 more"]),
     { id: "hyouzou-errata-dropped", file: "packages/rules/src/cards/cardData.ts", from: "  \"OP06-034\": { traits: [\"Merfolk\"] },\n", to: "", kills: ["Ikaros Much cannot play Hyouzou"] },
     { id: "play-lock-cards-still-offered", file: "packages/rules/src/engine/vm.ts", from: ".filter((l) => !instr.forPlay || playableByEffect(state, l))", to: "", kills: ["the Shirahoshi Leader only offers Characters with base cost under 5"] },
-    { id: "leader-type-keyword-grant-rule-removed", file: GRAMMAR_FILE, from: "[/^your leader with (the §T\\d+§ type.*?) gains", to: "[/^your leader without (the §T\\d+§ type.*?) gains", kills: ["OP18-047 compiles to an if on Cross Guild or a type including Baroque Works, granting your Leader Unblockable this turn (#666)"] },
+    { id: "leader-type-keyword-grant-rule-removed", file: GRAMMAR_EFFECTS, from: "/^your leader with (the §T\\d+§ type.*?) gains", to: "/^your leader without (the §T\\d+§ type.*?) gains", kills: ["OP18-047 compiles to an if on Cross Guild or a type including Baroque Works, granting your Leader Unblockable this turn (#666)"] },
     { id: "scn-666-mr1-ungated", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; a["OP18-047"].abilities[0].effect = e.then; }, kills: ["On Play gives a Leader with neither type nothing (#666)"] },
     { id: "scn-666-mr1-drops-baroque-works", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[0]; }, kills: ["On Play gives a Leader with a type including \"Baroque Works\" [Unblockable] (#666)"] },
     { id: "scn-666-mr1-drops-cross-guild", json: ABILITIES, patch: (a) => { const e = a["OP18-047"].abilities[0].effect; e.cond = e.cond.conds[1]; }, kills: ["On Play gives a {Cross Guild} Leader [Unblockable] (#666)"] },
@@ -1084,8 +1091,8 @@ module.exports = {
     { id: "stryker3-hand-lock-not-shown", file: "packages/rules/src/engine/views.ts", from: "if (playerRestricted(state, seat, \"cannot_play_cards_from_hand\", c)) row.blocked = \"from_hand\";\n          else if", to: "if (false as boolean) row.blocked = \"from_hand\";\n          else if", kills: ["hand rows in the player view say a hand lock blocks every card in hand, Characters and Events alike"] },
     { id: "stryker3-query-cache-read-by-nested-queries", file: "packages/rules/src/engine/statics.ts", from: "return staticGuard === 0 && negateGuard === 0 && costGuard === 0 ? cacheOf(state) : null;", to: "return cacheOf(state);", kills: ["static results read through the query cache a Character keeps its own static bonuses in the view after another card's condition has looked at it"] },
     { id: "any-order-of-their-choosing-tail", edits: [
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "of the owner's deck(?: in any order(?: of their choosing)?)?|[+-]\\d+ (?:power|cost)", to: "of the owner's deck(?: in any order)?|[+-]\\d+ (?:power|cost)" },
-      { file: "packages/rules/src/tools/cardText/grammar.ts", from: "(?:the owner's|its owner's|their owner's|your|their) deck(?: in any order(?: of their choosing)?)?$/i, (m, ctx) => {\n    const src", to: "(?:the owner's|its owner's|their owner's|your|their) deck(?: in any order)?$/i, (m, ctx) => {\n    const src" },
+      { file: GRAMMAR_EFFECTS, from: "of the owner's deck(?: in any order(?: of their choosing)?)?|[+-]\\d+ (?:power|cost)", to: "of the owner's deck(?: in any order)?|[+-]\\d+ (?:power|cost)" },
+      { file: GRAMMAR_EFFECTS, from: "(?:the owner's|its owner's|their owner's|your|their) deck(?: in any order(?: of their choosing)?)?$/i,\n    (m, ctx) => {\n      const src", to: "(?:the owner's|its owner's|their owner's|your|their) deck(?: in any order)?$/i,\n    (m, ctx) => {\n      const src" },
     ], kills: ["OP18-051 compiles both bottom-deck moves, cost 6 or less then cost 5 or less (#759)"] },
     // Weekly Stryker survivors 2026-11-02 (#859)
     { id: "stryker4-counter-event-never-offered", file: "packages/rules/src/engine/intents.ts", from: "const ability = def.type === \"event\" ? mainAbility(def.id, \"counter\") : undefined;", to: "const ability = false ? mainAbility(def.id, \"counter\") : undefined;", kills: ["offers a Counter Event when the active DON!! exactly cover its cost", "offers only Characters with a Counter value as counters"] },
