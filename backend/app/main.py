@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.core.body_limit import BodySizeLimitMiddleware
 from app.core.config import get_settings
 from app.core.cors import TieredCORSMiddleware
+from app.core.errors import register as register_domain_errors
 from app.core.db import init_db, startup_lock
 from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
@@ -72,6 +73,7 @@ app = FastAPI(
     redoc_url=_redoc,
     openapi_url=_openapi,
 )
+register_domain_errors(app)
 
 _cors_origins = [settings.frontend_origin.rstrip("/")]
 _cors_origins.extend(settings.duel_cors_origin_list)

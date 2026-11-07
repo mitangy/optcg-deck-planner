@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import timedelta
 
-from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.core.errors import Conflict, DomainError, NotFound
 from app.planner import catalog_repo
 from app.core.statuses import TradeStatus
 from app.core.time import as_utc, utcnow
@@ -43,7 +43,7 @@ def load_recipient(db: Session, sender: User, recipient_id: int) -> User:
         or is_banned(other)
         or not fv.are_friends(db, sender.id, other.id)
     ):
-        raise HTTPException(status_code=404, detail="Not found.")
+        raise NotFound("Not found.")
     return other
 
 
@@ -62,7 +62,7 @@ def validate_offer(
     ``require_open`` is off at accept: accepting is the recipient's own consent.
     """
     if require_open and not fv.get_sharing(db, recipient.id).trades_open:
-        raise HTTPException(status_code=409, detail=f"{recipient.username} isn't open to trades.")
+        raise Conflict(f"{recipient.username} isn't open to trades.")
 
     held_sender, cat_sender = fv.holdings(db, sender)
     held_recipient, cat_recipient = fv.holdings(db, recipient)
@@ -88,7 +88,7 @@ def validate_offer(
                 detail = f"You don't have {qty} spare {name} ({card_id})."
             else:
                 detail = f"{who(party)} no longer has {qty} spare {name} ({card_id})."
-            raise HTTPException(status_code=409, detail=detail)
+            raise Conflict(detail)
 
     alts_by_party = {
         "give": catalog_repo.alt_owned_map(db, sender.id),
@@ -105,10 +105,7 @@ def validate_offer(
             party = parties[side][0]
             subject = "You don't" if party.id == actor.id else f"{who(party)} doesn't"
             what = "of that printing" if pid is not None else "of the standard printing"
-            raise HTTPException(
-                status_code=409,
-                detail=f"{subject} own {qty} {what} of {card_id}.",
-            )
+            raise Conflict(f"{subject} own {qty} {what} of {card_id}.")
 
 
 def open_offer_count(db: Session, sender_id: int, recipient_id: int) -> int:
@@ -125,9 +122,9 @@ def open_offer_count(db: Session, sender_id: int, recipient_id: int) -> int:
 
 def check_offer_cap(db: Session, sender: User, recipient: User) -> None:
     if open_offer_count(db, sender.id, recipient.id) >= MAX_OPEN_OFFERS_PER_PAIR:
-        raise HTTPException(
+        raise DomainError(
+            f"You already have {MAX_OPEN_OFFERS_PER_PAIR} open offers with {recipient.username}.",
             status_code=429,
-            detail=f"You already have {MAX_OPEN_OFFERS_PER_PAIR} open offers with {recipient.username}.",
         )
 
 
@@ -296,7 +293,7 @@ def load_offer(db: Session, user: User, offer_id: int) -> TradeOffer:
     """The offer if ``user`` is a party to it (else 404); a stale pending one is expired first."""
     offer = db.get(TradeOffer, offer_id)
     if offer is None or user.id not in (offer.from_user_id, offer.to_user_id):
-        raise HTTPException(status_code=404, detail="Not found.")
+        raise NotFound("Not found.")
     if offer.status == TradeStatus.PENDING and as_utc(offer.expires_at) <= utcnow():
         offer.status = TradeStatus.EXPIRED
         db.commit()
@@ -354,7 +351,7 @@ def apply_trade(db: Session, offer: TradeOffer, user: User) -> None:
         select(TradeApply).where(TradeApply.offer_id == offer.id, TradeApply.user_id == user.id)
     )
     if record is not None and record.undone_at is None:
-        raise HTTPException(status_code=409, detail="You already updated your collection for this trade.")
+        raise Conflict("You already updated your collection for this trade.")
     if record is None:
         record = TradeApply(offer_id=offer.id, user_id=user.id, created_at=utcnow())
         db.add(record)
@@ -401,7 +398,7 @@ def undo_apply(db: Session, offer: TradeOffer, user: User) -> None:
         select(TradeApply).where(TradeApply.offer_id == offer.id, TradeApply.user_id == user.id)
     )
     if record is None or record.undone_at is not None:
-        raise HTTPException(status_code=409, detail="There is nothing to undo.")
+        raise Conflict("There is nothing to undo.")
     cache: dict = {}
     for ln in reversed(record.lines):
         current = _qty(db, cache, user.id, ln.card_id, ln.product_id)

@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import Forbidden, Invalid, NotFound
 from app.core.statuses import GroupBuyStatus, ReceiptLineStatus
 from app.group_buy.merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
@@ -93,7 +94,7 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
         )
     )
     if group is None:
-        raise LookupError("Group buy not found")
+        raise NotFound("Group buy not found")
     return group
 
 
@@ -101,12 +102,12 @@ def _require_member(group: GroupBuy, user: User) -> GroupBuyMember:
     for member in group.members:
         if member.user_id == user.id:
             return member
-    raise PermissionError("Not a member of this group buy")
+    raise Forbidden("Not a member of this group buy")
 
 
 def _require_host(group: GroupBuy, user: User) -> None:
     if group.host_user_id != user.id:
-        raise PermissionError("Only the host can do that")
+        raise Forbidden("Only the host can do that")
 
 
 def _qty_override_map(group: GroupBuy) -> dict[tuple[int, str], int]:
@@ -609,14 +610,14 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
         )
     )
     if group is None:
-        raise LookupError("Invite link not found")
+        raise NotFound("Invite link not found")
     if group.status in FROZEN_STATUSES:
         # Allow existing members to open; block new joins.
         try:
             _require_member(group, user)
             return get_group_buy(db, user, group.id)
         except PermissionError as exc:
-            raise PermissionError(
+            raise Forbidden(
                 f"This group buy is {group.status}; new members cannot join"
             ) from exc
 
@@ -641,7 +642,7 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
         .options(selectinload(GroupBuy.host), selectinload(GroupBuy.members))
     )
     if group is None:
-        raise LookupError("Invite link not found")
+        raise NotFound("Invite link not found")
     return GroupBuyInvitePreview(
         title=group.title,
         host_name=_display_name(group.host),
@@ -678,7 +679,7 @@ def set_title(
     _require_host(group, user)
     cleaned = (title or "").strip()
     if not cleaned:
-        raise ValueError("Group buy name cannot be empty")
+        raise Invalid("Group buy name cannot be empty")
     group.title = cleaned[:200]
     db.commit()
     return get_group_buy(db, user, group_id)
@@ -698,7 +699,7 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
         )
     )
     if group is None:
-        raise LookupError("Group buy not found")
+        raise NotFound("Group buy not found")
     return _detail_from_group(db, group, user=None, read_only=True)
 
 
@@ -711,7 +712,7 @@ def update_contribution(
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
-        raise PermissionError("Group buy is locked; contributions cannot change")
+        raise Forbidden("Group buy is locked; contributions cannot change")
     member.deck_ids_json = _dump_deck_ids(deck_ids)
     db.commit()
     return get_group_buy(db, user, group_id)
@@ -756,10 +757,10 @@ def set_member_qty(
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
-        raise PermissionError("Group buy is locked; quantities cannot change")
+        raise Forbidden("Group buy is locked; quantities cannot change")
     card_id = card_id.upper().strip()
     if not card_id:
-        raise ValueError("card_id is required")
+        raise Invalid("card_id is required")
     qty = max(0, min(999, int(qty)))
 
     # Default (no override) is shopping still-need. If qty matches that, clear override.
@@ -810,7 +811,7 @@ def clear_member_qty(
     group = _get_group(db, group_id)
     _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
-        raise PermissionError("Group buy is locked; quantities cannot change")
+        raise Forbidden("Group buy is locked; quantities cannot change")
     card_id = card_id.upper().strip()
     existing = db.scalar(
         select(GroupBuyQtyOverride).where(
@@ -830,7 +831,7 @@ def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDe
     group = _get_group(db, group_id)
     _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
-        raise PermissionError("Group buy is locked; quantities cannot change")
+        raise Forbidden("Group buy is locked; quantities cannot change")
     db.execute(
         delete(GroupBuyQtyOverride).where(
             GroupBuyQtyOverride.group_buy_id == group.id,
@@ -892,7 +893,7 @@ def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
         group.shipping_cost = max(0.0, float(body.shipping_cost))
     if body.shipping_split is not None:
         if body.shipping_split not in SHIPPING_SPLIT_MODES:
-            raise ValueError("shipping_split must be equal, by_cost, or by_copies")
+            raise Invalid("shipping_split must be equal, by_cost, or by_copies")
         group.shipping_split = body.shipping_split
     if body.tax_cost is not None:
         group.tax_cost = max(0.0, float(body.tax_cost))
@@ -902,7 +903,7 @@ def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
-        raise PermissionError(f"Group buy is already {group.status}")
+        raise Forbidden(f"Group buy is already {group.status}")
     if group.status == GroupBuyStatus.LOCKED:
         return get_group_buy(db, user, group_id)
 
@@ -917,7 +918,7 @@ def unlock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
-        raise PermissionError(f"{group.status.capitalize()} group buys cannot be unlocked")
+        raise Forbidden(f"{group.status.capitalize()} group buys cannot be unlocked")
     group.status = GroupBuyStatus.OPEN
     group.locked_at = None
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
@@ -935,11 +936,11 @@ def mark_ordered(
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
-        raise PermissionError("Group buy is already completed")
+        raise Forbidden("Group buy is already completed")
     if group.status == GroupBuyStatus.OPEN:
-        raise PermissionError("Lock for checkout before marking ordered")
+        raise Forbidden("Lock for checkout before marking ordered")
     if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        raise PermissionError("Group buy cannot be marked ordered from this status")
+        raise Forbidden("Group buy cannot be marked ordered from this status")
 
     if body is not None:
         _apply_order_fields(group, body)
@@ -960,7 +961,7 @@ def update_order(
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.OPEN:
-        raise PermissionError("Lock or mark ordered before editing order details")
+        raise Forbidden("Lock or mark ordered before editing order details")
     _apply_order_fields(group, body)
     db.commit()
     return get_group_buy(db, user, group_id)
@@ -976,7 +977,7 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
         return get_group_buy(db, user, group_id)
-    raise PermissionError(
+    raise Forbidden(
         "Import a TCGPlayer receipt and Mark purchased for matched cards — "
         "completing without a receipt is not supported"
     )
@@ -1081,9 +1082,9 @@ def leave_group_buy(db: Session, user: User, group_id: int) -> None:
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.host_user_id == user.id:
-        raise ValueError("Host can't leave; delete the group buy instead")
+        raise Invalid("Host can't leave; delete the group buy instead")
     if group.status != GroupBuyStatus.OPEN:
-        raise ValueError("Ask the host to unlock first")
+        raise Invalid("Ask the host to unlock first")
     for row in list(group.qty_overrides):
         if row.user_id == user.id:
             db.delete(row)
@@ -1121,7 +1122,7 @@ def save_receipt_text(db: Session, user: User, group_id: int, receipt_text: str)
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        raise PermissionError("Receipt can only be saved while locked or ordered")
+        raise Forbidden("Receipt can only be saved while locked or ordered")
     cleaned = (receipt_text or "").strip()[:200_000]
     if cleaned != (group.receipt_text or ""):
         group.receipt_text = cleaned
@@ -1270,24 +1271,24 @@ def apply_receipt_to_group_buy(
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
-        raise PermissionError("Group buy is already completed")
+        raise Forbidden("Group buy is already completed")
     if group.status == GroupBuyStatus.OPEN:
-        raise PermissionError("Lock for checkout before applying a receipt")
+        raise Forbidden("Lock for checkout before applying a receipt")
     if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        raise PermissionError("Group buy cannot apply a receipt from this status")
+        raise Forbidden("Group buy cannot apply a receipt from this status")
 
     cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
     group.receipt_text = cleaned_receipt
 
     report = build_receipt_match_report(db, user, group_id, cleaned_receipt)
     if not report.can_apply_partial:
-        raise ValueError("No receipt lines matched cards in this group buy")
+        raise Invalid("No receipt lines matched cards in this group buy")
 
     selected: set[str] | None = None
     if body.card_ids is not None:
         selected = {c.upper().strip() for c in body.card_ids if c and c.strip()}
         if not selected:
-            raise ValueError("No cards selected to stage")
+            raise Invalid("No cards selected to stage")
 
     staged_lines = [
         line
@@ -1297,17 +1298,17 @@ def apply_receipt_to_group_buy(
         and (selected is None or line.card_id in selected)
     ]
     if not staged_lines:
-        raise ValueError("No selected cards have receipt copies to apply")
+        raise Invalid("No selected cards have receipt copies to apply")
 
     if not body.allow_partial:
         if not report.can_apply_full:
-            raise ValueError(
+            raise Invalid(
                 "Receipt does not fully cover the group buy — enable partial apply or fix shortages"
             )
         if selected is not None:
             pool_ids = {l.card_id for l in report.lines if l.needed_qty > 0}
             if selected != pool_ids:
-                raise ValueError("Full apply requires staging every pool card")
+                raise Invalid("Full apply requires staging every pool card")
 
     # Ensure ordered before mutating owned / snapshot
     status_before = group.status
@@ -1362,7 +1363,7 @@ def apply_receipt_to_group_buy(
                     db.delete(snap)
 
     if not applied_any:
-        raise ValueError("Nothing left to apply — snapshot may already be cleared")
+        raise Invalid("Nothing left to apply — snapshot may already be cleared")
 
     db.flush()
     remaining = any(int(row.qty) > 0 for row in group.snapshot_lines)
@@ -1382,14 +1383,14 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
-        raise PermissionError("Nothing to undo in this status")
+        raise Forbidden("Nothing to undo in this status")
 
     applies = sorted(
         group.receipt_applies,
         key=lambda a: (a.applied_at or datetime.min.replace(tzinfo=timezone.utc), a.id or 0),
     )
     if not applies:
-        raise ValueError(
+        raise Invalid(
             "Nothing to undo — this purchase was not recorded (apply before undo was available)"
         )
     apply_event = applies[-1]

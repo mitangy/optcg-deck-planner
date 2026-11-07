@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.errors import NotFound
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 from app.core.statuses import FriendshipStatus
@@ -24,9 +24,9 @@ from app.roles import is_banned
 Scope = Literal["profile", "decks", "collection", "trades"]
 
 
-def not_found() -> HTTPException:
+def not_found() -> NotFound:
     # One answer for every failure so nobody can probe who exists or what they share.
-    return HTTPException(status_code=404, detail="Not found.")
+    return NotFound("Not found.")
 
 
 @dataclass(frozen=True)

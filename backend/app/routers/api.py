@@ -57,7 +57,6 @@ from app.planner import decks as deck_svc
 from app.planner import owned as owned_svc
 from app.planner import share as share_svc
 from app.planner import shopping as shopping_svc
-from app.planner.decks import DeckOversizeError
 
 router = APIRouter(tags=["api"])
 
@@ -83,10 +82,7 @@ def post_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        deck = deck_svc.create_deck(db, user, body.name, body.decklist)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    deck = deck_svc.create_deck(db, user, body.name, body.decklist)
     return deck_svc.deck_summary(db, user, deck)
 
 
@@ -96,10 +92,7 @@ def remove_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        deck_svc.delete_deck(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    deck_svc.delete_deck(db, user, deck_id)
     return {"ok": True}
 
 
@@ -110,14 +103,9 @@ def rename_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return deck_svc.update_deck(
-            db, user, deck_id, body.name, body.hidden_from_friends
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.update_deck(
+        db, user, deck_id, body.name, body.hidden_from_friends
+    )
 
 
 @router.post("/decks/{deck_id}/set-main", response_model=DeckDetail)
@@ -127,12 +115,7 @@ def set_deck_main(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Mark this deck as Main for its leader; variants compare Additional Cards against it."""
-    try:
-        return deck_svc.set_deck_as_main(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.set_deck_as_main(db, user, deck_id)
 
 
 @router.get("/decks/{deck_id}", response_model=DeckDetail)
@@ -143,10 +126,7 @@ def get_deck(
     deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     """Optional deck_ids limits which other decks claim owned copies first (Separate per leader)."""
-    try:
-        return deck_svc.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return deck_svc.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
 
 
 @router.put("/decks/{deck_id}/decklist", response_model=DeckDetail)
@@ -156,12 +136,7 @@ def put_deck_decklist(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return deck_svc.replace_deck_list(db, user, deck_id, body.decklist)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.replace_deck_list(db, user, deck_id, body.decklist)
 
 
 @router.put("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
@@ -172,30 +147,14 @@ def put_deck_card(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return deck_svc.upsert_deck_card(
-            db,
-            user,
-            deck_id,
-            card_id,
-            body.needed,
-            confirm_oversize=body.confirm_oversize,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except DeckOversizeError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "deck_oversize",
-                "message": str(exc),
-                "current": exc.current,
-                "projected": exc.projected,
-                "limit": exc.limit,
-            },
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.upsert_deck_card(
+        db,
+        user,
+        deck_id,
+        card_id,
+        body.needed,
+        confirm_oversize=body.confirm_oversize,
+    )
 
 
 @router.delete("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
@@ -205,14 +164,9 @@ def delete_deck_card(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return deck_svc.upsert_deck_card(
-            db, user, deck_id, card_id, 0, confirm_oversize=True
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.upsert_deck_card(
+        db, user, deck_id, card_id, 0, confirm_oversize=True
+    )
 
 
 @router.put(
@@ -228,14 +182,9 @@ def put_deck_card_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many copies of an alt printing are wanted in this deck (≤ Need)."""
-    try:
-        return deck_svc.set_deck_card_printing(
-            db, user, deck_id, card_id, product_id, body.qty
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.set_deck_card_printing(
+        db, user, deck_id, card_id, product_id, body.qty
+    )
 
 
 @router.put(
@@ -250,19 +199,14 @@ def put_card_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set alt-art want across decks that include the card (shopping / group-buy sync)."""
-    try:
-        qty, decks_updated = owned_svc.set_user_card_printing(
-            db,
-            user,
-            card_id,
-            product_id,
-            body.qty,
-            deck_ids=body.deck_ids,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty, decks_updated = owned_svc.set_user_card_printing(
+        db,
+        user,
+        card_id,
+        product_id,
+        body.qty,
+        deck_ids=body.deck_ids,
+    )
     return CardPrintingResult(
         card_id=card_id.upper(),
         product_id=product_id,
@@ -278,10 +222,7 @@ def reset_deck_owned(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Zero Owned counts for every card that appears in this deck."""
-    try:
-        reset_count, detail = owned_svc.reset_deck_owned(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    reset_count, detail = owned_svc.reset_deck_owned(db, user, deck_id)
     return DeckOwnedResetResult(deck_id=deck_id, reset_count=reset_count, deck=detail)
 
 
@@ -308,10 +249,7 @@ def put_shopping_extra(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set the target copies to own for a card added straight to Master Shopping."""
-    try:
-        qty = shopping_svc.set_shopping_extra(db, user, card_id, body.qty)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    qty = shopping_svc.set_shopping_extra(db, user, card_id, body.qty)
     return {"card_id": card_id.upper().strip(), "qty": qty}
 
 
@@ -348,10 +286,7 @@ def post_owned_add(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Add copies to several cards at once (the Collection photo scan)."""
-    try:
-        rows = owned_svc.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    rows = owned_svc.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
     return OwnedAddResponse(items=[OwnedAddResult(card_id=c, owned=n) for c, n in rows])
 
 
@@ -378,10 +313,7 @@ def put_owned_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many copies of an alt printing the user owns."""
-    try:
-        qty = owned_svc.set_alt_owned(db, user, card_id, product_id, body.qty)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty = owned_svc.set_alt_owned(db, user, card_id, product_id, body.qty)
     return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
@@ -397,10 +329,7 @@ def put_collector_want(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many collector copies of an alt printing the user wants (0 removes)."""
-    try:
-        qty = owned_svc.set_collector_want(db, user, card_id, product_id, body.qty)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty = owned_svc.set_collector_want(db, user, card_id, product_id, body.qty)
     return CollectorWantResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
@@ -412,10 +341,7 @@ def put_display_art(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Choose which art the card shows (null = automatic, 0 = base art)."""
-    try:
-        product_id = owned_svc.set_display_art(db, user, card_id, body.product_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    product_id = owned_svc.set_display_art(db, user, card_id, body.product_id)
     return DisplayArtResult(card_id=card_id.upper().strip(), product_id=product_id)
 
 
@@ -433,19 +359,14 @@ def post_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return share_svc.create_or_update_share(
-            db,
-            user,
-            body.kind,
-            deck_id=body.deck_id,
-            deck_ids=body.deck_ids,
-            include_extras=body.include_extras,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return share_svc.create_or_update_share(
+        db,
+        user,
+        body.kind,
+        deck_id=body.deck_id,
+        deck_ids=body.deck_ids,
+        include_extras=body.include_extras,
+    )
 
 
 @router.delete("/share/{token}")
@@ -454,10 +375,7 @@ def delete_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        share_svc.revoke_share(db, user, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    share_svc.revoke_share(db, user, token)
     return {"ok": True}
 
 
@@ -471,10 +389,7 @@ def get_public_share(
 
     A deck share shows owned counts from the viewer's collection when signed in (#741).
     """
-    try:
-        return share_svc.public_share_view(db, token, viewer)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return share_svc.public_share_view(db, token, viewer)
 
 
 @router.post("/public/share/{token}/copy", response_model=DeckDetail)
@@ -484,12 +399,7 @@ def post_copy_shared_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Copy a shared deck into the signed-in viewer's decks (#741)."""
-    try:
-        new = share_svc.copy_shared_deck(db, user, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    new = share_svc.copy_shared_deck(db, user, token)
     return deck_svc.get_deck_detail(db, user, new.id)
 
 

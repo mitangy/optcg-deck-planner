@@ -7,6 +7,7 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import Invalid, NotFound
 from app.planner.domain import (
     parse_cost,
 )
@@ -71,11 +72,11 @@ def set_user_card_printing(
     """
     card_id = card_id.strip().upper()
     if not card_id:
-        raise ValueError("card_id is required")
+        raise Invalid("card_id is required")
     if qty < 0:
-        raise ValueError("qty must be >= 0")
+        raise Invalid("qty must be >= 0")
     if product_id <= 0:
-        raise ValueError("product_id must be positive")
+        raise Invalid("product_id must be positive")
 
     _assert_special_printing(db, card_id, product_id)
 
@@ -103,7 +104,7 @@ def set_user_card_printing(
         )
     )
     if not groups and extra is None:
-        raise LookupError("Card not in any selected deck")
+        raise NotFound("Card not in any selected deck")
 
     sum_leaders = bool(getattr(user, "sum_across_leaders", False))
     remaining = qty
@@ -299,7 +300,7 @@ def set_display_art(
             db.commit()
         return None
     if product_id < 0:
-        raise ValueError("Invalid display art")
+        raise Invalid("Invalid display art")
     if product_id > 0:
         printing = db.scalar(
             select(CatalogPrinting).where(
@@ -308,7 +309,7 @@ def set_display_art(
             )
         )
         if printing is None:
-            raise ValueError("Unknown printing for this card")
+            raise Invalid("Unknown printing for this card")
     if row is None:
         db.add(CardDisplayChoice(user_id=user.id, card_id=card_id, product_id=product_id))
     else:
@@ -343,7 +344,7 @@ def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tup
         wanted[key] = wanted.get(key, 0) + add
     for key in wanted:
         if db.get(CatalogCard, key) is None:
-            raise LookupError(f"Card not found in catalog: {key}")
+            raise NotFound(f"Card not found in catalog: {key}")
     rows = {
         r.card_id: r
         for r in db.scalars(
@@ -374,7 +375,7 @@ def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDe
         .options(selectinload(Deck.cards))
     )
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
 
     card_ids = {c.card_id for c in deck.cards}
     reset_count = 0
