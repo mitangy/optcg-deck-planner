@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BuildTag } from "./BuildTag";
+import { BuildTag } from "@optcg/ui/appShell";
 import { DUEL_URL } from "./duelLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { Topbar } from "./Topbar";

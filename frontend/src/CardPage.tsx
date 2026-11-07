@@ -181,7 +181,7 @@ function TournamentPlay({
           <dl className="card-play-stats">
             <div>
               <dt>{u.is_leader ? "Meta share" : "In decks"}</dt>
-              <dd>{u.total_decks ? formatPercent(u.rate) : "–"}</dd>
+              <dd>{u.total_decks ? formatPercent(u.rate) : "—"}</dd>
             </div>
             <div>
               <dt>{u.is_leader ? "Decks led" : "Decks"}</dt>
@@ -189,7 +189,7 @@ function TournamentPlay({
             </div>
             <div>
               <dt>{u.is_leader ? "All decks" : "Avg copies"}</dt>
-              <dd>{u.is_leader ? u.total_decks.toLocaleString("en-US") : u.average_copies != null ? u.average_copies.toFixed(1) : "–"}</dd>
+              <dd>{u.is_leader ? u.total_decks.toLocaleString("en-US") : u.average_copies != null ? u.average_copies.toFixed(1) : "—"}</dd>
             </div>
           </dl>
           <p className="muted card-play-headline">

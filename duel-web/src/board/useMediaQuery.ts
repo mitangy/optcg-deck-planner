@@ -1,22 +1,4 @@
-import { useEffect, useState } from "react";
-
-/** Live `matchMedia` result (false where matchMedia is unavailable). */
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia(query).matches
-      : false,
-  );
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const mql = window.matchMedia(query);
-    const onChange = () => setMatches(mql.matches);
-    onChange();
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
-}
+export { useMediaQuery } from "@optcg/ui/hooks";
 
 /** Landscape phones (short), unfolded foldables and small landscape windows (480-899px wide). */
 const LANDSCAPE_RAIL_SHORT = "(orientation: landscape) and (min-width: 480px) and (max-height: 499px)";

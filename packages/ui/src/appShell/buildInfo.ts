@@ -6,7 +6,7 @@ export function formatBuildTag(sha: string | undefined | null): string {
   return trimmed.slice(0, 7);
 }
 
-/** Last committed hash for this duel-web bundle (or `"dev"` / `"unknown"`). */
+/** Last committed hash for this app bundle (or `"dev"` / `"unknown"`). */
 export const BUILD_SHA = formatBuildTag(import.meta.env.VITE_GIT_SHA);
 
 /** ISO time this bundle was built, or null in dev/tests. */

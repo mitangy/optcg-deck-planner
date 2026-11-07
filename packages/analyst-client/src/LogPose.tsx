@@ -13,7 +13,8 @@ import { LogPosePanel } from "./Panel";
 import { useOwnedSlot, useRegisterSlot } from "./ownedSlot";
 import { useChat, NOT_SENT } from "./useChat";
 import { useCredit } from "./useCredit";
-import { DRAWER_QUERY, useMedia } from "./useMedia";
+import { DRAWER_QUERY } from "./mediaQueries";
+import { useMediaQuery } from "@optcg/ui/hooks";
 import type { DockHosts, GameAskResult, LogPoseGame, LogPosePage, OwnClaude } from "./types";
 
 export type { DockHosts, GameAskResult, LogPoseGame, LogPosePage, OwnClaude } from "./types";
@@ -257,7 +258,7 @@ export function LogPoseProvider({
   }, []);
 
   // Docking (desktop only): a side the player chose, how wide the strip is outside a game, and the board's side columns.
-  const wideEnough = useMedia(DRAWER_QUERY);
+  const wideEnough = useMediaQuery(DRAWER_QUERY);
   const [dock, setDockState] = useState<Dock>(() => readDock());
   const [dockW, setDockW] = useState(() => readDockW());
   const setDock = useCallback((next: Dock) => {
