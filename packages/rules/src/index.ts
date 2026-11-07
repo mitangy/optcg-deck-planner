@@ -39,6 +39,7 @@ export {
   hasKeyword,
   isNegated,
 } from "./engine.js";
+export { parseIntent, type ParseIntentResult, type ParseIntentErrorCode } from "./engine/parseIntent.js";
 export { describeEvents } from "./describeEvents.js";
 export { revealReason, revealsHiddenInfo } from "./revealsHiddenInfo.js";
 export { reseedMatch } from "./reseed.js";

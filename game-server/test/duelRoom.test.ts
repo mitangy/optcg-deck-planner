@@ -335,6 +335,56 @@ describe("DuelRoom", () => {
     assert.equal(typeof bags[0].over!.result.reason, "string");
   });
 
+  it("malformed intents get a bad_protocol error and an engine throw gets illegal_intent; the room keeps working (refactor 0.2)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      seed: 7,
+      autoSkipMulligan: true,
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("p0", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("p1", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+
+    const active = bags[0].views.at(-1)!.activeSeat;
+    const client = active === 0 ? c0 : c1;
+    const bag = bags[active];
+    const send = (intent: unknown) => client.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
+
+    send({ type: "play_card", handIndex: "length" });
+    send({ type: "play_card", handIndex: -1 });
+    send({ type: "nonsense" });
+    send({ type: "declare_attack", attackerId: "a", target: "leader" });
+    await waitUntil(() => bag.errors.length >= 4, 5000);
+    assert.deepEqual(bag.errors.map((e) => e.code), ["bad_protocol", "bad_protocol", "bad_protocol", "bad_protocol"]);
+    bag.errors.length = 0;
+
+    // A state the engine cannot clone-and-run makes applyIntent throw; the sender still gets the normal error.
+    const internals = room as unknown as { match: { rng: unknown } };
+    const goodRng = internals.match.rng;
+    internals.match.rng = null;
+    send({ type: "end_turn" });
+    await waitUntil(() => bag.errors.length >= 1, 5000);
+    assert.equal(bag.errors[0]!.code, "illegal_intent");
+    internals.match.rng = goodRng;
+    bag.errors.length = 0;
+
+    const viewsBefore = bags[0].views.length + bags[1].views.length;
+    send({ type: "end_turn" });
+    await waitUntil(() => bags[0].views.length + bags[1].views.length > viewsBefore, 5000);
+    assert.equal(bag.errors.length, 0);
+    assert.notEqual(bags[0].views.at(-1)!.activeSeat, active);
+
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
   it("rejects a third player when both seats are filled", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

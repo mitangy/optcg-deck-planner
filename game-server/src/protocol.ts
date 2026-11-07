@@ -2,7 +2,7 @@
  * Duel wire protocol — protocolVersion 5 (generic effect choice requests).
  * Intents / views come from @optcg/rules; this module only validates envelopes.
  */
-import { BOT_LEVELS, type BotLevel, type GameEvent, type Intent, type Seat } from "@optcg/rules";
+import { BOT_LEVELS, parseIntent, type BotLevel, type GameEvent, type Intent, type Seat } from "@optcg/rules";
 import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export const PROTOCOL_VERSION = 5 as const;
@@ -461,7 +461,12 @@ export function parseIntentMessage(raw: unknown): Intent {
       code: "bad_protocol" as const,
     });
   }
-  return o.intent as Intent;
+  // The engine indexes arrays with intent fields, so the shape is checked here (refactor 0.2).
+  const parsed = parseIntent(o.intent);
+  if (!parsed.ok) {
+    throw Object.assign(new Error(parsed.message), { code: "bad_protocol" as const });
+  }
+  return parsed.intent;
 }
 
 /** Parse client → server cosmetics update (artPrefs for the sender's seat). */

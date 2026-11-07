@@ -1324,8 +1324,21 @@ export class DuelRoom extends Room implements PresenceSource {
   private applySeatIntent(seat: Seat, intent: Intent): { ok: true } | { ok: false; message: string } {
     if (!this.match || !this.rng) return { ok: false, message: "Match not started" };
     const before = this.match;
-    const undoSnap = this.captureUndoSnapshot(seat, intent);
-    const result = applyIntent(before, intent, { seat, rng: this.rng });
+    let undoSnap: ReturnType<typeof this.captureUndoSnapshot>;
+    let result: ReturnType<typeof applyIntent>;
+    try {
+      undoSnap = this.captureUndoSnapshot(seat, intent);
+      result = applyIntent(before, intent, { seat, rng: this.rng });
+    } catch (e) {
+      // applyIntent works on a clone, so this.match is untouched; answer like any illegal intent (refactor 0.2).
+      this.log("warn", "apply_intent_threw", {
+        matchId: this.matchId,
+        seat,
+        intentType: intent.type,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      return { ok: false, message: "Intent could not be applied" };
+    }
     if (!result.ok) {
       this.log("info", "illegal_intent", {
         matchId: this.matchId,
