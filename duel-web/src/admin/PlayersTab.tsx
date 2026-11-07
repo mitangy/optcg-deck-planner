@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { type AdminDayMatches, type AdminOverview, type DayMatch, fetchAdminMatches } from "./adminApi";
 import { BarChart, RangePicker, Tile } from "./charts";
 import { ariaSort, dayLabel, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, timeOf } from "./adminLogic";
@@ -98,19 +99,9 @@ function MatchRow({ m }: { m: DayMatch }) {
 
 /** The matches of one day, under the chart that was clicked. Its own box, so the chart above never moves. */
 function DayMatchesPanel({ day, onClose, load }: { day: string; onClose: () => void; load: (day: string) => Promise<AdminDayMatches> }) {
-  const [state, setState] = useState<{ day: string; status: "loading" | "error" | "ready"; data?: AdminDayMatches; message?: string }>({ day, status: "loading" });
+  const res = useAsyncResource(() => load(day), [day]);
+  const state = { status: res.status, data: res.status === "ready" ? res.data : undefined, message: res.status === "error" ? (res.error as Error).message : undefined };
   const box = useRef<HTMLElement>(null);
-  useEffect(() => {
-    let live = true;
-    setState({ day, status: "loading" });
-    load(day)
-      .then((data) => live && setState({ day, status: "ready", data }))
-      .catch((e: Error) => live && setState({ day, status: "error", message: e.message }));
-    return () => {
-      live = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day]);
   useEffect(() => {
     box.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [day]);
