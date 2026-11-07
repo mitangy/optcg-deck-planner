@@ -17,7 +17,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import duel_live, redis_client
+from app import redis_client
+from app.duel import live as duel_live
 from app.duel.matches import has_result, lock_match
 from app.models import DuelMatchProgress, User
 from app.tournament_sync import sync_loop

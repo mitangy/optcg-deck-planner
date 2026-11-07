@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app import events as ev
+from app.duel import events as ev
 from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry
 from tests.test_admin import ADMIN_EMAIL, login, mk
 from tests.test_admin import api  # noqa: F401  (fixture)

@@ -26,7 +26,7 @@ from app.schemas import (
     FriendRequestResult,
     FriendsOut,
 )
-from app.server_urls import known_game_server_urls, normalize_server_url
+from app.duel.server_urls import known_game_server_urls, normalize_server_url
 from app.social import trades
 from app.social.presence import friend_status, friendship, live_presence, pair, room_server_url
 

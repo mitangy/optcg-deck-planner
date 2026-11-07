@@ -491,7 +491,7 @@ def _ensure_feedback_discord_columns() -> None:
 
 def _seed_default_event() -> None:
     """Stress Test Sunday as the first admin-managed event (#1019)."""
-    from app import events as ev
+    from app.duel import events as ev
 
     with Session(engine) as session:
         ev.seed_default_event(session)
