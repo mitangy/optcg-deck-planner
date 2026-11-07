@@ -72,6 +72,14 @@ test("the Node version file and the composite setup actions turn every job on (r
   assert.deepEqual(on([".github/actions/pr-base/action.yml"]), ALL);
 });
 
+test("root lint and compiler config run the lint and typecheck jobs; ruff.toml only the backend; .editorconfig none (refactor 1.3)", () => {
+  assert.deepEqual(on(["eslint.config.js"]), ALL);
+  assert.deepEqual(on(["tsconfig.base.json"]), ALL);
+  assert.deepEqual(on(["tsconfig.web.json"]), ALL);
+  assert.deepEqual(on(["ruff.toml"]), ["backend"]);
+  assert.deepEqual(on([".editorconfig"]), []);
+});
+
 test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
   assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
   assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);

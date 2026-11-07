@@ -105,7 +105,7 @@ describe("protocol contract (golden fixtures)", () => {
         expect(count(html, /choice-order-name/g)).toBe(request!.options.length);
       } else {
         // select / look: one card (or chip) per option.
-        expect(count(html, /class="choice-option(?: selected| disabled)*"|ability-chip choice-chip/g)).toBe(request!.options.length);
+        expect(count(html, /class="choice-option(?: selected| disabled)*"|ability-chip choice-chip/g)).toBe((request as { options: unknown[] }).options.length);
       }
     });
 

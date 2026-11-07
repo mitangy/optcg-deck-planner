@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app import events as ev
-from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry, User
+from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry
 from tests.test_admin import ADMIN_EMAIL, login, mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)

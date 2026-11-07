@@ -10,7 +10,7 @@
     "test": "vitest run",
     "layout-check": "node scripts/layout-check.mjs",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p e2e"
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.2",

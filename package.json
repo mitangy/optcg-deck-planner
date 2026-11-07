@@ -23,9 +23,17 @@
     "test:mutation": "node tools/mutation-check/run.cjs",
     "test:analyst": "npm run test -w @optcg/analyst",
     "start:analyst": "npm run start -w @optcg/analyst",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint ."
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "typescript-eslint": "^8.72.1"
   }
 }

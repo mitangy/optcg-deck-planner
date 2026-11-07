@@ -13,7 +13,7 @@
     "pack-detector": "node scripts/pack-detector.mjs",
     "e2e": "playwright test",
     "e2e:visual": "playwright test --grep @visual",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p e2e"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

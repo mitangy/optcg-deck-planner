@@ -66,7 +66,7 @@ describe("hotseatControlSeat", () => {
           optional: true,
           prompt: "Newgate — trash 1 for +4000?",
           abilityId: "newgate_battle_power",
-        },
+        } as never,
       ],
     });
     expect(hotseatControlSeat(stale, stale, fresh)).toBe(1);
@@ -85,7 +85,7 @@ describe("hotseatControlSeat", () => {
           optional: true,
           prompt: "Newgate — trash 1 for +4000?",
           abilityId: "newgate_battle_power",
-        },
+        } as never,
       ],
     });
     expect(hotseatControlSeat(view)).toBe(1);

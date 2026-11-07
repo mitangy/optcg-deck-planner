@@ -21,6 +21,8 @@
  *     (packages, game-server, analyst, frontend, duel-web), and every JS job
  *     installs from it, so a change there can break any of them. The same holds
  *     for frontend/package.json and duel-web/package.json (they feed that lock).
+ *   - eslint.config.js, tsconfig.base.json, tsconfig.web.json: the lint job and every
+ *     app's and package's typecheck read them. ruff.toml: the backend job's ruff step.
  *   - .nvmrc, .github/actions/: every job's Node setup reads them (the composite
  *     setup-node-deps and pr-base actions).
  *   - packages/rules/protocol-fixtures: also read by the mobile tests.
@@ -44,6 +46,13 @@ const RULES = [
   // The composite actions (setup-node-deps, pr-base) and .nvmrc are used by every JS job's setup.
   { test: (p) => p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS },
   { test: (p) => p === "package.json" || p === "package-lock.json", flags: FLAGS },
+  // Root lint and compiler config: every TypeScript job reads them (eslint.config.js drives the
+  // lint job, tsconfig.base.json / tsconfig.web.json are extended by every app and package).
+  { test: (p) => p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: FLAGS },
+  // ruff.toml is read only by `ruff check backend scripts`, a step of the backend job.
+  { test: (p) => p === "ruff.toml", flags: ["backend"] },
+  // Editor settings: no test, build or script reads them.
+  { test: (p) => p === ".editorconfig", flags: [] },
   // App manifests are part of the root workspace lock: every JS job's `npm ci` reads them.
   { test: (p) => p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("tools/ci/"), flags: FLAGS },

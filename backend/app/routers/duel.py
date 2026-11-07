@@ -10,7 +10,6 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
 from sqlalchemy import delete, func, or_, select, text
@@ -27,7 +26,7 @@ from app.config import Settings, get_settings
 from app.tokens import OpsToken
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
-from app.game_tokens import mint_game_token, verify_game_token
+from app.game_tokens import mint_game_token
 from app.moderation import recent_takedowns
 from app.models import (
     CardReport,
@@ -45,7 +44,7 @@ from app.models import (
 )
 from app.rate_limit import RateLimiter, client_ip
 from app.server_urls import normalize_server_url
-from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
+from app.routers.friends import ONLINE_TTL, PRESENCE_TTL
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
 from app.schemas import (

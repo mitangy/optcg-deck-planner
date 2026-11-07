@@ -11,7 +11,8 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

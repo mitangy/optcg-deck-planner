@@ -536,7 +536,7 @@ describe("the Play this turn button (#416)", () => {
 
 describe("a plan outlives the device showing the other seat (#416)", () => {
   it("the game still offers the copilot while the view is the other seat's; only the button needs the ticket's seat (#416)", () => {
-    expect(copilotAvailable({ ...base, viewSeat: 1, ticketSeat: 0 } as typeof base)).toBe(true);
+    expect(copilotAvailable({ ...base, viewSeat: 1, ticketSeat: 0 } as unknown as typeof base)).toBe(true);
     expect(copilotShown({ ...base, viewSeat: 1, ticketSeat: 0 })).toBe(false);
     expect(copilotAvailable({ ...base, ticketSeat: undefined })).toBe(false);
   });
