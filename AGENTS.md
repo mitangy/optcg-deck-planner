@@ -15,7 +15,7 @@ The minimum for planner work is two services plus a zero-setup local DB (the due
 - Backend: FastAPI in `backend/`, runs on `http://localhost:8000`.
 - Frontend: Vite/React SPA in `frontend/`, runs on `http://localhost:5173`.
 - JS install: `frontend/`, `duel-web/`, `packages/*`, `game-server/` and `analyst/` are npm workspaces of the repo root. Run `npm ci` (or `npm install`) **once at the repo root**; there are no per-app lockfiles or per-app installs (`mobile/`, which is paused, and `trailer/` are outside the workspace and keep their own).
-- DB: defaults to local SQLite (`backend/optcg.db`); tables auto-create on backend startup via `init_db()`. No Postgres needed locally.
+- DB: defaults to local SQLite (`backend/optcg.db`); the schema is built on backend startup by `alembic upgrade head` (via `init_db()`; an old `backend/optcg.db` made before Alembic must be deleted or `alembic stamp 0001`-ed). No Postgres needed locally.
 
 Non-obvious caveats:
 
