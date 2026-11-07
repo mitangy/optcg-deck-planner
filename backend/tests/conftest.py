@@ -20,7 +20,8 @@ from app.core import redis_client  # noqa: E402
 from app.core.models import User
 from app.planner.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned
 from app.core.rate_limit import RateLimiter
-from tests.db_support import make_test_engine
+from app.core import db as app_db  # noqa: E402
+from tests.db_support import make_bare_engine, make_test_engine
 
 
 @pytest.fixture(scope="module")
@@ -156,3 +157,12 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> None:
     else:
         row.qty = qty
     db.commit()
+
+
+@pytest.fixture()
+def startup_engine(monkeypatch: pytest.MonkeyPatch):
+    """An empty database that init_db (app.core.db) runs against, as at a fresh deploy."""
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    yield engine
+    engine.dispose()

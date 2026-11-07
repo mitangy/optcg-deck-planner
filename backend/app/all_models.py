@@ -1,6 +1,6 @@
 """Imports every domain models module so all tables register on the one shared ``Base``.
 
-``Base.metadata.create_all`` (app.core.db.init_db) and Alembic autogenerate (migrations/env.py) only
+``Base.metadata.create_all`` (the tests) and Alembic autogenerate (migrations/env.py) only
 see tables whose model module has been imported; import this module, not the individual packages,
 wherever the full table set matters.
 """
