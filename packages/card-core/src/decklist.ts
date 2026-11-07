@@ -1,6 +1,7 @@
 /**
- * OPTCGSim / planner-style decklist parser (client-side).
- * Accepts the same shapes as backend `parse_decklist`.
+ * OPTCGSim / planner-style decklist parser.
+ * Accepts the same shapes as backend `parse_decklist` (`backend/app/domain.py`); both run the
+ * cases in `fixtures/decklists.json`, so they cannot drift apart.
  */
 
 export type ParsedDeckLine = { cardId: string; count: number };
@@ -8,6 +9,8 @@ export type ParsedDeckLine = { cardId: string; count: number };
 const LINE_RE =
   /^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$/;
 const TOKEN_RE = /(?:(\d+)\s*[xX]?\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)/gi;
+/** "OP01-001 4" / "OP01-001 x4": the count written after the card number. */
+const TRAILING_QTY_RE = /^[xX]\s*(\d+)$|^(\d+)$/;
 
 export function parseDecklist(text: string): ParsedDeckLine[] {
   const counts = new Map<string, number>();
@@ -36,7 +39,7 @@ export function parseDecklist(text: string): ParsedDeckLine[] {
       /^\s*([A-Za-z0-9]+-\d+[A-Za-z]?)\s*[xX]\s*(\d+)\s*(.*)?$/,
     );
     if (trailing) {
-      const id = trailing[1].toUpperCase();
+      const id = trailing[1]!.toUpperCase();
       const qty = Number(trailing[2]);
       if (!Number.isFinite(qty) || qty < 1) throw new Error(`Bad quantity on ${line}`);
       counts.set(id, (counts.get(id) ?? 0) + qty);
@@ -44,11 +47,17 @@ export function parseDecklist(text: string): ParsedDeckLine[] {
     }
     const m = line.match(LINE_RE);
     if (m) {
-      const qty = m[1] ? Number(m[1]) : 1;
-      const id = m[2].toUpperCase();
-      if (!Number.isFinite(qty) || qty < 1) throw new Error(`Bad quantity on ${line}`);
-      counts.set(id, (counts.get(id) ?? 0) + qty);
-      continue;
+      const rest = (m[3] ?? "").trim();
+      const id = m[2]!.toUpperCase();
+      // Backend parity: "OP01-001 4" when no count came first.
+      const bare = rest && !m[1] ? TRAILING_QTY_RE.exec(rest) : null;
+      // A line that holds more codes ("2xOP01-001 3xOP01-016") falls through to the token scan.
+      if (bare || !rest || !new RegExp(TOKEN_RE.source, "i").test(rest)) {
+        const qty = bare ? Number(bare[1] ?? bare[2]) : m[1] ? Number(m[1]) : 1;
+        if (!Number.isFinite(qty) || qty < 1) throw new Error(`Bad quantity on ${line}`);
+        counts.set(id, (counts.get(id) ?? 0) + qty);
+        continue;
+      }
     }
     TOKEN_RE.lastIndex = 0;
     let hit = false;
@@ -56,7 +65,7 @@ export function parseDecklist(text: string): ParsedDeckLine[] {
     while ((tm = TOKEN_RE.exec(line)) !== null) {
       hit = true;
       const qty = tm[1] ? Number(tm[1]) : 1;
-      const id = tm[2].toUpperCase();
+      const id = tm[2]!.toUpperCase();
       if (!Number.isFinite(qty) || qty < 1) throw new Error(`Bad quantity for ${id}`);
       counts.set(id, (counts.get(id) ?? 0) + qty);
     }

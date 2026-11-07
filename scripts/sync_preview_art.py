@@ -51,7 +51,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
 CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
-TCG_PRODUCTS = ROOT / "duel-web/src/assets/tcgProducts.json"
+TCG_PRODUCTS = ROOT / "packages/card-core/src/tcgProducts.json"
 CARD_DATA = ROOT / "packages/rules/src/cards/cardData.json"
 MANIFEST = ROOT / "packages/ui/src/cardArt/previewArt.json"
 ALT_MANIFEST = ROOT / "packages/ui/src/cardArt/previewArtAlts.json"

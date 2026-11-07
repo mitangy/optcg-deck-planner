@@ -1,0 +1,24 @@
+{
+  "_doc": "Golden deck-list cases. Run by packages/card-core/src/decklist.golden.test.ts (parseDecklist) and backend/tests/test_decklist_golden.py (parse_decklist). `cards` is [cardId, count] pairs in first-seen order; `error` marks input both parsers must reject.",
+  "mainDeckSize": 50,
+  "cases": [
+    { "name": "OPTCGSim glued count", "input": "1xST01-001\n4xST01-003", "cards": [["ST01-001", 1], ["ST01-003", 4]] },
+    { "name": "count with space and a trailing card name", "input": "4x ST01-006 Tony Tony.Chopper", "cards": [["ST01-006", 4]] },
+    { "name": "Limitless count then name", "input": "4 ST01-008 Nico Robin", "cards": [["ST01-008", 4]] },
+    { "name": "trailing x4", "input": "ST01-014 x4", "cards": [["ST01-014", 4]] },
+    { "name": "trailing bare count", "input": "OP01-001 3", "cards": [["OP01-001", 3]] },
+    { "name": "bare card number counts one", "input": "OP01-016", "cards": [["OP01-016", 1]] },
+    { "name": "lower case ids are upper-cased", "input": "2xop01-016\nst01-012 x3", "cards": [["OP01-016", 2], ["ST01-012", 3]] },
+    { "name": "repeated lines add up", "input": "2xOP01-016\n1xOP01-016", "cards": [["OP01-016", 3]] },
+    { "name": "CRLF and CR line breaks", "input": "1xOP01-001\r\n4xOP01-016\r2xST01-012", "cards": [["OP01-001", 1], ["OP01-016", 4], ["ST01-012", 2]] },
+    { "name": "comment and blank lines are skipped", "input": "# Leader\n1xOP01-001\n\n// main\n4xOP01-016", "cards": [["OP01-001", 1], ["OP01-016", 4]] },
+    { "name": "comma separated single line", "input": "1xOP01-001,4xOP01-016;2xST01-012", "cards": [["OP01-001", 1], ["OP01-016", 4], ["ST01-012", 2]] },
+    { "name": "double-space separated single line", "input": "1xOP01-001  4xOP01-016  2xST01-012", "cards": [["OP01-001", 1], ["OP01-016", 4], ["ST01-012", 2]] },
+    { "name": "several codes, single spaces", "input": "2xOP01-001 3xOP01-016", "cards": [["OP01-001", 2], ["OP01-016", 3]] },
+    { "name": "promo card number with a letter suffix", "input": "1xOP05-119\n2xP-001", "cards": [["OP05-119", 1], ["P-001", 2]] },
+    { "name": "empty text", "input": "", "error": true },
+    { "name": "only whitespace", "input": "  \n \r\n", "error": true },
+    { "name": "only comments", "input": "# nothing\n// here", "error": true },
+    { "name": "line with no card number", "input": "1xOP01-001\nhello world", "error": true }
+  ]
+}

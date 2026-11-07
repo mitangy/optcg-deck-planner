@@ -60,7 +60,7 @@ from build_cosmetics_catalog import alt_label  # noqa: E402
 
 CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
-TCG_PRODUCTS = ROOT / "duel-web/src/assets/tcgProducts.json"
+TCG_PRODUCTS = ROOT / "packages/card-core/src/tcgProducts.json"
 HASH_CACHE = ROOT / "scripts/data/art_hashes.json"
 BACKEND_ALT_LIST = ROOT / "backend/app/data/alt_art_products.json"
 

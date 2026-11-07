@@ -103,7 +103,6 @@ export { deckListText, parseDraft, shouldAutoOpen, type DraftCard, type NewDeckD
 export {
   applyOps,
   isEmptyAnswer,
-  normalizeCardId,
   parseProposal,
   proposalState,
   shouldAutoApply,

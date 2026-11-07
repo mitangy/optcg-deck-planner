@@ -40,6 +40,7 @@ const SUITES = {
   importer: require("./suites/importer.cjs"),
   backend: require("./suites/backend.cjs"),
   frontend: require("./suites/frontend.cjs"),
+  "card-core": require("./suites/card-core.cjs"),
   "deck-analytics": require("./suites/deck-analytics.cjs"),
   "price-timing": require("./suites/price-timing.cjs"),
   "patch-notes": require("./suites/patch-notes.cjs"),

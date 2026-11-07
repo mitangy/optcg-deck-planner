@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@optcg/card-core": "*",
     "@optcg/ui": "*"
   },
   "devDependencies": {

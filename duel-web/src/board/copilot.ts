@@ -3,9 +3,9 @@
  * the whitelisted snapshot of the game that goes to the analyst, and the executor that plays out a plan the
  * player approved, one legal intent per fresh view.
  */
+import { normalizeCardId } from "@optcg/card-core";
 import {
   CHOICE_OPTION_LIMIT,
-  normalizeCardId,
   type ChoiceAnswer,
   type ChoiceOptionSnap,
   type GameSnapshot,
