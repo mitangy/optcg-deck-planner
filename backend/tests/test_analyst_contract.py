@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import get_args
 
-from app.routers.analyst import CHAT_MODELS
+from app.analyst.access import CHAT_MODELS
 from app.schemas import ANALYST_SCOPE_PATTERN, AnalystChatBudget, AnalystUsageIn
 
 FIXTURE = Path(__file__).resolve().parents[2] / "packages" / "analyst-contract" / "fixtures" / "backend-values.json"
