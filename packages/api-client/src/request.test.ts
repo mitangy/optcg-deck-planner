@@ -66,6 +66,16 @@ describe("shared API client (refactor 2.1a, 2.1b)", () => {
     expect(get.headers).toEqual({ "x-trace": "t2" });
   });
 
+  it("words a failure without a server message as the fallback plus the status, and keeps a server message (refactor 2.1b)", async () => {
+    const bare = reply("<html>down</html>", { status: 502, statusText: "Bad Gateway" });
+    const listed = reply(JSON.stringify({ detail: [{ msg: "bad" }] }), { status: 422 });
+    const said = reply(JSON.stringify({ detail: "That username is already taken." }), { status: 409 });
+    const messageOf = (f: typeof bare) => request("/x", { fallback: "Could not load", fetchImpl: asFetch(f) }).catch((e: ApiError) => e.message);
+    expect(await messageOf(bare)).toBe("Could not load (502)");
+    expect(await messageOf(listed)).toBe("Could not load (422)");
+    expect(await messageOf(said)).toBe("That username is already taken.");
+  });
+
   it("prefixes the path with the base URL read at call time (refactor 2.1b)", async () => {
     let base = "https://one.test";
     const req = createRequest({ baseUrl: () => base, defaultTimeoutMs: 1000 });

@@ -28,6 +28,11 @@ export class ApiError extends Error {
 export type RequestOptions = RequestInit & {
   /** A value sent as the JSON body (and sets the JSON Content-Type). Use instead of `body`. */
   json?: unknown;
+  /**
+   * Error text for a failure whose body has no string `detail`: the message becomes `${fallback} (${status})`
+   * instead of the status text or the body's JSON. A string `detail` still wins.
+   */
+  fallback?: string;
   /** Abort and throw an `ApiError` (code "timeout") after this long. Defaults to the client's `defaultTimeoutMs`. */
   timeoutMs?: number;
   /** The fetch to call; tests inject one. */
@@ -57,7 +62,7 @@ function headerRecord(headers: HeadersInit | undefined): Record<string, string> 
 
 export function createRequest({ baseUrl, defaultTimeoutMs }: CreateRequestConfig): Request {
   return async function request<T>(path: string, init?: RequestOptions): Promise<T> {
-    const { timeoutMs = defaultTimeoutMs, fetchImpl = fetch, json, ...fetchInit } = init ?? {};
+    const { timeoutMs = defaultTimeoutMs, fetchImpl = fetch, json, fallback, ...fetchInit } = init ?? {};
     const headers = headerRecord(fetchInit.headers);
     if (json !== undefined) fetchInit.body = JSON.stringify(json);
     if (fetchInit.body) {
@@ -87,13 +92,15 @@ export function createRequest({ baseUrl, defaultTimeoutMs }: CreateRequestConfig
       });
       if (!res.ok) {
         let detail: unknown = res.statusText;
+        let serverText = false;
         try {
           const body = await res.json();
           detail = body.detail ?? body;
+          serverText = typeof body.detail === "string" && body.detail !== "";
         } catch {
           /* ignore */
         }
-        throw new ApiError(res.status, detail);
+        throw new ApiError(res.status, detail, fallback === undefined || serverText ? undefined : `${fallback} (${res.status})`);
       }
       if (res.status === 204) return undefined as T;
       const text = await res.text();
