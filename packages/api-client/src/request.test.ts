@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, request } from "./apiClient";
+import { ApiError, createRequest } from "./request";
+
+const request = createRequest({ baseUrl: () => "https://api.test", defaultTimeoutMs: 90_000 });
 
 const reply = (body: BodyInit | null, init?: ResponseInit) => vi.fn(async () => new Response(body, init));
 const asFetch = (f: unknown) => f as typeof fetch;
 
-describe("planner API client (refactor 2.1a)", () => {
+describe("shared API client (refactor 2.1a, 2.1b)", () => {
   afterEach(() => vi.useRealTimers());
 
   it("resolves a 204 with no body to undefined instead of parsing it", async () => {
@@ -52,6 +54,35 @@ describe("planner API client (refactor 2.1a)", () => {
     expect(post.credentials).toBe("include");
     expect(post.headers).toMatchObject({ "Content-Type": "application/json" });
     expect(get.headers).not.toHaveProperty("Content-Type");
+  });
+
+  it("keeps the caller's headers and adds the JSON content type to them (refactor 2.1b)", async () => {
+    const fetchImpl = reply("{}");
+    await request("/me", { method: "POST", json: { a: 1 }, headers: { "X-Trace": "t1" }, fetchImpl: asFetch(fetchImpl) });
+    await request("/me", { headers: new Headers({ "X-Trace": "t2" }), fetchImpl: asFetch(fetchImpl) });
+    const [post, get] = fetchImpl.mock.calls.map((c) => (c as unknown as [string, RequestInit])[1]);
+    expect(post.headers).toEqual({ "X-Trace": "t1", "Content-Type": "application/json" });
+    expect(post.body).toBe('{"a":1}');
+    expect(get.headers).toEqual({ "x-trace": "t2" });
+  });
+
+  it("prefixes the path with the base URL read at call time (refactor 2.1b)", async () => {
+    let base = "https://one.test";
+    const req = createRequest({ baseUrl: () => base, defaultTimeoutMs: 1000 });
+    const fetchImpl = reply("{}");
+    await req("/a", { fetchImpl: asFetch(fetchImpl) });
+    base = "https://two.test";
+    await req("/b", { fetchImpl: asFetch(fetchImpl) });
+    expect(fetchImpl.mock.calls.map((c) => (c as unknown as [string])[0])).toEqual(["https://one.test/a", "https://two.test/b"]);
+  });
+
+  it("uses the client's default timeout unless the call sets its own (refactor 2.1b)", async () => {
+    vi.useFakeTimers();
+    const req = createRequest({ baseUrl: () => "", defaultTimeoutMs: 500 });
+    const fetchImpl = hanging();
+    const pending = req("/slow", { fetchImpl: asFetch(fetchImpl) }).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await pending).toMatchObject({ code: "timeout" });
   });
 
   // Never resolves on its own; rejects the way real fetch does when its signal aborts.
