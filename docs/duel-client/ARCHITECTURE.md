@@ -43,7 +43,9 @@ Three web surfaces stay distinct:
 
 ## 3. Layer responsibilities
 
-### 3.1 Native client (`mobile/`)
+### 3.1 Native client (`mobile/`) — paused
+
+Work on the Expo client is paused (see `mobile/README.md`); `duel-web/` is the shipped client. This section describes the original design.
 
 - Expo (React Native) + Expo Router for **iOS / Android** (EAS).
 - Sign-in, deck pick, lobby UI, board UI, animations.
@@ -72,8 +74,8 @@ Three web surfaces stay distinct:
 - Pure, headless TypeScript: no React, no Colyseus imports.
 - **Authority:** official OPTCG Rule Manual + Comprehensive Rules (card text wins when present).
 - Encodes official zones, turn phases (Refresh → Draw → DON!! → Main → End), DON!! economy (deck / cost / give), Life cards, and battle steps (Attack → Block → Counter → Damage → End).
-- Current implementation is a hybrid: typed card data plus specialized engine hooks. It does not yet interpret a general declarative ability schema.
-- Approved target (2026-09-16, ADR-017): separate serializable match state, a deterministic rules runtime, and a versioned, validated card registry. Abilities compose conditions, costs, selectors, operations, timing, limits, and durations. Typed authoring must compile to JSON-compatible data; moving files to JSON alone is insufficient.
+- Current implementation: card abilities are declarative data (`src/effects/types.ts`: conditions, costs, selectors, effects, triggers, statics, durations), validated into a versioned registry (`src/cards/abilities.ts`, `REGISTRY_HASH`). Most are generated from printed card text (`src/tools/cardText/`, output in `src/cards/generated/abilities.json`) with reviewed overrides in `src/cards/manualAbilities.ts`. Effect trees compile to flat instruction lists (`src/effects/compile.ts`) so a paused resolution can be serialized, and the engine (`src/engine/`) runs them deterministically. Cards the grammar cannot express are reported as partial or unsupported in `EFFECT_CATALOG` rather than guessed.
+- Design direction (2026-09-16, ADR-017), now largely implemented: separate serializable match state, a deterministic rules runtime, and a versioned, validated card registry. Abilities compose conditions, costs, selectors, operations, timing, limits, and durations. Typed authoring must compile to JSON-compatible data; moving files to JSON alone is insufficient.
 - Resolve abilities through serializable continuations, a rules-aware timing dispatcher, shared zone operations, and a common modifier pipeline. Keep internal rules events separate from projected client events; server views, legal actions, and combat share the same derived queries.
 - Pin registry/rules/state versions per match, preserve hidden information through reconnect/replay projections, and migrate curated abilities off legacy hooks before broad catalog expansion. New cards using existing mechanics must require only data and fixtures; new mechanics extend reusable primitives with tests.
 - Migration sequence, compatibility gates, exception policy, and acceptance criteria live in [ABILITY_IMPLEMENTATION_PLAN.md](./ABILITY_IMPLEMENTATION_PLAN.md).

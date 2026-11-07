@@ -1,0 +1,32 @@
+name: Set up Node and install dependencies
+description: >-
+  Node from the repo's .nvmrc, optionally the npm cache, and `npm ci`. Run
+  actions/checkout first (a local action needs the files). One place to bump
+  Node: edit .nvmrc.
+
+inputs:
+  install:
+    description: 'Run `npm ci` ("false" for jobs that only need the Node binary).'
+    default: "true"
+  cache:
+    description: 'Restore and save the npm cache ("false" to skip it).'
+    default: "true"
+  lockfile:
+    description: The lockfile the npm cache is keyed on. Only mobile/ has its own.
+    default: package-lock.json
+  working-directory:
+    description: Where `npm ci` runs. The root, unless the app has its own lockfile.
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        cache: ${{ inputs.cache == 'true' && 'npm' || '' }}
+        cache-dependency-path: ${{ inputs.lockfile }}
+    - if: ${{ inputs.install == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci

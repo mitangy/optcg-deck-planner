@@ -2,6 +2,8 @@
 
 This directory is the **source of truth** for the digital duel client (product B): a real-time, authoritative One Piece TCG–style duel experience on iPhone first, with **Android** and a dedicated **web frontend** later, developable without a Mac.
 
+> **Status:** the `mobile/` Expo client is **paused** (see [`mobile/README.md`](../../mobile/README.md)); `duel-web/` is the duel client in production. Mentions of the Expo app below are history. For the current layout of the whole repo see [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 ## How to use these plans
 
 **Current engine work:** [Engine and card ability implementation plan](./ABILITY_IMPLEMENTATION_PLAN.md), revised 2026-09-16, governs the next rules/content milestones. The current engine combines card data with specialized hooks. The approved direction is a validated declarative registry and reusable, deterministic effect runtime, including restructuring existing code. Migrate the curated cards and prove data-only card addition before broad catalog expansion. Historical steps marked implemented below do not mean the generic engine or full card pool is complete.
@@ -13,13 +15,16 @@ This directory is the **source of truth** for the digital duel client (product B
 
 ## Repository layout (scaffold)
 
+The duel client's own pieces (the full repo map is in [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)):
+
 ```
-mobile/                 Expo React Native — native duel client (iOS / Android)
-duel-web/               Vite React — duel web frontend (browser)  [Step 4.5]
+mobile/                 Expo React Native — native duel client (PAUSED)
+duel-web/               Vite React — duel web frontend (browser)
 game-server/            Colyseus authoritative match runtime
 packages/rules/         Shared, headless rules engine + tests
-backend/                Existing FastAPI — accounts, decks, catalog, ratings API
-frontend/               Existing Vite deck planner (shopping/decks; not the duel UI)
+backend/                FastAPI — accounts, decks, catalog, ratings API
+frontend/               Vite deck planner (shopping/decks; not the duel UI)
+analyst/                Log Pose: MCP tools, chat, evals
 docs/duel-client/       Architecture + per-step plans (this tree)
 ```
 

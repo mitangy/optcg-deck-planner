@@ -66,6 +66,12 @@ test("the workflow, root manifests and tools/ci turn every job on (#739)", () =>
   assert.deepEqual(on(["tools/ci/changes.cjs"]), ALL);
 });
 
+test("the Node version file and the composite setup actions turn every job on (refactor 1.4)", () => {
+  assert.deepEqual(on([".nvmrc"]), ALL);
+  assert.deepEqual(on([".github/actions/setup-node-deps/action.yml"]), ALL);
+  assert.deepEqual(on([".github/actions/pr-base/action.yml"]), ALL);
+});
+
 test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
   assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
   assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);

@@ -1,118 +1,90 @@
 # Card effects catalog & resolution order
 
-Authority for how curated OPTCG prints are documented and ordered in
-`@optcg/rules`. Card text still wins when it conflicts with this doc; update
-both together.
+Authority for how card abilities are documented and ordered in `@optcg/rules`.
+Card text still wins when it conflicts with this doc; update both together.
+For the engine's design see [ARCHITECTURE.md](./ARCHITECTURE.md) §3.3 and for
+authoring steps see [packages/rules/README.md](../../packages/rules/README.md)
+("Adding or fixing a card").
 
 ## Where things live
 
 | Artifact | Path | Role |
 |----------|------|------|
-| Full effect catalog | `packages/rules/src/cards/effectCatalog.ts` | One row per printed timing/clause for every curated def; `status` = implemented / partial / keyword / stub |
-| Leader ability catalog | `packages/rules/src/cards/leaderAbilities.ts` | Leader-only hooks (Luffy / Newgate / Teach) already shipped |
-| Ordering helpers | `packages/rules/src/effectOrder.ts` | APNAP sort + controller `order_effects` pending choice |
-| Engine queue | `MatchState.pendingChoices` | FIFO prompts; `order_effects` must be answered before ability prompts |
+| Ability types | `packages/rules/src/effects/types.ts` | The declarative vocabulary: conditions, costs, selectors, effects, triggers, statics, durations, keywords |
+| Validation / compile | `packages/rules/src/effects/validate.ts`, `compile.ts` | Reject malformed abilities; flatten effect trees into serializable instruction lists |
+| Ability registry | `packages/rules/src/cards/abilities.ts` | Generated + manual abilities merged and validated; `REGISTRY_HASH` pins the version |
+| Generated abilities | `packages/rules/src/cards/generated/abilities.json` | Output of `npx tsx src/tools/cardText/generate.ts` from the printed text |
+| Manual overrides | `packages/rules/src/cards/manualAbilities.ts` | Reviewed `abilities` / `patch` entries for text the compiler cannot express |
+| Effect catalog | `packages/rules/src/cards/effectCatalog.ts` | `EFFECT_CATALOG`: one row per printed clause with its support status; also `abilitySupport` per card |
+| Engine | `packages/rules/src/engine/` | `intents.ts` (apply and list intents), `procedure.ts` (triggers, ordering), `runtime.ts` (instruction interpreter), `queries.ts`, `views.ts` |
+| Engine queue | `MatchState.pendingChoices` | FIFO prompts for the player who must answer |
 
-Inspect UI continues to show `CardDef.effectText`. **Display text alone is not
-rules authority** — a row must be `implemented` (or `keyword`) before the engine
-is allowed to change game state for that clause.
+Inspect UI shows `CardDef.effectText`. **Display text alone is not rules
+authority**: the engine changes game state only for clauses that compiled into
+a validated ability. `export-atlas` writes an `abilitySupport` field (`none` /
+`keywords` / `ok` / `partial` / `unsupported` / `unverified`) from `EFFECT_CATALOG`;
+cosmetics-only cards are `unverified`, and text or keyword scans never grant
+rules support. duel-web CardInspect shows a short note for `unverified`,
+`unsupported` and `partial` cards.
 
-Auto-stubbed ids (`ensureCardDef`) may carry printed `effectText` copied from
-cosmetics meta (`catalogMeta.json` ← `cardCatalog.json` / TCGCSV). That text is
-for inspect/reference only; stubs still get **no** invented engine hooks.
-`export-atlas` writes an `abilitySupport` field (`none` / `keywords` / `ok` /
-`partial` / `unsupported`) from explicit reviewed EFFECT_CATALOG statuses.
-Cosmetics-only cards are `unverified`; text and keyword scans never grant rules
-support. duel-web CardInspect shows a short note for `unverified`, `unsupported`,
-and `partial` cards.
-
-## Timing glossary
-
-| Timing tag | Typical window | Engine status today |
-|------------|----------------|---------------------|
-| `[Activate: Main]` | Main phase, controller's turn | Leaders: Luffy implemented; Characters/Stages mostly stub |
-| `[On Play]` | After a Character/Stage enters play | Optional-draw hook exists; most curated On Play texts are stub |
-| `[When Attacking]` | After attack declaration | Stub (framework kind `when_attacking` reserved) |
-| `[On K.O.]` | When the Character is KO'd | Stub |
-| `[Opponent's Turn]` | Static while it is the opponent's turn | Teach field-cost modifier remains stubbed |
-| `[On Your Opponent's Attack]` | After opponent declares attack, before Block | Newgate / Teach leaders implemented |
-| `[Trigger]` | Optional when taken as Life damage | Draw and OP09-096 Main-effect activation are implemented; other printed Trigger text remains stubbed |
-| `[Counter]` | Counter step | Flat `counterPowerBonus` implemented; extra "Then…" clauses partial/stub |
-| `[Main]` (Event) | Main event resolution | Encoded draw and top-deck search effects resolve; KO and other unique event clauses remain stubbed |
-| `[Blocker]` / `[Rush]` | Keyword | Keyword flags implemented |
-
-Top-deck searches use opaque option handles and server-side validation. Candidate
-identities and eligibility are projected only to the choosing seat; opponents and
-spectators receive the option count. The shared slice covers Laffitte, Fullalead,
-Moby Dick, My Era...Begins!!, and I Don't Have Time to Chat with Snot-Nosed Brats,
-including ordered bottom-deck remainders and the My Era Life Trigger.
-
-Static modifiers currently include OP17-112's Trigger-character base-power aura
-and OP09-086's four-card trash scaling while its leader condition is satisfied.
-
-## Simultaneous effects — resolution order
+## Simultaneous effects: resolution order
 
 Encoding (matches Step 1 plan + Comprehensive Rules intent):
 
 1. **Turn player first, then opponent** (APNAP-style).
 2. **Within one player's simultaneous effects, that player chooses the order.**
 
-### Engine API
+When one seat has two or more triggered effects in the same window,
+`engine/procedure.ts` adds a pending choice of kind `order_effects` carrying
+`unorderedChoices`. The seat answers with
 
 ```ts
-enqueuePendingChoices(state, choices, turnPlayer, events)
-// If one seat has ≥2 choices in the window → pending kind "order_effects"
-
 applyIntent(state, {
   type: "order_pending_effects",
   orderedIds: ["choice_b", "choice_a"], // permutation of unorderedChoices ids
 }, ctx)
 ```
 
-After a legal order is submitted, the wrapper is removed and the ability prompts
-are inserted at the front of `pendingChoices` in the chosen sequence. Each is
-then resolved with the existing `resolve_pending_choice` flow.
+`applyTriggerOrder` checks the permutation (duplicates, missing ids or a wrong
+length fail closed), replaces the wrapper with the individual prompts in the
+chosen order, and each is then answered with `resolve_pending_choice`.
+`resolve_pending_choice` on an `order_effects` choice is rejected, and the other
+way round.
 
-Illegal permutations (duplicates, missing ids, wrong length) fail closed.
+### Client protocol and UI
 
-### Live wiring (engine)
-
-`enqueuePendingChoices` is called from live trigger sites — not only unit tests:
-
-- **Attack declaration** — `enqueueAttackDeclarationTriggers` collects defender
-  leader On-Opponent's-Attack (and is the batch point for future When Attacking /
-  Stage triggers) then enqueues with the attacker as turn player.
-- **Life damage triggers** — optional Trigger prompts enqueue through the helper.
-- **On Play** — optional On Play prompts enqueue through the helper (so multiple
-  On Play clauses in one window can wrap in `order_effects`).
-
-### Client protocol & UI
-
-- Wire protocol **v3** adds `order_effects` + `unorderedChoices` on pending
-  choice views and recognizes `order_pending_effects`.
-- `listLegalIntents` still emits a **default** order (original sequence) for
-  sims/bots. Live clients must show a reorder UI (`EffectOrderPrompt`) so the
-  player can send any permutation — do not treat the default legal intent as
-  the only choice.
+- The wire protocol version is `RULES_PROTOCOL_VERSION` in
+  `packages/rules/src/state/snapshot.ts`; the game server reports it on `/health`.
+  A client on a different version cannot join a room, so ship game-server and
+  duel-web together when it changes.
+- `listLegalIntents` emits a **default** order (the original sequence) for sims
+  and bots. Live clients must show a reorder UI (`EffectOrderPrompt` in
+  `duel-web/src/board/`) so the player can send any permutation; do not treat
+  the default legal intent as the only choice.
 - Remount the prompt with `key={choice.id}` so local reorder state resets when
-  a later order window opens (do not reuse a stale list from a previous choice).
-- **duel-web** and **mobile** both ship `EffectOrderPrompt`. Today most windows
-  still enqueue a single choice, so the prompt is uncommon until When Attacking
-  / multi-On-Play batches land.
+  a later order window opens.
 
-### Deploy coupling (protocol v3)
+## Adding an op or a new effect kind
 
-Ship **game-server + duel-web + mobile** on protocol 3 together. A v2 client
-cannot join a v3 room (and vice versa). Prefer releasing the server bump in the
-same window as both clients; avoid mixed-version production traffic.
+A card that only combines existing pieces needs data, not engine code (see the
+README checklist). A new mechanic is an engine change:
 
+1. Add the type to `effects/types.ts` and its checks to `effects/validate.ts`.
+2. If it needs several steps or a player choice, compile it in `effects/compile.ts`
+   (the frame stores only an instruction index and JSON bindings, so it can be
+   serialized and resumed).
+3. Resolve it in `engine/` and, if players see it, project it in `engine/views.ts`
+   without leaking hidden information.
+4. Teach the compiler grammar (`src/tools/cardText/`) the printed phrasing, then
+   regenerate `abilities.json`.
+5. Add scenario rows (`src/__tests__/scenarios/`) and a mutation for each in
+   `tools/mutation-check/suites/rules.cjs`.
 
 ## Coverage policy
 
-- Every curated `listCardDefs()` id must appear in `EFFECT_CATALOG` (enforced by tests).
-- New curated prints: add hooks **or** leave `status: "stub"` — never silently invent behavior.
-- Prefer omitting unsupported prints from legal constructed lists over fake resolution.
-- When implementing a stub, update the catalog hook mapping and add an engine test.
+- `EFFECT_CATALOG` is built from every card with catalog data; `buildCardSupportManifest()` lists each id.
+- New prints: encode the abilities **or** leave the clause unsupported; never silently invent behavior.
+- Prefer omitting unsupported prints from legal constructed lists over fake resolution (ranked rooms already reject them).
 
 ## Coverage snapshot
 
@@ -120,16 +92,15 @@ Regenerate anytime with:
 
 ```bash
 cd packages/rules && npx tsx -e "import { summarizeEffectCoverage } from './src/cards/effectCatalog.ts'; console.log(summarizeEffectCoverage())"
+npm run scenario-coverage -- --summary OP01 EB01   # supported cards no test mentions, by set
 ```
 
-Expect many `stub` rows for OP09 / OP16 / OP17 characters and events until
-per-timing resolvers land. A card with one implemented row and any stub row is
-reported as `partial`. `buildCardSupportManifest()` accounts for every bundled
-catalog ID and reports all non-curated cards as `unverified`.
+A card with one implemented row and any unsupported row is reported as `partial`.
+`buildCardSupportManifest()` accounts for every bundled catalog id and reports
+cosmetics-only cards as `unverified`.
 
 ## Related docs
 
-- `packages/rules/README.md` — public API + known gaps
-- `docs/duel-client/CONTENT.md` — how to add a card / keyword budget
-- `docs/duel-client/steps/01-rules-engine.md` — turn/battle model + simultaneous-effect rule
-- `packages/rules/src/cards/leaderAbilities.ts` — leader ability catalog
+- `packages/rules/README.md`: public API, adding a card, known gaps
+- `docs/duel-client/CONTENT.md`: card art and cosmetics pipeline (its hook-based sections are historical)
+- `docs/duel-client/steps/01-rules-engine.md`: turn/battle model + simultaneous-effect rule

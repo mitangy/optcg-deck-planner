@@ -71,12 +71,14 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `rules` | `packages/rules/src/__tests__` | vitest |
 | `duel-web` | `duel-web/src` | vitest |
 | `mobile` | `mobile/src` | vitest |
-| `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides `py -3` / `python3`) |
+| `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |
+| `price-timing` | `packages/price-timing/src` | vitest |
+| `price-backfill` | `scripts/test_backfill_price_history.py` | unittest |
 | `site-legal` | `packages/site-legal/src` | vitest |
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |

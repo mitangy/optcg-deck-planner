@@ -35,16 +35,14 @@ Current support must be read from the reviewed executable registry/coverage code
 | Main/Trigger draw | engine-ready, unused | — |
 | Stage leader power | engine-ready, unused | — |
 | On Play optional draw | framework shipped | test-injected / demo hook |
-| Double Attack, Banish, DON!!×N, Main KO, full On Play suite | not yet | deferred — see `docs/duel-client/EFFECTS.md` |
+| Double Attack, Banish, DON!!×N, Main KO, full On Play suite | historical "not yet"; Double Attack and Banish are now keywords in `effects/types.ts` | read current support from `EFFECT_CATALOG` — see `docs/duel-client/EFFECTS.md` |
 
 Printed timings for every curated def are listed in `EFFECT_CATALOG`
 (`packages/rules/src/cards/effectCatalog.ts`) with `implemented` / `stub` /
 `keyword` status. Simultaneous effects use APNAP + controller order
 (`order_effects` pending choice) — see `docs/duel-client/EFFECTS.md`.
 
-Unknown OPTCG numbers still get vanilla auto-stubs via `ensureCardDef`, which
-may copy **printed** `effectText` from `catalogMeta.json` (synced from the
-cosmetics catalog). That does **not** mark the ability implemented — CardInspect
+Every catalog card is defined when the package loads; `ensureCardDef` throws for an id that is not in the card data (client-provided decks must not grow the catalog). Printed `effectText` from `catalogMeta.json` (synced from the cosmetics catalog) is for inspect only. That does **not** mark the ability implemented — CardInspect
 shows “Not implemented in duel yet” when atlas `abilitySupport` / heuristics say
 so. Never invent resolution from text.
 
