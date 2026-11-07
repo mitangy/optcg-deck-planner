@@ -1,5 +1,5 @@
 import {
-  applyIntent, buildTestDeck, createMatch, createSeededRng, DEFAULT_LEADER_ID, listLegalIntents, MATCH_REPLAY_SCHEMA, skipMulligans, type MatchReplay, type Seat,
+  applyIntent, buildTestDeck, createMatch, DEFAULT_LEADER_ID, listLegalIntents, MATCH_REPLAY_SCHEMA, skipMulligans, type MatchReplay, type Seat,
 } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
 import { anthropicModel, flattenCited, runChat, runReview, toCitation, type SseEvent } from "./chat";
@@ -130,14 +130,13 @@ describe("sources and citations (#390)", () => {
       { leaderId: DEFAULT_LEADER_ID, deck: all.slice(0, 12) },
       { leaderId: DEFAULT_LEADER_ID, deck: all.slice(8, 20) },
     ];
-    const rng = createSeededRng(17);
-    let state = skipMulligans(createMatch({ seed: 17, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+    let state = skipMulligans(createMatch({ seed: 17, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
     const intents: MatchReplay["intents"] = [];
     for (let i = 0; i < 8; i++) {
       const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
       const legal = listLegalIntents(state, seat);
       const intent = legal.find((x) => x.type === "play_card") ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!;
-      state = applyIntent(state, intent, { seat, rng }).state;
+      state = applyIntent(state, intent, { seat }).state;
       intents.push({ seat, intent });
     }
     const finished: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed: 17, firstSeat: 0, skipMulligans: true, players, intents, end: { winner: 1, reason: "concede" } };
