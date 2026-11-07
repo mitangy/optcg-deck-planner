@@ -4,7 +4,7 @@ import { deleteThread } from "./client";
 import { lowCreditText, type Credit } from "./credit";
 import { askContext, gameMessageContext, requestAction, type LogPoseAsk } from "./ask";
 import { CompassIcon } from "./Compass";
-import { ChatMessages } from "./ChatMessages";
+import { ChatMessages } from "./ChatMessageList";
 import { ChatsMenu } from "./ChatsMenu";
 import type { DeckEditor } from "./proposals";
 import { DockHandle, ResizeHandles, SheetGrip, useDrawerSize, useHeaderMove, useSheetHeight, type DockPreview } from "./PanelResize";
