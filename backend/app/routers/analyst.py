@@ -17,11 +17,11 @@ from app.analyst.tournament_sync import sync_status
 from app.analyst import access
 from app.analyst.auth import analyst_user, hash_token
 from app.core.security import require_service
-from app.auth import get_current_user
+from app.core.auth import get_current_user
 from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.core.statuses import LessonStatus
-from app.db import get_db
+from app.core.db import get_db
 from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
 from app.duel.matches import match_history
 from app.schemas import (

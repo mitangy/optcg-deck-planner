@@ -2,15 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.services import (
-    allocate_still_need_buys,
-    clamp_alt_want_map,
-    get_deck_detail,
-    remaining_cost_for_buys,
-    set_deck_card_printing,
-    shopping_list,
-    upsert_deck_card,
-)
+from app.planner.shopping import allocate_still_need_buys, remaining_cost_for_buys, shopping_list
+from app.planner.printings import clamp_alt_want_map
+from app.planner.decks import get_deck_detail, set_deck_card_printing, upsert_deck_card
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -112,7 +106,7 @@ def test_shopping_merges_max_alt_wants_across_decks_625(db):
 
 
 def test_shopping_remaining_prices_picked_alt_copies_at_alt_price_906(db):
-    from app.services import set_user_card_printing
+    from app.planner.owned import set_user_card_printing
 
     user = make_user(db, email="buy906@t.com", name="B", sub="buy906")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
@@ -130,7 +124,7 @@ def test_shopping_remaining_prices_picked_alt_copies_at_alt_price_906(db):
 
 
 def test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908(db):
-    from app.services import set_alt_owned, set_user_card_printing
+    from app.planner.owned import set_alt_owned, set_user_card_printing
 
     user = make_user(db, email="buy908@t.com", name="B", sub="buy908")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)
@@ -156,7 +150,7 @@ def test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908(db):
 
 
 def test_set_user_card_printing_syncs_across_decks(db):
-    from app.services import set_user_card_printing
+    from app.planner.owned import set_user_card_printing
     from app.models import DeckCardPrinting
     from sqlalchemy import select
 
@@ -208,7 +202,7 @@ def _shop_alt_want(db, user, card_id, product_id):
 
 def test_set_user_card_printing_splits_across_leaders_when_summing(db):
     """Sum mode: a shopping-level want is split across leaders, never double-counted."""
-    from app.services import set_user_card_printing
+    from app.planner.owned import set_user_card_printing
 
     user = make_user(db, email="sum-aa@t.com", name="S", sub="sum-aa")
     add_catalog(db, "OP01-016", name="Nami", product_id=1, market=1.0)

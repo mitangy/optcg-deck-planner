@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from app import catalog_sync, price_refresh
-from app.config import Settings
+from app.planner import catalog_sync, price_refresh
+from app.core.config import Settings
 from app.models import CatalogCard, CatalogPrinting
 
 NOW = datetime(2026, 10, 31, 12, 0, tzinfo=timezone.utc)
@@ -214,7 +214,7 @@ def test_a_refresh_leaves_the_catalog_syncs_status_and_lock_alone_840(monkeypatc
 
 
 def test_a_refresh_gives_up_and_frees_the_lock_when_another_worker_syncs_840(monkeypatch):
-    import app.db as app_db
+    import app.core.db as app_db
 
     seen = _spy_refresh(monkeypatch)
     monkeypatch.setattr(app_db, "try_advisory_lock", lambda key, bind=None: None)

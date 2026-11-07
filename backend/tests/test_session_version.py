@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.auth import create_session_token, read_session_token
-from app.config import Settings
+from app.core.auth import create_session_token, read_session_token
+from app.core.config import Settings
 
 
 def _settings() -> Settings:

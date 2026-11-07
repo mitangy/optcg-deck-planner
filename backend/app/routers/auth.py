@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth import (
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     OAUTH_RETURN_COOKIE,
     OAUTH_STATE_MAX_AGE_SECONDS,
@@ -29,10 +29,10 @@ from app.auth import (
     resolve_google_user,
     verify_oauth_state,
 )
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 from app.roles import is_banned
 from app.schemas import UsernameSuggestionOut, UsernameUpdate, UserOut
 from app.usernames import (

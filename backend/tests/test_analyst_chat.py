@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.models import AnalystMessage, AnalystThread, AnalystUsage, User
 from app.analyst.auth import mint_chat_token
 from tests.test_analyst import analyst  # noqa: F401  (fixture)

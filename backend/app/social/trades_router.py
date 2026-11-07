@@ -10,12 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.core.statuses import TradeStatus
 from app.social import trades as tr
-from app.auth import get_current_user
+from app.core.auth import get_current_user
 from app.core.time import utcnow
-from app.db import get_db
+from app.core.db import get_db
 from app.social.schemas import CounterIn, TradeIn, TradeOut, TradesOut, TradeSummaryOut
 from app.models import TradeOffer, User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 

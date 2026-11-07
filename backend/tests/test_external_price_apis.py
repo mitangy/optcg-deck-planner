@@ -18,7 +18,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app import catalog_sync, recent_sales
+from app.planner import catalog_sync, recent_sales
 from app.models import CatalogCard, CatalogPrinting
 
 

@@ -880,7 +880,7 @@ def test_a_drawn_event_cannot_be_deleted_1019(api, clock):
 
 
 def test_the_default_event_is_seeded_once_and_not_resurrected_after_delete_1019(monkeypatch):
-    from app import db as app_db
+    from app.core import db as app_db
     from tests.db_support import make_bare_engine
 
     engine = make_bare_engine()

@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app import mailer
-from app.config import get_settings
+from app.planner import mailer
+from app.core.config import get_settings
 from app.models import CatalogCard, CatalogPrinting, Notification, PriceAlert, User
 
 log = logging.getLogger("uvicorn.error")

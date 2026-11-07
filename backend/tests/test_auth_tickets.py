@@ -4,14 +4,14 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.auth import (
+from app.core.auth import (
     consume_login_ticket,
     create_login_ticket,
     create_session_token,
     read_login_ticket,
     read_session_token,
 )
-from app.config import Settings
+from app.core.config import Settings
 from app.models import LoginTicket
 from tests.conftest import make_user
 

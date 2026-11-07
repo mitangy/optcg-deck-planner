@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.duel import tournaments as logic
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from app.models import DuelPresence, DuelTournamentMatch, User
 from tests.db_support import make_test_engine

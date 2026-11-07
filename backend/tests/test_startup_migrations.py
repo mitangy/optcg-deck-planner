@@ -1,4 +1,4 @@
-"""Startup schema migrations (app.db.init_db) on databases created before the
+"""Startup schema migrations (app.core.db.init_db) on databases created before the
 columns existed. ``create_all`` never alters existing tables, so deployed
 databases depend on the ad-hoc ``ALTER TABLE`` helpers; these tests build the
 old table shapes, seed rows, run init_db and check the rows read back with the
@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from app import db as app_db
+from app.core import db as app_db
 from app.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage, Deck, DuelInvite, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 

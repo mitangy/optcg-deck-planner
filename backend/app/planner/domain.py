@@ -21,7 +21,7 @@ DECK_TOKEN_RE = re.compile(
 # Substrings matched against TCGPlayer product names (case-insensitive).
 # Intentionally omits plain "reprint" / bare "promo" — those are usually the
 # same base art on another SKU. Alt-arts UI also drops same image_url as the
-# preferred printing (see services._alt_arts_map).
+# preferred printing (see catalog_repo.alt_arts_map).
 SPECIAL_NAME_MARKERS = (
     # Classic alts / serialized treatments
     "alternate art",
@@ -129,7 +129,7 @@ def parse_decklist(text: str) -> list[ParsedCard]:
     return [ParsedCard(card_id=cid, needed=qty) for cid, qty in cards.items()]
 
 
-ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent / "data" / "alt_art_products.json"
+ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "data" / "alt_art_products.json"
 
 
 @lru_cache(maxsize=1)

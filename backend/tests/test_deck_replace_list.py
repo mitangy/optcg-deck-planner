@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 
 from app.models import CatalogCard, DeckCard, DeckCardPrinting
-from app.services import replace_deck_list
+from app.planner.decks import replace_deck_list
 from tests.conftest import add_catalog, add_deck_with_cards, make_user
 from tests.friend_support import as_user, client, make_user as make_http_user  # noqa: F401
 

@@ -20,7 +20,7 @@ from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
 from sqlalchemy import exc as sa_exc
 
-from app import db as app_db
+from app.core import db as app_db
 from tests.db_support import make_bare_engine
 
 _BACKEND = Path(__file__).resolve().parents[1]

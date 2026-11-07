@@ -355,7 +355,7 @@ async def poll_once(
 
 async def run_once(settings, state: PollState) -> int | None:
     """One poll under the cross-worker lock; None while another worker holds it."""
-    from app.db import DISCORD_FEEDBACK_LOCK_KEY, SessionLocal, try_advisory_lock
+    from app.core.db import DISCORD_FEEDBACK_LOCK_KEY, SessionLocal, try_advisory_lock
 
     lock = await asyncio.to_thread(try_advisory_lock, DISCORD_FEEDBACK_LOCK_KEY)
     if lock is None:

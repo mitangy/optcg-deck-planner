@@ -8,14 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app import services
-from app.auth import SESSION_COOKIE, create_session_token
-from app.body_limit import DEFAULT_MAX_BODY_BYTES
-from app.config import get_settings
-from app.db import get_db
+from app.planner import decks as deck_svc
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.body_limit import DEFAULT_MAX_BODY_BYTES
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from app.models import User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 from app.routers import api as api_router
 from tests.conftest import add_catalog
 from tests.db_support import make_test_engine
@@ -106,7 +106,7 @@ def test_sales_proxy_caps_uncached_upstream_calls_in_total_318(client, monkeypat
 def test_deck_with_too_many_different_cards_is_refused_318(client):
     c, SessionLocal = client
     c = _signed_in(c, SessionLocal)
-    ids = [f"OP{n // 1000 + 1:02d}-{n % 1000:03d}" for n in range(services.MAX_DECK_DISTINCT_CARDS + 1)]
+    ids = [f"OP{n // 1000 + 1:02d}-{n % 1000:03d}" for n in range(deck_svc.MAX_DECK_DISTINCT_CARDS + 1)]
     res = c.post("/decks", json={"name": "Huge", "decklist": "\n".join(f"1x{i}" for i in ids)})
     assert res.status_code == 400
     assert c.get("/decks").json() == []
@@ -115,7 +115,7 @@ def test_deck_with_too_many_different_cards_is_refused_318(client):
 def test_deck_count_per_account_is_capped_318(client, monkeypatch: pytest.MonkeyPatch):
     c, SessionLocal = client
     c = _signed_in(c, SessionLocal)
-    monkeypatch.setattr(services, "MAX_DECKS_PER_USER", 1)
+    monkeypatch.setattr(deck_svc, "MAX_DECKS_PER_USER", 1)
     assert c.post("/decks", json={"name": "One", "decklist": "4xOP01-016"}).status_code == 200
     assert c.post("/decks", json={"name": "Two", "decklist": "4xOP01-016"}).status_code == 400
     assert len(c.get("/decks").json()) == 1

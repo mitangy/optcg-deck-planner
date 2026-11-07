@@ -9,7 +9,7 @@ session cookie (see ADR-016 in `DECISIONS.md`).
 Signed-in players have one set of decks: a duel saved deck (`duel_saved_decks`)
 and a planner deck (`decks`) are linked by `duel_saved_decks.planner_deck_id`
 (mirrored in the row's `data.plannerDeckId`) and each side writes the other.
-Code: `backend/app/deck_link.py`.
+Code: `backend/app/planner/deck_link.py`.
 
 - **Duel -> planner.** An accepted duel deck write (`PUT /duel/decks`, single or
   bulk) creates the planner deck, or replaces the linked one's name, leader and

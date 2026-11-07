@@ -8,9 +8,9 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from app import catalog_sync, mailer, price_alerts, price_refresh
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
+from app.planner import catalog_sync, mailer, price_alerts, price_refresh
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
 from app.models import CatalogCard, CatalogPrinting, Notification, PriceAlert, User
 from tests.conftest import add_catalog, make_user
 from tests.test_abuse_limits import client  # noqa: F401  (fixture)

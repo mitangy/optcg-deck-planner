@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import get_settings
+from app.core.config import get_settings
 from app.models import AnalystToken, Deck, DeckCard, User
 from tests.test_duel import _ingest, client  # noqa: F401  (client is a fixture)
 

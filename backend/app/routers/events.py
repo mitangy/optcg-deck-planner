@@ -17,8 +17,8 @@ from sqlalchemy.orm import Session
 
 from app.duel import events as ev
 from app.core.time import as_utc_or_none
-from app.auth import get_current_user, get_optional_user
-from app.db import get_db
+from app.core.auth import get_current_user, get_optional_user
+from app.core.db import get_db
 from app.models import DuelEvent, EventDraw, EventEntry, User
 from app.roles import is_staff
 from app.core.security import Admin

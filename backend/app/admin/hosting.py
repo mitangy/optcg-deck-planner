@@ -13,7 +13,7 @@ from typing import Any, Callable
 
 import httpx
 
-from app.config import Settings
+from app.core.config import Settings
 
 CACHE_SECONDS = 300
 TIMEOUT_SECONDS = 8.0

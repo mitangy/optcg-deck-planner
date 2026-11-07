@@ -133,7 +133,7 @@ Prod also **fails fast** on insecure defaults: with an `https://` `FRONTEND_ORIG
 ### Database (Neon)
 - Set `DATABASE_URL` on Render to the Neon connection string. Neon requires TLS, so include **`?sslmode=require`** (e.g. `postgresql://USER:PASS@HOST/db?sslmode=require`). `postgres://` URLs are auto-rewritten to `postgresql://`.
 - The engine uses `pool_pre_ping=True` + `pool_recycle=300` for Postgres so idle Neon connections don't surface as "server closed the connection" after a lull.
-- **Schema management is `create_all` + targeted `ALTER TABLE` only** (`init_db()` / `_ensure_group_buy_columns()` in `app/db.py`); there are no migrations. New tables/columns are created on startup, but broader schema changes (renames, type changes, drops) won't apply automatically — introduce Alembic (or run manual SQL) for those.
+- **Schema management is `create_all` + targeted `ALTER TABLE` only** (`init_db()` / `_ensure_group_buy_columns()` in `app/core/db.py`); there are no migrations. New tables/columns are created on startup, but broader schema changes (renames, type changes, drops) won't apply automatically — introduce Alembic (or run manual SQL) for those.
 
 ### Google OAuth
 In Google Cloud Console (OAuth Web client):

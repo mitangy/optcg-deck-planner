@@ -23,8 +23,8 @@ from app.analyst.bots import (
     shared_bot_lessons,
     sim_stats,
 )
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.core.security import require_service
 from app.schemas import CARD_ID_PATTERN, BotLessonIn
 

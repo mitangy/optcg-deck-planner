@@ -23,9 +23,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
 from app.models import ScanSample, User
 from app.schemas import CARD_ID_PATTERN
 

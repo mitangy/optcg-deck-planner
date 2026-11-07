@@ -5,10 +5,10 @@ import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from app.body_limit import BodySizeLimitMiddleware
-from app.config import get_settings
-from app.cors import TieredCORSMiddleware
-from app.db import init_db, startup_lock
+from app.core.body_limit import BodySizeLimitMiddleware
+from app.core.config import get_settings
+from app.core.cors import TieredCORSMiddleware
+from app.core.db import init_db, startup_lock
 from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
 from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, reports, scan_samples
@@ -22,8 +22,8 @@ async def lifespan(_app: FastAPI):
     with startup_lock():
         init_db()
         # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
-        from app.catalog_sync import refresh_special_flags
-        from app.db import SessionLocal
+        from app.planner.catalog_sync import refresh_special_flags
+        from app.core.db import SessionLocal
 
         from app.analyst.stats import backfill_seats
 
@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI):
             db.close()
     from app.analyst.tournament_sync import start_background
 
-    from app import price_refresh
+    from app.planner import price_refresh
     from app.admin import discord_feedback
     from app.duel import progress_sweep
 

@@ -67,7 +67,7 @@ class User(Base):
     banned_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # First-touch source captured at sign-in (#905), compact JSON like {"ref":"google.com"}.
     # "{}" = direct; NULL = unknown (account predates tracking). Existing databases get
-    # the column via app.db._ensure_user_signup_source().
+    # the column via app.core.db._ensure_user_signup_source().
     signup_source: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -81,7 +81,7 @@ class User(Base):
 
 
 # Case-insensitive uniqueness for usernames (NULLs allowed on SQLite + Postgres).
-# Existing databases get this via app.db._ensure_user_username().
+# Existing databases get this via app.core.db._ensure_user_username().
 Index("ix_users_username_lower", func.lower(User.username), unique=True)
 
 

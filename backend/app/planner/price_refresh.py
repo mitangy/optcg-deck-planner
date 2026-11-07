@@ -17,9 +17,9 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import catalog_sync
+from app.planner import catalog_sync
 from app.core.time import as_utc
-from app.catalog_sync import TCGCSV_BASE, _get_json, refresh_special_flags
+from app.planner.catalog_sync import TCGCSV_BASE, _get_json, refresh_special_flags
 from app.models import CatalogPrinting
 
 log = logging.getLogger("uvicorn.error")
@@ -106,7 +106,7 @@ def fetch_group_prices(client: httpx.Client, group_id: int) -> dict[int, tuple[f
 
 def _record_history(db: Session, history: dict[int, float | None], now: datetime) -> None:
     """Latest market price of the day wins in the price history (#946)."""
-    from app.price_history import record_prices_safely
+    from app.planner.price_history import record_prices_safely
 
     record_prices_safely(db, as_utc(now).date(), history)
 
@@ -153,7 +153,7 @@ def refresh_new_release_prices(db: Session, client: httpx.Client, now: datetime,
     summary["products_seen"] = len(prices)
     applied = apply_prices(db, prices, now)
     summary.update(applied)
-    from app.price_alerts import check_alerts_safely
+    from app.planner.price_alerts import check_alerts_safely
 
     check_alerts_safely(db)
     summary["seconds"] = round(time.monotonic() - started, 1)
@@ -163,7 +163,7 @@ def refresh_new_release_prices(db: Session, client: httpx.Client, now: datetime,
 
 def run_once(days: int) -> dict | None:
     """One refresh, or None while the full catalog sync (here or on another worker) runs."""
-    from app.db import CATALOG_SYNC_LOCK_KEY, SessionLocal, try_advisory_lock
+    from app.core.db import CATALOG_SYNC_LOCK_KEY, SessionLocal, try_advisory_lock
 
     if not catalog_sync._sync_lock.acquire(blocking=False):
         return None

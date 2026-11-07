@@ -9,12 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app import mailer
-from app.auth import get_current_user
-from app.db import get_db
+from app.planner import mailer
+from app.core.auth import get_current_user
+from app.core.db import get_db
 from app.models import CatalogCard, CatalogPrinting, Notification, PriceAlert, User
-from app.price_alerts import condition_met, current_price, current_prices
-from app.rate_limit import RateLimiter
+from app.planner.price_alerts import condition_met, current_price, current_prices
+from app.core.rate_limit import RateLimiter
 from app.schemas import (
     NotificationList,
     NotificationOut,

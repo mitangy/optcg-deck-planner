@@ -9,16 +9,16 @@ import fakeredis
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-# app.db builds its module-level engine from DATABASE_URL at import time, and every
+# app.core.db builds its module-level engine from DATABASE_URL at import time, and every
 # `with TestClient(app)` runs the real lifespan (init_db, backfills) against it. Point it at
-# a throwaway file before anything imports app.db, or the suite writes backend/optcg.db.
+# a throwaway file before anything imports app.core.db, or the suite writes backend/optcg.db.
 _APP_DB_DIR = tempfile.mkdtemp(prefix="optcg-test-app-db-")
 atexit.register(shutil.rmtree, _APP_DB_DIR, ignore_errors=True)
-os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.core.db"
 
-from app import redis_client  # noqa: E402
+from app.core import redis_client  # noqa: E402
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
-from app.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
 
 
@@ -43,7 +43,7 @@ def _fresh_rate_limits():
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_index():
     # The catalog search index is cached per process; each test builds its own catalog.
-    from app.services import _FUZZY_INDEX
+    from app.planner.catalog_search import _FUZZY_INDEX
 
     _FUZZY_INDEX.clear()
     yield

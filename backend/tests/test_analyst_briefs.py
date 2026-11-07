@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 from app.analyst.brief_tickets import verify_brief_ticket
-from app.config import get_settings
+from app.core.config import get_settings
 from app.duel.tokens import game_token_secret, mint_game_token
 from app.models import AnalystMatchBrief
 from tests.test_analyst import analyst  # noqa: F401  (fixture)

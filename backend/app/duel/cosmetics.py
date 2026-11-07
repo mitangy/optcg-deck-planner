@@ -10,7 +10,7 @@ import base64
 import hashlib
 import hmac
 
-from app.config import Settings
+from app.core.config import Settings
 
 
 # Length of a public link's signature (urlsafe base64 of HMAC-SHA256): 192 bits.

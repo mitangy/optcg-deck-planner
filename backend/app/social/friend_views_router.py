@@ -10,11 +10,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.social import friend_view as fv
-from app import services
+from app.planner import decks as deck_svc, owned as owned_svc
 from app.planner import catalog_repo
-from app.auth import get_current_user
-from app.db import get_db
-from app.domain import deck_size_counts, is_don_card, parse_cost
+from app.core.auth import get_current_user
+from app.core.db import get_db
+from app.planner.domain import deck_size_counts, is_don_card, parse_cost
 from app.social.schemas import (
     FriendCollectionOut,
     FriendDeckCard,
@@ -109,7 +109,7 @@ def friend_profile(
             or 0
         )
     if collection_shared:
-        coll = services.owned_collection(db, owner)
+        coll = owned_svc.owned_collection(db, owner)
         out.unique_cards = coll.unique_cards
         out.total_copies = coll.total_copies
         if sharing.show_values:
@@ -241,10 +241,10 @@ def copy_friend_deck(
     owner, _ = fv.require_friend_view(db, user, friend_id, "decks")
     deck = _visible_deck(db, owner.id, deck_id)
     try:
-        new = services.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
+        new = deck_svc.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return services.get_deck_detail(db, user, new.id)
+    return deck_svc.get_deck_detail(db, user, new.id)
 
 
 @router.get("/{friend_id}/collection", response_model=FriendCollectionOut)
@@ -254,7 +254,7 @@ def friend_collection(
     user: Annotated[User, Depends(get_current_user)],
 ) -> FriendCollectionOut:
     owner, sharing = fv.require_friend_view(db, user, friend_id, "collection")
-    coll = services.owned_collection(db, owner)
+    coll = owned_svc.owned_collection(db, owner)
     spare: dict[str, int] = {}
     if sharing.trades_open:
         held, _ = fv.holdings(db, owner)

@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
 from app.models import AnalystAccess, User
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_chat import chat  # noqa: F401  (fixture: DEV@localhost is an owner)

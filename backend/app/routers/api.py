@@ -7,13 +7,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Qu
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_optional_user
-from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
+from app.core.auth import get_current_user, get_optional_user
+from app.planner.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.core.security import CatalogToken
-from app.db import get_db
+from app.core.db import get_db
 from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
-from app.rate_limit import RateLimiter, client_ip
-from app.recent_sales import fetch_recent_sales, is_cached
+from app.core.rate_limit import RateLimiter, client_ip
+from app.planner.recent_sales import fetch_recent_sales, is_cached
 from app.schemas import (
     UserOut,
     UserPreferencesUpdate,
@@ -51,8 +51,13 @@ from app.schemas import (
     ShareInfo,
     ShoppingResponse,
 )
-from app import deck_link, price_history, services
-from app.services import DeckOversizeError
+from app.planner import deck_link, price_history
+from app.planner import catalog_search as search_svc
+from app.planner import decks as deck_svc
+from app.planner import owned as owned_svc
+from app.planner import share as share_svc
+from app.planner import shopping as shopping_svc
+from app.planner.decks import DeckOversizeError
 
 router = APIRouter(tags=["api"])
 
@@ -69,7 +74,7 @@ def get_decks(
     db: Annotated[Session, Depends(get_db)],
 ):
     deck_link.reconcile_user(db, user)
-    return services.list_decks(db, user)
+    return deck_svc.list_decks(db, user)
 
 
 @router.post("/decks", response_model=DeckSummary)
@@ -79,11 +84,10 @@ def post_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        deck = services.create_deck(db, user, body.name, body.decklist)
+        deck = deck_svc.create_deck(db, user, body.name, body.decklist)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summaries = {d.id: d for d in services.list_decks(db, user)}
-    return summaries[deck.id]
+    return deck_svc.deck_summary(db, user, deck)
 
 
 @router.delete("/decks/{deck_id}")
@@ -93,7 +97,7 @@ def remove_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        services.delete_deck(db, user, deck_id)
+        deck_svc.delete_deck(db, user, deck_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"ok": True}
@@ -107,7 +111,7 @@ def rename_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.update_deck(
+        return deck_svc.update_deck(
             db, user, deck_id, body.name, body.hidden_from_friends
         )
     except LookupError as exc:
@@ -124,7 +128,7 @@ def set_deck_main(
 ):
     """Mark this deck as Main for its leader; variants compare Additional Cards against it."""
     try:
-        return services.set_deck_as_main(db, user, deck_id)
+        return deck_svc.set_deck_as_main(db, user, deck_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -140,7 +144,7 @@ def get_deck(
 ):
     """Optional deck_ids limits which other decks claim owned copies first (Separate per leader)."""
     try:
-        return services.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
+        return deck_svc.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -153,7 +157,7 @@ def put_deck_decklist(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.replace_deck_list(db, user, deck_id, body.decklist)
+        return deck_svc.replace_deck_list(db, user, deck_id, body.decklist)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
@@ -169,7 +173,7 @@ def put_deck_card(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.upsert_deck_card(
+        return deck_svc.upsert_deck_card(
             db,
             user,
             deck_id,
@@ -202,7 +206,7 @@ def delete_deck_card(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.upsert_deck_card(
+        return deck_svc.upsert_deck_card(
             db, user, deck_id, card_id, 0, confirm_oversize=True
         )
     except LookupError as exc:
@@ -225,7 +229,7 @@ def put_deck_card_printing(
 ):
     """Set how many copies of an alt printing are wanted in this deck (≤ Need)."""
     try:
-        return services.set_deck_card_printing(
+        return deck_svc.set_deck_card_printing(
             db, user, deck_id, card_id, product_id, body.qty
         )
     except LookupError as exc:
@@ -247,7 +251,7 @@ def put_card_printing(
 ):
     """Set alt-art want across decks that include the card (shopping / group-buy sync)."""
     try:
-        qty, decks_updated = services.set_user_card_printing(
+        qty, decks_updated = owned_svc.set_user_card_printing(
             db,
             user,
             card_id,
@@ -275,7 +279,7 @@ def reset_deck_owned(
 ):
     """Zero Owned counts for every card that appears in this deck."""
     try:
-        reset_count, detail = services.reset_deck_owned(db, user, deck_id)
+        reset_count, detail = owned_svc.reset_deck_owned(db, user, deck_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return DeckOwnedResetResult(deck_id=deck_id, reset_count=reset_count, deck=detail)
@@ -293,7 +297,7 @@ def get_shopping(
     Cards added directly (no deck) are included whatever deck_ids selects;
     pass extras=false to leave them out.
     """
-    return services.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
+    return shopping_svc.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
 
 
 @router.put("/shopping/extras/{card_id}")
@@ -305,7 +309,7 @@ def put_shopping_extra(
 ):
     """Set the target copies to own for a card added straight to Master Shopping."""
     try:
-        qty = services.set_shopping_extra(db, user, card_id, body.qty)
+        qty = shopping_svc.set_shopping_extra(db, user, card_id, body.qty)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"card_id": card_id.upper().strip(), "qty": qty}
@@ -334,7 +338,7 @@ def get_owned(
     deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     """Cards the user owns, with estimated market value. deck_ids filters the Buying counts."""
-    return services.owned_collection(db, user, deck_ids=deck_ids)
+    return owned_svc.owned_collection(db, user, deck_ids=deck_ids)
 
 
 @router.post("/owned/add", response_model=OwnedAddResponse)
@@ -345,7 +349,7 @@ def post_owned_add(
 ):
     """Add copies to several cards at once (the Collection photo scan)."""
     try:
-        rows = services.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
+        rows = owned_svc.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return OwnedAddResponse(items=[OwnedAddResult(card_id=c, owned=n) for c, n in rows])
@@ -358,7 +362,7 @@ def put_owned(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    qty = services.set_owned(db, user, card_id, body.qty)
+    qty = owned_svc.set_owned(db, user, card_id, body.qty)
     return {"card_id": card_id.upper(), "qty": qty}
 
 
@@ -375,7 +379,7 @@ def put_owned_printing(
 ):
     """Set how many copies of an alt printing the user owns."""
     try:
-        qty = services.set_alt_owned(db, user, card_id, product_id, body.qty)
+        qty = owned_svc.set_alt_owned(db, user, card_id, product_id, body.qty)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
@@ -394,7 +398,7 @@ def put_collector_want(
 ):
     """Set how many collector copies of an alt printing the user wants (0 removes)."""
     try:
-        qty = services.set_collector_want(db, user, card_id, product_id, body.qty)
+        qty = owned_svc.set_collector_want(db, user, card_id, product_id, body.qty)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return CollectorWantResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
@@ -409,7 +413,7 @@ def put_display_art(
 ):
     """Choose which art the card shows (null = automatic, 0 = base art)."""
     try:
-        product_id = services.set_display_art(db, user, card_id, body.product_id)
+        product_id = owned_svc.set_display_art(db, user, card_id, body.product_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return DisplayArtResult(card_id=card_id.upper().strip(), product_id=product_id)
@@ -420,7 +424,7 @@ def get_shopping_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return services.get_active_shopping_share(db, user)
+    return share_svc.get_active_shopping_share(db, user)
 
 
 @router.post("/share", response_model=ShareInfo)
@@ -430,7 +434,7 @@ def post_share(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        return services.create_or_update_share(
+        return share_svc.create_or_update_share(
             db,
             user,
             body.kind,
@@ -451,7 +455,7 @@ def delete_share(
     db: Annotated[Session, Depends(get_db)],
 ):
     try:
-        services.revoke_share(db, user, token)
+        share_svc.revoke_share(db, user, token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"ok": True}
@@ -468,7 +472,7 @@ def get_public_share(
     A deck share shows owned counts from the viewer's collection when signed in (#741).
     """
     try:
-        return services.public_share_view(db, token, viewer)
+        return share_svc.public_share_view(db, token, viewer)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -481,12 +485,12 @@ def post_copy_shared_deck(
 ):
     """Copy a shared deck into the signed-in viewer's decks (#741)."""
     try:
-        new = services.copy_shared_deck(db, user, token)
+        new = share_svc.copy_shared_deck(db, user, token)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return services.get_deck_detail(db, user, new.id)
+    return deck_svc.get_deck_detail(db, user, new.id)
 
 
 @router.get("/catalog/status", response_model=CatalogStatus)
@@ -519,7 +523,7 @@ def catalog_cards(
 
     With alts=true, alt-art printings are returned as their own rows.
     """
-    return services.search_catalog(
+    return search_svc.search_catalog(
         db, q=q, color=color, card_type=card_type, limit=limit, alts=alts, user_id=user.id
     )
 
@@ -532,7 +536,7 @@ def catalog_card_printings(
 ):
     """All printings of a card number, so a scan can price the exact treatment."""
     _ = user
-    return services.card_printings(db, card_id)
+    return search_svc.card_printings(db, card_id)
 
 
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)

@@ -16,7 +16,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-from app.config import Settings
+from app.core.config import Settings
 from app.duel.tokens import game_token_secret
 
 TICKET_PREFIX = "mb1"

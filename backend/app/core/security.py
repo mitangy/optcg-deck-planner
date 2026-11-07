@@ -21,8 +21,8 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
 from app.models import User
 from app.roles import is_admin, is_staff
 

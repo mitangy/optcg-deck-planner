@@ -10,11 +10,11 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import services
+from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 from app.core.statuses import FriendshipStatus
 from app.core.time import as_utc
-from app.domain import is_don_card, parse_cost
+from app.planner.domain import is_don_card, parse_cost
 from app.social.schemas import SparePrinting, SpareItem
 from app.models import CatalogCard, CatalogPrinting, Friendship, TradeKeep, User, UserSharing
 from app.roles import is_banned
@@ -116,7 +116,7 @@ def wants(db: Session, user: User, deck_ids: list[int] | None = None) -> dict[st
     """card_id -> copies still to buy on the user's shopping list (only `deck_ids` when given, #799)."""
     return {
         i.card_id: i.still_need
-        for i in services.shopping_list(db, user, deck_ids=deck_ids).items
+        for i in shopping_svc.shopping_list(db, user, deck_ids=deck_ids).items
         if i.still_need > 0
     }
 
@@ -125,7 +125,7 @@ def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, Ca
     """Per-card holdings for every card the user owns or keeps (DON!! excluded)."""
     owned = total_owned(db, user.id)
     alts = catalog_repo.alt_owned_map(db, user.id)
-    reserved = {i.card_id: i.need for i in services.shopping_list(db, user).items}
+    reserved = {i.card_id: i.need for i in shopping_svc.shopping_list(db, user).items}
     keeps = {
         k.card_id: k.keep_qty
         for k in db.scalars(select(TradeKeep).where(TradeKeep.user_id == user.id)).all()

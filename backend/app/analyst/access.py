@@ -9,7 +9,7 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.core.config import Settings
 from app.core.statuses import AccessStatus
 from app.models import AnalystAccess, AnalystSetting, User
 from app.roles import is_admin

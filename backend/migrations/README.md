@@ -1,7 +1,7 @@
 # Backend migrations (Alembic)
 
 Status: **scaffolding only.** The API still builds its schema at startup with
-`app.db.init_db` (`create_all` plus the `_ensure_*` ALTER helpers). Alembic is
+`app.core.db.init_db` (`create_all` plus the `_ensure_*` ALTER helpers). Alembic is
 installed and has a baseline, but nothing runs it. Production is untouched
 until the owner approves the cutover below.
 
