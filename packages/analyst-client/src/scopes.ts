@@ -1,3 +1,4 @@
+import { SCOPE_PATTERN, SCOPE_TITLE_MAX } from "@optcg/analyst-contract";
 /** What a Log Pose chat is about: the general chat, one match, or one deck. Mirrors the server's scope strings. */
 export const GENERAL = "general";
 export type ScopeKind = "general" | "match" | "deck";
@@ -5,12 +6,10 @@ export type ScopeKind = "general" | "match" | "deck";
 /** A scope plus the name shown for it ("Zoro Aggro", "Luffy vs Zoro"). */
 export type LogPoseScope = { key: string; title: string };
 
-/** Must equal the server's limit on `scope_title`. */
-export const SCOPE_TITLE_MAX = 80;
+/** The server's limit on `scope_title` (the contract package). */
+export { SCOPE_TITLE_MAX };
 
-const SCOPE_RE = /^(?:general|match:[A-Za-z0-9_-]{1,64}|deck:planner:\d{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$/;
-
-export const isValidScope = (key: string): boolean => SCOPE_RE.test(key);
+export const isValidScope = (key: string): boolean => SCOPE_PATTERN.test(key);
 
 /** The scope kind of a key; anything the server wouldn't accept counts as general. */
 export function scopeKind(key: string | null | undefined): ScopeKind {
