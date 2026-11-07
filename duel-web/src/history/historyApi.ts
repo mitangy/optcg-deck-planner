@@ -1,6 +1,5 @@
 /** Duel-web ↔ FastAPI: your match history and your personal Log Pose connector link. */
-import { getApiBaseUrl } from "../config";
-import { ApiError, withJsonHeaders } from "../net/api";
+import { apiCall } from "../api/http";
 
 export type MatchHistoryEntry = {
   match_id: string;
@@ -42,20 +41,7 @@ export type MatchDetail = { match: MatchHistoryEntry; log: SeatLogJson | null };
 export type AnalystLinkStatus = { has_token: boolean; created_at: string | null };
 export type AnalystLinkCreated = { token: string; connector_url: string | null };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, { credentials: "include", ...init, headers: withJsonHeaders(init) });
-  if (!res.ok) {
-    let detail = `${fallback} (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return (res.status === 204 ? undefined : await res.json()) as T;
-}
+const call = apiCall;
 
 export async function fetchMatchHistory(limit = 50): Promise<MatchHistoryEntry[]> {
   const body = await call<{ matches: MatchHistoryEntry[] }>(`/duel/matches/me?limit=${limit}`, {}, "Could not load your matches");

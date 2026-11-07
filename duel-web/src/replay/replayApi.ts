@@ -1,6 +1,6 @@
 /** Duel-web ↔ FastAPI: the recording of one of your games, for the replay viewer. Kept apart from historyApi. */
 import type { MatchReplay } from "@optcg/rules/replayTimeline";
-import { getApiBaseUrl } from "../config";
+import { ApiError, apiCall } from "../api/http";
 
 export type ReplayPayload = {
   match_id: string;
@@ -34,21 +34,10 @@ export function failureForStatus(status: number): ReplayLoadFailure {
 }
 
 export async function fetchMatchReplay(matchId: string): Promise<ReplayPayload> {
-  let res: Response;
   try {
-    res = await fetch(`${getApiBaseUrl()}/duel/matches/me/${encodeURIComponent(matchId)}/replay`, { credentials: "include" });
-  } catch {
+    return await apiCall<ReplayPayload>(`/duel/matches/me/${encodeURIComponent(matchId)}/replay`, undefined, "Could not load this replay");
+  } catch (e) {
+    if (e instanceof ApiError && e.status > 0) throw new ReplayLoadError(failureForStatus(e.status), e.message);
     throw new ReplayLoadError("error", "Could not reach the server");
   }
-  if (!res.ok) {
-    let detail = `Could not load this replay (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ReplayLoadError(failureForStatus(res.status), detail);
-  }
-  return (await res.json()) as ReplayPayload;
 }

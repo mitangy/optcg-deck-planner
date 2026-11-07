@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { ApiError, updateUsername, type AuthUser } from "../net/api";
+import { setAuthUser } from "./session";
 import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
 
 type Props = {
@@ -41,6 +42,7 @@ export function UsernameForm({ initial, submitLabel, onSaved, current, autoFocus
       const user = await updateUsername(value);
       setValue(user.username ?? value.trim());
       setSaved(true);
+      setAuthUser(user);
       onSaved(user);
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);

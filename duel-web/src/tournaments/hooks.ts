@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePolling } from "../lib/usePolling";
-import { fetchAuthMe, type AuthUser } from "../net/api";
+import { useAuth } from "../auth/session";
+import type { AuthUser } from "../net/api";
 import { fetchTournaments, type TournamentSummary } from "./tournamentApi";
 
 export type Who =
@@ -11,21 +12,12 @@ export type Who =
 
 /** Who is signed in; tournaments need an account with a username. */
 export function useWho(): Who {
-  const [who, setWho] = useState<Who>({ status: "loading" });
-  useEffect(() => {
-    let live = true;
-    fetchAuthMe()
-      .then((u) => {
-        if (!live) return;
-        if (!u) setWho({ status: "signed-out" });
-        else setWho(u.username ? { status: "ready", user: u } : { status: "no-username" });
-      })
-      .catch(() => live && setWho({ status: "signed-out" }));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return who;
+  const { status, user } = useAuth();
+  return useMemo<Who>(() => {
+    if (status === "loading") return { status: "loading" };
+    if (!user) return { status: "signed-out" };
+    return user.username ? { status: "ready", user } : { status: "no-username" };
+  }, [status, user]);
 }
 
 export function useTournaments(enabled: boolean, ms = 20_000) {

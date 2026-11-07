@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { startAccountSync } from "../account/accountSync";
+import { setAuthUser } from "../auth/session";
 import { claimLoginTicket, googleLoginUrl, mintSessionGameToken } from "../net/api";
 import { BannedError, MissingTicketError, signInErrorMessage } from "../auth/signInError";
 import { useDuelSession } from "../state/DuelSession";
@@ -28,7 +28,8 @@ export function AuthCompletePage() {
         const user = await claimLoginTicket(ticket);
         // Strip ticket from the URL so refreshes cannot reuse it.
         window.history.replaceState(null, "", "/auth/complete");
-        void startAccountSync(user);
+        // The account sync watching the store starts for this user.
+        setAuthUser(user);
         const minted = await mintSessionGameToken();
         if (cancelled) return;
         setRating(minted.rating);

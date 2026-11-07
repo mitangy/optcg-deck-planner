@@ -1,4 +1,4 @@
-import { apiError, withJsonHeaders } from "../net/api";
+import { apiCall, apiError } from "../api/http";
 import { getApiBaseUrl } from "../config";
 
 export type Role = "user" | "moderator" | "admin";
@@ -230,16 +230,7 @@ export type AdminUserMatch = {
 
 export type AdminUsers = { total: number; users: AdminUser[] };
 
-export async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: withJsonHeaders(init ?? {}),
-  });
-  if (!res.ok) throw await apiError(res, `Request failed (${res.status})`);
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
-}
+export const call = apiCall;
 
 export const fetchAdminMe = () => call<AdminMe>("/admin/me");
 export const fetchAdminOverview = (days = 30) => call<AdminOverview>(`/admin/overview?days=${days}`);

@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { stopAccountSync } from "../account/accountSync";
+import { getAuth, resetAuthForTests } from "../auth/session";
 import { DuelSessionProvider } from "../state/DuelSession";
 import { AuthCompletePage } from "./AuthCompletePage";
 import { UsernameSetupPage } from "./UsernameSetupPage";
@@ -41,6 +42,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  resetAuthForTests();
   calls = [];
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -89,6 +91,8 @@ describe("sign-in landing redirects (refactor 2.1b)", () => {
     expect(calls).toContain("POST /auth/claim");
     expect(calls).toContain("POST /duel/token");
     expect(document.querySelector('[data-testid="home"]')).not.toBeNull();
+    // The rest of the app (nav menu, lobby, account sync) learns who signed in from the auth store.
+    expect(getAuth()).toMatchObject({ status: "ready", user: { id: 7 } });
   });
 
   it("sends an account with no username on to choose one", async () => {
@@ -142,5 +146,18 @@ describe("username setup redirects (refactor 2.1b)", () => {
     await mountAt("/welcome/username");
     expect(document.querySelector('[data-testid="home"]')).toBeNull();
     expect(Array.from(document.querySelectorAll("input")).some((i) => i.value === "SuggestedName")).toBe(true);
+  });
+
+  it("signing out instead logs out, empties the auth store and goes home", async () => {
+    fakeApi({ me: user(null) });
+    await mountAt("/welcome/username");
+    const out = Array.from(document.querySelectorAll("button")).find((b) => /Sign out instead/.test(b.textContent ?? ""))!;
+    await act(async () => {
+      out.click();
+      await new Promise((r) => setTimeout(r, 100));
+    });
+    expect(calls).toContain("POST /auth/logout");
+    expect(getAuth()).toEqual({ status: "signed-out", user: null });
+    expect(document.querySelector('[data-testid="home"]')).not.toBeNull();
   });
 });
