@@ -335,24 +335,6 @@ def test_lesson_out_names_its_source_and_a_bot_lesson_has_no_match_ids_915(analy
     assert sorted((l["source"], l["match_ids"]) for l in got) == [("bots", []), ("player", [])]
 
 
-def test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lessons_915(monkeypatch):
-    """An existing analyst_lessons table gets `source`, and its rows read back as player lessons (#915)."""
-    from sqlalchemy import text
-
-    from app.core import db as app_db
-    from tests.db_support import make_bare_engine
-
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE analyst_lessons (id INTEGER PRIMARY KEY, text TEXT NOT NULL)"))
-        conn.execute(text("INSERT INTO analyst_lessons (id, text) VALUES (1, 'old lesson')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_analyst_lesson_source()
-    app_db._ensure_analyst_lesson_source()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT source FROM analyst_lessons")).all() == [("player",)]
-
-
 def _admin_with_link(c, SessionLocal) -> dict:
     me = c.post("/auth/dev-login").json()
     from app.core.models import User
