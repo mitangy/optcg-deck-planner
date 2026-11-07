@@ -11,9 +11,9 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-07
-  { date: "2026-11-07", app: "planner", pr: 0, title: "Collector copies stay out of friends' spares", text: "Collector copies no longer show up as spares for friends to trade for." },
-  { date: "2026-11-07", app: "duel", pr: 0, title: "Tournament games keep their result", text: "Tournaments: tapping Play again during your game takes you back to it instead of losing its result." },
-  { date: "2026-11-07", app: "both", pr: 0, title: "Decks no longer vanish after syncing", text: "A new deck that matches one you already have is no longer deleted, and an oversized planner deck keeps its cards when you edit it in Duel." },
+  { date: "2026-11-07", app: "planner", pr: 1063, title: "Collector copies stay out of friends' spares", text: "Collector copies no longer show up as spares for friends to trade for." },
+  { date: "2026-11-07", app: "duel", pr: 1063, title: "Tournament games keep their result", text: "Tournaments: tapping Play again during your game takes you back to it instead of losing its result." },
+  { date: "2026-11-07", app: "both", pr: 1063, title: "Decks no longer vanish after syncing", text: "A new deck that matches one you already have is no longer deleted, and an oversized planner deck keeps its cards when you edit it in Duel." },
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1030, title: "Import your OPTCGSim games into Log Pose", text: "In Settings, under Log Pose, you can now import your OPTCGSim games: choose your exported games file or paste one combat log. Claude can then list them and review any one turn by turn, from your side of the table. Only you can see them, player names are not kept, and Clear imported games removes them all." },
   { date: "2026-11-06", app: "planner", pr: 1031, title: "Collector copies on top of your decks", text: "Want a gold-stamped or other alt art as a keepsake on top of what your decks need? Open the price on a card in Master Shopping and choose Want a collector copy too. It shows as its own line under the card, owned copies fill it first, and it is counted in your totals. Remove it any time, with Undo." },
