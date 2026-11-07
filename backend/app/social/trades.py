@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
-from app import services
+from app.planner import catalog_repo
 from app.core.statuses import TradeStatus
 from app.core.time import as_utc, utcnow
 from app.social import friend_view as fv
@@ -90,7 +90,7 @@ def validate_offer(
         party, held, catalog = parties[side]
         h = held.get(card_id)
         if h is None or h.spare < qty:
-            cat = catalog.get(card_id) or services._catalog_map(db, {card_id}).get(card_id)
+            cat = catalog.get(card_id) or catalog_repo.catalog_map(db, {card_id}).get(card_id)
             name = cat.name if cat else card_id
             if party.id == actor.id:
                 detail = f"You don't have {qty} spare {name} ({card_id})."
@@ -99,8 +99,8 @@ def validate_offer(
             raise HTTPException(status_code=409, detail=detail)
 
     alts_by_party = {
-        "give": services._alt_owned_map(db, sender.id),
-        "get": services._alt_owned_map(db, recipient.id),
+        "give": catalog_repo.alt_owned_map(db, sender.id),
+        "get": catalog_repo.alt_owned_map(db, recipient.id),
     }
     for (side, card_id, pid), qty in sorted(merged.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or 0)):
         if pid is None:
@@ -148,7 +148,7 @@ def create_offer(
     parent_id: int | None = None,
 ) -> TradeOffer:
     card_ids = {card_id for (_s, card_id, _p) in merged}
-    cards = services._catalog_map(db, card_ids)
+    cards = catalog_repo.catalog_map(db, card_ids)
     pids = {pid for (_s, _c, pid) in merged if pid is not None}
     prices: dict[int, float | None] = {}
     if pids:
@@ -234,7 +234,7 @@ def build_out(db: Session, offers: list[TradeOffer], me: User) -> list[TradeOut]
     user_ids = {o.from_user_id for o in offers} | {o.to_user_id for o in offers}
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))}
     card_ids = {line.card_id for o in offers for line in o.lines}
-    cards: dict[str, CatalogCard] = services._catalog_map(db, card_ids)
+    cards: dict[str, CatalogCard] = catalog_repo.catalog_map(db, card_ids)
     pids = {line.product_id for o in offers for line in o.lines if line.product_id is not None}
     printings: dict[int, CatalogPrinting] = {}
     if pids:

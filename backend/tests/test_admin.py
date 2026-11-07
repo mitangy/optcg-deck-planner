@@ -241,7 +241,7 @@ def test_banned_accounts_get_403_even_with_a_current_cookie_and_unban_restores_t
 
 def test_banned_users_log_pose_tokens_are_refused_668(api):
     from app.models import AnalystAccess
-    from app.routers.analyst import mint_chat_token
+    from app.analyst.auth import mint_chat_token
 
     c, S = api
     mod, plain = mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")

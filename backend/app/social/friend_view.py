@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import services
+from app.planner import catalog_repo
 from app.core.statuses import FriendshipStatus
 from app.core.time import as_utc
 from app.domain import is_don_card, parse_cost
@@ -103,8 +104,8 @@ class Holdings:
 
 def total_owned(db: Session, user_id: int) -> dict[str, int]:
     """card_id -> base copies + alt-printing copies."""
-    base = services._owned_map(db, user_id)
-    alts = services._alt_owned_map(db, user_id)
+    base = catalog_repo.owned_map(db, user_id)
+    alts = catalog_repo.alt_owned_map(db, user_id)
     out = {card_id: qty for card_id, qty in base.items() if qty > 0}
     for card_id, by_pid in alts.items():
         out[card_id] = out.get(card_id, 0) + sum(by_pid.values())
@@ -123,7 +124,7 @@ def wants(db: Session, user: User, deck_ids: list[int] | None = None) -> dict[st
 def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, CatalogCard]]:
     """Per-card holdings for every card the user owns or keeps (DON!! excluded)."""
     owned = total_owned(db, user.id)
-    alts = services._alt_owned_map(db, user.id)
+    alts = catalog_repo.alt_owned_map(db, user.id)
     reserved = {i.card_id: i.need for i in services.shopping_list(db, user).items}
     keeps = {
         k.card_id: k.keep_qty
@@ -131,7 +132,7 @@ def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, Ca
         if k.keep_qty > 0
     }
     card_ids = set(owned) | set(keeps)
-    catalog = services._catalog_map(db, card_ids)
+    catalog = catalog_repo.catalog_map(db, card_ids)
     out: dict[str, Holdings] = {}
     for card_id in card_ids:
         if _is_don(card_id, catalog.get(card_id)):

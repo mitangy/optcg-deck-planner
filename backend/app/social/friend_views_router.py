@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.social import friend_view as fv
 from app import services
+from app.planner import catalog_repo
 from app.auth import get_current_user
 from app.db import get_db
 from app.domain import deck_size_counts, is_don_card, parse_cost
@@ -138,13 +139,13 @@ def friend_decks(
 ) -> list[FriendDeckSummary]:
     owner, _ = fv.require_friend_view(db, user, friend_id, "decks")
     decks = _visible_decks(db, owner.id)
-    catalog = services._catalog_map(
+    catalog = catalog_repo.catalog_map(
         db, {c.card_id for d in decks for c in d.cards} | {d.leader_card_id for d in decks if d.leader_card_id}
     )
     out: list[FriendDeckSummary] = []
     for deck in decks:
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
-        main_cards, _don = deck_size_counts(services._deck_card_lines(deck), catalog)
+        main_cards, _don = deck_size_counts(catalog_repo.deck_card_lines(deck), catalog)
         out.append(
             FriendDeckSummary(
                 id=deck.id,
@@ -184,7 +185,7 @@ def friend_deck_detail(
     owner, _ = fv.require_friend_view(db, user, friend_id, "decks")
     deck = _visible_deck(db, owner.id, deck_id)
     ids = {c.card_id for c in deck.cards}
-    catalog = services._catalog_map(db, ids | ({deck.leader_card_id} if deck.leader_card_id else set()))
+    catalog = catalog_repo.catalog_map(db, ids | ({deck.leader_card_id} if deck.leader_card_id else set()))
     mine = fv.total_owned(db, user.id)
     cards: list[FriendDeckCard] = []
     missing = 0
@@ -216,7 +217,7 @@ def friend_deck_detail(
             )
         )
     leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
-    main_cards, _don = deck_size_counts(services._deck_card_lines(deck), catalog)
+    main_cards, _don = deck_size_counts(catalog_repo.deck_card_lines(deck), catalog)
     return FriendDeckDetail(
         id=deck.id,
         name=deck.name,
@@ -331,7 +332,7 @@ def put_trade_keep(
 ) -> TradeKeepOut:
     card_id = card_id.strip().upper()
     owned = fv.total_owned(db, user.id)
-    if card_id not in owned and not services._catalog_map(db, {card_id}):
+    if card_id not in owned and not catalog_repo.catalog_map(db, {card_id}):
         raise HTTPException(status_code=404, detail="Card not found.")
     row = db.scalar(
         select(TradeKeep).where(TradeKeep.user_id == user.id, TradeKeep.card_id == card_id)

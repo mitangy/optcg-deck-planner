@@ -7,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from tests.db_support import make_bare_engine, make_test_engine, requires_postgres
 from app.config import get_settings
 from app.db import get_db
-from app.duel_ratings import apply_elo
-from app.game_tokens import mint_game_token, verify_game_token
+from app.duel.ratings import apply_elo
+from app.duel.tokens import mint_game_token, verify_game_token
 from app.main import app
 from datetime import datetime, timedelta, timezone
 
@@ -478,7 +478,7 @@ def test_result_clears_live_progress_in_redis_389(client, fake_redis):
     """The result deletes the live snapshot; a late or racing one never lists the game twice."""
     from datetime import datetime, timezone
 
-    from app import duel_live
+    from app.duel import live as duel_live
     from app.models import DuelMatchProgress
 
     c, _ = client
@@ -811,9 +811,9 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
     """A crashed game server never sends the closed log, so the sweep saves the last live one."""
     from datetime import datetime, timedelta, timezone
 
-    from app import duel_live
+    from app.duel import live as duel_live
     from app.models import DuelMatchProgress
-    from app.progress_sweep import sweep_idle_progress
+    from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
     me = c.post("/auth/dev-login").json()
@@ -851,7 +851,7 @@ def test_an_idle_game_swept_to_postgres_keeps_its_replay_locked_651(client, fake
     from datetime import datetime, timedelta, timezone
 
     from app.models import DuelMatchProgress
-    from app.progress_sweep import sweep_idle_progress
+    from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
     me = c.post("/auth/dev-login").json()
@@ -879,9 +879,9 @@ def test_an_idle_game_swept_to_postgres_keeps_its_replay_locked_651(client, fake
 def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):
     from datetime import datetime, timedelta, timezone
 
-    from app import duel_live
+    from app.duel import live as duel_live
     from app.models import DuelMatchProgress
-    from app.progress_sweep import sweep_idle_progress
+    from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
     me = c.post("/auth/dev-login").json()
@@ -903,7 +903,7 @@ def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):
 def test_progress_sweep_only_runs_with_redis_682():
     import asyncio
 
-    from app import progress_sweep
+    from app.duel import progress_sweep
     from app.config import Settings
 
     async def go():
@@ -920,7 +920,8 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
     from datetime import datetime, timedelta, timezone
 
     from app import db as app_db
-    from app import duel_live, progress_sweep
+    from app.duel import live as duel_live
+    from app.duel import progress_sweep
 
     def no_db(*_a, **_k):
         raise AssertionError("the sweep touched Postgres with nothing to save")
@@ -944,7 +945,8 @@ def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypat
     from sqlalchemy import text
 
     from app import db as app_db
-    from app import duel_live, progress_sweep
+    from app.duel import live as duel_live
+    from app.duel import progress_sweep
     engine = make_bare_engine()
     monkeypatch.setattr(app_db, "engine", engine)
     monkeypatch.setattr(app_db, "SessionLocal", lambda: type("S", (), {"close": lambda self: None})())

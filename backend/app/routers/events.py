@@ -15,13 +15,13 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import events as ev
+from app.duel import events as ev
 from app.core.time import as_utc_or_none
 from app.auth import get_current_user, get_optional_user
 from app.db import get_db
 from app.models import DuelEvent, EventDraw, EventEntry, User
 from app.roles import is_staff
-from app.routers.admin import Admin
+from app.core.security import Admin
 from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/duel/events", tags=["events"])

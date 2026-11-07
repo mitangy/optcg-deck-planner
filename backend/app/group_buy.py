@@ -42,6 +42,7 @@ from app.schemas import (
 )
 from app.tcgplayer_receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app import services
+from app.planner import catalog_repo
 
 FROZEN_STATUSES = frozenset({GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED})
 
@@ -183,8 +184,8 @@ def _catalog_bundle(
     if card_ids:
         rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
         catalog = {r.card_id: r for r in rows}
-    product_ids = services._primary_product_ids(db, card_ids)
-    alts = services._alt_arts_map(db, card_ids, wanted=wanted)
+    product_ids = catalog_repo.primary_product_ids(db, card_ids)
+    alts = catalog_repo.alt_arts_map(db, card_ids, wanted=wanted)
     printings: dict[int, CatalogPrinting] = {}
     if card_ids:
         rows = db.scalars(

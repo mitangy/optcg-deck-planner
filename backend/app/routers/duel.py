@@ -17,21 +17,21 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_live, duel_tournaments, redis_client
+from app import redis_client
+from app.duel import live as duel_live
+from app.duel import tournaments as duel_tournaments
 from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
 from app.config import Settings, get_settings
-from app.tokens import OpsToken
+from app.core.security import OpsToken
 from app.core.time import as_utc
 from app.db import get_db
-from app.duel_ratings import INITIAL_RATING, apply_elo
-from app.game_tokens import mint_game_token
-from app.moderation import recent_takedowns
+from app.duel.ratings import INITIAL_RATING, apply_elo
+from app.duel.tokens import mint_game_token
+from app.duel.moderation import recent_takedowns
 from app.models import (
     CardReport,
-    AnalystMessage,
-    AnalystThread,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
@@ -43,8 +43,16 @@ from app.models import (
     User,
 )
 from app.rate_limit import RateLimiter, client_ip
-from app.server_urls import GAME_SERVER_KNOWN_KEY, GAME_SERVER_POOL_KEY, game_server_url, normalize_server_url
-from app.duel.matches import has_result, latest_progress, lock_match
+from app.duel.server_urls import GAME_SERVER_KNOWN_KEY, GAME_SERVER_POOL_KEY, game_server_url, normalize_server_url
+from app.duel.matches import (
+    has_result,
+    history_entries,
+    latest_progress,
+    lock_match,
+    match_history,
+    progress_closed,
+    unfinished_entries,
+)
 from app.social.presence import ONLINE_TTL, PRESENCE_TTL
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
@@ -57,7 +65,6 @@ from app.schemas import (
     DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
     DuelMatchDetailOut,
-    DuelMatchHistoryEntry,
     DuelMatchHistoryOut,
     DuelMatchIngest,
     DuelMatchProgressIngest,
@@ -77,8 +84,6 @@ log = logging.getLogger(__name__)
 
 # A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
-# A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
-PROGRESS_STALE_AFTER = timedelta(hours=24)
 # Takedowns the presence answer repeats, so every game-server process hears about each one.
 TAKEDOWN_RELAY_WINDOW = timedelta(minutes=15)
 
@@ -593,159 +598,6 @@ def my_matches(
     return DuelMatchHistoryOut(matches=match_history(db, user, limit, include_unfinished=True))
 
 
-def match_history(
-    db: Session, user: User, limit: int, include_unfinished: bool = False
-) -> list[DuelMatchHistoryEntry]:
-    """A player's recent duels from their own seat, newest first (also read by the analyst)."""
-    limit = max(1, min(limit, 100))
-    rows = db.scalars(
-        select(DuelMatch)
-        .where(or_(DuelMatch.seat0_user_id == user.id, DuelMatch.seat1_user_id == user.id))
-        .order_by(DuelMatch.created_at.desc(), DuelMatch.id.desc())
-        .limit(limit)
-    ).all()
-    entries = _history_entries(db, user, rows)
-    if not include_unfinished:
-        return entries
-    unfinished = db.scalars(
-        select(DuelMatchProgress)
-        .where(or_(DuelMatchProgress.seat0_user_id == user.id, DuelMatchProgress.seat1_user_id == user.id))
-        .order_by(DuelMatchProgress.updated_at.desc())
-        .limit(limit)
-    ).all()
-    entries += _unfinished_entries(db, user, _with_live_progress(db, user, list(unfinished), limit))
-    entries.sort(key=lambda e: _sort_time(e.created_at), reverse=True)
-    return entries[:limit]
-
-
-def _with_live_progress(
-    db: Session, user: User, stored: list[DuelMatchProgress], limit: int
-) -> list[DuelMatchProgress]:
-    """Postgres's unfinished games plus Redis's live ones (newest copy of each), minus finished ones."""
-    r = redis_client.get_redis()
-    if r is None:
-        return stored
-    try:
-        live = duel_live.user_progress(r, user.id, limit)
-    except redis_client.RedisError:
-        redis_client.report_failure("progress read")
-        return stored
-    if not live:
-        return stored
-    newest: dict[str, DuelMatchProgress] = {}
-    for row in [*stored, *live]:
-        seen = newest.get(row.match_id)
-        if seen is None or as_utc(row.updated_at) > as_utc(seen.updated_at):
-            newest[row.match_id] = row
-    # A live snapshot can land just after the result (no match lock on the Redis path).
-    finished = set(db.scalars(select(DuelMatch.match_id).where(DuelMatch.match_id.in_(list(newest)))))
-    return [row for match_id, row in newest.items() if match_id not in finished]
-
-
-def _progress_closed(progress: DuelMatchProgress, now: datetime) -> bool:
-    """Nobody is playing this cut-off game any more: its room said so, or it went quiet for a day."""
-    if progress.closed:
-        return True
-    updated = progress.updated_at
-    if updated is None:
-        return False
-    updated = as_utc(updated)
-    return now - updated > PROGRESS_STALE_AFTER
-
-
-def _sort_time(iso: str | None) -> datetime:
-    if not iso:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    return as_utc(datetime.fromisoformat(iso))
-
-
-def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) -> list[DuelMatchHistoryEntry]:
-    """Games with no result: no winner and no Bounty change, dated by their last saved turn."""
-    if not rows:
-        return []
-    opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
-    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
-    now = datetime.now(timezone.utc)
-    with_chat = _chat_match_ids(db, user, [r.match_id for r in rows])
-    entries = []
-    for r in rows:
-        seat = 0 if r.seat0_user_id == user.id else 1
-        opponent = opponents.get(r.seat1_user_id if seat == 0 else r.seat0_user_id)
-        entries.append(
-            DuelMatchHistoryEntry(
-                match_id=r.match_id,
-                created_at=r.updated_at.isoformat() if r.updated_at else None,
-                ranked=r.ranked,
-                your_seat=seat,
-                won=False,
-                reason="unfinished",
-                turns=r.turns,
-                your_leader_id=r.seat0_leader_id if seat == 0 else r.seat1_leader_id,
-                opponent_leader_id=r.seat1_leader_id if seat == 0 else r.seat0_leader_id,
-                opponent_name=duel_display_name(opponent) if opponent else "Player",
-                rating_before=0,
-                rating_after=0,
-                has_replay=r.replay is not None,
-                has_log=(r.seat0_log if seat == 0 else r.seat1_log) is not None,
-                finished=False,
-                replay_ready=r.replay is not None and _progress_closed(r, now),
-                has_chat=r.match_id in with_chat,
-            )
-        )
-    return entries
-
-
-def _chat_match_ids(db: Session, user: User, match_ids: list[str]) -> set[str]:
-    """Which of these games the player has an answered Log Pose chat about (#970)."""
-    scopes = {f"match:{m}": m for m in match_ids}
-    answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
-    found = db.scalars(
-        select(AnalystThread.scope).where(AnalystThread.user_id == user.id, AnalystThread.scope.in_(list(scopes)), answered)
-    ).all()
-    return {scopes[s] for s in found}
-
-
-def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[DuelMatchHistoryEntry]:
-    if not rows:
-        return []
-    ids = [r.match_id for r in rows]
-    opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
-    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
-    with_replay = set(db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_(ids))).all())
-    with_log = {
-        (match_id, seat)
-        for match_id, seat in db.execute(
-            select(DuelMatchSeatLog.match_id, DuelMatchSeatLog.seat).where(DuelMatchSeatLog.match_id.in_(ids))
-        ).all()
-    }
-    with_chat = _chat_match_ids(db, user, ids)
-    matches = []
-    for r in rows:
-        seat = 0 if r.seat0_user_id == user.id else 1
-        opponent = opponents.get(r.seat1_user_id if seat == 0 else r.seat0_user_id)
-        matches.append(
-            DuelMatchHistoryEntry(
-                match_id=r.match_id,
-                created_at=r.created_at.isoformat() if r.created_at else None,
-                ranked=r.ranked,
-                your_seat=seat,
-                won=r.winner_seat == seat,
-                reason=r.reason,
-                turns=r.turns,
-                your_leader_id=r.seat0_leader_id if seat == 0 else r.seat1_leader_id,
-                opponent_leader_id=r.seat1_leader_id if seat == 0 else r.seat0_leader_id,
-                opponent_name=duel_display_name(opponent) if opponent else "Player",
-                rating_before=r.seat0_rating_before if seat == 0 else r.seat1_rating_before,
-                rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
-                has_replay=r.match_id in with_replay,
-                has_log=(r.match_id, seat) in with_log,
-                replay_ready=r.match_id in with_replay,
-                has_chat=r.match_id in with_chat,
-            )
-        )
-    return matches
-
-
 @router.get("/matches/me/{match_id}", response_model=DuelMatchDetailOut)
 def my_match(
     match_id: str,
@@ -760,7 +612,7 @@ def my_match(
             raise HTTPException(status_code=404, detail="Match not found")
         log_text = progress.seat0_log if progress.seat0_user_id == user.id else progress.seat1_log
         return DuelMatchDetailOut(
-            match=_unfinished_entries(db, user, [progress])[0],
+            match=unfinished_entries(db, user, [progress])[0],
             log=json.loads(log_text) if log_text else None,
         )
     if user.id not in (row.seat0_user_id, row.seat1_user_id):
@@ -768,7 +620,7 @@ def my_match(
     seat = 0 if row.seat0_user_id == user.id else 1
     seat_log = db.get(DuelMatchSeatLog, (match_id, seat))
     return DuelMatchDetailOut(
-        match=_history_entries(db, user, [row])[0],
+        match=history_entries(db, user, [row])[0],
         log=json.loads(seat_log.log) if seat_log else None,
     )
 
@@ -801,7 +653,7 @@ def my_match_replay(
         players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
         if progress is None or (user.id not in players and not is_admin(user)):
             raise HTTPException(status_code=404, detail="Match not found")
-        if not _progress_closed(progress, datetime.now(timezone.utc)):
+        if not progress_closed(progress, datetime.now(timezone.utc)):
             raise HTTPException(status_code=409, detail="This game is still being played")
         if progress.replay is None:
             raise HTTPException(status_code=404, detail="No replay was kept for this match")

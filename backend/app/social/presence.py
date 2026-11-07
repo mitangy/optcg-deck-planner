@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import duel_live, redis_client
+from app import redis_client
+from app.duel import live as duel_live
 from app.core.time import as_utc
 from app.models import DuelPresence, Friendship
 

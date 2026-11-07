@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import secrets
 from datetime import datetime, timezone
@@ -17,15 +15,15 @@ from app.analyst_stats import matchup_stats
 from app.tournament_stats import tournament_stats
 from app.tournament_sync import sync_status
 from app.analyst import access
-from app.analyst.access import chat_enabled_for
+from app.analyst.auth import analyst_user, hash_token
+from app.core.security import require_service
 from app.auth import get_current_user
-from app.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
+from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
 from app.config import Settings, get_settings
 from app.core.statuses import LessonStatus
 from app.db import get_db
-from app.roles import is_banned
 from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
-from app.routers.duel import match_history
+from app.duel.matches import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystDeckOut,
@@ -51,10 +49,6 @@ from app.schemas import (
 from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _connector_url(settings: Settings, token: str) -> str | None:
@@ -83,7 +77,7 @@ def create_token(
     """Make a new personal connector link. Any earlier link stops working."""
     token = secrets.token_urlsafe(24)
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
-    db.add(AnalystToken(user_id=user.id, token_hash=_hash(token)))
+    db.add(AnalystToken(user_id=user.id, token_hash=hash_token(token)))
     db.commit()
     return AnalystTokenCreated(token=token, connector_url=_connector_url(settings, token))
 
@@ -96,66 +90,6 @@ def revoke_token(
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
     db.commit()
     return Response(status_code=204)
-
-
-CHAT_TOKEN_SECONDS = 30 * 60
-
-
-def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
-    return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
-
-
-def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
-    """A short-lived token the browser hands the analyst's /chat; signed with the service secret."""
-    exp = now + CHAT_TOKEN_SECONDS
-    return f"chat.{user.id}.{exp}.{_chat_sig(settings, user.id, exp)}", exp
-
-
-def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None:
-    parts = token.split(".")
-    if len(parts) != 4 or not settings.analyst_service_secret:
-        return None
-    _, uid, exp, sig = parts
-    if not (uid.isdigit() and exp.isdigit()):
-        return None
-    if not hmac.compare_digest(sig, _chat_sig(settings, int(uid), int(exp))):
-        return None
-    if int(exp) < int(datetime.now(timezone.utc).timestamp()):
-        return None
-    user = db.get(User, int(uid))
-    return user if user is not None and chat_enabled_for(settings, user, db) else None
-
-
-def analyst_user(
-    db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_analyst_token: Annotated[str | None, Header()] = None,
-) -> User:
-    """The player whose personal connector token (or in-app chat token) is in X-Analyst-Token."""
-    if not x_analyst_token:
-        raise HTTPException(status_code=401, detail="Missing analyst token")
-    if x_analyst_token.startswith("chat."):
-        user = _chat_token_user(db, settings, x_analyst_token)
-        if user is None:
-            raise HTTPException(status_code=401, detail="Expired or invalid chat token")
-        if is_banned(user):
-            raise HTTPException(status_code=403, detail="Account banned")
-        return user
-    row = db.scalar(select(AnalystToken).where(AnalystToken.token_hash == _hash(x_analyst_token)))
-    user = db.get(User, row.user_id) if row else None
-    if user is None:
-        raise HTTPException(status_code=401, detail="Unknown or revoked analyst token")
-    if is_banned(user):
-        raise HTTPException(status_code=403, detail="Account banned")
-    return user
-
-
-def require_service(settings: Settings, given: str | None) -> None:
-    expected = settings.analyst_service_secret
-    if not expected:
-        raise HTTPException(status_code=503, detail="Replays are not enabled")
-    if not given or not hmac.compare_digest(given, expected):
-        raise HTTPException(status_code=403, detail="Analyst service only")
 
 
 @router.get("/me", response_model=AnalystTokenStatus)

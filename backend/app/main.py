@@ -34,7 +34,8 @@ async def lifespan(_app: FastAPI):
             db.close()
     from app.tournament_sync import start_background
 
-    from app import discord_feedback, price_refresh, progress_sweep
+    from app import discord_feedback, price_refresh
+    from app.duel import progress_sweep
 
     sync_task = start_background(settings)
     sweep_task = progress_sweep.start_background(settings)
