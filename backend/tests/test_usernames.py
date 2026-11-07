@@ -11,7 +11,8 @@ from app.core.config import get_settings
 from app.core.db import _ensure_user_username, get_db
 from app.duel.tokens import verify_game_token
 from app.main import app
-from app.models import DuelRating, User
+from app.core.models import User
+from app.duel.models import DuelRating
 from app.routers import auth as auth_router
 from app.usernames import (
     UsernameError,

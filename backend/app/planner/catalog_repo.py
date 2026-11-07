@@ -11,8 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.planner.domain import ParsedCard
-from app.models import CatalogCard, CatalogPrinting, Deck, Owned, OwnedPrinting
-from app.schemas import PrintingView
+from app.planner.models import CatalogCard, CatalogPrinting, Deck, Owned, OwnedPrinting
+from app.planner.schemas import PrintingView
 
 
 def catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:

@@ -10,28 +10,25 @@ from urllib.parse import urlencode
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.statuses import GroupBuyStatus
+from app.core.statuses import GroupBuyStatus, ReceiptLineStatus
 from app.group_buy.merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
-from app.models import (
-    CatalogCard,
-    CatalogPrinting,
+from app.core.models import User
+from app.group_buy.models import (
     GroupBuy,
     GroupBuyMember,
     GroupBuyQtyOverride,
     GroupBuyReceiptApply,
     GroupBuyReceiptApplyLine,
     GroupBuySnapshotLine,
-    Owned,
-    User,
 )
-from app.schemas import (
+from app.planner.models import CatalogCard, CatalogPrinting, Owned
+from app.group_buy.schemas import (
     GroupBuyDetail,
     GroupBuyExport,
     GroupBuyInvitePreview,
     GroupBuyLineOut,
     GroupBuyMemberOut,
-    GroupBuyArtWantOut,
     GroupBuyMemberQtyOut,
     GroupBuyOrderUpdate,
     GroupBuyReceiptApplyRequest,
@@ -40,6 +37,7 @@ from app.schemas import (
     GroupBuyReceiptUnmatchedOut,
     GroupBuySummary,
 )
+from app.planner.schemas import GroupBuyArtWantOut
 from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
@@ -1164,19 +1162,19 @@ def build_receipt_match_report(
         hit = receipt_by_card.pop(card_id, None)
         receipt_qty = hit.qty if hit else 0
         if hit is None:
-            status = "missing"
+            status = ReceiptLineStatus.MISSING
             counts["missing"] += 1
             staged = 0
         elif receipt_qty == needed:
-            status = "exact"
+            status = ReceiptLineStatus.EXACT
             counts["exact"] += 1
             staged = needed
         elif receipt_qty > needed:
-            status = "surplus"
+            status = ReceiptLineStatus.SURPLUS
             counts["surplus"] += 1
             staged = needed
         else:
-            status = "short"
+            status = ReceiptLineStatus.SHORT
             counts["short"] += 1
             staged = receipt_qty
         counts["staged_copies"] += staged
@@ -1205,7 +1203,7 @@ def build_receipt_match_report(
                 group_name=hit.group_name,
                 needed_qty=0,
                 receipt_qty=hit.qty,
-                status="extra",
+                status=ReceiptLineStatus.EXTRA,
                 confidence=hit.confidence,
                 product_id=hit.product_id,
                 staged_qty=0,
@@ -1295,7 +1293,7 @@ def apply_receipt_to_group_buy(
         line
         for line in report.lines
         if line.staged_qty > 0
-        and line.status in ("exact", "surplus", "short")
+        and line.status in (ReceiptLineStatus.EXACT, ReceiptLineStatus.SURPLUS, ReceiptLineStatus.SHORT)
         and (selected is None or line.card_id in selected)
     ]
     if not staged_lines:
@@ -1425,7 +1423,7 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
                 )
             )
 
-    status_before = (apply_event.status_before or "ordered").strip()
+    status_before = (apply_event.status_before or GroupBuyStatus.ORDERED).strip()
     if status_before not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
         status_before = GroupBuyStatus.ORDERED
     group.status = status_before

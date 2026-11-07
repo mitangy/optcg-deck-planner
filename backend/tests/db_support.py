@@ -15,7 +15,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.pool import NullPool, StaticPool
 
-from app.models import Base
+from app.all_models import Base
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 

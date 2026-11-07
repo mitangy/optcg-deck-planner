@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AnalystPrefs, DuelMatch, DuelMatchLog, DuelMatchSeat
+from app.analyst.models import AnalystPrefs
+from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchSeat
 
 MIN_GAMES = 5
 

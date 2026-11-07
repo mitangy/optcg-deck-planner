@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from app.admin import discord_feedback
 from app.core.config import Settings
 from app.admin.discord_feedback import PollState, poll_once, snowflake_from_datetime
-from app.models import Feedback
+from app.admin.models import Feedback
 from app.routers.feedback import list_feedback
 from tests.db_support import make_test_engine
 

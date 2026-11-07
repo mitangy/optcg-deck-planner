@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.planner import meta_decks
 from app.core.db import get_db
 from app.core.rate_limit import RateLimiter, client_ip
-from app.schemas import CARD_ID_PATTERN
+from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/meta", tags=["meta"])
 

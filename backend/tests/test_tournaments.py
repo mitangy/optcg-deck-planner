@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core import db as app_db
 from app.analyst import tournament_sync as ts
 from app.core.config import Settings
-from app.models import Tournament, TournamentDeck, TournamentGame
+from app.analyst.models import Tournament, TournamentDeck, TournamentGame
 from app.analyst.tournament_stats import tournament_stats
 from tests.db_support import make_bare_engine, requires_postgres
 from tests.test_analyst import analyst  # noqa: F401  (fixture)

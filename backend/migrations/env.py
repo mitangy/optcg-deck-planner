@@ -12,7 +12,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app.core.config import get_settings
-from app.models import Base
+from app.all_models import Base  # imports every domain models module, so autogenerate sees every table
 
 config = context.config
 if config.config_file_name is not None:

@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.planner import catalog_sync
-from app.models import CatalogCard, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogPrinting
 
 
 def _group_urls(group_id: int, products: dict[str, Any], prices: dict[str, Any]) -> dict[str, Any]:

@@ -66,7 +66,7 @@ def test_extra_is_max_not_a_leader_when_summing_across_leaders_525(db):
     user = _setup(db)
     user.sum_across_leaders = True
     db.commit()
-    from app.models import Deck
+    from app.planner.models import Deck
 
     a = add_deck_with_cards(db, user, "Luffy deck", {"OP01-001": 3})
     b = add_deck_with_cards(db, user, "Zoro deck", {"OP01-001": 2})
@@ -197,7 +197,7 @@ def test_share_without_the_flag_still_includes_extras_527(db):
 
 
 def test_old_share_link_row_defaults_to_including_extras_527(db):
-    from app.models import ShareLink
+    from app.planner.models import ShareLink
 
     user = _share_setup(db)
     db.add(ShareLink(user_id=user.id, token="old-token", kind="shopping"))

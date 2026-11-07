@@ -11,7 +11,7 @@ from app.core.auth import get_current_user
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import app
-from app.models import ScanSample
+from app.planner.models import ScanSample
 from app.routers import scan_samples
 from tests.conftest import make_user
 

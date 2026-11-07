@@ -10,14 +10,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.planner.domain import (
     parse_cost,
 )
-from app.models import (
-    CatalogCard,
-    CatalogPrinting,
-    Deck,
-    ShoppingExtra,
-    ShoppingExtraPrinting,
-    User,
-)
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Deck, ShoppingExtra, ShoppingExtraPrinting
 from app.planner.catalog_repo import (
     alt_arts_map,
     alt_owned_map,
@@ -25,12 +19,7 @@ from app.planner.catalog_repo import (
     owned_map,
     primary_product_ids,
 )
-from app.schemas import (
-    CollectorLine,
-    LeaderNeed,
-    ShoppingItem,
-    ShoppingResponse,
-)
+from app.planner.schemas import CollectorLine, LeaderNeed, ShoppingItem, ShoppingResponse
 from app.planner.printings import (
     _alts_owned_total,
     _apply_alt_want_clamp_to_rows,

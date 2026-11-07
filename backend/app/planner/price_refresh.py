@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.planner import catalog_sync
 from app.core.time import as_utc
 from app.planner.catalog_sync import TCGCSV_BASE, _get_json, refresh_special_flags
-from app.models import CatalogPrinting
+from app.planner.models import CatalogPrinting
 
 log = logging.getLogger("uvicorn.error")
 

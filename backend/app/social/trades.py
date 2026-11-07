@@ -14,17 +14,9 @@ from app.core.statuses import TradeStatus
 from app.core.time import as_utc, utcnow
 from app.social import friend_view as fv
 from app.social.schemas import TradeLineIn, TradeLineOut, TradeOut
-from app.models import (
-    CatalogCard,
-    CatalogPrinting,
-    Owned,
-    OwnedPrinting,
-    TradeApply,
-    TradeApplyLine,
-    TradeOffer,
-    TradeOfferLine,
-    User,
-)
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Owned, OwnedPrinting
+from app.social.models import TradeApply, TradeApplyLine, TradeOffer, TradeOfferLine
 from app.roles import is_banned
 
 OFFER_TTL = timedelta(days=14)

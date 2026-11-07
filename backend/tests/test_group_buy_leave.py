@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.group_buy import service as group_buy
-from app.models import GroupBuyMember, GroupBuyQtyOverride
+from app.group_buy.models import GroupBuyMember, GroupBuyQtyOverride
 from sqlalchemy import select
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 

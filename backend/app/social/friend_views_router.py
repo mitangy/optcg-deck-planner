@@ -30,8 +30,10 @@ from app.social.schemas import (
     TradeKeepIn,
     TradeKeepOut,
 )
-from app.models import Deck, TradeKeep, User, UserSharing
-from app.schemas import DeckDetail
+from app.core.models import User
+from app.planner.models import Deck
+from app.social.models import TradeKeep, UserSharing
+from app.planner.schemas import DeckDetail
 
 router = APIRouter(prefix="/friends", tags=["friend-views"])
 me_router = APIRouter(prefix="/me", tags=["friend-views"])

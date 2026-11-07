@@ -11,7 +11,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.duel import events as ev
-from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry
+from app.duel.models import DuelEvent, DuelMatch, EventDraw, EventEntry
 from tests.test_admin import ADMIN_EMAIL, login, mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
@@ -358,7 +358,7 @@ def test_the_seed_is_committed_only_once_and_only_before_the_start_794(api, cloc
     pub = c.get("/duel/events/current").json()["event"]
     assert pub["seed_hash"] == h and pub["seed"] is None
     with S() as db:
-        from app.models import EventDraw
+        from app.duel.models import EventDraw
 
         seed = db.query(EventDraw).one().seed
     assert ev.seed_hash(seed) == h

@@ -22,7 +22,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.time import as_utc
-from app.models import Tournament, TournamentDeck, TournamentGame
+from app.analyst.models import Tournament, TournamentDeck, TournamentGame
 
 log = logging.getLogger("uvicorn.error")
 

@@ -16,7 +16,9 @@ from app.core.statuses import FriendshipStatus
 from app.core.time import as_utc
 from app.planner.domain import is_don_card, parse_cost
 from app.social.schemas import SparePrinting, SpareItem
-from app.models import CatalogCard, CatalogPrinting, Friendship, TradeKeep, User, UserSharing
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting
+from app.social.models import Friendship, TradeKeep, UserSharing
 from app.roles import is_banned
 
 Scope = Literal["profile", "decks", "collection", "trades"]

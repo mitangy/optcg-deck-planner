@@ -23,30 +23,29 @@ from app.core.auth import (
     new_oauth_nonce,
 )
 from app.core.config import Settings, get_settings
-from app.models import (
+from app.analyst.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystThread,
     AnalystToken,
     AnalystUsage,
     BotMatch,
-    Deck,
+)
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
-    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
     DuelMatchSeat,
-    DuelPresence,
     DuelRating,
     DuelSavedDeck,
     DuelSoloGame,
-    Friendship,
-    Owned,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.planner.models import Deck, Owned
+from app.social.models import DuelLobbySeen, DuelPresence, Friendship
 from app.roles import can_ban, can_delete, can_set_role
 from tests.db_support import make_bare_engine
 from tests.test_duel import client  # noqa: F401  (fixture)
@@ -241,7 +240,7 @@ def test_banned_accounts_get_403_even_with_a_current_cookie_and_unban_restores_t
 
 
 def test_banned_users_log_pose_tokens_are_refused_668(api):
-    from app.models import AnalystAccess
+    from app.analyst.models import AnalystAccess
     from app.analyst.auth import mint_chat_token
 
     c, S = api
@@ -644,7 +643,7 @@ def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691
 
 
 def test_overview_counts_planner_decks_and_log_pose_use_667(api):
-    from app.models import AnalystAccess, AnalystUsage
+    from app.analyst.models import AnalystAccess, AnalystUsage
 
     c, S = api
     admin, p = mk(S, ADMIN_EMAIL, "admin"), mk(S, "p@x.test")

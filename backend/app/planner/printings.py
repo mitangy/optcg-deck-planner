@@ -7,12 +7,12 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import (
+from app.planner.models import (
+    CardDisplayChoice,
     CatalogPrinting,
+    CollectorWant,
     Deck,
     DeckCardPrinting,
-    CardDisplayChoice,
-    CollectorWant,
     ShoppingExtraPrinting,
 )
 

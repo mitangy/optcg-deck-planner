@@ -6,7 +6,7 @@ from app.planner import decks as deck_svc, shopping as shopping_svc, owned as ow
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.main import app
-from app.models import CollectorWant
+from app.planner.models import CollectorWant
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 NAMI = "OP01-016"

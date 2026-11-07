@@ -17,7 +17,8 @@ atexit.register(shutil.rmtree, _APP_DB_DIR, ignore_errors=True)
 os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.core.db"
 
 from app.core import redis_client  # noqa: E402
-from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned
 from app.core.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
 

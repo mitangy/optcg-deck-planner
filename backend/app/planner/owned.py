@@ -10,17 +10,17 @@ from sqlalchemy.orm import Session, selectinload
 from app.planner.domain import (
     parse_cost,
 )
-from app.models import (
+from app.core.models import User
+from app.planner.models import (
+    CardDisplayChoice,
     CatalogCard,
     CatalogPrinting,
+    CollectorWant,
     Deck,
     DeckCard,
     Owned,
-    CardDisplayChoice,
-    CollectorWant,
     OwnedPrinting,
     ShoppingExtra,
-    User,
 )
 from app.planner.catalog_repo import (
     alt_arts_map,
@@ -29,11 +29,7 @@ from app.planner.catalog_repo import (
     owned_map,
     primary_product_ids,
 )
-from app.schemas import (
-    DeckDetail,
-    OwnedCardItem,
-    OwnedCollectionResponse,
-)
+from app.planner.schemas import DeckDetail, OwnedCardItem, OwnedCollectionResponse
 from app.planner.decks import (
     get_deck_detail,
 )

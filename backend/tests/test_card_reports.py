@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.duel.tokens import mint_game_token
 from app.main import app
-from app.models import User
+from app.core.models import User
 from app.routers import duel
 
 ADMIN = {"X-Catalog-Token": "test-admin-token"}

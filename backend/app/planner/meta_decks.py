@@ -14,7 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.planner.catalog_sync import _orm_printing_sort_key
-from app.models import CatalogCard, CatalogPrinting, Tournament, TournamentDeck
+from app.analyst.models import Tournament, TournamentDeck
+from app.planner.models import CatalogCard, CatalogPrinting
 
 SOURCE = "Limitless TCG"
 SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP"

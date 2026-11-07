@@ -6,6 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.duel.server_urls import normalize_server_url
+
+
 Visibility = Literal["friends", "off"]
 
 
@@ -207,3 +210,73 @@ class TradesOut(BaseModel):
 class TradeSummaryOut(BaseModel):
     incoming_pending: int
     active: int
+
+
+class DuelPresenceEntry(BaseModel):
+    user_id: int
+    room_id: str = Field(min_length=1, max_length=64)
+    role: str = Field(default="player", pattern="^(player|spectator)$")
+    phase: str = Field(default="playing", pattern="^(waiting|playing|finished)$")
+    ranked: bool = False
+    # Where clients reach this room's pool. An unusable value is dropped, not an error: the rest of the snapshot still counts.
+    server_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("server_url", mode="before")
+    @classmethod
+    def _safe_server_url(cls, v: object) -> str | None:
+        return normalize_server_url(v)
+
+
+class DuelPresenceSnapshot(BaseModel):
+    """Full presence snapshot from one game-server process (replaces its prior rows)."""
+
+    instance_id: str = Field(min_length=1, max_length=64)
+    entries: list[DuelPresenceEntry] = Field(default_factory=list, max_length=5000)
+
+
+class FriendRequestIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+
+
+class FriendInviteIn(BaseModel):
+    room_id: str = Field(min_length=1, max_length=64)
+    # Pool the inviter's room is on; the API keeps it only if it is one it has handed out.
+    server_url: str | None = Field(default=None, max_length=200)
+
+
+class FriendOut(BaseModel):
+    user_id: int
+    username: str
+    # offline | online | waiting | in_game | spectating
+    status: str
+    # Room a friend is playing or watching (spectatable); None otherwise.
+    room_id: str | None = None
+    # Pool that room is on, when the game server reported it.
+    server_url: str | None = None
+    ranked: bool = False
+
+
+class FriendRequestOut(BaseModel):
+    user_id: int
+    username: str
+
+
+class DuelInviteOut(BaseModel):
+    id: int
+    from_user_id: int
+    from_username: str
+    room_id: str
+    server_url: str | None = None
+    expires_at: int
+
+
+class FriendsOut(BaseModel):
+    friends: list[FriendOut]
+    incoming: list[FriendRequestOut]
+    outgoing: list[FriendRequestOut]
+    invites: list[DuelInviteOut]
+
+
+class FriendRequestResult(BaseModel):
+    # pending: request sent; accepted: they had already asked you, so you're friends now.
+    status: str

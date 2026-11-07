@@ -14,7 +14,8 @@ from app.core.auth import get_current_user
 from app.core.time import utcnow
 from app.core.db import get_db
 from app.social.schemas import CounterIn, TradeIn, TradeOut, TradesOut, TradeSummaryOut
-from app.models import TradeOffer, User
+from app.core.models import User
+from app.social.models import TradeOffer
 from app.core.rate_limit import RateLimiter
 
 router = APIRouter(prefix="/trades", tags=["trades"])

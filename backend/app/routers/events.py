@@ -19,7 +19,8 @@ from app.duel import events as ev
 from app.core.time import as_utc_or_none
 from app.core.auth import get_current_user, get_optional_user
 from app.core.db import get_db
-from app.models import DuelEvent, EventDraw, EventEntry, User
+from app.core.models import User
+from app.duel.models import DuelEvent, EventDraw, EventEntry
 from app.roles import is_staff
 from app.core.security import Admin
 from app.usernames import duel_display_name

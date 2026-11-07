@@ -11,7 +11,7 @@ import pytest
 
 from app.planner import catalog_sync, price_refresh
 from app.core.config import Settings
-from app.models import CatalogCard, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogPrinting
 
 NOW = datetime(2026, 10, 31, 12, 0, tzinfo=timezone.utc)
 

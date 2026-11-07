@@ -8,7 +8,8 @@ from sqlalchemy import select
 
 from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.config import get_settings
-from app.models import AnalystFeedback, AnalystMessage, AnalystThread, User
+from app.analyst.models import AnalystFeedback, AnalystMessage, AnalystThread
+from app.core.models import User
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_chat import _as, _session, chat  # noqa: F401  (fixture)
 from tests.test_analyst_stats import SERVICE, _users
