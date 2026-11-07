@@ -1,0 +1,379 @@
+/* —— Tile overlays: power (base + modifier), counter, DON!!, statuses —— */
+.card-overlays {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raise-1);
+  pointer-events: none;
+  container-type: size;
+}
+/* A buffed power reads "base / ±delta" on two lines. On phone-size tiles that
+   plus a DON!! badge leaves no room for the status row under it, so show only
+   the current power there, tinted up / down (the breakdown stays in the
+   tooltip and card inspect). Narrow catches upright phone tiles; short
+   catches rested ones, whose overlay is landscape. */
+.power-now {
+  display: none;
+}
+@container (max-width: 70px) or (max-height: 60px) {
+  .card-stat-stack .power-badge-buffed .power-base,
+  .card-stat-stack .power-badge-buffed .power-mod {
+    display: none;
+  }
+  .card-stat-stack .power-badge-buffed .power-now {
+    display: inline;
+  }
+  /* Tiles this small can't fit "DON×1" at the default size: it spilled past
+     the tile's left edge and read "ON×1". The .arena selector outranks the
+     board's --c-based size, which bottoms out too wide here. */
+  .card-stat-stack .don-badge,
+  .arena .side-field .card-stat-stack .don-badge {
+    font-size: 0.46rem;
+    padding: 0.05rem 0.1rem;
+    letter-spacing: -0.02em;
+  }
+}
+/* "Show total power" (#534): same collapse as above, on any tile size. */
+.power-total .card-stat-stack .power-badge-buffed .power-base,
+.power-total .card-stat-stack .power-badge-buffed .power-mod {
+  display: none;
+}
+.power-total .card-stat-stack .power-badge-buffed .power-now {
+  display: inline;
+}
+/* Narrowest tiles (phone landscape and 320px portrait): even the small
+   "DON×1" is wider than the tile, so the green badge keeps just "×1". */
+@container (max-width: 44px) {
+  .card-stat-stack .don-badge-word {
+    display: none;
+  }
+}
+.card-stat-stack {
+  position: absolute;
+  /* Above the status row: on the smallest rested tiles the two can't both
+     fit on the right, and power / DON!! matter more (statuses are in inspect). */
+  z-index: var(--z-raise-3);
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: calc(100% - 0.5rem);
+}
+.card-stat-stack .don-badge {
+  position: static;
+  white-space: nowrap;
+}
+.card-stat-stack .power-badge {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  max-width: 100%;
+}
+.power-mod {
+  font-size: 0.92em;
+}
+.power-mod-up {
+  color: #7fe08a;
+}
+.power-mod-down {
+  color: #ff8a80;
+}
+.card-stat-stack .counter-badge {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  column-gap: 1px;
+  color: #a8d8ff;
+  border-color: rgba(120, 180, 255, 0.55);
+}
+.counter-part {
+  white-space: nowrap;
+}
+.card-stat-stack .counter-badge-effect {
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Rested field cards turn sideways like the physical game. By default they
+   scale by the card aspect (--rest-k: 1 / 1.4) so the rotated footprint stays
+   inside the portrait cell. Zones with room (the arena character row, a leader
+   or stage beside an empty cell) set --rest-k: 1 to keep full size, and
+   --rest-shift to slide into that empty cell. Overlays counter-rotate into the
+   landscape footprint (1.4k × k of the card width) and undo the scale, so
+   badges stay upright at their normal size either way. */
+.side-field .card-tile {
+  transition: transform 180ms ease;
+}
+.card-tile.rested {
+  transform: translateX(var(--rest-shift, 0px)) rotate(90deg) scale(var(--rest-k, 0.714));
+}
+.card-tile.rested::after {
+  display: none;
+}
+.card-tile.rested .card-overlays {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: calc(140% * var(--rest-k, 0.714));
+  height: calc(100% / 1.4 * var(--rest-k, 0.714));
+  transform: translate(-50%, -50%) rotate(-90deg) scale(calc(1 / var(--rest-k, 0.714)));
+}
+.card-tile.rested .status-chips {
+  bottom: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-field .card-tile {
+    transition: none;
+  }
+}
+
+/* Live status (hover preview + inspect) */
+.live-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.live-status-power {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+.live-status-power-label {
+  color: var(--chrome);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.live-status-power-value {
+  font-size: 1rem;
+  color: var(--chrome-bright);
+}
+.live-status-power-detail {
+  opacity: 0.85;
+  font-size: 0.74rem;
+}
+.live-status-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.live-status-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-3);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--st-bd, rgba(255, 200, 80, 0.45));
+  color: var(--st-fg, #ffe0a0);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.live-status-chips-described {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.live-status-chips-described .live-status-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+}
+.live-status-desc {
+  color: var(--ink);
+  opacity: 0.85;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.live-status-chip-don {
+  border-color: rgba(140, 200, 80, 0.6);
+  color: #e8ffc8;
+}
+.live-status-none {
+  margin: 0;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+/* Bottom-right corner, just above the name caption, in one row: the first
+   status sits in the corner and the rest fill leftward. StatusRow swaps what
+   doesn't fit for a "+N" badge instead of wrapping, so the row never climbs
+   into the top-right power / DON!! stack or covers the name. */
+.status-chips {
+  /* Badge size follows the tile's card width (so the window size) and the
+     Text size setting, sublinearly so big tiles don't drown in icons. 13px
+     keeps a hit target on the smallest phone tiles; 30% of the card keeps a
+     large Text size from swamping a small one (StatusRow's "+N" takes what
+     doesn't fit). One size per tile, so a status appearing never re-flows. */
+  --status-icon-size: clamp(
+    13px,
+    calc((var(--c, 56px) * 0.13 + 8px) * var(--text-scale, 1)),
+    calc(var(--c, 56px) * 0.3)
+  );
+  position: absolute;
+  right: 3px;
+  bottom: 1.55rem;
+  display: flex;
+  flex-flow: row-reverse nowrap;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: calc(100% - 6px);
+  pointer-events: none;
+  z-index: var(--z-raise-2);
+}
+/* Smallest rested tiles: the power / DON!! stack fills the right side, so a
+   lone "+N" sits bottom-left, over the stack's edge rather than under it. */
+.status-chips-squeezed {
+  left: 3px;
+  right: auto;
+  z-index: var(--z-raise-4);
+}
+.status-chip {
+  /* Text chips (statuses with no icon) can fill the row; StatusRow counts
+     whatever it pushes out into the "+N" badge. */
+  flex: 0 0 auto;
+  max-width: 100%;
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: var(--radius-3);
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 200, 80, 0.45);
+  color: #ffe0a0;
+  font-size: max(0.5rem, calc(var(--status-icon-size, 16px) * 0.55));
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Icon badge: fixed square (--status-icon-size on .status-chips) so a status
+   appearing never resizes or re-flows its neighbours. */
+.status-icon {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--status-icon-size);
+  height: var(--status-icon-size);
+  padding: 2px;
+  border-radius: var(--radius-4);
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(255, 200, 80, 0.5);
+  color: #ffe0a0;
+  pointer-events: auto;
+}
+.status-more {
+  padding: 0;
+  font-size: calc(var(--status-icon-size) * 0.5);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.status-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.status-icon svg .fill {
+  fill: currentColor;
+  stroke-width: 1.5;
+}
+/* Status colour by kind (see StatusTone in board/statusIcons.ts). Icons, text
+   chips, inspect chips and tooltips all read --st-fg / --st-bd, so one status
+   is the same colour everywhere. --st-ink is the darker variant for light
+   panels (light.css). */
+.status-tone-disable {
+  --st-fg: #ff9d9d;
+  --st-bd: rgba(255, 96, 96, 0.8);
+  --st-ink: #b0342a;
+}
+.status-tone-negated {
+  --st-fg: #d7b3ff;
+  --st-bd: rgba(200, 140, 255, 0.75);
+  --st-ink: #6d3bb0;
+}
+.status-tone-sick {
+  --st-fg: #ffd466;
+  --st-bd: rgba(255, 190, 60, 0.8);
+  --st-ink: #8a5a00;
+}
+.status-tone-rested {
+  --st-fg: #bccadb;
+  --st-bd: rgba(160, 182, 206, 0.65);
+  --st-ink: #4a5a6a;
+}
+.status-tone-buff {
+  --st-fg: #9be8a6;
+  --st-bd: rgba(90, 205, 125, 0.8);
+  --st-ink: #1d7a3a;
+}
+.status-tone-protect {
+  --st-fg: #a8d0ff;
+  --st-bd: rgba(120, 180, 255, 0.75);
+  --st-ink: #1f5fa8;
+}
+.status-icon,
+.status-chip {
+  border-color: var(--st-bd, rgba(255, 200, 80, 0.5));
+  color: var(--st-fg, #ffe0a0);
+}
+.status-icon[tabindex] {
+  cursor: help;
+}
+.status-icon:focus-visible,
+.status-chip:focus-visible {
+  outline: 2px solid var(--st-fg, #ffe0a0);
+  outline-offset: 1px;
+}
+
+/* Status tooltip: fixed overlay in a portal, never in flow (see StatusIcon.tsx). */
+.status-tip {
+  position: fixed;
+  z-index: var(--z-status-tip);
+  max-width: min(16rem, calc(100vw - 16px));
+  padding: 6px 8px;
+  border-radius: var(--radius-6);
+  background: rgba(8, 14, 20, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.status-tip-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 3px solid var(--st-bd, rgba(255, 200, 80, 0.6));
+  padding-left: 6px;
+}
+.status-tip-label {
+  color: var(--st-fg, #ffe0a0);
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+.status-tip-text {
+  color: #e6edf2;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-weight: 500;
+}
+

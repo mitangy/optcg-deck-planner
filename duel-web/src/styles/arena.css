@@ -1,0 +1,156 @@
+/* —— Arena / HUD —— */
+
+.board-root.arena {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+.board-root.arena::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: var(--vignette);
+  z-index: var(--z-raise-1);
+}
+
+.hud-bar,
+.error-banner,
+.playmat,
+.hand-rail,
+.intent-bar,
+.loading,
+.modal-backdrop {
+  position: relative;
+  z-index: var(--z-raise-2);
+}
+
+.hud-bar {
+  /* Above battle-log (z-index 12) so in-HUD Leave is never click-blocked. */
+  z-index: var(--z-hud-bar);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  /* Bar stays full-bleed; only its content clears the notch / status bar. */
+  --hud-py: 0.55rem;
+  --hud-px: 0.85rem;
+  padding: calc(var(--hud-py) + var(--safe-t)) max(var(--hud-px), var(--safe-r)) var(--hud-py)
+    max(var(--hud-px), var(--safe-l));
+  background:
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.14), transparent 70%),
+    var(--arena-panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hud-brand {
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  color: var(--chrome-bright);
+  white-space: nowrap;
+}
+
+.hud-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.hud-status.pulse .hud-turn-chip {
+  animation: turn-pulse 1.6s ease-in-out infinite;
+}
+
+.hud-phase {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--chrome-bright);
+}
+
+.hud-sep {
+  color: var(--chrome-dim);
+}
+
+.hud-turn-chip {
+  margin-left: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.18);
+  color: var(--chrome-bright);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+.hud-turn-chip.hud-timer {
+  font-variant-numeric: tabular-nums;
+  border-color: rgb(var(--sea-bright-rgb) / 0.55);
+  background: rgb(var(--sea-rgb) / 0.18);
+  color: #c8e4f5;
+}
+
+.hud-actions {
+  position: relative;
+  z-index: var(--z-hud);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.match-id {
+  color: var(--muted);
+  font-size: 0.72rem;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leave-btn {
+  background: var(--arena-mid);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-height: 36px;
+}
+
+.hud-pass-btn {
+  background: var(--arena-panel);
+  color: var(--chrome-bright);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.hud-pass-btn:hover {
+  border-color: var(--chrome);
+  color: var(--ink);
+}
+
+.error-banner {
+  background: var(--danger);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  border: none;
+  color: #fff;
+  text-align: left;
+  width: 100%;
+}
+

@@ -1,0 +1,149 @@
+/* —— Intent bar: contextual actions on the left, one fixed primary on the right —— */
+
+.intent-layout {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.intent-layout .intent-row {
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+}
+
+.intent-primary {
+  flex: 0 0 40%;
+  min-width: 0;
+  display: flex;
+}
+
+.intent-btn.intent-btn-primary {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.intent-btn.intent-btn-pass {
+  color: #fff;
+  background: linear-gradient(180deg, #4d86ad, #2f6088);
+  border-color: rgba(160, 205, 235, 0.55);
+}
+
+.intent-btn.intent-btn-pass:not(:disabled):hover {
+  background: linear-gradient(180deg, #5a95bd, #386c96);
+  border-color: rgba(190, 225, 250, 0.8);
+}
+
+/* Counter staged but still short: the confirm spends the cards without saving you. */
+.intent-btn.intent-btn-warn {
+  color: #fff;
+  background: linear-gradient(180deg, #b0572a, #8a3d17);
+  border-color: rgba(255, 190, 140, 0.6);
+}
+
+/* Mulligan: both labels are long ("Mulligan (shuffle & redraw 5)", "Keep
+   opening hand"). On a phone they ran past the right edge and the row scrolled
+   sideways, so split the bar evenly and let each label wrap to two lines. */
+.intent-bar-mulligan .intent-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.intent-bar-mulligan .intent-layout .intent-row {
+  overflow-x: visible;
+  padding-right: 0;
+}
+
+.intent-bar-mulligan .intent-row .intent-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.intent-bar-mulligan .intent-primary {
+  flex-basis: 50%;
+}
+
+/* Rail (desktop / landscape): the primary is a full-width button under the
+   wrapped secondary actions. */
+.arena.arena-wide .board-col .intent-layout {
+  flex-direction: column;
+}
+
+.arena.arena-wide .board-col .intent-layout .intent-row {
+  flex: none;
+}
+
+.arena.arena-wide .board-col .intent-primary {
+  flex: none;
+  order: 2;
+}
+
+/* Desktop rail: the primary sits above the card actions, so selecting a card
+   (which fills the actions row) never pushes End turn down. Landscape phones
+   anchor the primary to the bottom instead (see .arena-lp below). */
+.arena.arena-wide:not(.arena-lp) .board-col .intent-primary {
+  order: -1;
+}
+
+/* One button row is reserved, so a card with a single action doesn't nudge
+   the hand below either. */
+.arena.arena-wide:not(.arena-lp) .board-col .intent-layout .intent-row {
+  min-height: 40px;
+}
+
+/* Mouse + keyboard desktops: a "Space" tab straddling the primary's top edge.
+   Absolutely positioned and click-through, so the button never resizes or moves. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-primary {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-primary::after {
+    content: "Space";
+    position: absolute;
+    top: -8px;
+    right: 10px;
+    padding: 0 0.4em;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-5);
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.66rem;
+    font-weight: 600;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+}
+
+/* Same tab on each secondary action: the letter (A/E/P/D) or the 1-9 key that
+   presses it. Absolutely positioned and click-through, so buttons never resize. */
+@media (hover: hover) and (pointer: fine) {
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn[data-key-tag] {
+    position: relative;
+  }
+
+  .arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn[data-key-tag]::after {
+    content: attr(data-key-tag);
+    position: absolute;
+    top: -7px;
+    left: 8px;
+    min-width: 1.5em;
+    padding: 0 0.3em;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-5);
+    background: var(--arena-panel);
+    color: var(--muted, inherit);
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+  }
+}
+

@@ -1,0 +1,362 @@
+/* —— Right rail —— */
+
+.arena.arena-wide .arena-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--arena-panel);
+  padding-right: var(--safe-r);
+}
+
+/* One combined column (sideColumns) holds every panel; on a short window their minimum heights
+   add up to more than the column, so it scrolls instead of cutting the last ones off. */
+.arena.arena-wide.arena-single-col .board-col {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.arena.arena-wide .board-col > * {
+  flex: 0 0 auto;
+}
+
+.arena.arena-wide .board-col .intent-bar {
+  max-height: 34%;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  padding: 0.6rem 0.7rem 0.7rem;
+}
+
+.arena.arena-wide .board-col .intent-row {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  padding-right: 0;
+}
+
+.arena.arena-wide .board-col .chat-panel,
+.arena.arena-wide .board-col .chat-panel.collapsed {
+  position: static;
+  width: auto;
+  max-height: none;
+  border-radius: 0;
+  border-width: 1px 0 0;
+  box-shadow: none;
+  background: rgb(var(--deep-rgb) / 0.6);
+}
+
+.arena.arena-wide .board-col .chat-panel:not(.collapsed) {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The message list is what gives way in a short panel (it scrolls); the header and the
+   input row keep their height, so Send is never cut off the bottom (#529). */
+.arena.arena-wide .board-col .chat-panel .chat-body {
+  min-height: 0;
+}
+
+.arena.arena-wide .board-col .chat-panel .chat-toggle,
+.arena.arena-wide .board-col .chat-panel .chat-form-wrap,
+.arena.arena-wide .board-col .chat-panel .chat-readonly {
+  flex: 0 0 auto;
+}
+
+/* Tall desktop, Grid hand: an always-open grid panel (see RAIL_HAND_QUERY). */
+.arena.arena-wide .board-col .rail-hand {
+  --rail-hand-cw: clamp(60px, 9.4dvh, 150px);
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.rail-hand-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem 0.7rem 0.25rem;
+  color: var(--chrome-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rail-hand-head .hand-rail-btn {
+  margin-left: auto;
+}
+
+.rail-hand-cards {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem 0.4rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.arena .rail-hand-cards > .card-tile,
+.arena .rail-hand-cards > .hand-back {
+  flex: 0 0 auto;
+  width: var(--rail-hand-cw);
+  height: calc(var(--rail-hand-cw) * 1.4);
+  margin: 0;
+}
+
+/* —— Movable side panels (desktop) ——
+   Each panel sits in a .board-panel wrapper in either column (the order is
+   the panelLayout setting). The wrapper carries the panel's share of the
+   column, so a panel sizes the same in the left or the right column. */
+
+.arena.arena-wide .board-panel {
+  position: relative;
+  /* The panel's own layers (the Battle log heading sits at z-index 12) stay
+     inside it, under its grip. */
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.arena.arena-wide .board-panel > :not(.panel-grip, .panel-divider) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Minimum heights (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts), so a
+   saved share on a short window never squashes a panel into its neighbour. The
+   content-sized panels never go under what their content needs. */
+.arena.arena-wide .board-panel[data-panel="turn"],
+.arena.arena-wide .board-panel[data-panel="oppHand"] {
+  min-height: min-content;
+}
+
+.arena.arena-wide .board-panel[data-panel="recent"] {
+  min-height: 4.5rem;
+}
+
+/* Fixed share, so a long ability never moves the panels below it. It only
+   gives way (down to a third) when the Grid hand shares its column. */
+.arena.arena-wide .board-panel[data-panel="preview"] {
+  flex: 0 1 var(--preview-h, 52%);
+  min-height: max(33%, 140px);
+}
+
+.arena.arena-wide .board-panel[data-panel="log"],
+.arena.arena-wide .board-panel[data-panel="hand"],
+.arena.arena-wide .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
+  flex: 1 1 0;
+  min-height: 7rem;
+}
+
+/* At least one full row of cards beside other panels. */
+.arena.arena-wide .board-panel[data-panel="hand"] {
+  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);
+}
+
+/* The defend tray (answering an attack) is not a movable panel: it sits in the
+   right column under Turn and clocks. It lists every counter card, so it takes
+   the height it needs; on a short window it gives way (the chips scroll)
+   rather than overflow. */
+.arena.arena-wide .board-panel[data-panel="defend"] {
+  flex: 0 1 auto;
+  min-height: 9rem;
+}
+
+/* Chat sharing a column with the Grid hand stays small; the hand gets the room. */
+.arena.arena-wide .board-col:has(> [data-panel="hand"])
+  > .board-panel[data-panel="chat"]:has(> .chat-panel:not(.collapsed)) {
+  flex: 0 1 8rem;
+  min-height: 7.5rem;
+}
+
+/* The grip: a small bar on the panel's top edge, shown on hover / focus.
+   Absolutely placed, so showing it never moves the panel. */
+.panel-grip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: var(--z-hud);
+  width: 44px;
+  height: 14px;
+  margin-left: -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 7px 7px;
+  background: rgb(var(--deep-rgb) / 0.85);
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.panel-grip > span {
+  display: block;
+  width: 22px;
+  height: 4px;
+  margin: 3px auto 0;
+  border-top: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+
+.board-panel:hover > .panel-grip,
+.panel-grip:focus-visible,
+body.is-panel-drag .panel-grip {
+  opacity: 1;
+}
+
+.panel-grip:hover,
+.panel-grip:focus-visible {
+  color: var(--chrome-bright);
+}
+
+.panel-grip:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: -2px;
+}
+
+/* Touch screens have no hover: keep the grip faintly visible. */
+@media (hover: none) {
+  .panel-grip {
+    opacity: 0.55;
+  }
+}
+
+.board-panel.is-panel-dragging > :not(.panel-grip, .panel-divider) {
+  opacity: 0.35;
+}
+
+/* Resize handles: the inner edge of each column sets its width, a divider on
+   a panel's top edge moves height between it and the panel above. Absolutely
+   placed and invisible until hover / focus, so showing one never moves
+   anything. The divider sits under the centre grip (z-index) so moving a
+   panel still works; the column handle sits above both at the very edge. */
+.arena.arena-wide .board-col[data-panel-col] {
+  position: relative;
+}
+
+.arena.arena-wide .col-resize,
+.arena.arena-wide .panel-divider {
+  position: absolute;
+  touch-action: none;
+  /* The line is the content box inside the padding that widens the hit area. */
+  background: var(--chrome-bright);
+  background-clip: content-box;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.arena.arena-wide .col-resize {
+  top: 0;
+  bottom: 0;
+  /* Over the panels, under the fanned hand (16): a card reaching over the
+     column edge gets the pointer, not this handle (#449). */
+  z-index: var(--z-col-handle);
+  width: 9px;
+  cursor: col-resize;
+}
+
+.arena.arena-wide .col-resize-left {
+  right: 0;
+}
+
+.arena.arena-wide .col-resize-right {
+  left: 0;
+}
+
+.arena.arena-wide .panel-divider {
+  top: -4px;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  height: 9px;
+  cursor: row-resize;
+}
+
+.arena.arena-wide .col-resize:hover,
+.arena.arena-wide .col-resize:focus-visible,
+.arena.arena-wide .panel-divider:hover,
+.arena.arena-wide .panel-divider:focus-visible,
+body.is-panel-resize-col .col-resize,
+body.is-panel-resize-row .panel-divider {
+  opacity: 0.75;
+}
+
+.arena.arena-wide .col-resize {
+  padding: 0 3px;
+}
+
+.arena.arena-wide .panel-divider {
+  padding: 3px 0;
+}
+
+.arena.arena-wide .col-resize:focus-visible,
+.arena.arena-wide .panel-divider:focus-visible {
+  outline: none;
+}
+
+body.is-panel-resize,
+body.is-panel-resize * {
+  user-select: none;
+}
+
+body.is-panel-resize-col,
+body.is-panel-resize-col * {
+  cursor: col-resize !important;
+}
+
+body.is-panel-resize-row,
+body.is-panel-resize-row * {
+  cursor: row-resize !important;
+}
+
+body.is-panel-drag,
+body.is-panel-drag * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.panel-drop-line {
+  position: fixed;
+  z-index: var(--z-drawer);
+  height: 4px;
+  margin-top: -2px;
+  border-radius: var(--radius-2);
+  background: var(--chrome-bright);
+  box-shadow: 0 0 0 1px rgb(var(--deep-rgb) / 0.6), 0 0 10px rgb(var(--chrome-bright-rgb) / 0.6);
+  pointer-events: none;
+}
+
+.panel-drag-ghost {
+  position: fixed;
+  z-index: var(--z-drag-ghost);
+  transform: translate(12px, -50%);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  background: var(--arena-panel);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* Keeps the rail's last panel clear of the tucked hand dock. */
+.rail-dock-spacer {
+  flex: 0 0 var(--dock-peek) !important;
+  margin-top: auto;
+}
+
