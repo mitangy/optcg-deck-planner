@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.main import app
 from app.models import CatalogCard, Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
-from app.routers import duel_decks
+from app.duel import decks as duel_decks
 from tests.db_support import make_bare_engine, make_test_engine
 
 LEADER = "OP01-001"

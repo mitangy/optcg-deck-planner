@@ -20,6 +20,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.statuses import FriendshipStatus, ReportStatus
+from app.core.time import as_utc
 from app.auth import get_current_user, get_optional_user
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -27,9 +29,9 @@ from app.models import DuelCosmetic, DuelMatch, DuelUserSettings, PlayerReport, 
 from app.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
 from app.roles import is_banned
-from app.routers.duel import _latest_progress
+from app.duel.matches import latest_progress
 from app.routers.duel_prefs import _active_attr, _sniff_mime, public_sig
-from app.routers.friends import _friendship, live_presence
+from app.social.presence import friendship as friendship_between, live_presence
 
 router = APIRouter(prefix="/duel", tags=["duel"])
 
@@ -68,15 +70,11 @@ class PlayerWarningOut(BaseModel):
     created_at: str
 
 
-def _utc(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def _seat_users(db: Session, match_id: str) -> tuple[int, int] | None:
     match = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
     if match is not None:
         return match.seat0_user_id, match.seat1_user_id
-    progress = _latest_progress(db, match_id)
+    progress = latest_progress(db, match_id)
     if progress is not None:
         return progress.seat0_user_id, progress.seat1_user_id
     return None
@@ -97,8 +95,8 @@ def _resolve_reported(db: Session, reporter: User, body: PlayerReportIn, now: da
         target = db.get(User, body.reported_user_id)
         if target is None:
             raise HTTPException(status_code=404, detail="Player not found")
-        friendship = _friendship(db, reporter.id, target.id)
-        if friendship is None or friendship.status != "accepted":
+        friendship = friendship_between(db, reporter.id, target.id)
+        if friendship is None or friendship.status != FriendshipStatus.ACCEPTED:
             raise HTTPException(status_code=403, detail="You can only report your friends this way")
         return target
     seats = _seat_users(db, body.match_id) if body.match_id and body.reported_seat is not None else None
@@ -177,7 +175,7 @@ def create_player_report(
             PlayerReport.reported_id == target.id,
             PlayerReport.match_id == match_id,
             PlayerReport.reason == body.reason,
-            PlayerReport.status == "open",
+            PlayerReport.status == ReportStatus.OPEN,
             PlayerReport.created_at >= now - DUPLICATE_WINDOW,
         )
         .order_by(PlayerReport.id.desc())
@@ -200,7 +198,7 @@ def create_player_report(
         cosmetic_id=cosmetic_id,
         image_mime=mime,
         image_data=data,
-        status="open",
+        status=ReportStatus.OPEN,
         created_at=now,
     )
     db.add(row)
@@ -219,7 +217,7 @@ def my_warnings(
         .where(PlayerWarning.user_id == user.id, PlayerWarning.acknowledged_at.is_(None))
         .order_by(PlayerWarning.id)
     ).all()
-    return [PlayerWarningOut(id=w.id, message=w.message, created_at=_utc(w.created_at).isoformat()) for w in rows]
+    return [PlayerWarningOut(id=w.id, message=w.message, created_at=as_utc(w.created_at).isoformat()) for w in rows]
 
 
 @router.post("/warnings/{warning_id}/ack", status_code=204)

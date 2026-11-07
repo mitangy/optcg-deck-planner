@@ -6,7 +6,7 @@ import csv
 import io
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import events as ev
+from app.core.time import as_utc_or_none
 from app.auth import get_current_user, get_optional_user
 from app.db import get_db
 from app.models import DuelEvent, EventDraw, EventEntry, User
@@ -29,14 +30,8 @@ admin_router = APIRouter(prefix="/admin/events", tags=["admin"])
 DB = Annotated[Session, Depends(get_db)]
 
 
-def _utc(dt: datetime | None) -> datetime | None:
-    if dt is None:
-        return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def _iso(dt: datetime | None) -> str | None:
-    dt = _utc(dt)
+    dt = as_utc_or_none(dt)
     return dt.isoformat() if dt else None
 
 
@@ -91,7 +86,7 @@ def _can_join(event: ev.Event, user: User | None, now: datetime) -> tuple[bool, 
 @router.get("/current")
 def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
     """The lobby banner's event: live or upcoming, or one that ended in the last week."""
-    now = ev.now_utc()
+    now = ev.utcnow()
     event = ev.current_event(db, now)
     if event is None:
         return {"event": None}
@@ -102,7 +97,7 @@ def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) ->
 def by_id(event_id: str, db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
     """One event by id at any time, so the rules page keeps the seed and eligible ids through the
     draw and the reply window long after the banner stops advertising it (#795)."""
-    return {"event": _public_event(db, user, _event_or_404(db, event_id), ev.now_utc())}
+    return {"event": _public_event(db, user, _event_or_404(db, event_id), ev.utcnow())}
 
 
 def _detail_fields(event: ev.Event) -> dict:
@@ -158,7 +153,7 @@ class JoinIn(BaseModel):
 @router.post("/{event_id}/join")
 def join(event_id: str, body: JoinIn, db: DB, user: Annotated[User, Depends(get_current_user)]) -> dict:
     event = _event_or_404(db, event_id)
-    ok, reason = _can_join(event, user, ev.now_utc())
+    ok, reason = _can_join(event, user, ev.utcnow())
     if not ok:
         raise HTTPException(status_code=403, detail=reason)
     if body.accept_rules is not True:
@@ -181,7 +176,7 @@ def _name(u: User) -> str:
 
 
 def _admin_state(db: Session, event: ev.Event) -> dict:
-    now = ev.now_utc()
+    now = ev.utcnow()
     draw = _draw(db, event.id)
     drawn = draw is not None and draw.drawn_at is not None
     parts = ev.participants(db, event)
@@ -248,7 +243,7 @@ def _admin_state(db: Session, event: ev.Event) -> dict:
 @admin_router.get("")
 def admin_list_events(_: Admin, db: DB) -> dict:
     """Every event, newest start first, for the admin picker (#1019)."""
-    now = ev.now_utc()
+    now = ev.utcnow()
     joined = dict(db.execute(select(EventEntry.event_id, func.count()).group_by(EventEntry.event_id)).all())
     drawn = {d.event_id for d in db.scalars(select(EventDraw).where(EventDraw.drawn_at.is_not(None))).all()}
     return {
@@ -335,7 +330,7 @@ def _clean(values: dict) -> dict:
     v["title"] = (v["title"] or "").strip()
     if not 1 <= len(v["title"]) <= 80:
         raise _bad("Title must be 1 to 80 characters")
-    v["starts_at"], v["ends_at"] = _utc(v["starts_at"]), _utc(v["ends_at"])
+    v["starts_at"], v["ends_at"] = as_utc_or_none(v["starts_at"]), as_utc_or_none(v["ends_at"])
     if v["ends_at"] <= v["starts_at"]:
         raise _bad("The end must be after the start")
     v["description"] = (v["description"] or "").strip()
@@ -365,7 +360,7 @@ def _clean(values: dict) -> dict:
 
 
 def _new_rules_version(old: str) -> str:
-    version = ev.now_utc().strftime("%Y-%m-%dT%H:%M:%SZ")
+    version = ev.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     if old.startswith(version):  # two edits in the same second still get different versions
         return f"{version}.{int(old[len(version) + 1:] or 0) + 1}"
     return version
@@ -399,7 +394,7 @@ def admin_update_event(event_id: str, body: EventPatch, _: Admin, db: DB) -> dic
     if any(v is None for k, v in sent.items() if k != "bracket_size"):
         raise _bad("Fields can't be empty")
     old = _detail_fields(ev.event_from_row(row)) | {
-        "title": row.title, "starts_at": _utc(row.starts_at), "ends_at": _utc(row.ends_at),
+        "title": row.title, "starts_at": as_utc_or_none(row.starts_at), "ends_at": as_utc_or_none(row.ends_at),
     }
     v = _clean({**old, **sent})
     changed = {k for k, val in v.items() if val != old[k]}
@@ -408,7 +403,7 @@ def admin_update_event(event_id: str, body: EventPatch, _: Admin, db: DB) -> dic
         raise HTTPException(status_code=409, detail="The draw already ran, so the dates, winners, minimums and prize method are locked")
     if draw is not None and "prize_method" in changed:
         raise HTTPException(status_code=409, detail="A seed is already committed, so the prize method is locked")
-    if draw is not None and "starts_at" in changed and ev.now_utc() >= _utc(row.starts_at):
+    if draw is not None and "starts_at" in changed and ev.utcnow() >= as_utc_or_none(row.starts_at):
         raise HTTPException(status_code=409, detail="A seed is committed and the event already started, so the start can't move")
     for key in changed:
         setattr(row, key, v[key])
@@ -463,7 +458,7 @@ def admin_event_csv(event_id: str, _: Admin, db: DB) -> Response:
 def admin_commit(event_id: str, admin: Admin, db: DB) -> dict:
     event = _event_or_404(db, event_id)
     _require_draw_event(event)
-    if ev.now_utc() >= event.starts_at:
+    if ev.utcnow() >= event.starts_at:
         raise HTTPException(status_code=409, detail="The seed can only be committed before the event starts")
     if _draw(db, event.id) is not None:
         raise HTTPException(status_code=409, detail="A seed is already committed")
@@ -477,7 +472,7 @@ def admin_commit(event_id: str, admin: Admin, db: DB) -> dict:
 def admin_draw(event_id: str, admin: Admin, db: DB) -> dict:
     event = _event_or_404(db, event_id)
     _require_draw_event(event)
-    now = ev.now_utc()
+    now = ev.utcnow()
     if now < event.ends_at:
         raise HTTPException(status_code=409, detail="The draw can only run after the event ends")
     draw = _draw(db, event.id)

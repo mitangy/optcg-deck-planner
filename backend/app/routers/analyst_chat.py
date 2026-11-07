@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.core.statuses import AccessStatus
 from app.analyst_corpus import MAX_GAMES, game_replay, search_games
 from app.analyst_credit import credit_for, day_start, month_start, next_month_start, refusal_for, spent_since
 from app.auth import get_current_user
@@ -33,8 +34,8 @@ from app.models import (
     DuelMatch,
     User,
 )
-from app.routers.analyst_access import free_spots, spots_used
-from app.routers.analyst import CHAT_MODELS, access_status, analyst_user, chat_enabled_for, chat_model, is_chat_owner, is_model_admin, mint_chat_token, require_service, requests_open
+from app.analyst.access import CHAT_MODELS, access_status, chat_enabled_for, chat_model, free_spots, is_chat_owner, is_model_admin, requests_open, spots_used
+from app.routers.analyst import analyst_user, mint_chat_token, require_service
 from app.usernames import duel_display_name
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -111,7 +112,7 @@ def chat_session(
         db.scalar(
             select(func.count())
             .select_from(AnalystAccess)
-            .where(or_(AnalystAccess.status == "pending", AnalystAccess.topup_requested_at.is_not(None)))
+            .where(or_(AnalystAccess.status == AccessStatus.PENDING, AnalystAccess.topup_requested_at.is_not(None)))
         )
         or 0
         if owner

@@ -172,7 +172,7 @@ def test_auth_me_carries_the_role_667(api):
 
 
 def test_the_admin_role_counts_as_chat_owner_and_model_admin_667():
-    from app.routers.analyst import is_chat_owner, is_model_admin
+    from app.analyst.access import is_chat_owner, is_model_admin
 
     settings = Settings(analyst_chat_emails="", analyst_model_admin_emails="")
     assert is_chat_owner(settings, user_obj(1, "admin")) and is_model_admin(settings, user_obj(1, "admin"))

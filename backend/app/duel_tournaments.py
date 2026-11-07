@@ -5,12 +5,13 @@ from __future__ import annotations
 import logging
 import math
 import secrets
-from datetime import datetime, timezone
 from typing import NamedTuple, Protocol
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.core.statuses import TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
+from app.core.time import utcnow
 from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
 
 log = logging.getLogger("duel_tournaments")
@@ -85,7 +86,7 @@ class Row(NamedTuple):
 
 def standings(player_ids_by_seed: list[int], matches: list[_Pairing]) -> list[Row]:
     """Wins, then head-to-head wins among the players tied on wins, then seed. Equal on both share a rank."""
-    done = [m for m in matches if m.status == "done" and m.winner_id is not None]
+    done = [m for m in matches if m.status == TournamentMatchStatus.DONE and m.winner_id is not None]
     wins = {p: 0 for p in player_ids_by_seed}
     played = {p: 0 for p in player_ids_by_seed}
     for m in done:
@@ -130,14 +131,10 @@ def total_rounds(t: DuelTournament, joined: int) -> int:
     return round_robin_rounds(joined)
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def joined_ids_by_seed(db: Session, t: DuelTournament) -> list[int]:
     rows = db.scalars(
         select(DuelTournamentPlayer).where(
-            DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == "joined"
+            DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == TournamentPlayerStatus.JOINED
         )
     ).all()
     return [p.user_id for p in sorted(rows, key=lambda p: (p.seed is None, p.seed or 0, p.id))]
@@ -148,7 +145,7 @@ def start(db: Session, t: DuelTournament) -> None:
     players = list(
         db.scalars(
             select(DuelTournamentPlayer).where(
-                DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == "joined"
+                DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == TournamentPlayerStatus.JOINED
             )
         )
     )
@@ -157,12 +154,12 @@ def start(db: Session, t: DuelTournament) -> None:
         p.seed = i + 1
     db.execute(
         delete(DuelTournamentPlayer).where(
-            DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == "invited"
+            DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == TournamentPlayerStatus.INVITED
         )
     )
     ids = [p.user_id for p in players]
-    t.status = "running"
-    t.started_at = _now()
+    t.status = TournamentStatus.RUNNING
+    t.started_at = utcnow()
 
     def add(round: int, slot: int, a: int | None, b: int | None, status: str) -> DuelTournamentMatch:
         m = DuelTournamentMatch(
@@ -199,17 +196,17 @@ def decide(
 ) -> None:
     """Record a result and move the bracket along. The caller commits."""
     m.winner_id = winner_id
-    m.status = "done"
+    m.status = TournamentMatchStatus.DONE
     m.decided_by = decided_by
     m.result_match_id = result_match_id
-    m.finished_at = _now()
+    m.finished_at = utcnow()
     db.flush()
 
     if t.format == "single_elim":
         if m.round >= rounds_for(t.size):
-            t.status = "finished"
+            t.status = TournamentStatus.FINISHED
             t.winner_id = winner_id
-            t.finished_at = _now()
+            t.finished_at = utcnow()
             return
         nr, ns, side = next_slot(m.round, m.slot)
         nxt = db.scalar(
@@ -227,16 +224,16 @@ def decide(
             nxt.player_a_id = winner_id
         else:
             nxt.player_b_id = winner_id
-        if nxt.player_a_id and nxt.player_b_id and nxt.status == "waiting":
-            nxt.status = "ready"
+        if nxt.player_a_id and nxt.player_b_id and nxt.status == TournamentMatchStatus.WAITING:
+            nxt.status = TournamentMatchStatus.READY
         return
 
     matches = list(db.scalars(select(DuelTournamentMatch).where(DuelTournamentMatch.tournament_id == t.id)))
-    if all(x.status == "done" for x in matches):
+    if all(x.status == TournamentMatchStatus.DONE for x in matches):
         rows = standings(joined_ids_by_seed(db, t), matches)
-        t.status = "finished"
+        t.status = TournamentStatus.FINISHED
         t.winner_id = round_robin_winner(rows)
-        t.finished_at = _now()
+        t.finished_at = utcnow()
 
 
 def record_game(
@@ -251,15 +248,15 @@ def record_game(
         .join(DuelTournament, DuelTournament.id == DuelTournamentMatch.tournament_id)
         .where(
             DuelTournamentMatch.room_id == match_id,
-            DuelTournamentMatch.status == "ready",
-            DuelTournament.status == "running",
+            DuelTournamentMatch.status == TournamentMatchStatus.READY,
+            DuelTournament.status == TournamentStatus.RUNNING,
         )
         .with_for_update()
     )
     if m is None or {m.player_a_id, m.player_b_id} != {seat0_user_id, seat1_user_id}:
         return False
     t = db.scalar(select(DuelTournament).where(DuelTournament.id == m.tournament_id).with_for_update())
-    if t is None or t.status != "running":
+    if t is None or t.status != TournamentStatus.RUNNING:
         return False
     winner = seat0_user_id if winner_seat == 0 else seat1_user_id
     decide(db, t, m, winner, "game", match_id)

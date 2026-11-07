@@ -21,6 +21,7 @@ import httpx
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.core.time import as_utc
 from app.models import Tournament, TournamentDeck, TournamentGame
 
 log = logging.getLogger("uvicorn.error")
@@ -89,12 +90,8 @@ class LimitlessClient:
         self.http.close()
 
 
-def _utc(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-
-
 def _parse_date(raw: str) -> datetime:
-    return _utc(datetime.fromisoformat(raw.replace("Z", "+00:00")))
+    return as_utc(datetime.fromisoformat(raw.replace("Z", "+00:00")))
 
 
 def set_label(name: str) -> str | None:
@@ -186,7 +183,7 @@ def parse_event(standings: list, pairings: list) -> tuple[list[dict], list[dict]
 
 def _is_complete(row: Tournament | None, date: datetime) -> bool:
     """Already synced after the event was old enough that nothing more can change."""
-    return row is not None and _utc(row.synced_at) >= date + timedelta(days=RECENT_DAYS)
+    return row is not None and as_utc(row.synced_at) >= date + timedelta(days=RECENT_DAYS)
 
 
 def store_event(db: Session, meta: dict, details: dict, decks: list[dict], games: list[dict], now: datetime) -> None:
@@ -295,8 +292,8 @@ def sync_status(db: Session) -> dict:
     newest = db.scalar(select(func.max(Tournament.date)))
     synced = db.scalar(select(func.max(Tournament.synced_at)))
     return {
-        "last_synced_at": _utc(synced).isoformat() if synced else None,
-        "newest_event_date": _utc(newest).isoformat() if newest else None,
+        "last_synced_at": as_utc(synced).isoformat() if synced else None,
+        "newest_event_date": as_utc(newest).isoformat() if newest else None,
         "events": db.scalar(select(func.count()).select_from(Tournament)) or 0,
         "decks": db.scalar(select(func.count()).select_from(TournamentDeck)) or 0,
         "games": db.scalar(select(func.count()).select_from(TournamentGame)) or 0,

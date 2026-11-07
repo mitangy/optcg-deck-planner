@@ -16,6 +16,7 @@ from typing import Iterable
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.time import as_utc, utcnow
 from app.models import DuelEvent, DuelMatch, EventEntry, User
 from app.roles import is_banned, is_staff
 
@@ -72,16 +73,12 @@ SEED_EVENT = Event(
 )
 
 
-def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def event_from_row(row: DuelEvent) -> Event:
     return Event(
         id=row.id,
         title=row.title,
-        starts_at=_as_utc(row.starts_at),
-        ends_at=_as_utc(row.ends_at),
+        starts_at=as_utc(row.starts_at),
+        ends_at=as_utc(row.ends_at),
         rules_version=row.rules_version,
         winners=row.winners,
         min_games=row.min_games,
@@ -119,7 +116,7 @@ def get_event(db: Session, event_id: str) -> Event | None:
 
 def current_event(db: Session, now: datetime | None = None) -> Event | None:
     """The event to show: live or upcoming first (soonest), else one that ended in the last week."""
-    now = now or now_utc()
+    now = now or utcnow()
     events = list_events(db)
     ahead = [e for e in events if now < e.ends_at]
     if ahead:
@@ -235,10 +232,6 @@ class Participant:
     flags: tuple[str, ...] = ()
 
 
-def _as_utc(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def compute_flags(db: Session, event: Event, entrant_ids: Iterable[int]) -> dict[int, tuple[str, ...]]:
     """Cheat-review flags per entrant (#809). Advisory: nothing here changes eligibility."""
     matches = window_matches(db, event)
@@ -254,7 +247,7 @@ def compute_flags(db: Session, event: Event, entrant_ids: Iterable[int]) -> dict
             ranked_players.update((a, b))
     entrants = set(entrant_ids)
     created = {
-        uid: _as_utc(ts)
+        uid: as_utc(ts)
         for uid, ts in db.execute(select(User.id, User.created_at).where(User.id.in_(entrants | set(graph)))).all()
     }
     cutoff = event.starts_at - timedelta(days=NEW_ACCOUNT_DAYS)

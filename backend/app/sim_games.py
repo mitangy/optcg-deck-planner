@@ -9,13 +9,14 @@ from __future__ import annotations
 import hashlib
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from email.utils import parsedate_to_datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.time import as_utc
 from app.models import SimGame
 
 MAX_IMPORT_GAMES = 500
@@ -70,7 +71,7 @@ def _played_at(value: object) -> datetime | None:
         dt = parsedate_to_datetime(value)
     except (TypeError, ValueError):
         return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return as_utc(dt)
 
 
 def _match_key(raw: dict, my_deck: list[str]) -> str:

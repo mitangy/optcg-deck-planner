@@ -9,12 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app import friend_view as fv
+from app.social import friend_view as fv
 from app import services
 from app.auth import get_current_user
 from app.db import get_db
 from app.domain import deck_size_counts, is_don_card, parse_cost
-from app.friend_schemas import (
+from app.social.schemas import (
     FriendCollectionOut,
     FriendDeckCard,
     FriendDeckDetail,

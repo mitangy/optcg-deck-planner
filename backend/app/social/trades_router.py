@@ -8,10 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app import trades as tr
+from app.core.statuses import TradeStatus
+from app.social import trades as tr
 from app.auth import get_current_user
+from app.core.time import utcnow
 from app.db import get_db
-from app.friend_schemas import CounterIn, TradeIn, TradeOut, TradesOut, TradeSummaryOut
+from app.social.schemas import CounterIn, TradeIn, TradeOut, TradesOut, TradeSummaryOut
 from app.models import TradeOffer, User
 from app.rate_limit import RateLimiter
 
@@ -58,12 +60,12 @@ def list_trades(
 ) -> TradesOut:
     tr.expire_stale(db, user.id)
     base = select(TradeOffer).where(_involving(user.id))
-    pending = db.scalars(base.where(TradeOffer.status == "pending").order_by(TradeOffer.id.desc())).all()
-    accepted = db.scalars(base.where(TradeOffer.status == "accepted").order_by(TradeOffer.id.desc())).all()
-    completed = db.scalars(base.where(TradeOffer.status == "completed").order_by(TradeOffer.id.desc())).all()
+    pending = db.scalars(base.where(TradeOffer.status == TradeStatus.PENDING).order_by(TradeOffer.id.desc())).all()
+    accepted = db.scalars(base.where(TradeOffer.status == TradeStatus.ACCEPTED).order_by(TradeOffer.id.desc())).all()
+    completed = db.scalars(base.where(TradeOffer.status == TradeStatus.COMPLETED).order_by(TradeOffer.id.desc())).all()
     applied = tr.active_applies(db, user.id, [o.id for o in completed])
     other = db.scalars(
-        base.where(TradeOffer.status.in_(("countered", "declined", "cancelled", "expired")))
+        base.where(TradeOffer.status.in_((TradeStatus.COUNTERED, TradeStatus.DECLINED, TradeStatus.CANCELLED, TradeStatus.EXPIRED)))
         .order_by(TradeOffer.id.desc())
         .limit(HISTORY_LIMIT)
     ).all()
@@ -89,22 +91,22 @@ def trade_summary(
     tr.expire_stale(db, user.id)
     incoming = db.scalar(
         select(func.count(TradeOffer.id)).where(
-            TradeOffer.to_user_id == user.id, TradeOffer.status == "pending"
+            TradeOffer.to_user_id == user.id, TradeOffer.status == TradeStatus.PENDING
         )
     )
     accepted = db.scalar(
         select(func.count(TradeOffer.id)).where(
-            _involving(user.id), TradeOffer.status == "accepted"
+            _involving(user.id), TradeOffer.status == TradeStatus.ACCEPTED
         )
     )
     completed_ids = db.scalars(
-        select(TradeOffer.id).where(_involving(user.id), TradeOffer.status == "completed")
+        select(TradeOffer.id).where(_involving(user.id), TradeOffer.status == TradeStatus.COMPLETED)
     ).all()
     unapplied = len(completed_ids) - len(tr.active_applies(db, user.id, list(completed_ids)))
     return TradeSummaryOut(incoming_pending=incoming or 0, active=(accepted or 0) + unapplied)
 
 
-def _require_status(offer: TradeOffer, *allowed: str) -> None:
+def _require_status(offer: TradeOffer, *allowed: TradeStatus) -> None:
     if offer.status not in allowed:
         raise HTTPException(status_code=409, detail=f"This offer is already {offer.status}.")
 
@@ -118,14 +120,14 @@ def accept_offer(
     offer = tr.load_offer(db, user, offer_id)
     if offer.to_user_id != user.id:
         raise HTTPException(status_code=403, detail="Only the person it was sent to can accept.")
-    _require_status(offer, "pending")
+    _require_status(offer, TradeStatus.PENDING)
     sender = db.get(User, offer.from_user_id)
     if sender is None or not tr.fv.are_friends(db, user.id, sender.id):
         raise HTTPException(status_code=404, detail="Not found.")
     merged = {(ln.side, ln.card_id, ln.product_id): ln.qty for ln in offer.lines}
     tr.validate_offer(db, user, sender, user, merged, require_open=False)
-    offer.status = "accepted"
-    offer.responded_at = tr.utcnow()
+    offer.status = TradeStatus.ACCEPTED
+    offer.responded_at = utcnow()
     db.commit()
     return _out(db, offer, user)
 
@@ -139,9 +141,9 @@ def decline_offer(
     offer = tr.load_offer(db, user, offer_id)
     if offer.to_user_id != user.id:
         raise HTTPException(status_code=403, detail="Only the person it was sent to can decline.")
-    _require_status(offer, "pending")
-    offer.status = "declined"
-    offer.responded_at = tr.utcnow()
+    _require_status(offer, TradeStatus.PENDING)
+    offer.status = TradeStatus.DECLINED
+    offer.responded_at = utcnow()
     db.commit()
     return _out(db, offer, user)
 
@@ -153,11 +155,11 @@ def cancel_offer(
     user: Annotated[User, Depends(get_current_user)],
 ) -> TradeOut:
     offer = tr.load_offer(db, user, offer_id)
-    _require_status(offer, "pending", "accepted")
-    if offer.status == "pending" and offer.from_user_id != user.id:
+    _require_status(offer, TradeStatus.PENDING, TradeStatus.ACCEPTED)
+    if offer.status == TradeStatus.PENDING and offer.from_user_id != user.id:
         raise HTTPException(status_code=403, detail="Only the sender can cancel; decline it instead.")
-    offer.status = "cancelled"
-    offer.responded_at = tr.utcnow()
+    offer.status = TradeStatus.CANCELLED
+    offer.responded_at = utcnow()
     db.commit()
     return _out(db, offer, user)
 
@@ -173,13 +175,13 @@ def counter_offer(
     offer = tr.load_offer(db, user, offer_id)
     if offer.to_user_id != user.id:
         raise HTTPException(status_code=403, detail="Only the person it was sent to can counter.")
-    _require_status(offer, "pending")
+    _require_status(offer, TradeStatus.PENDING)
     other = tr.load_recipient(db, user, offer.from_user_id)
     merged = tr.merge_lines(body.lines)
     tr.check_offer_cap(db, user, other)
     tr.validate_offer(db, user, user, other, merged, require_open=True)
-    offer.status = "countered"
-    offer.responded_at = tr.utcnow()
+    offer.status = TradeStatus.COUNTERED
+    offer.responded_at = utcnow()
     new = tr.create_offer(db, user, other, body.message, merged, parent_id=offer.id)
     db.commit()
     return _out(db, new, user)
@@ -192,9 +194,9 @@ def complete_offer(
     user: Annotated[User, Depends(get_current_user)],
 ) -> TradeOut:
     offer = tr.load_offer(db, user, offer_id)
-    _require_status(offer, "accepted")
-    offer.status = "completed"
-    offer.completed_at = tr.utcnow()
+    _require_status(offer, TradeStatus.ACCEPTED)
+    offer.status = TradeStatus.COMPLETED
+    offer.completed_at = utcnow()
     db.commit()
     return _out(db, offer, user)
 
@@ -206,7 +208,7 @@ def apply_offer(
     user: Annotated[User, Depends(get_current_user)],
 ) -> TradeOut:
     offer = tr.load_offer(db, user, offer_id)
-    if offer.status != "completed":
+    if offer.status != TradeStatus.COMPLETED:
         raise HTTPException(status_code=409, detail="Mark the trade as traded first.")
     tr.apply_trade(db, offer, user)
     return _out(db, offer, user)
