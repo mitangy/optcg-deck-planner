@@ -4,7 +4,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { CmpOp, Filter, Selector } from "../effects/types.js";
 import type { BindingValue, CardDef, MatchState, Seat } from "../types.js";
-import type { Located, LocatedZone, ZoneName } from "./state.js";
+import type { Located, LocatedZone, ZoneName } from "./zones.js";
 import { type EvalCtx, namesOfDef, seatsFor } from "./evalCtx.js";
 import { locateCard } from "./statics.js";
 import { attributesOf, basePowerOf, costOf, counterOf, hasKeyword, powerOf } from "./stats.js";

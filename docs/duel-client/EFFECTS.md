@@ -54,7 +54,7 @@ way round.
 ### Client protocol and UI
 
 - The wire protocol version is `RULES_PROTOCOL_VERSION` in
-  `packages/rules/src/state/snapshot.ts`; the game server reports it on `/health`.
+  `packages/rules/src/engine/snapshot.ts`; the game server reports it on `/health`.
   A client on a different version cannot join a room, so ship game-server and
   duel-web together when it changes.
 - `listLegalIntents` emits a **default** order (the original sequence) for sims

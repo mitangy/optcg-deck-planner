@@ -3,14 +3,14 @@
  * keyed by the same line index, one tally per game in <out>.tallies.jsonl ({ index, seed, decks, winner, turns, intents, stoppedEarly, fallbacks, lines }).
  * The replay lines stay pure MatchReplays.
  *
- * Usage: npx tsx src/sim/corpus.ts --games 300 --seed 9000 --decks meta-decks.json --out corpus-v2 [--procs 3] [--budget-ms 1500] [--samples 5]
+ * Usage: npx tsx src/cli/corpus.ts --games 300 --seed 9000 --decks meta-decks.json --out corpus-v2 [--procs 3] [--budget-ms 1500] [--samples 5]
  */
 import { fork } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import type { MatchReplay } from "../matchReplay.js";
+import type { MatchReplay } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import type { PlayerDeckConfig } from "../types.js";
-import { playBotGame, type BotGameResult } from "./selfPlay.js";
+import { playBotGame, type BotGameResult } from "../sim/selfPlay.js";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

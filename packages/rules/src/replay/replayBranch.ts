@@ -1,10 +1,10 @@
 /**
  * Playing a recorded game from any step (#966): the engine side of the replay viewer's "try a different line".
- * Own-path entry (`@optcg/rules/replayBranch`) for the lazy replay chunk: it imports only the engine, never the simulator.
+ * Own-path entry (`@optcg/rules/replay/replayBranch`) for the lazy replay chunk: it imports only the engine, never the simulator.
  */
-import { applyIntent, getPlayerView } from "./engine.js";
+import { applyIntent, getPlayerView } from "../engine.js";
 import type { MatchReplay } from "./matchReplay.js";
-import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
+import type { GameEvent, Intent, MatchState, Seat } from "../types.js";
 
 export { indexBoardCards } from "./replayTimeline.js";
 

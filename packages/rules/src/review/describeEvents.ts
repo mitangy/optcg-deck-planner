@@ -1,5 +1,5 @@
-import { getCardDef } from "./cards/definitions.js";
-import type { GameEvent } from "./types.js";
+import { getCardDef } from "../cards/definitions.js";
+import type { GameEvent } from "../types.js";
 
 /** Card name, or "a hidden card" for ids a seat's projected events hide (see projectGameEvents). */
 function nameOf(id: string): string {

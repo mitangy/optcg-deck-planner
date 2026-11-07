@@ -8,9 +8,9 @@
  * `revealOpponent` (a finished or cut-off game) does the log also carry the
  * other seat's actual hand at each turn start and after mulligans.
  */
-import { projectGameEvents } from "./engine.js";
+import { projectGameEvents } from "../engine.js";
 import { replayMatch, type MatchReplay } from "./matchReplay.js";
-import type { CardDefId, GameEvent, InstanceId, MatchState, Seat } from "./types.js";
+import type { CardDefId, GameEvent, InstanceId, MatchState, Seat } from "../types.js";
 
 export const SEAT_LOG_SCHEMA = 1;
 

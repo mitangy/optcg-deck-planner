@@ -2,7 +2,7 @@
  * Paired bot-vs-bot comparison (#635): bot A against bot B on the meta decks, every pair of games with the same decks,
  * shuffle and first seat and the bots' seats swapped.
  *
- * Usage: npx tsx src/sim/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3]
+ * Usage: npx tsx src/cli/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3]
  * Spec keys: kind = normal | hard | legacy (an older bot: LEGACY_BOT=<file exporting chooseLegacy>, e.g. a copy of src/bot from git at the commit to compare with), evalMode, prior = meta | true | generic,
  * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs.
  * Prints wins, win rate with a 95% Wilson interval, and CPU time per hard decision for each side.
@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { buildDeckPrior, type BotLevel, type BotOptions } from "../bot/index.js";
 import { createSeededRng } from "../rng.js";
 import type { PlayerDeckConfig } from "../types.js";
-import { playBotGame, type Chooser } from "./selfPlay.js";
+import { playBotGame, type Chooser } from "../sim/selfPlay.js";
 
 type Spec = Record<string, string>;
 const parseSpec = (s: string): Spec => Object.fromEntries(s.split(",").filter(Boolean).map((kv) => kv.split("=") as [string, string]));

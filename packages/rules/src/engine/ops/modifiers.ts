@@ -3,7 +3,7 @@
  */
 import { addModifier, expiryFor } from "../modifiers.js";
 import { basePowerOf, evalValue } from "../queries.js";
-import { type Located, isOnField } from "../state.js";
+import { type Located, isOnField } from "../zones.js";
 import type { ExecResult } from "../vm.js";
 import { type OpCtx, type OpEffect, type OpTable, durationLabel, seatOf } from "./shared.js";
 

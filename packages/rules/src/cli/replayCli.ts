@@ -11,12 +11,12 @@
  * refuses to run when CI is set, and the test suite never writes goldens.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { describeEvents } from "../describeEvents.js";
+import { describeEvents } from "../review/describeEvents.js";
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
 import { createSeededRng } from "../rng.js";
 import { actingSeat, randomAnswer, randomDeck } from "../sim/fuzz.js";
 import type { Intent, MatchState, Seat } from "../types.js";
-import { REJECTED_MARK, REPLAY_DIR, fixturePath, listReplayNames, loadFixture, playReplay, serializeFixture, writeGolden, type ReplayFixture } from "./replay.js";
+import { REJECTED_MARK, REPLAY_DIR, fixturePath, listReplayNames, loadFixture, playReplay, serializeFixture, writeGolden, type ReplayFixture } from "../testing/replay.js";
 
 interface RecordOptions {
   name: string;

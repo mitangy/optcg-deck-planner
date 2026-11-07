@@ -4,7 +4,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { Filter, Keyword, PlayerRestriction, Restriction } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, Seat } from "../types.js";
-import { type Located, otherSeat } from "./state.js";
+import { type Located, otherSeat } from "./zones.js";
 import { ctxFor } from "./evalCtx.js";
 import { activeStatics, cardModifiers, costStaticsFor, locateCard, staticPassActive, staticsFor } from "./statics.js";
 import { filterMatches, onField } from "./selectors.js";

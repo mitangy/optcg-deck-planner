@@ -1,4 +1,4 @@
-import type { GameEvent, InstanceId, MatchState, Seat } from "./types.js";
+import type { GameEvent, InstanceId, MatchState, Seat } from "../types.js";
 
 /**
  * Why applying one intent (`before` -> `after`, emitting `events`) exposed

@@ -2,21 +2,21 @@
  * Chess.com-style game review of a recorded match (#967): at each decision with more than one legal intent the
  * bot analysis ranks the options, and the move that was played is graded against the best one.
  *
- * Meant to be imported on its own path (`@optcg/rules/gameReview`) by the app's lazy replay chunk or a Web Worker:
+ * Meant to be imported on its own path (`@optcg/rules/review/gameReview`) by the app's lazy replay chunk or a Web Worker:
  * it imports the engine and the bot analysis only, never the simulator or test helpers.
  * The reviewer is incremental (`advance`) so a worker can post progress between slices.
  */
-import { getPlayerView } from "./engine.js";
-import { describeIntent } from "./bot/labels.js";
-import { rankOptions, winProbability } from "./bot/analysis.js";
-import { replayApply, replayStart, type MatchReplay } from "./matchReplay.js";
-import { createSeededRng } from "./rng.js";
-import type { Intent, MatchState, Seat } from "./types.js";
-import { MOVE_CLASSES, accuracyScore, classifyMove, isGoodTurn, stableJson, worseClass, type MoveClass } from "./review/classify.js";
+import { getPlayerView } from "../engine.js";
+import { describeIntent } from "../bot/labels.js";
+import { rankOptions, winProbability } from "../bot/analysis.js";
+import { replayApply, replayStart, type MatchReplay } from "../replay/matchReplay.js";
+import { createSeededRng } from "../rng.js";
+import type { Intent, MatchState, Seat } from "../types.js";
+import { MOVE_CLASSES, accuracyScore, classifyMove, isGoodTurn, stableJson, worseClass, type MoveClass } from "./classify.js";
 
-export { MOVE_CLASSES, REVIEW_THRESHOLDS, accuracyScore, classifyLoss, classifyMove, isGoodTurn, worseClass, type MoveClass } from "./review/classify.js";
-export type { MatchReplay } from "./matchReplay.js";
-export type { Intent, Seat } from "./types.js";
+export { MOVE_CLASSES, REVIEW_THRESHOLDS, accuracyScore, classifyLoss, classifyMove, isGoodTurn, worseClass, type MoveClass } from "./classify.js";
+export type { MatchReplay } from "../replay/matchReplay.js";
+export type { Intent, Seat } from "../types.js";
 
 export interface ReviewOptions {
   /** Wall-clock budget per ranked decision (default 300). */

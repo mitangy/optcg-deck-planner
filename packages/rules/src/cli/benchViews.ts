@@ -7,7 +7,7 @@
  * `--gate` exits 1 when the cached views are not GATE_MIN_SPEEDUP times faster
  * than the same views with the query cache off (machine-independent, for CI).
  *
- * Usage: npx tsx src/scripts/benchViews.ts [games] [firstSeed] [--gate]
+ * Usage: npx tsx src/cli/benchViews.ts [games] [firstSeed] [--gate]
  */
 import { listCardDefs } from "../cards/definitions.js";
 import { abilitiesFor } from "../cards/abilities.js";

@@ -1,5 +1,5 @@
-import { createSeededRng } from "./rng.js";
-import type { MatchState } from "./types.js";
+import { createSeededRng } from "../rng.js";
+import type { MatchState } from "../types.js";
 
 /**
  * Restart the match rng from `seed` and, with `shuffleDecks`, reshuffle both

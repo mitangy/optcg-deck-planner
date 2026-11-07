@@ -4,7 +4,7 @@
 import { abilitiesFor } from "../../cards/abilities.js";
 import { getCardDef } from "../../cards/definitions.js";
 import { evalValue, playerRestricted } from "../queries.js";
-import { drawCards, isOnField, locate, putCard, takeCard } from "../state.js";
+import { drawCards, isOnField, locate, putCard, takeCard } from "../zones.js";
 import { dispatchEvent, startAbility } from "../triggers.js";
 import { beginPlay, moveToZone, performKo } from "../zoneActions.js";
 import { promptPrefix, pushChoice } from "../vm.js";

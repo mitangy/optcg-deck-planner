@@ -20,7 +20,7 @@ import { join } from "node:path";
 import { evaluate } from "../bot/evaluate.js";
 import { extractFeatures, FEATURE_NAMES } from "../bot/features.js";
 import { sigmoid, type ValueWeights } from "../bot/valueModel.js";
-import { replayMatch, type MatchReplay } from "../matchReplay.js";
+import { replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 import { parseSimExport, samplesFromSimGame, type SimMatchRecord } from "./optcgsim/index.js";
 import type { Seat } from "../types.js";
 

@@ -13,8 +13,8 @@ import {
   type Intent,
   type MatchState,
   type ReplayTimeline,
-} from "@optcg/rules/replayTimeline";
-import { applyBranchIntent, getLiveReplayViews, hideFarHand, indexBoardCards } from "@optcg/rules/replayBranch";
+} from "@optcg/rules/replay/replayTimeline";
+import { applyBranchIntent, getLiveReplayViews, hideFarHand, indexBoardCards } from "@optcg/rules/replay/replayBranch";
 import { narrateEvents, type BattleLogEntry } from "../board/battleLog";
 import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import type { Intent as WireIntent, PlayerView, Seat } from "../net/protocol";

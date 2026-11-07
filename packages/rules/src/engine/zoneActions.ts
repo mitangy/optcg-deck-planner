@@ -5,7 +5,7 @@ import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { InstanceId, ResolutionFrame, Seat } from "../types.js";
 import { isNegated, playerRestricted } from "./queries.js";
-import { type Located, alloc, isOnField, locate, putCard, putOnField, takeCard } from "./state.js";
+import { type Located, alloc, isOnField, locate, putCard, putOnField, takeCard } from "./zones.js";
 import type { Sim } from "./sim.js";
 import { abilityGateOpen, dispatchEvent, queueWindow } from "./triggers.js";
 import { B } from "../effects/bindings.js";

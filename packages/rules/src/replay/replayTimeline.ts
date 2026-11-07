@@ -4,18 +4,18 @@
  * (not every state, which would cost tens of MB on a phone). Any step is then
  * at most `every - 1` intents away from a checkpoint.
  *
- * This file is meant to be imported on its own path (`@optcg/rules/replayTimeline`)
+ * This file is meant to be imported on its own path (`@optcg/rules/replay/replayTimeline`)
  * by the app's lazy replay chunk, so it imports only the engine, never the
  * simulator or test helpers.
  */
-import { getSpectatorView, projectGameEvents, projectPendingChoice } from "./engine.js";
+import { getSpectatorView, projectGameEvents, projectPendingChoice } from "../engine.js";
 import { replayApply, replayStart, type MatchReplay } from "./matchReplay.js";
-import type { CardDefId, GameEvent, InstanceId, Intent, MatchState, Seat } from "./types.js";
+import type { CardDefId, GameEvent, InstanceId, Intent, MatchState, Seat } from "../types.js";
 
-export { RULES_VERSION } from "./state/snapshot.js";
-export { REGISTRY_HASH } from "./cards/abilities.js";
+export { RULES_VERSION } from "../engine/snapshot.js";
+export { REGISTRY_HASH } from "../cards/abilities.js";
 export { MATCH_REPLAY_SCHEMA, type MatchReplay } from "./matchReplay.js";
-export type { GameEvent, InstanceId, Intent, MatchState, Seat } from "./types.js";
+export type { GameEvent, InstanceId, Intent, MatchState, Seat } from "../types.js";
 
 export interface TimelineStep {
   /** Who sent the intent. */

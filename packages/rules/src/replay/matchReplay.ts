@@ -4,9 +4,9 @@
  * inputs rebuilds the whole game. A replay holds both hands and decks, so it
  * is kept server-side and never sent to players as-is.
  */
-import { applyIntent, createMatch, skipMulligans } from "./engine.js";
+import { applyIntent, createMatch, skipMulligans } from "../engine.js";
 import { reseedMatch } from "./reseed.js";
-import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
+import type { GameEvent, Intent, MatchState, Seat } from "../types.js";
 
 export const MATCH_REPLAY_SCHEMA = 1;
 

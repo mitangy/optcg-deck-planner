@@ -5,7 +5,7 @@ import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import type { Ability, ReplacementEvent } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, ResolutionFrame, Seat } from "../types.js";
 import { canPayCosts, ctxFor, filterMatches, hasRestriction, isNegated, protectedFromSource, selectorMatches } from "./queries.js";
-import { type Located, alloc, fieldCards, isOnField, locate } from "./state.js";
+import { type Located, alloc, fieldCards, isOnField, locate } from "./zones.js";
 import { actingSource, type Sim } from "./sim.js";
 import { abilityGateOpen, dispatchEvent, markUsed } from "./triggers.js";
 import { B, V, getBinding, replKey } from "../effects/bindings.js";
