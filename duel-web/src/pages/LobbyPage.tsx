@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { WarningNotice } from "../warnings/WarningNotice";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Tab, TabGroup, TabList } from "@optcg/ui/tabs";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
+import { cardDataReady, useCardDataReady } from "../cards/cardData";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { NavMenu } from "../nav/NavMenu";
 import { getApiBaseUrl, getGameServerUrl, getPlannerUrl } from "../config";
@@ -48,7 +49,6 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
-import { WhatsNewCard } from "@optcg/patch-notes";
 import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
 import { LivePanel } from "../home/LivePanel";
@@ -76,7 +76,7 @@ import { TIMER_PRESET_OPTIONS, timerFromPreset, type TimerPreset } from "../home
 import { claimMatchRoom } from "../tournaments/playLoop";
 import { playTournamentMatch } from "../tournaments/tournamentApi";
 import { TournamentsCard } from "../tournaments/TournamentsCard";
-import { prefetchBoard, prefetchBoardWhenIdle } from "../lazyRoutes";
+import { prefetchBoard, prefetchBoardWhenIdle, WhatsNewHost } from "../lazyRoutes";
 
 type TournamentPlay = { code: string; matchId: number; opponent: string; timer: TimerPreset };
 
@@ -131,8 +131,13 @@ const MODE_CARDS: Array<{
   },
 ];
 
-function deckLabel(d: SavedDeck): string {
-  return `${d.name} — ${lookupCard(d.leaderId).name} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
+/** The leader's name; a dash until the card data (its own chunk) has loaded, so the line keeps its height. */
+function leaderName(leaderId: string, ready: boolean): string {
+  return ready ? lookupCard(leaderId).name : "—";
+}
+
+function deckLabel(d: SavedDeck, ready: boolean): string {
+  return `${d.name} — ${leaderName(d.leaderId, ready)} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
 }
 
 function IncompleteBadge({ deck }: { deck: SavedDeck }) {
@@ -162,6 +167,7 @@ function DeckPicker({
   /** Adds an option (BOT_DECK_RANDOM) that picks a deck when the game starts; `hint` shows while it is chosen. */
   random?: { label: string; hint: string };
 }) {
+  const cardsReady = useCardDataReady();
   const isRandom = random !== undefined && value === BOT_DECK_RANDOM;
   const mirrored = value === "" && mirror !== undefined;
   const deck = isRandom ? null : (decks.find((d) => d.id === value) ?? (mirrored ? (mirror.deck ?? null) : null));
@@ -187,7 +193,7 @@ function DeckPicker({
           options={[
             ...(mirror ? [{ value: "", label: mirror.label }] : []),
             ...(random ? [{ value: BOT_DECK_RANDOM, label: random.label }] : []),
-            ...decks.map((d) => ({ value: d.id, label: deckLabel(d) })),
+            ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
           ]}
         />
       </div>
@@ -197,8 +203,9 @@ function DeckPicker({
 }
 
 function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }) {
+  const cardsReady = useCardDataReady();
   const { src: art, fail } = useArtFallback(
-    resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }),
+    cardsReady ? resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }) : undefined,
     deck.leaderId,
   );
   return art ? (
@@ -228,7 +235,8 @@ export function DeckSwitcher({
   onChoose: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  const glow = leaderGlow(lookupCard(selectedDeck.leaderId).colors);
+  const cardsReady = useCardDataReady();
+  const glow = cardsReady ? leaderGlow(lookupCard(selectedDeck.leaderId).colors) : undefined;
 
   function pick(value: string) {
     if (value === NEW_DECK) navigate("/decks/new");
@@ -249,7 +257,7 @@ export function DeckSwitcher({
               <span className="home-deck-label">Sailing with</span>
               <span className="home-deck-name">{selectedDeck.name}</span>
               <span className="home-deck-leader">
-                {lookupCard(selectedDeck.leaderId).name} · {selectedDeck.cards.length} cards{" "}
+                {leaderName(selectedDeck.leaderId, cardsReady)} · {selectedDeck.cards.length} cards{" "}
                 <IncompleteBadge deck={selectedDeck} />
               </span>
               <span className="home-deck-change">
@@ -280,7 +288,7 @@ export function DeckSwitcher({
                       <span className="deck-menu-text">
                         <span className="deck-menu-name">{d.name}</span>
                         <span className="deck-menu-sub">
-                          {lookupCard(d.leaderId).name} · {d.cards.length} cards <IncompleteBadge deck={d} />
+                          {leaderName(d.leaderId, cardsReady)} · {d.cards.length} cards <IncompleteBadge deck={d} />
                         </span>
                       </span>
                       <span className="deck-menu-check" aria-hidden>
@@ -577,15 +585,18 @@ export function LobbyPage() {
   }
 
   function refreshDecks() {
-    const seeded = ensureDefaultDeck();
-    ensureTestDecks();
+    // Seeding the starter decks reads the card data, which is its own chunk. A returning player's decks are
+    // already saved, so they show at once (the leader name fills in later); a first visit waits for the data.
+    if (!cardDataReady() && listSavedDecks().length === 0) return;
+    const seeded = cardDataReady() ? ensureDefaultDeck() : undefined;
+    if (cardDataReady()) ensureTestDecks();
     const all = listSavedDecks();
     setDecks(all);
     // Prefer the persisted lobby choice — otherwise mount always falls back to ST01 Luffy.
     const prefer = selectedId || getSelectedDeckId() || undefined;
-    const sel = (prefer && all.find((d) => d.id === prefer)) || seeded;
+    const sel = (prefer && all.find((d) => d.id === prefer)) || seeded || all[0];
     setSelectedId(sel.id);
-    setSelectedDeckId(sel.id);
+    if (seeded) setSelectedDeckId(sel.id);
     setBotDeckId((prev) => (prev !== BOT_DECK_MIRROR && prev !== BOT_DECK_RANDOM && !all.some((d) => d.id === prev) ? BOT_DECK_MIRROR : prev));
     setOpponentDeckId((prev) => {
       if (prev && all.some((d) => d.id === prev)) return prev;
@@ -600,6 +611,13 @@ export function LobbyPage() {
     if (syncedDecks > 0) refreshDecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncedDecks]);
+
+  // The card data lands after the first paint: seed the starters and pick the deck once it is in.
+  const cardsReady = useCardDataReady();
+  useEffect(() => {
+    if (cardsReady) refreshDecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsReady]);
 
   useEffect(() => {
     refreshDecks();
@@ -1350,7 +1368,10 @@ export function LobbyPage() {
           )}
         </Dialog>
       ) : null}
-      <WhatsNewCard app="duel" Link={Link} />
+      {/* Fixed to the corner, so it takes no room while its chunk loads. */}
+      <Suspense fallback={null}>
+        <WhatsNewHost />
+      </Suspense>
     </div>
   );
 }

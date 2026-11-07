@@ -1,5 +1,4 @@
-import atlasJson from "../assets/cardAtlas.json";
-import catalogJson from "../assets/cardCatalog.json";
+import { getCardData } from "./cardData";
 import { showOfficialIdentity } from "../legal";
 import { tcgAltsForCard, tcgArtForCard } from "./tcgArt";
 
@@ -50,14 +49,14 @@ type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts" | "abilitySup
   abilitySupport?: CardAtlasEntry["abilitySupport"];
 };
 
-/** Curated playable prints (rules package export). */
-const curated = atlasJson as Record<string, CardAtlasEntry>;
+/** Curated playable prints (rules package export). Empty until `loadCardData()` resolves (cardData.ts). */
+const curatedRows = () => getCardData().curated as Record<string, CardAtlasEntry>;
 
 /**
  * Cosmetics catalog for every English OPTCG number we know about (TCGCSV).
  * Used for Deck Configure search / art; gameplay still auto-stubs missing defs.
  */
-const catalog = catalogJson as Record<string, CosmeticsCatalogRow>;
+const catalogRows = () => getCardData().catalog as Record<string, CosmeticsCatalogRow>;
 
 /** Session stubs for OPTCG ids imported beyond curated + catalog. */
 const runtimeStubs = new Map<string, CardAtlasEntry>();
@@ -102,7 +101,7 @@ function mergeAltArts(
 }
 
 function fromCatalog(defId: string): CardAtlasEntry | undefined {
-  const hit = catalog[defId];
+  const hit = catalogRows()[defId];
   if (!hit) return undefined;
   return {
     id: hit.id ?? defId,
@@ -140,7 +139,7 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
  * Curated wins for gameplay identity; CDN catalog / tcgProducts fill missing art.
  */
 function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
-  const curatedHit = curated[defId];
+  const curatedHit = curatedRows()[defId];
   const catalogHit = fromCatalog(defId);
   const stubHit = runtimeStubs.get(defId);
   const base = curatedHit ?? catalogHit ?? stubHit;
@@ -172,8 +171,8 @@ function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
 
 export function hasAtlasEntry(defId: string): boolean {
   return (
-    Object.prototype.hasOwnProperty.call(curated, defId) ||
-    Object.prototype.hasOwnProperty.call(catalog, defId)
+    Object.prototype.hasOwnProperty.call(curatedRows(), defId) ||
+    Object.prototype.hasOwnProperty.call(catalogRows(), defId)
   );
 }
 
@@ -255,7 +254,7 @@ export function lookupCard(defId: string): CardAtlasEntry {
 
 /** All searchable ids: curated ∪ cosmetics catalog (curated wins on overlap). */
 export function listAtlasIds(): string[] {
-  return [...new Set([...Object.keys(curated), ...Object.keys(catalog)])].sort();
+  return [...new Set([...Object.keys(curatedRows()), ...Object.keys(catalogRows())])].sort();
 }
 
 export function listAtlasLeaders(): string[] {

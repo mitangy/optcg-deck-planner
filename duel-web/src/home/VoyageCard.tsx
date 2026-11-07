@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
+import { useCardDataReady } from "../cards/cardData";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
 import type { RatingMe } from "../net/api";
@@ -29,7 +30,9 @@ export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
     };
   }, []);
 
-  const rows = games ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
+  // Opponent leader names come from the card data (its own chunk): hold the rows until it is in.
+  const cardsReady = useCardDataReady();
+  const rows = games && cardsReady ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
   const failed = games === null || me === null;
 
   return (
@@ -55,10 +58,10 @@ export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
             <span>Streak</span>
           </div>
         </div>
-        <div className="voyage-games" aria-busy={games === undefined}>
+        <div className="voyage-games" aria-busy={games === undefined || !cardsReady}>
           {failed ? (
             <p className="friends-empty">Couldn’t load your games right now.</p>
-          ) : games === undefined ? null : rows.length === 0 ? (
+          ) : games === undefined || !cardsReady ? null : rows.length === 0 ? (
             <p className="friends-empty">No games yet. Play Ranked to earn a Bounty.</p>
           ) : (
             <ul className="voyage-list">

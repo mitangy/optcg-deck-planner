@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import { loadCardData } from "./cards/cardData";
 
 /**
  * Route modules that load on demand (B-01). The lobby, the SEO landings and the legal pages stay in the entry
@@ -6,16 +7,24 @@ import { lazy } from "react";
  * route (or a prefetch below) asks for them. Each page keeps its named export, so the prerender entry and the
  * unit tests keep importing them directly.
  */
-export const loadDuelPage = () => import("./pages/DuelPage");
-export const loadHotseatPage = () => import("./pages/HotseatPage");
-export const loadDemoPage = () => import("./pages/DemoPage");
-const loadDeckConfigurePage = () => import("./pages/DeckConfigurePage");
-const loadNewDeckPage = () => import("./pages/NewDeckPage");
+/**
+ * Pages that show card names or art wait for the card data (its own chunk, B-02) together with their code, so
+ * the one Suspense fallback covers both and the page never paints with placeholder card names.
+ */
+function withCards<T>(load: () => Promise<T>): () => Promise<T> {
+  return () => Promise.all([load(), loadCardData()]).then(([mod]) => mod);
+}
+
+export const loadDuelPage = withCards(() => import("./pages/DuelPage"));
+export const loadHotseatPage = withCards(() => import("./pages/HotseatPage"));
+export const loadDemoPage = withCards(() => import("./pages/DemoPage"));
+const loadDeckConfigurePage = withCards(() => import("./pages/DeckConfigurePage"));
+const loadNewDeckPage = withCards(() => import("./pages/NewDeckPage"));
 const loadSettingsPage = () => import("./pages/SettingsPage");
-const loadHistoryPage = () => import("./pages/HistoryPage");
-const loadMatchLogPage = () => import("./pages/MatchLogPage");
+const loadHistoryPage = withCards(() => import("./pages/HistoryPage"));
+const loadMatchLogPage = withCards(() => import("./pages/MatchLogPage"));
 const loadTournamentsPage = () => import("./tournaments/TournamentsPage");
-const loadTournamentPage = () => import("./tournaments/TournamentPage");
+const loadTournamentPage = withCards(() => import("./tournaments/TournamentPage"));
 
 export const DuelPage = lazy(() => loadDuelPage().then((m) => ({ default: m.DuelPage })));
 export const HotseatPage = lazy(() => loadHotseatPage().then((m) => ({ default: m.HotseatPage })));
@@ -25,14 +34,17 @@ export const NewDeckPage = lazy(() => loadNewDeckPage().then((m) => ({ default: 
 export const SettingsPage = lazy(() => loadSettingsPage().then((m) => ({ default: m.SettingsPage })));
 export const HistoryPage = lazy(() => loadHistoryPage().then((m) => ({ default: m.HistoryPage })));
 export const MatchLogPage = lazy(() => loadMatchLogPage().then((m) => ({ default: m.MatchLogPage })));
+// The patch-notes list (F-12) is read only by the What's new page and the lobby's once-per-update card.
+export const WhatsNewPage = lazy(() => import("./pages/WhatsNewPage").then((m) => ({ default: m.WhatsNewPage })));
+export const WhatsNewHost = lazy(() => import("./home/WhatsNewHost"));
 export const TournamentsPage = lazy(() => loadTournamentsPage().then((m) => ({ default: m.TournamentsPage })));
 export const TournamentPage = lazy(() => loadTournamentPage().then((m) => ({ default: m.TournamentPage })));
 
 // The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
-export const ReplayPage = lazy(() => import("./pages/ReplayPage"));
+export const ReplayPage = lazy(withCards(() => import("./pages/ReplayPage")));
 // Staff only, so nobody else downloads it.
-export const AdminPage = lazy(() => import("./admin/AdminPage"));
-export const AdminUserPage = lazy(() => import("./admin/UserPage"));
+export const AdminPage = lazy(withCards(() => import("./admin/AdminPage")));
+export const AdminUserPage = lazy(withCards(() => import("./admin/UserPage")));
 
 let boardPrefetched = false;
 

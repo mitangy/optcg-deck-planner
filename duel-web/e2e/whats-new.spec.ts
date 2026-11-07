@@ -78,7 +78,8 @@ test("See all opens the full list and the card stays away afterwards (#450)", as
 test("a first visit shows no card and quietly marks the newest update as seen (#450)", async ({ page }) => {
   await openLobby(page, null);
   await expect(card(page)).toBeHidden();
-  expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  // The card and its notes load as their own chunks, so the first-visit mark lands a moment after the lobby paints.
+  await expect.poll(() => page.evaluate((k) => localStorage.getItem(k), KEY)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 });
 
 test("Settings > About links to the full list (#450)", async ({ page }) => {

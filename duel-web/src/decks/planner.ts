@@ -3,6 +3,7 @@
  * ways, #1017); this file carries what the server cannot: the planner's shown art, and deep links.
  */
 import { lookupCard } from "../cards/atlas";
+import { loadCardData } from "../cards/cardData";
 import { productIdFromImageUrl } from "../cards/productId";
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
@@ -139,7 +140,10 @@ export async function refreshLinkedDeck(
 ): Promise<SavedDeck> {
   if (!deck.plannerDeckId) return deck;
   try {
-    return applyPlannerArt(deck.id, plannerDeckArt(await fetchDeck(deck.plannerDeckId, timeoutMs))) ?? deck;
+    const detail = await fetchDeck(deck.plannerDeckId, timeoutMs);
+    // Alt art ids come from the card data, which loads on its own (B-02).
+    await loadCardData();
+    return applyPlannerArt(deck.id, plannerDeckArt(detail)) ?? deck;
   } catch {
     return deck;
   }
@@ -233,6 +237,7 @@ export async function applyPlannerDeepLink(
   fetchDeck: (id: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
 ): Promise<ImportIntoDeckResult> {
   let planErr: string | null = null;
+  await loadCardData();
   if (signedIn && link.plannerId !== null) {
     try {
       return importPlannerDeckDetail(await fetchDeck(link.plannerId));

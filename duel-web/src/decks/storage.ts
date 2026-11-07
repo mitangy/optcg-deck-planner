@@ -6,6 +6,7 @@ import {
   registerAtlasStub,
 } from "../cards/atlas";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "../lib/safeStorage";
+import { cardDataReady } from "../cards/cardData";
 import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
@@ -70,6 +71,8 @@ function knownIds(): Set<string> {
 }
 
 export function validateImportedList(text: string): DeckValidation {
+  // Without the card data every id would read as unknown and come back as a vanilla stub: fail loudly instead.
+  if (!cardDataReady()) throw new Error("Card data is not loaded yet");
   const errors: string[] = [];
   const warnings: string[] = [];
   let lines: ParsedDeckLine[] = [];
