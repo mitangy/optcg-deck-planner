@@ -11,12 +11,11 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { rubricItems } from "./grade/judge";
 import { shareable } from "./grade/overlap";
+import type { HumanGrade } from "./human-grades";
 import { CASES } from "./cases";
 import { summarizeTurn } from "./trace";
 import type { Message } from "../src/chat";
 import type { Rubric } from "./types";
-
-type HumanGrade = { case: string; run: string; git_sha: string; answer_sha256: string; answer?: string; items: Record<string, 0 | 1 | null>; overall: number; note: string; grader: "miko"; graded_at: string };
 
 const dir = resolve(process.argv[2] ?? "");
 if (!process.argv[2] || !existsSync(join(dir, "traces"))) {
@@ -57,6 +56,7 @@ for (const c of CASES.filter((x) => x.group === "D")) {
   const row = results.find((r) => r.case === c.id && r.rep === 0);
   const line: HumanGrade = {
     case: c.id,
+    rep: 0,
     run,
     git_sha: gitSha,
     answer_sha256: row?.answer_sha256 ?? "",

@@ -32,6 +32,7 @@ const evExact = ev("grade/exact.ts");
 const evExtract = ev("grade/extract.ts");
 const evEdits = ev("grade/edits.ts");
 const evOverlap = ev("grade/overlap.ts");
+const evHuman = ev("human-grades.ts");
 const evStats = ev("stats.ts");
 const evLoad = ev("load.ts");
 const evPlanner = ev("planner.ts");
@@ -524,6 +525,17 @@ module.exports = {
     // overlap: Bandai text stays out of git
     { id: "eval-overlap-threshold", file: evOverlap, from: "export const OVERLAP_WORDS = 12;", to: "export const OVERLAP_WORDS = 1000;", kills: ["refuses to store an answer that repeats 12 words of official text"] },
     { id: "eval-overlap-off-by-one", file: evOverlap, from: "return officialOverlap(text, corpus) < n;", to: "return officialOverlap(text, corpus) < n - 1;", kills: ["stores an answer that shares only 11 words"] },
+
+    // human grading (#1038)
+    {"id": "eval-human-kappa-is-percent", "file": evHuman, "from": "return pe === 1 ? 1 : (po - pe) / (1 - pe);", "to": "return po;", "kills": ["kappa is 0 for a judge that always passes"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-na-counts", "file": evHuman, "from": "if (human === null || !j || j.pass === null) {", "to": "if (!j) {", "kills": ["leaves n/a items out of the agreement count"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-regrade-duplicates", "file": evHuman, "from": "const kept = readJsonl<HumanGrade>(file).filter((old) => !rows.some((r) => same(old, r)));", "to": "const kept = readJsonl<HumanGrade>(file);", "kills": ["re-grading a run, case and rep replaces the old line"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-regrade-ignores-rep", "file": evHuman, "from": "a.run === b.run && a.case === b.case && (a.rep ?? 0) === (b.rep ?? 0)", "to": "a.run === b.run && a.case === b.case", "kills": ["re-grading a run, case and rep replaces the old line"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-answer-always-stored", "file": evHuman, "from": "...(shareable(s.answer, s.toolText) ? { answer: s.answer } : {}),", "to": "answer: s.answer,", "kills": ["drops answer text that repeats 12 words"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-export-leaks-rubric", "file": evHuman, "from": "      items: rubricItems(c.focus),\n", "to": "      items: rubricItems(c.focus),\n      rubric: t.rubric,\n", "kills": ["never the judge's rubric"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-tool-result-uncapped", "file": evHuman, "from": "result: r.length > RESULT_CAP ? `${r.slice(0, RESULT_CAP)}\u2026 (cut)` : r", "to": "result: r", "kills": ["cuts a long tool result"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-missing-item-accepted", "file": evHuman, "from": "    if (missing) {", "to": "    if (false && missing) {", "kills": ["skips a grade with an unanswered item"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-na-as-fail", "file": evHuman, "from": "g.items[id] === \"n\" ? 0 : null", "to": "0", "kills": ["converts y/n/na to 1/0/null"], "args": "evals/human-grades.test.ts"},
 
     // stats
     { id: "eval-stats-flat-reps", file: evStats, from: "byCase.set(r.case, [...(byCase.get(r.case) ?? []), v]);", to: "byCase.set(`${r.case}#${r.rep}`, [v]);", kills: ["averages reps within a case before averaging cases"] },
