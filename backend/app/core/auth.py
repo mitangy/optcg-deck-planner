@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.models import LoginTicket, User
+from app.core.time import as_utc
 from app.roles import is_banned
 
 SESSION_COOKIE = "optcg_session"
@@ -140,9 +141,7 @@ def consume_login_ticket(
     row = db.get(LoginTicket, jti)
     if row is None:
         return None
-    expires = row.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
+    expires = as_utc(row.expires_at)
     if expires < datetime.now(timezone.utc) or row.user_id != int(uid):
         db.delete(row)
         db.commit()

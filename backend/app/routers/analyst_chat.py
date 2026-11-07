@@ -38,6 +38,7 @@ from app.analyst.access import CHAT_MODELS, access_status, chat_enabled_for, cha
 from app.analyst.auth import analyst_user, mint_chat_token
 from app.analyst.thread_view import NEW_DECK_TOOL, PROPOSE_TOOL, thread_view, tool_ids, utf16_len
 from app.core.security import require_service
+from app.core.time import as_utc_or_none
 from app.usernames import duel_display_name
 from app.analyst.schemas import (
     ANALYST_SCOPE_PATTERN,
@@ -561,9 +562,7 @@ def lookup_brief(
     row = db.get(AnalystMatchBrief, key)
     brief = None
     if row is not None:
-        made = row.created_at
-        if made is not None and made.tzinfo is None:
-            made = made.replace(tzinfo=timezone.utc)
+        made = as_utc_or_none(row.created_at)
         if made is None or made >= datetime.now(timezone.utc) - BRIEF_TTL:
             brief = _brief_out(row)
     return AnalystBriefLookupOut(
