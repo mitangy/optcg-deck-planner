@@ -1,4 +1,7 @@
-import { groupByDate } from "./helpers";
+import { useEffect, useMemo } from "react";
+import { groupByDate, notesFor, type AppName } from "./helpers";
+import { markAllSeen } from "./lastSeen";
+import { usePatchNotes } from "./loadNotes";
 import type { PatchNote } from "./types";
 
 const DAY = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
@@ -35,4 +38,19 @@ export function WhatsNewList({ notes, className }: { notes: readonly PatchNote[]
       ))}
     </div>
   );
+}
+
+/**
+ * The What's new page body for `app`: fetches the notes chunk, lists the app's notes, and counts the
+ * visit as seeing the latest update once they are loaded. `notes` skips the fetch (the static pre-render).
+ */
+export function WhatsNewFeed({ app, notes, className }: { app: AppName; notes?: readonly PatchNote[]; className?: string }) {
+  const fetched = usePatchNotes();
+  const all = notes ?? fetched;
+  useEffect(() => {
+    if (all) markAllSeen(app, undefined, all);
+  }, [app, all]);
+  const mine = useMemo(() => (all ? notesFor(app, all) : null), [app, all]);
+  if (!mine) return <div className="wn-loading" aria-busy="true" />;
+  return <WhatsNewList notes={mine} className={className} />;
 }

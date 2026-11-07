@@ -21,6 +21,7 @@ import { OptcgSimOnlinePage, OPTCG_SIM_FAQ } from "../pages/OptcgSimOnlinePage";
 import { PlayOnPhonePage, PLAY_ON_PHONE_FAQ } from "../pages/PlayOnPhonePage";
 import { PlayOnlinePage } from "../pages/PlayOnlinePage";
 import { faqPageJsonLd } from "../seo/faqJsonLd";
+import { PATCH_NOTES } from "@optcg/patch-notes/notes";
 import { WhatsNewPage } from "../pages/WhatsNewPage";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { leaderPath } from "../leaders/slug";
@@ -61,7 +62,7 @@ function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
     { path: "/play-optcg-on-phone", element: <PlayOnPhonePage />, head: headFor("/play-optcg-on-phone", faqPageJsonLd(PLAY_ON_PHONE_FAQ)) },
     { path: "/decks/meta", element: <MetaDecksPage />, head: headFor("/decks/meta"), embed: null },
     { path: "/leaderboard", element: <LeaderboardShell />, head: headFor("/leaderboard") },
-    { path: "/whats-new", element: <WhatsNewPage />, head: headFor("/whats-new") },
+    { path: "/whats-new", element: <WhatsNewPage notes={PATCH_NOTES} />, head: headFor("/whats-new") },
     legal("terms"),
     legal("privacy"),
     legal("cookies"),

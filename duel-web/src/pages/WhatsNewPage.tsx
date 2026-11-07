@@ -1,15 +1,9 @@
-import { useEffect } from "react";
-import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
+import { WhatsNewFeed, type PatchNote } from "@optcg/patch-notes";
 import { BackLink } from "./BackLink";
 import { NavMenu } from "../nav/NavMenu";
 
-const NOTES = notesFor("duel");
-
-/** Everything that changed in the duel app, newest first. Opening it counts as seeing the latest update. */
-export function WhatsNewPage() {
-  useEffect(() => {
-    markAllSeen("duel");
-  }, []);
+/** Everything that changed in the duel app, newest first. Opening it counts as seeing the latest update. `notes` is only passed by the static pre-render, which has no chunk to fetch. */
+export function WhatsNewPage({ notes }: { notes?: readonly PatchNote[] }) {
   return (
     <div className="app-shell">
       <div className="page page-narrow whats-new-page">
@@ -18,7 +12,7 @@ export function WhatsNewPage() {
           <BackLink to="/" label="Home" ariaLabel="Back to home" />
           <h1 className="page-title">What’s new</h1>
         </header>
-        <WhatsNewList notes={NOTES} />
+        <WhatsNewFeed app="duel" notes={notes} />
       </div>
     </div>
   );

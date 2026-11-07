@@ -1,17 +1,11 @@
 import { BrandWordmark } from "./BrandWordmark";
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { markAllSeen, notesFor, WhatsNewList } from "@optcg/patch-notes";
+import { WhatsNewFeed } from "@optcg/patch-notes";
 import { ThemeToggle } from "./ThemeToggle";
 import { UpdateNotice, VersionStatus } from "./UpdateNotice";
 
-const NOTES = notesFor("planner");
-
 /** Public page: everything that changed in the planner, newest first. Opening it counts as seeing the latest update. */
 export function WhatsNewPage() {
-  useEffect(() => {
-    markAllSeen("planner");
-  }, []);
   return (
     <div className="app public-app">
       <UpdateNotice />
@@ -36,7 +30,7 @@ export function WhatsNewPage() {
           </div>
         </div>
         <VersionStatus />
-        <WhatsNewList notes={NOTES} />
+        <WhatsNewFeed app="planner" />
       </main>
     </div>
   );

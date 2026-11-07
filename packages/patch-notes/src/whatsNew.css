@@ -61,6 +61,11 @@
   color: color-mix(in srgb, currentColor 82%, transparent);
 }
 
+/* Holds the list's place while the notes chunk downloads, so the footer does not jump up and back down. */
+.wn-loading {
+  min-height: 60dvh;
+}
+
 .wn-empty {
   color: color-mix(in srgb, currentColor 72%, transparent);
 }
