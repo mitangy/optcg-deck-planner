@@ -2,7 +2,6 @@ import {
   applyIntent,
   buildTestDeck,
   createMatch,
-  createSeededRng,
   DEFAULT_LEADER_ID,
   getCardDef,
   listLegalIntents,
@@ -25,8 +24,7 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
   ];
   const seed = 17;
-  const rng = createSeededRng(seed);
-  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
   const intents: MatchReplay["intents"] = [];
   for (let i = 0; i < 500 && state.winner === null; i++) {
     const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
@@ -37,7 +35,7 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
       legal.find((x) => x.type.startsWith("pass")) ??
       legal.find((x) => x.type === "end_turn") ??
       legal[0]!;
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     expect(result.ok).toBe(true);
     state = result.state;
     intents.push({ seat, intent });
@@ -60,7 +58,6 @@ function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
   ];
-  const rng = createSeededRng(seed);
   let state = createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] });
   const dealt = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
   const intents: MatchReplay["intents"] = [
@@ -71,7 +68,7 @@ function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
   ];
   let kept: string[][] = [];
   for (const [i, { seat, intent }] of intents.entries()) {
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     expect(result.ok).toBe(true);
     state = result.state;
     if (i === 1) kept = state.players.map((p) => p.hand.map((c) => getCardDef(c.defId).name));
@@ -89,14 +86,13 @@ function scriptedGame(prefer: string[], steps: number, decks: [string[], string[
     { leaderId: DEFAULT_LEADER_ID, deck: decks[1] },
   ];
   const seed = 17;
-  const rng = createSeededRng(seed);
-  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
   const intents: MatchReplay["intents"] = [];
   for (let i = 0; i < steps; i++) {
     const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
     const legal = listLegalIntents(state, seat);
     const intent = prefer.map((t) => legal.find((x) => x.type === t)).find(Boolean) ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!;
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     expect(result.ok).toBe(true);
     state = result.state;
     intents.push({ seat, intent });

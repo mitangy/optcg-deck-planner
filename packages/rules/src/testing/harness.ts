@@ -20,7 +20,7 @@ export class Harness {
     this.rng = createSeededRng(seed);
     const deck = Array.from({ length: opts.deckSize ?? 40 }, () => FILLER);
     let state = createMatch({ seed, firstSeat: 0, players: [{ leaderId: opts.leaders?.[0] ?? "ST01-001", deck }, { leaderId: opts.leaders?.[1] ?? "ST01-001", deck }] });
-    state = skipMulligans(state, this.rng);
+    state = skipMulligans(state);
     this.state = state;
     // Advance to seat 0's second turn so attacks are legal.
     this.act(0, { type: "end_turn" });
@@ -112,7 +112,7 @@ export class Harness {
   }
 
   try(seat: Seat, intent: Intent): ApplyResult {
-    return applyIntent(this.state, intent, { seat, rng: this.rng });
+    return applyIntent(this.state, intent, { seat });
   }
 
   act(seat: Seat, intent: Intent): this {

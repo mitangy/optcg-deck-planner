@@ -170,7 +170,7 @@ describe("bot main phase (#631)", () => {
     if (request.type !== "select") throw new Error("expected a select");
     const blockerOption = request.options.find((o) => o.defId === WEAK_BLOCKER)!;
     expect(answer.selectedOptionIds).toEqual([blockerOption.id]);
-    expect(applyIntent(h.state, answer, { seat: 0, rng: createSeededRng(1) }).ok).toBe(true);
+    expect(applyIntent(h.state, answer, { seat: 0 }).ok).toBe(true);
   });
 });
 

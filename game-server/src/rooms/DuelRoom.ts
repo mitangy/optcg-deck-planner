@@ -26,7 +26,6 @@ import {
   type MatchReplay,
   type MatchState,
   type Rng,
-  type RngState,
   type Seat,
 } from "@optcg/rules";
 import {
@@ -150,7 +149,6 @@ export function botDisplayName(level: BotLevel): string {
 type UndoSnapshot = {
   /** serializeMatch() output — a deep copy the engine can never mutate. */
   match: string;
-  rng: RngState;
   turnNumber: number;
   /** Replay intents up to this state, so an undo drops the rewound ones. */
   intentCount: number;
@@ -176,7 +174,6 @@ export class DuelRoom extends Room implements PresenceSource {
   private creatorUid: number | null = null;
 
   private match: MatchState | null = null;
-  private rng: Rng | null = null;
   private matchId = "";
   private seed = 0;
   /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
@@ -922,7 +919,6 @@ export class DuelRoom extends Room implements PresenceSource {
   private startMatch(firstSeat: Seat, pickedBy: Seat | null) {
     this.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
-    this.rng = createSeededRng(this.seed);
     const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = this.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
     const leaderA =
@@ -959,7 +955,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     if (this.autoSkipMulligan) {
-      match = skipMulligans(match, this.rng);
+      match = skipMulligans(match);
     }
     this.replay = {
       schema: MATCH_REPLAY_SCHEMA,
@@ -1284,7 +1280,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, "unauthorized", "Not seated");
       return;
     }
-    if (!this.match || !this.rng || !this.matchStarted) {
+    if (!this.match || !this.matchStarted) {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
@@ -1322,10 +1318,23 @@ export class DuelRoom extends Room implements PresenceSource {
    * intents and the bot seat, so both take exactly the same path.
    */
   private applySeatIntent(seat: Seat, intent: Intent): { ok: true } | { ok: false; message: string } {
-    if (!this.match || !this.rng) return { ok: false, message: "Match not started" };
+    if (!this.match) return { ok: false, message: "Match not started" };
     const before = this.match;
-    const undoSnap = this.captureUndoSnapshot(seat, intent);
-    const result = applyIntent(before, intent, { seat, rng: this.rng });
+    let undoSnap: ReturnType<typeof this.captureUndoSnapshot>;
+    let result: ReturnType<typeof applyIntent>;
+    try {
+      undoSnap = this.captureUndoSnapshot(seat, intent);
+      result = applyIntent(before, intent, { seat });
+    } catch (e) {
+      // applyIntent works on a clone, so this.match is untouched; answer like any illegal intent (refactor 0.2).
+      this.log("warn", "apply_intent_threw", {
+        matchId: this.matchId,
+        seat,
+        intentType: intent.type,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      return { ok: false, message: "Intent could not be applied" };
+    }
     if (!result.ok) {
       this.log("info", "illegal_intent", {
         matchId: this.matchId,
@@ -1487,11 +1496,10 @@ export class DuelRoom extends Room implements PresenceSource {
    */
   private captureUndoSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
     const m = this.match;
-    if (this.ranked || !m || !this.rng) return null;
+    if (this.ranked || !m) return null;
     if (m.phase === "mulligan" || m.winner !== null) return null;
     return {
       match: serializeMatch(m),
-      rng: this.rng.snapshot(),
       turnNumber: m.turnNumber,
       intentCount: this.replay?.intents.length ?? 0,
       seat,
@@ -1715,7 +1723,6 @@ export class DuelRoom extends Room implements PresenceSource {
     const steps = this.undoStack.length - idx!;
     this.undoStack.length = idx!;
     this.match = deserializeMatch(snap.match);
-    this.rng = createSeededRng(snap.rng);
     this.replay?.intents.splice(snap.intentCount);
     // Restore the state exactly: match.rng and deck order come back with the
     // snapshot (the engine draws from match.rng), so drawing again gives the same
@@ -2003,7 +2010,7 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   private expireTurnClock() {
-    if (!this.match || !this.rng || this.match.winner !== null) return;
+    if (!this.match || this.match.winner !== null) return;
     const seat = this.actingSeatForTimer();
     if (seat === null || seat === this.botSeat()) {
       // Nobody to auto-act (the bot plays itself); refresh so we do not tight-loop.
@@ -2024,7 +2031,7 @@ export class DuelRoom extends Room implements PresenceSource {
     });
     const before = this.match;
     const undoSnap = this.captureUndoSnapshot(seat, intent);
-    const result = applyIntent(before, intent, { seat, rng: this.rng });
+    const result = applyIntent(before, intent, { seat });
     if (!result.ok) {
       this.refreshTurnClock();
       this.broadcastTimer();

@@ -14,7 +14,6 @@ import { fileURLToPath } from "node:url";
 import { getCardDef } from "../cards/definitions.js";
 import { describeEvents } from "../describeEvents.js";
 import { applyIntent, createMatch, powerOf, skipMulligans } from "../engine.js";
-import { createSeededRng } from "../rng.js";
 import type { CardInstance, Intent, MatchState, Seat } from "../types.js";
 
 export const REPLAY_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "replays");
@@ -110,7 +109,6 @@ function intentArgs(intent: Intent): string {
 }
 
 export function playReplay(name: string, f: ReplayFixture): string {
-  const rng = createSeededRng(f.seed);
   let state = createMatch({
     seed: f.seed,
     firstSeat: f.firstSeat,
@@ -119,11 +117,11 @@ export function playReplay(name: string, f: ReplayFixture): string {
       { leaderId: f.players[1].leaderId, deck: expandDeck(f.players[1].deck) },
     ],
   });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
   const out: string[] = [`# replay ${name}`, `# ${f.note}`, `seed ${f.seed}, seat ${f.firstSeat} goes first`];
   for (const seat of [0, 1] as const) out.push(`Seat ${seat} leader: ${getCardDef(f.players[seat].leaderId).name} (${f.players[seat].leaderId})`);
   for (const [i, { seat, intent }] of f.intents.entries()) {
-    const r = applyIntent(state, intent, { seat, rng });
+    const r = applyIntent(state, intent, { seat });
     out.push("", `> #${i + 1} seat ${seat} ${intent.type}${intentArgs(intent)}`);
     if (!r.ok) {
       // The engine no longer accepts a recorded move: show where, and stop (later moves would be meaningless).

@@ -2,7 +2,6 @@ import {
   applyIntent,
   buildTestDeck,
   createMatch,
-  createSeededRng,
   DEFAULT_LEADER_ID,
   getCardDef,
   listLegalIntents,
@@ -26,15 +25,14 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
   ];
   const seed = 17;
-  const rng = createSeededRng(seed);
-  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+  let state = skipMulligans(createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
   const intents: MatchReplay["intents"] = [];
   for (let i = 0; i < 500 && state.winner === null; i++) {
     const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
     const legal = listLegalIntents(state, seat);
     const intent =
       legal.find((x) => x.type.includes("attack")) ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!;
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     state = result.state;
     intents.push({ seat, intent });
     const taken = result.events.find((e): e is Extract<GameEvent, { type: "life_taken" }> => e.type === "life_taken");
@@ -816,14 +814,13 @@ describe("sources and citations (#390)", () => {
       { leaderId: DEFAULT_LEADER_ID, deck: all.slice(0, 12) },
       { leaderId: DEFAULT_LEADER_ID, deck: all.slice(8, 20) },
     ];
-    const rng = createSeededRng(17);
-    let state = skipMulligans(createMatch({ seed: 17, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+    let state = skipMulligans(createMatch({ seed: 17, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
     const intents: MatchReplay["intents"] = [];
     for (let i = 0; i < 8; i++) {
       const seat = (([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0))!;
       const legal = listLegalIntents(state, seat);
       const intent = legal.find((x) => x.type === "play_card") ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!;
-      state = applyIntent(state, intent, { seat, rng }).state;
+      state = applyIntent(state, intent, { seat }).state;
       intents.push({ seat, intent });
     }
     const finished: MatchReplay = { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed: 17, firstSeat: 0, skipMulligans: true, players, intents, end: { winner: 1, reason: "concede" } };

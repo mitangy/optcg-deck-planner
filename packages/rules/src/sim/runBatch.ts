@@ -36,7 +36,7 @@ function playRandom(seed: number, maxIntents = 800): {
       { leaderId: "ST01-001", deck: [...deck] },
     ],
   });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
 
   let intents = 0;
   while (
@@ -53,7 +53,7 @@ function playRandom(seed: number, maxIntents = 800): {
     const end = legal.find((i) => i.type === "end_turn");
     const pick =
       end && rng.next() < 0.25 ? end : legal[rng.nextInt(legal.length)]!;
-    const r = applyIntent(state, pick, { seat, rng });
+    const r = applyIntent(state, pick, { seat });
     if (!r.ok) {
       throw new Error(`Illegal pick ${JSON.stringify(pick)}: ${r.error?.message}`);
     }

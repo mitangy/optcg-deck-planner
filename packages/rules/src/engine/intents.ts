@@ -481,17 +481,17 @@ function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
   return out;
 }
 
-export function skipMulligans(state: MatchState, rng: Rng): MatchState {
+export function skipMulligans(state: MatchState): MatchState {
   let s = state;
   // Start-of-game Stage prompts take the first option.
   while (s.phase === "mulligan" && s.pendingChoices[0]) {
     const front = s.pendingChoices[0];
-    const r = applyIntent(s, { type: "resolve_pending_choice", ...defaultAnswer(front), accept: true }, { seat: front.seat, rng });
+    const r = applyIntent(s, { type: "resolve_pending_choice", ...defaultAnswer(front), accept: true }, { seat: front.seat });
     if (!r.ok) throw new Error(r.error?.message ?? "start-of-game choice failed");
     s = r.state;
   }
   for (const seat of [0, 1] as Seat[]) {
-    const r = applyIntent(s, { type: "mulligan", doMulligan: false }, { seat, rng });
+    const r = applyIntent(s, { type: "mulligan", doMulligan: false }, { seat });
     if (!r.ok) throw new Error(r.error?.message ?? "mulligan failed");
     s = r.state;
   }

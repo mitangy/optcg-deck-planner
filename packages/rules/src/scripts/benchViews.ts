@@ -64,7 +64,7 @@ export function* benchGame(seed: number, maxIntents = 400): Generator<BenchStep>
   const a = BENCH_LEADERS[seed % BENCH_LEADERS.length]!;
   const b = BENCH_LEADERS[(seed + 1 + Math.floor(seed / BENCH_LEADERS.length)) % BENCH_LEADERS.length]!;
   let state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [benchDeck(a), benchDeck(b)] });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
   for (let intents = 0; intents < maxIntents && state.winner === null; intents += 1) {
     const seat = actingSeat(state);
     const legal = listLegalIntents(state, seat);
@@ -77,8 +77,8 @@ export function* benchGame(seed: number, maxIntents = 400): Generator<BenchStep>
       pick = end && rng.next() < 0.15 ? end : legal[rng.nextInt(legal.length)]!;
     }
     const started = performance.now();
-    let r = applyIntent(state, pick, { seat, rng });
-    if (!r.ok && front) r = applyIntent(state, legal[0]!, { seat, rng });
+    let r = applyIntent(state, pick, { seat });
+    if (!r.ok && front) r = applyIntent(state, legal[0]!, { seat });
     const applyMicros = (performance.now() - started) * 1000;
     if (!r.ok) throw new Error(`Rejected legal intent seed=${seed}: ${r.error?.message}`);
     state = r.state;

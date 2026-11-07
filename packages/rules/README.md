@@ -15,12 +15,12 @@ Everything is exported from `src/index.ts`; the main entry points are:
 
 ```ts
 createMatch(config)
-applyIntent(state, intent, { seat, rng })
+applyIntent(state, intent, { seat })
 listLegalIntents(state, seat)
 getPlayerView(state, seat)
 getSpectatorView(state, cameraSeat?)
 assertInvariants(state)
-skipMulligans(state, rng)
+skipMulligans(state)
 createSeededRng(seed)
 getCardDef(id) / listCardDefs() / hasCardDef(id)   // cards/definitions.ts
 cardAbilities(id) / abilityById(id)                // the declarative ability registry

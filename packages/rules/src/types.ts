@@ -1,4 +1,3 @@
-import type { Rng } from "./rng.js";
 import type { Keyword, PlayerRestriction, Restriction, Filter, Placement } from "./effects/types.js";
 
 export type Seat = 0 | 1;
@@ -395,8 +394,8 @@ export type Intent =
   | { type: "order_pending_effects"; orderedIds: string[] }
   | { type: "end_turn" };
 
+/** Who is acting. The engine draws all randomness from `state.rng`, so the caller supplies none. */
 export interface ApplyContext {
-  rng: Rng;
   seat: Seat;
 }
 

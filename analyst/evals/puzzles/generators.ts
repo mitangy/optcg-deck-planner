@@ -2,7 +2,7 @@
  * The puzzle types (#677). Each generator takes one position and returns a puzzle whose gold comes from the duel
  * engine (powerOf, the legal-intent list, an actual battle), or null when the position cannot make a fair puzzle.
  */
-import { applyIntent, createSeededRng, listLegalIntents, powerOf, type CardInstance, type MatchState, type Rng, type Seat } from "@optcg/rules";
+import { applyIntent, listLegalIntents, powerOf, type CardInstance, type MatchState, type Rng, type Seat } from "@optcg/rules";
 import { addModifier } from "@optcg/rules/src/engine/modifiers";
 import type { Catalog } from "../../src/catalog";
 import { assemble, boardCards, describeSeat, fullySupported, hasNewSet, labelOf, shownCardIds } from "./describe";
@@ -144,7 +144,7 @@ const COUNTER_MAX = 15000;
 export function attackSucceeds(counterStep: MatchState, defenderSeat: Seat, defenderId: string, counter: number): boolean | null {
   const s = structuredClone(counterStep);
   if (counter) addModifier(s, defenderSeat, undefined, { kind: "card", id: defenderId }, { type: "power", amount: counter }, { kind: "battle" });
-  const r = applyIntent(s, { type: "pass_counter" }, { seat: defenderSeat, rng: createSeededRng(1) });
+  const r = applyIntent(s, { type: "pass_counter" }, { seat: defenderSeat });
   if (!r.ok) return null;
   const resolved = r.events.find((e) => e.type === "battle_resolved");
   return resolved && resolved.type === "battle_resolved" ? resolved.attackerWon : null;
@@ -162,9 +162,9 @@ export function counterBattle(state: MatchState, intentIndex: number): CounterBa
   const attacks = listLegalIntents(state, attacker).filter((i) => i.type === "declare_attack");
   const intent = attacks[intentIndex];
   if (!intent || intent.type !== "declare_attack") return null;
-  const declared = applyIntent(state, intent, { seat: attacker, rng: createSeededRng(1) });
+  const declared = applyIntent(state, intent, { seat: attacker });
   if (!declared.ok || declared.state.phase !== "block" || declared.state.pendingChoices.length) return null;
-  const passed = applyIntent(declared.state, { type: "pass_block" }, { seat: defender, rng: createSeededRng(1) });
+  const passed = applyIntent(declared.state, { type: "pass_block" }, { seat: defender });
   if (!passed.ok || passed.state.phase !== "counter" || passed.state.pendingChoices.length || !passed.state.battle) return null;
   const b = passed.state.battle;
   const defenderId = b.target.kind === "leader" ? passed.state.players[defender].leader.id : b.target.instanceId;

@@ -3,7 +3,6 @@ import { applyIntent, createMatch, getPlayerView, getSpectatorView, listLegalInt
 import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
 import { projectGameEvents } from "../engine/views.js";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
-import { createSeededRng } from "../rng.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { GameEvent, Intent, Seat } from "../types.js";
 
@@ -209,8 +208,7 @@ describe("privateChoicesV2 flag (#369)", () => {
   it("replayMatch replays an old recording (no flag) with legacy ids and a new one with permuted ids (#369)", () => {
     const seed = 17;
     const record = (privateChoicesV2: boolean): MatchReplay => {
-      const rng = createSeededRng(seed);
-      let state = skipMulligans(createMatch({ seed, firstSeat: 0, privateChoicesV2, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+      let state = skipMulligans(createMatch({ seed, firstSeat: 0, privateChoicesV2, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
       const intents: MatchReplay["intents"] = [];
       for (let i = 0; i < 200; i++) {
         const seat = ([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0);
@@ -223,7 +221,7 @@ describe("privateChoicesV2 flag (#369)", () => {
           legal.find((x) => x.type.startsWith("pass")) ??
           legal.find((x) => x.type === "end_turn") ??
           legal[legal.length - 1]!;
-        const r = applyIntent(state, intent, { seat, rng });
+        const r = applyIntent(state, intent, { seat });
         if (!r.ok) throw new Error(r.error?.message);
         state = r.state;
         intents.push({ seat, intent });
@@ -267,7 +265,7 @@ describe("start-of-game Stage prompt (#369)", () => {
     let state = imu([EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE, EMPTY_THRONE]);
     const choice = state.pendingChoices[0]!;
     const optionId = choice.request?.type === "select" ? choice.request.options[0]!.id : "";
-    const r = applyIntent(state, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [optionId] }, { seat: 0, rng: createSeededRng(7) });
+    const r = applyIntent(state, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [optionId] }, { seat: 0 });
     expect(r.ok, r.error?.message).toBe(true);
     state = r.state;
     expect(state.players[0].stage?.defId).toBe(EMPTY_THRONE);
