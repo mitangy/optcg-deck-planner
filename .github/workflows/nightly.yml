@@ -51,7 +51,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '17 7 * * 0' }}
     runs-on: ubuntu-latest
     # A shard that times out saves no incremental file, so it starts from
-    # scratch again the next week. runtime.ts alone (~3,700 mutants) needs
+    # scratch again the next week. The runtime modules together (~3,700 mutants) needs
     # about 4h20m from scratch, so allow close to the 6 h hosted-runner cap.
     timeout-minutes: 350
     strategy:
@@ -74,8 +74,8 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           SHARDS=(
-            "src/engine/runtime.ts"
-            "src/engine/queries.ts"
+            "src/engine/sim.ts,src/engine/triggers.ts,src/engine/zoneActions.ts,src/engine/vm.ts,src/engine/replacement.ts,src/engine/ops.ts,src/engine/choices.ts,src/engine/donLocation.ts"
+            "src/engine/evalCtx.ts,src/engine/statics.ts,src/engine/stats.ts,src/engine/selectors.ts,src/engine/evaluate.ts,src/engine/costs.ts"
             "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts,src/engine/perspective.ts"
             "src/effects/validate.ts,src/effects/compile.ts"
             "src/engine/procedure.ts,src/engine/state.ts"
