@@ -1,7 +1,6 @@
 import { Room, Client, matchMaker } from "colyseus";
 import {
   getDevJoinSecret,
-  getLogLevel,
   getRankedMatchCreateSecret,
   getSeatReservationSeconds,
   requireGameToken,
@@ -10,6 +9,7 @@ import { verifyGameToken } from "../gameToken.js";
 import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import { PROTOCOL_VERSION, RANKED_SEAT_SECONDS, parseJoinOptions } from "../protocol.js";
+import { writeLog, type LogLevel } from "../log.js";
 
 type Queued = {
   sessionId: string;
@@ -180,22 +180,8 @@ export class MatchmakerRoom extends Room {
     }
   }
 
-  private log(
-    level: "debug" | "info" | "warn",
-    event: string,
-    data: Record<string, unknown>,
-  ) {
-    const configured = getLogLevel();
-    const order = { debug: 0, info: 1, warn: 2 } as const;
-    if (order[level] < order[configured]) return;
-    const line = JSON.stringify({
-      ts: new Date().toISOString(),
-      level,
-      event,
-      ...data,
-    });
-    if (level === "warn") console.warn(line);
-    else console.log(line);
+  private log(level: LogLevel, event: string, data: Record<string, unknown>) {
+    writeLog(level, event, data);
   }
 }
 

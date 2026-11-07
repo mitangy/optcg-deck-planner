@@ -2,84 +2,42 @@ import { Room, Client } from "colyseus";
 import {
   applyIntent,
   buildTestDeck,
-  botTurnMemory,
-  chooseBotIntentFromState,
   createMatch,
-  noteBotPick,
-  createSeededRng,
   DEFAULT_LEADER_ID,
-  deserializeMatch,
-  getPlayerView,
-  getSpectatorView,
-  projectGameEvents,
-  listLegalIntents,
   MATCH_REPLAY_SCHEMA,
   REGISTRY_HASH,
   RULES_VERSION,
-  revealReason,
-  seatLog,
-  serializeMatch,
   skipMulligans,
-  type BotLevel,
-  type GameEvent,
   type Intent,
-  type MatchReplay,
   type MatchState,
-  type Rng,
   type Seat,
 } from "@optcg/rules";
 import {
   getDevJoinSecret,
   isRankedMatchCreateAttested,
-  getLogLevel,
-  getMatchOutboxDatabaseUrl,
   getRankedNoShowSeconds,
   getReconnectGraceSeconds,
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
-import { mintBriefTicket } from "../briefTicket.js";
-import { collectPublicDefIds, visibleArtPrefs } from "../publicArt.js";
-import { checkMatchmakeToken, claimCreatorRoom, gameSeed, releaseCreatorRoom } from "../matchmakeGuard.js";
+import { writeLog, type LogLevel } from "../log.js";
+import { SlidingWindowLimiter } from "../rateLimit.js";
+import { checkMatchmakeToken, claimCreatorRoom, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
   TAKEN_OVER_CLOSE_CODE,
-  parseChatMessage,
-  parseHandOrderMessage,
-  parseCosmeticsMessage,
-  parseSkinMessage,
   parseCreateOptions,
   parseIntentMessage,
   parseJoinOptions,
-  parseRematchMessage,
-  parseUndoMessage,
-  type ArtPrefsMap,
-  type ChatMessage,
-  type CosmeticsMessage,
-  type SeatSkin,
-  type SkinMessage,
-  type ErrorCode,
-  type TimerMessage,
   CLIENT_MESSAGE,
   ProtocolError,
   errorCodeOf,
-  type BotRoomOptions,
+  type ErrorCode,
   type PlayerDeckWire,
-  type SeatPlayerInfo,
-  type RematchAction,
-  type RematchStateMessage,
-  type UndoAction,
-  type UndoOption,
-  type UndoScope,
-  type UndoAppliedMessage,
-  type UndoStateMessage,
-  type BriefTicketWire,
-  type WelcomeMessage,
 } from "../protocol.js";
 import {
-  LatestOnlySender,
   postMatchProgress,
   postMatchResult,
   postSoloGame,
@@ -87,84 +45,33 @@ import {
   type MatchResultPayload,
   type SoloGamePayload,
 } from "../writeback.js";
-import { undoLabel } from "../undoLabel.js";
-import { applyHandOrder, idsInHand } from "../handOrder.js";
-import { sharedBotPool } from "../botPool.js";
-import { presence, type PresenceEntry, type PresenceSource, type Takedown } from "../presence.js";
-import { cosmeticIdOfLink, isTakenDown, skinMatchesTakedown } from "../takedowns.js";
+import { presence, type PresenceEntry, type PresenceSource } from "../presence.js";
 import { DuelPublicState } from "./schema/DuelPublicState.js";
+import { BOT_SEAT, BOT_USER_ID, BotDriver } from "./duel/bots.js";
+import { RoomChat } from "./duel/chat.js";
+import { MatchClocks } from "./duel/clocks.js";
+import { DuelGame, type ApplyResult, type DuelCore, type RoomIO } from "./duel/context.js";
+import { SeatCosmetics } from "./duel/cosmetics.js";
+import { MatchPersistence } from "./duel/persistence.js";
+import { Rematch } from "./duel/rematch.js";
+import { MAX_SPECTATORS, Spectators } from "./duel/spectators.js";
+import { SyncSender } from "./duel/sync.js";
+import { duelTimeSource, realTime, type DuelTime } from "./duel/time.js";
+import { UndoHistory, type UndoSnapshot } from "./duel/undo.js";
 
-type SeatSlot = {
-  seat: Seat;
-  sessionId: string;
-  /** Stable player key for logs / legacy. */
-  displayId: string;
-  /** Public name shown to both seats (username, else account name). */
-  displayName: string;
-  /** FastAPI user id when known; synthetic negative for legacy devUserId. */
-  userId: number;
-};
-
-type SpectatorSlot = {
-  sessionId: string;
-  displayId: string;
-  userId: number;
-  /** Which side is rendered as "you" in client layouts. */
-  cameraSeat: Seat;
-};
+export { BOT_MAX_INTENTS_PER_TURN, botDisplayName, botPacing, botSearch } from "./duel/bots.js";
 
 const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
-const MAX_SPECTATORS = 8;
-const CHAT_RATE_LIMIT = 5;
-const CHAT_RATE_WINDOW_MS = 5000;
-const CHAT_HISTORY_LIMIT = 50;
 /** Any message type, per client: more than this in one second drops the client (intents alone allow 20). */
 const MAX_MESSAGES_PER_SECOND = 40;
-/** Per-action snapshots kept for undo (unranked rooms only). */
-const UNDO_HISTORY_LIMIT = 40;
 
-/** The seat a "Play vs Bot" room gives the server-side player (#631). */
-const BOT_SEAT: Seat = 1;
-/** Account id of the bot seat: never positive, so a bot game is never written to match history. */
-const BOT_USER_ID = 0;
 /**
- * How long the bot waits before each move so the human can follow it. Mutable so tests can shorten it:
- * `mainMs` for main-phase actions, `choiceMs` for choices, blocks, counters and mulligans.
+ * One duel: a Colyseus room that owns the lifecycle (create, join, takeover, leave, drop, dispose),
+ * message routing and the game's start and end. Everything else lives in the collaborators under
+ * `./duel/`, which share `game` (the current game's state) and reach each other through `this`.
  */
-export const botPacing = { mainMs: 700, choiceMs: 400 };
-/**
- * Hard bot: how a decision's lookahead is run (#631, #635).
- *  - `useWorker`: the search runs in a worker thread (botPool.ts), so a long lookahead never blocks the room's event loop.
- *    When the worker fails or times out, the bot plays a Normal move in the room's thread. With `false`, or when the pool
- *    is switched off (BOT_WORKERS=0), the search runs in the room's thread under `inThreadBudgetMs` (the pre-#635 behavior).
- *  - `budgetMs`, `samples`: wall-clock budget and determinized copies of one decision in the worker (the search is cheaper than the budget on most decisions). The search is anytime, so a smaller budget only makes the bot play more like Normal.
- *  - `timeoutMs`: how long a room waits for the worker (queue time included) before it plays Normal instead.
- */
-export const botSearch = { useWorker: true, budgetMs: 1500, samples: 6, timeoutMs: 4000, inThreadBudgetMs: 200 };
-/** Safety net: after this many bot intents in one turn the bot only ends the turn / passes. */
-export const BOT_MAX_INTENTS_PER_TURN = 150;
-
-export function botDisplayName(level: BotLevel): string {
-  return `Bot (${level === "easy" ? "Easy" : level === "hard" ? "Hard" : "Normal"})`;
-}
-
-/** The state just before one applied intent; undoing restores it. */
-type UndoSnapshot = {
-  /** serializeMatch() output — a deep copy the engine can never mutate. */
-  match: string;
-  turnNumber: number;
-  /** Replay intents up to this state, so an undo drops the rewound ones. */
-  intentCount: number;
-  /** Seat that took the action this snapshot precedes. */
-  seat: Seat;
-  /** Short description of that action ("play Nami"). */
-  label: string;
-  /** Why this action exposed hidden cards ("cards were drawn"); absent when it did not (#536). */
-  revealReason?: string;
-};
-
-export class DuelRoom extends Room implements PresenceSource {
+export class DuelRoom extends Room implements PresenceSource, DuelCore {
   maxClients = 2 + MAX_SPECTATORS;
   maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
   state = new DuelPublicState();
@@ -174,104 +81,38 @@ export class DuelRoom extends Room implements PresenceSource {
     return checkMatchmakeToken(options);
   }
 
+  readonly game = new DuelGame();
+  /** Wall clock, timers and sleeping; real unless a test installed `duelTimeSource.create`. */
+  readonly time: DuelTime = duelTimeSource.create?.(this) ?? realTime(this);
+  readonly io: RoomIO = {
+    allClients: () => this.clients,
+    broadcast: (type, message) => this.broadcast(type, message),
+    clientFor: (sessionId) => this.clients.find((c) => c.sessionId === sessionId),
+    sendError: (client, code, message) => this.sendError(client, code, message),
+    sendParseError: (client, error) => this.sendError(client, errorCodeOf(error, "bad_protocol"), (error as Error).message),
+    log: (level, event, data) => this.log(level, event, data),
+  };
+  readonly clocks: MatchClocks = new MatchClocks(this);
+  readonly undo: UndoHistory = new UndoHistory(this);
+  readonly chat: RoomChat = new RoomChat(this);
+  readonly rematch: Rematch = new Rematch(this);
+  readonly spectators: Spectators = new Spectators(this);
+  readonly sync: SyncSender = new SyncSender(this);
+  readonly cosmetics: SeatCosmetics = new SeatCosmetics(this);
+  readonly bots: BotDriver = new BotDriver(this);
+  readonly persistence: MatchPersistence = new MatchPersistence(this);
+  private readonly intentLimiter = new SlidingWindowLimiter(INTENT_RATE_LIMIT, INTENT_RATE_WINDOW_MS, () => this.time.now());
+
   /** Account that created this room, counted against its open-room cap until dispose. */
   private creatorUid: number | null = null;
 
-  private match: MatchState | null = null;
-  private matchId = "";
-  private seed = 0;
   /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
   private firstGameSeat: Seat = 0;
-  /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
-  private firstSeatPickedBy: Seat | null = null;
-  /** This game's inputs, sent with the result for the backend to keep. Never sent to players. */
-  private replay: MatchReplay | null = null;
   private autoSkipMulligan = true;
-  private ranked = true;
   private createPlayers: [PlayerDeckWire, PlayerDeckWire] | undefined;
-  private seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   private presetSeatUserIds: [number, number] | undefined;
-  private seats: [SeatSlot | null, SeatSlot | null] = [null, null];
-  /**
-   * Account that controls each seat: the verified ownerToken uid (practice, where
-   * seats are guest ids), else the seat's own userId. Who may take the seat over (#451).
-   */
-  private seatOwnerUids: [number | null, number | null] = [null, null];
   private lastMetadataKey = "";
-  private spectators: SpectatorSlot[] = [];
-  /** Per-seat alt-art prefs (cosmetics only; not rules state). */
-  private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
-  /**
-   * Card defIds each seat has shown face-up this game. Only prefs for these
-   * go to the other seat and spectators; the rest would name the decklist (#369).
-   */
-  private publicArtDefs: [Set<string>, Set<string>] = [new Set(), new Set()];
-  /** What non-owners last received per seat (JSON), so only a change is pushed. */
-  private sentPublicArt: [string, string] = ["{}", "{}"];
-  /** Per-seat custom playmat / card back (cosmetics only). */
-  private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
   private stopTakedowns: (() => void) | null = null;
-  /**
-   * Each player's own hand order (instance ids), shown to spectators of unranked
-   * rooms. Never sent to a player: neither seat learns anything it can't see.
-   */
-  private seatHandOrder: [string[], string[]] = [[], []];
-  private intentTimestamps = new Map<string, number[]>();
-  /** Recent chat lines, replayed on join / sync. Not persisted. */
-  private chatLog: ChatMessage[] = [];
-  private chatSeq = 0;
-  private chatTimestamps = new Map<string, number[]>();
-  private matchStarted = false;
-  private matchOverSent = false;
-  private resultPending: Promise<void> | null = null;
-  private matchUserIds: [number, number] | null = null;
-  /** The one account behind both seats of a practice (hotseat) game, else null. */
-  private practiceOwnerUid: number | null = null;
-  /** Names captured at match start so they survive a seat dropping. */
-  private seatNames: [string | null, string | null] = [null, null];
-  private endReason: string | null = null;
-  private turnSeconds: number | null = null;
-  private matchSeconds: number | null = null;
-  private turnEndsAt: number | null = null;
-  private matchEndsAt: number | null = null;
-  /** Chess clock: per-seat time banks (ms), charged to whoever must act. */
-  private seatSeconds: number | null = null;
-  private seatRemainingMs: [number, number] = [0, 0];
-  private clockSeat: Seat | null = null;
-  private clockSince = 0;
-  /** Seats that dropped and may still reconnect, with their grace deadline. */
-  private awayUntil: [number | null, number | null] = [null, null];
-  /** Games played in this room (rematches); keys each result write-back. */
-  private gameNumber = 0;
-  private rematchRequested: [boolean, boolean] = [false, false];
-  private rematchDeclinedBy: Seat | null = null;
-  /** Deck each seat picked with its rematch request (null: keep the current deck). */
-  private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
-  /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
-  private bot: { level: BotLevel; rng: Rng } | null = null;
-  private botTimer: { clear(): void } | null = null;
-  /** Hard bot (#635): a search is running in the worker pool; the next bot step waits for it. */
-  private botJob: { id: number; match: MatchState } | null = null;
-  private disposed = false;
-  /** Hard bot only: decisions taken, how many were searched, and the time they took (logged when the game ends). */
-  private botStats = { decisions: 0, searches: 0, ms: 0 };
-  private botTurn = -1;
-  private botIntentsThisTurn = 0;
-  private timerInterval: ReturnType<typeof setInterval> | null = null;
-  private lastTimerActiveSeat: Seat | null = null;
-  /** States before each applied action, oldest first (unranked rooms only). */
-  private undoStack: UndoSnapshot[] = [];
-  /** Oldest snapshots fell off the stack (UNDO_HISTORY_LIMIT), so the earliest kept turn may be cut short. */
-  private undoTruncated = false;
-  private undoRequest: UndoStateMessage["pending"] = null;
-  private undoRequestSeq = 0;
-  private lastUndoStateKey = "";
-  /** Turn of the last progress snapshot, so the log is saved once per turn. */
-  private progressTurn: number | null = null;
-  private progress = new LatestOnlySender<{ matchId: string; payload: MatchProgressPayload }>(
-    ({ matchId, payload }) => this.persistMatchProgress(matchId, payload),
-    () => this.log("warn", "match_progress_failed", { matchId: this.matchId }),
-  );
 
   async onCreate(options: unknown) {
     // Free-tier cold starts need >15s between matchmake HTTP and WS consume.
@@ -291,10 +132,11 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   private setUpRoom(options: unknown, parsed: ReturnType<typeof parseCreateOptions>) {
+    const { game } = this;
     // Rooms are joined by id only (create, invites, the ranked matchmaker), so a
     // stranger's id-less matchmake join can never land in, or fill, someone's room.
     void this.setPrivate(true);
-    this.seed = parsed.seed;
+    game.seed = parsed.seed;
     this.firstGameSeat = parsed.firstSeat;
     this.autoSkipMulligan = parsed.autoSkipMulligan;
     this.createPlayers = parsed.players;
@@ -308,7 +150,7 @@ export class DuelRoom extends Room implements PresenceSource {
       }
     }
     if (parsed.players) {
-      this.seatDecks = [parsed.players[0], parsed.players[1]];
+      game.seatDecks = [parsed.players[0], parsed.players[1]];
     }
     // Never trust a browser-provided `ranked: true`. Only the in-process
     // matchmaker can supply the server-only capability needed for Elo matches.
@@ -316,24 +158,25 @@ export class DuelRoom extends Room implements PresenceSource {
       options && typeof options === "object"
         ? (options as { rankedAttestation?: unknown }).rankedAttestation
         : undefined;
-    this.ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
-    this.turnSeconds = parsed.timer.turnSeconds;
-    this.matchSeconds = parsed.timer.matchSeconds;
-    this.seatSeconds = parsed.timer.seatSeconds;
+    game.ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
+    this.clocks.configure(parsed.timer);
     this.presetSeatUserIds = parsed.seatUserIds;
     if (this.presetSeatUserIds) {
       // A paired ranked room: if one player never makes it in (deck turned
       // away, closed the tab), don't leave the other on "Waiting" forever.
-      this.clock.setTimeout(() => this.expireNoShow(), getRankedNoShowSeconds() * 1000);
+      this.time.setTimeout(() => this.expireNoShow(), getRankedNoShowSeconds() * 1000);
     }
-    this.matchId = this.roomId;
-    this.state.matchId = this.matchId;
+    game.matchId = this.roomId;
+    this.state.matchId = game.matchId;
     this.state.seatsFilled = 0;
     this.state.phase = "waiting";
     this.state.activeSeat = 0;
     this.state.winner = -1;
     this.state.protocolVersion = PROTOCOL_VERSION;
-    if (parsed.bot) this.seatBot(parsed.bot);
+    if (parsed.bot) {
+      this.bots.seatBot(parsed.bot);
+      this.state.seatsFilled = 1;
+    }
 
     this.onMessage(CLIENT_MESSAGE.intent, (client, message) => {
       this.handleIntent(client, message);
@@ -356,80 +199,64 @@ export class DuelRoom extends Room implements PresenceSource {
     });
 
     this.onMessage(CLIENT_MESSAGE.skin, (client, message) => {
-      this.handleSkin(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot set cosmetics", "No seat for cosmetics");
+      if (seat !== null) this.cosmetics.handleSkin(client, seat, message);
     });
     this.onMessage(CLIENT_MESSAGE.cosmetics, (client, message) => {
-      this.handleCosmetics(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot set cosmetics");
+      if (seat !== null) this.cosmetics.handleCosmetics(client, seat, message);
     });
 
     this.onMessage(CLIENT_MESSAGE.chat, (client, message) => {
-      this.handleChat(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot chat");
+      if (seat !== null) this.chat.handle(client, seat, message);
     });
 
     this.onMessage(CLIENT_MESSAGE.hand_order, (client, message) => {
-      this.handleHandOrder(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot set a hand order");
+      if (seat !== null) this.spectators.handleHandOrder(client, seat, message);
     });
 
     this.onMessage(CLIENT_MESSAGE.undo, (client, message) => {
-      this.handleUndo(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot undo");
+      if (seat !== null) this.undo.handle(client, seat, message);
     });
 
     this.onMessage(CLIENT_MESSAGE.rematch, (client, message) => {
-      this.handleRematch(client, message);
+      const seat = this.requireSeat(client, "Spectators cannot request a rematch");
+      if (seat !== null) this.rematch.handle(client, seat, message);
     });
 
     presence.register(this);
-    this.stopTakedowns = presence.onTakedowns((list) => this.applyTakedowns(list));
+    this.stopTakedowns = presence.onTakedowns((list) => this.cosmetics.applyTakedowns(list));
     this.log("info", "room_created", {
-      matchId: this.matchId,
-      seed: this.seed,
-      ranked: this.ranked,
-      turnSeconds: this.turnSeconds,
-      matchSeconds: this.matchSeconds,
-      seatSeconds: this.seatSeconds,
-      ...(this.bot ? { bot: this.bot.level } : {}),
+      matchId: game.matchId,
+      seed: game.seed,
+      ranked: game.ranked,
+      ...this.clocks.limits,
+      ...(game.bot ? { bot: game.bot.level } : {}),
     });
   }
 
-  /** Seat the server-side player: it fills seat 1, so the match starts as soon as the human sits down. */
-  private seatBot(opts: BotRoomOptions) {
-    assertKnownDeck(opts.deck);
-    this.bot = { level: opts.level, rng: createSeededRng((this.seed ^ 0x5bd1e995) >>> 0) };
-    if (opts.level === "hard" && botSearch.useWorker && sharedBotPool().enabled()) sharedBotPool().warm();
-    this.seatDecks[BOT_SEAT] = opts.deck;
-    this.seats[BOT_SEAT] = {
-      seat: BOT_SEAT,
-      sessionId: "bot",
-      displayId: "bot",
-      displayName: botDisplayName(opts.level),
-      userId: BOT_USER_ID,
-    };
-    this.state.seatsFilled = 1;
-  }
-
-  private botInfo(): { bot: { level: BotLevel } } | Record<string, never> {
-    return this.bot ? { bot: { level: this.bot.level } } : {};
-  }
-
   async onDispose() {
-    this.disposed = true;
-    this.clearBotTimer();
+    this.game.disposed = true;
+    this.bots.clearTimer();
     releaseCreatorRoom(this.creatorUid);
     this.creatorUid = null;
     presence.unregister(this);
     this.stopTakedowns?.();
     this.stopTakedowns = null;
-    this.clearTimerLoop();
-    this.log("info", "room_disposed", { matchId: this.matchId });
+    this.clocks.clearTimerLoop();
+    this.log("info", "room_disposed", { matchId: this.game.matchId });
     // A game closing without a result keeps its log up to the last action.
-    if (this.matchStarted && !this.matchOverSent && !this.resultPending) {
-      await this.saveProgress(true);
+    if (this.game.matchStarted && !this.game.matchOverSent && !this.game.resultPending) {
+      await this.persistence.saveProgress(true);
     }
   }
 
   async onBeforeShutdown() {
     // Do not dispose a completed match before its result is durably queued.
-    await this.resultPending;
+    await this.game.resultPending;
     super.onBeforeShutdown();
   }
 
@@ -439,7 +266,7 @@ export class DuelRoom extends Room implements PresenceSource {
     } catch (e) {
       const err = e as Error;
       this.log("warn", "join_rejected", {
-        matchId: this.matchId,
+        matchId: this.game.matchId,
         sessionId: client.sessionId,
         code: errorCodeOf(e, "bad_protocol"),
         message: err.message,
@@ -450,10 +277,11 @@ export class DuelRoom extends Room implements PresenceSource {
 
   /** Ranked: the paired opponent never claimed their seat, so close the room. */
   private expireNoShow() {
-    if (this.matchStarted) return;
+    const { game } = this;
+    if (game.matchStarted) return;
     this.log("warn", "opponent_no_show", {
-      matchId: this.matchId,
-      seats: [this.seats[0]?.userId ?? null, this.seats[1]?.userId ?? null],
+      matchId: game.matchId,
+      seats: [game.seats[0]?.userId ?? null, game.seats[1]?.userId ?? null],
     });
     for (const client of this.clients) {
       this.sendError(
@@ -466,6 +294,7 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   onJoin(client: Client, options: unknown) {
+    const { game } = this;
     let identity: {
       displayId: string;
       displayName: string;
@@ -496,7 +325,7 @@ export class DuelRoom extends Room implements PresenceSource {
     // Reclaim after allowReconnection: same sessionId may already be seated.
     const existingSeat = this.seatForClient(client);
     if (existingSeat !== null) {
-      const slot = this.seats[existingSeat];
+      const slot = game.seats[existingSeat];
       if (
         !slot ||
         slot.userId !== identity.userId ||
@@ -506,7 +335,7 @@ export class DuelRoom extends Room implements PresenceSource {
         return;
       }
       this.log("info", "player_reconnected", {
-        matchId: this.matchId,
+        matchId: game.matchId,
         seat: existingSeat,
         sessionId: client.sessionId,
       });
@@ -520,30 +349,16 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     if (identity.role === "spectator") {
-      if (this.spectators.length >= MAX_SPECTATORS) {
-        this.rejectJoin(client, "room_full", "Spectator cap reached");
-        return;
-      }
       const cameraSeat: Seat =
         identity.preferredSeat === 0 || identity.preferredSeat === 1
           ? identity.preferredSeat
           : 0;
-      this.spectators.push({
-        sessionId: client.sessionId,
-        displayId: identity.displayId,
-        userId: identity.userId,
-        cameraSeat,
-      });
-      presence.markDirty();
-      this.log("info", "spectator_joined", {
-        matchId: this.matchId,
-        displayId: identity.displayId,
-        cameraSeat,
-        sessionId: client.sessionId,
-        spectatorCount: this.spectators.length,
-      });
-      if (this.matchStarted && this.match) {
-        this.sendSpectatorSync(client, cameraSeat);
+      if (!this.spectators.join(client, { displayId: identity.displayId, userId: identity.userId, cameraSeat })) {
+        this.rejectJoin(client, "room_full", "Spectator cap reached");
+        return;
+      }
+      if (game.matchStarted && game.match) {
+        this.sync.sendSpectatorSync(client, cameraSeat);
       } else {
         this.sendError(client, "match_not_ready", "Waiting for duel to start");
       }
@@ -554,12 +369,12 @@ export class DuelRoom extends Room implements PresenceSource {
     // reclaimed through allowReconnection (handled above), never by a new join.
     // Otherwise anyone with the room id could take over after a Leave, read
     // the leaver's hand and cancel the forfeit.
-    if (this.matchStarted) {
+    if (game.matchStarted) {
       this.rejectJoin(client, "room_full", "Match already in progress");
       return;
     }
 
-    if (this.ranked && identity.deck) {
+    if (game.ranked && identity.deck) {
       const problem = rankedDeckProblem(identity.deck);
       if (problem) {
         this.rejectJoin(client, "unsupported_deck", problem);
@@ -567,7 +382,7 @@ export class DuelRoom extends Room implements PresenceSource {
       }
     }
 
-    if (reservedSeat !== null && this.seats[reservedSeat]) {
+    if (reservedSeat !== null && game.seats[reservedSeat]) {
       this.rejectJoin(client, "room_full", "Reserved seat is already occupied");
       return;
     }
@@ -581,7 +396,7 @@ export class DuelRoom extends Room implements PresenceSource {
         identity.preferredSeat,
       );
     if (reservedSeat !== null) {
-      this.seats[reservedSeat] = {
+      game.seats[reservedSeat] = {
         seat: reservedSeat,
         sessionId: client.sessionId,
         displayId: identity.displayId,
@@ -595,14 +410,14 @@ export class DuelRoom extends Room implements PresenceSource {
     }
 
     if (identity.deck) {
-      this.seatDecks[seat] = identity.deck;
+      game.seatDecks[seat] = identity.deck;
     }
-    this.seatOwnerUids[seat] = identity.ownerUid ?? identity.userId;
+    game.seatOwnerUids[seat] = identity.ownerUid ?? identity.userId;
 
-    this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
+    this.state.seatsFilled = (game.seats[0] ? 1 : 0) + (game.seats[1] ? 1 : 0);
     presence.markDirty();
     this.log("info", "player_joined", {
-      matchId: this.matchId,
+      matchId: game.matchId,
       seat,
       displayId: identity.displayId,
       userId: identity.userId,
@@ -610,9 +425,9 @@ export class DuelRoom extends Room implements PresenceSource {
       hasDeck: Boolean(identity.deck),
     });
 
-    if (this.seats[0] && this.seats[1] && !this.matchStarted) {
+    if (game.seats[0] && game.seats[1] && !game.matchStarted) {
       this.startMatch(this.firstGameSeat, null);
-    } else if (this.matchStarted && this.match) {
+    } else if (game.matchStarted && game.match) {
       this.sendSync(client);
     }
     this.refreshMetadata();
@@ -627,25 +442,26 @@ export class DuelRoom extends Room implements PresenceSource {
     client: Client,
     identity: { userId: number; preferredSeat?: Seat },
   ) {
+    const { game } = this;
     const seat = identity.preferredSeat;
     if (seat !== 0 && seat !== 1) {
       this.rejectJoin(client, "bad_protocol", "takeover needs a preferredSeat");
       return;
     }
-    const slot = this.seats[seat];
-    const owner = this.seatOwnerUids[seat] ?? slot?.userId;
+    const slot = game.seats[seat];
+    const owner = game.seatOwnerUids[seat] ?? slot?.userId;
     if (!slot || owner !== identity.userId) {
       this.rejectJoin(client, "unauthorized", "You don't hold a seat in this match");
       return;
     }
-    if (this.matchOverSent) {
+    if (game.matchOverSent) {
       this.rejectJoin(client, "match_over", "That match has ended");
       return;
     }
     const oldSessionId = slot.sessionId;
     slot.sessionId = client.sessionId;
-    this.intentTimestamps.delete(oldSessionId);
-    this.chatTimestamps.delete(oldSessionId);
+    this.intentLimiter.forget(oldSessionId);
+    this.chat.forget(oldSessionId);
     // A seat dropped mid-grace: kill the pending reclaim so the old socket's
     // reconnection token can never take the seat back from this one.
     const pending = (
@@ -656,28 +472,29 @@ export class DuelRoom extends Room implements PresenceSource {
     for (const entry of Object.values(pending)) {
       if (entry[0] === oldSessionId) entry[1].reject(false);
     }
-    const old = this.clients.find((c) => c.sessionId === oldSessionId);
+    const old = this.io.clientFor(oldSessionId);
     if (old) {
       old.send("taken_over", { protocolVersion: PROTOCOL_VERSION, seat });
       old.leave(TAKEN_OVER_CLOSE_CODE);
     }
-    this.awayUntil[seat] = null;
+    game.awayUntil[seat] = null;
     this.broadcastPresence();
     presence.markDirty();
     this.log("info", "player_taken_over", {
-      matchId: this.matchId,
+      matchId: game.matchId,
       seat,
       oldSessionId,
       sessionId: client.sessionId,
     });
-    if (this.matchStarted && this.match) this.sendSync(client);
+    if (game.matchStarted && game.match) this.sendSync(client);
     this.refreshMetadata();
   }
 
   /** Lobby lookup data (GET /active-matches): who holds the seats and how far along the room is. */
-  private refreshMetadata() {
-    const phase = this.matchOverSent ? "finished" : this.matchStarted ? "playing" : "waiting";
-    const metadata = { owners: [...this.seatOwnerUids], phase, ranked: this.ranked };
+  refreshMetadata() {
+    const { game } = this;
+    const phase = game.matchOverSent ? "finished" : game.matchStarted ? "playing" : "waiting";
+    const metadata = { owners: [...game.seatOwnerUids], phase, ranked: game.ranked };
     const key = JSON.stringify(metadata);
     if (key === this.lastMetadataKey) return;
     this.lastMetadataKey = key;
@@ -686,39 +503,40 @@ export class DuelRoom extends Room implements PresenceSource {
 
   /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
   onLeave(client: Client, _code?: number) {
-    if (this.spectatorForClient(client)) {
-      this.clearSpectator(client.sessionId);
+    if (this.spectators.forClient(client)) {
+      this.spectators.remove(client.sessionId);
       return;
     }
     const seat = this.seatForClient(client);
     if (seat === null) return;
     this.clearSeat(client.sessionId);
-    this.broadcastRematchState();
+    this.rematch.broadcast();
     // Leaving a live match forfeits it, so the other player isn't stranded.
     // The short delay lets a practice match (both seats leaving together)
     // simply dispose instead of recording a result.
-    this.clock.setTimeout(() => this.forfeitAbsentSeat(seat, "abandoned"), 1500);
+    this.time.setTimeout(() => this.forfeitAbsentSeat(seat, "abandoned"), 1500);
   }
 
   /** End a live match for a seat that is gone for good (left / reclaim timed out). */
   private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
-    if (!this.match || !this.matchStarted || this.matchOverSent) return;
-    if (this.match.winner !== null || this.match.phase === "game_over") return;
-    if (this.seats[seat]) return; // came back
+    const { game } = this;
+    if (!game.match || !game.matchStarted || game.matchOverSent) return;
+    if (game.match.winner !== null || game.match.phase === "game_over") return;
+    if (game.seats[seat]) return; // came back
     const other = (seat === 0 ? 1 : 0) as Seat;
-    if (!this.seats[other]) return; // nobody left to hand the win to
-    this.endReason = reason;
-    this.match = { ...this.match, winner: other, winReason: "leader_battle_at_zero_life", phase: "game_over" };
-    this.awayUntil = [null, null];
-    this.undoRequest = null;
+    if (!game.seats[other]) return; // nobody left to hand the win to
+    game.endReason = reason;
+    game.match = { ...game.match, winner: other, winReason: "leader_battle_at_zero_life", phase: "game_over" };
+    game.awayUntil = [null, null];
+    this.undo.request = null;
     this.syncPublicState();
-    this.broadcastViews([]);
-    this.stopSeatClock();
-    this.clearTimerLoop();
-    this.broadcastTimer();
-    this.broadcastUndoState();
+    this.spectators.broadcastViews([]);
+    this.clocks.stopSeatClock();
+    this.clocks.clearTimerLoop();
+    this.clocks.broadcastTimer();
+    this.undo.broadcastState();
     this.broadcastPresence();
-    this.log("info", "forfeit_absent", { matchId: this.matchId, seat, reason, winner: other });
+    this.log("info", "forfeit_absent", { matchId: game.matchId, seat, reason, winner: other });
     this.maybeSendMatchOver();
   }
 
@@ -727,8 +545,9 @@ export class DuelRoom extends Room implements PresenceSource {
    * Colyseus 0.18 routes drops here when `onDrop` is defined.
    */
   async onDrop(client: Client, _code?: number) {
-    if (this.spectatorForClient(client)) {
-      this.clearSpectator(client.sessionId);
+    const { game } = this;
+    if (this.spectators.forClient(client)) {
+      this.spectators.remove(client.sessionId);
       return;
     }
     const seat = this.seatForClient(client);
@@ -736,37 +555,37 @@ export class DuelRoom extends Room implements PresenceSource {
 
     // Still allow reclaim before the match starts (hotseat StrictMode / refresh
     // during the seat-1 join window). Only skip once the match is over.
-    if (this.matchOverSent) {
+    if (game.matchOverSent) {
       this.clearSeat(client.sessionId);
       return;
     }
 
     const grace = getReconnectGraceSeconds();
     this.log("info", "player_disconnected", {
-      matchId: this.matchId,
+      matchId: game.matchId,
       seat,
       graceSeconds: grace,
     });
-    this.awayUntil[seat] = Date.now() + grace * 1000;
+    game.awayUntil[seat] = this.time.now() + grace * 1000;
     this.broadcastPresence();
     try {
       await this.allowReconnection(client, grace);
       this.log("info", "player_reclaim_ok", {
-        matchId: this.matchId,
+        matchId: game.matchId,
         seat,
         sessionId: client.sessionId,
       });
-      this.awayUntil[seat] = null;
+      game.awayUntil[seat] = null;
       this.broadcastPresence();
       this.sendSync(client);
     } catch {
       // Another device took the seat over: it is theirs now, not ours to free or forfeit.
-      if (this.seats[seat]?.sessionId !== client.sessionId) return;
+      if (game.seats[seat]?.sessionId !== client.sessionId) return;
       this.log("info", "player_reclaim_timeout", {
-        matchId: this.matchId,
+        matchId: game.matchId,
         seat,
       });
-      this.awayUntil[seat] = null;
+      game.awayUntil[seat] = null;
       this.clearSeat(client.sessionId);
       this.broadcastPresence();
       this.forfeitAbsentSeat(seat, "disconnect");
@@ -830,40 +649,24 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   private clearSeat(sessionId: string) {
+    const { game } = this;
     for (let i = 0; i < 2; i++) {
-      const slot = this.seats[i];
+      const slot = game.seats[i];
       if (slot && slot.sessionId === sessionId) {
         this.log("info", "player_left", {
-          matchId: this.matchId,
+          matchId: game.matchId,
           seat: i,
           sessionId,
         });
-        this.seats[i] = null;
-        this.seatOwnerUids[i] = null;
+        game.seats[i] = null;
+        game.seatOwnerUids[i] = null;
       }
     }
     this.refreshMetadata();
-    this.state.seatsFilled = (this.seats[0] ? 1 : 0) + (this.seats[1] ? 1 : 0);
+    this.state.seatsFilled = (game.seats[0] ? 1 : 0) + (game.seats[1] ? 1 : 0);
     presence.markDirty();
-    this.intentTimestamps.delete(sessionId);
-    this.chatTimestamps.delete(sessionId);
-  }
-
-  private clearSpectator(sessionId: string) {
-    const before = this.spectators.length;
-    this.spectators = this.spectators.filter((s) => s.sessionId !== sessionId);
-    if (this.spectators.length !== before) {
-      presence.markDirty();
-      this.log("info", "spectator_left", {
-        matchId: this.matchId,
-        sessionId,
-        spectatorCount: this.spectators.length,
-      });
-    }
-  }
-
-  private spectatorForClient(client: Client): SpectatorSlot | null {
-    return this.spectators.find((s) => s.sessionId === client.sessionId) ?? null;
+    this.intentLimiter.forget(sessionId);
+    this.chat.forget(sessionId);
   }
 
   private assignSeat(
@@ -873,15 +676,16 @@ export class DuelRoom extends Room implements PresenceSource {
     userId: number,
     preferred?: Seat,
   ): Seat | null {
+    const { game } = this;
     if (preferred === 0 || preferred === 1) {
-      if (!this.seats[preferred]) {
-        this.seats[preferred] = { seat: preferred, sessionId, displayId, displayName, userId };
+      if (!game.seats[preferred]) {
+        game.seats[preferred] = { seat: preferred, sessionId, displayId, displayName, userId };
         return preferred;
       }
     }
     for (const seat of [0, 1] as Seat[]) {
-      if (!this.seats[seat]) {
-        this.seats[seat] = { seat, sessionId, displayId, displayName, userId };
+      if (!game.seats[seat]) {
+        game.seats[seat] = { seat, sessionId, displayId, displayName, userId };
         return seat;
       }
     }
@@ -905,27 +709,42 @@ export class DuelRoom extends Room implements PresenceSource {
     return seat;
   }
 
-  private seatForClient(client: Client): Seat | null {
-    for (const slot of this.seats) {
+  seatForClient(client: Client): Seat | null {
+    for (const slot of this.game.seats) {
       if (slot && slot.sessionId === client.sessionId) return slot.seat;
     }
     return null;
   }
 
-  private startMatch(firstSeat: Seat, pickedBy: Seat | null) {
-    this.firstSeatPickedBy = pickedBy;
+  /**
+   * The seat `client` holds. A spectator or an unseated client cannot act: it is told why and
+   * null comes back, so each handler starts with one early return.
+   */
+  private requireSeat(client: Client, spectatorMessage: string, unseatedMessage = "Not seated"): Seat | null {
+    if (this.spectators.forClient(client)) {
+      this.sendError(client, "unauthorized", spectatorMessage);
+      return null;
+    }
+    const seat = this.seatForClient(client);
+    if (seat === null) this.sendError(client, "unauthorized", unseatedMessage);
+    return seat;
+  }
+
+  startMatch(firstSeat: Seat, pickedBy: Seat | null) {
+    const { game } = this;
+    game.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
-    const deckA = this.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
-    const deckB = this.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
+    const deckA = game.seatDecks[0]?.deck ?? this.createPlayers?.[0]?.deck ?? buildTestDeck(20);
+    const deckB = game.seatDecks[1]?.deck ?? this.createPlayers?.[1]?.deck ?? buildTestDeck(20);
     const leaderA =
-      this.seatDecks[0]?.leaderId ?? this.createPlayers?.[0]?.leaderId ?? DEFAULT_LEADER_ID;
+      game.seatDecks[0]?.leaderId ?? this.createPlayers?.[0]?.leaderId ?? DEFAULT_LEADER_ID;
     const leaderB =
-      this.seatDecks[1]?.leaderId ?? this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
+      game.seatDecks[1]?.leaderId ?? this.createPlayers?.[1]?.leaderId ?? DEFAULT_LEADER_ID;
 
     let match: MatchState;
     try {
       match = createMatch({
-        seed: this.seed,
+        seed: game.seed,
         firstSeat,
         players: [
           { leaderId: leaderA, deck: [...deckA] },
@@ -935,17 +754,17 @@ export class DuelRoom extends Room implements PresenceSource {
     } catch (e) {
       // Never leave both seats waiting on a match that cannot start.
       const message = `Could not start match: ${e instanceof Error ? e.message : String(e)}`;
-      this.log("warn", "match_start_failed", { matchId: this.matchId, message });
-      for (const slot of this.seats) {
+      this.log("warn", "match_start_failed", { matchId: game.matchId, message });
+      for (const slot of game.seats) {
         if (!slot) continue;
-        const client = this.clients.find((c) => c.sessionId === slot.sessionId);
+        const client = this.io.clientFor(slot.sessionId);
         if (client) {
           this.sendError(client, "bad_protocol", message);
           client.leave();
         }
       }
-      this.seats = [null, this.bot ? this.seats[BOT_SEAT] : null];
-      this.state.seatsFilled = this.bot ? 1 : 0;
+      game.seats = [null, game.bot ? game.seats[BOT_SEAT] : null];
+      this.state.seatsFilled = game.bot ? 1 : 0;
       presence.markDirty();
       return;
     }
@@ -953,11 +772,11 @@ export class DuelRoom extends Room implements PresenceSource {
     if (this.autoSkipMulligan) {
       match = skipMulligans(match);
     }
-    this.replay = {
+    game.replay = {
       schema: MATCH_REPLAY_SCHEMA,
       rulesVersion: RULES_VERSION,
       registryHash: REGISTRY_HASH,
-      seed: this.seed,
+      seed: game.seed,
       firstSeat,
       skipMulligans: this.autoSkipMulligan,
       // createMatch's default: every non-Banish Life hit opens a private Life check (#352).
@@ -970,321 +789,83 @@ export class DuelRoom extends Room implements PresenceSource {
       intents: [],
     };
 
-    this.match = match;
-    this.matchStarted = true;
+    game.match = match;
+    game.matchStarted = true;
     this.refreshMetadata();
-    this.recordUndoStep(null, null, []);
-    this.matchUserIds = [this.seats[0]!.userId, this.seats[1]!.userId];
+    this.recordStep(null, null, []);
+    game.matchUserIds = [game.seats[0]!.userId, game.seats[1]!.userId];
     // Hotseat practice seats two guest accounts under one signed-in owner (#988).
-    const [owner0, owner1] = this.seatOwnerUids;
-    this.practiceOwnerUid = owner0 != null && owner0 === owner1 ? owner0 : null;
-    this.seatNames = [this.seats[0]!.displayName, this.seats[1]!.displayName];
+    const [owner0, owner1] = game.seatOwnerUids;
+    game.practiceOwnerUid = owner0 != null && owner0 === owner1 ? owner0 : null;
+    game.seatNames = [game.seats[0]!.displayName, game.seats[1]!.displayName];
     this.syncPublicState();
-    this.log("info", "match_start", { matchId: this.matchId, seed: this.seed });
-    for (const seat of [0, 1] as Seat[]) {
-      collectPublicDefIds(match, seat, [], this.publicArtDefs[seat]);
-      this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
-    }
+    this.log("info", "match_start", { matchId: game.matchId, seed: game.seed });
+    this.cosmetics.startGame();
 
-    for (const slot of this.seats) {
+    for (const slot of game.seats) {
       if (!slot) continue;
-      const client = this.clients.find((c) => c.sessionId === slot.sessionId);
+      const client = this.io.clientFor(slot.sessionId);
       if (!client) continue;
-      const view = this.playerView(match, slot.seat);
-      const welcome: WelcomeMessage = {
-        protocolVersion: PROTOCOL_VERSION,
-        matchId: this.matchId,
-        seat: slot.seat,
-        role: "player",
-        view,
-        players: this.playersInfo(),
-        ranked: this.ranked,
-        firstSeatPickedBy: this.firstSeatPickedBy,
-        brief: this.briefFor(slot.seat),
-        ...this.botInfo(),
-      };
-      client.send("welcome", welcome);
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view,
-      });
-      this.sendStoredCosmetics(client);
-      this.sendChatHistory(client);
-      this.sendUndoState(client);
+      this.sync.sendPlayerStart(client, slot.seat);
     }
 
-    for (const spec of this.spectators) {
-      const client = this.clients.find((c) => c.sessionId === spec.sessionId);
+    for (const spec of this.spectators.list) {
+      const client = this.io.clientFor(spec.sessionId);
       if (!client) continue;
-      this.sendSpectatorSync(client, spec.cameraSeat);
+      this.sync.sendSpectatorSync(client, spec.cameraSeat);
     }
 
-    this.armMatchClock();
-    this.armSeatClocks();
-    this.refreshTurnClock();
-    this.updateSeatClock();
-    this.ensureTimerLoop();
-    this.broadcastTimer();
+    this.clocks.startGame();
     this.maybeSendMatchOver();
-    this.scheduleBotStep();
-  }
-
-  private handleHandOrder(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot set a hand order");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    let ids: string[];
-    try {
-      ids = parseHandOrderMessage(message);
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    // Ranked rooms never show hands to spectators, so there is nothing to keep.
-    if (this.ranked || !this.match) return;
-    const next = idsInHand(this.match.players[seat].hand, ids);
-    const prev = this.seatHandOrder[seat];
-    if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;
-    this.seatHandOrder[seat] = next;
-    for (const spec of this.spectators) {
-      const specClient = this.clients.find((c) => c.sessionId === spec.sessionId);
-      if (!specClient) continue;
-      specClient.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view: this.spectatorView(this.match, spec.cameraSeat),
-      });
-    }
-  }
-
-  private handleCosmetics(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot set cosmetics");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    let artPrefs: ArtPrefsMap;
-    try {
-      artPrefs = parseCosmeticsMessage(message);
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    this.seatArtPrefs[seat] = artPrefs;
-    // The sender gets its full map back; everyone else only the cards already public.
-    this.broadcastSeatCosmetics(seat);
-  }
-
-  /** One seat's prefs as `client` may see them: whole for the owner, public cards only for anyone else. */
-  private artPrefsFor(client: Client, seat: Seat): ArtPrefsMap {
-    const prefs = this.seatArtPrefs[seat];
-    return this.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);
-  }
-
-  /** Push a seat's prefs to every client, each filtered for what it may see. */
-  private broadcastSeatCosmetics(seat: Seat, onlyNonOwners = false) {
-    this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
-    for (const c of this.clients) {
-      if (onlyNonOwners && this.seatForClient(c) === seat) continue;
-      const payload: CosmeticsMessage = { protocolVersion: PROTOCOL_VERSION, seat, artPrefs: this.artPrefsFor(c, seat) };
-      c.send("cosmetics", payload);
-    }
-  }
-
-  /** Fold what the table just saw into the public set, and tell non-owners about newly public prefs. */
-  private updatePublicArt(events: GameEvent[]) {
-    if (!this.match) return;
-    for (const seat of [0, 1] as Seat[]) {
-      collectPublicDefIds(this.match, seat, events, this.publicArtDefs[seat]);
-      const key = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
-      if (key !== this.sentPublicArt[seat]) this.broadcastSeatCosmetics(seat, true);
-    }
-  }
-
-  private handleSkin(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot set cosmetics");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "No seat for cosmetics");
-      return;
-    }
-    let skin: SeatSkin;
-    try {
-      skin = parseSkinMessage(message);
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    // An image a moderator already took down must not be relayed again (#810).
-    const blocked = (v: string | null) => {
-      const id = cosmeticIdOfLink(v);
-      return id !== null && isTakenDown(id);
-    };
-    if (blocked(skin.playmat)) skin = { ...skin, playmat: null };
-    if (blocked(skin.cardBack)) skin = { ...skin, cardBack: null };
-    this.seatSkins[seat] = skin;
-    const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
-    this.broadcast("skin", payload);
-  }
-
-  /** A moderator removed an image: blank it in this room's seats at once (#810). */
-  private applyTakedowns(list: readonly Takedown[]) {
-    for (const t of list) {
-      for (const seat of [0, 1] as Seat[]) {
-        const skin = this.seatSkins[seat];
-        if (!skin || this.seats[seat]?.userId !== t.user_id) continue;
-        if (!skinMatchesTakedown(skin[t.kind], t.cosmetic_id)) continue;
-        const next: SeatSkin = { ...skin, [t.kind]: null };
-        this.seatSkins[seat] = next;
-        const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin: next };
-        this.broadcast("skin", payload);
-      }
-    }
-  }
-
-  private handleChat(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot chat");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    let text: string;
-    try {
-      text = parseChatMessage(message);
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    if (!this.consumeChatRateLimit(client.sessionId)) {
-      this.sendError(client, "rate_limited", "Slow down — too many chat messages");
-      return;
-    }
-    this.chatSeq += 1;
-    const line: ChatMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      id: `${this.matchId}-${this.chatSeq}`,
-      seat,
-      text,
-      at: Date.now(),
-    };
-    this.chatLog.push(line);
-    if (this.chatLog.length > CHAT_HISTORY_LIMIT) this.chatLog.shift();
-    // Relay to everyone (including sender and spectators).
-    this.broadcast("chat", line);
-  }
-
-  private sendChatHistory(client: Client) {
-    if (this.chatLog.length === 0) return;
-    client.send("chat_history", {
-      protocolVersion: PROTOCOL_VERSION,
-      messages: this.chatLog,
-    });
-  }
-
-  private consumeChatRateLimit(sessionId: string): boolean {
-    const now = Date.now();
-    const recent = (this.chatTimestamps.get(sessionId) ?? []).filter(
-      (t) => t >= now - CHAT_RATE_WINDOW_MS,
-    );
-    if (recent.length >= CHAT_RATE_LIMIT) {
-      this.chatTimestamps.set(sessionId, recent);
-      return false;
-    }
-    recent.push(now);
-    this.chatTimestamps.set(sessionId, recent);
-    return true;
-  }
-
-  /** Push stored seat cosmetics to one client (join / sync). */
-  private sendStoredCosmetics(client: Client) {
-    for (const seat of [0, 1] as Seat[]) {
-      const artPrefs = this.artPrefsFor(client, seat);
-      if (Object.keys(artPrefs).length === 0) continue;
-      const payload: CosmeticsMessage = {
-        protocolVersion: PROTOCOL_VERSION,
-        seat,
-        artPrefs,
-      };
-      client.send("cosmetics", payload);
-    }
-    for (const seat of [0, 1] as Seat[]) {
-      const skin = this.seatSkins[seat];
-      if (!skin) continue;
-      const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
-      client.send("skin", payload);
-    }
+    this.bots.scheduleStep();
   }
 
   private handleConcede(client: Client) {
-    if (this.spectatorForClient(client)) {
+    const { game } = this;
+    if (this.spectators.forClient(client)) {
       this.sendError(client, "unauthorized", "Spectators cannot concede");
       return;
     }
     const seat = this.seatForClient(client);
-    if (seat === null || !this.match || this.matchOverSent) return;
-    if (this.match.winner !== null || this.match.phase === "game_over") return;
+    if (seat === null || !game.match || game.matchOverSent) return;
+    if (game.match.winner !== null || game.match.phase === "game_over") return;
     this.concedeSeat(seat);
   }
 
-  private concedeSeat(seat: Seat) {
-    if (!this.match) return;
+  concedeSeat(seat: Seat) {
+    const { game } = this;
+    if (!game.match) return;
     const winner = (seat === 0 ? 1 : 0) as Seat;
-    this.endReason = "concede";
-    this.match = {
-      ...this.match,
+    game.endReason = "concede";
+    game.match = {
+      ...game.match,
       winner,
       winReason: "leader_battle_at_zero_life",
       phase: "game_over",
     };
     this.syncPublicState();
-    this.broadcastViews([]);
-    this.undoRequest = null;
-    this.broadcastUndoState();
-    this.stopSeatClock();
-    this.broadcastTimer();
-    this.log("info", "concede", { matchId: this.matchId, seat, winner });
+    this.spectators.broadcastViews([]);
+    this.undo.request = null;
+    this.undo.broadcastState();
+    this.clocks.stopSeatClock();
+    this.clocks.broadcastTimer();
+    this.log("info", "concede", { matchId: game.matchId, seat, winner });
     this.maybeSendMatchOver();
   }
 
   private handleIntent(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot send intents");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    if (!this.match || !this.matchStarted) {
+    const { game } = this;
+    const seat = this.requireSeat(client, "Spectators cannot send intents");
+    if (seat === null) return;
+    if (!game.match || !game.matchStarted) {
       this.sendError(client, "match_not_ready", "Match not started");
       return;
     }
-    if (this.match.winner !== null || this.match.phase === "game_over") {
+    if (game.match.winner !== null || game.match.phase === "game_over") {
       this.sendError(client, "match_over", "Match is over");
       return;
     }
-    if (!this.consumeRateLimit(client.sessionId)) {
+    if (!this.intentLimiter.consume(client.sessionId)) {
       this.sendError(client, "rate_limited", "Too many intents");
       return;
     }
@@ -1293,8 +874,7 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       intent = parseIntentMessage(message);
     } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
+      this.io.sendParseError(client, e);
       return;
     }
 
@@ -1303,7 +883,7 @@ export class DuelRoom extends Room implements PresenceSource {
       this.sendError(client, "illegal_intent", applied.message);
       client.send("view", {
         protocolVersion: PROTOCOL_VERSION,
-        view: this.playerView(this.match, seat),
+        view: this.spectators.playerView(game.match, seat),
       });
     }
   }
@@ -1311,20 +891,21 @@ export class DuelRoom extends Room implements PresenceSource {
   /**
    * Apply an already-parsed intent for `seat` and do everything that follows a state change: replay
    * record, undo snapshot, views, timers, match over and the bot's next move. Shared by human
-   * intents and the bot seat, so both take exactly the same path.
+   * intents, the bot seat and the turn clock's automatic move, so all three take exactly the same path.
    */
-  private applySeatIntent(seat: Seat, intent: Intent): { ok: true } | { ok: false; message: string } {
-    if (!this.match) return { ok: false, message: "Match not started" };
-    const before = this.match;
-    let undoSnap: ReturnType<typeof this.captureUndoSnapshot>;
+  applySeatIntent(seat: Seat, intent: Intent): ApplyResult {
+    const { game } = this;
+    if (!game.match) return { ok: false, message: "Match not started" };
+    const before = game.match;
+    let undoSnap: UndoSnapshot | null;
     let result: ReturnType<typeof applyIntent>;
     try {
-      undoSnap = this.captureUndoSnapshot(seat, intent);
+      undoSnap = this.undo.captureSnapshot(seat, intent);
       result = applyIntent(before, intent, { seat });
     } catch (e) {
-      // applyIntent works on a clone, so this.match is untouched; answer like any illegal intent (refactor 0.2).
+      // applyIntent works on a clone, so game.match is untouched; answer like any illegal intent (refactor 0.2).
       this.log("warn", "apply_intent_threw", {
-        matchId: this.matchId,
+        matchId: game.matchId,
         seat,
         intentType: intent.type,
         error: e instanceof Error ? e.message : String(e),
@@ -1333,7 +914,7 @@ export class DuelRoom extends Room implements PresenceSource {
     }
     if (!result.ok) {
       this.log("info", "illegal_intent", {
-        matchId: this.matchId,
+        matchId: game.matchId,
         seat,
         code: result.error?.code,
         message: result.error?.message,
@@ -1341,1244 +922,129 @@ export class DuelRoom extends Room implements PresenceSource {
       return { ok: false, message: result.error?.message ?? "Illegal intent" };
     }
 
-    this.match = result.state;
-    this.replay?.intents.push({ seat, intent });
-    this.recordUndoStep(undoSnap, before, result.events);
+    game.match = result.state;
+    game.replay?.intents.push({ seat, intent });
+    this.recordStep(undoSnap, before, result.events);
     this.syncPublicState();
-    this.broadcastViews(result.events);
-    this.onMatchAdvanced();
+    this.spectators.broadcastViews(result.events);
+    this.clocks.onMatchAdvanced();
     this.maybeSendMatchOver();
-    this.scheduleBotStep();
+    this.bots.scheduleStep();
     return { ok: true };
+  }
+
+  /** After a state change: save the turn's progress, then push the undo snapshot taken before the action. */
+  private recordStep(...args: Parameters<UndoHistory["recordStep"]>) {
+    this.persistence.noteTurn();
+    this.undo.recordStep(...args);
   }
 
   /** Clear everything tied to one game so a rematch starts clean. */
   private resetPerGameState() {
-    this.clearBotTimer();
-    this.botTurn = -1;
-    this.botIntentsThisTurn = 0;
-    this.gameNumber += 1;
-    this.matchOverSent = false;
-    this.resultPending = null;
-    this.endReason = null;
-    this.replay = null;
-    this.progressTurn = null;
-    this.undoStack = [];
-    this.undoTruncated = false;
-    this.undoRequest = null;
-    this.lastUndoStateKey = "";
-    this.turnEndsAt = null;
-    this.matchEndsAt = null;
-    this.lastTimerActiveSeat = null;
-    this.clockSeat = null;
-    this.rematchRequested = [false, false];
-    this.rematchDeclinedBy = null;
-    this.rematchDecks = [null, null];
-    this.seatHandOrder = [[], []];
-    this.publicArtDefs = [new Set(), new Set()];
-    this.sentPublicArt = ["{}", "{}"];
-  }
-
-  private rematchState(): RematchStateMessage {
-    const available =
-      !this.ranked &&
-      this.matchOverSent &&
-      this.match?.winner != null &&
-      this.seats[0] != null &&
-      this.seats[1] != null;
-    const both = this.rematchRequested[0] && this.rematchRequested[1];
-    return {
-      protocolVersion: PROTOCOL_VERSION,
-      available,
-      requested: [...this.rematchRequested],
-      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
-      declinedBy: this.rematchDeclinedBy,
-      chooser: available && both && this.match?.winner != null ? ((1 - this.match.winner) as Seat) : null,
-    };
-  }
-
-  private broadcastRematchState() {
-    // Ranked rooms never offer a rematch, so clients never show the option.
-    if (!this.matchOverSent || this.ranked) return;
-    this.broadcast("rematch_state", this.rematchState());
-  }
-
-  private handleRematch(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot request a rematch");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    let action: RematchAction;
-    let deck: PlayerDeckWire | undefined;
-    try {
-      ({ action, deck } = parseRematchMessage(message));
-      if (deck) assertKnownDeck(deck);
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    const state = this.rematchState();
-    if (!state.available) {
-      this.sendError(
-        client,
-        this.ranked ? "unauthorized" : "match_not_ready",
-        this.ranked ? "Rematch is only available in private matches" : "Rematch isn't available right now",
-      );
-      return;
-    }
-    switch (action) {
-      case "request":
-        this.rematchRequested[seat] = true;
-        this.rematchDecks[seat] = deck ?? null;
-        this.rematchDeclinedBy = null;
-        // The bot always agrees (and keeps its deck), and picks the turn order if it lost.
-        if (this.bot) this.rematchRequested[BOT_SEAT] = true;
-        this.broadcastRematchState();
-        this.botPickRematchOrder();
-        return;
-      case "decline":
-        this.rematchRequested = [false, false];
-        this.rematchDecks = [null, null];
-        this.rematchDeclinedBy = seat;
-        this.broadcastRematchState();
-        return;
-      case "first":
-      case "second": {
-        if (state.chooser !== seat) {
-          this.sendError(client, "unauthorized", "The player who lost chooses the turn order");
-          return;
-        }
-        this.startRematch(seat, action);
-        return;
-      }
-    }
-  }
-
-  /** `chooser` (the loser of the last game) picked the turn order; start the next game. */
-  private startRematch(chooser: Seat, action: "first" | "second") {
-    const firstSeat: Seat = action === "first" ? chooser : ((1 - chooser) as Seat);
-    this.seed = gameSeed();
-    this.log("info", "rematch_start", {
-      matchId: this.matchId,
-      game: this.gameNumber + 1,
-      firstSeat,
-      newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],
-    });
-    for (const s of [0, 1] as const) {
-      const picked = this.rematchDecks[s];
-      if (picked) this.seatDecks[s] = picked;
-    }
-    this.startMatch(firstSeat, chooser);
-  }
-
-  /** The bot lost the last game and both agreed to a rematch: it goes first. */
-  private botPickRematchOrder() {
-    if (!this.bot || this.rematchState().chooser !== BOT_SEAT) return;
-    this.clock.setTimeout(() => {
-      if (this.rematchState().chooser !== BOT_SEAT) return;
-      this.startRematch(BOT_SEAT, "first");
-    }, botPacing.choiceMs);
-  }
-
-  /**
-   * Snapshot the state an undo of `intent` would restore. Call before the
-   * intent is applied; null when undo does not apply (ranked, mulligan, over).
-   */
-  private captureUndoSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
-    const m = this.match;
-    if (this.ranked || !m) return null;
-    if (m.phase === "mulligan" || m.winner !== null) return null;
-    return {
-      match: serializeMatch(m),
-      turnNumber: m.turnNumber,
-      intentCount: this.replay?.intents.length ?? 0,
-      seat,
-      label: undoLabel(m, seat, intent),
-    };
-  }
-
-  /**
-   * Bookkeeping after every state change. Pushes the snapshot taken before the
-   * applied action; one that revealed hidden cards carries the reason, and an
-   * undo that would take it back needs a forced request (#497, #536). A state
-   * change also voids any open undo request, since it named an action relative
-   * to the old state.
-   */
-  private recordUndoStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
-    if (this.match && this.match.winner === null && this.match.turnNumber !== this.progressTurn) {
-      this.progressTurn = this.match.turnNumber;
-      void this.saveProgress();
-    }
-    const after = this.match;
-    if (this.ranked || !after) return;
-    if (snap && before) {
-      const reason = revealReason(before, after, events);
-      this.undoStack.push(reason ? { ...snap, revealReason: reason } : snap);
-      if (this.undoStack.length > UNDO_HISTORY_LIMIT) {
-        this.undoStack.shift();
-        this.undoTruncated = true;
-      }
-    }
-    this.undoRequest = null;
-    this.broadcastUndoState();
-  }
-
-  /**
-   * Index of the snapshot `scope` rewinds to, or null when it cannot (nothing
-   * to undo, or the whole turn is no longer in the history). A turn is every
-   * action since the first one of the last action's turn, by either seat.
-   */
-  private undoTargetIndex(scope: UndoScope): number | null {
-    const last = this.undoStack.length - 1;
-    if (last < 0) return null;
-    if (scope === "action") return last;
-    const turn = this.undoStack[last]!.turnNumber;
-    let start = last;
-    while (start > 0 && this.undoStack[start - 1]!.turnNumber === turn) start -= 1;
-    if (start === 0 && this.undoTruncated) return null;
-    return start;
-  }
-
-  private undoOption(scope: UndoScope): UndoOption {
-    if (this.undoStack.length === 0) {
-      return { available: false, steps: 0, blockedReason: "Nothing to undo yet", forceable: false };
-    }
-    const idx = this.undoTargetIndex(scope);
-    if (idx === null) {
-      return { available: false, steps: 0, blockedReason: "Undo history limit reached", forceable: false };
-    }
-    const range = this.undoStack.slice(idx);
-    const reveal = [...range].reverse().find((snap) => snap.revealReason)?.revealReason;
-    if (reveal) {
-      return {
-        available: false,
-        steps: range.length,
-        blockedReason: `Undo stops here: ${reveal}`,
-        forceable: true,
-        revealReason: reveal,
-      };
-    }
-    return { available: true, steps: range.length, forceable: false };
-  }
-
-  private undoState(): UndoStateMessage {
-    const enabled = !this.ranked;
-    const over = !this.match || this.match.winner !== null || this.matchOverSent;
-    const top = enabled && !over ? (this.undoStack.at(-1) ?? null) : null;
-    let options: UndoStateMessage["options"] = null;
-    let blockedReason: string | null = null;
-    if (!enabled) {
-      blockedReason = "No undo in ranked";
-    } else if (!over) {
-      options = { action: this.undoOption("action"), turn: this.undoOption("turn") };
-      if (!options.action.available && !options.turn.available) {
-        blockedReason = options.action.blockedReason ?? options.turn.blockedReason ?? "Nothing to undo yet";
-      }
-    }
-    return {
-      protocolVersion: PROTOCOL_VERSION,
-      enabled,
-      targetTurn: top ? top.turnNumber : null,
-      action: top ? { seat: top.seat, label: top.label } : null,
-      options,
-      blockedReason,
-      pending: over ? null : this.undoRequest,
-    };
-  }
-
-  private sendUndoState(client: Client) {
-    client.send("undo_state", this.undoState());
-  }
-
-  private broadcastUndoState() {
-    const state = this.undoState();
-    const key = JSON.stringify(state);
-    if (key === this.lastUndoStateKey) return;
-    this.lastUndoStateKey = key;
-    this.broadcast("undo_state", state);
-  }
-
-  private handleUndo(client: Client, message: unknown) {
-    if (this.spectatorForClient(client)) {
-      this.sendError(client, "unauthorized", "Spectators cannot undo");
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null) {
-      this.sendError(client, "unauthorized", "Not seated");
-      return;
-    }
-    let action: UndoAction;
-    let scope: UndoScope;
-    let force: boolean;
-    let id: number | undefined;
-    try {
-      ({ action, scope, force, id } = parseUndoMessage(message));
-    } catch (e) {
-      const err = e as Error;
-      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
-      return;
-    }
-    if (this.ranked) {
-      this.sendError(client, "unauthorized", "Undo is only available in private matches");
-      return;
-    }
-    if (!this.match || !this.matchStarted) {
-      this.sendError(client, "match_not_ready", "Match not started");
-      return;
-    }
-    if (this.match.winner !== null || this.matchOverSent) {
-      this.sendError(client, "match_over", "Match is over");
-      return;
-    }
-
-    const req = this.undoRequest;
-    switch (action) {
-      case "request": {
-        const top = this.undoStack.at(-1);
-        const idx = this.undoTargetIndex(scope);
-        const option = this.undoOption(scope);
-        if (!top || idx === null) {
-          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
-          return;
-        }
-        // A reveal in range blocks a plain request; force goes past it, and only it.
-        if (!option.available && !(force && option.forceable)) {
-          this.sendError(client, "illegal_intent", option.blockedReason ?? "Nothing to undo yet");
-          return;
-        }
-        this.undoRequest = {
-          id: (this.undoRequestSeq += 1),
-          from: seat,
-          toTurn: this.undoStack[idx]!.turnNumber,
-          action: { seat: top.seat, label: top.label },
-          scope,
-          steps: option.steps,
-          force: option.revealReason !== undefined,
-          revealReason: option.revealReason ?? null,
-        };
-        this.log("info", "undo_requested", {
-          matchId: this.matchId,
-          seat,
-          toTurn: this.undoRequest.toTurn,
-          scope,
-          force: this.undoRequest.force,
-        });
-        this.broadcastUndoState();
-        this.botAnswerUndo();
-        return;
-      }
-      case "cancel":
-      case "decline": {
-        // The requester cancels; the other seat declines.
-        if (!req) return;
-        if ((action === "cancel") !== (req.from === seat)) {
-          this.sendError(client, "unauthorized", "Not your undo request to answer");
-          return;
-        }
-        this.undoRequest = null;
-        this.broadcastUndoState();
-        return;
-      }
-      case "accept": {
-        if (!req) {
-          this.sendError(client, "illegal_intent", "No undo request to accept");
-          return;
-        }
-        if (req.from === seat) {
-          this.sendError(client, "unauthorized", "The other player must accept the undo");
-          return;
-        }
-        // An accept names the request it saw; the requester may have changed it since (#540).
-        if (id !== undefined && id !== req.id) {
-          this.sendError(client, "illegal_intent", "The undo request changed; review it again");
-          this.sendUndoState(client);
-          return;
-        }
-        this.applyUndo(req.from, req.scope);
-        return;
-      }
-    }
-  }
-
-  private applyUndo(by: Seat, scope: UndoScope) {
-    const idx = this.undoTargetIndex(scope);
-    const last = this.undoStack.at(-1);
-    const snap = idx === null ? undefined : this.undoStack[idx];
-    if (!snap || !last) {
-      this.undoRequest = null;
-      this.broadcastUndoState();
-      return;
-    }
-    const steps = this.undoStack.length - idx!;
-    this.undoStack.length = idx!;
-    this.match = deserializeMatch(snap.match);
-    this.replay?.intents.splice(snap.intentCount);
-    // Restore the state exactly: match.rng and deck order come back with the
-    // snapshot (the engine draws from match.rng), so drawing again gives the same
-    // cards as before the undo (#449). Nothing is recorded in the replay; older
-    // replays may still carry `reseeds` from the #369 behavior and keep working.
-    this.undoRequest = null;
-    this.log("info", "undo_applied", {
-      matchId: this.matchId,
-      by,
-      toTurn: snap.turnNumber,
-      label: last.label,
-      scope,
-      steps,
-    });
-
-    const applied: UndoAppliedMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      toTurn: snap.turnNumber,
-      toStep: snap.intentCount,
-      by,
-      action: { seat: last.seat, label: last.label },
-      scope,
-      steps,
-    };
-    this.broadcast("undo_applied", applied);
-    this.syncPublicState();
-    this.broadcastViews([]);
-    // A rewound turn gets a fresh turn clock; chess clocks keep their spent time.
-    this.refreshTurnClock();
-    this.updateSeatClock();
-    this.ensureTimerLoop();
-    this.broadcastTimer();
-    this.broadcastUndoState();
-    this.scheduleBotStep();
-  }
-
-  /** The bot always accepts the human's undo request, after a short pause. */
-  private botAnswerUndo() {
-    const req = this.undoRequest;
-    if (!this.bot || !req || req.from === BOT_SEAT) return;
-    this.clock.setTimeout(() => {
-      const cur = this.undoRequest;
-      if (!cur || cur.id !== req.id || !this.match || this.match.winner !== null || this.matchOverSent) return;
-      this.log("info", "bot_undo_accepted", { matchId: this.matchId, id: cur.id });
-      this.applyUndo(cur.from, cur.scope);
-    }, botPacing.choiceMs);
-  }
-
-  private broadcastViews(events: GameEvent[]) {
-    if (!this.match) return;
-    this.updatePublicArt(events);
-    // Replay intents applied so far: lets clients drop battle-log lines on undo.
-    const step = this.replay?.intents.length ?? 0;
-    for (const slot of this.seats) {
-      if (!slot) continue;
-      const client = this.clients.find((c) => c.sessionId === slot.sessionId);
-      if (!client) continue;
-      const view = this.playerView(this.match, slot.seat);
-      client.send("events", {
-        protocolVersion: PROTOCOL_VERSION,
-        events: projectGameEvents(events, slot.seat),
-        step,
-      });
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view,
-      });
-    }
-    for (const spec of this.spectators) {
-      const client = this.clients.find((c) => c.sessionId === spec.sessionId);
-      if (!client) continue;
-      const view = this.spectatorView(this.match, spec.cameraSeat);
-      client.send("events", {
-        protocolVersion: PROTOCOL_VERSION,
-        events: projectGameEvents(events, null),
-        step,
-      });
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view,
-      });
-    }
-  }
-
-
-  private clearTimerLoop() {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
-  }
-
-  private ensureTimerLoop() {
-    if (this.timerInterval) return;
-    if (this.turnSeconds == null && this.matchSeconds == null && this.seatSeconds == null) return;
-    this.timerInterval = setInterval(() => this.tickTimers(), 250);
-  }
-
-  private armMatchClock() {
-    if (this.matchSeconds == null) {
-      this.matchEndsAt = null;
-      return;
-    }
-    this.matchEndsAt = Date.now() + this.matchSeconds * 1000;
-  }
-
-  private refreshTurnClock() {
-    if (!this.match || this.turnSeconds == null) {
-      this.turnEndsAt = null;
-      this.lastTimerActiveSeat = this.match?.activeSeat ?? null;
-      return;
-    }
-    this.turnEndsAt = Date.now() + this.turnSeconds * 1000;
-    this.lastTimerActiveSeat = this.match.activeSeat;
-  }
-
-  private onMatchAdvanced() {
-    if (!this.match) return;
-    if (this.match.winner !== null) {
-      this.clearTimerLoop();
-      this.turnEndsAt = null;
-      this.stopSeatClock();
-      this.broadcastTimer();
-      return;
-    }
-    if (this.lastTimerActiveSeat !== this.match.activeSeat) {
-      this.refreshTurnClock();
-    }
-    this.updateSeatClock();
-    this.ensureTimerLoop();
-    this.broadcastTimer();
-  }
-
-  private armSeatClocks() {
-    const ms = (this.seatSeconds ?? 0) * 1000;
-    this.seatRemainingMs = [ms, ms];
-    this.clockSeat = null;
-  }
-
-  /** Bill the running seat for time spent since the last charge. */
-  private chargeSeatClock(now = Date.now()) {
-    if (this.clockSeat === null) return;
-    const s = this.clockSeat;
-    this.seatRemainingMs[s] = Math.max(0, this.seatRemainingMs[s] - (now - this.clockSince));
-    this.clockSince = now;
-  }
-
-  /**
-   * Point the chess clock at whoever must act now (none after the end). During the mulligan it
-   * runs for the seat that still has to answer: the first player decides first, then the other.
-   */
-  private updateSeatClock() {
-    if (this.seatSeconds == null || !this.match) return;
-    const now = Date.now();
-    this.chargeSeatClock(now);
-    const next = this.match.winner !== null ? null : this.seatForClock();
-    if (next !== this.clockSeat) {
-      this.clockSeat = next;
-      this.clockSince = now;
-    }
-  }
-
-  private seatForClock(): Seat | null {
-    const m = this.match;
-    if (!m) return null;
-    // A pending choice (e.g. an Imu leader's start-of-game Stage prompt) blocks every mulligan,
-    // so its owner is the seat being waited on, whichever seat is first.
-    if (m.pendingChoices[0]) return m.pendingChoices[0].seat;
-    if (m.phase === "mulligan") {
-      const first = m.activeSeat;
-      const second = (1 - first) as Seat;
-      if (!m.players[first].mulliganDone) return first;
-      if (!m.players[second].mulliganDone) return second;
-      return null;
-    }
-    const acting = this.actingSeatForTimer();
-    // The bot has no time bank: its pacing is its only delay.
-    return acting === this.botSeat() ? null : acting;
-  }
-
-  private stopSeatClock() {
-    this.chargeSeatClock();
-    this.clockSeat = null;
-  }
-
-  private timerPayload(): TimerMessage {
-    this.chargeSeatClock();
-    const seatClocks = this.seatSeconds != null;
-    return {
-      protocolVersion: PROTOCOL_VERSION,
-      turnSeconds: this.turnSeconds,
-      matchSeconds: this.matchSeconds,
-      turnEndsAt: this.turnEndsAt,
-      matchEndsAt: this.matchEndsAt,
-      activeSeat: this.match?.activeSeat ?? 0,
-      seatSeconds: this.seatSeconds,
-      seatRemainingMs: seatClocks ? ([...this.seatRemainingMs] as [number, number]) : null,
-      clockSeat: seatClocks ? this.clockSeat : null,
-      // Absolute deadline for the running clock (same convention as turnEndsAt).
-      clockEndsAt:
-        seatClocks && this.clockSeat !== null
-          ? Date.now() + this.seatRemainingMs[this.clockSeat]
-          : null,
-    };
-  }
-
-  private broadcastTimer() {
-    this.broadcast("timer", this.timerPayload());
+    const { game } = this;
+    this.bots.resetPerGameState();
+    game.gameNumber += 1;
+    game.matchOverSent = false;
+    game.resultPending = null;
+    game.endReason = null;
+    game.replay = null;
+    this.persistence.resetPerGameState();
+    this.undo.resetPerGameState();
+    this.clocks.resetPerGameState();
+    this.rematch.resetPerGameState();
+    this.spectators.resetPerGameState();
+    this.cosmetics.resetPerGameState();
   }
 
   /** Tell everyone which seats dropped and until when they may reconnect. */
   private broadcastPresence() {
     this.broadcast("presence", {
       protocolVersion: PROTOCOL_VERSION,
-      awayUntil: [...this.awayUntil],
+      awayUntil: [...this.game.awayUntil],
     });
   }
 
-  private tickTimers() {
-    if (!this.match || this.match.winner !== null || this.matchOverSent) {
-      this.clearTimerLoop();
-      return;
-    }
-    const now = Date.now();
-    if (this.matchEndsAt != null && now >= this.matchEndsAt) {
-      this.expireMatchClock();
-      return;
-    }
-    if (this.clockSeat !== null) {
-      this.chargeSeatClock(now);
-      if (this.seatRemainingMs[this.clockSeat] <= 0) {
-        this.expireSeatClock(this.clockSeat);
-        return;
-      }
-    }
-    if (this.turnEndsAt != null && now >= this.turnEndsAt) {
-      this.expireTurnClock();
-    }
-  }
-
-  private expireMatchClock() {
-    if (!this.match || this.match.winner !== null) return;
-    // The seat the game is waiting on loses: a pending choice's owner, the defender in a
-    // block/counter step, or a seat that has not answered its mulligan. If neither seat has
-    // answered its mulligan, the first player loses as before.
-    const m = this.match;
-    const bothMulliganing = m.phase === "mulligan" && !m.players[0].mulliganDone && !m.players[1].mulliganDone;
-    const loser = bothMulliganing
-      ? (m.pendingChoices[0]?.seat ?? m.activeSeat)
-      : (this.actingSeatForTimer() ?? m.activeSeat);
-    const winner = (1 - loser) as Seat;
-    this.endReason = "match_timeout";
-    this.match = {
-      ...this.match,
-      winner,
-      winReason: "leader_battle_at_zero_life",
-      phase: "game_over",
-    };
-    this.syncPublicState();
-    this.broadcastViews([]);
-    this.undoRequest = null;
-    this.broadcastUndoState();
-    this.stopSeatClock();
-    this.clearTimerLoop();
-    this.broadcastTimer();
-    this.log("info", "match_timeout", { matchId: this.matchId, winner, loser });
-    this.maybeSendMatchOver();
-  }
-
-  /** A player's own time bank ran out: they lose. */
-  private expireSeatClock(loser: Seat) {
-    if (!this.match || this.match.winner !== null) return;
-    const winner = (1 - loser) as Seat;
-    this.endReason = "timeout";
-    this.match = { ...this.match, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
-    this.syncPublicState();
-    this.broadcastViews([]);
-    this.undoRequest = null;
-    this.broadcastUndoState();
-    this.stopSeatClock();
-    this.clearTimerLoop();
-    this.broadcastTimer();
-    this.log("info", "seat_clock_timeout", { matchId: this.matchId, winner, loser });
-    this.maybeSendMatchOver();
-  }
-
-  private expireTurnClock() {
-    if (!this.match || this.match.winner !== null) return;
-    const seat = this.actingSeatForTimer();
-    if (seat === null || seat === this.botSeat()) {
-      // Nobody to auto-act (the bot plays itself); refresh so we do not tight-loop.
-      this.refreshTurnClock();
-      this.broadcastTimer();
-      return;
-    }
-    const intent = this.autoIntentForSeat(seat);
-    if (!intent) {
-      this.refreshTurnClock();
-      this.broadcastTimer();
-      return;
-    }
-    this.log("info", "turn_timeout", {
-      matchId: this.matchId,
-      seat,
-      intentType: intent.type,
-    });
-    const before = this.match;
-    const undoSnap = this.captureUndoSnapshot(seat, intent);
-    const result = applyIntent(before, intent, { seat });
-    if (!result.ok) {
-      this.refreshTurnClock();
-      this.broadcastTimer();
-      return;
-    }
-    this.match = result.state;
-    this.replay?.intents.push({ seat, intent });
-    this.recordUndoStep(undoSnap, before, result.events);
-    this.syncPublicState();
-    this.broadcastViews(result.events);
-    this.onMatchAdvanced();
-    this.maybeSendMatchOver();
-    this.scheduleBotStep();
-  }
-
-  /** Seat that must act now (pending choice owner, or battle defender, or active). */
-  private actingSeatForTimer(): Seat | null {
-    if (!this.match) return null;
-    const front = this.match.pendingChoices[0];
-    if (front) return front.seat;
-    if (
-      (this.match.phase === "block" || this.match.phase === "counter") &&
-      this.match.battle
-    ) {
-      return (1 - this.match.battle.attackerSeat) as Seat;
-    }
-    if (this.match.phase === "mulligan") {
-      const p0 = this.match.players[0];
-      const p1 = this.match.players[1];
-      if (!p0.mulliganDone) return 0;
-      if (!p1.mulliganDone) return 1;
-      return null;
-    }
-    return this.match.activeSeat;
-  }
-
-  private autoIntentForSeat(seat: Seat): Intent | null {
-    if (!this.match) return null;
-    const legal = listLegalIntents(this.match, seat);
-    const front = this.match.pendingChoices[0];
-    if (front && front.seat === seat) {
-      if (front.kind === "order_effects") {
-        return legal.find((i) => i.type === "order_pending_effects") ?? null;
-      }
-      if (front.optional) {
-        return { type: "resolve_pending_choice", accept: false };
-      }
-      // Mandatory structured prompts (On Play hand pick, etc.) cannot auto-resolve.
-      const bareAccept = legal.find(
-        (i) => i.type === "resolve_pending_choice" && i.accept,
-      );
-      if (!bareAccept) return null;
-      return bareAccept;
-    }
-    if (this.match.phase === "mulligan") {
-      return { type: "mulligan", doMulligan: false };
-    }
-    if (this.match.phase === "block") {
-      return legal.find((i) => i.type === "pass_block") ?? null;
-    }
-    if (this.match.phase === "counter") {
-      return legal.find((i) => i.type === "pass_counter") ?? null;
-    }
-    if (this.match.phase === "main") {
-      return legal.find((i) => i.type === "end_turn") ?? null;
-    }
-    return null;
-  }
-
-  private botSeat(): Seat | null {
-    return this.bot ? BOT_SEAT : null;
-  }
-
-  private clearBotTimer() {
-    this.botTimer?.clear();
-    this.botTimer = null;
-    // A search still running for a position that is gone is of no use: free its worker.
-    const job = this.botJob;
-    this.botJob = null;
-    if (job) sharedBotPool().cancel(job.id);
-  }
-
-  /**
-   * After a state change: if the bot can act, queue one move after a pacing delay. At most one
-   * move is ever queued; the move itself re-reads the state, so a stale queue is harmless.
-   */
-  private scheduleBotStep() {
-    if (!this.bot || this.botTimer || this.botJob || this.disposed) return;
-    const m = this.match;
-    if (!m || !this.matchStarted || this.matchOverSent || m.winner !== null || m.phase === "game_over") return;
-    if (listLegalIntents(m, BOT_SEAT).length === 0) return;
-    const quick = m.pendingChoices.length > 0 || m.phase !== "main";
-    this.botTimer = this.clock.setTimeout(() => {
-      this.botTimer = null;
-      this.runBotStep();
-    }, quick ? botPacing.choiceMs : botPacing.mainMs);
-  }
-
-  private runBotStep() {
-    const bot = this.bot;
-    const m = this.match;
-    if (!bot || !m || !this.matchStarted || this.matchOverSent || m.winner !== null || m.phase === "game_over") return;
-    const legal = listLegalIntents(m, BOT_SEAT);
-    if (legal.length === 0) return;
-    if (m.turnNumber !== this.botTurn) {
-      this.botTurn = m.turnNumber;
-      this.botIntentsThisTurn = 0;
-    }
-    this.botIntentsThisTurn += 1;
-    const overCap = this.botIntentsThisTurn > BOT_MAX_INTENTS_PER_TURN;
-    if (overCap && this.botIntentsThisTurn === BOT_MAX_INTENTS_PER_TURN + 1) {
-      this.log("warn", "bot_turn_cap", { matchId: this.matchId, turn: m.turnNumber });
-    }
-
-    if (!overCap && bot.level === "hard" && botSearch.useWorker && sharedBotPool().enabled()) {
-      this.runHardInWorker(m, legal);
-      return;
-    }
-
-    let intent: Intent | null = null;
-    if (!overCap) {
-      try {
-        const startedAt = performance.now();
-        let searched = false;
-        intent = chooseBotIntentFromState(m, BOT_SEAT, { level: bot.level, rng: bot.rng, budgetMs: botSearch.inThreadBudgetMs, onTrace: () => { searched = true; } });
-        this.botStats.decisions += 1;
-        this.botStats.ms += performance.now() - startedAt;
-        if (searched) this.botStats.searches += 1;
-      } catch (e) {
-        this.log("warn", "bot_error", { matchId: this.matchId, message: e instanceof Error ? e.message : String(e) });
-      }
-      if (!intent) this.log("warn", "bot_no_intent", { matchId: this.matchId, phase: m.phase });
-    }
-    this.playBotIntent(m, legal, intent);
-  }
-
-  /**
-   * Hard bot (#635): search `m` in the worker pool and play the answer. The answer is dropped when the room moved on in the
-   * meantime (a move, undo, rematch, concede or dispose replaces `this.match`), and a failed or late worker falls back to
-   * a Normal move computed here, so the human never waits on a stuck bot.
-   */
-  private runHardInWorker(m: MatchState, legal: Intent[]) {
-    const bot = this.bot!;
-    const pool = sharedBotPool();
-    const startedAt = performance.now();
-    const seed = bot.rng.nextInt(0x3fffffff);
-    const memory = botTurnMemory(m, BOT_SEAT, bot.rng);
-    const job: { id: number; match: MatchState } = { id: -1, match: m };
-    this.botJob = job;
-    pool.run({ state: m, seat: BOT_SEAT, seed, memory, budgetMs: botSearch.budgetMs, samples: botSearch.samples }, botSearch.timeoutMs, (id) => { job.id = id; }).then(
-      (r) => ({ intent: r.intent, searched: r.searched, error: null as string | null }),
-      (e: unknown) => ({ intent: null as Intent | null, searched: false, error: e instanceof Error ? e.message : String(e) }),
-    ).then((r) => {
-      if (this.botJob !== job) return; // cancelled: the room cleared the bot (dispose, game over, rematch)
-      this.botJob = null;
-      if (this.disposed || this.match !== m) {
-        this.scheduleBotStep();
-        return;
-      }
-      let intent = r.intent;
-      if (r.error !== null) {
-        this.log("warn", "bot_worker_failed", { matchId: this.matchId, message: r.error });
-        try {
-          intent = chooseBotIntentFromState(m, BOT_SEAT, { level: "normal", rng: bot.rng });
-        } catch (e) {
-          this.log("warn", "bot_error", { matchId: this.matchId, message: e instanceof Error ? e.message : String(e) });
-        }
-      } else {
-        if (intent) noteBotPick(m, BOT_SEAT, bot.rng, intent);
-        this.botStats.decisions += 1;
-        this.botStats.ms += performance.now() - startedAt;
-        if (r.searched) this.botStats.searches += 1;
-      }
-      if (!intent) this.log("warn", "bot_no_intent", { matchId: this.matchId, phase: m.phase });
-      this.playBotIntent(m, legal, intent);
-    });
-  }
-
-  /** Play the bot's intent; if the room rejects it, pass, else any listed legal move, else give the game up. */
-  private playBotIntent(m: MatchState, legal: Intent[], intent: Intent | null) {
-    if (intent) {
-      const applied = this.applySeatIntent(BOT_SEAT, intent);
-      if (applied.ok) return;
-      this.log("warn", "bot_illegal_intent", { matchId: this.matchId, intent, message: applied.message });
-    }
-    // Never leave the human waiting on a stuck bot: pass, else any listed legal move
-    // (a rejected prompt answer has no pass), else give the game up.
-    const passes: Intent[] = legal.filter((i) => i.type === "end_turn" || i.type === "pass_block" || i.type === "pass_counter");
-    for (const fallback of [...passes, ...legal.filter((i) => !passes.includes(i))]) {
-      if (this.applySeatIntent(BOT_SEAT, fallback).ok) return;
-    }
-    this.log("warn", "bot_conceded", { matchId: this.matchId, phase: m.phase });
-    this.concedeSeat(BOT_SEAT);
-  }
-
-  private maybeSendMatchOver() {
-    if (!this.match || this.match.winner === null || this.matchOverSent || this.resultPending) return;
+  maybeSendMatchOver() {
+    const { game } = this;
+    if (!game.match || game.match.winner === null || game.matchOverSent || game.resultPending) return;
     const result = {
-      winner: this.match.winner,
-      reason: this.endReason ?? this.match.winReason ?? "unknown",
+      winner: game.match.winner,
+      reason: game.endReason ?? game.match.winReason ?? "unknown",
     };
-    this.clearBotTimer();
+    this.bots.clearTimer();
     const autoDispose = this.autoDispose;
     this.autoDispose = false;
-    this.resultPending = this.writebackResult(result.winner, result.reason).then(() => {
-      this.matchOverSent = true;
+    game.resultPending = this.persistence.writebackResult(result.winner, result.reason).then(() => {
+      game.matchOverSent = true;
       this.refreshMetadata();
       presence.markDirty();
-      this.log("info", "match_end", { matchId: this.matchId, ...result });
-      if (this.bot) {
-        const turns = this.match?.turnNumber;
-        this.log("info", "bot_game_over", { matchId: this.matchId, level: this.bot.level, winner: result.winner, turns, ...this.botStats });
+      this.log("info", "match_end", { matchId: game.matchId, ...result });
+      if (game.bot) {
+        const turns = game.match?.turnNumber;
+        this.log("info", "bot_game_over", { matchId: game.matchId, level: game.bot.level, winner: result.winner, turns, ...this.bots.stats });
       }
       this.broadcast("match_over", { protocolVersion: PROTOCOL_VERSION, result });
-      this.broadcastRematchState();
+      this.rematch.broadcast();
       this.autoDispose = autoDispose;
       if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
     });
   }
 
-  /** The two account ids a result or progress snapshot is saved under, or why it isn't saved. */
-  protected ingestSeats(): [number, number] | { skip: string } {
-    const s0 = this.matchUserIds?.[0];
-    const s1 = this.matchUserIds?.[1];
-    if (s0 == null || s1 == null) return { skip: "missing_user_ids" };
-    // Skip ingest for synthetic legacy negative ids unless both are real (>0).
-    if (s0 <= 0 || s1 <= 0) return { skip: "legacy_dev_users" };
-    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") return { skip: "local_outbox_disabled" };
-    return [s0, s1];
-  }
-
   /**
-   * A finished bot or practice game as the solo-game report, or null for a game between two
-   * different accounts (which is a match). Practice is one account in both seats; it has no winner.
+   * Test seams: the writeback methods below are what tests replace on a room instance to see (or
+   * fail) what would be saved, so the collaborators always call them through the room.
    */
-  private soloGamePayload(winner: Seat, reason: string): SoloGamePayload | null {
-    const ids = this.matchUserIds;
-    if (!ids) return null;
-    const practiceUid = ids[0] === ids[1] ? ids[0] : this.practiceOwnerUid;
-    if (!this.bot && practiceUid == null) return null;
-    const humanSeat: Seat = this.bot ? ((1 - BOT_SEAT) as Seat) : 0;
-    const userId = this.bot ? ids[humanSeat] : practiceUid!;
-    if (userId <= 0) return null;
-    const turns = this.match?.turnNumber;
-    return {
-      game_id: this.gameKey(),
-      user_id: userId,
-      mode: this.bot ? "bot" : "practice",
-      ...(this.bot ? { bot_level: this.bot.level, won: winner === humanSeat } : {}),
-      leader_id: this.replay?.players[humanSeat].leaderId,
-      opponent_leader_id: this.replay?.players[1 - humanSeat].leaderId,
-      turns,
-      reason,
-    };
+  ingestSeats(): [number, number] | { skip: string } {
+    return this.persistence.ingestSeats();
   }
 
-  /** Fire and forget: match_over never waits on the API, and a few quick retries are all a stats row is worth. */
-  private reportSoloGame(payload: SoloGamePayload): Promise<void> {
-    if (!getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production") {
-      this.log("info", "solo_game_skip", { matchId: this.matchId, reason: "local_outbox_disabled" });
-      return Promise.resolve();
-    }
-    return (async () => {
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          await this.persistSoloGame(payload);
-          return;
-        } catch {
-          if (attempt === 3) this.log("warn", "solo_game_report_failed", { matchId: this.matchId });
-          else await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
-        }
-      }
-    })();
-  }
-
-  protected persistSoloGame(payload: SoloGamePayload): Promise<void> {
+  persistSoloGame(payload: SoloGamePayload): Promise<void> {
     return postSoloGame(payload);
   }
 
-  private async writebackResult(winner: Seat, reason: string) {
-    // Bot and practice games are not matches: they are counted for the admin page and nothing else.
-    const solo = this.soloGamePayload(winner, reason);
-    if (solo) {
-      void this.reportSoloGame(solo); // never awaited: match_over does not wait on the API
-      return;
-    }
-    const seats = this.ingestSeats();
-    if (!Array.isArray(seats)) {
-      this.log(seats.skip === "legacy_dev_users" ? "info" : "warn", "match_ingest_skip", {
-        matchId: this.matchId,
-        reason: seats.skip,
-      });
-      return;
-    }
-    const [s0, s1] = seats;
-    const payload = this.resultPayload(s0, s1, winner, reason);
-    // Keep the immutable payload and room alive across transient database outages.
-    // A process crash before the first commit remains outside this outbox guarantee.
-    for (;;) {
-      try {
-        await this.persistMatchResult(payload);
-        return;
-      } catch {
-        this.log("warn", "match_enqueue_failed", { matchId: this.matchId });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-  }
-
-  /**
-   * The matchup-brief ticket for a player seat: that seat's own leader and deck
-   * against the other seat's leader. Never minted for a ranked room.
-   */
-  private briefFor(seat: Seat): BriefTicketWire | undefined {
-    if (this.ranked || !this.replay) return undefined;
-    const mine = this.replay.players[seat];
-    const theirs = this.replay.players[1 - seat];
-    const ticket = mintBriefTicket({
-      mid: this.gameKey(),
-      seat,
-      ranked: this.ranked,
-      leader: mine.leaderId,
-      opponent: theirs.leaderId,
-      deck: mine.deck,
-    });
-    if (!ticket) return undefined;
-    return { ticket, leaderId: mine.leaderId, opponentId: theirs.leaderId, deck: [...mine.deck] };
-  }
-
-  /** Rematches share the room: key each game's result separately. */
-  private gameKey(): string {
-    return this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId;
-  }
-
-  /**
-   * Save the game's log so far (both seats' logs and the replay), so a game that
-   * never reaches a result (server restart, both players gone) still has one.
-   * Sent at the start of every turn and when the room closes without a result.
-   * `reveal` adds the opponent's hands to each log; only a game that can no
-   * longer be played (the room closing) gets them, and is marked `closed` so
-   * the backend lets the players watch its recording (#476).
-   */
-  private saveProgress(reveal = false): Promise<void> {
-    const seats = this.ingestSeats();
-    if (!Array.isArray(seats) || !this.replay) return Promise.resolve();
-    return this.progress.push({ matchId: this.gameKey(), payload: { ...this.progressPayload(seats[0], seats[1], reveal), ...(reveal ? { closed: true } : {}) } });
-  }
-
-  private progressPayload(s0: number, s1: number, reveal: boolean): MatchProgressPayload {
-    return {
-      seat0_user_id: s0,
-      seat1_user_id: s1,
-      ranked: this.ranked,
-      seat0_leader_id: this.replay?.players[0].leaderId,
-      seat1_leader_id: this.replay?.players[1].leaderId,
-      turns: this.match?.turnNumber,
-      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents] } : undefined,
-      seat_logs: this.seatLogs(reveal),
-    };
-  }
-
-  protected persistMatchProgress(matchId: string, payload: MatchProgressPayload): Promise<void> {
+  persistMatchProgress(matchId: string, payload: MatchProgressPayload): Promise<void> {
     return postMatchProgress(matchId, payload);
   }
 
-  private resultPayload(s0: number, s1: number, winner: Seat, reason: string): MatchResultPayload {
-    return {
-      ...this.progressPayload(s0, s1, true),
-      match_id: this.gameKey(),
-      winner_seat: winner,
-      reason,
-      replay: this.replay ? { ...this.replay, intents: [...this.replay.intents], end: { winner, reason } } : undefined,
-    };
-  }
-
-  /**
-   * Each player's turn-by-turn log for their match history. The opponent's hidden
-   * cards stay hidden unless `reveal` (the game is over or cut off).
-   */
-  private seatLogs(reveal: boolean): MatchResultPayload["seat_logs"] {
-    if (!this.replay) return undefined;
-    try {
-      return [seatLog(this.replay, 0, { revealOpponent: reveal }), seatLog(this.replay, 1, { revealOpponent: reveal })];
-    } catch {
-      this.log("warn", "seat_log_failed", { matchId: this.matchId });
-      return undefined;
-    }
-  }
-
-  protected persistMatchResult(payload: MatchResultPayload): Promise<void> {
+  persistMatchResult(payload: MatchResultPayload): Promise<void> {
     return postMatchResult(payload);
   }
 
   /** Who is here, for the friends list ("in a game", spectate). */
   presenceEntries(): PresenceEntry[] {
-    const phase: PresenceEntry["phase"] = !this.matchStarted
+    const { game } = this;
+    const phase: PresenceEntry["phase"] = !game.matchStarted
       ? "waiting"
-      : this.matchOverSent
+      : game.matchOverSent
         ? "finished"
         : "playing";
     const entries: PresenceEntry[] = [];
-    for (const slot of this.seats) {
+    for (const slot of game.seats) {
       if (!slot || slot.userId === BOT_USER_ID) continue;
-      entries.push({ user_id: slot.userId, room_id: this.roomId, role: "player", phase, ranked: this.ranked });
+      entries.push({ user_id: slot.userId, room_id: this.roomId, role: "player", phase, ranked: game.ranked });
     }
-    for (const spec of this.spectators) {
-      entries.push({ user_id: spec.userId, room_id: this.roomId, role: "spectator", phase, ranked: this.ranked });
+    for (const spec of this.spectators.list) {
+      entries.push({ user_id: spec.userId, room_id: this.roomId, role: "spectator", phase, ranked: game.ranked });
     }
     return entries;
   }
 
-  private syncPublicState() {
-    if (!this.match) return;
+  syncPublicState() {
+    if (!this.game.match) return;
     presence.markDirty();
-    this.state.phase = this.match.phase;
-    this.state.activeSeat = this.match.activeSeat;
-    this.state.winner = this.match.winner === null ? -1 : this.match.winner;
+    this.state.phase = this.game.match.phase;
+    this.state.activeSeat = this.game.match.activeSeat;
+    this.state.winner = this.game.match.winner === null ? -1 : this.game.match.winner;
   }
 
-  private consumeRateLimit(sessionId: string): boolean {
-    const now = Date.now();
-    const windowStart = now - INTENT_RATE_WINDOW_MS;
-    const prev = this.intentTimestamps.get(sessionId) ?? [];
-    const recent = prev.filter((t) => t >= windowStart);
-    if (recent.length >= INTENT_RATE_LIMIT) {
-      this.intentTimestamps.set(sessionId, recent);
-      return false;
-    }
-    recent.push(now);
-    this.intentTimestamps.set(sessionId, recent);
-    return true;
-  }
-
-  private sendSync(client: Client) {
-    const spec = this.spectatorForClient(client);
-    if (spec) {
-      this.sendSpectatorSync(client, spec.cameraSeat);
-      return;
-    }
-    const seat = this.seatForClient(client);
-    if (seat === null || !this.match) {
-      this.sendError(client, "match_not_ready", "Match not started");
-      return;
-    }
-    const view = this.playerView(this.match, seat);
-    const welcome: WelcomeMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      matchId: this.matchId,
-      seat,
-      role: "player",
-      view,
-      players: this.playersInfo(),
-      ranked: this.ranked,
-      firstSeatPickedBy: this.firstSeatPickedBy,
-      brief: this.briefFor(seat),
-      ...this.botInfo(),
-    };
-    client.send("welcome", welcome);
-    client.send("view", {
-      protocolVersion: PROTOCOL_VERSION,
-      view,
-    });
-    this.sendStoredCosmetics(client);
-    this.sendChatHistory(client);
-    this.sendUndoState(client);
-    client.send("timer", this.timerPayload());
-    client.send("presence", { protocolVersion: PROTOCOL_VERSION, awayUntil: [...this.awayUntil] });
-    if (this.match.winner !== null && this.matchOverSent) {
-      client.send("match_over", {
-        protocolVersion: PROTOCOL_VERSION,
-        result: {
-          winner: this.match.winner,
-          reason: this.endReason ?? this.match.winReason ?? "unknown",
-        },
-      });
-      if (!this.ranked) client.send("rematch_state", this.rematchState());
-    }
-  }
-
-  /** Player view; after game over the revealed hands follow each player's arranged order (#482). */
-  private playerView(match: MatchState, seat: Seat) {
-    const view = getPlayerView(match, seat);
-    if (!view.revealedHands) return view;
-    const [h0, h1] = view.revealedHands;
-    return {
-      ...view,
-      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
-    };
-  }
-
-  /**
-   * Spectators see both hands in unranked rooms. Ranked keeps hands hidden so a
-   * spectator can't relay them to a player.
-   */
-  private spectatorView(match: MatchState, cameraSeat: Seat) {
-    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.ranked });
-    if (!view.revealedHands) return view;
-    // Each hand in the order its player arranged it (see seatHandOrder).
-    const [h0, h1] = view.revealedHands;
-    return {
-      ...view,
-      revealedHands: [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as typeof view.revealedHands,
-    };
-  }
-
-  private sendSpectatorSync(client: Client, cameraSeat: Seat) {
-    if (!this.match) {
-      this.sendError(client, "match_not_ready", "Match not started");
-      return;
-    }
-    const view = this.spectatorView(this.match, cameraSeat);
-    const welcome: WelcomeMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      matchId: this.matchId,
-      seat: cameraSeat,
-      ...this.botInfo(),
-      role: "spectator",
-      view,
-      players: this.playersInfo(),
-      ranked: this.ranked,
-      firstSeatPickedBy: this.firstSeatPickedBy,
-    };
-    client.send("welcome", welcome);
-    client.send("view", {
-      protocolVersion: PROTOCOL_VERSION,
-      view,
-    });
-    this.sendStoredCosmetics(client);
-    this.sendChatHistory(client);
-    if (this.match.winner !== null && this.matchOverSent) {
-      client.send("match_over", {
-        protocolVersion: PROTOCOL_VERSION,
-        result: {
-          winner: this.match.winner,
-          reason: this.endReason ?? this.match.winReason ?? "unknown",
-        },
-      });
-    }
-  }
-
-  /** Seat-indexed public names for nameplates / results (never emails). */
-  private playersInfo(): [SeatPlayerInfo, SeatPlayerInfo] {
-    const info = (seat: Seat): SeatPlayerInfo => ({
-      name: this.seats[seat]?.displayName ?? this.seatNames[seat] ?? null,
-    });
-    return [info(0), info(1)];
+  /** The "sync" message, a join and a reconnect all land here (tests wrap it to see who was welcomed). */
+  sendSync(client: Client) {
+    this.sync.sendSync(client);
   }
 
   /** Turn a join away, with a log line so a stranded opponent can be traced. */
   private rejectJoin(client: Client, code: ErrorCode, message: string) {
-    this.log("warn", "join_rejected", { matchId: this.matchId, sessionId: client.sessionId, code, message });
+    this.log("warn", "join_rejected", { matchId: this.game.matchId, sessionId: client.sessionId, code, message });
     this.sendError(client, code, message);
     client.leave();
   }
@@ -2591,22 +1057,8 @@ export class DuelRoom extends Room implements PresenceSource {
     });
   }
 
-  private log(
-    level: "debug" | "info" | "warn",
-    event: string,
-    data: Record<string, unknown>,
-  ) {
-    const configured = getLogLevel();
-    const order = { debug: 0, info: 1, warn: 2 } as const;
-    if (order[level] < order[configured]) return;
-    const line = JSON.stringify({
-      ts: new Date().toISOString(),
-      level,
-      event,
-      ...data,
-    });
-    if (level === "warn") console.warn(line);
-    else console.log(line);
+  private log(level: LogLevel, event: string, data: Record<string, unknown>) {
+    writeLog(level, event, data);
   }
 }
 

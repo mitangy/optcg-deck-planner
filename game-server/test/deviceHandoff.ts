@@ -7,6 +7,7 @@ import { installCorsAllowlist } from "../src/cors.js";
 import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { PROTOCOL_VERSION, TAKEN_OVER_CLOSE_CODE } from "../src/protocol.js";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
+import { withFakeTime } from "./fakeTime.js";
 
 type View = { seat: 0 | 1; phase: string; winner: 0 | 1 | null; legalIntents: { type: string }[] };
 type Bag = {
@@ -129,7 +130,7 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     await waitUntil(() => bag.views.length > seen || bag.errors.length > 0);
   }
 
-  it("taking a seat over closes the old connected device and hands the seat to the new one without a forfeit (#451)", async () => {
+  it("taking a seat over closes the old connected device and hands the seat to the new one without a forfeit (#451)", () => withFakeTime(async (time) => {
     const { room, c0, b0, b1 } = await startedPair();
     const welcomedTo: string[] = [];
     const sendSync = (room as unknown as { sendSync(c: { sessionId: string }): void }).sendSync;
@@ -153,10 +154,12 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     assert.equal(nb.errors.length, 0);
     const oldSeen = b0.views.length;
     c0.send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
-    await sleep(2000); // past the 1.5s forfeit delay of a real leave
+    // Once the room has dropped the old connection, a seat it still thought held would be forfeited after 1.5s.
+    await waitUntil(() => !room.clients.some((c) => c.sessionId === c0.sessionId));
+    await time.advance(2000);
     assert.equal(b0.views.length, oldSeen);
     assert.equal(b1.over, undefined, "opponent must not be handed a forfeit win");
-  });
+  }));
 
   it("taking over a dropped seat during the reconnect grace works and the old reconnection token can no longer reclaim (#451)", async () => {
     const prev = process.env.RECONNECT_GRACE_SECONDS;
