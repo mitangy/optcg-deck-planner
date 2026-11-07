@@ -7,6 +7,7 @@ from collections import defaultdict
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import Conflict, Invalid, NotFound
 from app.planner.domain import (
     DON_DECK_LIMIT,
     MAIN_DECK_LIMIT,
@@ -43,15 +44,23 @@ from app.planner.printings import (
 )
 
 
-class DeckOversizeError(Exception):
+class DeckOversizeError(Conflict):
     """Raised when adding would push the main deck past MAIN_DECK_LIMIT without confirm."""
 
     def __init__(self, *, current: int, projected: int, limit: int = MAIN_DECK_LIMIT):
         self.current = current
         self.projected = projected
         self.limit = limit
+        message = f"Deck would have {projected} cards (limit {limit}: 50 + 1 leader). Confirm to continue."
         super().__init__(
-            f"Deck would have {projected} cards (limit {limit}: 50 + 1 leader). Confirm to continue."
+            message,
+            detail={
+                "code": "deck_oversize",
+                "message": message,
+                "current": current,
+                "projected": projected,
+                "limit": limit,
+            },
         )
 
 
@@ -225,16 +234,16 @@ MAX_DECKS_PER_USER = 300
 
 def _check_distinct_card_cap(parsed: list[ParsedCard]) -> None:
     if len(parsed) >= MAX_DECK_DISTINCT_CARDS + 1:
-        raise ValueError(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
+        raise Invalid(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
 
 
 def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     parsed = parse_decklist(decklist)
     if len(parsed) > MAX_DECK_DISTINCT_CARDS:
-        raise ValueError(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
+        raise Invalid(f"A deck can list at most {MAX_DECK_DISTINCT_CARDS} different cards")
     deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
     if deck_count >= MAX_DECKS_PER_USER:
-        raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
+        raise Invalid(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
     catalog = catalog_map(db, {c.card_id for c in parsed})
     leader_id = find_leader_id(parsed, catalog)
 
@@ -279,7 +288,7 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
     """Copy another deck's list (card rows only, not printings) into ``user``'s decks (#703)."""
     deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
     if deck_count + 1 > MAX_DECKS_PER_USER:
-        raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
+        raise Invalid(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
     max_order = db.scalar(
         select(Deck.sort_order).where(Deck.user_id == user.id).order_by(Deck.sort_order.desc())
     )
@@ -319,7 +328,7 @@ def delete_deck(db: Session, user: User, deck_id: int, *, mirror: bool = True) -
     """Delete a deck. ``mirror=False`` is for the duel side deleting its own linked deck (#1017)."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
     leader_id = deck.leader_card_id
     was_main = bool(deck.is_main)
     if mirror:
@@ -343,10 +352,10 @@ def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
     """Rename one of the user's decks (#526). Raises LookupError for a deck that is not theirs."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
     name = name.strip()
     if not name or len(name) > 200:
-        raise ValueError("Deck name must be 1 to 200 characters")
+        raise Invalid("Deck name must be 1 to 200 characters")
     deck.name = name
     from app.planner import deck_link
 
@@ -364,14 +373,14 @@ def update_deck(
 ) -> DeckDetail:
     """PATCH /decks/{id}: rename and/or hide the deck from friends (#703)."""
     if name is None and hidden_from_friends is None:
-        raise ValueError("Nothing to update")
+        raise Invalid("Nothing to update")
     detail: DeckDetail | None = None
     if name is not None:
         detail = rename_deck(db, user, deck_id, name)
     if hidden_from_friends is not None:
         deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
         if deck is None:
-            raise LookupError("Deck not found")
+            raise NotFound("Deck not found")
         deck.hidden_from_friends = hidden_from_friends
         db.commit()
         detail = get_deck_detail(db, user, deck_id)
@@ -383,9 +392,9 @@ def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
     """Mark this deck as Main for its leader; other same-leader decks compare against it."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
     if not deck.leader_card_id:
-        raise ValueError("Deck has no leader — cannot set as Main")
+        raise Invalid("Deck has no leader — cannot set as Main")
     _clear_main_flags(db, user.id, deck.leader_card_id, except_id=deck.id)
     deck.is_main = True
     db.commit()
@@ -403,7 +412,7 @@ def get_deck_detail(
     ).all()
     target = next((d for d in decks if d.id == deck_id), None)
     if target is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
 
     owned = owned_map(db, user.id)
     alt_owned = alt_owned_map(db, user.id)
@@ -548,9 +557,9 @@ def upsert_deck_card(
     """Set absolute needed count for a card in a deck (0 removes)."""
     card_id = card_id.strip().upper()
     if not card_id:
-        raise ValueError("card_id is required")
+        raise Invalid("card_id is required")
     if needed < 0:
-        raise ValueError("needed must be >= 0")
+        raise Invalid("needed must be >= 0")
 
     deck = db.scalar(
         select(Deck)
@@ -558,7 +567,7 @@ def upsert_deck_card(
         .options(selectinload(Deck.cards))
     )
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
 
     existing = next((c for c in deck.cards if c.card_id == card_id), None)
     catalog_ids = {c.card_id for c in deck.cards} | {card_id}
@@ -575,7 +584,7 @@ def upsert_deck_card(
     main_projected, don_projected = deck_size_counts(projected_lines, catalog)
 
     if don_projected > DON_DECK_LIMIT:
-        raise ValueError(
+        raise Invalid(
             f"DON!! deck would have {don_projected} cards (maximum {DON_DECK_LIMIT})"
         )
 
@@ -628,13 +637,13 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
         .options(selectinload(Deck.cards))
     )
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
     parsed = parse_decklist(decklist)  # ValueError("No cards found...") when empty
     _check_distinct_card_cap(parsed)
     catalog = catalog_map(db, {c.card_id for c in parsed})
     _main, don_count = deck_size_counts(parsed, catalog)
     if don_count > DON_DECK_LIMIT:
-        raise ValueError(f"DON!! deck would have {don_count} cards (maximum {DON_DECK_LIMIT})")
+        raise Invalid(f"DON!! deck would have {don_count} cards (maximum {DON_DECK_LIMIT})")
 
     new_needed = {c.card_id: c.needed for c in parsed}
     existing = {c.card_id: c for c in deck.cards}
@@ -676,11 +685,11 @@ def set_deck_card_printing(
     """Set alt-art want qty for a card in a deck. Sum of alts cannot exceed needed."""
     card_id = card_id.strip().upper()
     if not card_id:
-        raise ValueError("card_id is required")
+        raise Invalid("card_id is required")
     if qty < 0:
-        raise ValueError("qty must be >= 0")
+        raise Invalid("qty must be >= 0")
     if product_id <= 0:
-        raise ValueError("product_id must be positive")
+        raise Invalid("product_id must be positive")
 
     deck = db.scalar(
         select(Deck)
@@ -688,11 +697,11 @@ def set_deck_card_printing(
         .options(selectinload(Deck.cards))
     )
     if deck is None:
-        raise LookupError("Deck not found")
+        raise NotFound("Deck not found")
 
     deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
     if deck_card is None:
-        raise LookupError("Card not in deck")
+        raise NotFound("Card not in deck")
 
     _assert_special_printing(db, card_id, product_id)
     _write_deck_printing_qty(

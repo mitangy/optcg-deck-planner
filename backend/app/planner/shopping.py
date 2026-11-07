@@ -7,6 +7,7 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.errors import NotFound
 from app.planner.domain import (
     parse_cost,
 )
@@ -423,7 +424,7 @@ def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
         db.commit()
         return 0
     if db.get(CatalogCard, card_id) is None:
-        raise LookupError("Card not found in catalog")
+        raise NotFound("Card not found in catalog")
     if row is None:
         db.add(ShoppingExtra(user_id=user.id, card_id=card_id, qty=qty))
     else:

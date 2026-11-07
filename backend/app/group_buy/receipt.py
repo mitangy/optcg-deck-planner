@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.errors import Invalid
 from app.planner.domain import SPECIAL_NAME_MARKERS
 from app.planner.models import CatalogCard, CatalogPrinting
 
@@ -158,7 +159,10 @@ def parse_receipt_line(raw: str) -> ParsedReceiptLine | None:
     match = QTY_ONLY_TAB_RE.match(line) or LINE_START_RE.match(line)
     if not match:
         return None
-    qty = int(match.group(1))
+    try:
+        qty = int(match.group(1))
+    except ValueError as exc:  # thousands of digits: int() refuses; stays a 400 with Python's message
+        raise Invalid(str(exc)) from exc
     if qty <= 0:
         return None
     description = match.group(2).strip()
@@ -192,14 +196,14 @@ def parse_receipt_line(raw: str) -> ParsedReceiptLine | None:
 def parse_tcgplayer_receipt(text: str) -> list[ParsedReceiptLine]:
     raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     if not raw:
-        raise ValueError("Receipt is empty")
+        raise Invalid("Receipt is empty")
     lines: list[ParsedReceiptLine] = []
     for line in raw.split("\n"):
         parsed = parse_receipt_line(line)
         if parsed is not None:
             lines.append(parsed)
     if not lines:
-        raise ValueError("No receipt line items found — paste Qty + Description rows from TCGPlayer")
+        raise Invalid("No receipt line items found — paste Qty + Description rows from TCGPlayer")
     return lines
 
 
