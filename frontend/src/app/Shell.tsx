@@ -6,7 +6,7 @@ import { api, User } from "../api";
 import { DUEL_URL } from "../duelLink";
 import { DiscordLink } from "../DiscordLink";
 import { CornerNotices } from "../UpdateNotice";
-import { BuildTag } from "../BuildTag";
+import { BuildTag } from "@optcg/ui/appShell";
 import { ThemeToggle } from "../ThemeToggle";
 import { NotificationsBell } from "../PriceAlerts";
 import { FriendsNavLink } from "../friends/FriendsNavLink";

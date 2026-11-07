@@ -9,7 +9,7 @@ import { UpdateNotice } from "../UpdateNotice";
 import { useMe } from "../auth/useMe";
 import { CardLayoutToggle, useCardLayout } from "../CardLayout";
 import { CardSearchInput, compareCardOrder, matchesCardSearch, usePersistedOpen } from "../cardListControls";
-import { BuildTag } from "../BuildTag";
+import { BuildTag } from "@optcg/ui/appShell";
 import { DeckStatsDock } from "../DeckStats";
 import { ThemeToggle } from "../ThemeToggle";
 import { CardThumb } from "../CardThumb";

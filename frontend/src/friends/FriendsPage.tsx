@@ -8,7 +8,7 @@ import { TradesPanel } from "./TradesPanel";
 import { MySparesPanel } from "./MySparesPanel";
 import { friendsApi } from "./friendsApi";
 import { Empty, LoadError, Tabs } from "./ui";
-import { USERNAME_MAX, usernameFormatError } from "./username";
+import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
 import { qk } from "../queryKeys";
 
 type FriendsTab = "friends" | "trades" | "spares";

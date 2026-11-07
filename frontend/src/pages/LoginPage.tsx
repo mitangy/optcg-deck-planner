@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useMe } from "../auth/useMe";
-import { BuildTag } from "../BuildTag";
+import { BuildTag } from "@optcg/ui/appShell";
 import { consumeLoginNext, rememberLoginNext } from "../loginNext";
 import { AuthLoadingSkeleton } from "../Skeleton";
 

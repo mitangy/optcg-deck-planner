@@ -27,7 +27,8 @@ import {
 } from "../../cardListControls";
 import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
 import { invalidateOwnedViews } from "../../ownedCollection";
-import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "../../DeckStats";
+import { useMediaQuery } from "@optcg/ui/hooks";
+import { DOCK_QUERY, DeckStatsDock } from "../../DeckStats";
 import { type DeckHint } from "@optcg/deck-analytics";
 import { useDeckHints } from "@optcg/deck-analytics/ui";
 import { MenuItem } from "@optcg/ui/popups";

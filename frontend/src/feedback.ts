@@ -1,7 +1,7 @@
 /** "Send feedback": the planner's network call for the shared dialog. */
 import { feedbackErrorMessage, feedbackRequestBody, type FeedbackPayload } from "@optcg/site-legal/feedback";
 import { ApiError, request } from "./apiClient";
-import { BUILD_SHA } from "./buildInfo";
+import { BUILD_SHA } from "@optcg/ui/appShell";
 
 /** POST the feedback; throws an Error with a user-facing message on failure. */
 export async function submitFeedback(payload: FeedbackPayload, fetchImpl: typeof fetch = fetch): Promise<void> {

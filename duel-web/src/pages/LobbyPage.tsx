@@ -44,7 +44,7 @@ import {
 } from "../net/activeMatches";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../state/DuelSession";
-import { needsUsername } from "../auth/username";
+import { needsUsername } from "@optcg/ui/username";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../friends/friendsApi";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";

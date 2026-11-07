@@ -1,6 +1,6 @@
 /**
- * Client-side mirror of the backend username format rules (backend/app/usernames.py).
- * Only format/length are checked here for instant feedback; the API is
+ * Client-side mirror of the backend username format rules (backend/app/usernames.py), shared by the
+ * planner and the duel app. Only format/length are checked here for instant feedback; the API is
  * authoritative for reserved words, profanity, and uniqueness (422 / 409).
  */
 export const USERNAME_MIN = 3;

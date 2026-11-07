@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { ApiError, updateUsername, type AuthUser } from "../net/api";
-import { USERNAME_MAX, usernameFormatError } from "./username";
+import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
 
 type Props = {
   /** Prefill (current username or a server suggestion). */

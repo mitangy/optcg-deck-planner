@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("./App", () => ({ default: () => <p data-testid="app">app</p> }));
 vi.mock("@vercel/analytics/react", () => ({ Analytics: () => null }));
 vi.mock("@vercel/speed-insights/react", () => ({ SpeedInsights: () => null }));
-vi.mock("./appVersion", () => ({ startUpdateChecks: () => undefined }));
+vi.mock("@optcg/ui/appShell", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@optcg/ui/appShell")>()),
+  startUpdateChecks: () => undefined,
+}));
 
 // What #root looked like when main.tsx handed it to React, before React's first commit.
 const seen: { marked?: boolean; landing?: boolean } = {};

@@ -1,7 +1,11 @@
 /** Meta deck browser (#443): Limitless tournament data from the backend's public /meta endpoints, plus the pure helpers the page uses. */
+import { DECK_NAME_MAX, META_DEFAULT_DAYS, formatDeckRow as formatMetaDeckRow, formatPercent, metaDeckName, ordinal } from "@optcg/deck-analytics/metaFormat";
 import { getApiBaseUrl } from "../config";
 import { ApiError, fetchWithTimeout } from "../net/api";
 import { createDeckFromInput, listSavedDecks, setSelectedDeckId, type ImportIntoDeckResult, type SavedDeck } from "./storage";
+
+// One copy of the meta-deck text rules for both apps.
+export { DECK_NAME_MAX, META_DEFAULT_DAYS, formatPercent, metaDeckName, ordinal };
 
 export type MetaLeader = {
   leader_id: string;
@@ -58,9 +62,6 @@ export type MetaDecksResponse = {
 };
 
 export const META_WINDOWS = [7, 14, 30] as const;
-export const META_DEFAULT_DAYS = 30;
-/** Same ceiling as the planner's deck name field. */
-export const DECK_NAME_MAX = 200;
 
 const TIMEOUT_MS = 15000;
 
@@ -96,48 +97,9 @@ export function fetchMetaDecks(
   return metaJson(`/meta/decks?${q}`, timeoutMs);
 }
 
-/** 1 → "1st", 2 → "2nd", 11 → "11th", 22 → "22nd". */
-export function ordinal(n: number): string {
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
-  const suffix = ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
-  return `${n}${suffix}`;
-}
-
-/** "Silvers Rayleigh – 1st Weekly Cup", or "Silvers Rayleigh – Weekly Cup" with no placing. */
-export function metaDeckName(
-  leaderName: string,
-  leaderId: string,
-  event: string,
-  placing: number | null,
-): string {
-  const lead = leaderName.trim() || leaderId;
-  const tail = placing != null && placing > 0 ? `${ordinal(placing)} ${event.trim()}` : event.trim();
-  return `${lead} – ${tail}`.trim().slice(0, DECK_NAME_MAX);
-}
-
-export function formatPercent(fraction: number | null): string {
-  if (fraction == null) return "—";
-  return `${(fraction * 100).toFixed(1)}%`;
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "2026-10-05" → "Oct 5", read as a calendar date so the viewer's time zone cannot shift it. */
-export function formatShortDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return iso;
-  return `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}`;
-}
-
-/** "1st of 64 · Weekly Cup · Oct 5 · 6-0-0" */
+/** "1st of 64 · Weekly Cup · Oct 5 · 6-0-0": the duel app's rows also name the event. */
 export function formatDeckRow(deck: MetaDeck): string {
-  const place =
-    deck.placing != null && deck.placing > 0
-      ? `${ordinal(deck.placing)} of ${deck.players}`
-      : `${deck.players} players`;
-  const { wins, losses, ties } = deck.record;
-  return [place, deck.event, formatShortDate(deck.date), `${wins}-${losses}-${ties}`].join(" · ");
+  return formatMetaDeckRow(deck, { event: true });
 }
 
 /** Meta decks list the main deck only; the leader is separate. */
@@ -158,7 +120,7 @@ export function findSavedCopy(saved: readonly SavedDeck[], leaderId: string, dec
 
 /** Saves the deck's own paste text as a new local deck. */
 export function addMetaDeck(leader: { leaderId: string; name: string }, deck: MetaDeck): ImportIntoDeckResult {
-  return createDeckFromInput(metaDeckName(leader.name, leader.leaderId, deck.event, deck.placing), deck.text);
+  return createDeckFromInput(metaDeckName(leader.name, leader.leaderId, deck), deck.text);
 }
 
 /**

@@ -3,8 +3,8 @@ import { BUILD_SHA } from "./buildInfo";
 
 /**
  * "Am I on the latest app?" Each deploy ships `/version.json` (see
- * vite.config.ts) naming the commit it was built from. An open tab can
- * sit on an old bundle for days, so we fetch that file uncached and compare it
+ * tools/vite/versionFile.mjs) naming the commit it was built from. An open tab or a Home Screen app
+ * can sit on an old bundle for days, so we fetch that file uncached and compare it
  * with the commit baked into the running bundle.
  */
 
@@ -43,7 +43,10 @@ const listeners = new Set<() => void>();
 let inFlight: Promise<void> | null = null;
 let lastCheck = 0;
 
-/** The newer sha the person pressed "Later" on; a different newer sha shows the notice again. */
+/**
+ * Dismissing is opt-in: an app that offers a "Later" button calls `dismissUpdate` and renders from
+ * `usePendingUpdate`; one that does not just reads `useUpdateStatus`.
+ * The newer sha the person pressed "Later" on; a different newer sha shows the notice again. */
 let dismissedSha: string | null = null;
 let pending: DeployedVersion | null = null;
 
