@@ -86,7 +86,7 @@ describe("human grading (#1038)", () => {
     expect(rows[0]!.answer_sha256).toBe("abc123");
   });
 
-  it("skips a grade with an unanswered item or no overall and reports it (#1038)", () => {
+  it("skips a grade with an unanswered item or an overall outside 1-5 and reports it (#1038)", () => {
     const dir = run("a", "t");
     const items = allItems(dir, "y");
     delete items.R4;
@@ -95,6 +95,16 @@ describe("human grading (#1038)", () => {
       ctx(dir),
     );
     expect(rows).toEqual([]);
-    expect(skipped.map((s) => s.why)).toEqual(["item R4 not answered", "overall missing"]);
+    expect(skipped.map((s) => s.why)).toEqual(["item R4 not answered", "overall out of range"]);
+  });
+
+  it("keeps a grade with no overall, storing overall null (#1042)", () => {
+    const dir = run("a", "t");
+    const { rows, skipped } = toHumanGrades(
+      [{ key: "D01_rep0", items: allItems(dir, "y"), note: "" }, { key: "D01_rep0", items: allItems(dir, "y"), overall: null, note: "" }],
+      ctx(dir),
+    );
+    expect(skipped).toEqual([]);
+    expect(rows.map((r) => r.overall)).toEqual([null, null]);
   });
 });

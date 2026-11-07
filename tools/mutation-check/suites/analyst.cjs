@@ -535,6 +535,8 @@ module.exports = {
     {"id": "eval-human-export-leaks-rubric", "file": evHuman, "from": "      items: rubricItems(c.focus),\n", "to": "      items: rubricItems(c.focus),\n      rubric: t.rubric,\n", "kills": ["never the judge's rubric"], "args": "evals/human-grades.test.ts"},
     {"id": "eval-human-tool-result-uncapped", "file": evHuman, "from": "result: r.length > RESULT_CAP ? `${r.slice(0, RESULT_CAP)}\u2026 (cut)` : r", "to": "result: r", "kills": ["cuts a long tool result"], "args": "evals/human-grades.test.ts"},
     {"id": "eval-human-missing-item-accepted", "file": evHuman, "from": "    if (missing) {", "to": "    if (false && missing) {", "kills": ["skips a grade with an unanswered item"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-missing-overall-skipped", "file": evHuman, "from": "if (overall !== null && (!Number.isInteger(overall)", "to": "if (overall === null || (!Number.isInteger(overall)", "kills": ["keeps a grade with no overall, storing overall null"], "args": "evals/human-grades.test.ts"},
+    {"id": "eval-human-overall-range-unchecked", "file": evHuman, "from": "if (overall !== null && (!Number.isInteger(overall) || overall < 1 || overall > 5)) {", "to": "if (false) {", "kills": ["skips a grade with an unanswered item or an overall outside 1-5"], "args": "evals/human-grades.test.ts"},
     {"id": "eval-human-na-as-fail", "file": evHuman, "from": "g.items[id] === \"n\" ? 0 : null", "to": "0", "kills": ["converts y/n/na to 1/0/null"], "args": "evals/human-grades.test.ts"},
 
     // stats

@@ -146,7 +146,7 @@ npm run eval:grade-import -- evals/out/d-calibration grades.json   # appends to 
 npm run eval:judge-agreement -- evals/out/d-calibration        # per-item agreement and Cohen's kappa; writes agreement.md
 ```
 
-`agreement.md` flags items under 90% agreement or kappa under 0.6 as "needs prompt fix" and lists each disagreement with the judge's reason and Miko's note. Items either side marks n/a are left out of n. Tune the judge prompt (`RUBRIC_SYSTEM` in `evals/grade/judge.ts`), re-run the D cases and grade again. `eval:grade` is the older terminal flow for rep 0 only.
+`agreement.md` flags items under 90% agreement or kappa under 0.6 as "needs prompt fix" and lists each disagreement with the judge's reason and Miko's note. Items either side marks n/a are left out of n. The 1-5 overall score is optional (stored as null when left blank); only the per-item answers feed the agreement. Tune the judge prompt (`RUBRIC_SYSTEM` in `evals/grade/judge.ts`), re-run the D cases and grade again. `eval:grade` is the older terminal flow for rep 0 only.
 
 ### Review facts eval (#675)
 

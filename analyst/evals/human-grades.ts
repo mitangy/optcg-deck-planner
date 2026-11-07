@@ -20,7 +20,7 @@ export type HumanGrade = {
   answer_sha256: string;
   answer?: string;
   items: Record<string, 0 | 1 | null>;
-  overall: number;
+  overall: number | null;
   note: string;
   grader: "miko";
   graded_at: string;
@@ -28,7 +28,7 @@ export type HumanGrade = {
 
 export type GradingItem = { key: string; case: string; rep: number; question: string; deck?: string; answer: string; sources: string[]; tools: ToolStep[]; items: Record<string, string> };
 export type ToolStep = { name: string; input: string; result: string };
-export type PageGrade = { key: string; items: Record<string, "y" | "n" | "na">; overall: number; note: string };
+export type PageGrade = { key: string; items: Record<string, "y" | "n" | "na">; overall?: number | null; note: string };
 type Trace = { case: string; rep: number; turn: Message[]; rubric?: Rubric };
 
 const readJsonl = <T>(file: string): T[] => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as T) : []);
@@ -85,7 +85,7 @@ export function toolSteps(turn: readonly Message[]): ToolStep[] {
 
 type Ctx = { dir: string; run: string; gitSha: string; now: string };
 
-/** Page grades to rows. A grade with a missing item or overall is skipped and listed in `skipped`. */
+/** Page grades to rows. A grade with an unanswered item, or an overall that is present but not an integer 1-5, is skipped. A missing overall is kept as null and listed in `skipped`. */
 export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanGrade[]; skipped: { key: string; why: string }[] } {
   const exported = new Map(exportForGrading(ctx.dir).map((x) => [x.key, x]));
   const traces = new Map(readTraces(ctx.dir).map((t) => [`${t.case}_rep${t.rep}`, t]));
@@ -103,8 +103,9 @@ export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanG
       skipped.push({ key: g.key, why: `item ${missing} not answered` });
       continue;
     }
-    if (!Number.isInteger(g.overall) || g.overall < 1 || g.overall > 5) {
-      skipped.push({ key: g.key, why: "overall missing" });
+    const overall = g.overall ?? null;
+    if (overall !== null && (!Number.isInteger(overall) || overall < 1 || overall > 5)) {
+      skipped.push({ key: g.key, why: "overall out of range" });
       continue;
     }
     const s = summarizeTurn(traces.get(g.key)!.turn);
@@ -116,7 +117,7 @@ export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanG
       answer_sha256: results.find((r) => r.case === e.case && r.rep === e.rep)?.answer_sha256 ?? "",
       ...(shareable(s.answer, s.toolText) ? { answer: s.answer } : {}),
       items: Object.fromEntries(Object.keys(e.items).map((id) => [id, g.items[id] === "y" ? 1 : g.items[id] === "n" ? 0 : null])),
-      overall: g.overall,
+      overall,
       note: g.note ?? "",
       grader: "miko",
       graded_at: ctx.now,
