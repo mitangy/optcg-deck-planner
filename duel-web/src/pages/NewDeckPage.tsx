@@ -1,10 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BackLink } from "../layout/BackLink";
+import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { createDeckFromInput, setSelectedDeckId } from "../decks/storage";
 import { readLogPoseDraft } from "../logPose";
-import { NavMenu } from "../nav/NavMenu";
 
 export function NewDeckPage() {
   const navigate = useNavigate();
@@ -47,19 +46,18 @@ export function NewDeckPage() {
   return (
     <div className="app-shell">
       <div className="deck-config">
-        <header className="deck-config-header">
-          <div className="deck-config-nav">
-            <NavMenu />
-            <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
-          </div>
-          <div className="deck-config-heading">
-            <h1 className="deck-config-title">New deck</h1>
-            <p className="meta">
-              Name the deck and optionally paste a list. You can import again and add cards
-              manually on the next screen.
-            </p>
-          </div>
-        </header>
+        <DeckConfigHeader
+          back={{ to: "/decks", label: "Decks", ariaLabel: "Back to decks" }}
+          heading={
+            <>
+              <h1 className="deck-config-title">New deck</h1>
+              <p className="meta">
+                Name the deck and optionally paste a list. You can import again and add cards
+                manually on the next screen.
+              </p>
+            </>
+          }
+        />
 
         <form className="deck-new-form" onSubmit={onCreate}>
           {fromLogPose ? (

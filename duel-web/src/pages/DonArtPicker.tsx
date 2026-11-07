@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { donArtUrl, fallbackToDefaultDon } from "../board/donArt";
 
 type DonPrinting = { productId: number; name: string; set: string };
@@ -13,19 +14,10 @@ export function DonArtPicker({
   onChange: (productId: number | null) => void;
   savedWhere: string;
 }) {
-  const [catalog, setCatalog] = useState<DonPrinting[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const res = useAsyncResource(() => import("../assets/donCatalog.json").then((m) => m.default as DonPrinting[]), []);
+  const catalog = res.status === "ready" ? res.data : null;
+  const failed = res.status === "error";
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    let live = true;
-    import("../assets/donCatalog.json")
-      .then((m) => live && setCatalog(m.default as DonPrinting[]))
-      .catch(() => live && setFailed(true));
-    return () => {
-      live = false;
-    };
-  }, []);
 
   const shown = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
+import { usePolling } from "../lib/usePolling";
 import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
 import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
@@ -26,12 +27,8 @@ function useCurrentEvent() {
       .then(setEvent)
       .catch(() => undefined); // the banner is optional: no event, no banner
   }, []);
-  useEffect(() => {
-    load();
-    const onVisible = () => document.visibilityState === "visible" && load();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [load]);
+  // Now, and again whenever the tab comes back (no timer).
+  usePolling(load, null);
   return { event, reload: load };
 }
 
