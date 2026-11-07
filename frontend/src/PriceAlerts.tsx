@@ -12,6 +12,7 @@ import {
   type PrintingView,
 } from "./api";
 import { CardArtImg, CardThumb } from "./CardThumb";
+import { qk } from "./queryKeys";
 
 // ---------------------------------------------------------------- helpers
 
@@ -75,15 +76,13 @@ export function timeAgo(iso: string, now = Date.now()): string {
 
 // ---------------------------------------------------------------- data hooks
 
-const ALERTS_KEY = ["price-alerts"] as const;
-
 export function usePriceAlerts() {
-  return useQuery({ queryKey: ALERTS_KEY, queryFn: api.priceAlerts });
+  return useQuery({ queryKey: qk.priceAlerts(), queryFn: api.priceAlerts });
 }
 
 function useAlertActions() {
   const qc = useQueryClient();
-  const refresh = () => qc.invalidateQueries({ queryKey: ALERTS_KEY });
+  const refresh = () => qc.invalidateQueries({ queryKey: qk.priceAlerts() });
   const save = useMutation({ mutationFn: api.savePriceAlert, onSuccess: refresh });
   const patch = useMutation({
     mutationFn: (v: { id: number; patch: Parameters<typeof api.patchPriceAlert>[1] }) =>
@@ -256,7 +255,7 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === cardId && a.product_id === productId);
   const [editing, setEditing] = useState(false);
   const printingsQ = useQuery({
-    queryKey: ["card-printings", cardId],
+    queryKey: qk.cardPrintings(cardId),
     queryFn: () => api.cardPrintings(cardId),
     enabled: editing && !existing,
   });
@@ -308,7 +307,7 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
 
 export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClose: () => void }) {
   const alertsQ = usePriceAlerts();
-  const printingsQ = useQuery({ queryKey: ["card-printings", card.card_id], queryFn: () => api.cardPrintings(card.card_id) });
+  const printingsQ = useQuery({ queryKey: qk.cardPrintings(card.card_id), queryFn: () => api.cardPrintings(card.card_id) });
   // Search can list an alt art as its own row; its price and image are then the alt's, not the base's.
   const rowAlt = card.alt_product_id ?? 0;
   const [productId, setProductId] = useState(rowAlt);
@@ -587,7 +586,7 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
   const qc = useQueryClient();
   const read = useMutation({
     mutationFn: (ids?: number[]) => api.markNotificationsRead(ids),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications() }),
   });
   // Dots reflect what was unread when the panel opened; opening is what marks them read.
   const unreadAtOpen = useRef(new Set(items.filter((n) => !n.read_at).map((n) => n.id)));
@@ -643,7 +642,7 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
 
 export function NotificationsBell() {
   const q = useQuery({
-    queryKey: ["notifications"],
+    queryKey: qk.notifications(),
     queryFn: () => api.notifications(30),
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: true,

@@ -11,6 +11,7 @@ import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } fro
 import { PriceHistory } from "./PriceHistory";
 import { SITE_ORIGIN } from "./seo/routeMetaTable";
 import { Skeleton } from "./Skeleton";
+import { qk } from "./queryKeys";
 
 const STALE_MS = 5 * 60_000;
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
@@ -311,7 +312,7 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
   const days = parseDays(params.get("days"));
 
   const q = useQuery({
-    queryKey: ["meta", "card", cardId, days],
+    queryKey: qk.meta.card(cardId, days),
     queryFn: () => api.cardDetail(cardId, days),
     staleTime: STALE_MS,
     retry: false,

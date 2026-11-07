@@ -6,6 +6,7 @@ import { CardSearchInput, matchesCardSearch } from "../cardListControls";
 import { friendsApi, type FriendDeckCard } from "./friendsApi";
 import { CardRow, Empty, LoadError } from "./ui";
 import { useFriend } from "./useFriend";
+import { qk } from "../queryKeys";
 
 /** Order: leader first, then by cost, then name. */
 function deckOrder(a: FriendDeckCard, b: FriendDeckCard): number {
@@ -21,7 +22,7 @@ export function FriendDeckPage() {
   const navigate = useNavigate();
   const { friend, isLoading: listLoading } = useFriend(username);
   const deck = useQuery({
-    queryKey: ["friend", friend?.user_id, "deck", id],
+    queryKey: qk.friend.deck(friend?.user_id, id),
     queryFn: () => friendsApi.deck(friend!.user_id, id),
     enabled: Boolean(friend) && Number.isFinite(id),
     retry: false,
@@ -35,8 +36,8 @@ export function FriendDeckPage() {
   const copy = useMutation({
     mutationFn: () => friendsApi.copyDeck(friend!.user_id, id),
     onSuccess: (created) => {
-      void qc.invalidateQueries({ queryKey: ["decks"] });
-      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
+      void qc.invalidateQueries({ queryKey: qk.shopping.all() });
       navigate(`/decks/${created.id}`);
     },
   });

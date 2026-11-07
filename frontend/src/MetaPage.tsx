@@ -14,6 +14,7 @@ import {
   META_DAY_OPTIONS,
   META_DEFAULT_DAYS,
 } from "./meta";
+import { qk } from "./queryKeys";
 
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
 const META_STALE_MS = 5 * 60_000;
@@ -107,8 +108,8 @@ function MetaDeckRow({
       createMetaDeck(leader, deck, {
         createDeck: api.createDeck,
         onCreated: async () => {
-          await qc.invalidateQueries({ queryKey: ["decks"] });
-          await qc.invalidateQueries({ queryKey: ["shopping"] });
+          await qc.invalidateQueries({ queryKey: qk.decks() });
+          await qc.invalidateQueries({ queryKey: qk.shopping.all() });
         },
         navigate,
       }),
@@ -197,12 +198,12 @@ export function MetaPage({ user }: { user: User | null }) {
   const top8 = params.get("top8") === "1";
 
   const leaders = useQuery({
-    queryKey: ["meta", "leaders", days],
+    queryKey: qk.meta.leaders(days),
     queryFn: () => api.metaLeaders(days),
     staleTime: META_STALE_MS,
   });
   const decks = useQuery({
-    queryKey: ["meta", "decks", leaderId, days, top8 ? 8 : 0],
+    queryKey: qk.meta.decks(leaderId, days, top8 ? 8 : 0),
     queryFn: () => api.metaDecks(leaderId, days, top8 ? 8 : 0),
     enabled: Boolean(leaderId),
     staleTime: META_STALE_MS,

@@ -44,6 +44,7 @@ import {
 import { jsonArrayCodec, usePersistedState } from "../../storage/persisted";
 import { CollectionAddPanel, CollectionOwnedControl } from "./CollectionAddPanel";
 import { CollectionItemsView } from "./CollectionItemsView";
+import { qk } from "../../queryKeys";
 
 const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
 const collectionColorsCodec = jsonArrayCodec(isColor);
@@ -52,7 +53,7 @@ export function CollectionPage() {
   const qc = useQueryClient();
   const savedDeckIds = useSavedShoppingDeckIds();
   const { data, isLoading, error } = useQuery({
-    queryKey: savedDeckIds ? ["owned", savedDeckIds] : ["owned"],
+    queryKey: qk.owned.collection(savedDeckIds),
     queryFn: () => api.ownedCollection(savedDeckIds),
   });
   const noUnavailableSorts = useMemo(() => [] as SortKey[], []);
@@ -109,8 +110,8 @@ export function CollectionPage() {
   // Shopping and deck pages refetch; this page keeps its optimistic copy so a
   // card stepped down to 0 stays put instead of vanishing under the pointer.
   const onOwnedSaved = () => {
-    void qc.invalidateQueries({ queryKey: ["shopping"] });
-    void qc.invalidateQueries({ queryKey: ["deck"] });
+    void qc.invalidateQueries({ queryKey: qk.shopping.all() });
+    void qc.invalidateQueries({ queryKey: qk.deck.all() });
   };
 
   const altArt = useCardEdits();

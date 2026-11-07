@@ -1,5 +1,6 @@
 /** Planner ↔ FastAPI: friends, sharing, spares and trades (#703). Shapes follow the API contract exactly. */
-import { request, type DeckDetail, type User } from "../api";
+import { request } from "../apiClient";
+import type { DeckDetail, User } from "../api";
 
 export type Friend = { user_id: number; username: string };
 export type FriendRequest = { user_id: number; username: string };

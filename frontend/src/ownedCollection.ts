@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { OwnedCard, OwnedCollectionResponse } from "./api";
+import { qk } from "./queryKeys";
 
 export type CollectionTotals = {
   cards: number;
@@ -125,7 +126,7 @@ export function patchOwnedCollectionDisplayArt(
  * Collection). Call after any server-side change to Owned.
  */
 export function invalidateOwnedViews(qc: QueryClient) {
-  void qc.invalidateQueries({ queryKey: ["shopping"] });
-  void qc.invalidateQueries({ queryKey: ["deck"] });
-  void qc.invalidateQueries({ queryKey: ["owned"] });
+  void qc.invalidateQueries({ queryKey: qk.shopping.all() });
+  void qc.invalidateQueries({ queryKey: qk.deck.all() });
+  void qc.invalidateQueries({ queryKey: qk.owned.all() });
 }

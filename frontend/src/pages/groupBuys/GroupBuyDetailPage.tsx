@@ -25,6 +25,7 @@ import { ArtWantChips } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
+import { qk } from "../../queryKeys";
 
 export function GroupBuyDetailPage() {
   const { id } = useParams();
@@ -56,11 +57,11 @@ export function GroupBuyDetailPage() {
   const sortingByUser = effectiveSorts.includes("user");
 
   const detailQ = useQuery({
-    queryKey: ["group-buy", groupId],
+    queryKey: qk.groupBuy.detail(groupId),
     queryFn: () => api.groupBuy(groupId),
     enabled: Number.isFinite(groupId) && groupId > 0,
   });
-  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const decksQ = useQuery({ queryKey: qk.decks(), queryFn: api.decks });
   const meQ = useMe();
 
   const detail = detailQ.data;
@@ -126,8 +127,8 @@ export function GroupBuyDetailPage() {
   const rename = useMutation({
     mutationFn: (title: string) => api.setGroupBuyTitle(groupId, title),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setRenaming(false);
     },
     onError: (e: Error) => setMsg(e.message),
@@ -142,8 +143,8 @@ export function GroupBuyDetailPage() {
   const lock = useMutation({
     mutationFn: () => api.lockGroupBuy(groupId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg("Group buy locked — quantities frozen for checkout.");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -152,8 +153,8 @@ export function GroupBuyDetailPage() {
   const unlock = useMutation({
     mutationFn: () => api.unlockGroupBuy(groupId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg("Group buy unlocked — live shopping contributions again.");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -162,8 +163,8 @@ export function GroupBuyDetailPage() {
   const markOrdered = useMutation({
     mutationFn: (body: GroupBuyOrderUpdate) => api.markGroupBuyOrdered(groupId, body),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg(
         "Order placed — settle shipping below. Import a TCGPlayer receipt, then Mark purchased for matched copies.",
       );
@@ -174,8 +175,8 @@ export function GroupBuyDetailPage() {
   const saveOrder = useMutation({
     mutationFn: (body: GroupBuyOrderUpdate) => api.updateGroupBuyOrder(groupId, body),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg("Order details saved.");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -189,8 +190,8 @@ export function GroupBuyDetailPage() {
         allow_partial: true,
       }),
     onSuccess: async (d, draft) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       // Mark purchased / Undo change Owned on the server.
       invalidateOwnedViews(qc);
       setReceiptDraft(null);
@@ -207,8 +208,8 @@ export function GroupBuyDetailPage() {
   const undoPurchase = useMutation({
     mutationFn: () => api.undoGroupBuyReceiptApply(groupId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       // Mark purchased / Undo change Owned on the server.
       invalidateOwnedViews(qc);
       setReceiptDraft(null);
@@ -223,7 +224,7 @@ export function GroupBuyDetailPage() {
   const contribution = useMutation({
     mutationFn: (deckIds: number[] | null) => api.updateGroupBuyContribution(groupId, deckIds),
     onSuccess: (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
       setMsg("Updated your contribution decks.");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -234,8 +235,8 @@ export function GroupBuyDetailPage() {
       api.setGroupBuyQty(groupId, cardId, qty),
     onMutate: ({ cardId }) => keepCardVisible(cardId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -243,8 +244,8 @@ export function GroupBuyDetailPage() {
   const clearQty = useMutation({
     mutationFn: (cardId: string) => api.clearGroupBuyQty(groupId, cardId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -252,8 +253,8 @@ export function GroupBuyDetailPage() {
   const syncQty = useMutation({
     mutationFn: () => api.syncGroupBuyQuantities(groupId),
     onSuccess: async (d) => {
-      qc.setQueryData(["group-buy", groupId], d);
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg("Your buy quantities reset to shopping still-need.");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -278,10 +279,10 @@ export function GroupBuyDetailPage() {
     onMutate: async ({ cardId, productId, qty }) => {
       keepCardVisible(cardId);
       setAltWantBusyKey(`${cardId}:${productId}`);
-      await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
-      const prev = qc.getQueryData<GroupBuyDetail>(["group-buy", groupId]);
+      await qc.cancelQueries({ queryKey: qk.groupBuy.detail(groupId) });
+      const prev = qc.getQueryData<GroupBuyDetail>(qk.groupBuy.detail(groupId));
       if (prev) {
-        qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], {
+        qc.setQueryData<GroupBuyDetail>(qk.groupBuy.detail(groupId), {
           ...prev,
           lines: prev.lines.map((line) =>
             line.card_id === cardId
@@ -298,12 +299,12 @@ export function GroupBuyDetailPage() {
       return { prev };
     },
     onError: (e: Error, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(qk.groupBuy.detail(groupId), ctx.prev);
       setMsg(e.message);
     },
     onSuccess: async (res, { cardId, productId }) => {
       // The server may clamp the want; show the stored value.
-      qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], (cur) =>
+      qc.setQueryData<GroupBuyDetail>(qk.groupBuy.detail(groupId), (cur) =>
         cur
           ? {
               ...cur,
@@ -320,11 +321,11 @@ export function GroupBuyDetailPage() {
             }
           : cur,
       );
-      await qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      await qc.invalidateQueries({ queryKey: ["shopping"] });
-      await qc.invalidateQueries({ queryKey: ["deck"] });
-      await qc.invalidateQueries({ queryKey: ["decks"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuy.detail(groupId) });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      await qc.invalidateQueries({ queryKey: qk.shopping.all() });
+      await qc.invalidateQueries({ queryKey: qk.deck.all() });
+      await qc.invalidateQueries({ queryKey: qk.decks() });
     },
     onSettled: () => setAltWantBusyKey(null),
   });
@@ -334,10 +335,10 @@ export function GroupBuyDetailPage() {
     mutationFn: ({ cardId, productId }: { cardId: string; productId: number }) =>
       api.setDisplayArt(cardId, productId),
     onMutate: async ({ cardId, productId }) => {
-      await qc.cancelQueries({ queryKey: ["group-buy", groupId] });
-      const prev = qc.getQueryData<GroupBuyDetail>(["group-buy", groupId]);
+      await qc.cancelQueries({ queryKey: qk.groupBuy.detail(groupId) });
+      const prev = qc.getQueryData<GroupBuyDetail>(qk.groupBuy.detail(groupId));
       if (prev) {
-        qc.setQueryData<GroupBuyDetail>(["group-buy", groupId], {
+        qc.setQueryData<GroupBuyDetail>(qk.groupBuy.detail(groupId), {
           ...prev,
           lines: prev.lines.map((line) =>
             line.card_id === cardId ? { ...line, display_art: productId } : line,
@@ -348,7 +349,7 @@ export function GroupBuyDetailPage() {
       return { prev };
     },
     onError: (e: Error, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["group-buy", groupId], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(qk.groupBuy.detail(groupId), ctx.prev);
       setMsg(e.message);
     },
     onSettled: () => invalidateDisplayArtViews(qc),
@@ -357,7 +358,7 @@ export function GroupBuyDetailPage() {
   const leave = useMutation({
     mutationFn: () => api.leaveGroupBuy(groupId),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       navigate("/group-buys");
     },
     onError: (e: Error) => setMsg(e.message),
@@ -366,7 +367,7 @@ export function GroupBuyDetailPage() {
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       window.location.href = "/group-buys";
     },
     onError: (e: Error) => setMsg(e.message),
@@ -839,7 +840,7 @@ export function GroupBuyDetailPage() {
           onDraftChange={setReceiptDraft}
           onError={(message) => setMsg(message)}
           onReceiptSaved={() => {
-            void qc.invalidateQueries({ queryKey: ["group-buy", groupId] });
+            void qc.invalidateQueries({ queryKey: qk.groupBuy.detail(groupId) });
           }}
         />
       )}

@@ -1,14 +1,15 @@
 import type { useQueryClient } from "@tanstack/react-query";
 import type { DeckDetail, OwnedCollectionResponse, ShoppingResponse } from "./api";
 import { patchOwnedCollectionDisplayArt } from "./ownedCollection";
+import { qk } from "./queryKeys";
 
 /** Display art is a view choice only: refresh the views that show it. */
 export function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
-  void qc.invalidateQueries({ queryKey: ["shopping"] });
-  void qc.invalidateQueries({ queryKey: ["deck"] });
-  void qc.invalidateQueries({ queryKey: ["owned"] });
-  void qc.invalidateQueries({ queryKey: ["group-buy"] });
-  void qc.invalidateQueries({ queryKey: ["group-buys"] });
+  void qc.invalidateQueries({ queryKey: qk.shopping.all() });
+  void qc.invalidateQueries({ queryKey: qk.deck.all() });
+  void qc.invalidateQueries({ queryKey: qk.owned.all() });
+  void qc.invalidateQueries({ queryKey: qk.groupBuy.all() });
+  void qc.invalidateQueries({ queryKey: qk.groupBuys() });
 }
 
 /** Patch the chosen art (null = automatic, 0 = base) onto every cached view of a card. */
@@ -18,7 +19,7 @@ export function applyDisplayArtOptimistic(
   productId: number | null,
 ) {
   const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) =>
     old
       ? {
           ...old,
@@ -28,7 +29,7 @@ export function applyDisplayArtOptimistic(
         }
       : old,
   );
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+  qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) =>
     old
       ? {
           ...old,
@@ -38,7 +39,7 @@ export function applyDisplayArtOptimistic(
         }
       : old,
   );
-  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: qk.owned.all() }, (old) =>
     old ? patchOwnedCollectionDisplayArt(old, id, productId) : old,
   );
 }

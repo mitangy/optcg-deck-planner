@@ -21,6 +21,7 @@ import {
   toPoints,
   type PricePoint,
 } from "./priceHistoryModel";
+import { qk } from "./queryKeys";
 
 // Chart geometry in viewBox units; the SVG scales to its box, so the aspect ratio (and height) never changes.
 const W = 360;
@@ -298,7 +299,7 @@ function Chart({ points, label }: { points: PricePoint[]; label: string }) {
 /** Price history of one art: range buttons, whole-history stats and an SVG line chart. */
 export function PriceHistory({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const q = useQuery<PriceHistoryResponse>({
-    queryKey: ["price-history", cardId, productId],
+    queryKey: qk.priceHistory(cardId, productId),
     queryFn: () => api.priceHistory(cardId, productId),
     staleTime: 10 * 60_000,
     retry: false,

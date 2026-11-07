@@ -16,6 +16,7 @@ import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrder
 import { readOnlyAltRow } from "./memberParts";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_PUBLIC_KEY } from "../../storage/keys";
+import { qk } from "../../queryKeys";
 
 /** /group-buy/view/:token is the older read-only link; it now shows the invite page (#880). */
 export function PublicGroupBuyPage() {
@@ -29,12 +30,12 @@ export function GroupBuyJoinPage() {
   const navigate = useNavigate();
   const meQ = useMe();
   const previewQ = useQuery({
-    queryKey: ["group-buy-invite", token],
+    queryKey: qk.groupBuy.invite(token),
     queryFn: () => api.groupBuyInvitePreview(token),
     enabled: Boolean(token),
   });
   const detailQ = useQuery({
-    queryKey: ["public-group-buy", token],
+    queryKey: qk.groupBuy.publicView(token),
     queryFn: () => api.publicGroupBuy(token),
     enabled: Boolean(token),
   });
