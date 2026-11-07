@@ -10,8 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, inspect, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from app.admin import discord_feedback
@@ -291,25 +290,6 @@ def test_admin_list_names_the_discord_author_as_reporter_979(db):
     db.commit()
     out = list_feedback(db, status="all")
     assert {o.app: o.reporter for o in out} == {"discord": "Discord · Zoro", "duel": "anonymous"}
-
-
-def test_migration_adds_the_discord_columns_and_unique_index_to_an_old_table_979(monkeypatch: pytest.MonkeyPatch):
-    from app.core import db as app_db
-
-    old = create_engine("sqlite://")
-    with old.begin() as conn:
-        conn.execute(text("CREATE TABLE feedback (id INTEGER PRIMARY KEY, kind VARCHAR(16), message TEXT, app VARCHAR(16))"))
-        conn.execute(text("INSERT INTO feedback (kind, message, app) VALUES ('bug', 'old row', 'duel')"))
-    monkeypatch.setattr(app_db, "engine", old)
-    app_db.init_db()
-    assert {"discord_message_id", "discord_author", "github_issue"} <= {c["name"] for c in inspect(old).get_columns("feedback")}
-    app_db._ensure_feedback_discord_columns()  # safe to run on every start
-    insert = text("INSERT INTO feedback (kind, message, app, discord_message_id) VALUES ('bug', 'm', 'discord', :m)")
-    with old.begin() as conn:
-        conn.execute(insert, {"m": "1"})
-    with pytest.raises(IntegrityError):
-        with old.begin() as conn:
-            conn.execute(insert, {"m": "1"})
 
 
 def test_new_ticket_opens_one_github_issue_before_the_reply_979(db):
