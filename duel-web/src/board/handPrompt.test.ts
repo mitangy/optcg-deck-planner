@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PendingChoiceView, PlayerView } from "../net/protocol";
-import { DEMO_VIEW } from "../pages/DemoPage";
+import { DEMO_VIEW } from "./fixtures/demoViews";
 import type { Box } from "./battleArc";
 import { confirmQuestion, handConfirmAnchor, handUseFromIntent, type HandUse } from "./handPrompt";
 

@@ -76,6 +76,7 @@ import { TIMER_PRESET_OPTIONS, timerFromPreset, type TimerPreset } from "../home
 import { claimMatchRoom } from "../tournaments/playLoop";
 import { playTournamentMatch } from "../tournaments/tournamentApi";
 import { TournamentsCard } from "../tournaments/TournamentsCard";
+import { prefetchBoard, prefetchBoardWhenIdle } from "../lazyRoutes";
 
 type TournamentPlay = { code: string; matchId: number; opponent: string; timer: TimerPreset };
 
@@ -323,6 +324,8 @@ export function LobbyPage() {
   const { client, connect, queueRanked, cancelQueue, queueing, setRating, startMatch, takeOver } =
     useDuelSession();
   const location = useLocation();
+  // The board is its own chunk (B-01): fetch it once the lobby is up and the browser is idle, so Play opens it at once.
+  useEffect(() => prefetchBoardWhenIdle(), []);
   // `/watch/:roomId` (a shared spectate link) goes straight into that match.
   const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
   const [searchParams] = useSearchParams();
@@ -1070,6 +1073,8 @@ export function LobbyPage() {
               className="btn btn-play"
               disabled={busy || queueing}
               aria-describedby="play-subline"
+              onPointerEnter={prefetchBoard}
+              onFocus={prefetchBoard}
               onClick={() => playFrom(lastMode)}
             >
               Play
@@ -1086,6 +1091,8 @@ export function LobbyPage() {
                     type="button"
                     className="mode-tile"
                     disabled={busy || queueing}
+                    onPointerEnter={prefetchBoard}
+                    onFocus={prefetchBoard}
                     onClick={() => playFrom(m)}
                   >
                     <span className="mode-tile-title">{card.title}</span>
@@ -1333,6 +1340,8 @@ export function LobbyPage() {
                 type="button"
                 className="btn btn-primary btn-lg sheet-confirm"
                 disabled={busy || queueing}
+                onPointerEnter={prefetchBoard}
+                onFocus={prefetchBoard}
                 onClick={() => void confirmSetup(mode)}
               >
                 {busy && busyStatus ? busyStatus : confirmLabel}

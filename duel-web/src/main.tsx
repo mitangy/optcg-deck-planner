@@ -19,7 +19,6 @@ import "./auth/username.css";
 import "./deckList.css";
 import "./light.css";
 import "./metaDecks.css";
-import "./admin/admin.css";
 import "./events/events.css";
 import "@optcg/site-legal/siteLegal.css";
 import "@optcg/patch-notes/whatsNew.css";
