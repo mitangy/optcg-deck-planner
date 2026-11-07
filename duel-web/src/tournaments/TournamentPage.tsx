@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuList, Select } from "@optcg/ui/popups";
 import { NavMenu } from "../nav/NavMenu";
 import { ApiError, googleLoginUrl } from "../net/api";
-import { BackLink } from "../pages/BackLink";
+import { BackLink } from "../layout/BackLink";
 import { ensureDefaultDeck, getSelectedDeckId, listSavedDecks, setSelectedDeckId } from "../decks/storage";
 import { useFriends } from "../friends/FriendsPanel";
 import {
@@ -18,7 +18,8 @@ import {
   roundLabel,
   startBlocker,
 } from "./bracket";
-import { usePolling, useWho } from "./hooks";
+import { usePolling } from "../lib/usePolling";
+import { useWho } from "./hooks";
 import {
   awardTournamentMatch,
   cancelTournament,

@@ -1,7 +1,6 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useState } from "react";
-import { NavMenu } from "../nav/NavMenu";
 import { fetchAuthMe } from "../net/api";
-import { BackLink } from "../pages/BackLink";
 import { type AdminMe, fetchAdminMe } from "./adminApi";
 import type { Actor } from "./UserActions";
 
@@ -29,15 +28,8 @@ export function useAdminWho(): Who {
 export function Gate({ title, children, back }: { title: string; children: React.ReactNode; back?: { to: string; label: string; ariaLabel: string } }) {
   const b = back ?? { to: "/", label: "Home", ariaLabel: "Back to home" };
   return (
-    <div className="app-shell">
-      <div className="page page-narrow">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to={b.to} label={b.label} ariaLabel={b.ariaLabel} />
-          <h1 className="page-title">{title}</h1>
-        </header>
-        {children}
-      </div>
-    </div>
+    <PageShell pageClass="page-narrow" back={b} title={title}>
+      {children}
+    </PageShell>
   );
 }

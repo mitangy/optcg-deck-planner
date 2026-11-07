@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BackLink } from "./BackLink";
+import { BackLink } from "../layout/BackLink";
 import { DeckImportPanel } from "../board/DeckImportPanel";
 import { createDeckFromInput, setSelectedDeckId } from "../decks/storage";
 import { readLogPoseDraft } from "../logPose";

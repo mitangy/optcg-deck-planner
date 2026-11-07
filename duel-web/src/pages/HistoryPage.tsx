@@ -1,3 +1,4 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
@@ -8,9 +9,7 @@ import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi
 import { matchRow, outcomeKey } from "../history/matchRow";
 import { useClickCopy } from "../board/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
-import { BackLink } from "./BackLink";
 import "../history/history.css";
-import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -70,99 +69,92 @@ export function HistoryPage() {
   const anyReplay = rows.some((r) => r.replay);
 
   return (
-    <div className="app-shell">
-      <div className="page page-narrow">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">Match history</h1>
-        </header>
+    <PageShell pageClass="page-narrow" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Match history">
 
-        {state.status === "loading" ? <p className="panel-copy history-note">Loading your matches…</p> : null}
-        {state.status === "error" ? <p className="panel-copy history-note" role="alert">{state.message}</p> : null}
-        {state.status === "signed-out" ? (
-          <section className="panel">
-            <p className="panel-copy">Sign in to keep a history of your duels.</p>
-            <div className="btn-row">
-              <a className="btn btn-primary" href={googleLoginUrl()}>
-                Sign in with Google
-              </a>
-            </div>
-          </section>
-        ) : null}
-        {state.status === "ready" && rows.length === 0 ? (
-          <section className="panel">
-            <p className="panel-copy">No finished duels yet. Games against other signed-in players show up here.</p>
-          </section>
-        ) : null}
+      {state.status === "loading" ? <p className="panel-copy history-note">Loading your matches…</p> : null}
+      {state.status === "error" ? <p className="panel-copy history-note" role="alert">{state.message}</p> : null}
+      {state.status === "signed-out" ? (
+        <section className="panel">
+          <p className="panel-copy">Sign in to keep a history of your duels.</p>
+          <div className="btn-row">
+            <a className="btn btn-primary" href={googleLoginUrl()}>
+              Sign in with Google
+            </a>
+          </div>
+        </section>
+      ) : null}
+      {state.status === "ready" && rows.length === 0 ? (
+        <section className="panel">
+          <p className="panel-copy">No finished duels yet. Games against other signed-in players show up here.</p>
+        </section>
+      ) : null}
 
-        {summary ? (
-          <dl className="history-summary" aria-label="Your record">
+      {summary ? (
+        <dl className="history-summary" aria-label="Your record">
+          <div>
+            <dt>Record</dt>
+            <dd>
+              {summary.wins}-{summary.losses}
+            </dd>
+          </div>
+          {summary.rating != null ? (
             <div>
-              <dt>Record</dt>
-              <dd>
-                {summary.wins}-{summary.losses}
-              </dd>
+              <dt>Bounty</dt>
+              <dd>{summary.rating}</dd>
             </div>
-            {summary.rating != null ? (
-              <div>
-                <dt>Bounty</dt>
-                <dd>{summary.rating}</dd>
-              </div>
-            ) : null}
-          </dl>
-        ) : null}
+          ) : null}
+        </dl>
+      ) : null}
 
-        {rows.length > 0 ? (
-          <ol className="history-list">
-            {rows.map((r) => (
-              <li key={r.id} className="history-item">
+      {rows.length > 0 ? (
+        <ol className="history-list">
+          {rows.map((r) => (
+            <li key={r.id} className="history-item">
+              <Link
+                to={`/history/${encodeURIComponent(r.id)}`}
+                className="history-row history-row-link"
+                data-outcome={outcomeKey(r.outcome)}
+              >
+                <span className="history-outcome">{r.outcome}</span>
+                <LeaderArt defId={r.yourLeaderId} />
+                <div className="history-main">
+                  <p className="history-leaders">
+                    <span>{r.yourLeader}</span>
+                    <span className="history-vs">vs</span>
+                    <span>{r.opponentLeader}</span>
+                    {r.hasChat ? <ChatMark /> : null}
+                  </p>
+                  <p className="history-meta">
+                    {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
+                <span className="history-chevron" aria-hidden>›</span>
+              </Link>
+              {r.replay ? (
                 <Link
-                  to={`/history/${encodeURIComponent(r.id)}`}
-                  className="history-row history-row-link"
-                  data-outcome={outcomeKey(r.outcome)}
+                  className="history-replay-btn"
+                  to={`/replay/${encodeURIComponent(r.id)}`}
+                  aria-label={`Watch replay: ${r.yourLeader} vs ${r.opponentLeader}, ${r.opponent}`}
+                  title="Watch this game again"
                 >
-                  <span className="history-outcome">{r.outcome}</span>
-                  <LeaderArt defId={r.yourLeaderId} />
-                  <div className="history-main">
-                    <p className="history-leaders">
-                      <span>{r.yourLeader}</span>
-                      <span className="history-vs">vs</span>
-                      <span>{r.opponentLeader}</span>
-                      {r.hasChat ? <ChatMark /> : null}
-                    </p>
-                    <p className="history-meta">
-                      {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
-                  <span className="history-chevron" aria-hidden>›</span>
+                  <span aria-hidden>▶</span>
+                  <span className="history-replay-label">Watch</span>
                 </Link>
-                {r.replay ? (
-                  <Link
-                    className="history-replay-btn"
-                    to={`/replay/${encodeURIComponent(r.id)}`}
-                    aria-label={`Watch replay: ${r.yourLeader} vs ${r.opponentLeader}, ${r.opponent}`}
-                    title="Watch this game again"
-                  >
-                    <span aria-hidden>▶</span>
-                    <span className="history-replay-label">Watch</span>
-                  </Link>
-                ) : anyReplay ? (
-                  <span className="history-replay-slot" aria-hidden />
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        ) : null}
+              ) : anyReplay ? (
+                <span className="history-replay-slot" aria-hidden />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
 
-        {state.status === "ready" ? (
-          <p className="field-hint history-hint">
-            {copy("Tap a game to read it turn by turn.")} Want a coach's take? Add your Log Pose link from{" "}
-            <Link to="/settings">Settings</Link> to Claude and ask it to review a game.
-          </p>
-        ) : null}
-      </div>
-    </div>
+      {state.status === "ready" ? (
+        <p className="field-hint history-hint">
+          {copy("Tap a game to read it turn by turn.")} Want a coach's take? Add your Log Pose link from{" "}
+          <Link to="/settings">Settings</Link> to Claude and ask it to review a game.
+        </p>
+      ) : null}
+    </PageShell>
   );
 }

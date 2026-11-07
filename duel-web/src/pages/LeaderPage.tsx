@@ -1,3 +1,4 @@
+import { PageShell } from "../layout/PageShell";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { usePageMeta } from "@optcg/ui/seo";
@@ -7,9 +8,7 @@ import { formatDeckRow, formatPercent, playMetaDeck, type MetaDeck, type MetaLea
 import { dataTail, leaderIntro, colorList } from "../leaders/leaderIntro";
 import { leaderPath, parseLeaderSlug, resolveLeaderRoute } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
-import { NavMenu } from "../nav/NavMenu";
 import { SITE_ORIGIN } from "../seo/routeMetaTable";
-import { BackLink } from "./BackLink";
 import { DeckCards, LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";
 import "./leaders.css";
@@ -81,20 +80,14 @@ function Stat({ label, value }: { label: string; value: string }) {
 function NotFound({ text }: { text: string }) {
   usePageMeta({ title: "Leader not found – OPTCG Duel", description: text, origin: SITE_ORIGIN, noindex: true });
   return (
-    <div className="app-shell">
-      <div className="page leader-page">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/leaders" label="Leaders" ariaLabel="Back to all leaders" />
-        </header>
-        <section className="panel">
-          <h1 className="page-title">{text}</h1>
-          <p className="panel-copy">
-            Pick another leader from <Link to="/leaders">the list of popular leaders</Link>, or <Link to="/decks/meta">browse the meta decks</Link>.
-          </p>
-        </section>
-      </div>
-    </div>
+    <PageShell pageClass="leader-page" back={{ to: "/leaders", label: "Leaders", ariaLabel: "Back to all leaders" }}>
+      <section className="panel">
+        <h1 className="page-title">{text}</h1>
+        <p className="panel-copy">
+          Pick another leader from <Link to="/leaders">the list of popular leaders</Link>, or <Link to="/decks/meta">browse the meta decks</Link>.
+        </p>
+      </section>
+    </PageShell>
   );
 }
 
@@ -126,110 +119,104 @@ function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typ
   const others = view.leaders.filter((l) => l.leader_id !== leader.leader_id).slice(0, 6);
   const top = decks[0];
   return (
-    <div className="app-shell">
-      <div className="page leader-page">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/leaders" label="Leaders" ariaLabel="Back to all leaders" />
-        </header>
+    <PageShell pageClass="leader-page" back={{ to: "/leaders", label: "Leaders", ariaLabel: "Back to all leaders" }}>
 
-        <section className="leader-hero">
-          <LeaderArt id={leader.leader_id} url={leader.image_url} className="leader-hero-art" />
-          <div className="leader-hero-body">
-            <ColorChips color={leader.color} />
-            <h1 className="page-title leader-title">{text.h1}</h1>
-            <p className="play-online-notice" role="note">
-              <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
+      <section className="leader-hero">
+        <LeaderArt id={leader.leader_id} url={leader.image_url} className="leader-hero-art" />
+        <div className="leader-hero-body">
+          <ColorChips color={leader.color} />
+          <h1 className="page-title leader-title">{text.h1}</h1>
+          <p className="play-online-notice" role="note">
+            <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
+          </p>
+          <dl className="leader-stats">
+            <Stat label="Meta share" value={formatPercent(leader.share)} />
+            <Stat label="Top 8s" value={String(leader.top8)} />
+            <Stat label="Win rate" value={formatPercent(leader.win_rate)} />
+            <Stat label="Decks" value={String(leader.decks)} />
+          </dl>
+          <div className="play-online-cta leader-cta">
+            {top ? (
+              <PlayButton leader={leader} deck={top} className="btn btn-primary btn-lg">
+                Play this deck online
+              </PlayButton>
+            ) : null}
+            <Link to="/decks/meta" className="btn btn-secondary btn-lg">
+              All meta decks
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel" aria-labelledby="leader-about">
+        <h2 className="panel-title" id="leader-about">
+          {leader.name || leader.leader_id} in the meta
+        </h2>
+        <div className="leader-intro">
+          {leaderIntro({ leader, rank: rank || 1, of: view.routeLeaders.length, days: view.days, decks }).map((p) => (
+            <p key={p} className="panel-copy">
+              {p}
             </p>
-            <dl className="leader-stats">
-              <Stat label="Meta share" value={formatPercent(leader.share)} />
-              <Stat label="Top 8s" value={String(leader.top8)} />
-              <Stat label="Win rate" value={formatPercent(leader.win_rate)} />
-              <Stat label="Decks" value={String(leader.decks)} />
-            </dl>
-            <div className="play-online-cta leader-cta">
-              {top ? (
-                <PlayButton leader={leader} deck={top} className="btn btn-primary btn-lg">
-                  Play this deck online
-                </PlayButton>
-              ) : null}
-              <Link to="/decks/meta" className="btn btn-secondary btn-lg">
-                All meta decks
-              </Link>
-            </div>
-          </div>
-        </section>
+          ))}
+        </div>
+      </section>
 
-        <section className="panel" aria-labelledby="leader-about">
-          <h2 className="panel-title" id="leader-about">
-            {leader.name || leader.leader_id} in the meta
-          </h2>
-          <div className="leader-intro">
-            {leaderIntro({ leader, rank: rank || 1, of: view.routeLeaders.length, days: view.days, decks }).map((p) => (
-              <p key={p} className="panel-copy">
-                {p}
-              </p>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel" aria-labelledby="leader-decks">
-          <h2 className="panel-title" id="leader-decks">
-            Recent top decklists
-          </h2>
-          {decks.length === 0 ? (
-            <p className="panel-copy">Loading decklists…</p>
-          ) : (
-            <ul className="meta-deck-list">
-              {decks.map((d, i) => (
-                <li key={d.id} className="meta-deck">
-                  <details open={i === 0} className="leader-deck">
-                    <summary className="leader-deck-summary">{formatDeckRow(d)}</summary>
-                    <div className="meta-deck-actions">
-                      <PlayButton leader={leader} deck={d} className="btn btn-primary">
-                        Play this deck online
-                      </PlayButton>
-                      <a className="btn btn-secondary" href={d.event_url} target="_blank" rel="noopener noreferrer">
-                        View on Limitless
-                      </a>
-                    </div>
-                    <DeckCards deck={d} />
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="panel" aria-labelledby="leader-more">
-          <h2 className="panel-title" id="leader-more">
-            More leaders
-          </h2>
-          <ul className="leader-links">
-            {others.map((l) => (
-              <li key={l.leader_id}>
-                <Link to={leaderPath(l)}>
-                  {l.name || l.leader_id} ({l.leader_id})
-                </Link>
+      <section className="panel" aria-labelledby="leader-decks">
+        <h2 className="panel-title" id="leader-decks">
+          Recent top decklists
+        </h2>
+        {decks.length === 0 ? (
+          <p className="panel-copy">Loading decklists…</p>
+        ) : (
+          <ul className="meta-deck-list">
+            {decks.map((d, i) => (
+              <li key={d.id} className="meta-deck">
+                <details open={i === 0} className="leader-deck">
+                  <summary className="leader-deck-summary">{formatDeckRow(d)}</summary>
+                  <div className="meta-deck-actions">
+                    <PlayButton leader={leader} deck={d} className="btn btn-primary">
+                      Play this deck online
+                    </PlayButton>
+                    <a className="btn btn-secondary" href={d.event_url} target="_blank" rel="noopener noreferrer">
+                      View on Limitless
+                    </a>
+                  </div>
+                  <DeckCards deck={d} />
+                </details>
               </li>
             ))}
-            <li>
-              <Link to="/leaders">All leaders</Link>
-            </li>
-            <li>
-              <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link>
-            </li>
           </ul>
-        </section>
+        )}
+      </section>
 
-        <p className="meta leader-data">
-          Data:{" "}
-          <a className="linkish" href={view.sourceUrl} target="_blank" rel="noopener noreferrer">
-            {view.source}
-          </a>
-          {dataTail(view.days, view.updatedAt)}
-        </p>
-      </div>
-    </div>
+      <section className="panel" aria-labelledby="leader-more">
+        <h2 className="panel-title" id="leader-more">
+          More leaders
+        </h2>
+        <ul className="leader-links">
+          {others.map((l) => (
+            <li key={l.leader_id}>
+              <Link to={leaderPath(l)}>
+                {l.name || l.leader_id} ({l.leader_id})
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link to="/leaders">All leaders</Link>
+          </li>
+          <li>
+            <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link>
+          </li>
+        </ul>
+      </section>
+
+      <p className="meta leader-data">
+        Data:{" "}
+        <a className="linkish" href={view.sourceUrl} target="_blank" rel="noopener noreferrer">
+          {view.source}
+        </a>
+        {dataTail(view.days, view.updatedAt)}
+      </p>
+    </PageShell>
   );
 }

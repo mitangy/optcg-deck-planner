@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { APP_ROUTES } from "../routes";
 import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "./routeMetaTable";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
@@ -52,10 +53,10 @@ function status(routes: VercelRoute[], path: string): number | null {
 
 describe("duel vercel.json routes (#804)", () => {
   const routes = (JSON.parse(read("../../vercel.json")) as { routes: VercelRoute[] }).routes;
-  const appPaths = [...read("../App.tsx").matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]).filter((p) => p !== "*");
+  const appPaths = APP_ROUTES.map((r) => r.path).filter((p) => p !== "*");
   const sample = (p: string) => p.replace(/:\w+/g, "a-b_1");
 
-  it("finds the app's routes in App.tsx (#804)", () => {
+  it("finds the app's routes in the route table (#804)", () => {
     expect(appPaths).toContain("/play-one-piece-tcg-online");
     expect(appPaths.length).toBeGreaterThan(15);
   });

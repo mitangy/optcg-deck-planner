@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BackLink } from "./BackLink";
+import { BackLink } from "../layout/BackLink";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
