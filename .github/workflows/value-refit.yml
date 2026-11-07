@@ -2,7 +2,10 @@ name: Value model refit
 
 # Weekly (#915): refit the learned win-chance model (packages/rules/src/bot/valueWeights.json) on the last week of
 # Hard vs Hard self-play games (the `selfplay-games` artifact of bot-selfplay.yml) and open a PR when the new model
-# beats the committed one on held-out games. fitValue.ts --gate decides; otherwise the job ends green with the report.
+# beats the committed one on held-out games (fitValue.ts --gate) AND plays at least as strong: the candidate then plays
+# the committed weights in a paired Hard-vs-Hard batch (versus.ts) and must win >= 50% of the finished games. The refit makes
+# the same kind of model as the committed file (--like-compare: v2 MLP without the card bag, same hyperparameters).
+# Otherwise the job ends green with the report.
 on:
   schedule:
     - cron: "0 10 * * 1"
@@ -21,7 +24,7 @@ concurrency:
 jobs:
   refit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -42,8 +45,9 @@ jobs:
       - name: Refit and compare
         id: fit
         run: |
+          cp packages/rules/src/bot/valueWeights.json "$RUNNER_TEMP/committed.json"
           npm run fit-value -w @optcg/rules -- --in "$PWD/games" \
-            --compare "$PWD/packages/rules/src/bot/valueWeights.json" --gate \
+            --compare "$RUNNER_TEMP/committed.json" --like-compare --gate \
             --out "$PWD/packages/rules/src/bot/valueWeights.json" --report "$PWD/report.json"
           ACCEPT=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("report.json","utf8")).accept)')
           echo "accept=$ACCEPT" >> "$GITHUB_OUTPUT"
@@ -56,17 +60,41 @@ jobs:
       - name: Not accepted
         if: ${{ steps.fit.outputs.accept != 'true' }}
         run: echo "The refit did not beat the committed weights (or there were too few games); nothing to do. See the report above." | tee -a "$GITHUB_STEP_SUMMARY"
+      # Play-strength gate: a better log-loss does not always play better (the linear v1 model had a worse loss than hand tuning
+      # and lost 48-52; see HARD_DEFAULTS.evalMode). The candidate is the file the fit just wrote, A in the paired batch.
+      - name: Play the candidate against the committed weights
+        id: versus
+        if: ${{ steps.fit.outputs.accept == 'true' }}
+        run: |
+          cp packages/rules/src/bot/valueWeights.json "$RUNNER_TEMP/candidate.json"
+          npm run versus -w @optcg/rules -- \
+            --a "kind=hard,evalMode=learned,weights=$RUNNER_TEMP/candidate.json" \
+            --b "kind=hard,evalMode=learned,weights=$RUNNER_TEMP/committed.json" \
+            --decks "$PWD/packages/rules/src/__tests__/fixtures/meta-decks.json" \
+            --games 600 --seed 700000 --max-evals 14 --procs 4 --json "$PWD/versus.json" | tee versus.txt
+          PASS=$(node -e 'const r = JSON.parse(require("fs").readFileSync("versus.json", "utf8")); console.log(r.finished > 0 && r.rate >= 0.5)')
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Play strength: candidate (A) vs committed (B)"
+            echo '```'
+            cat versus.txt
+            echo '```'
+            echo "Gate: candidate wins >= 50% of finished games: $PASS"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Not strong enough
+        if: ${{ steps.versus.outputs.pass == 'false' }}
+        run: echo "The refit has a better held-out log-loss but won under 50% of the games against the committed weights; nothing to do. See the versus result above." | tee -a "$GITHUB_STEP_SUMMARY"
       # PRs opened with GITHUB_TOKEN do not start CI by themselves, which is why the rules tests run here first.
       - name: Rules tests on the new weights
         id: tests
-        if: ${{ steps.fit.outputs.accept == 'true' }}
+        if: ${{ steps.versus.outputs.pass == 'true' }}
         continue-on-error: true
         run: npm test -w @optcg/rules
       - name: Open an issue when the new weights break the rules tests
-        if: ${{ steps.fit.outputs.accept == 'true' && steps.tests.outcome == 'failure' }}
+        if: ${{ steps.versus.outputs.pass == 'true' && steps.tests.outcome == 'failure' }}
         run: |
           {
-            echo "The weekly value model refit (#915) found a better model, but \`npm test -w @optcg/rules\` fails with it, so no PR was opened."
+            echo "The weekly value model refit (#915) found a better model that also beat the committed one in play, but \`npm test -w @optcg/rules\` fails with it, so no PR was opened."
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
@@ -76,7 +104,7 @@ jobs:
           } > issue.md
           gh issue create --title "Value model refit: new weights fail the rules tests" --body-file issue.md
       - name: Open a PR with the new weights
-        if: ${{ steps.fit.outputs.accept == 'true' && steps.tests.outcome == 'success' }}
+        if: ${{ steps.versus.outputs.pass == 'true' && steps.tests.outcome == 'success' }}
         run: |
           BRANCH="bot/value-refit-$(date -u +%F)"
           git config user.name "github-actions[bot]"
@@ -86,7 +114,7 @@ jobs:
           git commit -m "Refit the value model on last week's self-play games (#915)"
           git push origin "$BRANCH"
           {
-            echo "Made by the weekly value model refit (#915) from the last week of Hard vs Hard self-play games. The rules tests passed in the refit job; CI does not start on PRs opened with the workflow token, so push an empty commit or close and reopen to run it."
+            echo "Made by the weekly value model refit (#915) from the last week of Hard vs Hard self-play games, with the same model kind and hyperparameters as the committed file. The rules tests passed in the refit job; CI does not start on PRs opened with the workflow token, so push an empty commit or close and reopen to run it."
             echo
             node -e '
               const r = JSON.parse(require("fs").readFileSync("report.json", "utf8"));
@@ -95,6 +123,10 @@ jobs:
               console.log(`| Committed weights | ${f(r.current.logLoss)} | ${f(r.current.accuracy)} |`);
               console.log(`| This refit | ${f(r.candidate.logLoss)} | ${f(r.candidate.accuracy)} |`);
               console.log(`\n${r.games} games, ${r.heldOutSamples} held-out samples (split by game). Decision: ${r.reason}.`);
+              const v = JSON.parse(require("fs").readFileSync("versus.json", "utf8"));
+              const pc = (x) => (100 * x).toFixed(1);
+              console.log(`\n**Play strength** (Hard with this model vs Hard with the committed model, paired deals, ${v.finished} finished games of ${v.games}): this refit won ${v.aWins} (${pc(v.rate)}%, 95% CI ${pc(v.ci[0])}-${pc(v.ci[1])}%).`);
+              console.log(`Pairs: won both ${v.pairs.aBoth}, split ${v.pairs.split}, lost both ${v.pairs.bBoth}; paired 95% CI of the score ${pc(v.pairedCi[0])}-${pc(v.pairedCi[1])}%. Gate: at least 50% of finished games.`);
             '
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
