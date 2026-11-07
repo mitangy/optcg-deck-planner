@@ -85,7 +85,7 @@ export function toolSteps(turn: readonly Message[]): ToolStep[] {
 
 type Ctx = { dir: string; run: string; gitSha: string; now: string };
 
-/** Page grades to rows. A grade with an unanswered item, or an overall that is present but not an integer 1-5, is skipped. A missing overall is kept as null and listed in `skipped`. */
+/** Page grades to rows. A grade with an unanswered item, or an overall that is present but not an integer 1-5, is skipped and listed in `skipped`. A missing overall is kept as null. */
 export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanGrade[]; skipped: { key: string; why: string }[] } {
   const exported = new Map(exportForGrading(ctx.dir).map((x) => [x.key, x]));
   const traces = new Map(readTraces(ctx.dir).map((t) => [`${t.case}_rep${t.rep}`, t]));
