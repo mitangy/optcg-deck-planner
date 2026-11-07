@@ -3,10 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadSettings } from "../settings";
 import { SideField } from "./SideField";
 import { lifeFanForSide } from "./ZonePile";
+import { stubCard } from "./fixtures/stubCard";
 
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
-const leader = { id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [] };
+const leader = stubCard({ id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [] });
 const data = { leader, characters: [], stage: null, deckCount: 30, trash: [], lifeCount: 3, donDeckCount: 10, costArea: [], activeDonCount: 0 };
 
 function lifeStackClass(html: string): string {

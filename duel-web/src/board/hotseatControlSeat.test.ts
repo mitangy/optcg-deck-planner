@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerView, Seat } from "../net/protocol";
 import { hotseatControlSeat } from "./hotseatControlSeat";
+import { stubBattle, stubOf } from "./fixtures/stubCard";
 
 function baseView(seat: Seat, overrides: Partial<PlayerView> = {}): PlayerView {
-  return {
+  return stubOf<PlayerView>({
     seat,
     you: {
       leader: { id: `L${seat}`, defId: "ST01-001" },
@@ -41,7 +42,7 @@ function baseView(seat: Seat, overrides: Partial<PlayerView> = {}): PlayerView {
     winReason: null,
     legalIntents: [],
     ...overrides,
-  };
+  });
 }
 
 describe("hotseatControlSeat", () => {
@@ -50,13 +51,13 @@ describe("hotseatControlSeat", () => {
     const stale = baseView(0, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
     });
     const fresh = baseView(1, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [
         {
           id: "c1",
@@ -96,7 +97,7 @@ describe("hotseatControlSeat", () => {
     const view = baseView(0, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
       legalIntents: [],
     });
@@ -107,14 +108,14 @@ describe("hotseatControlSeat", () => {
     const stale = baseView(1, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
       legalIntents: [],
     });
     const alsoEmpty = baseView(0, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
       legalIntents: [],
     });
@@ -125,14 +126,14 @@ describe("hotseatControlSeat", () => {
     const attackerView = baseView(0, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
       legalIntents: [],
     });
     const defenderView = baseView(1, {
       activeSeat: 0,
       phase: "block",
-      battle: { attackerSeat: 0 },
+      battle: stubBattle({ attackerSeat: 0 }),
       pendingChoices: [],
       legalIntents: [{ type: "pass_block" }],
     });

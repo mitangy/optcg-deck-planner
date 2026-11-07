@@ -119,7 +119,7 @@ describe("protocol contract (golden fixtures)", () => {
     it("builds the look answer the fixture sends", () => {
       const request = front(serverFixture("choice-look")).request as Extract<ChoiceRequestView, { type: "look" }>;
       const { intent } = clientFixture("resolve-look").body;
-      const answer = floatLookAnswer(request, request.options.map((o) => o.id), intent.selectedOptionIds as string[], "bottom");
+      const answer = floatLookAnswer(request, request.options.map((o) => o.id), (intent as { selectedOptionIds: string[] }).selectedOptionIds, "bottom");
       expect({ type: "resolve_pending_choice", accept: true, ...answer }).toEqual(intent);
     });
 

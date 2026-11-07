@@ -18,6 +18,7 @@ import {
   playNeedsReplace,
   resolveDropIntents,
 } from "./dragIntents";
+import { stubIntent } from "./fixtures/stubCard";
 
 const intents: Intent[] = [
   { type: "end_turn" },
@@ -27,7 +28,7 @@ const intents: Intent[] = [
   { type: "play_card", handIndex: 0 },
   { type: "play_card", handIndex: 2, trashCharacterId: "c1" },
   { type: "play_card", handIndex: 2, trashCharacterId: "c2" },
-  { type: "activate_leader", targetId: "leader" },
+  stubIntent({ type: "activate_leader", targetId: "leader" }),
 ];
 
 describe("canDragDon / giveDonTargetIds", () => {

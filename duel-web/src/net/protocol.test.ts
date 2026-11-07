@@ -13,12 +13,13 @@ import {
   parseWelcome,
   type PlayerView,
 } from "./protocol";
+import { stubCard, stubOf } from "../board/fixtures/stubCard";
 
 function sampleView(withOpponentHand = false): PlayerView {
-  const view: PlayerView = {
+  const view = stubOf<PlayerView>({
     seat: 0,
     you: {
-      leader: { id: "L0", defId: "ST01-001", power: 5000 },
+      leader: stubCard({ id: "L0", defId: "ST01-001", power: 5000 }),
       characters: [],
       stage: null,
       hand: [{ id: "h1", defId: "ST01-003" }],
@@ -30,7 +31,7 @@ function sampleView(withOpponentHand = false): PlayerView {
       activeDonCount: 1,
     },
     opponent: {
-      leader: { id: "L1", defId: "ST01-001", power: 5000 },
+      leader: stubCard({ id: "L1", defId: "ST01-001", power: 5000 }),
       characters: [],
       stage: null,
       handCount: 5,
@@ -49,7 +50,7 @@ function sampleView(withOpponentHand = false): PlayerView {
     winner: null,
     winReason: null,
     legalIntents: [{ type: "end_turn" }],
-  };
+  });
   if (withOpponentHand) {
     (view.opponent as { hand?: unknown }).hand = [{ id: "x", defId: "ST01-003" }];
   }

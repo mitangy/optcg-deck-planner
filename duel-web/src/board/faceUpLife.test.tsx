@@ -2,10 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { SideField } from "./SideField";
 import { lifePileFaces } from "./ZonePile";
+import { stubCard } from "./fixtures/stubCard";
 
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
-const leader = { id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [] };
+const leader = stubCard({ id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [] });
 
 function lifeFaces(html: string): Array<string | null> {
   const stack = html.match(/zone-pile-life[\s\S]*?<\/div>/)?.[0] ?? "";

@@ -2,14 +2,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { DonStrip } from "./DonStrip";
 import { SideField } from "./SideField";
+import { stubCard } from "./fixtures/stubCard";
 
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 const nums = (html: string) => html.match(/don-strip-nums">([^<]*)</)?.[1];
 const chips = (html: string) => (html.match(/don-chip-btn|class="don-chip/g) ?? []).length;
 
-const leader = { id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [], attachedDonCount: 1 };
-const character = { id: "y-c", defId: "OP01-006", power: 4000, printedPower: 4000, statusLabels: [], attachedDonCount: 1 };
+const leader = stubCard({ id: "y-l", defId: "OP16-001", power: 5000, printedPower: 5000, statusLabels: [], attachedDonCount: 1 });
+const character = stubCard({ id: "y-c", defId: "OP01-006", power: 4000, printedPower: 4000, statusLabels: [], attachedDonCount: 1 });
 
 describe("DON!! counter label", () => {
   it("shows labelTotal as the denominator without changing the chip count (#345)", () => {

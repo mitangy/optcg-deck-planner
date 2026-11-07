@@ -12,6 +12,7 @@ import {
   soleCardButton,
   splitCardActions,
 } from "./cardActions";
+import { stubIntent } from "./fixtures/stubCard";
 
 // DEMO_VIEW hand: 0 ST01-003, 1 ST01-006, 2 ST01-008, 3 ST01-009, 4 ST01-014 (+2000 Counter).
 const view: PlayerView = {
@@ -28,7 +29,7 @@ describe("card actions on the card (#255)", () => {
       { type: "mulligan", doMulligan: false },
       { type: "activate_ability", sourceId: "y-leader", abilityId: "x_y" },
       { type: "play_card", handIndex: 0 },
-      { type: "resolve_trigger" },
+      stubIntent({ type: "resolve_trigger" }),
     ];
     const { card, bar } = splitCardActions(shown);
     expect(card.map((i) => i.type)).toEqual(["activate_ability", "play_card"]);

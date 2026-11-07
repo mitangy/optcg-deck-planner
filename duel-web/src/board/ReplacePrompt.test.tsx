@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { Intent, PlayerView } from "../net/protocol";
 import { updateSettings } from "../settings";
 import { ReplacePrompt } from "./ReplacePrompt";
+import { stubOf } from "./fixtures/stubCard";
 
 // Card art reads saved art prefs; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 function fullBoardView(): PlayerView {
   const chars = ["c1", "c2", "c3", "c4", "c5"].map((id) => ({ id, defId: "ST01-004" }));
-  return {
+  return stubOf<PlayerView>({
     seat: 0,
     you: {
       leader: { id: "L0", defId: "ST01-001", power: 5000 },
@@ -43,7 +44,7 @@ function fullBoardView(): PlayerView {
     winner: null,
     winReason: null,
     legalIntents: [],
-  } as PlayerView;
+  }) as PlayerView;
 }
 
 describe("replace prompt", () => {
