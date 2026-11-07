@@ -41,7 +41,7 @@ from app.schemas import (
     GroupBuySummary,
 )
 from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
-from app import services
+from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 
 FROZEN_STATUSES = frozenset({GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED})
@@ -123,7 +123,7 @@ def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
     overrides = _qty_override_map(group)
     needs: list[MemberNeed] = []
     for member in group.members:
-        shopping = services.shopping_list(
+        shopping = shopping_svc.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         name = _display_name(member.user)
@@ -206,7 +206,7 @@ def _viewer_zero_customs(
     member = next((m for m in group.members if m.user_id == viewer_user_id), None)
     if member is None:
         return {}
-    shopping = services.shopping_list(
+    shopping = shopping_svc.shopping_list(
         db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
     )
     shop_by_id = {item.card_id.upper(): item for item in shopping.items}
@@ -278,7 +278,7 @@ def _build_lines(
     # Each member's explicit Show pick per card (#893).
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
-        shop = services.shopping_list(
+        shop = shopping_svc.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         by_card: dict[str, list] = {}
@@ -352,7 +352,7 @@ def _build_lines(
                 for a in mem_alts
                 if (a.wanted or 0) > 0
             ]
-            buys = services.allocate_still_need_buys(
+            buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,
                 standard_product_id=preferred_product_id,
@@ -363,7 +363,7 @@ def _build_lines(
                 for pid, qty, _price in buys
                 if pid and qty > 0
             )
-            cost = services.remaining_cost_for_buys(buys)
+            cost = shopping_svc.remaining_cost_for_buys(buys)
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
             bucket[0] += mem.qty
             if cost is None:
@@ -765,7 +765,7 @@ def set_member_qty(
     qty = max(0, min(999, int(qty)))
 
     # Default (no override) is shopping still-need. If qty matches that, clear override.
-    shopping = services.shopping_list(
+    shopping = shopping_svc.shopping_list(
         db, user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
     )
     suggested = next(
@@ -999,7 +999,7 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
 
     member_shop_alts: dict[int, dict[str, list]] = {}
     for member in group.members:
-        shop = services.shopping_list(
+        shop = shopping_svc.shopping_list(
             db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
         )
         # Uppercase keys — line.card_id is uppercased in merge; mismatched case
@@ -1033,7 +1033,7 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
                 for a in mem_alts
                 if (a.wanted or 0) > 0
             ]
-            buys = services.allocate_still_need_buys(
+            buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,
                 standard_product_id=standard_pid,

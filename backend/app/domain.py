@@ -21,7 +21,7 @@ DECK_TOKEN_RE = re.compile(
 # Substrings matched against TCGPlayer product names (case-insensitive).
 # Intentionally omits plain "reprint" / bare "promo" — those are usually the
 # same base art on another SKU. Alt-arts UI also drops same image_url as the
-# preferred printing (see services._alt_arts_map).
+# preferred printing (see catalog_repo.alt_arts_map).
 SPECIAL_NAME_MARKERS = (
     # Classic alts / serialized treatments
     "alternate art",

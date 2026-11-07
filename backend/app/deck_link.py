@@ -157,7 +157,7 @@ def _known_leader(db: Session, leader: str) -> bool:
 
 def _new_planner_deck(db: Session, user_id: int, body: dict) -> Deck | None:
     """Create a planner deck from a duel deck body. None when it cannot be (limit, unknown leader)."""
-    from app.services import MAX_DECKS_PER_USER
+    from app.planner.decks import MAX_DECKS_PER_USER
 
     leader = str(body.get("leaderId") or "").strip().upper()
     if not leader or not _known_leader(db, leader):
@@ -195,12 +195,12 @@ def _new_planner_deck(db: Session, user_id: int, body: dict) -> Deck | None:
 
 def _apply_duel_to_planner(db: Session, user_id: int, deck: Deck, body: dict) -> None:
     """Make the planner deck's name, leader and non-DON card rows match the duel deck."""
-    from app.services import (
+    from app.planner.printings import (
         _apply_alt_want_clamp_to_rows,
         _clear_deck_card_printings,
         _delete_zero_printing_rows,
-        set_deck_leader,
     )
+    from app.planner.decks import set_deck_leader
 
     leader = str(body.get("leaderId") or "").strip().upper()
     if not leader or not _known_leader(db, leader):
@@ -391,7 +391,7 @@ def on_duel_deleted(db: Session, user: User, row: DuelSavedDeck, planner_id: int
     row.planner_deck_id = None
     if planner_id is None or not DELETE_PROPAGATES:
         return
-    from app.services import delete_deck
+    from app.planner.decks import delete_deck
 
     try:
         delete_deck(db, user, planner_id, mirror=False)

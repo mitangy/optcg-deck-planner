@@ -208,7 +208,7 @@ def test_cloning_a_deck_creates_a_second_linked_duel_deck_1017(client):
     uid = _user(S)
     pid = _new_planner(_as(c, uid), "Blue", _full())
     with S() as db:
-        from app.services import clone_deck
+        from app.planner.decks import clone_deck
 
         user = db.get(User, uid)
         copy = clone_deck(db, user, db.get(Deck, pid), "Blue copy")
@@ -222,7 +222,7 @@ def test_identical_decks_on_both_sides_are_linked_not_duplicated_1017(client):
     uid = _user(S)
     with S() as db:  # a planner deck and a duel deck that predate the link
         user = db.get(User, uid)
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         create_deck(db, user, "Planner name", f"1x{LEADER}\n4x OP01-016\n2x OP01-017")
         db.query(DuelSavedDeck).delete()
@@ -252,7 +252,7 @@ def test_reconcile_creates_each_missing_copy_1017(client):
     c, S = client
     uid = _user(S)
     with S() as db:
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         create_deck(db, db.get(User, uid), "Only planner", _full("OP01-017", OTHER_LEADER))
         create_deck(db, db.get(User, uid), "No leader", "50x OP01-017")
@@ -284,7 +284,7 @@ def test_reconcile_links_a_named_planner_deck_and_prefers_the_edited_side_1017(c
     c, S = client
     uid = _user(S)
     with S() as db:
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         a = create_deck(db, db.get(User, uid), "A planner", f"1x{LEADER}\n4x OP01-016").id
         b = create_deck(db, db.get(User, uid), "B planner", f"1x{LEADER}\n4x OP01-016").id
@@ -339,9 +339,9 @@ def test_deleting_either_side_deletes_the_other_1017(client):
 
 
 def test_a_full_planner_leaves_new_duel_decks_unlinked_1017(client, monkeypatch: pytest.MonkeyPatch):
-    import app.services as services
+    from app.planner import decks as deck_svc
 
-    monkeypatch.setattr(services, "MAX_DECKS_PER_USER", 1)
+    monkeypatch.setattr(deck_svc, "MAX_DECKS_PER_USER", 1)
     c, S = client
     uid = _user(S)
     _put(_as(c, uid), "d1", 1000)
@@ -417,7 +417,7 @@ def test_the_merge_skips_incomplete_planner_decks_and_does_not_rerun_for_them_10
     c, S = client
     uid = _user(S)
     with S() as db:  # decks that predate the link
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         user = db.get(User, uid)
         create_deck(db, user, "Partial", f"1x{LEADER}\n20x OP01-016")

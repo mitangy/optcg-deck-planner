@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 from app.db import SessionLocal, init_db  # noqa: E402
 from app.models import CatalogCard, CatalogMeta, User  # noqa: E402
-from app import services  # noqa: E402
+from app.planner import decks as deck_svc  # noqa: E402
 
 TRACKER_DIR = Path(__file__).resolve().parents[2].parent / "optcg_tracker"
 CACHE_PATH = TRACKER_DIR / "cache" / "catalog.json"
@@ -86,7 +86,7 @@ def ensure_dev_user(db) -> User:
 
 
 def seed_decks(db, user: User) -> None:
-    existing = {d.name for d in services.list_decks(db, user)}
+    existing = {d.name for d in deck_svc.list_decks(db, user)}
     for path in DECK_FILES:
         if not path.exists():
             print(f"Missing deck file {path}")
@@ -96,7 +96,7 @@ def seed_decks(db, user: User) -> None:
             print(f"Deck already exists: {name}")
             continue
         text = path.read_text(encoding="utf-8")
-        services.create_deck(db, user, name, text)
+        deck_svc.create_deck(db, user, name, text)
         print(f"Seeded deck: {name}")
 
 

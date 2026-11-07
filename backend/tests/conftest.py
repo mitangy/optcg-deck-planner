@@ -43,7 +43,7 @@ def _fresh_rate_limits():
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_index():
     # The catalog search index is cached per process; each test builds its own catalog.
-    from app.services import _FUZZY_INDEX
+    from app.planner.catalog_search import _FUZZY_INDEX
 
     _FUZZY_INDEX.clear()
     yield

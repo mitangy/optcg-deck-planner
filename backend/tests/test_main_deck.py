@@ -3,12 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.models import CatalogCard, Deck
-from app.services import (
-    delete_deck,
-    get_deck_detail,
-    list_decks,
-    set_deck_as_main,
-)
+from app.planner.decks import delete_deck, get_deck_detail, list_decks, set_deck_as_main
 from tests.conftest import add_deck_with_cards, make_user
 
 
@@ -275,7 +270,7 @@ def test_list_decks_groups_by_leader_with_main_first(db):
 
 
 def test_list_decks_reports_owned_copies_excluding_don(db):
-    from app.services import set_owned
+    from app.planner.owned import set_owned
 
     _seed_leader_catalog(db)
     user = make_user(db, email="own@test", name="Own", sub="own")
@@ -296,7 +291,7 @@ def test_list_decks_reports_owned_copies_excluding_don(db):
 
 
 def test_rename_deck_changes_only_own_deck_name_and_trims_it_526(db):
-    from app.services import rename_deck
+    from app.planner.decks import rename_deck
 
     _seed_leader_catalog(db)
     owner = make_user(db, email="r1@test", name="R1", sub="r1")
@@ -314,7 +309,7 @@ def test_rename_deck_changes_only_own_deck_name_and_trims_it_526(db):
 
 
 def test_rename_deck_refuses_blank_name_526(db):
-    from app.services import rename_deck
+    from app.planner.decks import rename_deck
 
     _seed_leader_catalog(db)
     user = make_user(db, email="r3@test", name="R3", sub="r3")
