@@ -59,8 +59,9 @@ export type ScanMulti = {
   target?: ScanTarget;
 };
 
-/** Test-only: e2e sets this before load to stand in for the detector and the scan data. */
+/** Test-only: e2e sets this before load to stand in for the detector and the scan data. Dev server only, never read in a production build. */
 function testMatcher(): MatchAllCards | undefined {
+  if (!import.meta.env.DEV) return undefined;
   return (window as unknown as { __optcgTestMatchAll?: MatchAllCards }).__optcgTestMatchAll;
 }
 
