@@ -366,10 +366,13 @@ describe("DuelRoom", () => {
     bag.errors.length = 0;
 
     // A state the engine cannot clone-and-run makes applyIntent throw; the sender still gets the normal error.
-    const internals = room as unknown as { match: { rng: unknown } };
+    // Called directly (not over the socket) so an escaped throw fails this assertion instead of crashing the runner.
+    const internals = room as unknown as { match: { rng: unknown }; handleIntent(client: unknown, message: unknown): void };
     const goodRng = internals.match.rng;
     internals.match.rng = null;
-    send({ type: "end_turn" });
+    const serverClient = room.clients.find((c) => c.sessionId === client.sessionId);
+    assert.ok(serverClient);
+    assert.doesNotThrow(() => internals.handleIntent(serverClient, { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } }));
     await waitUntil(() => bag.errors.length >= 1, 5000);
     assert.equal(bag.errors[0]!.code, "illegal_intent");
     internals.match.rng = goodRng;
