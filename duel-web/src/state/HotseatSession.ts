@@ -17,6 +17,8 @@ import {
   type HotseatResumeBlob,
 } from "../net/matchResume";
 import type { Seat } from "../net/protocol";
+import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
+import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import { createMatchStore, type MatchStore } from "./matchStore";
 
 export type HotseatNavState = {
@@ -49,7 +51,6 @@ export type HotseatSeat = {
 /** What the page shows that boot decides; each call mirrors one `useState` of the page. */
 export type HotseatHost = {
   setMatchId: (id: string | null) => void;
-  setActiveSeat: (seat: Seat) => void;
   setResuming: (resuming: boolean) => void;
   setReady: (ready: boolean) => void;
   setBootError: (message: string | null) => void;
@@ -128,6 +129,31 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
+/**
+ * Run `fn` once on the next macrotask however many times it is called before then. Both seats of a practice match
+ * get their own view message for one action; the page must render them together, not seat 0's view while seat 1's
+ * (and so the device's active seat) is still the old one. The copilot (#725) plans against the view on screen: seen
+ * alone, seat 0's view of an attack the defender must answer ends the plan one step early. React used to batch
+ * these socket updates by scheduling the render on a macrotask; useSyncExternalStore renders synchronously, so the
+ * session does the batching itself.
+ */
+export function coalesced(fn: () => void): () => void {
+  let queued = false;
+  const channel = typeof MessageChannel === "function" ? new MessageChannel() : null;
+  const run = () => {
+    queued = false;
+    fn();
+  };
+  if (channel) channel.port1.onmessage = run;
+  return () => {
+    if (queued) return;
+    queued = true;
+    // A MessageChannel, like React's scheduler: unlike setTimeout it is not throttled in a background tab.
+    if (channel) channel.port2.postMessage(null);
+    else setTimeout(run, 0);
+  };
+}
+
 export class HotseatSession {
   /** The navigation this page was opened with (a "Play here instead" edits it in place). */
   nav: HotseatNavState | null;
@@ -140,6 +166,10 @@ export class HotseatSession {
   leaving = false;
   /** Another device took this practice match over (#451). */
   takenOver = false;
+  /** The match is on screen (both seats have a view). */
+  private ready = false;
+  private lastNeededSeat: Seat | null = null;
+  private manualPass = false;
 
   private bootGen = 0;
   private version = 0;
@@ -164,10 +194,10 @@ export class HotseatSession {
     return () => void this.listeners.delete(listener);
   };
   getVersion = (): number => this.version;
-  private bump() {
+  private bump = coalesced(() => {
     this.version++;
     for (const l of [...this.listeners]) l();
-  }
+  });
 
   /** Fresh lobby navigation (blob cleared before navigate) updates nav once; only a new navigation replaces it. */
   noteRouteNav(routeNav: HotseatNavState | null) {
@@ -177,9 +207,55 @@ export class HotseatSession {
     }
   }
 
+  /** The seat whose board the device shows. Changing it re-renders the page. */
   setActiveSeat(seat: Seat) {
     this.activeSeat = seat;
-    this.host.setActiveSeat(seat);
+    this.bump();
+  }
+
+  /** "Pass device": a deliberate hand-over the auto-pass keeps until the game moment changes. */
+  passDevice(to: Seat) {
+    this.manualPass = true;
+    this.setActiveSeat(to);
+  }
+
+  /**
+   * Auto-pass when the game moment changes (pending choice, block/counter, mulligan, turn advance); a manual Pass is
+   * kept until that moment changes. It runs as the views land, before the page renders them: the device must already
+   * be on the seat that has to act when a view is shown, or the copilot (#725) sees the other seat's view of an attack
+   * and ends its plan early. (As a page effect it ran one render late, which only batched renders hid.)
+   */
+  private autoPass() {
+    if (!this.ready) return;
+    const v0 = this.seats[0]?.store.getSnapshot().view ?? null;
+    const v1 = this.seats[1]?.store.getSnapshot().view ?? null;
+    const needed = hotseatControlSeat(v0 ?? v1, v0, v1);
+    const next = applyHotseatAutoPass({
+      needed,
+      activeSeat: this.activeSeat,
+      lastNeeded: this.lastNeededSeat,
+      manualPass: this.manualPass,
+    });
+    this.lastNeededSeat = next.lastNeeded;
+    this.manualPass = next.manualPass;
+    if (next.activeSeat !== this.activeSeat) this.activeSeat = next.activeSeat;
+  }
+
+  /** Follow a seat's store: every change re-evaluates the auto-pass, then re-renders the page. */
+  attach(s: HotseatSeat) {
+    s.detach?.();
+    s.detach = s.store.subscribe(() => {
+      this.autoPass();
+      this.bump();
+    });
+    this.bump();
+  }
+
+  /** The match is on screen: auto-pass starts following the views. */
+  markReady(ready: boolean) {
+    this.ready = ready;
+    this.host.setReady(ready);
+    if (ready) this.autoPass();
   }
 
   private setMatchId(id: string | null) {
@@ -235,6 +311,7 @@ export class HotseatSession {
     this.nav = { ...this.nav!, takeover: { roomId } };
     this.takenOver = false;
     this.leaving = false;
+    this.ready = false;
     this.seats = [null, null];
     disposeParked(true);
   }
@@ -244,6 +321,7 @@ export class HotseatSession {
     clearMatchResume();
     this.resumeOnMount = null;
     this.leaving = false;
+    this.ready = false;
     this.seats = [null, null];
     disposeParked(true);
     this.matchId = null;
@@ -276,11 +354,7 @@ export class HotseatSession {
 
     const alive = () => !cancelled && gen === this.bootGen;
 
-    const adopt = (s: HotseatSeat) => {
-      s.detach?.();
-      s.detach = s.store.subscribe(() => this.bump());
-      this.bump();
-    };
+    const adopt = (s: HotseatSeat) => this.attach(s);
 
     const makeSeat = (client: DuelClient, seat: Seat): HotseatSeat => {
       clients.push(client);
@@ -372,7 +446,7 @@ export class HotseatSession {
           if (p0.store.getSnapshot().view && p1.store.getSnapshot().view) {
             if (!alive()) return;
             this.host.setResuming(false);
-            this.host.setReady(true);
+            this.markReady(true);
             return;
           }
           const ok = await waitViews(p0, p1, 8000);
@@ -386,7 +460,7 @@ export class HotseatSession {
             return;
           }
           this.host.setResuming(false);
-          this.host.setReady(true);
+          this.markReady(true);
         })();
         return cleanup;
       }
@@ -426,7 +500,7 @@ export class HotseatSession {
       }
       if (!alive()) return;
       this.host.setResuming(false);
-      this.host.setReady(true);
+      this.markReady(true);
     };
 
     const boot = async () => {
@@ -502,7 +576,7 @@ export class HotseatSession {
             }
             if (!alive()) return;
             this.host.setResuming(false);
-            this.host.setReady(true);
+            this.markReady(true);
             return;
           } catch (resumeErr) {
             // Dead tokens / wrong host: drop resume and create a fresh match
@@ -629,7 +703,7 @@ export class HotseatSession {
         }
         if (!alive()) return;
         this.host.setResuming(false);
-        this.host.setReady(true);
+        this.markReady(true);
       } catch (e) {
         if (alive()) {
           clearMatchResume();

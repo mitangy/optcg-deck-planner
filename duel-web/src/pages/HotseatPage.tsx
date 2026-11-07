@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
-import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
-import { hotseatControlSeat } from "../board/hotseatControlSeat";
 import {
   initSeatArtPrefsFromStorage,
   resetAllSeatArtPrefs,
@@ -37,7 +35,6 @@ export function HotseatPage() {
   );
   const resumeHotseat = resumeOnMount.current;
 
-  const [activeSeat, setActiveSeat] = useState<Seat>(resumeHotseat?.activeSeat ?? 0);
   const [matchId, setMatchId] = useState<string | null>(resumeHotseat?.roomId ?? null);
   const [bootError, setBootError] = useState<string | null>(null);
   /** Bump to remount the boot effect for Retry (fresh match). */
@@ -48,13 +45,11 @@ export function HotseatPage() {
   const [takenOver, setTakenOver] = useState(false);
   /** Extra boot phase label (waking servers / minting) for the Starting screen. */
   const [bootPhase, setBootPhase] = useState<string | null>(null);
-  const lastNeededSeatRef = useRef<Seat | null>(null);
-  const manualPassRef = useRef(false);
 
   const sessionRef = useRef<HotseatSession | null>(null);
   if (!sessionRef.current) {
     sessionRef.current = new HotseatSession(
-      { setMatchId, setActiveSeat, setResuming, setReady, setBootError, setBootPhase, setTakenOver },
+      { setMatchId, setResuming, setReady, setBootError, setBootPhase, setTakenOver },
       { routeNav: navFromRoute, resume: resumeHotseat },
     );
   }
@@ -64,7 +59,9 @@ export function HotseatPage() {
   session.noteRouteNav(navFromRoute);
   const nav = session.nav;
   // Re-render on any change to either seat's match store (or when the seats are replaced).
-  const version = useSyncExternalStore(session.subscribe, session.getVersion, session.getVersion);
+  useSyncExternalStore(session.subscribe, session.getVersion, session.getVersion);
+  // The session moves the device to the seat that has to act before the page renders that seat's view.
+  const activeSeat = session.activeSeat;
 
   useEffect(() => {
     if (!session.nav) {
@@ -136,31 +133,6 @@ export function HotseatPage() {
       window.removeEventListener("online", onResume);
     };
   }, [ready, session]);
-
-  // Auto-pass when the game moment changes (pending choice, block/counter,
-  // mulligan, turn advance). Manual Pass is kept until that moment changes.
-  useEffect(() => {
-    if (!ready) return;
-    const v0 = session.seats[0]?.store.getSnapshot().view ?? null;
-    const v1 = session.seats[1]?.store.getSnapshot().view ?? null;
-    const needed = hotseatControlSeat(v0 ?? v1, v0, v1);
-    const next = applyHotseatAutoPass({
-      needed,
-      activeSeat: session.activeSeat,
-      lastNeeded: lastNeededSeatRef.current,
-      manualPass: manualPassRef.current,
-    });
-    lastNeededSeatRef.current = next.lastNeeded;
-    manualPassRef.current = next.manualPass;
-    if (next.activeSeat !== session.activeSeat) {
-      session.setActiveSeat(next.activeSeat);
-    }
-  }, [ready, version, session]);
-
-  function passDevice(to: Seat) {
-    manualPassRef.current = true;
-    session.setActiveSeat(to);
-  }
 
   useEffect(() => {
     return () => {
@@ -265,7 +237,7 @@ export function HotseatPage() {
         battleLog={state.battleLog}
         firstSeatPickedBy={seat0State?.firstSeatPickedBy}
         matchBrief={{ brief: seat0State?.brief ?? null, ranked: seat0State?.ranked ?? null, ticketSeat: 0 }}
-        hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
+        hotseatPass={{ otherSeat: other, onPass: () => session.passDevice(other) }}
         rematch={{
           state: state.rematch,
           autoAccept: true,
