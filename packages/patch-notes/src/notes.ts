@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-07
+  { date: "2026-11-07", app: "duel", pr: 1095, title: "Replay controls stay reachable during a pick", text: "On a phone, a card pick shown in a replay no longer covers the Game review button and playback controls." },
   { date: "2026-11-07", app: "duel", pr: 1076, title: "The home page loads faster", text: "The Duel home page now opens much sooner, especially on a phone or a slow connection. The match board, the deck editor and your account pages load when you open them." },
   { date: "2026-11-07", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
   // 2026-11-06

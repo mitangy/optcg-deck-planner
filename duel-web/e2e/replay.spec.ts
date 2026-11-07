@@ -536,6 +536,37 @@ test.describe("game review (#967)", () => {
     }
   });
 
+  // Step 14 of this recording has a pick open (return a card to the DON!! deck). Its field-pick bar used to sit over the replay controls.
+  for (const [label, size] of [["portrait", { width: 375, height: 812 }], ["landscape", { width: 812, height: 375 }]] as const) {
+    test(`a pick open at a step never covers the review or transport buttons, ${label} (#1095)`, async ({ page }, info) => {
+      await page.setViewportSize(size);
+      await setUp(page);
+      await openFromHistory(page);
+      await slider(page).fill("14");
+      expect(await stepNow(page)).toBe(14);
+      await expect(page.locator(".field-bar")).toBeVisible();
+      for (const name of ["Game review", "Previous turn", "Step back", "Play", "Step forward", "Next turn"]) {
+        const btn = page.getByRole("button", { name, exact: true });
+        // Landscape phones keep the review in the More sheet, so only what is on screen is checked.
+        if (!(await btn.count())) {
+          expect(label === "landscape" && name === "Game review", `${name} is missing`).toBe(true);
+          continue;
+        }
+        const hit = await btn.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return !!top && el.contains(top);
+        });
+        expect(hit, `${name} is under the pick bar`).toBe(true);
+      }
+      await page.screenshot({ path: info.outputPath(`pick-over-replay-${label}.png`) });
+      if (await reviewBtn(page).count()) {
+        await reviewBtn(page).click();
+        await expect(reviewBtn(page)).toHaveAttribute("aria-expanded", "true");
+      }
+    });
+  }
+
   test("the strip keeps its place while grades arrive and when stepping (#967)", async ({ page }) => {
     await setUp(page);
     await openFromHistory(page);
