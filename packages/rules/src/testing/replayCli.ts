@@ -59,7 +59,7 @@ export function recordReplay(o: RecordOptions): ReplayFixture {
       { leaderId: b.leaderId, deck: Object.entries(fixture.players[1].deck).flatMap(([id, n]) => Array<string>(n).fill(id)) },
     ],
   });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
   let lines = 0;
   while (state.winner === null && fixture.intents.length < 4000) {
     if (!o.full && lines >= o.maxLines && state.phase === "main" && state.pendingChoices.length === 0 && !state.battle) break;
@@ -78,11 +78,11 @@ export function recordReplay(o: RecordOptions): ReplayFixture {
     }
     // A rejected attempt may still advance the engine rng, so restore it before the fallback.
     const before = rng.snapshot();
-    let r = applyIntent(state, choice, { seat, rng });
+    let r = applyIntent(state, choice, { seat });
     if (!r.ok) {
       rng = createSeededRng(before);
       choice = legal[0]!;
-      r = applyIntent(state, choice, { seat, rng });
+      r = applyIntent(state, choice, { seat });
     }
     if (!r.ok) throw new Error(`Rejected legal intent ${JSON.stringify(choice)}: ${r.error?.message}`);
     state = r.state;

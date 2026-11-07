@@ -43,7 +43,7 @@ module.exports = {
       { file: room, from: "    const view = this.playerView(this.match, seat);\n    const welcome", to: "    const view = this.playerView(this.match, 0);\n    const welcome" },
     ], kills: ["two clients get private views"] },
     { id: "mulligan-always-skipped", file: room, from: "    if (this.autoSkipMulligan) {", to: "    if (true) {", kills: ["mulligan phase keeps both seats"] },
-    { id: "intent-trusts-active-seat", file: room, from: "      result = applyIntent(before, intent, { seat, rng: this.rng });\n    } catch", to: "      result = applyIntent(before, intent, { seat: before.activeSeat, rng: this.rng });\n    } catch", kills: ["illegal intent errors without advancing"] },
+    { id: "intent-trusts-active-seat", file: room, from: "      result = applyIntent(before, intent, { seat });\n    } catch", to: "      result = applyIntent(before, intent, { seat: before.activeSeat });\n    } catch", kills: ["illegal intent errors without advancing"] },
     { id: "match-over-not-sent", file: room, from: "    this.maybeSendMatchOver();\n    this.scheduleBotStep();\n    return { ok: true };", to: "    this.scheduleBotStep();\n    return { ok: true };", kills: ["legal play reaches match_over"] },
     { id: "third-player-kept", edits: [
       { file: room, from: "      this.rejectJoin(client, \"room_full\", \"Match already in progress\");\n      return;", to: "      this.sendError(client, \"room_full\", \"Match already in progress\");" },

@@ -466,9 +466,9 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       it("a real worker thread returns a legal move for the bot's position within its budget (#635)", async () => {
         const pool = new BotPool({ size: 1 });
         try {
-          const { createMatch, skipMulligans, createSeededRng, listLegalIntents } = await import("@optcg/rules");
+          const { createMatch, skipMulligans, listLegalIntents } = await import("@optcg/rules");
           let s = createMatch({ seed: 5, firstSeat: 1, players: [{ leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
-          s = skipMulligans(s, createSeededRng(5));
+          s = skipMulligans(s);
           const started = Date.now();
           const r = await pool.run({ state: s, seat: 1, seed: 9, memory: { count: 0, activated: [] }, budgetMs: 300 }, 8000);
           assert.ok(r.intent, "an intent came back");

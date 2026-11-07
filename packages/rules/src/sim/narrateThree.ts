@@ -99,7 +99,7 @@ function summarizeGame(seed: number): string {
       { leaderId: "ST01-001", deck: [...deck] },
     ],
   });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
 
   const narrative: string[] = [];
   narrative.push(`=== Game seed ${seed} ===`);
@@ -132,7 +132,7 @@ function summarizeGame(seed: number): string {
     const pick =
       end && rng.next() < 0.25 ? end : legal[rng.nextInt(legal.length)]!;
 
-    const r = applyIntent(state, pick, { seat, rng });
+    const r = applyIntent(state, pick, { seat });
     if (!r.ok) throw new Error(r.error?.message);
     state = r.state;
     intents += 1;

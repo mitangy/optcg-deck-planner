@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { applyIntent, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
 import { parseIntent } from "../engine/parseIntent.js";
-import { createSeededRng } from "../rng.js";
 
 describe("parseIntent", () => {
   const rejects: [string, unknown, "BAD_INTENT" | "UNKNOWN_INTENT"][] = [
@@ -58,11 +57,9 @@ describe("parseIntent", () => {
   });
 
   it("accepts every legal intent the engine offers along a played game, unchanged (refactor 0.2)", () => {
-    const rng = createSeededRng(3);
     const deck = buildTestDeck(20);
     let state = skipMulligans(
       createMatch({ seed: 3, firstSeat: 0, players: [{ leaderId: DEFAULT_LEADER_ID, deck: [...deck] }, { leaderId: DEFAULT_LEADER_ID, deck: [...deck] }] }),
-      rng,
     );
     const seen = new Set<string>();
     for (let step = 0; step < 60 && state.winner === null; step += 1) {
@@ -74,7 +71,7 @@ describe("parseIntent", () => {
         expect(parseIntent(JSON.parse(JSON.stringify(intent)))).toEqual({ ok: true, intent });
       }
       // Alternate between the first and last offer so the game moves through several phases.
-      const r = applyIntent(state, legal[step % 2 === 0 ? 0 : legal.length - 1]!, { seat: seat!, rng });
+      const r = applyIntent(state, legal[step % 2 === 0 ? 0 : legal.length - 1]!, { seat: seat! });
       expect(r.ok, r.error?.message).toBe(true);
       state = r.state;
     }

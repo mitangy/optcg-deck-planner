@@ -62,7 +62,7 @@ export function buildProtocolFixtures(): ProtocolFixtures {
 
   const addClient = (name: string, h: Harness, seat: Seat, intent: Intent, answers: string | null): void => {
     // Every client fixture must be accepted by the engine against the state it answers.
-    const r = applyIntent(h.state, intent, { seat, rng: h.rng });
+    const r = applyIntent(h.state, intent, { seat });
     if (!r.ok) throw new Error(`fixture ${name}: engine rejected ${JSON.stringify(intent)}: ${r.error?.message}`);
     client.push({ name, message: "intent", intentType: intent.type, answers, body: { protocolVersion: RULES_PROTOCOL_VERSION, intent: clone(intent) } });
   };

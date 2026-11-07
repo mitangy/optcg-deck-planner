@@ -191,7 +191,7 @@ interface Cursor { state: MatchState; events: GameEvent[] }
 function apply(cur: Cursor, ctx: Ctx, intent: Intent, seat: 0 | 1): boolean {
   ctx.intents += 1;
   if (ctx.intents > ctx.max) throw new GoldfishError("stuck");
-  const r = applyIntent(cur.state, intent, { seat, rng: ctx.rng });
+  const r = applyIntent(cur.state, intent, { seat });
   if (!r.ok) return false;
   cur.state = r.state;
   cur.events.push(...r.events);

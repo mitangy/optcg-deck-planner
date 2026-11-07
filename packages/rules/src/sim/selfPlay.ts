@@ -118,7 +118,6 @@ export function playBotGame(config: BotGameConfig): BotGameResult {
   const maxIntents = config.maxIntents ?? 3000;
   const firstSeat: Seat = config.firstSeat ?? ((mix(seed, 1) & 1) as Seat);
   // One rng for the engine (the match's own), and one per bot so a bot's choices never shift the dice.
-  const engineRng = createSeededRng(seed);
   const botRng = [createSeededRng(mix(seed, 2)), createSeededRng(mix(seed, 3))];
   const replay: MatchReplay = {
     schema: 1,
@@ -154,14 +153,14 @@ export function playBotGame(config: BotGameConfig): BotGameResult {
       lines[seat].decisionMs += performance.now() - startedAt;
       lines[seat].decisions += 1;
       if (!intent) { stoppedEarly = "no_legal_intents"; break; }
-      let result = applyIntent(state, intent, { seat, rng: engineRng });
+      let result = applyIntent(state, intent, { seat });
       let applied = intent;
       if (!result.ok) {
         // A bot-built answer to a choice can break a rule only the engine knows; the engine's default always works.
         fallbacks += 1;
         config.onRejected?.({ state, seat, intent, message: result.error?.message ?? "" });
         applied = listLegalIntents(state, seat)[0]!;
-        result = applyIntent(state, applied, { seat, rng: engineRng });
+        result = applyIntent(state, applied, { seat });
         if (!result.ok) { stoppedEarly = `engine_rejected: ${result.error?.message ?? "unknown"}`; break; }
       }
       tallyIntent(lines[seat], state, seat, applied, result.events, lastActivated[seat]);

@@ -53,7 +53,6 @@ export const HARD_DEFAULTS = {
 } as const;
 
 type Candidate = Intent;
-const UNUSED_RNG = createSeededRng(1);
 const keyOf = (i: Intent): string => JSON.stringify(i);
 const now = (): number => performance.now();
 
@@ -172,7 +171,7 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng): 
       let best = -Infinity;
       let baseScore = -Infinity;
       cands.forEach((c, i) => {
-        const r = applyIntent(s, c, { seat: actor, rng: UNUSED_RNG });
+        const r = applyIntent(s, c, { seat: actor });
         if (!r.ok) return;
         const v = evaluateLearned(r.state, actor);
         if (i === 0) baseScore = v;
@@ -200,8 +199,8 @@ function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, mem
     const greedy = opponentModel === "greedy" && actor !== me && view.phase === "main" && view.pendingChoices.length === 0;
     const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor]) : chooseBotIntent(view, { level: "normal", rng: rngs[actor] });
     if (!intent) break;
-    let r = applyIntent(s, intent, { seat: actor, rng: UNUSED_RNG });
-    if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor, rng: UNUSED_RNG });
+    let r = applyIntent(s, intent, { seat: actor });
+    if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor });
     if (!r.ok) break;
     s = r.state;
   }
@@ -212,7 +211,7 @@ interface Scored { score: number; prob: number }
 
 function scoreCandidate(det: MatchState, seat: Seat, cand: Candidate, endTurn: number, seed: number, memory: TurnMemory | null, knobs: Knobs): Scored | null {
   try {
-    const applied = applyIntent(det, cand, { seat, rng: UNUSED_RNG });
+    const applied = applyIntent(det, cand, { seat });
     if (!applied.ok) return null;
     const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel);
     return knobs.evalMode === "learned"

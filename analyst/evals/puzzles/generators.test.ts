@@ -9,7 +9,7 @@ const catalog = loadCatalog();
 /** The battle played out with real Counter cards from the defender's hand: true when the attack still lands. */
 function attackLands(state: MatchState, attack: Intent, counterCards: number): boolean {
   const apply = (s: MatchState, intent: Intent, seat: Seat) => {
-    const r = applyIntent(s, intent, { seat, rng: rng() });
+    const r = applyIntent(s, intent, { seat });
     if (!r.ok) throw new Error(`${intent.type} rejected: ${r.error?.message}`);
     return r;
   };

@@ -13,12 +13,12 @@ Deterministic TypeScript rules package for the digital duel client (Step 1 + Ste
 
 ```ts
 createMatch(config)
-applyIntent(state, intent, { seat, rng })
+applyIntent(state, intent, { seat })
 listLegalIntents(state, seat)
 getPlayerView(state, seat)
 getSpectatorView(state, cameraSeat?)
 assertInvariants(state)
-skipMulligans(state, rng)
+skipMulligans(state)
 createSeededRng(seed)
 buildTestDeck(size?)
 buildCardAtlas()

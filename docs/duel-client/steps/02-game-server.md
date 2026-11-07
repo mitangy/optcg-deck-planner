@@ -205,7 +205,7 @@ Regression test: capture both seats’ `view` payloads after a known deal and as
 ### Room CPU path (pseudocode)
 
 ```ts
-const result = applyIntent(match, intent, { seat, rng });
+const result = applyIntent(match, intent, { seat });
 if (!result.ok) {
   this.send(client, "error", { protocolVersion: 1, ...result.error });
   return;
