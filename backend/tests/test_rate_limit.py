@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+import pytest
+
+from app.config import get_settings
 from app.rate_limit import RateLimiter
+
+
+@pytest.fixture(autouse=True)
+def _settings_follow_env():
+    # PROXY_SHARED_SECRET is read through the cached Settings; re-read it per test.
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def test_rate_limiter_allows_until_cap():

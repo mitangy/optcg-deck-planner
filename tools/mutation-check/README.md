@@ -33,7 +33,7 @@ node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 | `duel-web` | `duel-web/src` | vitest |
 | `mobile` | `mobile/src` | vitest |
 | `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides `py -3` / `python3`) |
-| `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements.txt` installed) |
+| `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
@@ -97,7 +97,7 @@ checks out with `fetch-depth: 0`, finds the PR base SHA, runs `--check-anchors`
 runs `--matrix`.
 `mutation-proofs-part` runs one matrix entry per part in parallel, installs only
 what its suite needs (root `npm ci`, the `duel-web`, `frontend` and `mobile`
-installs, or Python plus `backend/requirements.txt` with `BACKEND_PYTHON` set),
+installs, or Python plus `backend/requirements-dev.txt` with `BACKEND_PYTHON` set),
 and runs `run.cjs <suite> --only <only>`. It is skipped when nothing changed.
 `mutation-proofs` waits for both and keeps the original check name. It fails
 unless the plan succeeded and the parts succeeded or were skipped.

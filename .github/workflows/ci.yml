@@ -376,13 +376,12 @@ jobs:
         with:
           python-version-file: backend/.python-version
           cache: "pip"
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements-dev.txt
       - name: Install backend deps
         id: deps
         working-directory: backend
         run: |
-          pip install -r requirements.txt
-          pip install pytest
+          pip install -r requirements-dev.txt
       - name: Backend tests
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         working-directory: backend
@@ -495,13 +494,12 @@ jobs:
         with:
           python-version-file: backend/.python-version
           cache: "pip"
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements-dev.txt
       - name: Install backend deps
         if: matrix.suite == 'backend'
         working-directory: backend
         run: |
-          pip install -r requirements.txt
-          pip install pytest
+          pip install -r requirements-dev.txt
           # run.cjs's pytest runner reads this; the importer and cosmetics
           # suites use plain python3 (standard library only).
           echo "BACKEND_PYTHON=$(which python)" >> "$GITHUB_ENV"
