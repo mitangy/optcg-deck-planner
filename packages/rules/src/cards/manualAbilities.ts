@@ -15,7 +15,12 @@
  * Every entry must stay plain JSON-compatible data; the helpers below only
  * build objects.
  */
-import type { Ability, CardAbilities, Cond, Cost, Duration, Effect, Filter, Selector, Target, Value } from "../effects/types.js";
+import type { Ability, CardAbilities, Effect, Filter } from "../effects/types.js";
+import {
+  le, ge, eq, sel, oppChar, myChar, oppDon, oppCharOrDon, myLeaderOrChar, upTo, exactly, v, self, myLeader,
+  seq, when, may, oneOf, select, power, ko, rest, play, draw, discard, addDon, keyword, restrict, look, exists,
+  none, cmp, leaderName, leaderTrait, leaderTraitIncludes, count, trashCount, lifeCount, donField,
+} from "../effects/builders.js";
 
 export type ManualEntry =
   | (Pick<CardAbilities, "abilities"> & Partial<Pick<CardAbilities, "unsupported" | "status">>)
@@ -24,42 +29,9 @@ export type ManualEntry =
 type Draft = Omit<Ability, "id">;
 
 // ---------------------------------------------------------------------------
-// Builders
+// Card-specific compositions of the shared builders (../effects/builders.ts)
 // ---------------------------------------------------------------------------
 
-const le = (value: Value) => ({ op: "<=" as const, value });
-const ge = (value: Value) => ({ op: ">=" as const, value });
-const eq = (value: Value) => ({ op: "==" as const, value });
-
-const sel = (player: Selector["player"], zone: Selector["zone"], filter?: Filter, also?: Selector[]): Selector => ({ player, zone, ...(filter ? { filter } : {}), ...(also ? { also } : {}) });
-const oppChar = (filter?: Filter) => sel("opponent", "character", filter);
-const myChar = (filter?: Filter) => sel("you", "character", filter);
-const oppDon = (filter?: Filter) => sel("opponent", "don", filter);
-const oppCharOrDon = (filter?: Filter) => sel("opponent", "character", filter, [oppDon()]);
-const myLeaderOrChar = (filter?: Filter) => sel("you", "leader_or_character", filter);
-
-const upTo = (max: number, selector: Selector, extra: Partial<Extract<Target, { ref: "choose" }>> = {}): Target => ({ ref: "choose", selector, min: 0, max, ...extra });
-const exactly = (n: number, selector: Selector, extra: Partial<Extract<Target, { ref: "choose" }>> = {}): Target => ({ ref: "choose", selector, min: n, max: n, ...extra });
-const v = (name: string): Target => ({ ref: "var", name });
-const self: Target = { ref: "self" };
-const myLeader: Target = { ref: "leader", player: "you" };
-
-const seq = (...steps: Effect[]): Effect => ({ do: "seq", steps });
-const when = (cond: Cond, then: Effect, otherwise?: Effect): Effect => ({ do: "if", cond, then, ...(otherwise ? { else: otherwise } : {}) });
-const may = (then: Effect, costs?: Cost[]): Effect => ({ do: "may", then, ...(costs ? { costs } : {}) });
-const oneOf = (...options: [string, Effect][]): Effect => ({ do: "choose_one", options: options.map(([label, effect]) => ({ label, effect })) });
-const select = (bind: string, selector: Selector, min: number, max: number, extra: Partial<Extract<Effect, { do: "select" }>> = {}): Effect => ({ do: "select", bind, selector, min, max, ...extra });
-const power = (target: Target, amount: Value, duration: Duration = "turn"): Effect => ({ do: "power", target, amount, duration });
-const ko = (target: Target): Effect => ({ do: "ko", target });
-const rest = (target: Target): Effect => ({ do: "rest", target });
-const play = (target: Target, rested = false): Effect => ({ do: "play", target, ...(rested ? { rested } : {}) });
-const draw = (count: Value): Effect => ({ do: "draw", player: "you", count });
-const discard = (count: Value, extra: Partial<Extract<Effect, { do: "discard" }>> = {}): Effect => ({ do: "discard", player: "you", count, ...extra });
-const addDon = (count: number, rested: boolean): Effect => ({ do: "add_don", player: "you", count, rested });
-const keyword = (target: Target, kw: Extract<Effect, { do: "keyword" }>["keyword"], duration: Duration = "turn"): Effect => ({ do: "keyword", target, keyword: kw, duration });
-const restrict = (target: Target, restriction: Extract<Effect, { do: "restrict" }>["restriction"], duration: Duration = "turn", extra: { filter?: Filter } = {}): Effect => ({ do: "restrict", target, restriction, duration, ...extra });
-/** `reveal` must match the printed text ("reveal up to …"); an unrevealed look is private to its player. */
-const look = (count: number, pick: Filter | null, max: number, reveal: boolean, rest: Extract<Effect, { do: "look" }>["rest"] = "deck_bottom"): Effect => ({ do: "look", player: "you", count, picks: [{ ...(pick ? { filter: pick } : {}), min: 0, max, dest: "hand" }], rest, reveal });
 const giveDonChoice = (donState: "rested" | "any"): Effect => oneOf(
   ["Give your DON!! card to your Leader or Character", { do: "give_don", target: exactly(1, myLeaderOrChar()), count: 1, donState, player: "you" }],
   ["Give your opponent's DON!! card to their Leader or Character", { do: "give_don", target: exactly(1, sel("opponent", "leader_or_character")), count: 1, donState, player: "opponent" }],
@@ -70,17 +42,6 @@ const guessCost = (then: Effect): Effect => seq(
   { do: "reveal_top", player: "opponent", bind: "_rev" },
   when({ c: "var_any_match", name: "_rev", filter: { cost: eq({ count: { of: "var", name: "_n" } }) } }, then),
 );
-
-const exists = (selector: Selector, atLeast?: number): Cond => ({ c: "exists", selector, ...(atLeast ? { atLeast } : {}) });
-const none = (selector: Selector): Cond => ({ c: "none", selector });
-const cmp = (left: Value, op: Extract<Cond, { c: "compare" }>["op"], right: Value): Cond => ({ c: "compare", left, op, right });
-const leaderName = (...names: string[]): Cond => ({ c: "leader_name", names });
-const leaderTrait = (...traits: string[]): Cond => ({ c: "leader_trait", traits });
-const leaderTraitIncludes = (text: string): Cond => ({ c: "leader_trait_includes", text });
-const count = (selector: Selector): Value => ({ count: { of: "cards", selector } });
-const trashCount: Value = { count: { of: "trash", player: "you" } };
-const lifeCount: Value = { count: { of: "life", player: "you" } };
-const donField = (player: "you" | "opponent"): Value => ({ count: { of: "don_field", player } });
 
 const CHAR: Filter = { types: ["character"] };
 const WB = "Whitebeard Pirates";
