@@ -2,24 +2,24 @@
    Settings → Theme and light / dark on their own. Layers: above the top bar (50) and deck menu
    (60), below sheets (100), card inspect (200) and the reconnect banner. */
 .logpose {
-  --lp-surface: var(--arena-panel);
+  --lp-surface: var(--ui-panel-bg);
   --lp-surface-2: var(--arena-raised);
-  --lp-ink: var(--ink);
-  --lp-muted: var(--muted);
-  --lp-line: var(--line);
-  --lp-accent: var(--chrome);
-  --lp-on-accent: var(--on-chrome);
+  --lp-ink: var(--ui-ink);
+  --lp-muted: var(--ui-muted);
+  --lp-line: var(--ui-line-soft);
+  --lp-accent: var(--ui-primary);
+  --lp-on-accent: var(--ui-on-primary);
   --lp-user-bg: rgb(var(--sea-rgb) / 0.32);
   --lp-user-ink: var(--ink);
-  --lp-needle: var(--crimson-bright);
-  --lp-danger: var(--crimson-bright);
+  --lp-needle: var(--ui-danger);
+  --lp-danger: var(--ui-danger);
   --lp-field: var(--arena-deep);
-  --lp-focus: var(--chrome-bright);
+  --lp-focus: var(--ui-accent);
   --lp-shadow: 0 2px 6px rgb(var(--abyss-rgb) / 0.35), 0 14px 36px rgb(var(--abyss-rgb) / 0.45);
-  --lp-font: var(--font-body);
-  --lp-font-display: var(--font-display);
-  --lp-z-compass: 70;
-  --lp-z-panel: 90;
+  --lp-font: var(--ui-font);
+  --lp-font-display: var(--ui-font-display);
+  --lp-z-compass: var(--z-card-menu);
+  --lp-z-panel: var(--z-drawer);
 }
 
 /* Post-game review on the match log page. */
@@ -30,7 +30,7 @@
 .lp-review-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
 }
@@ -73,7 +73,7 @@
 .lp-review-status {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 1.4rem;
   margin: 0 0 0.5rem;
   color: var(--muted);
@@ -91,7 +91,7 @@
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--chrome);
   animation: lp-pulse 1.2s ease-in-out infinite;
 }
@@ -148,7 +148,7 @@
   box-sizing: border-box;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--line-strong, var(--line));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--lp-surface-2);
   color: var(--lp-ink);
   font-size: 0.86rem;
@@ -158,7 +158,7 @@
 .mb-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   width: 100%;
   min-height: 36px;
   margin: 0;
@@ -174,7 +174,7 @@
 .mb-toggle:focus-visible {
   outline: 2px solid var(--lp-focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .mb-heading {
@@ -225,7 +225,7 @@
 .mb-note {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0 0 0.4rem;
   color: var(--lp-muted);
 }
@@ -234,7 +234,7 @@
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--lp-accent);
   animation: lp-pulse 1.2s ease-in-out infinite;
 }
@@ -274,7 +274,7 @@
   min-width: 36px;
   padding: 0 0.5rem;
   border: 1px solid var(--line-strong, var(--line));
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--chrome-bright);
   font: inherit;
@@ -316,7 +316,7 @@
   right: 4px;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--chrome-bright);
   opacity: 0;
 }

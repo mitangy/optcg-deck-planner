@@ -8,6 +8,7 @@ import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { watchAccountSync } from "./account/accountSync";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
+import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "./themes.css";
 import "./ui.css";

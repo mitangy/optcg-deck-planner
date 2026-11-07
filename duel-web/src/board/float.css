@@ -6,7 +6,7 @@
 
 .float-layer {
   position: fixed;
-  z-index: 46;
+  z-index: var(--z-float);
   top: 0;
   bottom: 0;
   left: 0;
@@ -115,7 +115,7 @@
 .float-card:nth-child(n + 6) { animation-delay: 150ms; }
 
 .float-card.is-drag {
-  z-index: 3;
+  z-index: var(--z-raise-3);
   cursor: grabbing;
 }
 
@@ -164,7 +164,7 @@
 .float-badge,
 .float-order-num {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   pointer-events: none;
   font-weight: 800;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
@@ -175,7 +175,7 @@
   left: 50%;
   transform: translateX(-50%);
   padding: 0.1rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--chrome-bright);
   color: var(--on-chrome);
   font-size: 0.72rem;
@@ -188,7 +188,7 @@
   height: 1.7rem;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--chrome-bright);
   color: var(--on-chrome);
   font-size: 0.9rem;
@@ -208,7 +208,7 @@
   gap: 0.15rem;
   height: 1.6rem;
   padding: 0 0.2rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--deep-rgb) / 0.82);
 }
 
@@ -255,7 +255,7 @@
   width: min(100%, 36rem);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: 0.66rem;
   color: var(--muted);
   text-transform: uppercase;
@@ -295,7 +295,7 @@
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.3rem 0.5rem;
   border-radius: 0.9rem;
   background: rgb(var(--deep-rgb) / 0.82);
@@ -322,7 +322,7 @@
 .float-return {
   pointer-events: auto;
   padding: 0.6rem 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--chrome);
   background: rgb(var(--panel-rgb) / 0.95);
   color: var(--chrome-bright);
@@ -348,7 +348,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
   .float-head-title .popup-size-btns {
     margin: 0;
@@ -400,11 +400,11 @@
   position: absolute;
   top: 0.75rem;
   right: 0.85rem;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   height: 1.75rem;
   padding: 0 0.75rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--mid-rgb) / 0.95);
   color: var(--ink);
   font-size: 0.75rem;
@@ -430,7 +430,7 @@
   position: absolute;
   top: 0.75rem;
   right: 4.6rem;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   display: flex;
 }
 
@@ -448,7 +448,7 @@
 
 .popup-size-btns {
   display: inline-flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .prompt-size-btn,
@@ -459,7 +459,7 @@
   height: 1.75rem;
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--mid-rgb) / 0.95);
   color: var(--ink);
   font-size: 1rem;
@@ -563,7 +563,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .float-stage-free > .float-head strong::before {
@@ -592,9 +592,9 @@
   position: absolute;
   top: 0.75rem;
   right: 4.6rem;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .prompt-dock-btn {
@@ -604,7 +604,7 @@
   height: 1.75rem;
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--mid-rgb) / 0.95);
   color: var(--ink);
   cursor: pointer;
@@ -653,12 +653,12 @@
   content: "Dock pop-up here";
   position: absolute;
   inset: 4px;
-  z-index: 40;
+  z-index: var(--z-hud-bar);
   display: grid;
   place-items: start center;
   padding-top: 1rem;
   border: 2px dashed var(--chrome-bright);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: rgb(var(--deep-rgb) / 0.45);
   color: var(--chrome-bright);
   font-size: 0.8rem;

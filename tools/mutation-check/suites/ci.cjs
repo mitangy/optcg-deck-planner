@@ -49,6 +49,12 @@ module.exports = {
       ["case-collisions-same-stem-flagged", "if (stems.size > 1) out.push", "if (stems.size > 0) out.push", "a test, a stylesheet or a same-case sibling does not collide"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/case-collisions.cjs", from, to, kills: [kill], args: '"tools/ci/case-collisions.test.cjs"' })),
     ...[
+      ["css-tokens-finder-skips-numbers", "tools/ci/css-tokens.cjs", "/(^|[\\s{;])z-index:\\s*-?\\d/.test(text)", "/(^|[\\s{;])z-index:\\s*-?\\d{9}/.test(text)", "a raw z-index number is flagged, a token, auto or a comment is not"],
+      ["css-tokens-comments-flagged", "tools/ci/css-tokens.cjs", 'return css.replace(/\\/\\*[\\s\\S]*?\\*\\//g, (c) => c.replace(/[^\\n]/g, " "));', "return css;", "a raw z-index number is flagged, a token, auto or a comment is not"],
+      ["css-tokens-board-raw-literal", "duel-web/src/interactions.css", "  position: fixed;\n  z-index: var(--z-attack-warning);\n  max-width: min(18rem", "  position: fixed;\n  z-index: 410;\n  max-width: min(18rem", "no app or package stylesheet writes a raw z-index number outside tokens.css"],
+      ["css-tokens-token-renamed", "packages/ui/src/tokens.css", "  --z-dock: 17;", "  --z-dok: 17;", "every --z-* token a stylesheet reads is defined in tokens.css"],
+    ].map(([id, file, from, to, kill]) => ({ id, file, from, to, kills: [kill], args: '"tools/ci/css-tokens.test.cjs"' })),
+    ...[
       ["retrain-gate-min-test", "if (newM.n < minTest)", "if (newM.n < 0)", "refuses a test set smaller than the minimum"],
       ["retrain-gate-top1-tie", "!(newM.top1 > oldM.top1)", "newM.top1 < oldM.top1", "refuses a tie on top1"],
       ["retrain-gate-top5-ignored", "!(newM.top5 >= oldM.top5)", "false", "refuses a top5 regression"],

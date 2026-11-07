@@ -9,6 +9,7 @@ import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./analytics";
 import App from "./App";
 import { readMetaSeed, releasePrerenderedRoot } from "./prerendered";
+import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import "@optcg/site-legal/siteLegal.css";
