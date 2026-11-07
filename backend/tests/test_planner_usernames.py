@@ -1,6 +1,7 @@
 """Planner shows another user's duel username when they have one (#903)."""
 
-from app import group_buy, services
+from app import services
+from app.group_buy import service as group_buy
 from tests.conftest import add_deck_with_cards, make_user
 
 

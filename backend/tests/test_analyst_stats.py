@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app import analyst_stats
+from app.analyst import stats as analyst_stats
 from app.models import DuelMatch, DuelMatchSeat
 from tests.test_analyst import _me_and_token, analyst  # noqa: F401  (fixture)
 from tests.test_duel import _ingest, client  # noqa: F401  (fixture)

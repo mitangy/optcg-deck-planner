@@ -11,9 +11,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, R
 from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.analyst_stats import matchup_stats
-from app.tournament_stats import tournament_stats
-from app.tournament_sync import sync_status
+from app.analyst.stats import matchup_stats
+from app.analyst.tournament_stats import tournament_stats
+from app.analyst.tournament_sync import sync_status
 from app.analyst import access
 from app.analyst.auth import analyst_user, hash_token
 from app.core.security import require_service

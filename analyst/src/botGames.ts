@@ -27,7 +27,7 @@ export function tallyReplay(replay: MatchReplay): { tallies: [LineTally, LineTal
   return { tallies, turns: state.turnNumber };
 }
 
-/** The named lines a side played in one game; keep in step with lines_of in backend/app/analyst_bots.py. */
+/** The named lines a side played in one game; keep in step with lines_of in backend/app/analyst/bots.py. */
 export function linesOf(t: Partial<LineTally>): Set<string> {
   const out = new Set<string>();
   if ((t.leaderActivations ?? 0) > 0) out.add("leader_activation");

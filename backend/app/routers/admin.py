@@ -15,10 +15,11 @@ from pydantic import AfterValidator, BaseModel, Field, model_validator
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from app import admin_hosting, admin_traffic
+from app.admin import hosting as admin_hosting
+from app.admin import traffic as admin_traffic
 from app.core.statuses import AccessStatus, FriendshipStatus, ReportStatus
 from app.core.time import as_utc_or_none
-from app.analyst_credit import month_start, spent_since
+from app.analyst.credit import month_start, spent_since
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import (

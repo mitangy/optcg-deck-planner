@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from app import analyst_bots, analyst_stats
+from app.analyst import bots as analyst_bots
+from app.analyst import stats as analyst_stats
 from app.models import BotMatch, DuelMatch, DuelMatchSeat
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)

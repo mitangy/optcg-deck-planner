@@ -11,7 +11,8 @@ from authlib.integrations.httpx_client import AsyncOAuth2Client
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from app import admin_hosting, admin_traffic
+from app.admin import hosting as admin_hosting
+from app.admin import traffic as admin_traffic
 from app import db as app_db
 from app.auth import (
     OAUTH_NONCE_COOKIE,

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
-from app.brief_tickets import verify_brief_ticket
+from app.analyst.brief_tickets import verify_brief_ticket
 from app.config import get_settings
 from app.duel.tokens import game_token_secret, mint_game_token
 from app.models import AnalystMatchBrief

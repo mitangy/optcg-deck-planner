@@ -4,7 +4,8 @@ import pytest
 
 from sqlalchemy import select
 
-from app import group_buy, services
+from app import services
+from app.group_buy import service as group_buy
 from app.models import Deck, GroupBuyLineOverride, Owned
 from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned

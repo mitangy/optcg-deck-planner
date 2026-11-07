@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app import redis_client
 from app.duel import live as duel_live
 from app.duel import tournaments as duel_tournaments
-from app.analyst_stats import seats_for
+from app.analyst.stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
 from app.config import Settings, get_settings

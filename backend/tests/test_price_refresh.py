@@ -237,7 +237,7 @@ def test_the_refresh_interval_is_never_under_fifteen_minutes_840():
 
 
 def test_the_hourly_task_only_starts_when_enabled_and_uses_the_settings_840(monkeypatch):
-    import app.tournament_sync as ts
+    import app.analyst.tournament_sync as ts
 
     captured: dict = {}
     ran: list = []

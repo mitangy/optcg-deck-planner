@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app import group_buy
+from app.group_buy import service as group_buy
 from tests.friend_support import as_user, client, make_user  # noqa: F401
 
 

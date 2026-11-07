@@ -9,6 +9,7 @@ from app.body_limit import BodySizeLimitMiddleware
 from app.config import get_settings
 from app.cors import TieredCORSMiddleware
 from app.db import init_db, startup_lock
+from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
 from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, reports, scan_samples
 
@@ -24,7 +25,7 @@ async def lifespan(_app: FastAPI):
         from app.catalog_sync import refresh_special_flags
         from app.db import SessionLocal
 
-        from app.analyst_stats import backfill_seats
+        from app.analyst.stats import backfill_seats
 
         db = SessionLocal()
         try:
@@ -32,9 +33,10 @@ async def lifespan(_app: FastAPI):
             backfill_seats(db)
         finally:
             db.close()
-    from app.tournament_sync import start_background
+    from app.analyst.tournament_sync import start_background
 
-    from app import discord_feedback, price_refresh
+    from app import price_refresh
+    from app.admin import discord_feedback
     from app.duel import progress_sweep
 
     sync_task = start_background(settings)
@@ -103,6 +105,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(api.router)
+app.include_router(group_buy_router.router)
 app.include_router(duel.router)
 app.include_router(friends_router.router)
 app.include_router(duel_tournaments.router)

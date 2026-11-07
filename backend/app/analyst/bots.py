@@ -21,7 +21,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, defer
 
 from app.core.statuses import LessonStatus
-from app.analyst_stats import MIN_GAMES, _record
+from app.analyst.stats import MIN_GAMES, _record
 from app.analyst import access
 from app.models import AnalystLesson, BotMatch, User
 

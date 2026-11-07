@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.analyst_bots import (
+from app.analyst.bots import (
     MAX_BATCH_GAMES,
     MAX_GAMES,
     BotLessonError,
