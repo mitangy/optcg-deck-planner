@@ -101,6 +101,8 @@ test("applies the edit Log Pose was asked to make by itself, once, and Undo stic
     { proposals: [{ ...edit, id: "toolu_saved_edit" }] });
   await page.goto(`/decks/${DECK_ID}/configure`);
   const stack = (id: string) => page.locator("article.deck-stack", { hasText: id });
+  // The deck editor loads on demand: wait for it, so the edit has an open deck to land on.
+  await expect(stack("ST01-006").getByLabel("4 copies")).toBeVisible();
   await expect(stack("ST01-010")).toHaveCount(0);
 
   await ask(page, "Swap two Chopper for two Franky");
