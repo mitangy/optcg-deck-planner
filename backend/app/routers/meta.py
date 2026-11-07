@@ -17,7 +17,7 @@ from app.schemas import CARD_ID_PATTERN
 router = APIRouter(prefix="/meta", tags=["meta"])
 
 CACHE_TTL_S = 600
-_rate_limiter = RateLimiter(max_calls=60, period_s=60)
+_rate_limiter = RateLimiter(max_calls=60, period_s=60, name="meta_rate_limiter")
 _cache: dict[tuple, tuple[float, Any]] = {}
 _cache_lock = threading.Lock()
 _CACHE_MAX = 500

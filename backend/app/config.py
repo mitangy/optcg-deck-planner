@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -20,6 +23,10 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     allowed_emails: str = ""
     catalog_sync_token: str = "dev-sync-token"
+    # Guards the operator routes: game-server pool pointer, card reports, feedback triage (D-06).
+    # Empty means they still accept CATALOG_SYNC_TOKEN (get_settings logs a warning); once set,
+    # the catalog token no longer opens them.
+    ops_admin_token: str = ""
     # Guards GET /scan-samples/export (#852). Empty means the export is closed.
     scan_training_token: str = ""
     # Den Den Mushi (#979): reads new posts in a Discord channel and files them as feedback.
@@ -189,4 +196,11 @@ def get_settings() -> Settings:
         raise RuntimeError("CATALOG_SYNC_TOKEN must be set to a strong value in production")
     if settings.is_production and settings.duel_ingest_secret == DEFAULT_DUEL_INGEST_SECRET:
         raise RuntimeError("DUEL_INGEST_SECRET must be set to a strong value in production")
+    if settings.ops_admin_token:
+        if settings.is_production and settings.ops_admin_token == DEFAULT_CATALOG_SYNC_TOKEN:
+            raise RuntimeError("OPS_ADMIN_TOKEN must be set to a strong value in production")
+        if settings.is_production and settings.ops_admin_token == settings.catalog_sync_token:
+            raise RuntimeError("OPS_ADMIN_TOKEN must differ from CATALOG_SYNC_TOKEN in production")
+    else:
+        logger.warning("OPS_ADMIN_TOKEN unset; falling back to CATALOG_SYNC_TOKEN")
     return settings

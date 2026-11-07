@@ -24,6 +24,7 @@ from app.analyst_stats import seats_for
 from app.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
 from app.config import Settings, get_settings
+from app.tokens import OpsToken
 from app.db import get_db
 from app.duel_ratings import INITIAL_RATING, apply_elo
 from app.game_tokens import mint_game_token, verify_game_token
@@ -47,7 +48,6 @@ from app.server_urls import normalize_server_url
 from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
-from app.routers.api import _require_catalog_token
 from app.schemas import (
     CardReportIn,
     CardReportOut,
@@ -184,29 +184,25 @@ def known_game_server_urls(settings: Settings) -> set[str]:
     return urls
 
 
-@router.get("/admin/game-server-pool", response_model=GameServerPoolOut)
+@router.get("/admin/game-server-pool", response_model=GameServerPoolOut, dependencies=[OpsToken])
 def get_game_server_pool(
     settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> GameServerPoolOut:
-    """Where new games go (admin catalog token)."""
-    _require_catalog_token(x_catalog_token, settings)
+    """Where new games go (ops admin token)."""
     r = redis_client.get_redis()
     pool = r.get(GAME_SERVER_POOL_KEY) if r is not None else None
     return GameServerPoolOut(pool_url=pool or None, game_server_url=game_server_url(settings))
 
 
-@router.put("/admin/game-server-pool", response_model=GameServerPoolOut)
+@router.put("/admin/game-server-pool", response_model=GameServerPoolOut, dependencies=[OpsToken])
 def set_game_server_pool(
     body: GameServerPoolIn,
     settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> GameServerPoolOut:
-    """Point new games at another game-server pool, or clear the pointer (admin catalog token).
+    """Point new games at another game-server pool, or clear the pointer (ops admin token).
 
     Games already running stay where they are; only tokens minted afterwards carry the new URL.
     """
-    _require_catalog_token(x_catalog_token, settings)
     r = redis_client.get_redis()
     if r is None:
         raise HTTPException(status_code=503, detail="REDIS_URL is not configured")
@@ -1038,20 +1034,17 @@ def create_card_report(
     return _report_out(row, user)
 
 
-@router.get("/card-reports", response_model=list[CardReportOut])
+@router.get("/card-reports", response_model=list[CardReportOut], dependencies=[OpsToken])
 def list_card_reports(
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
     status: str | None = "open",
     card_id: str | None = None,
     limit: int = 200,
 ) -> list[CardReportOut]:
-    """Reports for triage, newest first (guarded by the admin catalog token).
+    """Reports for triage, newest first (guarded by the ops admin token).
 
     Pass ``status=all`` to include fixed and won't-fix reports.
     """
-    _require_catalog_token(x_catalog_token, settings)
     query = select(CardReport, User).outerjoin(User, User.id == CardReport.user_id)
     if status and status != "all":
         query = query.where(CardReport.status == status)
@@ -1063,16 +1056,13 @@ def list_card_reports(
     return [_report_out(row, user) for row, user in rows]
 
 
-@router.patch("/card-reports/{report_id}", response_model=CardReportOut)
+@router.patch("/card-reports/{report_id}", response_model=CardReportOut, dependencies=[OpsToken])
 def update_card_report(
     report_id: int,
     body: CardReportStatusIn,
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> CardReportOut:
-    """Mark a report open, fixed or won't-fix (admin catalog token)."""
-    _require_catalog_token(x_catalog_token, settings)
+    """Mark a report open, fixed or won't-fix (ops admin token)."""
     row = db.get(CardReport, report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Report not found")

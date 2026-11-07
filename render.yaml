@@ -78,6 +78,11 @@ services:
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
+      # Guards the game-server pool pointer, card reports and feedback triage (kept apart from
+      # CATALOG_SYNC_TOKEN, which the catalog workflows hold). Set the same value as the GitHub
+      # secret OPS_ADMIN_TOKEN. While unset those routes still accept CATALOG_SYNC_TOKEN.
+      - key: OPS_ADMIN_TOKEN
+        sync: false
       # Optional Redis / Key Value (redis://… or rediss://…). Unset: rate limits are
       # per worker and presence / live-game progress stay in Postgres.
       - key: REDIS_URL
