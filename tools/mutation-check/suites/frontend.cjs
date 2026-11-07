@@ -34,13 +34,13 @@ module.exports = {
     { id: "version864-later-forever", file: "frontend/src/appVersion.ts", from: "s.deployed.sha !== dismissed ? s.deployed : null", to: "dismissed === null ? s.deployed : null", kills: ["Later hides the card until a newer build is deployed (#864)"] },
     // Shopping-list button waits for the list to load (#845)
     { id: "shopping845-add-enabled-while-loading", edits: [
-      { file: "frontend/src/App.tsx", from: "disabled={loading || save.isPending || extraQty === 0}", to: "disabled={save.isPending || extraQty === 0}" },
-      { file: "frontend/src/App.tsx", from: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={loading || save.isPending}", to: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={save.isPending}" },
-      { file: "frontend/src/App.tsx", from: "className=\"btn secondary\"\n          disabled={loading || save.isPending}", to: "className=\"btn secondary\"\n          disabled={save.isPending}" },
+      { file: "frontend/src/pages/shopping/lightboxActions.tsx", from: "disabled={loading || save.isPending || extraQty === 0}", to: "disabled={save.isPending || extraQty === 0}" },
+      { file: "frontend/src/pages/shopping/lightboxActions.tsx", from: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={loading || save.isPending}", to: "aria-label={`Buy more ${cardId}${altProductId > 0 ? \" alt art\" : \"\"}`}\n            disabled={save.isPending}" },
+      { file: "frontend/src/pages/shopping/lightboxActions.tsx", from: "className=\"btn secondary\"\n          disabled={loading || save.isPending}", to: "className=\"btn secondary\"\n          disabled={save.isPending}" },
     ], kills: ["Add to shopping list waits for the list to load so it can't overwrite a saved target (#845)"] },
     // Alt-art search rows (#848)
-    { id: "alt848-collection-add-saves-base", file: "frontend/src/App.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
-    { id: "alt848-collection-step-ignores-qty", file: "frontend/src/App.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
+    { id: "alt848-collection-add-saves-base", file: "frontend/src/pages/collection/CollectionAddPanel.tsx", from: "mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),", to: "mutationFn: (qty: number) => api.setOwned(card.card_id, qty),", kills: ["Add saves that alt printing, not the base card (#848)", "an owned alt steps its own copy count (#848)"] },
+    { id: "alt848-collection-step-ignores-qty", file: "frontend/src/pages/collection/CollectionAddPanel.tsx", from: "            onClick={() => save.mutate(owned + 1)}", to: "            onClick={() => save.mutate(1)}", kills: ["an owned alt steps its own copy count (#848)"] },
     // Group buy: totals across the arts the viewer picked (#850)
     { id: "gb876-shown-price-ignores-picked-arts", file: "frontend/src/groupBuyArt.ts", from: "return line.my_qty > 0 ? mySelectedArtsTotal(line).total : (line.market_price ?? null);", to: "return line.market_price ?? null;", kills: ["Price sort uses the total across picked arts, not the base price (#876)"], args: "src/groupBuyArt.test.ts" },
     { id: "gb870-alt-inc-allowed-without-base", file: "frontend/src/groupBuyArt.ts", from: "return myArtSplit(line).base <= 0;", to: "return myArtSplit(line).base < 0;", kills: ["Alt + is blocked once Base has no copies left to move (#870)"] },
@@ -587,5 +587,10 @@ module.exports = {
     {"id": "me-hint-not-recorded", "file": "frontend/src/auth/useMe.ts", "from": "      setSignedInHint(user != null);\n", "to": "", "kills": ["a page that only reads the session still records the signed-in hint for prerendered pages (#914)"], "args": "src/auth/useMe"},
     // Blocked storage must not throw out of the Master Shopping deck-filter effect (refactor 0.5)
     {"id": "shopping-deck-filter-save-throws", "file": "frontend/src/shoppingDeckFilter.ts", "from": "  } catch {\n    /* private mode / blocked storage: the choice still applies for this visit */\n  }", "to": "  } finally {\n    /* unguarded */\n  }", "kills": ["does not throw when storage is blocked, as in private mode"], "args": "src/shoppingDeckFilter"},
+    // Cached shopping list patches live in cache/optimistic.ts (refactor 3.3)
+    {"id": "optimistic-owned-ignored-in-still-need", "file": "frontend/src/cache/optimistic.ts", "from": "const still = stillNeedFor(need, qty, altsOwned);", "to": "const still = stillNeedFor(need, 0, altsOwned);", "kills": ["owning copies lowers still needed, the cost and both list totals"], "args": "src/cache/optimistic"},
+    {"id": "optimistic-alt-owned-not-counted", "file": "frontend/src/cache/optimistic.ts", "from": "const still_need = stillNeedFor(item.need, item.owned, alts_owned);", "to": "const still_need = stillNeedFor(item.need, item.owned, 0);", "kills": ["an owned alt art counts toward the card's still needed copies"], "args": "src/cache/optimistic"},
+    {"id": "optimistic-want-ignores-deck-need", "file": "frontend/src/cache/optimistic.ts", "from": "const need = Math.max(item.deck_need ?? 0, extraQty);", "to": "const need = extraQty;", "kills": ["a direct target below the decks' need keeps the decks' need"], "args": "src/cache/optimistic"},
+    {"id": "optimistic-want-zero-keeps-row", "file": "frontend/src/cache/optimistic.ts", "from": "if (need === 0) return [];", "to": "if (need < 0) return [];", "kills": ["clearing the target of a card no deck uses drops its row and its share of the totals"], "args": "src/cache/optimistic"},
 ],
 };
