@@ -2,7 +2,7 @@
   "framework": "vite",
   "installCommand": "npm ci",
   "buildCommand": "cd frontend && npx vite build",
-  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/price-timing packages/site-legal packages/patch-notes packages/analyst-client packages/ui packages/rules/src/cards vercel.json scripts/seo scripts/vercel-ignore-build.sh",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh frontend packages/deck-analytics packages/price-timing packages/site-legal packages/patch-notes packages/analyst-client packages/analyst-contract packages/ui packages/rules/src/cards vercel.json scripts/seo scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "**": false,

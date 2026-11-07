@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@optcg/analyst-contract": "*",
     "@optcg/card-core": "*",
     "@optcg/ui": "*"
   },

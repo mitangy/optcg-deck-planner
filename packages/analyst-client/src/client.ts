@@ -1,6 +1,6 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
-import type { HintContext } from "./ask";
+import { isLimitCode, type DonePayload, type ErrorCode, type HintContext, type LimitCode } from "@optcg/analyst-contract";
 import { parseDraft, type NewDeckDraft } from "./drafts";
 import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
@@ -294,20 +294,8 @@ export const AUTO_PREFIX = "(auto) ";
 export const isAutoMessage = (text: string): boolean => text.startsWith(AUTO_PREFIX);
 export const autoText = (text: string): string => (isAutoMessage(text) ? text.slice(AUTO_PREFIX.length) : text);
 
-export type ErrorCode = "credit" | "daily" | "monthly" | "busy" | "auth" | "server" | "bad_request";
-export type DonePayload = {
-  thread_id?: number;
-  cost_usd?: number;
-  spent_today_usd?: number;
-  daily_cap_usd?: number;
-  /** The player's monthly credit after this answer (null for an owner), what they have used and the limit that now stops them. */
-  credit_usd?: number | null;
-  credit_spent_usd?: number;
-  refusal?: "credit" | "daily" | "monthly" | null;
-  saved?: boolean;
-  /** A brief served from the saved copy (free). */
-  cached?: boolean;
-};
+
+export type { DonePayload, ErrorCode };
 
 export type StreamHandlers = {
   onThread?: (threadId: number) => void;
@@ -392,10 +380,10 @@ function refusalReason(body: string): string | null {
 }
 
 /** Which limit a 429 body names; a 429 that names none is taken as the daily one. */
-export function limitCode(body: string): "credit" | "daily" | "monthly" | "busy" {
+export function limitCode(body: string): LimitCode {
   try {
     const code = (JSON.parse(body) as { code?: unknown }).code;
-    if (code === "credit" || code === "daily" || code === "monthly" || code === "busy") return code;
+    if (isLimitCode(code)) return code;
   } catch {
     /* not JSON */
   }
