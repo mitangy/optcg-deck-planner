@@ -4,7 +4,6 @@ import { collectPublicDefIds, visibleArtPrefs } from "../../publicArt.js";
 import type { Takedown } from "../../presence.js";
 import { cosmeticIdOfLink, isTakenDown, skinMatchesTakedown } from "../../takedowns.js";
 import {
-  PROTOCOL_VERSION,
   parseCosmeticsMessage,
   parseSkinMessage,
   type ArtPrefsMap,
@@ -12,7 +11,7 @@ import {
   type SeatSkin,
   type SkinMessage,
 } from "../../protocol.js";
-import type { DuelCore } from "./context.js";
+import type { DuelCore, WireBody } from "./context.js";
 
 /** Per-seat cosmetics (alt-art prefs, playmat / card back): stored, relayed, and filtered so no decklist leaks (#369). */
 export class SeatCosmetics {
@@ -28,7 +27,7 @@ export class SeatCosmetics {
   /** Per-seat custom playmat / card back (cosmetics only). */
   private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
 
-  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "seatForClient">) {}
+  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "seats">) {}
 
   /** Clear what was shown face-up so a rematch starts clean (prefs and skins stay). */
   resetPerGameState() {
@@ -61,16 +60,16 @@ export class SeatCosmetics {
   /** One seat's prefs as `client` may see them: whole for the owner, public cards only for anyone else. */
   private artPrefsFor(client: Client, seat: Seat): ArtPrefsMap {
     const prefs = this.seatArtPrefs[seat];
-    return this.core.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);
+    return this.core.seats.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);
   }
 
   /** Push a seat's prefs to every client, each filtered for what it may see. */
   private broadcastSeatCosmetics(seat: Seat, onlyNonOwners = false) {
     this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
     for (const c of this.core.io.allClients()) {
-      if (onlyNonOwners && this.core.seatForClient(c) === seat) continue;
-      const payload: CosmeticsMessage = { protocolVersion: PROTOCOL_VERSION, seat, artPrefs: this.artPrefsFor(c, seat) };
-      c.send("cosmetics", payload);
+      if (onlyNonOwners && this.core.seats.seatForClient(c) === seat) continue;
+      const payload: WireBody<CosmeticsMessage> = { seat, artPrefs: this.artPrefsFor(c, seat) };
+      this.core.io.send(c, "cosmetics", payload);
     }
   }
 
@@ -101,7 +100,7 @@ export class SeatCosmetics {
     if (blocked(skin.playmat)) skin = { ...skin, playmat: null };
     if (blocked(skin.cardBack)) skin = { ...skin, cardBack: null };
     this.seatSkins[seat] = skin;
-    const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
+    const payload: WireBody<SkinMessage> = { seat, skin };
     this.core.io.broadcast("skin", payload);
   }
 
@@ -110,11 +109,11 @@ export class SeatCosmetics {
     for (const t of list) {
       for (const seat of [0, 1] as Seat[]) {
         const skin = this.seatSkins[seat];
-        if (!skin || this.core.game.seats[seat]?.userId !== t.user_id) continue;
+        if (!skin || this.core.seats.slot(seat)?.userId !== t.user_id) continue;
         if (!skinMatchesTakedown(skin[t.kind], t.cosmetic_id)) continue;
         const next: SeatSkin = { ...skin, [t.kind]: null };
         this.seatSkins[seat] = next;
-        const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin: next };
+        const payload: WireBody<SkinMessage> = { seat, skin: next };
         this.core.io.broadcast("skin", payload);
       }
     }
@@ -125,18 +124,17 @@ export class SeatCosmetics {
     for (const seat of [0, 1] as Seat[]) {
       const artPrefs = this.artPrefsFor(client, seat);
       if (Object.keys(artPrefs).length === 0) continue;
-      const payload: CosmeticsMessage = {
-        protocolVersion: PROTOCOL_VERSION,
+      const payload: WireBody<CosmeticsMessage> = {
         seat,
         artPrefs,
       };
-      client.send("cosmetics", payload);
+      this.core.io.send(client, "cosmetics", payload);
     }
     for (const seat of [0, 1] as Seat[]) {
       const skin = this.seatSkins[seat];
       if (!skin) continue;
-      const payload: SkinMessage = { protocolVersion: PROTOCOL_VERSION, seat, skin };
-      client.send("skin", payload);
+      const payload: WireBody<SkinMessage> = { seat, skin };
+      this.core.io.send(client, "skin", payload);
     }
   }
 }

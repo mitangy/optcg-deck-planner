@@ -3,14 +3,13 @@ import type { Seat } from "@optcg/rules";
 import { gameSeed } from "../../matchmakeGuard.js";
 import { assertKnownDeck } from "../../rankedDeck.js";
 import {
-  PROTOCOL_VERSION,
   parseRematchMessage,
   type PlayerDeckWire,
   type RematchAction,
   type RematchStateMessage,
 } from "../../protocol.js";
 import { BOT_SEAT, botPacing } from "./bots.js";
-import type { DuelCore } from "./context.js";
+import type { DuelCore, WireBody } from "./context.js";
 
 /** The rematch handshake after a private game: both agree, the loser picks the turn order, a fresh game starts. */
 export class Rematch {
@@ -19,7 +18,7 @@ export class Rematch {
   /** Deck each seat picked with its rematch request (null: keep the current deck). */
   private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
 
-  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "time" | "startMatch">) {}
+  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "time" | "seats" | "startMatch">) {}
 
   /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
@@ -28,17 +27,15 @@ export class Rematch {
     this.rematchDecks = [null, null];
   }
 
-  state(): RematchStateMessage {
+  state(): WireBody<RematchStateMessage> {
     const { game } = this.core;
     const available =
       !game.ranked &&
       game.matchOverSent &&
       game.match?.winner != null &&
-      game.seats[0] != null &&
-      game.seats[1] != null;
+      this.core.seats.bothFilled();
     const both = this.rematchRequested[0] && this.rematchRequested[1];
     return {
-      protocolVersion: PROTOCOL_VERSION,
       available,
       requested: [...this.rematchRequested],
       newDeck: [this.rematchDecks[0] != null, this.rematchDecks[1] != null],

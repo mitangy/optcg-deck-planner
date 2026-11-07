@@ -2,7 +2,7 @@ import type { Client } from "colyseus";
 import { getPlayerView, getSpectatorView, projectGameEvents, type GameEvent, type MatchState, type Seat } from "@optcg/rules";
 import { applyHandOrder, idsInHand } from "../../handOrder.js";
 import { presence } from "../../presence.js";
-import { PROTOCOL_VERSION, parseHandOrderMessage } from "../../protocol.js";
+import { parseHandOrderMessage } from "../../protocol.js";
 import type { DuelCore, SpectatorSlot } from "./context.js";
 
 export const MAX_SPECTATORS = 8;
@@ -16,7 +16,7 @@ export class Spectators {
    */
   private seatHandOrder: [string[], string[]] = [[], []];
 
-  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "cosmetics">) {}
+  constructor(private readonly core: Pick<DuelCore, "game" | "io" | "cosmetics" | "seats">) {}
 
   get list(): readonly SpectatorSlot[] {
     return this.slots;
@@ -85,10 +85,7 @@ export class Spectators {
     for (const spec of this.slots) {
       const specClient = io.clientFor(spec.sessionId);
       if (!specClient) continue;
-      specClient.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view: this.spectatorView(game.match, spec.cameraSeat),
-      });
+      io.send(specClient, "view", { view: this.spectatorView(game.match, spec.cameraSeat) });
     }
   }
 
@@ -118,39 +115,25 @@ export class Spectators {
 
   /** Send every connected seat and spectator its view of the current state, with the events that led to it. */
   broadcastViews(events: GameEvent[]) {
-    const { game, io, cosmetics } = this.core;
+    const { game, io, cosmetics, seats } = this.core;
     if (!game.match) return;
     cosmetics.updatePublicArt(events);
     // Replay intents applied so far: lets clients drop battle-log lines on undo.
     const step = game.replay?.intents.length ?? 0;
-    for (const slot of game.seats) {
+    for (const slot of seats.all()) {
       if (!slot) continue;
       const client = io.clientFor(slot.sessionId);
       if (!client) continue;
       const view = this.playerView(game.match, slot.seat);
-      client.send("events", {
-        protocolVersion: PROTOCOL_VERSION,
-        events: projectGameEvents(events, slot.seat),
-        step,
-      });
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view,
-      });
+      io.send(client, "events", { events: projectGameEvents(events, slot.seat), step });
+      io.send(client, "view", { view });
     }
     for (const spec of this.slots) {
       const client = io.clientFor(spec.sessionId);
       if (!client) continue;
       const view = this.spectatorView(game.match, spec.cameraSeat);
-      client.send("events", {
-        protocolVersion: PROTOCOL_VERSION,
-        events: projectGameEvents(events, null),
-        step,
-      });
-      client.send("view", {
-        protocolVersion: PROTOCOL_VERSION,
-        view,
-      });
+      io.send(client, "events", { events: projectGameEvents(events, null), step });
+      io.send(client, "view", { view });
     }
   }
 }

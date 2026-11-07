@@ -9,6 +9,7 @@ import { BotPool, setSharedBotPool, type BotJobInput, type BotJobOutput } from "
 import { botPacing, botSearch, type DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 import { ManualSleepTime } from "./fakeTime.js";
+import { withRoomEnv } from "./roomEnv.js";
 
 type View = {
   seat: 0 | 1;
@@ -164,9 +165,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
     });
 
     it("a bot game is not written to match history, even for a signed-in player (#631)", async () => {
-      const prev = process.env.MATCH_OUTBOX_DATABASE_URL;
-      process.env.MATCH_OUTBOX_DATABASE_URL = "postgres://outbox.invalid/db";
-      try {
+      await withRoomEnv({ outboxEnabled: true }, async () => {
         const room = await create();
         const sent: unknown[] = [];
         Object.assign(room, {
@@ -182,10 +181,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         await waitUntil(() => bag.over !== undefined);
         assert.equal(bag.over!.result.winner, 1);
         assert.deepEqual(sent, []);
-      } finally {
-        if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
-        else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
-      }
+      });
     });
 
     /** Run a signed-in bot game with the API calls captured; `finish` ends it. */
@@ -193,9 +189,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       finish: (room: DuelRoom, human: ClientRoom) => void,
       opts: { level?: "easy" | "normal" | "hard"; botLeader?: string; persistSoloGame?: (p: SoloGamePayload) => Promise<void> } = {},
     ) {
-      const prev = process.env.MATCH_OUTBOX_DATABASE_URL;
-      process.env.MATCH_OUTBOX_DATABASE_URL = "postgres://outbox.invalid/db";
-      try {
+      return withRoomEnv({ outboxEnabled: true }, async () => {
         const room = await create(
           opts.level ? { bot: { level: opts.level, deck: { ...botDeck(), leaderId: opts.botLeader ?? DEFAULT_LEADER_ID } } } : {},
         );
@@ -213,10 +207,7 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         finish(room, human);
         await waitUntil(() => bag.over !== undefined);
         return { room, solo, matches, bag };
-      } finally {
-        if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
-        else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
-      }
+      });
     }
     const humanConcedes = (_room: DuelRoom, human: ClientRoom) => human.send("concede", { protocolVersion: PROTOCOL_VERSION });
     const botConcedes = (room: DuelRoom) => (room as unknown as { concedeSeat(seat: number): void }).concedeSeat(1);

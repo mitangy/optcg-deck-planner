@@ -51,7 +51,7 @@ export class BotDriver {
   private botIntentsThisTurn = 0;
 
   constructor(
-    private readonly core: Pick<DuelCore, "game" | "io" | "time" | "undo" | "applySeatIntent" | "concedeSeat">,
+    private readonly core: Pick<DuelCore, "game" | "io" | "time" | "undo" | "seats" | "applySeatIntent" | "concedeSeat">,
   ) {}
 
   /** The bot's seat, or null in a room without one. */
@@ -66,13 +66,12 @@ export class BotDriver {
     game.bot = { level: opts.level, rng: createSeededRng((game.seed ^ 0x5bd1e995) >>> 0) };
     if (opts.level === "hard" && botSearch.useWorker && sharedBotPool().enabled()) sharedBotPool().warm();
     game.seatDecks[BOT_SEAT] = opts.deck;
-    game.seats[BOT_SEAT] = {
-      seat: BOT_SEAT,
+    this.core.seats.occupy(BOT_SEAT, {
       sessionId: "bot",
       displayId: "bot",
       displayName: botDisplayName(opts.level),
       userId: BOT_USER_ID,
-    };
+    });
   }
 
   /** Clear everything tied to one game so a rematch starts clean. */

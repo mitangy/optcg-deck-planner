@@ -54,7 +54,7 @@
 .landing-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .landing-columns > div {
