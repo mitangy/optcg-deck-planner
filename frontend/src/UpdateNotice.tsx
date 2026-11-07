@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { WhatsNewCard } from "@optcg/patch-notes";
-import { checkForUpdate, dismissUpdate, usePendingUpdate, useUpdateStatus } from "./appVersion";
-import { BuildTag } from "./BuildTag";
+import { BuildTag, checkForUpdate, dismissUpdate, usePendingUpdate, useUpdateStatus } from "@optcg/ui/appShell";
 
 function reload() {
   window.location.reload();

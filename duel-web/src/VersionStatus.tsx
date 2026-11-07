@@ -1,6 +1,4 @@
-import { checkForUpdate, useUpdateStatus } from "./appVersion";
-import { BuildTag } from "./BuildTag";
-import { BUILD_TIME, formatBuildTime } from "./buildInfo";
+import { BUILD_TIME, BuildTag, checkForUpdate, formatBuildTime, useUpdateStatus } from "@optcg/ui/appShell";
 
 function reload() {
   window.location.reload();

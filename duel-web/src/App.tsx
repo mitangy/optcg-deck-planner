@@ -29,7 +29,7 @@ import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFoot
 import { applyTextSize } from "./textSize";
 import { applyPopupSize } from "./board/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
-import { useMediaQuery } from "./board/useMediaQuery";
+import { useMediaQuery } from "@optcg/ui/hooks";
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();

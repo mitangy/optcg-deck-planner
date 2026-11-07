@@ -1,5 +1,5 @@
 /** "Report this card": testers flag cards that do not play as printed. */
-import { BUILD_SHA } from "../buildInfo";
+import { BUILD_SHA } from "@optcg/ui/appShell";
 import { getApiBaseUrl } from "../config";
 import { getMatchContext } from "../matchContext";
 

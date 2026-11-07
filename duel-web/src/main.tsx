@@ -3,11 +3,10 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { createAnalyticsBeforeSend, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
-import { analyticsBeforeSend } from "./analytics";
 import { startAccountSync } from "./account/accountSync";
 import { App } from "./App";
-import { startUpdateChecks } from "./appVersion";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
 import "./themes.css";
@@ -24,6 +23,9 @@ import "@optcg/site-legal/siteLegal.css";
 import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
+
+// Only origin + path reach analytics: auth tokens sit in the hash and invite codes in `?join=`.
+const analyticsBeforeSend = createAnalyticsBeforeSend();
 
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();

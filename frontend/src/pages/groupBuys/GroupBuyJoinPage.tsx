@@ -1,4 +1,4 @@
-import { BuildTag } from "../../BuildTag";
+import { BuildTag } from "@optcg/ui/appShell";
 import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
 import { AuthLoadingSkeleton, GroupBuyDetailSkeleton } from "../../Skeleton";
 import { ThemeToggle } from "../../ThemeToggle";

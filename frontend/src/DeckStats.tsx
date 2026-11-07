@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useMediaQuery } from "@optcg/ui/hooks";
 import { Dialog } from "@optcg/ui/popups";
 import type { DeckStatsCard } from "@optcg/deck-analytics";
 import { DECK_STATS_COLLAPSED_KEY } from "./storage/keys";
@@ -7,19 +8,6 @@ import { DeckStatsPanel, type HintsState } from "@optcg/deck-analytics/ui";
 
 /** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
 export const DOCK_QUERY = "(min-width: 1200px)";
-
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(query).matches : false));
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const mq = window.matchMedia(query);
-    const on = () => setMatches(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return matches;
-}
 
 function useStatsCollapsed() {
   return usePersistedState(DECK_STATS_COLLAPSED_KEY, false, bool01);

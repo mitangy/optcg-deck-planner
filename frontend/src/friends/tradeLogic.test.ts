@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Trade, TradeLine } from "./friendsApi";
 import { badgeLabel, counterPrefill, lineCap, lineQty, MAX_LINES, navBadgeCount, setLineQty, tradeSides, trayTotals, type CardCap, type TrayCard, type TrayLine } from "./tradeLogic";
-import { usernameFormatError } from "./username";
+import { usernameFormatError } from "@optcg/ui/username";
 
 const card = (over: Partial<TrayCard> = {}): TrayCard => ({
   side: "get",
