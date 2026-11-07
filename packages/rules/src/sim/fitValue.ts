@@ -439,7 +439,9 @@ export function buildDataset(lines: Iterable<string>, opts: { holdout: number; e
   let skipped = 0;
   for (const line of lines) {
     if (!line.trim()) continue;
-    const rows = samplesFromReplay(JSON.parse(line) as MatchReplay, game, opts.every, opts.featureSet, opts.table);
+    // A replay recorded on an older engine can diverge after a card fix; it is skipped like a game without a winner.
+    let rows: Sample[];
+    try { rows = samplesFromReplay(JSON.parse(line) as MatchReplay, game, opts.every, opts.featureSet, opts.table); } catch { rows = []; }
     if (!rows.length) skipped += 1;
     (game % stride === stride - 1 ? test : train).push(...rows);
     game += 1;
