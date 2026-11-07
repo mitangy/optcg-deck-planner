@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { chatBody, ChatHttpError, runChat, type SseEvent } from "./chat";
+import { AUTOPILOT_INSTRUCTIONS, COPILOT_INSTRUCTIONS } from "./prompts/copilot";
 import { BUDGET, catalog, deps, planner, scriptedModel, usage } from "./testkit";
 import {
-  answerChoiceTool, AUTOPILOT_INSTRUCTIONS, cardReferenceLine, checkChoiceAnswer, COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext,
+  answerChoiceTool, cardReferenceLine, checkChoiceAnswer, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext,
 } from "./copilot";
 
 const TICKET = "mb1.ticket-body.ticket-sig";

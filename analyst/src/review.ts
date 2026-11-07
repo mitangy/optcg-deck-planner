@@ -1,6 +1,5 @@
 import type { z } from "zod";
 import { PlannerApiError, plannerCall, reviewMatch, type ReviewGame } from "./matches";
-import { instructionsFor } from "./server";
 import { cardReferenceLine } from "./copilot";
 import { gameResults } from "./sources";
 import type { Catalog } from "./catalog";
@@ -8,7 +7,7 @@ import { claimStream, currentModel, recordUsage } from "./budget";
 import { flattenCited, streamTo } from "./citations";
 import { ChatHttpError, UserFacingError } from "./errors";
 import { costUsd, outputConfigFor } from "./models";
-import { REVIEW_INSTRUCTIONS } from "./prompts/review";
+import { systemFor } from "./prompts/system";
 import { partialUsageOf } from "./rounds";
 import type { reviewBody } from "./schemas";
 import type { ChatDeps, ModelReply, SseEvent } from "./types";
@@ -45,7 +44,7 @@ export function reviewRequest(catalog: Catalog, model: string, game: ReviewGame)
   return {
     model,
     max_tokens: REVIEW_MAX_TOKENS,
-    system: [{ type: "text" as const, text: instructionsFor(true) + REVIEW_INSTRUCTIONS, cache_control: { type: "ephemeral" as const } }],
+    system: systemFor({ kind: "review" }),
     // One source per turn, so the review can cite the turns it talks about.
     messages: [
       {

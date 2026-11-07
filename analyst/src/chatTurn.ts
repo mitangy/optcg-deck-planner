@@ -1,13 +1,13 @@
 import type { z } from "zod";
 import { PlannerApiError, plannerCall } from "./matches";
-import { buildTools, instructionsFor } from "./server";
-import { answerChoiceTool, AUTOPILOT_INSTRUCTIONS, COPILOT_INSTRUCTIONS, NO_PLANS_INSTRUCTIONS, gameContextBlock, turnPlanTool, verifyGame, type ChoiceAnswer, type TurnPlan } from "./copilot";
+import { buildTools } from "./server";
+import { answerChoiceTool, gameContextBlock, turnPlanTool, verifyGame, type ChoiceAnswer, type TurnPlan } from "./copilot";
 import { parseEditLines } from "./editLines";
 import { newDeckTool, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { claimStream, currentModel, recordRefusal, recordUsage, refusalNow, type Budget } from "./budget";
 import { ChatHttpError, refusalError, UserFacingError } from "./errors";
-import { CHAT_INSTRUCTIONS } from "./prompts/chat";
+import { systemFor } from "./prompts/system";
 import { MAX_TOOL_ROUNDS, newRounds, runToolRounds } from "./rounds";
 import type { chatBody } from "./schemas";
 import type { Block, ChatDeps, Message, SseEvent } from "./types";
@@ -131,11 +131,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   };
   const onPlan = (p: TurnPlan) => emit({ event: "plan", data: p });
   const onChoice = (a: ChoiceAnswer) => emit({ event: "choice", data: a });
-  // The copilot text is a second block after the cached prefix, so turns without a game keep the same cached prefix.
-  const system = [
-    { type: "text", text: instructionsFor(true) + CHAT_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
-    ...(game ? [{ type: "text", text: game.plans === false ? COPILOT_INSTRUCTIONS + NO_PLANS_INSTRUCTIONS : COPILOT_INSTRUCTIONS + (game.autopilot ? AUTOPILOT_INSTRUCTIONS : "") }] : []),
-  ];
+  const system = systemFor({ kind: "chat", game });
   const state = newRounds(userMessage);
   const turn = state.turn;
   const started = Date.now();

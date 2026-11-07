@@ -4,11 +4,14 @@
  */
 import type { Usage } from "./types";
 
-export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || "claude-sonnet-5-5";
+/** Every model id Log Pose uses, here and nowhere else (the evals' judge and extractor models come from here too). */
+export const MODELS = { sonnet: "claude-sonnet-5-5", opus: "claude-opus-5-5", haiku: "claude-haiku-5-5", haiku45: "claude-haiku-4-5" } as const;
+
+export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || MODELS.sonnet;
 /** The models the planner may pick for Log Pose (its model setting); anything else falls back to CHAT_MODEL. */
-export const CHAT_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"];
+export const CHAT_MODELS: string[] = [MODELS.sonnet, MODELS.opus, MODELS.haiku, MODELS.haiku45];
 /** Haiku 4.5 rejects output_config.effort; every other offered model takes it. */
-const NO_EFFORT_MODELS = ["claude-haiku-4-5"];
+const NO_EFFORT_MODELS: string[] = [MODELS.haiku45];
 /** The request's `output_config` for a model: the effort, unless the model does not support one. */
 export const outputConfigFor = (model: string, effort: "low" | "medium" | "high") => (NO_EFFORT_MODELS.includes(model) ? {} : { output_config: { effort } });
 
@@ -20,16 +23,16 @@ const HAIKU_5_5_TIER_TOKENS = 100_000;
 const HAIKU_5_5_PRICE: Price = { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 };
 const HAIKU_5_5_LONG_PRICE: Price = { input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite: 0.625 };
 const PRICES: Record<string, Price> = {
-  "claude-opus-5-5": OPUS_PRICE,
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+  [MODELS.opus]: OPUS_PRICE,
+  [MODELS.sonnet]: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  [MODELS.haiku45]: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
 };
 
 /** What ONE model call cost, priced by the model that served it. An unknown model is priced as Opus, the dearest, so caps never undercount. */
 export function costUsd(u: Usage, model: string = CHAT_MODEL): number {
   const m = 1_000_000;
   let price = PRICES[model] ?? OPUS_PRICE;
-  if (model === "claude-haiku-5-5") {
+  if (model === MODELS.haiku) {
     const prompt = u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
     price = prompt > HAIKU_5_5_TIER_TOKENS ? HAIKU_5_5_LONG_PRICE : HAIKU_5_5_PRICE;
   }

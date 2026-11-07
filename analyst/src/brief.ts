@@ -1,12 +1,12 @@
 import type { z } from "zod";
 import { PlannerApiError, plannerCall } from "./matches";
 import { newestFormat } from "./playbook";
-import { buildTools, instructionsFor } from "./server";
+import { buildTools } from "./server";
 import type { Catalog } from "./catalog";
 import { checkBudget, claimStream, recordRefusal, recordUsage, refusalNow } from "./budget";
 import { flattenCited, replayCited } from "./citations";
 import { ChatHttpError, UserFacingError } from "./errors";
-import { BRIEF_INSTRUCTIONS } from "./prompts/brief";
+import { systemFor } from "./prompts/system";
 import type { ToolName } from "./toolMeta";
 import { newRounds, runToolRounds } from "./rounds";
 import type { briefBody } from "./schemas";
@@ -84,7 +84,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
       "",
       "Write the matchup brief.",
     ].join("\n");
-    const system = [{ type: "text", text: instructionsFor(false) + BRIEF_INSTRUCTIONS, cache_control: { type: "ephemeral" } }];
+    const system = systemFor({ kind: "brief" });
     const state = newRounds({ role: "user", content: [{ type: "text", text: prompt }] });
     const started = Date.now();
     let failed = false;
