@@ -22,6 +22,7 @@
     "sim-import:report": "tsx src/sim/optcgsim/report.ts",
     "selfplay": "tsx src/sim/selfPlay.ts",
     "fit-value": "tsx src/sim/fitValue.ts",
+    "versus": "tsx src/sim/versus.ts",
     "export-deck-prior": "tsx src/scripts/exportDeckPrior.ts",
     "bench:views": "tsx src/scripts/benchViews.ts",
     "goldfish": "tsx src/sim/goldfish.ts",

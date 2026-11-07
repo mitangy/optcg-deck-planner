@@ -20,10 +20,11 @@
  */
 import { createMatch } from "../../engine.js";
 import { getCardDef, hasCardDef } from "../../cards/definitions.js";
-import { extractFeatures } from "../../bot/features.js";
+import { cardBag, denseFeaturesV2, extractFeatures } from "../../bot/features.js";
+import type { FeatureSet } from "../../bot/valueModel.js";
 import { evaluate } from "../../bot/evaluate.js";
 import type { CardInstance, DonInstance, MatchState, PlayerState, Seat } from "../../types.js";
-import type { Sample } from "../fitValue.js";
+import type { CardTable, Sample } from "../fitValue.js";
 import type { SimBoardSnapshot, SimGame, SimSide } from "./types.js";
 
 /** Vanilla filler used for every card whose identity is unknown or irrelevant (same as the test harness). */
@@ -92,7 +93,8 @@ function fillBoard(state: MatchState, seat: Seat, b: SimBoardSnapshot, turnsStar
 }
 
 /** One sample per turn of a parsed sim game, from the recording player's seat. [] for games with no winner or an unknown card id. */
-export function samplesFromSimGame(game: SimGame, gameIndex: number): Sample[] {
+export function samplesFromSimGame(game: SimGame, gameIndex: number, featureSet: FeatureSet = "v1", table?: CardTable): Sample[] {
+  if (featureSet === "v2" && !table) throw new Error("feature set v2 needs a CardTable");
   if (!game.winner || !simGameIsKnown(game)) return [];
   const y: 0 | 1 = game.winner === "me" ? 1 : 0;
   const started = { me: 0, opp: 0 };
@@ -115,7 +117,13 @@ export function samplesFromSimGame(game: SimGame, gameIndex: number): Sample[] {
     fillBoard(state, ME, me, started.me, me.knownHandIds);
     // The opponent's hand is a count of unknown cards.
     fillBoard(state, OPP, opp, started.opp, Array.from({ length: opp.handCount }, () => FILLER));
-    out.push({ x: extractFeatures(state, ME), y, hand: evaluate(state, ME), turn: turn.number, game: gameIndex });
+    const row: Sample = { x: featureSet === "v2" ? denseFeaturesV2(state, ME) : extractFeatures(state, ME), y, hand: evaluate(state, ME), turn: turn.number, game: gameIndex };
+    if (featureSet === "v2") {
+      // The card bag reads only my own hand ids (known) and both boards; the opponent hand stays filler.
+      const bag = cardBag(state, ME, table!.lookup);
+      row.sp = bag.idx.flatMap((k, i) => [k, bag.val[i]!]);
+    }
+    out.push(row);
   }
   return out;
 }

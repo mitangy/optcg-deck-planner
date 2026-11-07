@@ -2,17 +2,20 @@
  * Paired bot-vs-bot comparison (#635): bot A against bot B on the meta decks, every pair of games with the same decks,
  * shuffle and first seat and the bots' seats swapped.
  *
- * Usage: npx tsx src/sim/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3]
+ * Usage: npx tsx src/sim/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3] [--json result.json]
  * Spec keys: kind = normal | hard | legacy (an older bot: LEGACY_BOT=<file exporting chooseLegacy>, e.g. a copy of src/bot from git at the commit to compare with), evalMode, prior = meta | true | generic,
- * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs.
- * Prints wins, win rate with a 95% Wilson interval, and CPU time per hard decision for each side.
+ * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs,
+ * weights = path to a value model JSON (linear or mlp, see bot/valueModel.ts) used for winProb and evalMode=learned instead of the committed valueWeights.json (no commas in the path).
+ * Prints wins, win rate with a 95% Wilson interval, the pair counts with the paired interval (versusStats.ts), and CPU time per hard decision for each side.
+ * --json writes {games, finished, aWins, rate, ci:[lo,hi], pairs:{aBoth,split,bBoth}, pairedCi:[lo,hi]} (rates are fractions of finished games; pairedCi is for the mean pair score).
  */
 import { fork } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { buildDeckPrior, type BotLevel, type BotOptions } from "../bot/index.js";
+import { readFileSync, writeFileSync } from "node:fs";
+import { buildDeckPrior, weightsMatchFeatures, type BotLevel, type BotOptions, type ValueModel } from "../bot/index.js";
 import { createSeededRng } from "../rng.js";
 import type { PlayerDeckConfig } from "../types.js";
 import { playBotGame, type Chooser } from "./selfPlay.js";
+import { pairedStats, wilson } from "./versusStats.js";
 
 type Spec = Record<string, string>;
 const parseSpec = (s: string): Spec => Object.fromEntries(s.split(",").filter(Boolean).map((kv) => kv.split("=") as [string, string]));
@@ -35,6 +38,11 @@ async function optionsOf(spec: Spec, decks: DeckFile[]): Promise<{ level: BotLev
   if (spec.samples) opts.samples = Number(spec.samples);
   if (spec.maxEvals) opts.maxEvals = Number(spec.maxEvals);
   if (spec.budgetMs) opts.budgetMs = Number(spec.budgetMs);
+  if (spec.weights) {
+    const model = JSON.parse(readFileSync(spec.weights, "utf8")) as ValueModel;
+    if (!weightsMatchFeatures(model)) throw new Error(`${spec.weights}: feature names do not match featureSet ${model.featureSet ?? "v1"}`);
+    opts.valueWeights = model;
+  }
   if (spec.prior === "true") opts.prior = "true";
   else if (spec.prior === "generic") opts.prior = { lists: { "?": decks.map((d) => d.deck) } };
   else if (spec.prior === "meta") opts.prior = buildDeckPrior(decks);
@@ -44,16 +52,6 @@ async function optionsOf(spec: Spec, decks: DeckFile[]): Promise<{ level: BotLev
     return { level: "hard", opts, chooser: mod.chooseLegacy };
   }
   return { level: kind as BotLevel, opts };
-}
-
-function wilson(k: number, n: number): [number, number] {
-  if (!n) return [0, 1];
-  const z = 1.96;
-  const p = k / n;
-  const d = 1 + (z * z) / n;
-  const c = p + (z * z) / (2 * n);
-  const m = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n));
-  return [(c - m) / d, (c + m) / d];
 }
 
 interface Row { g: number; winner: "a" | "b" | null; turns: number; msA: number; decA: number; msB: number; decB: number; fallbacks: number }
@@ -103,19 +101,16 @@ async function main(): Promise<void> {
   const done = rows.filter((r) => r.winner !== null);
   const aw = done.filter((r) => r.winner === "a").length;
   const [lo, hi] = wilson(aw, done.length);
-  // Pairs: both games with the same deals.
-  const byPair = new Map<number, Row[]>();
-  for (const r of rows) byPair.set(Math.floor(r.g / 2), [...(byPair.get(Math.floor(r.g / 2)) ?? []), r]);
-  let aBoth = 0; let bBoth = 0; let split = 0;
-  for (const p of byPair.values()) {
-    if (p.length !== 2 || p.some((r) => r.winner === null)) continue;
-    const w = p.filter((r) => r.winner === "a").length;
-    if (w === 2) aBoth += 1; else if (w === 0) bBoth += 1; else split += 1;
-  }
+  const pairs = pairedStats(rows);
   const sum = (f: (r: Row) => number): number => rows.reduce((n, r) => n + f(r), 0);
   console.log(`A = ${arg("a")}\nB = ${arg("b")}`);
   console.log(`games ${rows.length}, finished ${done.length}, A wins ${aw} (${((100 * aw) / Math.max(1, done.length)).toFixed(1)}%, 95% CI ${(100 * lo).toFixed(0)}-${(100 * hi).toFixed(0)}%), B wins ${done.length - aw}`);
-  console.log(`pairs: A won both ${aBoth}, split ${split}, B won both ${bBoth}`);
+  console.log(`pairs: A won both ${pairs.aBoth}, split ${pairs.split}, B won both ${pairs.bBoth}; paired score ${(100 * pairs.pairedRate).toFixed(1)}%, 95% CI ${(100 * pairs.pairedCi[0]).toFixed(1)}-${(100 * pairs.pairedCi[1]).toFixed(1)}%`);
+  const jsonPath = arg("json");
+  if (jsonPath) {
+    const result = { games: rows.length, finished: done.length, aWins: aw, rate: done.length ? aw / done.length : 0, ci: [lo, hi], pairs: { aBoth: pairs.aBoth, split: pairs.split, bBoth: pairs.bBoth }, pairedCi: pairs.pairedCi };
+    writeFileSync(jsonPath, `${JSON.stringify(result, null, 1)}\n`);
+  }
   console.log(`ms per decision: A ${(sum((r) => r.msA) / Math.max(1, sum((r) => r.decA))).toFixed(2)}, B ${(sum((r) => r.msB) / Math.max(1, sum((r) => r.decB))).toFixed(2)}; wall ${((Date.now() - t0) / 1000).toFixed(0)}s, ${(rows.length / ((Date.now() - t0) / 1000)).toFixed(2)} games/s; avg turns ${(sum((r) => r.turns) / rows.length).toFixed(1)}; rejected answers ${sum((r) => r.fallbacks)}`);
 }
 
