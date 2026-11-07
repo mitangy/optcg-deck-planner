@@ -4,6 +4,7 @@
  */
 import { normalizeStatsCardId, type DeckStatsCard } from "@optcg/deck-analytics";
 import type { Catalog } from "./catalog";
+import { plannerApiUrlFrom } from "./config";
 
 export type Deck = {
   name?: string;
@@ -103,7 +104,7 @@ type PublicShare = {
   items?: { card_id: string; name?: string; card_type?: string; need: number; primary_leader_card_id?: string | null }[];
 };
 
-export const PLANNER_API_URL = process.env.PLANNER_API_URL ?? "https://optcg-deck-planner.app/api";
+export const PLANNER_API_URL = plannerApiUrlFrom(process.env);
 
 export async function fetchSharedDeck(catalog: Catalog, link: string, fetchImpl: typeof fetch = fetch): Promise<Deck> {
   const token = shareToken(link);

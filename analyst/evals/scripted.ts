@@ -4,7 +4,8 @@
  * needs, then answers with the gold's facts and cites the sources the gold wants. It proves the plumbing
  * and the graders, not Log Pose.
  */
-import { toCitation, type CallModel, type ModelReply, type Usage } from "../src/chat";
+import type { CallModel, ModelReply, Usage } from "../src/chat";
+import { streamReply } from "../src/testkit";
 import type { Catalog } from "../src/catalog";
 import { messageOf } from "./cases";
 import { CARD_ID } from "./grade/extract";
@@ -22,14 +23,7 @@ export function scriptedModel(script: Script): CallModel {
   return async (params, onText, _signal, onCite) => {
     const reply = script({ params, call: call++ });
     if (reply instanceof Error) throw reply;
-    for (const b of reply.content) {
-      if (b.type !== "text") continue;
-      onText(String(b.text));
-      for (const raw of (b.citations as unknown[] | undefined) ?? []) {
-        const c = toCitation(raw);
-        if (c) onCite?.(c);
-      }
-    }
+    streamReply(reply, onText, onCite);
     return reply;
   };
 }

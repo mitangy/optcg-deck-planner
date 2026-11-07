@@ -1,60 +1,14 @@
 import { getCardDef } from "@optcg/rules";
 import { describe, expect, it } from "vitest";
-import { loadCatalog, type Catalog } from "./catalog";
-import { BRIEF_INSTRUCTIONS, briefVariant, costUsd, runBrief, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
+import type { Catalog } from "./catalog";
+import { BUDGET, catalog, deps as testDeps, planner, scriptedModel, usage } from "./testkit";
+import { BRIEF_INSTRUCTIONS, briefVariant, costUsd, runBrief, type CallModel, type ChatDeps, type SseEvent } from "./chat";
 
-const catalog = loadCatalog();
 const TICKET = "mb1.ticket-body.ticket-sig";
-const BUDGET_OPEN = { allowed: true, spent_today_usd: 0.5, daily_cap_usd: 3 };
 const BUDGET_SPENT = { allowed: false, refusal: "daily", spent_today_usd: 3.1, daily_cap_usd: 3 };
-const usage = (input: number, output: number) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
 
-type Call = { url: string; method: string; headers: Record<string, string>; body?: any };
 
-/** A fake planner API: answers by "METHOD path" and records every call. */
-function planner(answers: Record<string, unknown>) {
-  const calls: Call[] = [];
-  const fetchImpl = (async (url: string, init: RequestInit) => {
-    const method = init.method ?? "GET";
-    const path = new URL(url).pathname;
-    calls.push({ url, method, headers: init.headers as Record<string, string>, body: init.body ? JSON.parse(init.body as string) : undefined });
-    const key = `${method} ${path}`;
-    if (!(key in answers)) return new Response(JSON.stringify({ detail: `no fake for ${key}` }), { status: 404 });
-    const answer = answers[key];
-    if (answer === null) return new Response(null, { status: 204 });
-    if (typeof answer === "number") return new Response(JSON.stringify({ detail: "Not a valid brief ticket" }), { status: answer });
-    if (typeof answer === "function") return new Response(JSON.stringify((answer as (u: string) => unknown)(url)), { status: 200 });
-    return new Response(JSON.stringify(answer), { status: 200 });
-  }) as unknown as typeof fetch;
-  return { calls, api: { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl } };
-}
-
-/** A model that plays back scripted replies, streaming each reply's text and citations. */
-function scriptedModel(replies: ModelReply[]) {
-  const seen: Record<string, any>[] = [];
-  const callModel: CallModel = async (params, onText, _signal, onCite) => {
-    seen.push(structuredClone(params));
-    const next = replies.shift();
-    if (!next) throw new Error("no more replies");
-    for (const b of next.content) {
-      if (b.type !== "text") continue;
-      onText(String(b.text));
-      for (const raw of (b.citations as unknown[] | undefined) ?? []) {
-        const c = toCitation(raw);
-        if (c) onCite?.(c);
-      }
-    }
-    return next;
-  };
-  return { seen, callModel };
-}
-
-const deps = (api: ChatDeps["api"], callModel: CallModel): ChatDeps => ({
-  api,
-  catalog,
-  knowledge: { playbook: { notes: new Map(), general: null }, stats: api },
-  callModel,
-});
+const deps = (api: ChatDeps["api"], callModel: CallModel): ChatDeps => testDeps(api, callModel, { knowledge: { playbook: { notes: new Map(), general: null }, stats: api } });
 const run = async (d: ChatDeps, generate: boolean) => {
   const events: SseEvent[] = [];
   await runBrief(d, "chat.tok", { ticket: TICKET, generate }, (e) => events.push(e), new AbortController().signal);
@@ -114,7 +68,7 @@ describe("matchup brief", () => {
   it("a peek with nothing cached calls no model and records no spend (#401)", async () => {
     const { calls, api } = planner({
       "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
-      "GET /analyst/chat/budget": BUDGET_OPEN,
+      "GET /analyst/chat/budget": BUDGET,
       "POST /analyst/chat/usage": null,
     });
     const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "Should not be written." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
@@ -125,7 +79,7 @@ describe("matchup brief", () => {
   });
 
   it("a ticket the planner refuses never reaches the model (#401)", async () => {
-    const { calls, api } = planner({ "POST /analyst/briefs/lookup": 403, "GET /analyst/chat/budget": BUDGET_OPEN, "POST /analyst/chat/usage": null });
+    const { calls, api } = planner({ "POST /analyst/briefs/lookup": 403, "GET /analyst/chat/budget": BUDGET, "POST /analyst/chat/usage": null });
     const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "A brief for a ranked game." }], stop_reason: "end_turn", usage: usage(10, 10) }]);
     await expect(run(deps(api, callModel), true)).rejects.toMatchObject({
       code: "bad_request",
@@ -158,7 +112,7 @@ describe("matchup brief", () => {
   it("a brief whose credit runs out between rounds is dropped quietly: nothing saved, no error (#446)", async () => {
     const { calls, api } = planner({
       "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
-      "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET_SPENT, refusal: "credit" } : BUDGET_OPEN),
+      "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET_SPENT, refusal: "credit" } : BUDGET),
       "POST /analyst/chat/usage": null,
       "PUT /analyst/briefs": null,
     });
@@ -179,7 +133,7 @@ describe("matchup brief", () => {
   it("writes the brief on the model the budget names (#428)", async () => {
     const { calls, api } = planner({
       "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
-      "GET /analyst/chat/budget": { ...BUDGET_OPEN, model: "claude-opus-5-5" },
+      "GET /analyst/chat/budget": { ...BUDGET, model: "claude-opus-5-5" },
       "POST /analyst/chat/usage": null,
       "PUT /analyst/briefs": null,
     });
@@ -194,7 +148,7 @@ describe("matchup brief", () => {
   it("writes the brief from both leaders and the player's deck with only shared tools, then saves it and records brief spend (#401)", async () => {
     const { calls, api } = planner({
       "POST /analyst/briefs/lookup": { ...LOOKUP, brief: null },
-      "GET /analyst/chat/budget": BUDGET_OPEN,
+      "GET /analyst/chat/budget": BUDGET,
       "POST /analyst/chat/usage": null,
       "PUT /analyst/briefs": null,
     });

@@ -1,50 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { loadCatalog } from "./catalog";
-import { chatBody, ChatHttpError, runChat, toCitation, type CallModel, type ChatDeps, type ModelReply, type SseEvent } from "./chat";
-import { answerChoiceTool, AUTOPILOT_INSTRUCTIONS, cardReferenceLine, checkChoiceAnswer, COPILOT_INSTRUCTIONS, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext } from "./copilot";
+import { chatBody, ChatHttpError, runChat, type SseEvent } from "./chat";
+import { AUTOPILOT_INSTRUCTIONS, COPILOT_INSTRUCTIONS } from "./prompts/copilot";
+import { BUDGET, catalog, deps, planner, scriptedModel, usage } from "./testkit";
+import {
+  answerChoiceTool, cardReferenceLine, checkChoiceAnswer, COPILOT_REFUSAL, gameContext, gameContextBlock, NO_GAME_ERROR, turnPlanTool, verifyGame, type GameContext,
+} from "./copilot";
 
-const catalog = loadCatalog();
 const TICKET = "mb1.ticket-body.ticket-sig";
-const BUDGET = { allowed: true, spent_today_usd: 0.5, daily_cap_usd: 3 };
-const usage = (input: number, output: number) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
 
-type Call = { url: string; method: string; body?: any };
-
-/** A fake planner API: answers by "METHOD path"; a number answers with that error status. Records every call. */
-function planner(answers: Record<string, unknown>) {
-  const calls: Call[] = [];
-  const fetchImpl = (async (url: string, init: RequestInit) => {
-    const method = init.method ?? "GET";
-    calls.push({ url, method, body: init.body ? JSON.parse(init.body as string) : undefined });
-    const key = `${method} ${new URL(url).pathname}`;
-    if (!(key in answers)) return new Response(JSON.stringify({ detail: `no fake for ${key}` }), { status: 404 });
-    const answer = answers[key];
-    if (answer === null) return new Response(null, { status: 204 });
-    if (typeof answer === "number") return new Response(JSON.stringify({ detail: "Not a valid brief ticket" }), { status: answer });
-    return new Response(JSON.stringify(answer), { status: 200 });
-  }) as unknown as typeof fetch;
-  return { calls, api: { baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl } };
-}
-
-function scriptedModel(replies: ModelReply[]) {
-  const seen: Record<string, any>[] = [];
-  const callModel: CallModel = async (params, onText, _signal, onCite) => {
-    seen.push(structuredClone(params));
-    const next = replies.shift();
-    if (!next) throw new Error("no more replies");
-    for (const b of next.content) {
-      if (b.type !== "text") continue;
-      onText(String(b.text));
-      for (const raw of (b.citations as unknown[] | undefined) ?? []) {
-        const c = toCitation(raw);
-        if (c) onCite?.(c);
-      }
-    }
-    return next;
-  };
-  return { seen, callModel };
-}
-const deps = (api: ChatDeps["api"], callModel: CallModel): ChatDeps => ({ api, catalog, knowledge: {}, callModel });
 
 const LOOKUP = {
   leader_id: "OP01-001",

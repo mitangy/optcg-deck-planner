@@ -7,12 +7,13 @@
  * below is a regex stand-in for dry runs and tests (it never calls the API).
  */
 import { costUsd, type Usage } from "../../src/chat";
+import { MODELS } from "../../src/models";
 import { withRetry } from "../retry";
 import type { Rubric, Verdict } from "../types";
 
-export const JUDGE_MODEL = "claude-sonnet-5-5";
+export const JUDGE_MODEL: string = MODELS.sonnet;
 /** The judge for D-group rubrics (pinned here, not ANALYST_CHAT_MODEL, so a changed chat model doesn't change the judge). */
-export const RUBRIC_MODEL = "claude-opus-5-5";
+export const RUBRIC_MODEL: string = MODELS.opus;
 
 /** Dollars per million tokens for the Sonnet judge (input, output, cache reads). */
 const JUDGE_PRICE = { input: 2, output: 10, cacheRead: 0.2 };

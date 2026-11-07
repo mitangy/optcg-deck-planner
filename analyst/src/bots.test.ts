@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { botLabel, lineDescription, replayGame, searchAnyGames, simStats } from "./matches";
-import { adaptToolResult, gameResults, type SearchResultBlock } from "./sources";
+import { gameResults, type SearchResultBlock } from "./sources";
+import { adaptToolResult } from "./toolMeta";
 import { finishedGame } from "./testFixtures";
 
 type Call = { url: string; headers: Record<string, string> };
@@ -55,7 +56,7 @@ describe("bot games in search and replay (#635)", () => {
     expect(out.kind).toBe("bot game (Hard vs Hard self-play)");
     expect(out.notes[0]).toMatch(/not a game between people/);
     expect(out.log.length).toBeGreaterThan(5);
-    const blocks = adaptToolResult("replay_match", JSON.stringify(out))!;
+    const blocks = adaptToolResult("replay_match", out)!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     expect((blocks[0] as SearchResultBlock).source).toBe("botgame:b_9");
     expect(blocks.some((b) => (b as SearchResultBlock).source === "botgame:b_9#t1")).toBe(true);
@@ -113,7 +114,7 @@ describe("simulated stats (#635)", () => {
       going_second: { games: 3, wins: null, win_rate: null, interval: null, too_few_games: true },
       lines: [{ ...withLine("optional_accepted:OP01-016"), description: "the optional effect of Nami (OP01-016) accepted" }],
     };
-    const blocks = adaptToolResult("sim_stats", JSON.stringify(payload))!;
+    const blocks = adaptToolResult("sim_stats", payload)!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     const results = blocks as SearchResultBlock[];
     expect(results.map((b) => b.source)).toEqual(["botsim:OP01-001~OP05-060", "botsim:OP01-001~OP05-060#optional_accepted:OP01-016"]);
@@ -126,9 +127,9 @@ describe("simulated stats (#635)", () => {
   });
 
   it("cites a leader overview and the all-leaders list as botsim: sources too (#635)", () => {
-    const overview = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", leader: "OP01-001", overall: { games: 9, wins: 5, win_rate: 0.556, interval: [0.27, 0.8], too_few_games: false }, opponents: [{ opponent: "OP05-060", games: 6, wins: null, win_rate: null, interval: null, too_few_games: true }], lines: [] }))!;
+    const overview = adaptToolResult("sim_stats", { days: 90, levels: "hard/hard", leader: "OP01-001", overall: { games: 9, wins: 5, win_rate: 0.556, interval: [0.27, 0.8], too_few_games: false }, opponents: [{ opponent: "OP05-060", games: 6, wins: null, win_rate: null, interval: null, too_few_games: true }], lines: [] })!;
     expect((overview as SearchResultBlock[]).map((b) => b.source)).toEqual(["botsim:OP01-001", "botsim:OP01-001~OP05-060"]);
-    const all = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", total_games: 10, leaders: [{ leader: "OP01-001", share: 0.5, games: 10, wins: 6, win_rate: 0.6, interval: [0.3, 0.85], too_few_games: false }] }))!;
+    const all = adaptToolResult("sim_stats", { days: 90, levels: "hard/hard", total_games: 10, leaders: [{ leader: "OP01-001", share: 0.5, games: 10, wins: 6, win_rate: 0.6, interval: [0.3, 0.85], too_few_games: false }] })!;
     expect((all as SearchResultBlock[]).map((b) => b.source)).toEqual(["botsim:OP01-001"]);
   });
 
@@ -137,7 +138,7 @@ describe("simulated stats (#635)", () => {
       { text: "With Zoro, games where Nami's effect was used were won more often. A pattern in the games, not proof of cause.", leader_id: "OP01-001", opponent_id: null, cards: ["OP01-016"] },
       { text: "With Zoro against Olivier, holding a counter paid off.", leader_id: "OP01-001", opponent_id: "OP05-060", cards: [] },
     ];
-    const blocks = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", leader: "OP01-001", overall: { games: 9, wins: 5, win_rate: 0.556, interval: [0.27, 0.8], too_few_games: false }, opponents: [], lines: [], lessons }))!;
+    const blocks = adaptToolResult("sim_stats", { days: 90, levels: "hard/hard", leader: "OP01-001", overall: { games: 9, wins: 5, win_rate: 0.556, interval: [0.27, 0.8], too_few_games: false }, opponents: [], lines: [], lessons })!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     const results = blocks as SearchResultBlock[];
     expect(results.map((b) => b.source)).toEqual(["botsim:OP01-001", "lesson:bots-OP01-001#1", "lesson:bots-OP01-001#2"]);
@@ -145,12 +146,12 @@ describe("simulated stats (#635)", () => {
     expect(text(results[1]!)).toContain("Cards: OP01-016.");
     expect(text(results[1]!)).toContain("From bot games, reviewed");
     expect(text(results[2]!)).toContain("Applies to: OP01-001 against OP05-060.");
-    const matchup = adaptToolResult("sim_stats", JSON.stringify({ days: 90, levels: "hard/hard", leader: "OP01-001", opponent: "OP05-060", games: 80, wins: 44, win_rate: 0.55, interval: [0.44, 0.66], too_few_games: false, lines: [], lessons: [lessons[1]] }))!;
+    const matchup = adaptToolResult("sim_stats", { days: 90, levels: "hard/hard", leader: "OP01-001", opponent: "OP05-060", games: 80, wins: 44, win_rate: 0.55, interval: [0.44, 0.66], too_few_games: false, lines: [], lessons: [lessons[1]] })!;
     expect((matchup as SearchResultBlock[]).map((b) => b.source)).toEqual(["botsim:OP01-001~OP05-060", "lesson:bots-OP01-001~OP05-060#1"]);
   });
 
   it("cites bot games in a search as botgame: sources labelled as simulated, beside player games as game: sources (#635)", () => {
-    const blocks = adaptToolResult("search_matches", JSON.stringify({ total: 2, offset: 0, window_days: 90, games: [{ ...playerGame }, { ...botGame, kind: "bot game (Hard vs Hard self-play)" }] }))!;
+    const blocks = adaptToolResult("search_matches", { total: 2, offset: 0, window_days: 90, games: [{ ...playerGame }, { ...botGame, kind: "bot game (Hard vs Hard self-play)" }] })!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     const results = blocks as SearchResultBlock[];
     expect(results.slice(0, 2).map((b) => b.source)).toEqual(["game:g_1", "botgame:b_1"]);
@@ -176,7 +177,7 @@ describe("simulated stats (#635)", () => {
       actual: { label: "End the turn", rank: 2, winChance: 44, matchedOption: true },
       notes: ["estimates"],
     };
-    const blocks = adaptToolResult("analyze_position", JSON.stringify(payload))!;
+    const blocks = adaptToolResult("analyze_position", payload)!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     const [position] = blocks as SearchResultBlock[];
     expect(position!.source).toBe("position:m1#t5s1");
