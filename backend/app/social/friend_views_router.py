@@ -242,10 +242,7 @@ def copy_friend_deck(
 ) -> DeckDetail:
     owner, _ = fv.require_friend_view(db, user, friend_id, "decks")
     deck = _visible_deck(db, owner.id, deck_id)
-    try:
-        new = deck_svc.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    new = deck_svc.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
     return deck_svc.get_deck_detail(db, user, new.id)
 
 
