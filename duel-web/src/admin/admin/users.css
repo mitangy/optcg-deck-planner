@@ -1,0 +1,310 @@
+/* —— Users —— */
+
+.adm-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  min-width: 0;
+}
+
+.adm-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.adm-search input {
+  width: 100%;
+  min-height: 44px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.adm-search input:focus-visible,
+.adm-urole .ui-select-button:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.adm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--chrome);
+}
+
+.adm-count {
+  min-width: 5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-urows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 12rem;
+}
+
+.adm-urows-note {
+  margin: 0.75rem 0;
+}
+
+.adm-urow {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(4.5rem, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.55rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.adm-uhead {
+  padding-block: 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* A title never spills into its neighbour (#1018). */
+.adm-uhead > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-ucell {
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.adm-uname {
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-uname b,
+.adm-uname > small:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-usource {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.adm-ujoined {
+  padding-left: 0.6rem;
+}
+
+.adm-ulink {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--muted);
+}
+
+.adm-ulink:hover,
+.adm-ulink:focus-visible {
+  color: var(--chrome);
+  border-bottom-style: solid;
+}
+
+.adm-banned {
+  margin-top: 0.15rem;
+  overflow-wrap: anywhere;
+}
+
+.adm-urow.banned {
+  background: rgb(var(--sea-rgb) / 0);
+  box-shadow: inset 3px 0 0 var(--crimson-bright);
+  padding-left: 0.6rem;
+}
+
+.adm-urole .ui-select-button {
+  width: 100%;
+  min-height: 36px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  color: var(--ink);
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.adm-uact {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.adm-uact .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.adm-more {
+  align-self: center;
+  min-width: 8rem;
+}
+
+/* Below ~1030px the desktop grid (about 57rem of columns inside the panel) no longer fits, so each user stacks (#1018). */
+@media (max-width: 1030px) {
+  .adm-uhead {
+    display: none;
+  }
+
+  /* Stacked list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
+  .adm-urow {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-areas:
+      "name name name role role"
+      "g1 g2 g3 g4 g5"
+      "joined joined source source source"
+      "act act act act act";
+    row-gap: 0.45rem;
+    padding: 0.7rem 0.25rem;
+  }
+
+  .adm-urow > .adm-uname {
+    grid-area: name;
+  }
+
+  .adm-urow > .adm-urole {
+    grid-area: role;
+    justify-self: end;
+  }
+
+  .adm-urow > .adm-usource {
+    grid-area: source;
+    text-align: right;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .adm-urow > .adm-ugames {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.3rem 0;
+    border-radius: var(--radius-8);
+    background: var(--arena-mid);
+    text-align: center;
+    font-size: 0.95rem;
+  }
+
+  .adm-urow > .adm-ugames::before {
+    content: attr(data-label);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .adm-urow > .adm-ugames[data-mode="ranked"] { grid-area: g1; }
+  .adm-urow > .adm-ugames[data-mode="friends"] { grid-area: g2; }
+  .adm-urow > .adm-ugames[data-mode="private"] { grid-area: g3; }
+  .adm-urow > .adm-ugames[data-mode="bot"] { grid-area: g4; }
+  .adm-urow > .adm-ugames[data-mode="practice"] { grid-area: g5; }
+
+  .adm-urow > .adm-ujoined {
+    grid-area: joined;
+    padding-left: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .adm-urow > .adm-ujoined::before {
+    content: "Joined ";
+  }
+
+  .adm-urow > .adm-uact {
+    grid-area: act;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 760px) {
+  .adm-grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-col-date {
+    display: none;
+  }
+
+  .adm-run-date {
+    display: block;
+  }
+
+  .adm-run {
+    min-width: 8rem;
+    max-width: 11rem;
+  }
+
+  .adm-uact {
+    grid-area: act;
+    justify-content: stretch;
+  }
+
+  .adm-uact .btn {
+    min-height: 44px;
+  }
+
+  .adm-tile-value {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-height: 480px) {
+  .adm-body {
+    min-height: 0;
+  }
+}
+
+/* Delete is quiet until hovered or focused; same box as Ban, so nothing shifts. */
+.adm-uact .adm-delete {
+  background: transparent;
+  color: var(--crimson-bright);
+  border-color: var(--crimson-bright);
+}
+
+.adm-uact .adm-delete:not(:disabled):hover,
+.adm-uact .adm-delete:not(:disabled):focus-visible {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff6f2;
+}

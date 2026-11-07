@@ -1,0 +1,498 @@
+/* ——— Deck page: main column + stats dock ——— */
+.deck-layout {
+  display: block;
+  min-width: 0;
+}
+
+.deck-main {
+  min-width: 0;
+}
+
+.stats-dock-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  background: var(--card);
+}
+
+.stats-dock-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.stats-dock-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stats-dock-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.stats-dock-scroll {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 0 0.9rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.stats-dock-scroll > .ds-body,
+.stats-dock-scroll > .ds-placeholder {
+  padding: 0 0.9rem;
+}
+
+.stats-dock-scroll > .dh-tray {
+  border-top: 0;
+}
+
+.stats-pill {
+  position: fixed;
+  /* Left: card rows keep their steppers / Add buttons on the right. */
+  left: max(0.75rem, env(safe-area-inset-left, 0px));
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-hud);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+}
+
+.stats-pill-hidden:not(:focus-visible) {
+  transform: translateY(calc(100% + 1.5rem));
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-pill {
+    transition: none;
+  }
+}
+
+.stats-sheet .stats-dock-collapse {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+/* Deck page header: keep the action buttons together on one row; the title block shrinks or the whole group drops below it. */
+@media (min-width: 801px) {
+  .deck-main > .page-head {
+    flex-wrap: wrap;
+  }
+
+  .deck-main > .page-head > .deck-detail-head {
+    flex: 1 1 22rem;
+  }
+
+  .deck-main > .page-head > .page-head-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+}
+
+.stats-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu);
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.stats-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 44rem;
+  height: 85dvh;
+  max-height: 85dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border: 1px solid var(--line-strong);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.stats-sheet .stats-dock-head {
+  padding-left: 1rem;
+}
+
+/* Room for the floating pill under the last card (not a big empty scroll). */
+@media (max-width: 1199px) {
+  .deck-layout {
+    padding-bottom: calc(2.75rem + 0.5rem);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-main:has(.deck-layout) {
+    max-width: min(1760px, 100%);
+  }
+
+  .deck-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 1.25rem;
+    align-items: start;
+  }
+
+  .stats-dock {
+    position: sticky;
+    top: 1rem;
+    /* Narrower near the breakpoint so the table beside it keeps every column. */
+    width: clamp(21rem, 26vw, 26rem);
+    max-width: 100%;
+  }
+
+  .stats-dock-collapsed {
+    width: 2.75rem;
+  }
+
+  .stats-dock .stats-dock-panel {
+    max-height: calc(100dvh - 2rem);
+  }
+
+  .stats-dock .ds-grid,
+  .stats-dock .ds-tiles {
+    grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
+  }
+
+  .stats-dock .ds-tiles {
+    --ds-side-cols: 2;
+  }
+
+  .stats-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.7rem 0 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-14);
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .stats-rail:hover {
+    background: var(--card-sunk);
+  }
+
+  .stats-rail-label {
+    writing-mode: vertical-rl;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+}
+
+/* ——— Deck page header: Edit deck > Play in Duel > quiet Share / More ——— */
+.btn.quiet {
+  width: auto;
+  margin-top: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.btn.quiet:not(:disabled):hover,
+.head-popover.open .btn.quiet {
+  background: var(--card-sunk);
+  color: var(--ink);
+}
+
+.head-popover-icon {
+  display: none;
+}
+
+.deck-size-inline,
+.deck-toolbar .filter-drawer-badge {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .page-head-actions.deck-head-actions {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    justify-content: stretch;
+  }
+
+  .deck-head-actions > .btn {
+    flex: 1 1 auto;
+    padding: 0.45rem 0.6rem;
+    white-space: nowrap;
+  }
+
+  .deck-head-actions > .head-popover {
+    flex: 0 0 auto;
+  }
+
+  /* Edit deck absorbs the slack; Play in Duel keeps its full label. */
+  .deck-head-actions > .duel-play-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    padding: 0.45rem 0.6rem;
+  }
+
+  /* Deck size rides on the title line instead of its own row. */
+  .deck-size-below {
+    display: none;
+  }
+
+  .deck-size-inline {
+    display: inline;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  /* Search, List/Grid and Filters share one row; the filter body opens below it. */
+  .list-toolbar.deck-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .deck-toolbar > .list-toolbar-row,
+  .deck-toolbar > .filter-drawer {
+    display: contents;
+  }
+
+  .deck-toolbar .card-search {
+    flex: 1 1 5rem;
+  }
+
+  .deck-toolbar .layout-toggle {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .deck-toolbar .layout-toggle button {
+    flex: 0 0 auto;
+    padding: 0.25rem 0.65rem;
+  }
+
+  .deck-toolbar .filter-drawer-toggle,
+  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-14);
+    background: var(--card);
+  }
+
+  .deck-toolbar .filter-drawer-summary {
+    display: none;
+  }
+
+  .deck-toolbar .filter-drawer-badge {
+    display: inline-block;
+  }
+
+  .deck-toolbar .filter-drawer-body {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-14);
+    background: var(--card);
+  }
+}
+
+/* Very narrow phones: Share and More shrink to icons (labels stay as accessible names) so the row never wraps. */
+@media (max-width: 420px) {
+  .deck-head-actions .head-popover-icon {
+    display: inline-flex;
+  }
+
+  .deck-head-actions .head-popover-label,
+  .deck-head-actions .head-popover-chevron {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    min-width: 2.5rem;
+    justify-content: center;
+    padding: 0.45rem 0.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Search gets its own full row; List/Grid and Filters share the next one. */
+  .deck-toolbar .card-search {
+    flex: 1 1 100%;
+  }
+
+  .deck-toolbar .filter-drawer-toggle,
+  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .page-head-actions.deck-head-actions {
+    gap: 0.3rem;
+  }
+
+  .deck-head-actions > .btn,
+  .deck-head-actions .head-popover-btn.quiet {
+    padding: 0.45rem 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .deck-head-actions > .btn {
+    min-width: max-content;
+  }
+
+  .deck-head-actions .head-popover-btn.quiet {
+    min-width: 2.25rem;
+  }
+
+  /* "Done editing" would push the row past 320px; "Done" is enough next to the other actions. */
+  .done-editing-extra {
+    display: none;
+  }
+}
+
+.deck-main .data-table th {
+  white-space: nowrap;
+}
+
+/* Header controls keep their width when the label flips between Edit deck / Done editing.
+   Phones size it with flex in the one-row action bar instead. */
+@media (min-width: 721px) {
+  .page-head-actions .btn.deck-edit-toggle {
+    min-width: 9.5rem;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ——— Editing beside the list (>= 1200px, the dock breakpoint) ——— */
+@keyframes row-flash-bg {
+  from { background-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+  to { background-color: transparent; }
+}
+
+@keyframes row-flash-ring {
+  from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 80%, transparent); }
+  to { box-shadow: 0 0 0 3px transparent; }
+}
+
+tr.row-flash > td {
+  animation: row-flash-bg 1.3s ease-out;
+}
+
+.mobile-card.row-flash,
+.grid-card.row-flash {
+  animation: row-flash-ring 1.3s ease-out;
+}
+
+@media (min-width: 1200px) {
+  /* The editor takes a column, so the list narrows; tighter cells keep the Cost column from scrolling off the right edge. */
+  .deck-layout-editing .deck-main .data-table :is(th, td) {
+    padding-inline: 0.5rem;
+  }
+
+  .deck-layout-editing .deck-editor-side {
+    position: sticky;
+    top: 1rem;
+    /* 20rem at the 1200px floor leaves the list room for its Alt arts column (#877). */
+    width: clamp(20rem, 26vw, 26rem);
+    max-width: 100%;
+    max-height: calc(100dvh - 2rem);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .deck-editor-side .deck-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .deck-editor-side .filter-drawer {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .deck-editor-side .filter-drawer-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .deck-editor-side .deck-editor-filters {
+    flex: 0 0 auto;
+  }
+
+  /* The results take whatever height the viewport leaves under the filters. */
+  .deck-editor-side .deck-editor-results {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .deck-editor-side .deck-editor-result-main {
+    flex-basis: 10rem;
+  }
+
+  /* The "what moved" chip floats over the bottom of the panel here; the header is too narrow to share. */
+  .deck-editor-side .dh-delta-slot {
+    top: auto;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    right: 0.6rem;
+    justify-content: center;
+  }
+}

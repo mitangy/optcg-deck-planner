@@ -1,0 +1,1314 @@
+/* Keep the <td> as a real table-cell so row borders stay continuous.
+   Flex the inner wrapper instead — display:flex on td breaks border-collapse. */
+.card-cell {
+  min-width: 14rem;
+  vertical-align: middle;
+}
+
+.card-cell-inner {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Deck table: let the text block shrink so long dotted names wrap at the dots
+   (see nameWithBreaks); dotless words may break anywhere as a last resort. */
+.deck-main .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Desktop list tables (#961): the art fills the Card column and the text sits under it, centred.
+   The column keeps a definite width (about its old min-width) so it never grows the table sideways;
+   art is capped so a wide table does not stretch it. Grid cards, the phone list and alt tiles are untouched. */
+.data-table .card-cell {
+  width: 14rem;
+}
+
+.data-table .card-cell-inner {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.data-table .card-cell-inner > .thumb-btn > .thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.data-table .card-cell-inner > div:not(.thumb) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.data-table {
+  min-width: 720px;
+  /* separate + 0 spacing draws each cell's border-bottom in full so lines
+     don't fragment around flex cells, sticky headers, or tinted rows. */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mobile-card-list {
+  display: none;
+}
+
+/* When JS only mounts the mobile list (group buy), keep it in flow. */
+.mobile-card-list.mobile-card-list-mounted {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 100%;
+}
+
+.owned {
+  width: 2.75rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: var(--radius-8);
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
+  background: var(--gold-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.owned::-webkit-outer-spin-button,
+.owned::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.owned-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.owned-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-10);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.owned-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.owned-btn:not(:disabled):hover {
+  border-color: var(--gold);
+}
+
+.owned-btn:not(:disabled):active {
+  background: var(--bg-deep);
+}
+
+/* Want stepper: Owned-stepper look with a read-only count and a one-line note
+   that always reserves its height, so state changes never shift the row. */
+.want-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.want-qty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 2.5rem;
+  border-radius: var(--radius-8);
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.want-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.1rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.want-reset {
+  padding: 0.35rem 0.2rem;
+  margin: -0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.want-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.grid-card-want .want-cell,
+.mobile-card-want .want-cell {
+  align-items: center;
+}
+
+.grid-card-want .want-qty {
+  width: 2.25rem;
+  height: 2.1rem;
+}
+
+.owned-err {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.market-price {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.market-price-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.market-price-btn:hover,
+.market-price.open .market-price-btn {
+  border-color: var(--line-strong);
+  background: var(--card);
+}
+
+.market-price-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.market-sales {
+  width: 14rem;
+  max-width: calc(100vw - 16px);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 0.82rem;
+  z-index: var(--z-popover);
+}
+
+.market-sales-head {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.market-sales-status {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.market-sales-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.market-sales-list li {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.market-sale-price {
+  font-weight: 700;
+}
+
+.market-sale-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.mobile-card-price-row {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobile-card-price-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mobile-card-price-row .market-price {
+  max-width: 100%;
+}
+
+/* Sign-in: a parchment notice pinned over the night sea. */
+.login {
+  min-height: 100%;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+  background:
+    var(--compass) center / min(900px, 160vw) no-repeat,
+    radial-gradient(ellipse at 50% 0%, #21485a 0%, transparent 60%),
+    linear-gradient(180deg, var(--sea-night) 0%, var(--sea-night-deep) 100%);
+}
+
+.login-card {
+  position: relative;
+  width: min(420px, 100%);
+  background: linear-gradient(180deg, var(--card) 0%, var(--card-sunk) 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-6);
+  padding: 2.25rem 2rem 1.75rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+  border-radius: var(--radius-3);
+  pointer-events: none;
+}
+
+.login-card h1 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 2.2rem;
+}
+
+.login-card .lede {
+  margin: 0 auto;
+  max-width: 32ch;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: var(--gold-ink);
+  font-weight: 600;
+  margin: 0;
+}
+
+.eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  color: var(--accent-ink);
+  text-decoration: underline;
+}
+
+.lede,
+.muted,
+.hint {
+  color: var(--muted);
+}
+
+.hint {
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}
+
+.btn,
+button.ghost {
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.1rem;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--primary-bg);
+  color: var(--primary-ink);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.btn.primary:not(:disabled):hover {
+  background: var(--primary-bg-hover);
+  color: var(--primary-ink);
+}
+
+.btn.secondary {
+  background: var(--card);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.btn.secondary:not(:disabled):hover {
+  border-color: var(--gold);
+  background: var(--field-bg);
+}
+
+.login-card .btn.primary {
+  width: 100%;
+  margin-top: 1.25rem;
+}
+
+button.ghost {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+button.ghost:not(:disabled):hover {
+  color: var(--accent-ink);
+}
+
+button.ghost.danger,
+button.ghost.danger:not(:disabled):hover {
+  color: var(--danger);
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.page-head h1 {
+  margin: 0.2rem 0;
+}
+
+.group-buy-detail .page-head > div:first-child {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.gb-title-row,
+.gb-title-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  min-width: 0;
+  min-height: 2.9rem;
+}
+
+.gb-title-row h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.page-head .gb-title-edit .btn {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0.45rem 0.9rem;
+}
+
+.gb-title-edit .gb-title-input {
+  flex: 1 1 14rem;
+  max-width: 28rem;
+  min-width: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .gb-title-edit .gb-title-input {
+    flex-basis: 100%;
+    max-width: none;
+  }
+}
+
+.page-head .muted {
+  margin: 0.35rem 0 0;
+}
+
+/* Headline numbers under a page title (Shopping). */
+.stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.75rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-strip li {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.stat-value small {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stat-value.gold {
+  color: var(--gold-ink);
+}
+
+.page-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.page-head-actions .btn,
+.page-head-actions .ghost {
+  min-width: 0;
+}
+
+/* Shared deck head: the title block takes the free width and wraps, so the button keeps its spot in both states. */
+.share-head {
+  flex-wrap: nowrap;
+}
+
+.share-head > div:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.share-head .page-head-actions {
+  flex: 0 0 auto;
+}
+
+/* Same width for "Add to my decks" / "Adding…" / "Sign in to add" so the button never resizes. */
+.page-head-actions .share-copy-btn {
+  min-width: 11rem;
+  white-space: nowrap;
+}
+
+.share-banner {
+  margin: 0.5rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--card);
+  font-size: 0.92rem;
+}
+
+.share-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: 0.75rem;
+}
+
+.share-panel-note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.share-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.share-panel-actions .btn,
+.share-panel-actions .ghost {
+  min-width: 0;
+}
+
+.page-head + .filter-drawer {
+  margin: 0 0 0.5rem;
+}
+
+.filter-drawer + .filter-drawer {
+  margin: 0 0 1rem;
+}
+
+.buy-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  border-radius: var(--radius-12);
+  background: var(--gold-soft);
+  min-width: 0;
+}
+
+.buy-bar-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.buy-bar-summary strong {
+  font-weight: 700;
+}
+
+.buy-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.buy-bar-actions .btn {
+  min-height: 2rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  width: auto;
+  margin-top: 0;
+  border-radius: var(--radius-pill);
+}
+
+.buy-bar-actions .btn.secondary {
+  background: var(--card);
+  border-color: color-mix(in srgb, var(--gold) 60%, var(--line));
+}
+
+.buy-bar-actions .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.buy-bar-actions .ghost {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+}
+
+.buy-bar-msg {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.buy-bar-msg-solo {
+  margin: 0 0 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  border-radius: var(--radius-12);
+  background: var(--gold-soft);
+}
+
+.select-col {
+  width: 2.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.select-col input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+tr.selected-row td,
+.mobile-card.selected-row,
+.grid-card-wrap.selected-row .grid-card {
+  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
+  outline-offset: -2px;
+}
+
+.mobile-card.selectable,
+.grid-card-wrap.selectable {
+  cursor: pointer;
+}
+
+.mobile-card.selectable:focus-visible,
+.grid-card-wrap.selectable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.public-app .topbar {
+  margin-bottom: 1.5rem;
+}
+
+.deck-progress {
+  margin: -0.25rem 0 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow);
+}
+
+.deck-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
+.deck-progress-toggle {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg-deep);
+  gap: 0.15rem;
+}
+
+.deck-progress-toggle button {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deck-progress-toggle button.active {
+  background: var(--card);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 2px rgba(23, 37, 46, 0.12);
+}
+
+.deck-progress-text {
+  margin: 0;
+  flex: 1 1 14rem;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 2.6em;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.deck-progress-line {
+  display: block;
+  min-height: 1.25em;
+  line-height: 1.25;
+}
+
+.deck-progress-meta {
+  font-size: 0.88rem;
+}
+
+.deck-progress-text strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.deck-progress-bar {
+  margin-top: 0.65rem;
+  height: 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.deck-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  box-shadow: inset 0 -1px 0 rgba(122, 86, 20, 0.25);
+  transition: width 0.2s ease;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.list-toolbar {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+/* Grid items default to min-width: auto, so they refuse to shrink below their
+   min-content width and silently overflow the track on narrow screens — the
+   row, the layout toggle and the filter drawer were all ~28px wider than the
+   grid at 320px. With overflow-x: clip on the page there is no scrollbar to
+   reveal it, so anything at the right edge just disappears. */
+.list-toolbar > * {
+  min-width: 0;
+}
+
+.list-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.list-toolbar-row .card-search {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.layout-toggle {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg-deep);
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.layout-toggle button {
+  min-height: 2rem;
+  padding: 0.25rem 0.85rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.layout-toggle button.active {
+  background: var(--card);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 2px rgba(23, 37, 46, 0.12);
+}
+
+.card-grid {
+  display: grid;
+  /* Extra width for the external select column beside each card (matches list). */
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 0.85rem;
+}
+
+.grid-card-wrap {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: 0.15rem;
+  /* Stretch so every card in a grid row is as tall as the tallest (#877); the select stays on top. */
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* Narrow (tap-to-select) grid: no checkbox column. */
+.grid-card-wrap.selectable {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.grid-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-16);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.grid-card.need {
+  background: var(--need);
+}
+
+.grid-card.done {
+  background: var(--done);
+  border-color: var(--done-line);
+}
+
+.grid-card-media {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.grid-card-media .thumb,
+.grid-card-media .thumb-btn .thumb {
+  width: 156px;
+  height: 218px;
+}
+
+.grid-card-media .thumb-btn {
+  display: block;
+}
+
+/* Outside the card, same width/alignment as the list view select column. */
+.grid-card-select {
+  align-self: start;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 2.25rem;
+  padding-top: 0.75rem;
+  margin: 0;
+}
+
+.grid-card-select input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.grid-card-body {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.grid-card-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.grid-card-meta {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.grid-card-price {
+  min-height: 1.6rem;
+}
+
+.grid-card-owned {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Compact stepper so the +/− controls fit inside the narrow grid card
+   (a full-size stepper is wider than the card and overflows the container). */
+.grid-card-owned .owned-wrap {
+  gap: var(--space-1);
+}
+
+.grid-card-owned .owned-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1.1rem;
+}
+
+.grid-card-owned .owned {
+  width: 2.25rem;
+}
+
+.grid-card-alts {
+  margin-top: 0.15rem;
+}
+
+.card-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.card-search-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.card-search-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+
+.card-search-input:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: var(--gold);
+}
+
+.card-search-clear {
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.filter-drawer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  background: var(--card);
+  /* visible so the Sort menu panel is not clipped */
+  overflow: visible;
+}
+
+.filter-drawer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border: none;
+  border-radius: var(--radius-14);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.filter-drawer.open .filter-drawer-toggle {
+  border-radius: 14px 14px 0 0;
+}
+
+.filter-drawer-toggle:hover,
+.filter-drawer.open .filter-drawer-toggle {
+  background: var(--card-sunk);
+}
+
+.filter-drawer-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-drawer-summary {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.filter-drawer-chevron {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.filter-drawer-body {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0 0.9rem 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.filter-drawer-body .filters {
+  padding-top: 0.75rem;
+}
+
+.filter-drawer-body .deck-filter {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+
+.filter-drawer-body .sort-deck-note {
+  margin: 0;
+}
+
+.need-mode .layout-toggle {
+  max-width: 100%;
+}
+
+.need-mode .layout-toggle button {
+  min-width: 0;
+}
+
+.owned-claim-note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted);
+  cursor: help;
+}
+
+.need-mode-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.search-result-note {
+  margin: -0.35rem 0 0.85rem;
+  font-size: 0.9rem;
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  color: var(--muted);
+}
+
+.filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-menu {
+  position: relative;
+  z-index: var(--z-raise-1);
+}
+
+.sort-menu-btn {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sort-menu-btn:hover,
+.sort-menu-btn[aria-expanded="true"] {
+  border-color: var(--gold);
+  color: var(--accent-ink);
+}
+
+.sort-menu-panel {
+  z-index: var(--z-menu);
+  /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
+  color: var(--muted);
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(24rem, calc(100dvh - 6rem));
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow);
+}
+
+.sort-menu-hint {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.sort-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sort-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-8);
+}
+
+.sort-menu-item label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: auto;
+  flex: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sort-menu-item.disabled {
+  opacity: 0.55;
+}
+
+.sort-menu-item.disabled label {
+  cursor: not-allowed;
+}
+
+.sort-menu-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.sort-menu-move {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.sort-menu-move .ghost {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.sort-menu-move .ghost:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sort-deck-note {
+  margin: -0.35rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.mobile-card-media {
+  display: none;
+}
+
+.table-wrap {
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-18);
+  box-shadow: var(--shadow);
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  vertical-align: middle;
+}
