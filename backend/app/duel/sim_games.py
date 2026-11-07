@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.time import as_utc
-from app.models import SimGame
+from app.duel.models import SimGame
 
 MAX_IMPORT_GAMES = 500
 MAX_COMBAT_LOG_CHARS = 400_000

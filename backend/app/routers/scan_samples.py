@@ -26,8 +26,9 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import ScanSample, User
-from app.schemas import CARD_ID_PATTERN
+from app.core.models import User
+from app.planner.models import ScanSample
+from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/scan-samples", tags=["scan-samples"])
 

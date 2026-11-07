@@ -15,7 +15,9 @@ from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import app
-from app.models import CatalogCard, Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
+from app.core.models import User
+from app.duel.models import DuelSavedDeck
+from app.planner.models import CatalogCard, Deck, DeckCard, DeckCardPrinting
 from app.duel import decks as duel_decks
 from tests.db_support import make_bare_engine, make_test_engine
 

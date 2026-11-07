@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.planner.domain import SPECIAL_NAME_MARKERS
-from app.models import CatalogCard, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogPrinting
 
 PRODUCT_LINE_PREFIXES = (
     "one piece card game - ",

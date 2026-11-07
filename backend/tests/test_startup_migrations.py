@@ -12,7 +12,12 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.core import db as app_db
-from app.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage, Deck, DuelInvite, DuelMatch, DuelMatchProgress, GroupBuy, ShareLink, User
+from app.analyst.models import AnalystAccess, AnalystEvalRun, AnalystMatchReview, AnalystUsage
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchProgress
+from app.group_buy.models import GroupBuy
+from app.planner.models import Deck, ShareLink
+from app.social.models import DuelInvite
 from tests.db_support import make_bare_engine, requires_postgres, using_postgres
 
 _PK = "SERIAL" if using_postgres() else "INTEGER"

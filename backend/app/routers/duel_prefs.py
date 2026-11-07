@@ -19,9 +19,10 @@ from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.duel.cosmetics import active_attr, public_path, public_sig, sniff_mime
 from app.core.db import get_db
-from app.models import DuelCosmetic, DuelUserSettings, User
+from app.core.models import User
+from app.duel.models import DuelCosmetic, DuelUserSettings
 from app.core.rate_limit import RateLimiter, client_ip
-from app.schemas import (
+from app.duel.schemas import (
     DuelCosmeticActiveIn,
     DuelCosmeticActiveOut,
     DuelCosmeticOut,

@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from app.schemas import RecentSale
+from app.planner.schemas import RecentSale
 
 TCGPLAYER_SALES_URL = "https://mpapi.tcgplayer.com/v2/product/{product_id}/latestsales"
 CACHE_TTL_S = 30 * 60

@@ -26,7 +26,8 @@ from app.analyst.bots import (
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.security import require_service
-from app.schemas import CARD_ID_PATTERN, BotLessonIn
+from app.analyst.schemas import BotLessonIn
+from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
 

@@ -12,7 +12,8 @@ from sqlalchemy import Engine, create_engine, func, inspect, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
-from app.models import AnalystEvalRun, Base
+from app.all_models import Base  # imports every domain models module, so create_all sees every table
+from app.analyst.models import AnalystEvalRun
 
 settings = get_settings()
 
@@ -362,7 +363,7 @@ def _ensure_analyst_access_credit_columns() -> None:
 
 def _ensure_sim_games() -> None:
     """Create sim_games (imported OPTCGSim games, #1030) and its user index on existing DBs."""
-    from app.models import SimGame
+    from app.duel.models import SimGame
 
     SimGame.__table__.create(bind=engine, checkfirst=True)
     with engine.begin() as conn:

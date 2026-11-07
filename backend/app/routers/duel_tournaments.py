@@ -18,7 +18,8 @@ from app.core.time import as_utc, utcnow
 from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer, User
+from app.core.models import User
+from app.duel.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
 from app.core.rate_limit import RateLimiter
 from app.duel.server_urls import known_game_server_urls
 from app.social.presence import friendship, live_presence, room_server_url

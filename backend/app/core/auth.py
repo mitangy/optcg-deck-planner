@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import LoginTicket, User
+from app.core.models import LoginTicket, User
 from app.roles import is_banned
 
 SESSION_COOKIE = "optcg_session"

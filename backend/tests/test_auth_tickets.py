@@ -12,7 +12,7 @@ from app.core.auth import (
     read_session_token,
 )
 from app.core.config import Settings
-from app.models import LoginTicket
+from app.core.models import LoginTicket
 from tests.conftest import make_user
 
 

@@ -10,14 +10,10 @@ from sqlalchemy.orm import Session
 from app.analyst.credit import month_start, spent_since
 from app.core.statuses import AccessStatus
 from app.core.time import as_utc_or_none
-from app.models import (
-    AnalystAccess,
-    AnalystUsage,
-    Deck,
-    DuelMatch,
-    DuelMatchSeat,
-    User,
-)
+from app.analyst.models import AnalystAccess, AnalystUsage
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchSeat
+from app.planner.models import Deck
 from app.roles import STAFF_ROLES
 
 GUEST_SUFFIX = "@localhost"

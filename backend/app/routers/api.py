@@ -11,44 +11,44 @@ from app.core.auth import get_current_user, get_optional_user
 from app.planner.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.core.security import CatalogToken
 from app.core.db import get_db
-from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogMeta, CatalogPrinting
 from app.core.rate_limit import RateLimiter, client_ip
 from app.planner.recent_sales import fetch_recent_sales, is_cached
-from app.schemas import (
-    UserOut,
-    UserPreferencesUpdate,
-    CatalogCardResult,
-    CatalogStatus,
+from app.core.schemas import UserOut, UserPreferencesUpdate
+from app.planner.schemas import (
     CardPrintingResult,
     CardPrintingUpdate,
+    CatalogCardResult,
+    CatalogStatus,
+    CollectorWantResult,
+    CollectorWantUpdate,
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
-    DeckListReplace,
-    DeckRename,
     DeckDetail,
+    DeckListReplace,
     DeckOwnedResetResult,
+    DeckRename,
     DeckSummary,
-    OwnedCollectionResponse,
     DisplayArtResult,
     DisplayArtUpdate,
-    CollectorWantResult,
-    CollectorWantUpdate,
-    OwnedPrintingResult,
-    OwnedPrintingUpdate,
     OwnedAddRequest,
     OwnedAddResponse,
     OwnedAddResult,
+    OwnedCollectionResponse,
+    OwnedPrintingResult,
+    OwnedPrintingUpdate,
     OwnedUpdate,
-    ShoppingExtraUpdate,
-    PrintingView,
-    PublicShoppingResponse,
     PriceHistoryImport,
     PriceHistoryImportResult,
     PriceHistoryResponse,
+    PrintingView,
+    PublicShoppingResponse,
     RecentSalesResponse,
     ShareCreate,
     ShareInfo,
+    ShoppingExtraUpdate,
     ShoppingResponse,
 )
 from app.planner import deck_link, price_history

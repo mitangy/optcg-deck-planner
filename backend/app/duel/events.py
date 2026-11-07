@@ -17,7 +17,8 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.time import as_utc, utcnow
-from app.models import DuelEvent, DuelMatch, EventEntry, User
+from app.core.models import User
+from app.duel.models import DuelEvent, DuelMatch, EventEntry
 from app.roles import is_banned, is_staff
 
 GUEST_SUFFIX = "@localhost"

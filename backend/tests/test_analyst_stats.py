@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.analyst import stats as analyst_stats
-from app.models import DuelMatch, DuelMatchSeat
+from app.duel.models import DuelMatch, DuelMatchSeat
 from tests.test_analyst import _me_and_token, analyst  # noqa: F401  (fixture)
 from tests.test_duel import _ingest, client  # noqa: F401  (fixture)
 
@@ -212,7 +212,7 @@ def test_only_the_owner_can_review_a_lesson(analyst):  # noqa: F811
     me, token = _me_and_token(c)
     r = c.post("/analyst/lessons", json={"text": "Mulligan hands with no two-cost play."}, headers={"X-Analyst-Token": token})
     lesson_id = r.json()["id"]
-    from app.models import AnalystLesson
+    from app.analyst.models import AnalystLesson
 
     db = SessionLocal()
     try:

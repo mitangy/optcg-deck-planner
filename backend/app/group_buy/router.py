@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.group_buy import service as group_buy
-from app.models import User
-from app.schemas import (
+from app.core.models import User
+from app.group_buy.schemas import (
     GroupBuyContributionUpdate,
     GroupBuyCreate,
     GroupBuyDetail,

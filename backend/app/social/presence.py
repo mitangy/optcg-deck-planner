@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core import redis_client
 from app.duel import live as duel_live
 from app.core.time import as_utc
-from app.models import DuelPresence, Friendship
+from app.social.models import DuelPresence, Friendship
 
 # A game-server snapshot lands every ~15s; allow a few missed pushes.
 PRESENCE_TTL = timedelta(seconds=60)

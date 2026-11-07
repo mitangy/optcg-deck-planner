@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 from app.analyst.access import chat_enabled_for
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import AnalystToken, User
+from app.analyst.models import AnalystToken
+from app.core.models import User
 from app.roles import is_banned
 
 

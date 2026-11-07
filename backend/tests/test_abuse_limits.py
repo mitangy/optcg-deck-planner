@@ -14,7 +14,7 @@ from app.core.body_limit import DEFAULT_MAX_BODY_BYTES
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import app
-from app.models import User
+from app.core.models import User
 from app.core.rate_limit import RateLimiter
 from app.routers import api as api_router
 from tests.conftest import add_catalog

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.planner.catalog_sync import _orm_printing_sort_key
-from app.models import CatalogGroup, CatalogPrinting, PriceHistoryMonth
+from app.planner.models import CatalogGroup, CatalogPrinting, PriceHistoryMonth
 
 log = logging.getLogger("uvicorn.error")
 

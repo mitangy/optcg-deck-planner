@@ -17,13 +17,8 @@ from app.planner.domain import (
     parse_cost,
     parse_decklist,
 )
-from app.models import (
-    CatalogCard,
-    Deck,
-    DeckCard,
-    DeckCardPrinting,
-    User,
-)
+from app.core.models import User
+from app.planner.models import CatalogCard, Deck, DeckCard, DeckCardPrinting
 from app.planner.catalog_repo import (
     alt_arts_map,
     alt_owned_map,
@@ -32,12 +27,7 @@ from app.planner.catalog_repo import (
     owned_map,
     primary_product_ids,
 )
-from app.schemas import (
-    CardView,
-    DeckDetail,
-    DeckSummary,
-    PrintingView,
-)
+from app.planner.schemas import CardView, DeckDetail, DeckSummary, PrintingView
 from app.planner.printings import (
     _alts_owned_total,
     _apply_alt_want_clamp_to_rows,

@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.core.db import SessionLocal, init_db  # noqa: E402
-from app.models import CatalogCard, CatalogMeta, User  # noqa: E402
+from app.core.models import User  # noqa: E402
+from app.planner.models import CatalogCard, CatalogMeta  # noqa: E402
 from app.planner import decks as deck_svc  # noqa: E402
 
 TRACKER_DIR = Path(__file__).resolve().parents[2].parent / "optcg_tracker"

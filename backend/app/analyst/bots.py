@@ -23,7 +23,8 @@ from sqlalchemy.orm import Session, defer
 from app.core.statuses import LessonStatus
 from app.analyst.stats import MIN_GAMES, _record
 from app.analyst import access
-from app.models import AnalystLesson, BotMatch, User
+from app.analyst.models import AnalystLesson, BotMatch
+from app.core.models import User
 
 MAX_REPLAY_BYTES = 1_000_000
 MAX_BATCH_GAMES = 25

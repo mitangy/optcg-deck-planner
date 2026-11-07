@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.statuses import FeedbackStatus
-from app.models import Feedback
+from app.admin.models import Feedback
 
 log = logging.getLogger("uvicorn.error")
 

@@ -7,7 +7,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.models import CatalogCard, CatalogPrinting, Tournament, TournamentDeck
+from app.analyst.models import Tournament, TournamentDeck
+from app.planner.models import CatalogCard, CatalogPrinting
 from app.core.rate_limit import RateLimiter
 from app.routers import meta as meta_router
 from tests.test_abuse_limits import _signed_in

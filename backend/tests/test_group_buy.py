@@ -6,8 +6,9 @@ from sqlalchemy import select
 
 from app.planner import decks as deck_svc, shopping as shopping_svc, owned as owned_svc
 from app.group_buy import service as group_buy
-from app.models import Deck, GroupBuyLineOverride, Owned
-from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
+from app.group_buy.models import GroupBuyLineOverride
+from app.planner.models import Deck, Owned
+from app.group_buy.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 

@@ -8,7 +8,7 @@ import pytest
 
 from app.analyst.credit import month_key, month_start
 from app.core.config import get_settings
-from app.models import AnalystAccess, AnalystMessage, AnalystThread, AnalystUsage
+from app.analyst.models import AnalystAccess, AnalystMessage, AnalystThread, AnalystUsage
 from tests.test_analyst_access import SERVICE, _as, _decide, _owner, _player, _session  # noqa: F401
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_chat import chat  # noqa: F401  (fixture: DEV@localhost is an owner)

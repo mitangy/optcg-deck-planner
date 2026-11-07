@@ -9,7 +9,7 @@ until the owner approves the cutover below.
 
 - `../alembic.ini`, `env.py`: the URL comes from the app settings
   (`DATABASE_URL`, via `get_settings().sqlalchemy_url`), the metadata is
-  `app.models.Base.metadata`. Run commands from `backend/`.
+  `app.all_models.Base.metadata`. Run commands from `backend/`.
 - `versions/0001_baseline.py`: the full schema `init_db` produces on an empty
   database (every model table, plus the columns, indexes and constraints the
   `_ensure_*` helpers add, including the `lower(username)` unique index).
@@ -25,7 +25,7 @@ until the owner approves the cutover below.
 
 ## Adding a migration (once the cutover is done)
 
-1. Change the model in `app/models.py`.
+1. Change the model in the domain `app/<package>/models.py`.
 2. `cd backend && alembic revision --autogenerate -m "short summary"` against a
    scratch database that is at `head` (SQLite is fine for column changes; use a
    local Postgres for anything dialect specific).

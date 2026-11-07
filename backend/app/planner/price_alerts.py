@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.planner import mailer
 from app.core.config import get_settings
-from app.models import CatalogCard, CatalogPrinting, Notification, PriceAlert, User
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Notification, PriceAlert
 
 log = logging.getLogger("uvicorn.error")
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.statuses import TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
 from app.core.time import utcnow
-from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
+from app.duel.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
 
 log = logging.getLogger("duel_tournaments")
 

@@ -31,10 +31,10 @@ from app.core.auth import (
 )
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import User
+from app.core.models import User
 from app.core.rate_limit import RateLimiter
 from app.roles import is_banned
-from app.schemas import UsernameSuggestionOut, UsernameUpdate, UserOut
+from app.core.schemas import UserOut, UsernameSuggestionOut, UsernameUpdate
 from app.usernames import (
     UsernameError,
     suggest_username,

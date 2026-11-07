@@ -15,7 +15,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AnalystCorpusId, AnalystPrefs, DuelMatch, DuelMatchLog, DuelMatchSeat
+from app.analyst.models import AnalystCorpusId, AnalystPrefs
+from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchSeat
 
 MAX_GAMES = 50
 

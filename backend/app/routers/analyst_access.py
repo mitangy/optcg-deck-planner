@@ -17,13 +17,14 @@ from app.analyst.access import FREE_SPOTS_KEY, free_spots, is_chat_owner, reques
 from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import AnalystAccess, AnalystSetting, User
+from app.analyst.models import AnalystAccess, AnalystSetting
+from app.core.models import User
 from app.core.rate_limit import RateLimiter, client_ip
-from app.schemas import (
+from app.analyst.schemas import (
     AnalystAccessDecisionIn,
     AnalystAccessList,
-    AnalystAccessRequested,
     AnalystAccessRequestIn,
+    AnalystAccessRequested,
     AnalystAccessRow,
     AnalystFreeSpots,
     AnalystFreeSpotsIn,

@@ -33,7 +33,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.duel import decks
 from app.planner.domain import is_don_card, is_leader_card
-from app.models import Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
+from app.core.models import User
+from app.duel.models import DuelSavedDeck
+from app.planner.models import Deck, DeckCard, DeckCardPrinting
 from app.planner.catalog_repo import catalog_map
 
 log = logging.getLogger(__name__)

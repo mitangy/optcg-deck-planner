@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.main import app
-from app.models import Owned
+from app.planner.models import Owned
 from tests.conftest import add_catalog, make_user, set_owned
 
 

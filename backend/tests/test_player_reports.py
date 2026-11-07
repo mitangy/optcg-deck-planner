@@ -14,17 +14,16 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.duel.tokens import mint_game_token
 from app.main import app
-from app.models import (
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
     DuelMatch,
     DuelMatchProgress,
-    DuelPresence,
     DuelUserSettings,
-    Friendship,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.social.models import DuelPresence, Friendship
 from tests.db_support import make_test_engine
 
 INGEST = {"X-Duel-Ingest-Token": "test-ingest"}

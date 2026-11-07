@@ -23,17 +23,18 @@ from app.core.time import as_utc_or_none
 from app.analyst.credit import month_start, spent_since
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import (
+from app.analyst.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystFeedback,
     AnalystThread,
     AnalystUsage,
-    Base,
     BotMatch,
-    Deck,
+)
+from app.all_models import Base
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
-    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchSeat,
@@ -41,12 +42,11 @@ from app.models import (
     DuelSavedDeck,
     DuelSoloGame,
     DuelUserSettings,
-    Friendship,
-    Owned,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.planner.models import Deck, Owned
+from app.social.models import DuelLobbySeen, Friendship
 from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin

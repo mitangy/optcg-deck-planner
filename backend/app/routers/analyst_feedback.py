@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.models import AnalystFeedback, AnalystMatchReview, AnalystMessage, AnalystThread, User
+from app.analyst.models import AnalystFeedback, AnalystMatchReview, AnalystMessage, AnalystThread
+from app.core.models import User
 from app.core.rate_limit import RateLimiter
 from app.analyst.access import chat_enabled_for, chat_model
 from app.analyst.thread_view import thread_view

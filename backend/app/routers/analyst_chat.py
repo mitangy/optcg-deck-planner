@@ -22,53 +22,53 @@ from app.core.auth import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.analyst.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
-from app.models import (
+from app.analyst.models import (
     AnalystAccess,
-    AnalystSetting,
     AnalystMatchBrief,
     AnalystMatchReview,
     AnalystMessage,
     AnalystProposal,
+    AnalystSetting,
     AnalystThread,
     AnalystUsage,
-    DuelMatch,
-    User,
 )
+from app.core.models import User
+from app.duel.models import DuelMatch
 from app.analyst.access import CHAT_MODELS, access_status, chat_enabled_for, chat_model, free_spots, is_chat_owner, is_model_admin, requests_open, spots_used
 from app.analyst.auth import analyst_user, mint_chat_token
 from app.analyst.thread_view import NEW_DECK_TOOL, PROPOSE_TOOL, thread_view, tool_ids, utf16_len
 from app.core.security import require_service
 from app.usernames import duel_display_name
-from app.schemas import (
-    CARD_ID_PATTERN,
+from app.analyst.schemas import (
+    ANALYST_SCOPE_PATTERN,
     AnalystAppendIn,
-    AnalystModelIn,
-    AnalystModelSetting,
     AnalystBriefIn,
     AnalystBriefLookupIn,
     AnalystBriefLookupOut,
     AnalystBriefOut,
     AnalystChatBudget,
-    AnalystCitation,
     AnalystChatSession,
-    AnalystDeckEdit,
-    AnalystProposalsIn,
-    AnalystDraftsIn,
+    AnalystCitation,
     AnalystDeckDraft,
+    AnalystDeckEdit,
+    AnalystDraftsIn,
+    AnalystModelIn,
+    AnalystModelSetting,
+    AnalystProposalsIn,
     AnalystReviewIn,
     AnalystReviewOut,
     AnalystStoredMessage,
-    ANALYST_SCOPE_PATTERN,
     AnalystThreadContent,
     AnalystThreadIn,
-    AnalystThreadsOut,
     AnalystThreadSummary,
     AnalystThreadView,
+    AnalystThreadsOut,
     AnalystUsageGroup,
     AnalystUsageIn,
     AnalystUsagePlayer,
     AnalystUsageSummary,
 )
+from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
 

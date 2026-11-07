@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.models import DuelCosmetic, DuelUserSettings
+from app.duel.models import DuelCosmetic, DuelUserSettings
 
 REASON_MAX = 200
 
