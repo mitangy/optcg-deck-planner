@@ -16,12 +16,12 @@ from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.statuses import AccessStatus
-from app.analyst_corpus import MAX_GAMES, game_replay, search_games
-from app.analyst_credit import credit_for, day_start, month_start, next_month_start, refusal_for, spent_since
+from app.analyst.corpus import MAX_GAMES, game_replay, search_games
+from app.analyst.credit import credit_for, day_start, month_start, next_month_start, refusal_for, spent_since
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
-from app.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
+from app.analyst.brief_tickets import BriefClaims, brief_key, deck_counts, verify_brief_ticket
 from app.models import (
     AnalystAccess,
     AnalystSetting,

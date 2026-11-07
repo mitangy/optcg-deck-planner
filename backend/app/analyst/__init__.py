@@ -1,1 +1,1 @@
-"""Log Pose analyst domain. Only the access rules other modules share live here so far."""
+"""Log Pose analyst domain: access rules, credit, stats, corpus, bots, tournament data."""

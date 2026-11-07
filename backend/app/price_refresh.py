@@ -189,7 +189,7 @@ def start_background(settings):
     """The hourly task when new-release prices are on (default in production only), else None."""
     if not settings.new_release_prices_enabled:
         return None
-    from app.tournament_sync import sync_loop
+    from app.analyst.tournament_sync import sync_loop
 
     days = settings.new_release_price_days
     return asyncio.create_task(

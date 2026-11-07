@@ -14,9 +14,9 @@ from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from app import discord_feedback
+from app.admin import discord_feedback
 from app.config import Settings
-from app.discord_feedback import PollState, poll_once, snowflake_from_datetime
+from app.admin.discord_feedback import PollState, poll_once, snowflake_from_datetime
 from app.models import Feedback
 from app.routers.feedback import list_feedback
 from tests.db_support import make_test_engine

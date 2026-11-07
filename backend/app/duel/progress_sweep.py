@@ -21,7 +21,7 @@ from app import redis_client
 from app.duel import live as duel_live
 from app.duel.matches import has_result, lock_match
 from app.models import DuelMatchProgress, User
-from app.tournament_sync import sync_loop
+from app.analyst.tournament_sync import sync_loop
 
 log = logging.getLogger("uvicorn.error")
 

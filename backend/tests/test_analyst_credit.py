@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.analyst_credit import month_key, month_start
+from app.analyst.credit import month_key, month_start
 from app.config import get_settings
 from app.models import AnalystAccess, AnalystMessage, AnalystThread, AnalystUsage
 from tests.test_analyst_access import SERVICE, _as, _decide, _owner, _player, _session  # noqa: F401
@@ -284,7 +284,7 @@ def test_a_usage_row_only_attaches_to_the_players_own_thread_446(chat):
 
 
 def test_the_credit_refills_on_the_first_of_the_next_month_446():
-    from app.analyst_credit import next_month_start
+    from app.analyst.credit import next_month_start
 
     assert next_month_start(datetime(2026, 10, 9, 15, 30, tzinfo=timezone.utc)) == datetime(2026, 11, 1, tzinfo=timezone.utc)
     assert next_month_start(datetime(2026, 12, 31, 23, 59, tzinfo=timezone.utc)) == datetime(2027, 1, 1, tzinfo=timezone.utc)
