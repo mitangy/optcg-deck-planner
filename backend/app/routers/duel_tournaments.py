@@ -511,7 +511,16 @@ def play(
         return PlayOut(action="hosted")
 
     presence = live_presence(db, [m.host_id] if m.host_id else [], now)
-    if m.host_id != user.id and _room_live(m, presence, now):
+    # The host asking again while their own game is still running (they dropped and came back
+    # via the tournament page) goes back to that room. Resetting it would orphan the result,
+    # which is ingested under the old room id (#1006). Only a seated, playing host counts here:
+    # a room reported moments ago with nobody in it is still replaced.
+    host_playing = (
+        m.host_id == user.id
+        and _room_live(m, presence, now)
+        and any(r.room_id == m.room_id and r.role == "player" and r.phase == "playing" for r in presence.get(user.id, []))
+    )
+    if (m.host_id != user.id and _room_live(m, presence, now)) or host_playing:
         server_url = m.server_url or room_server_url(presence.get(m.host_id, []), m.room_id)
         return PlayOut(action="join", room_id=m.room_id, server_url=server_url)
     if (
