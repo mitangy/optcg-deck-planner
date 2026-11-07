@@ -1,10 +1,18 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { toCitation } from "./citations";
 import type { Block, CallModel, Usage } from "./types";
 
-/** The Claude API behind CallModel: a streamed Messages call. */
-export function anthropicModel(client: { beta: { messages: { stream: (p: never, o: { signal: AbortSignal }) => StreamLike } } }): CallModel {
+/** The SDK's own request type for a streamed Messages call. */
+type StreamParams = Parameters<Anthropic["beta"]["messages"]["stream"]>[0];
+
+/**
+ * The Claude API behind CallModel: a streamed Messages call. `params` is built loosely in the tool loop (blocks
+ * are plain records so stored threads and scripted test replies fit), so it is cast to the SDK's type here, at the
+ * one place it meets the SDK.
+ */
+export function anthropicModel(client: Pick<Anthropic, "beta">): CallModel {
   return async (params, onText, signal, onCite) => {
-    const stream = client.beta.messages.stream(params as never, { signal });
+    const stream = client.beta.messages.stream(params as unknown as StreamParams, { signal });
     stream.on("text", onText);
     stream.on("citation", (citation) => {
       const c = toCitation(citation);
@@ -15,7 +23,7 @@ export function anthropicModel(client: { beta: { messages: { stream: (p: never, 
     stream.on("streamEvent", (_event, snapshot) => {
       used = { ...snapshot.usage };
     });
-    let msg: Awaited<ReturnType<StreamLike["finalMessage"]>>;
+    let msg: Awaited<ReturnType<typeof stream.finalMessage>>;
     try {
       msg = await stream.finalMessage();
     } catch (err) {
@@ -24,10 +32,3 @@ export function anthropicModel(client: { beta: { messages: { stream: (p: never, 
     return { content: msg.content as unknown as Block[], stop_reason: msg.stop_reason, usage: msg.usage, model: msg.model };
   };
 }
-
-type StreamLike = {
-  on: ((event: "text", cb: (delta: string) => void) => unknown) &
-    ((event: "citation", cb: (citation: unknown) => void) => unknown) &
-    ((event: "streamEvent", cb: (event: unknown, snapshot: { usage: Usage }) => void) => unknown);
-  finalMessage: () => Promise<{ content: unknown; stop_reason: string | null; usage: Usage; model?: string }>;
-};

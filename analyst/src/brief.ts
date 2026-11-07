@@ -5,7 +5,7 @@ import { buildTools, instructionsFor } from "./server";
 import type { Catalog } from "./catalog";
 import { checkBudget, claimStream, recordRefusal, recordUsage, refusalNow } from "./budget";
 import { flattenCited, replayCited } from "./citations";
-import { ChatHttpError } from "./errors";
+import { ChatHttpError, UserFacingError } from "./errors";
 import { BRIEF_INSTRUCTIONS } from "./prompts/brief";
 import type { ToolName } from "./toolMeta";
 import { newRounds, runToolRounds } from "./rounds";
@@ -105,7 +105,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
       emit({ event: "done", data: { cached: false, refused: state.refusal } });
       return;
     }
-    if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try again.");
+    if (!state.finished) throw new UserFacingError("Log Pose used too many lookups on that one. Try again.");
     // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
     const blocks: Block[] = [];
     for (const m of state.turn) {
@@ -116,7 +116,7 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
       blocks.push(...text);
     }
     const cited = flattenCited(blocks);
-    if (!cited.text) throw new Error("Log Pose didn't write a brief. Try again.");
+    if (!cited.text) throw new UserFacingError("Log Pose didn't write a brief. Try again.");
     await plannerCall(api, token, "/analyst/briefs", true, { ticket: body.ticket, variant, text: cited.text, citations: cited.citations }, "PUT");
     emit({ event: "done", data: { cached: false, cost_usd: state.cost, saved: true } });
   } finally {

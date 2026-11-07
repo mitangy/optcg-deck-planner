@@ -6,7 +6,7 @@ import { parseEditLines } from "./editLines";
 import { newDeckTool, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { claimStream, currentModel, recordRefusal, recordUsage, refusalNow, type Budget } from "./budget";
-import { ChatHttpError, refusalError } from "./errors";
+import { ChatHttpError, refusalError, UserFacingError } from "./errors";
 import { CHAT_INSTRUCTIONS } from "./prompts/chat";
 import { MAX_TOOL_ROUNDS, newRounds, runToolRounds } from "./rounds";
 import type { chatBody } from "./schemas";
@@ -183,7 +183,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     }
   }
   if (state.refusal) throw refusalError(state.refusal);
-  if (!state.finished) throw new Error("Log Pose used too many lookups on that one. Try asking something narrower.");
+  if (!state.finished) throw new UserFacingError("Log Pose used too many lookups on that one. Try asking something narrower.");
   const budget = await plannerCall<Budget>(api, token, "/analyst/chat/budget", true);
   emit({
     event: "done",

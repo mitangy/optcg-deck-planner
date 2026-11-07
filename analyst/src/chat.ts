@@ -14,7 +14,7 @@ export { briefVariant, BRIEF_TOOLS, runBrief } from "./brief";
 export { answeredSoFar, contextBlock, runChat } from "./chatTurn";
 export { flattenCited, replayCited, toCitation } from "./citations";
 export { originAllowed } from "./cors";
-export { ChatHttpError, refusalError, type Refusal } from "./errors";
+export { ChatHttpError, refusalError, UserFacingError, type Refusal } from "./errors";
 export { CHAT_MODEL, CHAT_MODELS, costUsd, modelOf } from "./models";
 export { CHAT_INSTRUCTIONS } from "./prompts/chat";
 export { REVIEW_MAX_LINES, REVIEW_MAX_TOKENS, reviewCardReference, reviewRequest, runReview } from "./review";

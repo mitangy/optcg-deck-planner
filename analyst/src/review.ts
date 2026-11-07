@@ -6,7 +6,7 @@ import { gameResults } from "./sources";
 import type { Catalog } from "./catalog";
 import { claimStream, currentModel, recordUsage } from "./budget";
 import { flattenCited, streamTo } from "./citations";
-import { ChatHttpError } from "./errors";
+import { ChatHttpError, UserFacingError } from "./errors";
 import { costUsd, outputConfigFor } from "./models";
 import { REVIEW_INSTRUCTIONS } from "./prompts/review";
 import { partialUsageOf } from "./rounds";
@@ -99,8 +99,8 @@ async function reviewTurn(deps: ChatDeps, token: string, body: z.infer<typeof re
   const cited = flattenCited(reply.content);
   const final = cited.text || text.trim();
   if (!final) {
-    if (reply.stop_reason === "max_tokens") throw new Error("Log Pose ran out of room before writing this review. Try again.");
-    throw new Error("Log Pose didn't write anything for this game. Try again.");
+    if (reply.stop_reason === "max_tokens") throw new UserFacingError("Log Pose ran out of room before writing this review. Try again.");
+    throw new UserFacingError("Log Pose didn't write anything for this game. Try again.");
   }
   const citations = cited.text ? cited.citations : [];
   await plannerCall(api, token, `/analyst/reviews/${encodeURIComponent(body.match_id)}`, true, { text: final, citations }, "PUT");
