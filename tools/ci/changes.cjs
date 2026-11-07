@@ -39,6 +39,7 @@
  *     import the prerender plugin in vite.config.ts, their prerender tests read
  *     vercel-routes.mjs, and frontend/src/seo/vercelIgnore956.test.ts reads the
  *     ignore script (the duel e2e builds the app); no backend test reads them.
+ *   - tools/vite: both apps' vite.config.ts import the version-file plugin.
  */
 "use strict";
 
@@ -77,6 +78,7 @@ const RULES = [
   { test: (p) => p.startsWith("analyst/"), flags: ["rules"] },
   { test: (p) => p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"] },
   { test: (p) => p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
+  { test: (p) => p.startsWith("tools/vite/"), flags: ["duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("backend/") || p.startsWith("scripts/"), flags: ["backend"] },
   { test: (p) => p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"] },
   { test: (p) => p.startsWith("frontend/"), flags: ["frontend"] },

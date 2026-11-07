@@ -5,7 +5,7 @@ import { money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { canOpenBuyPopover, collectorChoices } from "./collectorLines";
 import { altBuyCopies, splitStillNeed } from "./deckCost";
-import { useMediaQuery } from "./DeckStats";
+import { useMediaQuery } from "@optcg/ui/hooks";
 
 /** Phone layout: the list view's breakpoint (styles.css `max-width: 800px`). */
 const PHONE_QUERY = "(max-width: 800px)";

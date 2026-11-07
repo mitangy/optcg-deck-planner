@@ -7,6 +7,7 @@
 # are npm workspaces installed from that one lockfile, and listing them here keeps
 # the ignoreCommand strings under Vercel's 256-character limit (#956).
 # packages/card-core is watched the same way: both apps import it (through rules and deck-analytics too).
+# So is tools/vite: both vite configs import the version-file plugin from it.
 # Any unexpected condition falls through to building.
 
 cd "$(git rev-parse --show-toplevel)" || { echo "Cannot find repo root, building"; exit 1; }
@@ -28,7 +29,7 @@ if ! git cat-file -e "$prev^{commit}" 2>/dev/null; then
   exit 1
 fi
 
-git diff --quiet "$prev" "$cur" -- "$@" package.json package-lock.json packages/card-core
+git diff --quiet "$prev" "$cur" -- "$@" package.json package-lock.json packages/card-core tools/vite
 rc=$?
 if [ "$rc" -eq 0 ]; then
   echo "No changes in $* (or the root lockfile) since ${prev:0:7}, skipping build"

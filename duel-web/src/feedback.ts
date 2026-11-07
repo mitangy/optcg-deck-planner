@@ -1,6 +1,6 @@
 /** "Report a problem" / "Send feedback": the duel-web network call for the shared dialog. */
 import { feedbackErrorMessage, feedbackRequestBody, type FeedbackPayload } from "@optcg/site-legal/feedback";
-import { BUILD_SHA } from "./buildInfo";
+import { BUILD_SHA } from "@optcg/ui/appShell";
 import { getApiBaseUrl } from "./config";
 import { getMatchContext } from "./matchContext";
 

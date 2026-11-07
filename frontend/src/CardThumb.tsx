@@ -1,46 +1,21 @@
-import { createContext, useContext, useState, type ImgHTMLAttributes, type ReactNode } from "react";
-import { cardArtChain, type CardImageSize } from "@optcg/ui/cardArt";
+import { createContext, useContext, useState, type ComponentProps, type ReactNode } from "react";
+import { CardArtImg as SharedCardArtImg, useCardArt as useSharedCardArt, type CardImageSize } from "@optcg/ui/cardArt";
 import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "./duelLink";
 import { useLogPoseLayer } from "@optcg/analyst-client";
 
-/**
- * Walks `cardArtChain` as images fail: `src` is the URL to show now, `fail`
- * moves to the next one, and `src` is null once every step failed.
- */
+/** The planner's art: preview files are hosted by the duel app (`DUEL_URL`). */
 export function useCardArt(
   src: string | undefined | null,
   cardId: string | undefined | null,
   size: CardImageSize,
 ) {
-  const chain = cardArtChain(src, cardId, size, DUEL_URL);
-  const key = chain.join("|");
-  const [state, setState] = useState({ key, failed: 0 });
-  const idx = state.key === key ? state.failed : 0;
-  return {
-    src: chain[idx] ?? null,
-    fail: () => setState({ key, failed: idx + 1 }),
-  };
+  return useSharedCardArt(src, cardId, size, DUEL_URL);
 }
 
 /** Bare card art `<img>` with the preview fallback; `fallback` shows once every step failed. */
-export function CardArtImg({
-  src,
-  cardId,
-  alt = "",
-  size = "thumb",
-  fallback = null,
-  ...imgProps
-}: {
-  src?: string | null;
-  cardId?: string | null;
-  alt?: string;
-  size?: CardImageSize;
-  fallback?: ReactNode;
-} & Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt" | "onError">) {
-  const art = useCardArt(src, cardId, size);
-  if (!art.src) return <>{fallback}</>;
-  return <img {...imgProps} src={art.src} alt={alt} onError={art.fail} />;
+export function CardArtImg(props: Omit<ComponentProps<typeof SharedCardArtImg>, "origin">) {
+  return <SharedCardArtImg {...props} origin={DUEL_URL} />;
 }
 
 /**
@@ -71,7 +46,7 @@ export function CardLightbox({
   useLogPoseLayer(chatLayer);
   return (
     <Dialog open onClose={onClose} className="lightbox" panelClassName="lightbox-panel" label="Expanded card art">
-      {large.src && <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} />}
+      {large.src && <img src={large.src} alt={alt} className="lightbox-img" onError={large.fail} onLoad={large.onLoad} />}
       {children}
       <div ref={setChatLayer} className="lightbox-chat-layer" />
       <button type="button" className="lightbox-close" onClick={onClose}>
@@ -123,6 +98,7 @@ export function CardThumb({
           loading="lazy"
           decoding="async"
           onError={thumb.fail}
+          onLoad={thumb.onLoad}
         />
       </button>
       {open ? (

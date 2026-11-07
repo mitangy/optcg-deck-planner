@@ -7,9 +7,9 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.analyst.access import is_chat_owner
 from app.config import Settings
 from app.models import AnalystAccess, AnalystUsage, User
-from app.routers.analyst import is_chat_owner
 
 # What an owner's "Add $5" grants for the rest of the month.
 TOPUP_USD = 5.0

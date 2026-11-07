@@ -22,6 +22,19 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from app.core.statuses import (
+    AccessStatus,
+    FeedbackStatus,
+    FriendshipStatus,
+    GroupBuyStatus,
+    LessonStatus,
+    ReportStatus,
+    TournamentMatchStatus,
+    TournamentPlayerStatus,
+    TournamentStatus,
+    TradeStatus,
+)
+
 
 class Base(DeclarativeBase):
     pass
@@ -398,8 +411,8 @@ class GroupBuy(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     host_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="Group buy")
-    # open | locked | ordered | completed
-    status: Mapped[str] = mapped_column(String(32), default="open")
+    # GroupBuyStatus: open | locked | ordered | completed
+    status: Mapped[str] = mapped_column(String(32), default=GroupBuyStatus.OPEN)
     invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -529,8 +542,8 @@ class GroupBuyReceiptApply(Base):
     applied_by_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    # locked | ordered — status immediately before this apply mutated the pool
-    status_before: Mapped[str] = mapped_column(String(32), default="ordered")
+    # GroupBuyStatus (locked or ordered) — status immediately before this apply mutated the pool
+    status_before: Mapped[str] = mapped_column(String(32), default=GroupBuyStatus.ORDERED)
     # True when this apply set ordered_at (auto-order from locked)
     set_ordered_at: Mapped[int] = mapped_column(Integer, default=0)
     applied_at: Mapped[datetime] = mapped_column(
@@ -785,7 +798,7 @@ class AnalystAccess(Base):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
     )
     # "pending" | "approved" | "denied"
-    status: Mapped[str] = mapped_column(String(16), default="pending")
+    status: Mapped[str] = mapped_column(String(16), default=AccessStatus.PENDING)
     note: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -825,7 +838,7 @@ class AnalystLesson(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    status: Mapped[str] = mapped_column(String(16), default="draft")  # draft | approved | rejected
+    status: Mapped[str] = mapped_column(String(16), default=LessonStatus.DRAFT)
     leader_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     opponent_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     cards: Mapped[str] = mapped_column(String(400), default="")
@@ -1055,7 +1068,7 @@ class Friendship(Base):
     user_low_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     user_high_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | accepted
+    status: Mapped[str] = mapped_column(String(16), default=FriendshipStatus.PENDING)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1128,7 +1141,7 @@ class CardReport(Base):
     source: Mapped[str] = mapped_column(String(32), default="")
     room_id: Mapped[str] = mapped_column(String(64), default="")
     client_build: Mapped[str] = mapped_column(String(40), default="")
-    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    status: Mapped[str] = mapped_column(String(16), default=FeedbackStatus.OPEN, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1160,7 +1173,7 @@ class Feedback(Base):
     discord_author: Mapped[str] = mapped_column(String(64), default="")
     # GitHub issue opened for a Discord ticket; set once so a retry never opens a second.
     github_issue: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    status: Mapped[str] = mapped_column(String(16), default=FeedbackStatus.OPEN, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1274,7 +1287,7 @@ class PlayerReport(Base):
     cosmetic_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_mime: Mapped[str | None] = mapped_column(String(32), nullable=True)
     image_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open | dismissed | actioned
+    status: Mapped[str] = mapped_column(String(16), default=ReportStatus.OPEN, index=True)
     action: Mapped[str] = mapped_column(String(32), default="")  # image_removed | warned | banned
     staff_note: Mapped[str] = mapped_column(String(300), default="")
     handled_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1394,7 +1407,7 @@ class TradeOffer(Base):
     )
     to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     # pending | countered | accepted | declined | cancelled | completed | expired
-    status: Mapped[str] = mapped_column(String(16), default="pending")
+    status: Mapped[str] = mapped_column(String(16), default=TradeStatus.PENDING)
     message: Mapped[str] = mapped_column(String(500), default="")
     parent_offer_id: Mapped[int | None] = mapped_column(
         ForeignKey("trade_offers.id", ondelete="SET NULL"), nullable=True
@@ -1543,7 +1556,7 @@ class DuelTournament(Base):
     # single_elim: bracket size (4 | 8 | 16); round_robin: most players allowed.
     size: Mapped[int] = mapped_column(Integer)
     timer: Mapped[str] = mapped_column(String(24), default="seat_15m")  # off | turn_30 | seat_15m | turn_30_seat_15m
-    status: Mapped[str] = mapped_column(String(16), default="open")  # open | running | finished | cancelled
+    status: Mapped[str] = mapped_column(String(16), default=TournamentStatus.OPEN)
     organizer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -1558,7 +1571,7 @@ class DuelTournamentPlayer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tournament_id: Mapped[int] = mapped_column(ForeignKey("duel_tournaments.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    status: Mapped[str] = mapped_column(String(16), default="joined")  # invited | joined
+    status: Mapped[str] = mapped_column(String(16), default=TournamentPlayerStatus.JOINED)
     seed: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -1577,7 +1590,7 @@ class DuelTournamentMatch(Base):
     player_b_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     winner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     # waiting (a player is still coming from an earlier round) | ready | done
-    status: Mapped[str] = mapped_column(String(16), default="waiting")
+    status: Mapped[str] = mapped_column(String(16), default=TournamentMatchStatus.WAITING)
     decided_by: Mapped[str | None] = mapped_column(String(16), nullable=True)  # game | bye | walkover
     room_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     server_url: Mapped[str | None] = mapped_column(String(255), nullable=True)

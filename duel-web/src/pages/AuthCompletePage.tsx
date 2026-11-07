@@ -4,7 +4,7 @@ import { startAccountSync } from "../account/accountSync";
 import { claimLoginTicket, googleLoginUrl, mintSessionGameToken } from "../net/api";
 import { BannedError, MissingTicketError, signInErrorMessage } from "../auth/signInError";
 import { useDuelSession } from "../state/DuelSession";
-import { needsUsername } from "../auth/username";
+import { needsUsername } from "@optcg/ui/username";
 
 /**
  * OAuth return landing for duel-web only.

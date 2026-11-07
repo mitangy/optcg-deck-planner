@@ -8,6 +8,7 @@ module.exports = {
   mutations: [
     m("ci-duel-web-skips-e2e", 'p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"]', 'p.startsWith("duel-web/"), flags: ["duel_web"]', ["a duel-web change runs the duel-web unit and e2e jobs only"]),
     m("ci-seo-scripts-backend-only", 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["backend"]', ["prerender and vercel-ignore scripts run the apps that import or read them"]),
+    m("ci-vite-plugins-backend-only", 'p.startsWith("tools/vite/"), flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("tools/vite/"), flags: ["backend"]', ["the shared vite plugins run the apps that import them, not the backend (refactor 2.3)"]),
     m("ci-backend-runs-e2e", 'p.startsWith("scripts/"), flags: ["backend"]', 'p.startsWith("scripts/"), flags: ["backend", "duel_e2e"]', ["a backend-only change leaves the duel e2e shards off"]),
     m("ci-packages-skips-duel-web", 'p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p.startsWith("packages/"), flags: ["rules", "duel_e2e", "frontend"]', ["a packages change runs duel-web"]),
     m("ci-fixtures-skip-mobile", 'flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"]', 'flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["protocol fixtures also run the mobile tests"]),

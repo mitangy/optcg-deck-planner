@@ -110,3 +110,7 @@ test("prerender and vercel-ignore scripts run the apps that import or read them,
   assert.deepEqual(on(["scripts/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
   assert.deepEqual(on(["scripts/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
 });
+
+test("the shared vite plugins run the apps that import them, not the backend (refactor 2.3)", () => {
+  assert.deepEqual(on(["tools/vite/versionFile.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+});

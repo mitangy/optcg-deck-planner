@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import duel_live, redis_client
+from app.duel.matches import has_result, lock_match
 from app.models import DuelMatchProgress, User
 from app.tournament_sync import sync_loop
 
@@ -33,8 +34,6 @@ BATCH = 200
 def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_s: float = IDLE_AFTER_S) -> int:
     """Save idle live snapshots to Postgres as open rows and drop the Redis copy. Returns how many were saved."""
     # The match lock and result check are the ingest route's own, so a result and a sweep cannot interleave.
-    from app.routers.duel import _has_result, _lock_match
-
     now = now or datetime.now(timezone.utc)
     saved = 0
     for match_id in duel_live.idle_progress_ids(r, now - timedelta(seconds=idle_after_s), BATCH):
@@ -42,9 +41,9 @@ def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_
         if live is None:
             duel_live.drop_index_entry(r, match_id)
             continue
-        _lock_match(db, match_id)
+        lock_match(db, match_id)
         users = (live.seat0_user_id, live.seat1_user_id)
-        keep = not _has_result(db, match_id) and len(set(db.scalars(select(User.id).where(User.id.in_(users))))) == 2
+        keep = not has_result(db, match_id) and len(set(db.scalars(select(User.id).where(User.id.in_(users))))) == 2
         if keep:
             row = db.get(DuelMatchProgress, match_id)
             if row is None:

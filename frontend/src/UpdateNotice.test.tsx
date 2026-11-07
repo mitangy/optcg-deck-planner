@@ -2,10 +2,11 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { checkForUpdate } from "./appVersion";
+import { checkForUpdate } from "@optcg/ui/appShell";
 import { UpdateNotice } from "./UpdateNotice";
 
-vi.mock("./buildInfo", () => ({ BUILD_SHA: "abc1234" }));
+// The running bundle's sha, read by the shared update checker.
+vi.mock("../../packages/ui/src/appShell/buildInfo", () => ({ BUILD_SHA: "abc1234" }));
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

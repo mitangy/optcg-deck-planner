@@ -26,9 +26,12 @@ export function makeDon(state: MatchState): DonInstance {
 
 export type ZoneName = "leader" | "character" | "stage" | "hand" | "deck" | "trash" | "life" | "resolving";
 
+/** Where a `Located` sits: a real zone, or `"don"` for a DON!! pseudo-location (cost area or attached). */
+export type LocatedZone = ZoneName | "don";
+
 export interface Located {
   seat: Seat;
-  zone: ZoneName;
+  zone: LocatedZone;
   index: number;
   id: InstanceId;
   defId: CardDefId;
