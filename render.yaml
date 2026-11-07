@@ -131,13 +131,14 @@ services:
     plan: starter
     autoDeploy: true
     healthCheckPath: /health
-    # Install workspaces from repo root so @optcg/rules resolves.
-    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/game-server
+    # Install workspaces from repo root so @optcg/rules and @optcg/duel-protocol resolve.
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/duel-protocol --workspace=@optcg/game-server
     startCommand: npm run start -w @optcg/game-server
     buildFilter:
       paths:
         - game-server/**
         - packages/rules/**
+        - packages/duel-protocol/**
         - package.json
         - package-lock.json
         - render.yaml
@@ -170,12 +171,14 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /health
-    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/deck-analytics --workspace=@optcg/analyst
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/deck-analytics --workspace=@optcg/card-core --workspace=@optcg/analyst-contract --workspace=@optcg/analyst
     startCommand: npm run start -w @optcg/analyst
     buildFilter:
       paths:
         - analyst/**
         - packages/deck-analytics/**
+        - packages/card-core/**
+        - packages/analyst-contract/**
         - packages/rules/**
         - package.json
         - package-lock.json

@@ -74,6 +74,9 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
+| `card-core` | `packages/card-core/src` | vitest |
+| `api-client` | `packages/api-client/src` | vitest |
+| `analyst-contract` | `packages/analyst-contract/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |
@@ -83,6 +86,7 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
+| `duel-protocol` | `packages/duel-protocol/src` | vitest |
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 | `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
 | `alt-arts` | `scripts/test_sync_alt_arts.py` | unittest |

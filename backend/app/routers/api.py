@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_optional_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
-from app.tokens import CatalogToken
+from app.core.security import CatalogToken
 from app.db import get_db
 from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
 from app.rate_limit import RateLimiter, client_ip

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from "react";
 import { Select } from "@optcg/ui/popups";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { BackLink } from "./BackLink";
+import { BackLink } from "../layout/BackLink";
 import { CardArt } from "../cards/CardArt";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { loadCardData } from "../cards/cardData";

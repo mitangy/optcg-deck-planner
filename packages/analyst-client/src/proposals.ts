@@ -2,6 +2,7 @@
  * Deck edit suggestions as the apps see them (#400): reading a proposal from the wire, working out what its
  * Apply card should offer for the deck that is open now, and the reverse diff Undo applies. React-free.
  */
+import { normalizeCardId } from "@optcg/card-core";
 
 export type DeckEditLine = { id: string; name: string; before: number; after: number; reason: string };
 
@@ -34,9 +35,6 @@ export type DeckEditor = {
   /** A muted line the card shows for this deck (e.g. that a linked planner deck is not updated). */
   note?: string;
 };
-
-/** The same card number as the analyst's: trimmed, upper case, without a `_P1` / `_R1` art suffix. */
-export const normalizeCardId = (id: string): string => id.trim().toUpperCase().replace(/_(?:P\d+|R\d+)$/, "");
 
 const isRec = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown, max = 400): string | null => (typeof v === "string" ? v.slice(0, max) : null);

@@ -4,24 +4,24 @@
    covered by the full-screen sheet anyway), the scan dialog (90), the drop hint (95) and the
    lightbox (1000). */
 .logpose {
-  --lp-surface: var(--card);
+  --lp-surface: var(--ui-panel-bg);
   --lp-surface-2: var(--card-sunk);
-  --lp-ink: var(--ink);
-  --lp-muted: var(--muted);
-  --lp-line: var(--line);
-  --lp-accent: var(--primary-bg);
-  --lp-on-accent: var(--primary-ink);
+  --lp-ink: var(--ui-ink);
+  --lp-muted: var(--ui-muted);
+  --lp-line: var(--ui-line-soft);
+  --lp-accent: var(--ui-primary);
+  --lp-on-accent: var(--ui-on-primary);
   --lp-user-bg: var(--gold-soft);
   --lp-user-ink: var(--ink);
-  --lp-needle: var(--danger);
-  --lp-danger: var(--danger);
-  --lp-field: var(--field-bg);
-  --lp-focus: var(--gold);
+  --lp-needle: var(--ui-danger);
+  --lp-danger: var(--ui-danger);
+  --lp-field: var(--ui-field-bg);
+  --lp-focus: var(--ui-accent);
   --lp-shadow: var(--shadow-lift);
-  --lp-font: var(--font-body);
-  --lp-font-display: var(--font-display);
-  --lp-z-compass: 40;
-  --lp-z-panel: 85;
+  --lp-font: var(--ui-font);
+  --lp-font-display: var(--ui-font-display);
+  --lp-z-compass: var(--z-hud-bar);
+  --lp-z-panel: var(--z-lp-panel);
 }
 
 .lp-compass.logpose {

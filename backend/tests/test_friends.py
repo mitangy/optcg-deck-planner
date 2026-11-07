@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.main import app
 from app.models import DuelInvite, DuelPresence, User
-from app.routers import friends as friends_router
+from app.social import friends_router
 
 INGEST = {"X-Duel-Ingest-Token": "test-ingest"}
 

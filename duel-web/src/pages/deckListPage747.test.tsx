@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { resetAuthForTests } from "../auth/session";
 import { DeckListPage } from "./DeckListPage";
 
 let root: Root | null = null;
@@ -80,6 +81,7 @@ describe("Decks page cards (#750)", () => {
 
 describe("Decks page sync line (#1017)", () => {
   async function noteFor(signedIn: boolean) {
+    resetAuthForTests();
     vi.stubGlobal("fetch", (url: string) => {
       if (String(url).includes("/auth/me")) {
         return Promise.resolve(new Response(signedIn ? JSON.stringify({ id: 1, email: "a@b.c" }) : "{}", { status: signedIn ? 200 : 401 }));

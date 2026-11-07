@@ -18,6 +18,7 @@ import { META_SEED_ID } from "../prerendered";
 import { PublicMetaScreen } from "../PublicMetaScreen";
 import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
 import type { MetaLeadersResponse } from "../api";
+import { qk } from "../queryKeys";
 
 export type PrerenderedFile = { file: string; content: string };
 
@@ -48,7 +49,7 @@ function headFor(path: string): PrerenderHead {
 
 function renderPage(path: string, page: ReactNode, leaders: MetaLeadersResponse | null): string {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  if (leaders) queryClient.setQueryData(["meta", "leaders", META_DAYS], leaders);
+  if (leaders) queryClient.setQueryData(qk.meta.leaders(META_DAYS), leaders);
   return renderToString(
     <QueryClientProvider client={queryClient}>
       <StaticRouter location={path}>

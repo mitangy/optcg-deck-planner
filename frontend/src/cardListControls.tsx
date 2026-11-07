@@ -3,11 +3,8 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { clearColumnSort } from "./columnSort";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
-export const CARD_SORTS_KEY = "optcg_card_sorts";
-export const FILTERS_OPEN_KEY = "optcg_filters_open";
-// v2: the old key holds "0" for nearly everyone (it was written on every visit),
-// so reading it would keep alt arts hidden. A missing v2 value means ON.
-export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts_v2";
+import { CARD_SORTS_KEY, FILTERS_OPEN_KEY, SHOW_ALT_ARTS_KEY } from "./storage/keys";
+import { bool01, choiceCodec, usePersistedState, type PersistedCodec } from "./storage/persisted";
 
 /** Alt arts are shown unless the visitor turned them off. */
 export function showAltArtsFromStored(raw: string | null): boolean {
@@ -24,7 +21,6 @@ export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
 /** Sorts offered on the Collection page (owned cards). */
 export const OWNED_SORT_KEYS: SortKey[] = ["value", "owned", "price", "color", "set"];
 export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
-export const OWNED_SORTS_KEY = "optcg_owned_sorts";
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",
@@ -317,55 +313,12 @@ export function matchesCardSearch(
 }
 
 export function usePersistedOpen(storageKey: string | undefined, defaultOpen: boolean) {
-  const [open, setOpen] = useState(() => {
-    if (!storageKey) return defaultOpen;
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw === null) return defaultOpen;
-      return raw === "1";
-    } catch {
-      return defaultOpen;
-    }
-  });
-  useEffect(() => {
-    if (!storageKey) return;
-    try {
-      localStorage.setItem(storageKey, open ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [open, storageKey]);
-  return [open, setOpen] as const;
-}
-
-/** Stored value if it is one of `allowed` (when given), otherwise the default. */
-export function parsePersistedChoice(
-  raw: string | null,
-  defaultValue: string,
-  allowed?: readonly string[],
-): string {
-  if (raw === null) return defaultValue;
-  if (allowed && !allowed.includes(raw)) return defaultValue;
-  return raw;
+  return usePersistedState(storageKey, defaultOpen, bool01);
 }
 
 /** A string filter choice (select) remembered in localStorage across reloads. */
 export function usePersistedChoice(storageKey: string, defaultValue: string, allowed?: readonly string[]) {
-  const [value, setValue] = useState(() => {
-    try {
-      return parsePersistedChoice(localStorage.getItem(storageKey), defaultValue, allowed);
-    } catch {
-      return defaultValue;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, value);
-    } catch {
-      /* ignore */
-    }
-  }, [value, storageKey]);
-  return [value, setValue] as const;
+  return usePersistedState(storageKey, defaultValue, choiceCodec(allowed));
 }
 
 export function CollapsibleDrawer({
@@ -504,22 +457,13 @@ export function CardSearchInput({
   );
 }
 
+const showAltArtsCodec: PersistedCodec<boolean> = {
+  parse: showAltArtsFromStored,
+  serialize: bool01.serialize,
+};
+
 export function useShowAltArts() {
-  const [showAltArts, setShowAltArts] = useState(() => {
-    try {
-      return showAltArtsFromStored(localStorage.getItem(SHOW_ALT_ARTS_KEY));
-    } catch {
-      return true;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(SHOW_ALT_ARTS_KEY, showAltArts ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [showAltArts]);
-  return [showAltArts, setShowAltArts] as const;
+  return usePersistedState(SHOW_ALT_ARTS_KEY, true, showAltArtsCodec);
 }
 
 /** Build the Filters drawer summary chips used on shopping / deck / group buy. */

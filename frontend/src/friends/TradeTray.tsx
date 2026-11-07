@@ -7,6 +7,7 @@ import { friendsApi } from "./friendsApi";
 import { lineCap, setLineQty, toLinesIn, trayTotals, type TrayLine } from "./tradeLogic";
 import { QtyStepper } from "./ui";
 import { useFriendSpares } from "./useFriendSpares";
+import { qk } from "../queryKeys";
 
 type TrayProps = {
   friendId: number;
@@ -39,9 +40,9 @@ function TrayInner({ friendId, username, lines, onLines, message, onMessage, cou
     },
     onError: () => setOpen(true),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["trades"] });
-      void qc.invalidateQueries({ queryKey: ["trades-summary"] });
-      void qc.invalidateQueries({ queryKey: ["friend", friendId, "spares"] });
+      void qc.invalidateQueries({ queryKey: qk.trades() });
+      void qc.invalidateQueries({ queryKey: qk.tradesSummary() });
+      void qc.invalidateQueries({ queryKey: qk.friend.sparesAll(friendId) });
       onClear();
       navigate("/friends?tab=trades");
     },

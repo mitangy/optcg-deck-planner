@@ -6,6 +6,7 @@ import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulli
 import { getPlayerView } from "../engine/views.js";
 import { createSeededRng, type Rng } from "../rng.js";
 import type { ApplyResult, CardInstance, Intent, MatchState, PendingChoice, Seat } from "../types.js";
+import { CB } from "../effects/bindings.js";
 
 /** Vanilla filler (no printed text) keeps decks and Life free of stray effects. */
 export const FILLER = "ST01-003";
@@ -173,7 +174,7 @@ export class Harness {
     for (;;) {
       const choice = this.choice;
       const r = choice?.request;
-      if (!choice || r?.type !== "select" || r.options.length !== r.min || choice.bindings?.__startStage) return this;
+      if (!choice || r?.type !== "select" || r.options.length !== r.min || choice.bindings?.[CB.startStage]) return this;
       this.act(choice.seat, { type: "resolve_pending_choice", accept: true, selectedOptionIds: r.options.map((o) => o.id) });
     }
   }

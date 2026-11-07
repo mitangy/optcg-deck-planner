@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from app.auth import SESSION_COOKIE, create_session_token
 from app.config import get_settings
 from app.db import get_db
-from app.game_tokens import mint_game_token
+from app.duel.tokens import mint_game_token
 from app.main import app
 from app.models import (
     DuelCosmetic,
@@ -395,7 +395,7 @@ def test_new_uploads_never_prune_a_taken_down_image_810(client):
     zoro = user(S, "Zoro")
     evidence = upload(c, zoro, "cardBack", PNG)
     with S() as db:
-        from app.moderation import take_down_cosmetic
+        from app.duel.moderation import take_down_cosmetic
 
         take_down_cosmetic(db, db.get(DuelCosmetic, evidence["id"]), None, "test")
         db.commit()
@@ -560,7 +560,7 @@ def test_presence_answers_with_images_taken_down_in_the_last_quarter_hour_810(cl
     fresh, stale = upload(c, zoro, "playmat", JPEG), upload(c, zoro, "cardBack", PNG)
     live = upload(c, zoro, "cardBack", JPEG)
     mod = user(S, "Mod", role="moderator")
-    from app.moderation import take_down_cosmetic
+    from app.duel.moderation import take_down_cosmetic
 
     with S() as db:
         take_down_cosmetic(db, db.get(DuelCosmetic, fresh["id"]), mod, "x")
@@ -578,7 +578,7 @@ def test_presence_reports_takedowns_without_redis_too_810(client):
     c, S = client
     zoro = user(S, "Zoro")
     item = upload(c, zoro, "playmat", JPEG)
-    from app.moderation import take_down_cosmetic
+    from app.duel.moderation import take_down_cosmetic
 
     with S() as db:
         take_down_cosmetic(db, db.get(DuelCosmetic, item["id"]), None, "x")
@@ -593,7 +593,7 @@ def test_only_the_admin_can_restore_a_taken_down_image_810(client):
     zoro = user(S, "Zoro")
     mod, admin = user(S, "Mod", role="moderator"), user(S, "Boss", role="admin")
     item = upload(c, zoro, "playmat", JPEG)
-    from app.moderation import take_down_cosmetic
+    from app.duel.moderation import take_down_cosmetic
 
     with S() as db:
         take_down_cosmetic(db, db.get(DuelCosmetic, item["id"]), mod, "x")
@@ -626,7 +626,7 @@ def test_taking_down_the_active_card_back_clears_it_810(client):
     zoro = user(S, "Zoro")
     item = upload(c, zoro, "cardBack", PNG)
     assert as_user(c, zoro).get("/duel/cosmetics").json()["active"]["cardBack"] == item["id"]
-    from app.moderation import take_down_cosmetic
+    from app.duel.moderation import take_down_cosmetic
 
     with S() as db:
         take_down_cosmetic(db, db.get(DuelCosmetic, item["id"]), None, "x")
@@ -639,7 +639,7 @@ def test_taking_down_twice_keeps_the_first_decision_810(client):
     zoro = user(S, "Zoro")
     first, second = user(S, "Mod", role="moderator"), user(S, "Mod2", role="moderator")
     item = upload(c, zoro, "playmat", JPEG)
-    from app.moderation import take_down_cosmetic
+    from app.duel.moderation import take_down_cosmetic
 
     with S() as db:
         take_down_cosmetic(db, db.get(DuelCosmetic, item["id"]), first, "first reason")

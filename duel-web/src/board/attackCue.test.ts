@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { DEMO_VIEW } from "./fixtures/demoViews";
 import type { PlayerView } from "../net/protocol";
 import { attackCueDue, incomingAttackKey } from "./attackCue";
+import type { BattleState } from "@optcg/rules";
 
 function withBattle(battle: unknown, over: Partial<PlayerView> = {}): PlayerView {
-  return { ...DEMO_VIEW, turnNumber: 3, battle, ...over };
+  return { ...DEMO_VIEW, turnNumber: 3, battle: battle as BattleState | null, ...over };
 }
 
 const against = (attackerId: string, target: unknown) => ({

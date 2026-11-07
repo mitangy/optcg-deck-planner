@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.core.statuses import AccessStatus
 from app.analyst_corpus import MAX_GAMES, game_replay, search_games
 from app.analyst_credit import credit_for, day_start, month_start, next_month_start, refusal_for, spent_since
 from app.auth import get_current_user
@@ -33,8 +34,10 @@ from app.models import (
     DuelMatch,
     User,
 )
-from app.routers.analyst_access import free_spots, spots_used
-from app.routers.analyst import CHAT_MODELS, access_status, analyst_user, chat_enabled_for, chat_model, is_chat_owner, is_model_admin, mint_chat_token, require_service, requests_open
+from app.analyst.access import CHAT_MODELS, access_status, chat_enabled_for, chat_model, free_spots, is_chat_owner, is_model_admin, requests_open, spots_used
+from app.analyst.auth import analyst_user, mint_chat_token
+from app.analyst.thread_view import NEW_DECK_TOOL, PROPOSE_TOOL, thread_view, tool_ids, utf16_len
+from app.core.security import require_service
 from app.usernames import duel_display_name
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -49,7 +52,6 @@ from app.schemas import (
     AnalystCitation,
     AnalystChatSession,
     AnalystDeckEdit,
-    AnalystDisplayMessage,
     AnalystProposalsIn,
     AnalystDraftsIn,
     AnalystDeckDraft,
@@ -70,8 +72,7 @@ from app.schemas import (
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
 
-# The analyst puts page/deck context in a user text block starting with this; the panel hides it.
-CONTEXT_PREFIX = "<context>"
+
 MAX_MESSAGE_BYTES = 400_000
 MAX_THREAD_MESSAGES = 400
 
@@ -111,7 +112,7 @@ def chat_session(
         db.scalar(
             select(func.count())
             .select_from(AnalystAccess)
-            .where(or_(AnalystAccess.status == "pending", AnalystAccess.topup_requested_at.is_not(None)))
+            .where(or_(AnalystAccess.status == AccessStatus.PENDING, AnalystAccess.topup_requested_at.is_not(None)))
         )
         or 0
         if owner
@@ -375,34 +376,9 @@ def append_messages(
     db.commit()
 
 
-PROPOSE_TOOL = "propose_deck_edit"
-NEW_DECK_TOOL = "propose_new_deck"
-
-
-def _tool_ids(content: str | list[dict], tool: str) -> list[str]:
-    """The ids of the calls to `tool` in one stored message."""
-    if not isinstance(content, list):
-        return []
-    return [
-        b["id"]
-        for b in content
-        if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == tool and isinstance(b.get("id"), str)
-    ]
-
-
-def _proposal_ids(content: str | list[dict]) -> list[str]:
-    """The ids of the propose_deck_edit calls in one stored message."""
-    return _tool_ids(content, PROPOSE_TOOL)
-
-
-def _draft_ids(content: str | list[dict]) -> list[str]:
-    """The ids of the propose_new_deck calls in one stored message (#726)."""
-    return _tool_ids(content, NEW_DECK_TOOL)
-
-
 def _save_cards(db: Session, row: AnalystThread, items: list, tool: str, what: str) -> None:
     """Keeps cards that each come from a call to `tool` stored in the thread; repeats are ignored."""
-    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in _tool_ids(json.loads(m.content), tool)}
+    made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in tool_ids(json.loads(m.content), tool)}
     if any(p.id not in made for p in items):
         raise HTTPException(status_code=400, detail=f"A {what} must come from a {tool} call in this thread")
     have = set(db.scalars(select(AnalystProposal.id).where(AnalystProposal.thread_id == row.id)).all())
@@ -456,99 +432,6 @@ def _stored_cards(db: Session, thread_id: int) -> tuple[dict[str, AnalystDeckEdi
         except ValueError:
             continue
     return edits, drafts
-
-
-MAX_CITED_TEXT = 800
-
-
-def _utf16_len(text: str) -> int:
-    """Length in UTF-16 code units, the offsets the browser counts text in."""
-    return len(text.encode("utf-16-le")) // 2
-
-
-def _block_citations(block: dict) -> list[dict]:
-    """The search-result citations on one text block (other kinds aren't ours), without repeats."""
-    seen: set[tuple[str, str]] = set()
-    out: list[dict] = []
-    for raw in block.get("citations") or []:
-        if not isinstance(raw, dict) or raw.get("type") != "search_result_location":
-            continue
-        source, quote = raw.get("source"), raw.get("cited_text") or ""
-        if not isinstance(source, str) or not source or not isinstance(quote, str) or (source, quote) in seen:
-            continue
-        seen.add((source, quote))
-        title = raw.get("title")
-        out.append(
-            {
-                "source": source[:200],
-                "title": title[:200] if isinstance(title, str) else "",
-                "cited_text": quote if len(quote) <= MAX_CITED_TEXT else quote[: MAX_CITED_TEXT - 1] + "\u2026",
-            }
-        )
-    return out
-
-
-def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[AnalystCitation]]:
-    """What the panel shows for a stored message: its text blocks run together (as they stream), without tool calls,
-    tool results or page context, and the citations at the end of the blocks they belong to."""
-    if isinstance(content, str):
-        return ("" if content.startswith(CONTEXT_PREFIX) else content), []
-    text = ""
-    cites: list[AnalystCitation] = []
-    for b in content:
-        if b.get("type") != "text":
-            continue
-        piece = b.get("text", "")
-        if role == "user" and piece.startswith(CONTEXT_PREFIX):
-            continue
-        text += piece
-        if role == "assistant":
-            at = _utf16_len(text)
-            cites += [AnalystCitation(at=at, **c) for c in _block_citations(b)]
-    return text, cites
-
-
-def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit], pending_drafts: list[AnalystDeckDraft]) -> None:
-    """Put the deck edits and new decks of a finished turn under the answer that ended it (an answer of its own when there is none)."""
-    if not pending and not pending_drafts:
-        return
-    if out and out[-1].role == "assistant":
-        out[-1].proposals += pending
-        out[-1].drafts += pending_drafts
-    else:
-        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending), drafts=list(pending_drafts)))
-    pending.clear()
-    pending_drafts.clear()
-
-
-def thread_view(
-    messages: list[tuple[str, str | list[dict]]],
-    proposals: dict[str, AnalystDeckEdit] | None = None,
-    drafts: dict[str, AnalystDeckDraft] | None = None,
-) -> list[AnalystDisplayMessage]:
-    """Stored messages as chat bubbles: tool-result-only turns drop out and one answer's pieces join up.
-
-    A deck edit or a new deck goes under the bubble that ends the turn it was made in (#400, #726)."""
-    out: list[AnalystDisplayMessage] = []
-    pending: list[AnalystDeckEdit] = []
-    pending_drafts: list[AnalystDeckDraft] = []
-    for role, content in messages:
-        if role == "assistant":
-            pending += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
-            pending_drafts += [drafts[i] for i in _draft_ids(content) if drafts and i in drafts]
-        text, cites = _display_text(role, content)
-        if not text.strip():
-            continue
-        if role == "user":
-            _attach(out, pending, pending_drafts)
-        if out and out[-1].role == role == "assistant":
-            base = _utf16_len(out[-1].text) + 2
-            out[-1].text += "\n\n" + text
-            out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
-        else:
-            out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
-    _attach(out, pending, pending_drafts)
-    return out
 
 
 @router.get("/chat/threads", response_model=AnalystThreadsOut)
@@ -628,7 +511,7 @@ def put_review(
     if played is None:
         raise HTTPException(status_code=404, detail="Match not found")
     # A citation can only follow text that is there.
-    limit = _utf16_len(body.text)
+    limit = utf16_len(body.text)
     citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchReview, (user.id, match_id))
     if row is None:
@@ -700,7 +583,7 @@ def put_brief(
     claims = _brief_claims(body, settings)
     key = brief_key(claims, body.variant)
     # A citation can only follow text that is there.
-    limit = _utf16_len(body.text)
+    limit = utf16_len(body.text)
     citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchBrief, key)
     if row is None:

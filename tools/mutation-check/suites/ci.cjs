@@ -8,10 +8,12 @@ module.exports = {
   mutations: [
     m("ci-duel-web-skips-e2e", 'p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"]', 'p.startsWith("duel-web/"), flags: ["duel_web"]', ["a duel-web change runs the duel-web unit and e2e jobs only"]),
     m("ci-seo-scripts-backend-only", 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["backend"]', ["prerender and vercel-ignore scripts run the apps that import or read them"]),
+    m("ci-vite-plugins-backend-only", 'p.startsWith("tools/vite/"), flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("tools/vite/"), flags: ["backend"]', ["the shared vite plugins run the apps that import them, not the backend (refactor 2.3)"]),
     m("ci-backend-runs-e2e", 'p.startsWith("scripts/"), flags: ["backend"]', 'p.startsWith("scripts/"), flags: ["backend", "duel_e2e"]', ["a backend-only change leaves the duel e2e shards off"]),
     m("ci-packages-skips-duel-web", 'p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p.startsWith("packages/"), flags: ["rules", "duel_e2e", "frontend"]', ["a packages change runs duel-web"]),
     m("ci-fixtures-skip-mobile", 'flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"]', 'flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["protocol fixtures also run the mobile tests"]),
     m("ci-game-server-skips-e2e", 'p.startsWith("game-server/"), flags: ["rules", "duel_e2e"]', 'p.startsWith("game-server/"), flags: ["rules"]', ["game-server changes run the rules job and the duel e2e shards"]),
+    m("ci-golden-decklists-skip-backend", 'p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"]', 'p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["the golden deck lists also run the backend tests"]),
     m("ci-ticket-vector-skips-rules", 'p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"]', 'p.startsWith("backend/tests/fixtures/"), flags: ["backend"]', ["the ticket vector shared with game-server"]),
     m("ci-analyst-skips-rules", 'p.startsWith("analyst/"), flags: ["rules"]', 'p.startsWith("analyst/"), flags: []', ["analyst, scripts, frontend and mobile each run their own job"]),
     m("ci-frontend-skips-frontend", 'p.startsWith("frontend/"), flags: ["frontend"]', 'p.startsWith("frontend/"), flags: []', ["analyst, scripts, frontend and mobile each run their own job"]),
@@ -46,6 +48,12 @@ module.exports = {
       ["case-collisions-case-sensitive", 'p.replace(MODULE_EXT, "") : p).toLowerCase();', 'p.replace(MODULE_EXT, "") : p);', "two paths that differ only by case collide whatever their extension"],
       ["case-collisions-same-stem-flagged", "if (stems.size > 1) out.push", "if (stems.size > 0) out.push", "a test, a stylesheet or a same-case sibling does not collide"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/case-collisions.cjs", from, to, kills: [kill], args: '"tools/ci/case-collisions.test.cjs"' })),
+    ...[
+      ["css-tokens-finder-skips-numbers", "tools/ci/css-tokens.cjs", "/(^|[\\s{;])z-index:\\s*-?\\d/.test(text)", "/(^|[\\s{;])z-index:\\s*-?\\d{9}/.test(text)", "a raw z-index number is flagged, a token, auto or a comment is not"],
+      ["css-tokens-comments-flagged", "tools/ci/css-tokens.cjs", 'return css.replace(/\\/\\*[\\s\\S]*?\\*\\//g, (c) => c.replace(/[^\\n]/g, " "));', "return css;", "a raw z-index number is flagged, a token, auto or a comment is not"],
+      ["css-tokens-board-raw-literal", "duel-web/src/interactions.css", "  position: fixed;\n  z-index: var(--z-attack-warning);\n  max-width: min(18rem", "  position: fixed;\n  z-index: 410;\n  max-width: min(18rem", "no app or package stylesheet writes a raw z-index number outside tokens.css"],
+      ["css-tokens-token-renamed", "packages/ui/src/tokens.css", "  --z-dock: 17;", "  --z-dok: 17;", "every --z-* token a stylesheet reads is defined in tokens.css"],
+    ].map(([id, file, from, to, kill]) => ({ id, file, from, to, kills: [kill], args: '"tools/ci/css-tokens.test.cjs"' })),
     ...[
       ["retrain-gate-min-test", "if (newM.n < minTest)", "if (newM.n < 0)", "refuses a test set smaller than the minimum"],
       ["retrain-gate-top1-tie", "!(newM.top1 > oldM.top1)", "newM.top1 < oldM.top1", "refuses a tie on top1"],

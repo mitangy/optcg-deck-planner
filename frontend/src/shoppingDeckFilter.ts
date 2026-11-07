@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
-
-export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
+import { SHOPPING_DECKS_KEY } from "./storage/keys";
+import { qk } from "./queryKeys";
 
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
@@ -35,6 +35,6 @@ export function savedShoppingDeckIds(allIds: number[]): number[] | undefined {
 }
 
 export function useSavedShoppingDeckIds(): number[] | undefined {
-  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const decksQ = useQuery({ queryKey: qk.decks(), queryFn: api.decks });
   return decksQ.data ? savedShoppingDeckIds(decksQ.data.map((d) => d.id)) : undefined;
 }

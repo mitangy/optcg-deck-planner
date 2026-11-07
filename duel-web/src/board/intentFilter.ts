@@ -37,20 +37,23 @@ function matchesHand(intent: Intent, handIndex: number): boolean {
 export function matchesBoardId(intent: Intent, boardId: string): boolean {
   // Activate:Main is filtered by the ability source (leader/character/stage), not
   // the DON!! recipient — so selecting Stage/Luffy surfaces Activate in IntentBar.
-  if (intent.type === "activate_ability" || intent.type === "activate_leader") {
-    if (intent.sourceId === boardId) return true;
+  const type: string = intent.type;
+  if (type === "activate_ability" || type === "activate_leader") {
+    const activation = intent as { sourceId?: string; targetId?: string };
+    if (activation.sourceId === boardId) return true;
     // Legacy activate_leader without sourceId: treat as leader-sourced when the
     // selected id is the give target only if sourceId is absent (tests/compat).
-    if (intent.type === "activate_leader" && intent.sourceId == null) {
-      return intent.targetId === boardId;
+    if (type === "activate_leader" && activation.sourceId == null) {
+      return activation.targetId === boardId;
     }
     return false;
   }
+  const ids = intent as { attackerId?: string; targetId?: string; blockerId?: string; donId?: string };
   return (
-    intent.attackerId === boardId ||
-    intent.targetId === boardId ||
-    intent.blockerId === boardId ||
-    intent.donId === boardId
+    ids.attackerId === boardId ||
+    ids.targetId === boardId ||
+    ids.blockerId === boardId ||
+    ids.donId === boardId
   );
 }
 

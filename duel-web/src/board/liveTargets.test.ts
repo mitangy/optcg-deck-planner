@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_VIEW } from "./fixtures/demoViews";
 import { indexLiveCards, readinessLabel } from "./liveTargets";
+import { stubCard } from "./fixtures/stubCard";
 
 describe("liveTargets", () => {
   it("indexes both sides with seats and character slots", () => {
@@ -11,7 +12,7 @@ describe("liveTargets", () => {
   });
 
   it("tells identical-looking targets apart by readiness", () => {
-    const base = { id: "c", defId: "ST01-003", seat: 0 as const, zone: "character" as const };
+    const base = { ...stubCard({ id: "c", defId: "ST01-003" }), seat: 0 as const, zone: "character" as const };
     expect(readinessLabel({ ...base, summoningSick: true })).toBe("Summoning sick");
     expect(readinessLabel({ ...base })).toBe("Can attack");
     expect(readinessLabel({ ...base, rested: true, summoningSick: true })).toBe("Rested");

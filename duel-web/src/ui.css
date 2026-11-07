@@ -94,7 +94,7 @@
   min-height: 36px;
   padding: 0.45rem 0.8rem;
   font-size: 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .btn-lg {
@@ -119,7 +119,7 @@
     radial-gradient(120% 140% at 50% -20%, rgb(var(--btn-shine-rgb) / 0.55), transparent 55%),
     linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
   border: 1px solid rgb(var(--btn-edge-rgb) / 0.55);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow:
     inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.5),
     inset 0 -2px 0 rgb(var(--btn-shade-rgb) / 0.35),
@@ -144,7 +144,7 @@
   height: 40px;
   flex: 0 0 auto;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   background: var(--arena-panel);
   color: var(--chrome-bright);
@@ -179,7 +179,7 @@
 .btn-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* —— App chrome: full-bleed top bar, constrained inner —— */
@@ -191,7 +191,7 @@
   backdrop-filter: blur(6px);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-topbar);
   /* Bar stays full-bleed under the status bar; the inner row clears it. */
   padding-top: var(--safe-t);
 }
@@ -203,14 +203,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
 .topbar-mark {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 44px;
   font-family: var(--font-display);
   font-weight: 800;
@@ -223,7 +223,7 @@
 .topbar-mark:focus-visible {
   outline: none;
   box-shadow: var(--focus);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .brand-mark {
@@ -239,7 +239,7 @@
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -251,7 +251,7 @@
   max-width: 16rem;
   height: 40px;
   padding: 0 0.8rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--arena-panel);
   color: var(--ink);
@@ -272,7 +272,7 @@
 .account-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--muted);
   flex: 0 0 auto;
 }
@@ -309,7 +309,7 @@
     max(1rem, var(--safe-l));
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .page-narrow {
@@ -336,7 +336,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     /* The last left block takes up the slack when Gameplay is the taller side. */
     grid-template-rows: auto 1fr;
-    gap: 1rem;
+    gap: var(--space-4);
     align-items: start;
   }
 
@@ -345,7 +345,7 @@
   .settings-c {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--space-4);
     min-width: 0;
   }
 
@@ -368,7 +368,7 @@
 .page-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -384,7 +384,7 @@
   position: sticky;
   top: 0;
   /* Above page content and its menus (60), below sheets (100) and the nav drawer (120). */
-  z-index: 65;
+  z-index: var(--z-deck-config);
   isolation: isolate;
   margin: calc(-1 * var(--stick-pt)) 0 calc(-1 * var(--stick-pb));
   padding: var(--stick-pt) 0 var(--stick-pb);
@@ -395,7 +395,7 @@
 .deck-config > .deck-config-header > .deck-config-nav::before {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: var(--z-under);
   top: 0;
   bottom: 0;
   left: 50%;
@@ -436,7 +436,7 @@ html {
     gap: 0.85rem;
     position: sticky;
     top: 0;
-    z-index: 65;
+    z-index: var(--z-deck-config);
     isolation: isolate;
     margin: calc(-1 * var(--stick-pt)) 0 calc(-1 * var(--stick-pb));
     padding: var(--stick-pt) 0 var(--stick-pb);
@@ -486,10 +486,10 @@ html {
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: 1rem 1.1rem 1.1rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background:
     linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.035), transparent 40%),
     var(--arena-panel);
@@ -544,7 +544,7 @@ html {
   min-height: 44px;
   background: var(--arena-mid);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   color: var(--ink);
   padding: 0.6rem 0.75rem;
   font: inherit;
@@ -560,7 +560,7 @@ html {
 
 .field-inline {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -597,10 +597,10 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
   padding: 0.75rem 0.9rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line);
   background: var(--arena-panel);
   width: 100%;
@@ -660,7 +660,7 @@ html {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .home-kicker {
@@ -752,7 +752,7 @@ html {
 .mode-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* One mode is Play's own: the other four, two by two. */
@@ -783,7 +783,7 @@ html {
   min-height: 52px;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--panel-rgb) / 0.6);
   color: var(--ink);
   font: inherit;
@@ -849,11 +849,11 @@ html {
   --glow: 210 165 77;
   display: flex;
   align-items: stretch;
-  gap: 1rem;
+  gap: var(--space-4);
   width: 100%;
   padding: 0.9rem 0.9rem 0.9rem 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background-color: rgb(var(--panel-rgb) / 0.6);
   background-image: radial-gradient(
     calc(var(--leader-w) * 1.5) calc(var(--leader-w) * 1.6) at calc(var(--leader-w) / 2 + 0.8rem) 50%,
@@ -889,7 +889,7 @@ html {
   flex: 0 0 auto;
   width: 38px;
   height: 53px;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid var(--line-strong);
   object-fit: cover;
   object-position: center top;
@@ -902,7 +902,7 @@ html {
   width: var(--leader-w);
   height: auto;
   aspect-ratio: 63 / 88;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   transform: rotate(-3deg);
   box-shadow:
     0 8px 22px rgba(0, 0, 0, 0.45),
@@ -947,7 +947,7 @@ html {
   margin-left: 0.45rem;
   padding: 0.05rem 0.45rem;
   border: 1px solid rgb(var(--chrome-rgb) / 0.55);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--chrome-rgb) / 0.14);
   color: var(--chrome-bright);
   font-size: 0.68rem;
@@ -1007,7 +1007,7 @@ html {
   align-items: center;
   min-height: 30px;
   padding: 0 0.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--muted);
@@ -1031,12 +1031,12 @@ html {
 /* A Headless UI Listbox floating under the trigger in a portal — opening never moves the page. */
 .deck-menu {
   width: var(--button-width);
-  z-index: 60;
+  z-index: var(--z-menu);
   padding: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
   overflow: hidden;
@@ -1063,8 +1063,8 @@ html {
 .deck-menu-row {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  border-radius: 9px;
+  gap: var(--space-1);
+  border-radius: var(--radius-9);
 }
 
 .deck-menu-row:hover,
@@ -1093,7 +1093,7 @@ html {
   min-width: 0;
   padding: 0.4rem;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-9);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -1129,7 +1129,7 @@ html {
   padding: 0 0.7rem;
   margin-right: 0.25rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -1146,7 +1146,7 @@ html {
 .deck-menu-foot {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.5rem;
   border-top: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.12);
@@ -1157,7 +1157,7 @@ html {
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1176,10 +1176,10 @@ html {
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   padding: 0.9rem 1rem 1.1rem;
   border: 1px solid var(--line-strong);
-  border-radius: 18px;
+  border-radius: var(--radius-18);
   background:
     linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
     var(--arena-panel);
@@ -1190,7 +1190,7 @@ html {
 .sheet-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .sheet-title {
@@ -1228,7 +1228,7 @@ html {
   min-height: 128px;
   padding: 0.9rem 0.9rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background:
     linear-gradient(160deg, rgb(var(--sea-rgb) / 0.16), transparent 60%),
     var(--arena-mid);
@@ -1259,7 +1259,7 @@ html {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid var(--line-strong);
   color: var(--chrome-bright);
   font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", system-ui, sans-serif;
@@ -1285,7 +1285,7 @@ html {
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   background: var(--arena-mid);
 }
@@ -1293,7 +1293,7 @@ html {
 .segmented button {
   min-height: 38px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -1330,7 +1330,7 @@ html {
   width: 36px;
   height: 50px;
   flex: 0 0 auto;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid var(--line-strong);
   object-fit: cover;
   object-position: center top;
@@ -1395,7 +1395,7 @@ html {
 .playmat-preview {
   width: 100%;
   aspect-ratio: 12 / 7;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
@@ -1443,7 +1443,7 @@ label.btn.is-busy {
 .img-editor-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-sheet);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -1457,9 +1457,9 @@ label.btn.is-busy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: 1rem;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   border: 1px solid var(--line);
   background: var(--panel, #12202b);
 }
@@ -1469,7 +1469,7 @@ label.btn.is-busy {
   /* Cap height so tall card-back frames fit small screens. */
   max-height: 55dvh;
   margin-inline: auto;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   overflow: hidden;
   border: 1px solid var(--line);
   background: repeating-conic-gradient(#1a2a36 0% 25%, #12202b 0% 50%) 0 0 / 16px 16px;
@@ -1499,7 +1499,7 @@ label.btn.is-busy {
   padding: 0.1em 0.5em;
   border: 1px solid var(--line-strong);
   border-bottom-width: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: rgba(0, 0, 0, 0.28);
   font: inherit;
   font-size: 0.78rem;
@@ -1518,7 +1518,7 @@ label.btn.is-busy {
 .hotkey-row {
   display: grid;
   grid-template-columns: 4.5rem minmax(0, 1fr);
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: baseline;
 }
 
@@ -1581,7 +1581,7 @@ label.btn.is-busy {
   width: 96px;
   aspect-ratio: 12 / 7;
   padding: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid var(--line);
   background: linear-gradient(180deg, var(--mat-top), var(--mat-bottom)) center / cover no-repeat;
   color: var(--muted);
@@ -1599,7 +1599,7 @@ label.btn.is-busy {
 .is-cardBack .cosmetic-thumb {
   width: 52px;
   aspect-ratio: 63 / 88;
-  border-radius: 5px;
+  border-radius: var(--radius-5);
   background-color: #1a2838;
 }
 
@@ -1629,7 +1629,7 @@ label.btn.is-busy {
   display: grid;
   place-items: center;
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid var(--line-strong);
   background: var(--arena-raised);
   color: var(--ink);
@@ -1677,7 +1677,7 @@ label.btn.is-busy {
   display: block;
   height: 56px;
   margin-bottom: 0.25rem;
-  border-radius: 7px;
+  border-radius: var(--radius-7);
   border: 1px solid var(--line);
   overflow: hidden;
   background:
@@ -1692,7 +1692,7 @@ label.btn.is-busy {
   right: 8px;
   bottom: 8px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid var(--line);
   background: linear-gradient(180deg, var(--mat-top), var(--mat-bottom));
 }
@@ -1703,7 +1703,7 @@ label.btn.is-busy {
   top: 8px;
   width: 44px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid rgb(var(--btn-edge-rgb) / 0.45);
   background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
 }
@@ -1714,7 +1714,7 @@ label.btn.is-busy {
   top: 9px;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--sea);
   box-shadow: -16px 0 0 var(--chrome-bright);
 }
@@ -1740,7 +1740,7 @@ label.btn.is-busy {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
   padding: 0 0 0 0.25rem;
   font-size: 0.78rem;
@@ -1834,7 +1834,7 @@ label.btn.is-busy {
     max-width: 720px;
     padding-top: 0.75rem;
     padding-bottom: 1rem;
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 
   /* The top bar carries the mark; Play and the deck sit side by side. */
@@ -1846,7 +1846,7 @@ label.btn.is-busy {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 
   .home-primary > * {
@@ -1880,7 +1880,7 @@ label.btn.is-busy {
 
   .home-deck {
     --leader-w: 56px;
-    gap: 0.75rem;
+    gap: var(--space-3);
     padding: 0.5rem 0.7rem 0.5rem 0.55rem;
   }
 
@@ -1927,7 +1927,7 @@ label.btn.is-busy {
 .bounty-list,
 .intro {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--panel-rgb) / 0.6);
 }
 
@@ -2011,7 +2011,7 @@ label.btn.is-busy {
   flex: 0 0 auto;
   min-width: 2rem;
   padding: 0.1rem 0.4rem;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   border: 1px solid var(--line-strong);
   font-size: 0.7rem;
   font-weight: 800;
@@ -2118,7 +2118,7 @@ label.btn.is-busy {
 .intro {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.75rem 0.9rem;
 }
 
@@ -2134,7 +2134,7 @@ label.btn.is-busy {
 .intro-steps li {
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr);
-  column-gap: 0.5rem;
+  column-gap: var(--space-2);
   counter-increment: intro;
   font-size: 0.8rem;
   line-height: 1.4;
@@ -2149,7 +2149,7 @@ label.btn.is-busy {
   align-self: start;
   width: 1.4rem;
   height: 1.4rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid var(--line-strong);
   font-size: 0.7rem;
   font-weight: 800;
@@ -2217,15 +2217,21 @@ label.btn.is-busy {
   overflow: hidden;
 }
 
-/* Shared feedback dialog (packages/site-legal): map its tokens to the arena palette. */
+/*
+ * Token bridge for the shared packages: --ui-* is the one set this app maps (the :root block
+ * below, following crew themes and light mode); the site-legal (--fb-*) and patch-notes (--wn-*)
+ * families alias it, and so does the Log Pose chat (--lp-*, logPose.css) wherever the values match.
+ */
+
+/* Shared feedback dialog (packages/site-legal). */
 .feedback-backdrop {
-  --fb-bg: var(--arena-panel);
-  --fb-ink: var(--ink);
-  --fb-line: var(--line-strong);
-  --fb-field-bg: var(--arena-mid);
-  --fb-accent: var(--chrome);
-  --fb-on-accent: var(--on-chrome);
-  --fb-danger: var(--crimson-bright);
+  --fb-bg: var(--ui-panel-bg);
+  --fb-ink: var(--ui-ink);
+  --fb-line: var(--ui-line);
+  --fb-field-bg: var(--ui-field-bg);
+  --fb-accent: var(--ui-primary);
+  --fb-on-accent: var(--ui-on-primary);
+  --fb-danger: var(--ui-danger);
   font-family: var(--font-body);
 }
 
@@ -2243,15 +2249,22 @@ label.btn.is-busy {
   --ui-accent: var(--chrome-bright);
   --ui-selected: rgb(var(--chrome-bright-rgb) / 0.1);
   --ui-active: rgb(var(--chrome-bright-rgb) / 0.24);
+  --ui-line: var(--line-strong);
+  --ui-line-soft: var(--line);
+  --ui-primary: var(--chrome);
+  --ui-on-primary: var(--on-chrome);
+  --ui-danger: var(--crimson-bright);
+  --ui-font: var(--font-body);
+  --ui-font-display: var(--font-display);
 }
 
-/* What's new card (packages/patch-notes): map its tokens to the arena palette (follows crew themes and light mode). */
+/* What's new card (packages/patch-notes), through the --ui-* set. */
 .wn-card {
-  --wn-bg: var(--arena-panel);
-  --wn-ink: var(--ink);
-  --wn-line: var(--line-strong);
-  --wn-accent: var(--chrome);
-  --wn-on-accent: var(--on-chrome);
+  --wn-bg: var(--ui-panel-bg);
+  --wn-ink: var(--ui-ink);
+  --wn-line: var(--ui-line);
+  --wn-accent: var(--ui-primary);
+  --wn-on-accent: var(--ui-on-primary);
   font-family: var(--font-body);
 }
 
@@ -2276,7 +2289,7 @@ label.btn.is-busy {
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: #3fcf6d;
   box-shadow: 0 0 0 0 rgba(63, 207, 109, 0.55);
   animation: live-pulse 2s ease-out infinite;
@@ -2304,11 +2317,11 @@ label.btn.is-busy {
 .live-empty {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   width: 100%;
   min-width: 0;
   padding: 0.8rem 0.9rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line);
   background: var(--arena-panel);
 }
@@ -2335,7 +2348,7 @@ label.btn.is-busy {
 
 .live-empty-alt {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -2362,13 +2375,13 @@ label.btn.is-busy {
 .logpose-tile {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   width: 100%;
   min-width: 0;
   min-height: 56px;
   padding: 0.6rem 0.85rem;
   border: 1px solid rgb(var(--chrome-rgb) / 0.35);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: linear-gradient(135deg, rgb(var(--chrome-rgb) / 0.12), rgb(var(--panel-rgb) / 0.6) 70%);
   color: var(--ink);
   font: inherit;
@@ -2388,7 +2401,7 @@ label.btn.is-busy {
   width: 2rem;
   height: 2rem;
   border: 1px solid var(--chrome);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   color: var(--chrome-bright);
   font-size: 0.95rem;
 }
@@ -2429,7 +2442,7 @@ label.btn.is-busy {
   bottom: 0;
   left: -120px;
   width: calc(100% + 120px);
-  z-index: -1;
+  z-index: var(--z-under);
   pointer-events: none;
   background-image: var(--wave-src);
   background-size: 120px 24px;
@@ -2458,7 +2471,7 @@ label.btn.is-busy {
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
   margin-right: auto;
 }
@@ -2473,7 +2486,7 @@ label.btn.is-busy {
    The Dialog's `transition` keeps both mounted until these CSS transitions end and sets data-closed / data-enter / data-leave;
    with no transition (reduced motion) it unmounts at once. */
 .nav-drawer-root {
-  z-index: 120;
+  z-index: var(--z-nav-drawer);
   display: block;
   padding: 0;
   /* background: the dialog's own --ui-backdrop (abyss at 72%). */
@@ -2532,7 +2545,7 @@ label.btn.is-busy {
   gap: 0.4rem;
   min-height: 44px;
   padding: 0 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid transparent;
   color: var(--ink);
   font-weight: 600;
@@ -2596,7 +2609,7 @@ label.btn.is-busy {
 .bounties-see-all:focus-visible {
   outline: none;
   box-shadow: var(--focus);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 
 /* —— Leaderboard page —— */
@@ -2604,7 +2617,7 @@ label.btn.is-busy {
 .leaderboard {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
   /* Loading, error and the list share a height, so the footer does not jump. */
   min-height: 14rem;
@@ -2616,7 +2629,7 @@ label.btn.is-busy {
 
 .leaderboard-cols,
 .leaderboard-list .bounty-row {
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .leaderboard-cols {
@@ -2664,7 +2677,7 @@ label.btn.is-busy {
 .leaderboard-you {
   flex: 0 0 auto;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   color: var(--chrome-bright);
   font-size: 0.65rem;
@@ -2686,7 +2699,7 @@ label.btn.is-busy {
 /* The menu button costs the account chip 44px on a phone; claw some back from the gaps. */
 @media (max-width: 479px) {
   .topbar-inner {
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .topbar-left {
@@ -2715,7 +2728,7 @@ label.btn.is-busy {
 .leave-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-inspect);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2735,7 +2748,7 @@ label.btn.is-busy {
   padding: 1.1rem;
   background: var(--arena-panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
@@ -2767,7 +2780,7 @@ label.btn.is-busy {
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   min-width: 0;
   scroll-margin-top: 0.75rem;
 }
@@ -2808,12 +2821,12 @@ label.btn.is-busy {
 .only-tile {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   min-height: 44px;
   padding: 0.8rem 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--panel-rgb) / 0.6);
   color: var(--ink);
   font: inherit;
@@ -2854,7 +2867,7 @@ label.btn.is-busy {
 @media (max-width: 479px) {
   .only-duel-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   /* Phones: compact title-only buttons. */
@@ -2931,7 +2944,7 @@ label.btn.is-busy {
   margin: 0 0 0.35rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--fb-line, var(--line-strong));
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--fb-field-bg, transparent);
   color: inherit;
   font: inherit;
@@ -2969,7 +2982,7 @@ label.btn.is-busy {
   width: 16px;
   height: 16px;
   border: 2px solid var(--muted);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   box-sizing: border-box;
 }
 
@@ -3001,7 +3014,7 @@ label.btn.is-busy {
   height: 40px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: var(--arena-mid);
 }
 
@@ -3100,7 +3113,7 @@ label.btn.is-busy {
   margin: 0 0 0.7rem;
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-mid);
   color: var(--ink);
   font-size: 0.92rem;

@@ -4,6 +4,7 @@ import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { api, money, type PrintingView } from "./api";
 import { CardThumb } from "./CardThumb";
 import { InlineSkeleton } from "./Skeleton";
+import { qk } from "./queryKeys";
 
 function formatSaleDate(iso: string): string {
   if (!iso) return "";
@@ -15,7 +16,7 @@ function formatSaleDate(iso: string): string {
 /** The panel body. It mounts only while the popover is open, so the sales are fetched on open and cached. */
 function RecentSales({ productId }: { productId: number }) {
   const salesQ = useQuery({
-    queryKey: ["recent-sales", productId],
+    queryKey: qk.recentSales(productId),
     queryFn: () => api.recentSales(productId),
     staleTime: 30 * 60 * 1000,
   });

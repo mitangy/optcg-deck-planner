@@ -20,8 +20,8 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import AnalystFeedback, AnalystMatchReview, AnalystMessage, AnalystThread, User
 from app.rate_limit import RateLimiter
-from app.routers.analyst import chat_enabled_for, chat_model
-from app.routers.analyst_chat import thread_view
+from app.analyst.access import chat_enabled_for, chat_model
+from app.analyst.thread_view import thread_view
 
 router = APIRouter(prefix="/analyst/feedback", tags=["analyst"])
 

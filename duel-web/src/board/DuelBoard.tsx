@@ -175,6 +175,7 @@ import { useLogPoseCopilot } from "./LogPoseCopilot";
 import { LogPoseMatchButton } from "./LogPoseMatchButton";
 import { matchLogPoseEntry } from "./matchBriefModel";
 import type { BriefTicketWire } from "../net/protocol";
+import { handIndexOf } from "./intentFields";
 import { matchMenuItems } from "./matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
 import { openReport } from "../reports/reportDialog";
@@ -351,7 +352,7 @@ export function DuelBoard({
   function onSendIntent(intent: Intent) {
     // Blocking after all: a skip-block Counter must not follow onto the Blocker.
     if (intent.type === "declare_block") setQueuedCounter(null);
-    if (view && typeof intent.handIndex === "number") {
+    if (view && handIndexOf(intent) !== undefined) {
       setHandUse(handUseFromIntent(intent, view.you.hand, measureHandCard));
     }
     sendIntent(intent);
@@ -1284,7 +1285,7 @@ export function DuelBoard({
 
   function pressCardAction(intent: Intent) {
     if (isReplacePlay(intent)) {
-      openReplace(intent.handIndex as number);
+      openReplace(intent.handIndex);
       return;
     }
     setHandFilter(null);

@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-from app.server_urls import normalize_server_url
+from app.duel.server_urls import normalize_server_url
 
 
 class UserOut(BaseModel):

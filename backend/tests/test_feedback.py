@@ -8,7 +8,7 @@ from tests.db_support import make_test_engine
 from app.auth import SESSION_COOKIE, create_session_token
 from app.config import get_settings
 from app.db import get_db
-from app.game_tokens import mint_game_token
+from app.duel.tokens import mint_game_token
 from app.main import app
 from app.models import User
 from app.routers import feedback

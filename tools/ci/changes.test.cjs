@@ -26,6 +26,16 @@ test("protocol fixtures also run the mobile tests that read them (#739)", () => 
   assert.equal(classify(["packages/rules/src/engine/views.ts"]).mobile, false);
 });
 
+test("the golden deck lists also run the backend tests that read them", () => {
+  assert.equal(classify(["packages/card-core/fixtures/decklists.json"]).backend, true);
+  assert.equal(classify(["packages/card-core/src/decklist.ts"]).backend, false);
+});
+
+test("the Log Pose contract values also run the backend tests that read them", () => {
+  assert.equal(classify(["packages/analyst-contract/fixtures/backend-values.json"]).backend, true);
+  assert.equal(classify(["packages/analyst-contract/src/index.ts"]).backend, false);
+});
+
 test("game-server changes run the rules job and the duel e2e shards (#739)", () => {
   assert.deepEqual(on(["game-server/src/app.config.ts"]), ["duel_e2e", "rules"]);
 });
@@ -99,4 +109,8 @@ test("prerender and vercel-ignore scripts run the apps that import or read them,
   assert.deepEqual(on(["scripts/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
   assert.deepEqual(on(["scripts/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
   assert.deepEqual(on(["scripts/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
+});
+
+test("the shared vite plugins run the apps that import them, not the backend (refactor 2.3)", () => {
+  assert.deepEqual(on(["tools/vite/versionFile.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
 });

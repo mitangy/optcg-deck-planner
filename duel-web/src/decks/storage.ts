@@ -1,5 +1,5 @@
+import { expandDecklist, isCardId, parseDecklist, type ParsedDeckLine } from "@optcg/card-core";
 import {
-  isOptcgCardId,
   listAtlasIds,
   lookupCard,
   maxCopiesFor,
@@ -7,7 +7,6 @@ import {
 } from "../cards/atlas";
 import { safeGetItem, safeRemoveItem, safeSetItem } from "../lib/safeStorage";
 import { cardDataReady } from "../cards/cardData";
-import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
 const SELECTED_KEY = "optcg.duel.selectedDeckId.v1";
@@ -96,7 +95,7 @@ export function validateImportedList(text: string): DeckValidation {
 
   for (const line of lines) {
     if (!known.has(line.cardId)) {
-      if (!isOptcgCardId(line.cardId)) {
+      if (!isCardId(line.cardId)) {
         errors.push(`${line.cardId} is not a valid OPTCG card id`);
         continue;
       }

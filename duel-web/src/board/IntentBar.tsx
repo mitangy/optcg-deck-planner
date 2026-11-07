@@ -1,5 +1,6 @@
 import { useContext } from "react";
-import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
+import { intentLabel } from "./intentLabel";
+import type { Intent, PlayerView } from "../net/protocol";
 import { splitCardActions } from "./cardActions";
 import { isReplacePlay } from "./dragIntents";
 import { actionKeyTags } from "./hotkeys";
@@ -143,7 +144,7 @@ export function IntentBar({
               data-key-tag={(showKeyTags && keyTags[idx]!.tag) || undefined}
               onClick={() =>
                 onChooseReplace && isReplacePlay(intent)
-                  ? onChooseReplace(intent.handIndex as number)
+                  ? onChooseReplace(intent.handIndex)
                   : onSend(intent)
               }
             >

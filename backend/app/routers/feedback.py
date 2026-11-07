@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_optional_user
 from app.config import Settings, get_settings
-from app.tokens import OpsToken
+from app.core.security import OpsToken
 from app.db import get_db
 from app.models import Feedback, User
 from app.rate_limit import RateLimiter, client_ip

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-# Align with scripts/build_cosmetics_catalog.py; planner DB export also
-# consults backend.domain.SPECIAL_NAME_MARKERS when available.
+# The one marker list for the scripts (build_cosmetics_catalog.py imports it); the
+# planner DB export also merges backend.domain.SPECIAL_NAME_MARKERS when importable.
 SPECIAL_MARKERS = (
     "alternate art",
     "alt art",
@@ -17,6 +17,9 @@ SPECIAL_MARKERS = (
     "winner",
     "championship",
     "promo stamp",
+    "(sp)",
+    "(tr)",
+    "premium card collection",
 )
 
 PRODUCT_ID_FROM_URL_RE = re.compile(r"product/(\d+)_", re.I)

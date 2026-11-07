@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { DEMO_VIEW } from "./fixtures/demoViews";
 import type { PlayerView } from "../net/protocol";
 import { arcGeometry, battleEndpoints, sameBox } from "./battleArc";
+import type { BattleState } from "@optcg/rules";
 
 function withBattle(battle: unknown): PlayerView {
-  return { ...DEMO_VIEW, battle };
+  return { ...DEMO_VIEW, battle: battle as BattleState | null };
 }
 
 describe("battleEndpoints", () => {

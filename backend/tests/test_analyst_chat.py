@@ -9,7 +9,7 @@ import pytest
 
 from app.config import get_settings
 from app.models import AnalystMessage, AnalystThread, AnalystUsage, User
-from app.routers.analyst import mint_chat_token
+from app.analyst.auth import mint_chat_token
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_stats import LUCCI, NAMI_CARD, SERVICE, VIVI_CARD, ZORO, _users, _zoro_vs_lucci
 from tests.test_duel import _ingest, client  # noqa: F401  (fixture)

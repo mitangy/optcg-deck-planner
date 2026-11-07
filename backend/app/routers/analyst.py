@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import secrets
 from datetime import datetime, timezone
@@ -16,13 +14,16 @@ from sqlalchemy.orm import Session
 from app.analyst_stats import matchup_stats
 from app.tournament_stats import tournament_stats
 from app.tournament_sync import sync_status
+from app.analyst import access
+from app.analyst.auth import analyst_user, hash_token
+from app.core.security import require_service
 from app.auth import get_current_user
-from app.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
+from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
 from app.config import Settings, get_settings
+from app.core.statuses import LessonStatus
 from app.db import get_db
-from app.roles import is_banned
-from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
-from app.routers.duel import match_history
+from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
+from app.duel.matches import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
     AnalystDeckOut,
@@ -48,10 +49,6 @@ from app.schemas import (
 from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _connector_url(settings: Settings, token: str) -> str | None:
@@ -80,7 +77,7 @@ def create_token(
     """Make a new personal connector link. Any earlier link stops working."""
     token = secrets.token_urlsafe(24)
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
-    db.add(AnalystToken(user_id=user.id, token_hash=_hash(token)))
+    db.add(AnalystToken(user_id=user.id, token_hash=hash_token(token)))
     db.commit()
     return AnalystTokenCreated(token=token, connector_url=_connector_url(settings, token))
 
@@ -93,107 +90,6 @@ def revoke_token(
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
     db.commit()
     return Response(status_code=204)
-
-
-CHAT_TOKEN_SECONDS = 30 * 60
-
-
-def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
-    return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
-
-
-def is_chat_owner(settings: Settings, user: User) -> bool:
-    """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_chat_email_set
-
-
-def is_model_admin(settings: Settings, user: User) -> bool:
-    """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_model_admin_email_set
-
-
-# The models the chat may run on; the first is the default.
-CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5")
-
-
-def chat_model(db: Session) -> str:
-    """The saved chat model, or the default when none is saved (or the saved one is no longer offered)."""
-    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == "chat_model"))
-    return value if value in CHAT_MODELS else CHAT_MODELS[0]
-
-
-def _service_configured(settings: Settings) -> bool:
-    return bool(settings.analyst_service_secret and settings.analyst_public_url)
-
-
-def access_status(db: Session, user: User) -> str | None:
-    row = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user.id))
-    return row
-
-
-def chat_enabled_for(settings: Settings, user: User, db: Session) -> bool:
-    """The in-app chat panel is on for owners, and for players an owner approved, once the analyst service is configured."""
-    if not _service_configured(settings):
-        return False
-    return is_chat_owner(settings, user) or access_status(db, user) == "approved"
-
-
-def requests_open(settings: Settings) -> bool:
-    """Players can ask for access only when the service is on and someone is there to approve."""
-    return _service_configured(settings) and bool(settings.analyst_chat_email_set)
-
-
-def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
-    """A short-lived token the browser hands the analyst's /chat; signed with the service secret."""
-    exp = now + CHAT_TOKEN_SECONDS
-    return f"chat.{user.id}.{exp}.{_chat_sig(settings, user.id, exp)}", exp
-
-
-def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None:
-    parts = token.split(".")
-    if len(parts) != 4 or not settings.analyst_service_secret:
-        return None
-    _, uid, exp, sig = parts
-    if not (uid.isdigit() and exp.isdigit()):
-        return None
-    if not hmac.compare_digest(sig, _chat_sig(settings, int(uid), int(exp))):
-        return None
-    if int(exp) < int(datetime.now(timezone.utc).timestamp()):
-        return None
-    user = db.get(User, int(uid))
-    return user if user is not None and chat_enabled_for(settings, user, db) else None
-
-
-def analyst_user(
-    db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_analyst_token: Annotated[str | None, Header()] = None,
-) -> User:
-    """The player whose personal connector token (or in-app chat token) is in X-Analyst-Token."""
-    if not x_analyst_token:
-        raise HTTPException(status_code=401, detail="Missing analyst token")
-    if x_analyst_token.startswith("chat."):
-        user = _chat_token_user(db, settings, x_analyst_token)
-        if user is None:
-            raise HTTPException(status_code=401, detail="Expired or invalid chat token")
-        if is_banned(user):
-            raise HTTPException(status_code=403, detail="Account banned")
-        return user
-    row = db.scalar(select(AnalystToken).where(AnalystToken.token_hash == _hash(x_analyst_token)))
-    user = db.get(User, row.user_id) if row else None
-    if user is None:
-        raise HTTPException(status_code=401, detail="Unknown or revoked analyst token")
-    if is_banned(user):
-        raise HTTPException(status_code=403, detail="Account banned")
-    return user
-
-
-def require_service(settings: Settings, given: str | None) -> None:
-    expected = settings.analyst_service_secret
-    if not expected:
-        raise HTTPException(status_code=503, detail="Replays are not enabled")
-    if not given or not hmac.compare_digest(given, expected):
-        raise HTTPException(status_code=403, detail="Analyst service only")
 
 
 @router.get("/me", response_model=AnalystTokenStatus)
@@ -322,9 +218,6 @@ def put_sharing(
     return body
 
 
-MAX_DRAFT_LESSONS = 100
-
-
 def _match_ids(evidence: str | None) -> list[str]:
     """Player lessons keep a JSON list of match ids; bot lessons keep a JSON object with a summary instead."""
     try:
@@ -369,9 +262,9 @@ def draft_lesson(
 ) -> AnalystLessonOut:
     """Claude saves a lesson as a draft for the link owner to review. Evidence must be the owner's own games."""
     waiting = db.scalar(
-        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == "draft")
+        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == LessonStatus.DRAFT)
     )
-    if waiting >= MAX_DRAFT_LESSONS:
+    if waiting >= access.MAX_DRAFT_LESSONS:
         raise HTTPException(status_code=409, detail="Too many lessons are waiting for review")
     match_ids = list(dict.fromkeys(body.match_ids))
     if match_ids:
@@ -388,7 +281,7 @@ def draft_lesson(
             raise HTTPException(status_code=400, detail=f"Not your matches: {', '.join(unknown)}")
     row = AnalystLesson(
         user_id=user.id,
-        status="draft",
+        status=LessonStatus.DRAFT,
         text=body.text.strip(),
         leader_id=body.leader_id,
         opponent_id=body.opponent_id,
@@ -442,7 +335,7 @@ def review_lesson(
         row.text = body.text.strip()
     if body.status is not None and body.status != row.status:
         row.status = body.status
-        row.reviewed_at = None if body.status == "draft" else datetime.now(timezone.utc)
+        row.reviewed_at = None if body.status == LessonStatus.DRAFT else datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _lesson_out(row)

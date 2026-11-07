@@ -1,3 +1,4 @@
+import { HINT_CARD_ID_MAX, HINT_LIMITS, SCOPE_PATTERN, SCOPE_TITLE_MAX } from "@optcg/analyst-contract";
 import { z } from "zod";
 import { gameContext } from "./copilot";
 
@@ -10,24 +11,21 @@ const deckContext = z.object({
   plannerDeckId: z.number().int().positive().optional(),
 });
 
-/** The build hint the player tapped "Why?" on. Limits must equal HINT_LIMITS in packages/analyst-client/src/ask.ts. */
+/** The build hint the player tapped "Why?" on. The limits are HINT_LIMITS, which the client cuts a hint to. */
 const hintContext = z.object({
-  id: z.string().max(80),
+  id: z.string().max(HINT_LIMITS.id),
   tier: z.enum(["rule", "shape", "synergy"]),
-  title: z.string().max(200),
-  detail: z.string().max(600),
-  cardIds: z.array(z.string().max(20)).max(20).optional(),
+  title: z.string().max(HINT_LIMITS.title),
+  detail: z.string().max(HINT_LIMITS.detail),
+  cardIds: z.array(z.string().max(HINT_CARD_ID_MAX)).max(HINT_LIMITS.cards).optional(),
 });
-
-/** general | match:<id> | deck:planner:<digits> | deck:duel:<id> (same as the planner's ANALYST_SCOPE_PATTERN). */
-const SCOPE_PATTERN = /^(general|match:[A-Za-z0-9_-]{1,64}|deck:planner:[0-9]{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$/;
 
 export const chatBody = z.object({
   thread_id: z.number().int().positive().optional(),
   message: z.string().trim().min(1).max(4000),
   /** What the chat is about (#970); a verified live game overrides it. Only read when a thread is created. */
   scope: z.string().regex(SCOPE_PATTERN).optional(),
-  scope_title: z.string().trim().max(80).optional(),
+  scope_title: z.string().trim().max(SCOPE_TITLE_MAX).optional(),
   context: z
     .object({
       app: z.enum(["duel", "planner"]).optional(),

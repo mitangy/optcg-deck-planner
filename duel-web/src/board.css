@@ -49,13 +49,13 @@
   flex: 0 0 auto;
   height: var(--hint-h);
   min-height: 0;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .arena .opp-hand-hint .card-back {
   width: 13px;
   height: 18px;
-  border-radius: 2px;
+  border-radius: var(--radius-2);
 }
 
 .arena .opp-hand-faces {
@@ -71,7 +71,7 @@
 
 .arena .midline {
   position: relative;
-  z-index: 6;
+  z-index: var(--z-raise-6);
   flex: 0 0 var(--midline-h);
   height: var(--midline-h);
   min-height: 0;
@@ -185,7 +185,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: var(--z-base);
   pointer-events: none;
   background:
     linear-gradient(rgb(var(--abyss-rgb) / var(--mat-dim, 0.35)), rgb(var(--abyss-rgb) / var(--mat-dim, 0.35))),
@@ -196,18 +196,18 @@
 
 .arena .side-field.mirrored.has-mat-art .side-grid {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raise-1);
 }
 
 /* Turn-order tag beside each player's Life (top-left on yours, bottom-right
    on the opponent's rotated mat). */
 .arena .mat-order {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   top: 0.7cqw;
   left: 2.4cqw;
   padding: 0.1em 0.55em;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: clamp(0.5rem, 1.7cqw, 0.78rem);
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -729,7 +729,7 @@
 .arena.arena-wide .board-col .card-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
@@ -839,7 +839,7 @@
   left: 0.25rem;
   right: 0.25rem;
   padding: 0.15rem 0.4rem;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: rgb(var(--deep-rgb) / 0.82);
   text-align: center;
   pointer-events: none;
@@ -858,7 +858,7 @@
    top right of the board, left of the right column; a dragged spot is inline left/top. */
 .arena .card-preview-popup {
   position: fixed;
-  z-index: 58;
+  z-index: var(--z-preview);
   top: 72px;
   right: calc(var(--rail-w, 0px) + 16px);
   /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once
@@ -881,7 +881,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
   overflow: hidden;
@@ -939,7 +939,7 @@
   height: 1.7rem;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: transparent;
   font-size: 0.95rem;
   line-height: 1;
@@ -954,7 +954,7 @@
   height: 1.7rem;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: transparent;
   color: var(--muted);
   font-size: 1.1rem;
@@ -988,7 +988,7 @@
   height: 1.7rem;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: transparent;
   color: var(--muted);
   font-size: 1.2rem;
@@ -1006,7 +1006,7 @@
 .arena .card-preview-popup .card-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 0;
   overflow-y: auto;
   padding: 0.6rem;
@@ -1073,7 +1073,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -1153,7 +1153,7 @@
   padding: 0.2rem 0.4rem 0.2rem 0.2rem;
   border: 1px solid transparent;
   border-left: 3px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: rgba(0, 0, 0, 0.18);
   color: var(--ink);
   font: inherit;
@@ -1169,7 +1169,7 @@
   flex: 0 0 auto;
   width: 1.75rem;
   aspect-ratio: 5 / 7;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   color: var(--muted);
@@ -1333,7 +1333,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.35rem 0.7rem 0.25rem;
   color: var(--chrome-bright);
   font-size: 0.78rem;
@@ -1440,7 +1440,7 @@
   position: absolute;
   top: 0;
   left: 50%;
-  z-index: 30;
+  z-index: var(--z-hud);
   width: 44px;
   height: 14px;
   margin-left: -22px;
@@ -1517,7 +1517,7 @@ body.is-panel-drag .panel-grip {
   bottom: 0;
   /* Over the panels, under the fanned hand (16): a card reaching over the
      column edge gets the pointer, not this handle (#449). */
-  z-index: 15;
+  z-index: var(--z-col-handle);
   width: 9px;
   cursor: col-resize;
 }
@@ -1534,7 +1534,7 @@ body.is-panel-drag .panel-grip {
   top: -4px;
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: var(--z-sticky);
   height: 9px;
   cursor: row-resize;
 }
@@ -1584,10 +1584,10 @@ body.is-panel-drag * {
 
 .panel-drop-line {
   position: fixed;
-  z-index: 90;
+  z-index: var(--z-drawer);
   height: 4px;
   margin-top: -2px;
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   background: var(--chrome-bright);
   box-shadow: 0 0 0 1px rgb(var(--deep-rgb) / 0.6), 0 0 10px rgb(var(--chrome-bright-rgb) / 0.6);
   pointer-events: none;
@@ -1595,11 +1595,11 @@ body.is-panel-drag * {
 
 .panel-drag-ghost {
   position: fixed;
-  z-index: 91;
+  z-index: var(--z-drag-ghost);
   transform: translate(12px, -50%);
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: var(--arena-panel);
   color: var(--ink);
   font-size: 0.8rem;
@@ -1643,7 +1643,7 @@ body.is-panel-drag * {
   height: calc(var(--fan-w) * 1.4);
   /* Top ~third tucked above the rail edge, like a hand held across the table. */
   margin-top: calc(var(--fan-w) * -0.45);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   transform: rotate(calc(var(--i) * -4deg));
   transform-origin: 50% 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
@@ -1699,7 +1699,7 @@ body.is-panel-drag * {
   padding: 0.55rem 0.6rem 0.6rem;
   text-align: center;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: rgb(var(--deep-rgb) / 0.55);
   /* The heading sizes from this card's width, not the window's: a column dragged to its narrowest is
      250px wide in a 1920px window (#774). The banner is a stretched child of .turn-panel, so it has a width. */
@@ -1810,7 +1810,7 @@ body.is-panel-drag * {
 .turn-player {
   padding: 0.4rem 0.5rem 0.45rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -1835,7 +1835,7 @@ body.is-panel-drag * {
   flex: none;
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: rgba(255, 255, 255, 0.18);
 }
 
@@ -1864,7 +1864,7 @@ body.is-panel-drag * {
   flex: none;
   padding: 0.08rem 0.5rem;
   border: 1px solid rgb(var(--sea-bright-rgb) / 0.55);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--sea-rgb) / 0.18);
   color: #c8e4f5;
   font-size: 0.68rem;
@@ -1882,7 +1882,7 @@ body.is-panel-drag * {
   display: grid;
   /* Never narrower than the label, so HAND and DECK cannot run together. */
   grid-template-columns: repeat(4, minmax(min-content, 1fr));
-  gap: 0.25rem;
+  gap: var(--space-1);
   margin: 0.35rem 0 0;
 }
 
@@ -1915,7 +1915,7 @@ body.is-panel-drag * {
   right: 0;
   bottom: 0;
   /* Above the board / rail, below prompts (45), HUD (40) and modals. */
-  z-index: 16;
+  z-index: var(--z-hand);
   width: var(--rail-w);
   max-width: calc(100vw - var(--left-w) - 1rem);
   display: flex;
@@ -1977,7 +1977,7 @@ body.is-panel-drag * {
 .hand-dock-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   height: var(--dock-head);
   min-width: 0;
 }
@@ -2004,7 +2004,7 @@ body.is-panel-drag * {
 .hand-dock-toggle:focus-visible {
   outline: none;
   box-shadow: var(--focus);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .hand-dock-caret {
@@ -2035,12 +2035,12 @@ body.is-panel-drag * {
 
 .hand-dock .hand-dock-cards > .card-tile:hover,
 .hand-dock .hand-dock-cards > .card-tile:focus-within {
-  z-index: 2;
+  z-index: var(--z-raise-2);
   transform: translateY(-10px);
 }
 
 .hand-dock .hand-dock-cards > .card-tile.selected {
-  z-index: 3;
+  z-index: var(--z-raise-3);
   transform: translateY(-14px);
 }
 
@@ -2083,7 +2083,7 @@ body.is-panel-drag * {
   position: fixed;
   bottom: 0;
   /* Above the board / rail, below prompts (45), HUD (40) and modals. */
-  z-index: 16;
+  z-index: var(--z-hand);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2118,7 +2118,7 @@ body.is-panel-drag * {
 .hand-fan-head {
   position: relative;
   /* Above the tilted cards, whose top corners rise past their box. */
-  z-index: 4;
+  z-index: var(--z-raise-4);
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -2133,7 +2133,7 @@ body.is-panel-drag * {
   min-height: 1.75rem;
   padding: 0 0.6rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--deep-rgb) / 0.92);
   color: var(--chrome-bright);
   font: inherit;
@@ -2183,12 +2183,12 @@ body.is-panel-drag * {
 /* Lift straight up without straightening, so the card keeps the pointer. */
 .arena .hand-fan-cards > .card-tile:hover,
 .arena .hand-fan-cards > .card-tile:focus-visible {
-  z-index: 2;
+  z-index: var(--z-raise-2);
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 12px)) rotate(var(--rot, 0deg));
 }
 
 .arena .hand-fan-cards > .card-tile.selected {
-  z-index: 3;
+  z-index: var(--z-raise-3);
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 18px)) rotate(var(--rot, 0deg));
 }
 
@@ -2274,7 +2274,7 @@ body.is-panel-drag * {
 
 /* A moved fan stacks above the action dock (17) so its grip can always be grabbed again (#1004); the attack arrow/motion layer (18, later in the DOM), prompts, HUD and modals stay above. */
 .hand-fan.hand-fan-free {
-  z-index: 18;
+  z-index: var(--z-motion);
 }
 
 /* Docked on the bottom edge: tucked cards overlap by half like the default
@@ -2332,7 +2332,7 @@ body.is-panel-drag * {
 
 /* Following the pointer: no easing, so it never lags behind. */
 .hand-fan.is-moving {
-  z-index: 92;
+  z-index: var(--z-fan-moving);
   transition: none;
 }
 
@@ -2345,7 +2345,7 @@ body.is-panel-drag * {
   min-height: 1.75rem;
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--deep-rgb) / 0.92);
   color: var(--muted);
   cursor: grab;
@@ -2548,14 +2548,14 @@ body.is-panel-drag * {
    before. Under the fan (16) so a card reaching up still gets the pointer. */
 .col-cut {
   position: fixed;
-  z-index: 15;
+  z-index: var(--z-col-handle);
   bottom: calc(100dvh * var(--cut, 0) - 12px);
   width: 64px;
   height: 24px;
   display: flex;
   cursor: row-resize;
   touch-action: none;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   /* The bar itself is the element's own background (so it is a painted, reachable control). */
   background: linear-gradient(var(--muted), var(--muted)) center / 32px 3px no-repeat;
   opacity: 0.55;
@@ -2623,7 +2623,7 @@ body.is-panel-resize-row .col-cut {
 }
 
 .arena .hand-fan-corner .hand-fan-cards > * {
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   box-shadow: -3px 2px 10px rgb(var(--deep-rgb) / 0.55);
 }
 
@@ -2723,7 +2723,7 @@ body.is-panel-resize-row .col-cut {
 
 .arena .ability-prompt {
   position: fixed;
-  z-index: 45;
+  z-index: var(--z-prompt);
   max-height: calc(100dvh - 8rem);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2749,7 +2749,7 @@ body.is-panel-resize-row .col-cut {
 @media (max-width: 640px), (orientation: landscape) and (max-height: 499px) {
   .arena .ability-prompt .ability-prompt-actions {
     position: sticky;
-    z-index: 1;
+    z-index: var(--z-raise-1);
     bottom: -0.75rem;
     margin: 0.55rem -0.85rem -0.75rem;
     padding: 0.45rem 0.85rem 0.75rem;
@@ -2780,7 +2780,7 @@ body.is-panel-resize-row .col-cut {
   width: var(--lt-w);
   height: calc(var(--lt-w) * 1.4);
   flex: none;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.65),
     0 4px 12px rgba(0, 0, 0, 0.5);
@@ -2795,7 +2795,7 @@ body.is-panel-resize-row .col-cut {
   background: none;
   justify-content: center;
   flex-wrap: nowrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 .life-trigger-card .ability-prompt-actions .btn {
   flex: 0 1 auto;
@@ -2918,7 +2918,7 @@ body.is-panel-resize-row .col-cut {
 .card-preview-placeholder {
   width: 100%;
   aspect-ratio: 5 / 7;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   object-fit: cover;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   flex: 0 0 auto;
@@ -3012,14 +3012,14 @@ body.is-panel-resize-row .col-cut {
   position: absolute;
   top: 3.75rem;
   left: 0.5rem;
-  z-index: 12;
+  z-index: var(--z-log);
   width: min(280px, 46vw);
   max-height: min(48vh, 420px);
   display: flex;
   flex-direction: column;
   background: rgb(var(--deep-rgb) / 0.94);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
@@ -3056,7 +3056,7 @@ body.is-panel-resize-row .col-cut {
 .chat-unread {
   min-width: 1.4rem;
   padding: 0.1rem 0.35rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -3132,7 +3132,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 36px;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-mid);
   color: var(--ink);
   font: inherit;
@@ -3150,7 +3150,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 36px;
   padding: 0 0.8rem;
   border: 1px solid rgb(var(--btn-edge-rgb) / 0.45);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
   color: var(--on-chrome);
   font: inherit;
@@ -3174,14 +3174,14 @@ body.is-panel-resize-row .col-cut {
   left: 0.45rem;
   right: 0.45rem;
   bottom: 0.45rem;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem 0.5rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-mid);
   color: var(--ink);
   font-size: 0.76rem;
@@ -3207,7 +3207,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 32px;
   padding: 0 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -3239,7 +3239,7 @@ body.is-panel-resize-row .col-cut {
   }
 
   .arena .chat-panel.collapsed {
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
   }
 }
 
@@ -3282,7 +3282,7 @@ body.is-panel-resize-row .col-cut {
   .arena .hud-bar {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "status actions";
-    gap: 0.5rem;
+    gap: var(--space-2);
     --hud-py: 0.3rem;
     --hud-px: 0.5rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -3333,13 +3333,13 @@ body.is-panel-resize-row .col-cut {
     right: 6px;
     width: auto;
     max-width: calc(100% - 12px);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
   }
 
   .arena .battle-log:not(.collapsed) {
     width: min(300px, calc(100% - 12px));
     max-height: min(55dvh, 420px);
-    border-radius: 10px;
+    border-radius: var(--radius-10);
   }
 
   .arena .battle-log-toggle {
@@ -3411,7 +3411,7 @@ body.is-panel-resize-row .col-cut {
     );
     width: min(100cqw, calc(var(--mat-h) * 1.55));
     height: var(--mat-h);
-    border-radius: 10px;
+    border-radius: var(--radius-10);
   }
 
   .arena .side-grid {
@@ -3500,7 +3500,7 @@ body.is-panel-resize-row .col-cut {
     --mat-h: calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2);
     width: min(100cqw, calc(var(--mat-h) * 1.9));
     height: var(--mat-h);
-    border-radius: 8px;
+    border-radius: var(--radius-8);
   }
 
   .arena .side-grid {
@@ -3596,7 +3596,7 @@ body.is-panel-resize-row .col-cut {
   position: fixed;
   top: 50%;
   left: 50%;
-  z-index: 35;
+  z-index: var(--z-turn-splash);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -3612,7 +3612,7 @@ body.is-panel-resize-row .col-cut {
   gap: 0.3rem;
   padding: 0.9rem 2.2rem 1rem;
   border: 2px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: rgb(var(--deep-rgb) / 0.92);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
   animation: turn-splash var(--splash-ms, 1500ms) ease forwards;
@@ -3623,7 +3623,7 @@ body.is-panel-resize-row .col-cut {
 .turn-splash-anchored .turn-splash-card {
   padding: 0.5rem 1.5rem 0.6rem;
   border-width: 1px;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   gap: 0.15rem;
 }
 
@@ -3735,7 +3735,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 28px;
   padding: 0.2rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: var(--arena-mid);
   color: var(--chrome-bright);
   font: inherit;
@@ -3756,7 +3756,7 @@ body.is-panel-resize-row .col-cut {
 .hud-concede-btn {
   min-height: 36px;
   padding: 0.4rem 0.65rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   font: inherit;
   font-size: 0.72rem;
   font-weight: 700;
@@ -3806,12 +3806,12 @@ body.is-panel-resize-row .col-cut {
   position: fixed;
   top: 4.25rem;
   left: 50%;
-  z-index: 50;
+  z-index: var(--z-topbar);
   transform: translateX(-50%);
   width: min(420px, calc(100vw - 2rem));
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--chrome);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--deep-rgb) / 0.97);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
@@ -3825,7 +3825,7 @@ body.is-panel-resize-row .col-cut {
 
 .undo-request-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .undo-request-actions .btn {
@@ -3850,7 +3850,7 @@ body.is-panel-resize-row .col-cut {
 
 .arena-waiting {
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   flex: 1;
   display: grid;
   place-items: center;
@@ -3861,12 +3861,12 @@ body.is-panel-resize-row .col-cut {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   width: min(460px, 100%);
   padding: 1.4rem 1.25rem;
   text-align: center;
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--arena-panel);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
 }
@@ -3884,7 +3884,7 @@ body.is-panel-resize-row .col-cut {
   max-width: 100%;
   padding: 0.5rem 0.9rem;
   border: 1px dashed var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: rgba(0, 0, 0, 0.25);
   color: var(--chrome-bright);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
@@ -3898,7 +3898,7 @@ body.is-panel-resize-row .col-cut {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .room-invite-actions .btn {
@@ -3940,7 +3940,7 @@ body.is-panel-resize-row .col-cut {
   min-width: 3.2rem;
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
@@ -3963,7 +3963,7 @@ body.is-panel-resize-row .col-cut {
 /* Opponent dropped: in-flow notice under the HUD. */
 .away-banner {
   position: relative;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   padding: 0.5rem 0.85rem;
   border-bottom: 1px solid rgba(201, 130, 47, 0.5);
   background: rgba(201, 130, 47, 0.18);
@@ -3977,10 +3977,10 @@ body.is-panel-resize-row .col-cut {
 .rematch-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.7rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: rgba(0, 0, 0, 0.2);
 }
 
@@ -3994,7 +3994,7 @@ body.is-panel-resize-row .col-cut {
 .rematch-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .rematch-actions .btn {
@@ -4024,7 +4024,7 @@ body.is-panel-resize-row .col-cut {
 
 .rematch-deck .ui-select-button {
   min-height: 2.1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-raised);
   font-size: 0.82rem;
 }
@@ -4147,7 +4147,7 @@ body.is-panel-resize-row .col-cut {
   flex: 1 1 auto;
   min-width: 0;
   flex-wrap: nowrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: 0.7rem;
   white-space: nowrap;
   overflow: hidden;
@@ -4177,7 +4177,7 @@ body.is-panel-resize-row .col-cut {
 .arena .hud-compact .hud-clock-pair {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .arena .hud-compact .hud-pass-btn,
@@ -4220,7 +4220,7 @@ body.is-panel-resize-row .col-cut {
   gap: 6px;
   padding: 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--deep-rgb) / 0.98);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
@@ -4244,7 +4244,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 44px;
   padding: 0 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-raised);
   color: var(--ink);
   font: inherit;
@@ -4302,7 +4302,7 @@ body.is-panel-resize-row .col-cut {
 .intent-layout {
   display: flex;
   align-items: stretch;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -4410,7 +4410,7 @@ body.is-panel-resize-row .col-cut {
     right: 10px;
     padding: 0 0.4em;
     border: 1px solid var(--line-strong);
-    border-radius: 5px;
+    border-radius: var(--radius-5);
     background: var(--arena-panel);
     color: var(--muted, inherit);
     font-size: 0.66rem;
@@ -4435,7 +4435,7 @@ body.is-panel-resize-row .col-cut {
     min-width: 1.5em;
     padding: 0 0.3em;
     border: 1px solid var(--line-strong);
-    border-radius: 5px;
+    border-radius: var(--radius-5);
     background: var(--arena-panel);
     color: var(--muted, inherit);
     font-size: 0.62rem;
@@ -4513,7 +4513,7 @@ body.is-panel-resize-row .col-cut {
     gap: 4px;
     box-sizing: border-box;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-8);
     background: rgba(0, 0, 0, 0.28);
     color: var(--ink);
     font: inherit;
@@ -4617,7 +4617,7 @@ body.is-panel-resize-row .col-cut {
     padding: 0;
     font-size: 1.2rem;
     line-height: 1;
-    border-radius: 10px;
+    border-radius: var(--radius-10);
   }
 
   .lp-actions {
@@ -4671,7 +4671,7 @@ body.is-panel-resize-row .col-cut {
     place-items: center;
     padding: 0;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-10);
     background: var(--arena-raised);
     color: var(--chrome-bright);
     cursor: pointer;
@@ -4693,7 +4693,7 @@ body.is-panel-resize-row .col-cut {
     right: -4px;
     min-width: 16px;
     padding: 0 3px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--arena-deep);
     border: 1px solid var(--line-strong);
     color: var(--ink);
@@ -4707,12 +4707,12 @@ body.is-panel-resize-row .col-cut {
   .lp-overlay-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 29;
+    z-index: var(--z-overlay-scrim);
   }
 
   .lp-overlay {
     position: fixed;
-    z-index: 30;
+    z-index: var(--z-hud);
     top: var(--safe-t);
     bottom: 0;
     left: var(--lp-rail-w);
@@ -4776,7 +4776,7 @@ body.is-panel-resize-row .col-cut {
 
   .arena.arena-lp .turn-panel {
     padding: 0.35rem 0.5rem;
-    gap: 0.25rem;
+    gap: var(--space-1);
   }
 
   .arena.arena-lp .turn-banner-title {
@@ -4941,7 +4941,7 @@ body.is-panel-resize-row .col-cut {
   min-width: 4.6em;
   padding: 0 6px;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.35;
@@ -4980,7 +4980,7 @@ body.is-panel-resize-row .col-cut {
   gap: 2px;
   padding: 3px 2px 2px;
   border: 2px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-9);
   background: rgba(0, 0, 0, 0.28);
   color: var(--ink);
   font: inherit;
@@ -5003,7 +5003,7 @@ body.is-panel-resize-row .col-cut {
   flex: none;
   width: 46px;
   height: 64px;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   overflow: hidden;
   background: var(--arena-deep);
 }
@@ -5057,7 +5057,7 @@ body.is-panel-resize-row .col-cut {
    a second line instead of cutting off the defender's power. */
 .defend-tray.defend-rail {
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   box-shadow: none;
   padding: 9px 10px 8px;
 }
@@ -5193,7 +5193,7 @@ body.is-panel-resize-row .col-cut {
 
   .arena.arena-lp .rail-hand-cards {
     padding: 0.15rem 0.5rem 0.3rem;
-    gap: 0.25rem;
+    gap: var(--space-1);
     touch-action: pan-y;
   }
 }
@@ -5214,7 +5214,7 @@ body.is-panel-resize-row .col-cut {
   gap: 6px;
   padding: 0 0 0 0.7rem;
   border: 1px solid var(--chrome);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--deep-rgb) / 0.96);
   color: var(--ink);
   font-size: 0.75rem;
@@ -5243,7 +5243,7 @@ body.is-panel-resize-row .col-cut {
   place-items: center;
   padding: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: transparent;
   color: var(--muted);
   font-size: 0.8rem;
@@ -5272,7 +5272,7 @@ body.is-panel-resize-row .col-cut {
 .arena .side-field .zone-pile-meta,
 .arena .side-field .don-strip-label {
   padding: 0.1em 0.45em 0.15em;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: rgb(var(--abyss-rgb) / 0.74);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   opacity: 1;
@@ -5385,7 +5385,7 @@ body.is-panel-resize-row .col-cut {
   height: 0.8rem;
   border: 2px solid rgb(var(--chrome-bright-rgb) / 0.25);
   border-top-color: var(--gold, #f0dca8);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   animation: pending-spin 0.9s linear infinite;
 }
 
@@ -5425,7 +5425,7 @@ body.is-panel-resize-row .col-cut {
 .arena-pending .pending-invite {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: var(--z-raise-8);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -5449,7 +5449,7 @@ body.is-panel-resize-row .col-cut {
   bottom: calc(100% + 0.6rem);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .arena-pending .pending-invite-stack:not(:has(.room-invite)) .pending-invite-incoming {
@@ -5516,12 +5516,12 @@ body.is-panel-resize-row .col-cut {
 .primary-dock {
   --dock-w: 13rem;
   position: fixed;
-  z-index: 17;
+  z-index: var(--z-dock);
   width: max-content;
   height: var(--dock-h);
   transform: translate(-100%, -50%);
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   pointer-events: none;
 }
 
@@ -5560,7 +5560,7 @@ body.is-panel-resize-row .col-cut {
     min-width: 1.5em;
     padding: 0 0.3em;
     border: 1px solid rgba(255, 255, 255, 0.45);
-    border-radius: 4px;
+    border-radius: var(--radius-4);
     background: rgba(0, 0, 0, 0.35);
     color: rgba(255, 255, 255, 0.85);
     font-size: 0.58rem;
@@ -5621,7 +5621,7 @@ body.is-panel-resize-row .col-cut {
     bottom: 3px;
     padding: 0 0.35em;
     border: 1px solid rgba(255, 255, 255, 0.45);
-    border-radius: 4px;
+    border-radius: var(--radius-4);
     background: rgba(0, 0, 0, 0.35);
     color: rgba(255, 255, 255, 0.85);
     font-size: 0.58rem;
@@ -5648,7 +5648,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 2.75rem;
   padding: 0.3rem 0.7rem;
   border: 1px solid rgba(240, 220, 168, 0.55);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: #14222e;
   color: #f4ead2;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
@@ -5679,7 +5679,7 @@ body.is-panel-resize-row .col-cut {
   flex: none;
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: #f0dca8;
   opacity: 0.55;
 }
@@ -5776,7 +5776,7 @@ body.is-panel-resize-row .col-cut {
    it and the extras grow upward, so the primary never moves. */
 .side-dock {
   position: absolute;
-  z-index: 6;
+  z-index: var(--z-raise-6);
   left: calc(var(--side-dock-left, 0px) + var(--side-dock-gap));
   top: var(--side-dock-seam, 50%);
   width: var(--side-dock-w);
@@ -5896,7 +5896,7 @@ body.is-panel-resize-row .col-cut {
   margin: 0;
   padding: 0.3rem 0.4rem;
   border: 1px solid rgb(var(--chrome-rgb) / 0.45);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
   color: var(--ink);
 }
@@ -5921,7 +5921,7 @@ body.is-panel-resize-row .col-cut {
 }
 .opp-hand-corner .opp-corner-card {
   flex: 0 0 auto;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   transform: rotate(var(--rot, 0deg));
   transform-origin: 50% 0;
 }
@@ -6214,10 +6214,10 @@ body.is-panel-resize-row .col-cut {
 /* Drop target while dragging the opponent hand over the top of the mat. */
 .panel-drop-spot {
   position: fixed;
-  z-index: 90;
+  z-index: var(--z-drawer);
   box-sizing: border-box;
   border: 2px dashed var(--chrome-bright);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: rgb(var(--chrome-bright-rgb) / 0.14);
   pointer-events: none;
 }
@@ -6226,10 +6226,10 @@ body.is-panel-resize-row .col-cut {
    (near) or the top of the board (far), lit when letting go would redock it. */
 .spec-dock-target {
   position: fixed;
-  z-index: 90;
+  z-index: var(--z-drawer);
   box-sizing: border-box;
   border: 2px dashed rgb(var(--chrome-bright-rgb) / 0.55);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: rgb(var(--chrome-bright-rgb) / 0.05);
   pointer-events: none;
 }
@@ -6291,17 +6291,17 @@ body.is-panel-resize-row .col-cut {
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   align-items: center;
 }
 
 .preview-badges li {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-height: 1.35rem;
   padding: 0 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: rgb(var(--deep-rgb) / 0.6);
   color: var(--ink);
@@ -6317,7 +6317,7 @@ body.is-panel-resize-row .col-cut {
   height: 1.7rem;
   min-height: 0;
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 2px solid rgba(255, 255, 255, 0.85);
   color: #fff;
   font-size: 0.95rem;
@@ -6328,7 +6328,7 @@ body.is-panel-resize-row .col-cut {
 .preview-badges .pb-pip {
   width: 0.6rem;
   height: 0.6rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   border: 1px solid rgba(255, 255, 255, 0.6);
   display: inline-block;
 }
@@ -6398,7 +6398,7 @@ body.is-panel-resize-row .col-cut {
   padding: 0 0.6rem;
   box-sizing: border-box;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--deep-rgb) / 0.92);
   color: var(--chrome-bright);
   font-size: 0.72rem;
@@ -6425,7 +6425,7 @@ body.is-panel-resize-row .col-cut {
 /* Portrait phones: the far label hangs in the strip's top. */
 .arena .spec-far .hand-label-head {
   position: absolute;
-  z-index: 4;
+  z-index: var(--z-raise-4);
   left: 0.5rem;
   top: 0.35rem;
 }
@@ -6450,7 +6450,7 @@ body.is-panel-resize-row .col-cut {
 
 .arena .spec-far {
   position: relative;
-  z-index: 3;
+  z-index: var(--z-raise-3);
   flex: 0 0 auto;
   width: 100%;
   min-width: 0;
@@ -6697,7 +6697,7 @@ body.is-panel-resize-row .col-cut {
   flex: 1 1 60%;
   /* The host's 340px plus the padding (kept in step with PANEL_MIN_HEIGHT_PX in panelSizes.ts). */
   min-height: 352px;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   /* A little air, so the panel reads as a card like the others and not as the column's own edge. */
   padding: 6px;
 }
@@ -7104,7 +7104,7 @@ body.is-panel-resize-row .col-cut {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   height: calc(44px + var(--safe-t));
   padding: var(--safe-t) 0.25rem 0;
@@ -7185,10 +7185,10 @@ body.is-panel-resize-row .col-cut {
   top: 2px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 3;
+  z-index: var(--z-raise-3);
   max-width: calc(100% - 4px);
   padding: 0 0.25rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(8, 14, 22, 0.88);
   border: 1px solid #f3c969;
   color: #f3c969;
@@ -7209,7 +7209,7 @@ body.is-panel-resize-row .col-cut {
 .opp-hand-corner .opp-corner-face,
 .opp-hand-fan .opp-fan-face,
 .opp-hand-faces .card-tile.opp-hand-face {
-  z-index: 2;
+  z-index: var(--z-raise-2);
 }
 
 /* —— Undo choice menu (#536): a fixed overlay in a portal, so opening it never shifts the button or its row —— */
@@ -7228,7 +7228,7 @@ body.is-panel-resize-row .col-cut {
   overflow-y: auto;
   padding: 0.35rem;
   border: 1px solid var(--chrome);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--deep-rgb) / 0.98);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
@@ -7241,7 +7241,7 @@ body.is-panel-resize-row .col-cut {
   min-height: 40px;
   padding: 0.45rem 0.6rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -7309,7 +7309,7 @@ body.is-panel-resize-row .col-cut {
 .undo-request p.undo-request-warn {
   padding: 0.4rem 0.55rem;
   border: 1px solid rgba(230, 160, 60, 0.55);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: rgba(230, 160, 60, 0.12);
   color: #ffd9a0;
 }

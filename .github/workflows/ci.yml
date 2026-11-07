@@ -121,6 +121,7 @@ jobs:
       - uses: ./.github/actions/setup-node-deps
       - run: npm run typecheck -w @optcg/rules
       - run: npm run typecheck -w @optcg/game-server
+      - run: npm run typecheck -w @optcg/duel-protocol
       - run: npm run typecheck -w @optcg/analyst
       # The packages, game-server and analyst. (A bare `npm test` also runs the two
       # apps' unit tests, which have their own jobs.)
@@ -460,7 +461,7 @@ jobs:
           cache: "false"
       - name: Install root workspace deps
         # frontend and duel-web are workspaces too: one root install serves them.
-        if: contains(fromJSON('["rules","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","frontend","duel-web"]'), matrix.suite)
+        if: contains(fromJSON('["rules","card-core","api-client","analyst-contract","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","duel-protocol","frontend","duel-web"]'), matrix.suite)
         run: npm ci
       - name: Install mobile deps
         if: matrix.suite == 'mobile'

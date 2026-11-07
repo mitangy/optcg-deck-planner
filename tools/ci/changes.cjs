@@ -26,6 +26,10 @@
  *   - .nvmrc, .github/actions/: every job's Node setup reads them (the composite
  *     setup-node-deps and pr-base actions).
  *   - packages/rules/protocol-fixtures: also read by the mobile tests.
+ *   - packages/card-core/fixtures: the golden deck lists are also read by the backend tests
+ *     (backend/tests/test_decklist_golden.py).
+ *   - packages/analyst-contract/fixtures: the API's Log Pose constants are also checked against it
+ *     (backend/tests/test_analyst_contract.py).
  *   - game-server: duel-web e2e starts it (duel-web/playwright.config.ts).
  *   - backend/tests/fixtures: game-server's briefTicket test reads the shared vector.
  *   - analyst: imported by nothing else; it reads packages/rules and
@@ -35,6 +39,7 @@
  *     import the prerender plugin in vite.config.ts, their prerender tests read
  *     vercel-routes.mjs, and frontend/src/seo/vercelIgnore956.test.ts reads the
  *     ignore script (the duel e2e builds the app); no backend test reads them.
+ *   - tools/vite: both apps' vite.config.ts import the version-file plugin.
  */
 "use strict";
 
@@ -66,11 +71,14 @@ const RULES = [
   // The suites' anchors are checked by mutation-plan; the anchors check in the rules job also runs.
   { test: (p) => p.startsWith("tools/mutation-check/"), flags: ["rules"] },
   { test: (p) => p.startsWith("packages/rules/protocol-fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"] },
+  { test: (p) => p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"] },
+  { test: (p) => p.startsWith("packages/analyst-contract/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"] },
   { test: (p) => p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("game-server/"), flags: ["rules", "duel_e2e"] },
   { test: (p) => p.startsWith("analyst/"), flags: ["rules"] },
   { test: (p) => p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"] },
   { test: (p) => p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
+  { test: (p) => p.startsWith("tools/vite/"), flags: ["duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("backend/") || p.startsWith("scripts/"), flags: ["backend"] },
   { test: (p) => p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"] },
   { test: (p) => p.startsWith("frontend/"), flags: ["frontend"] },

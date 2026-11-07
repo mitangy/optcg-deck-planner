@@ -320,7 +320,7 @@ h1 {
   margin: 0 auto;
   padding: 0.7rem 1.25rem;
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: center;
   justify-content: space-between;
 }
@@ -367,7 +367,7 @@ h1 {
   color: rgba(239, 230, 210, 0.78);
   font-weight: 500;
   padding: 0.4rem 0.6rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   white-space: nowrap;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
@@ -391,7 +391,7 @@ h1 {
   right: 0.6rem;
   bottom: 0.1rem;
   height: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-2);
   background: var(--gold);
 }
 
@@ -419,7 +419,7 @@ h1 {
 
 .user {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
   color: rgba(239, 230, 210, 0.72);
   font-size: 0.9rem;
@@ -437,7 +437,7 @@ h1 {
   font-size: 0.88rem;
   padding: 0.3rem 0.65rem;
   border: 1px solid rgba(226, 180, 88, 0.35);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .topbar .user .duel-nav-link {
@@ -446,7 +446,7 @@ h1 {
   font-weight: 600;
   padding: 0.3rem 0.65rem;
   border: 1px solid rgba(226, 180, 88, 0.55);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -491,7 +491,7 @@ h1 {
 
 .card-cell-inner {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
   min-width: 0;
 }
@@ -513,7 +513,7 @@ h1 {
 .data-table .card-cell-inner {
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   text-align: center;
 }
 
@@ -552,7 +552,7 @@ h1 {
 /* When JS only mounts the mobile list (group buy), keep it in flow. */
 .mobile-card-list.mobile-card-list-mounted {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   width: 100%;
   max-width: 100%;
 }
@@ -560,7 +560,7 @@ h1 {
 .owned {
   width: 2.75rem;
   padding: 0.45rem 0.2rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
   background: var(--gold-soft);
   color: var(--ink);
@@ -586,7 +586,7 @@ h1 {
 .owned-btn {
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--ink);
@@ -629,7 +629,7 @@ h1 {
   box-sizing: border-box;
   width: 2.75rem;
   height: 2.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
   background: var(--gold-soft);
   color: var(--ink);
@@ -694,7 +694,7 @@ h1 {
   margin: 0;
   padding: 0.2rem 0.45rem;
   border: 1px dashed transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -721,11 +721,11 @@ h1 {
   max-width: calc(100vw - 16px);
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--card);
   box-shadow: var(--shadow);
   font-size: 0.82rem;
-  z-index: 80;
+  z-index: var(--z-popover);
 }
 
 .market-sales-head {
@@ -803,7 +803,7 @@ h1 {
   width: min(420px, 100%);
   background: linear-gradient(180deg, var(--card) 0%, var(--card-sunk) 100%);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   padding: 2.25rem 2rem 1.75rem;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   text-align: center;
@@ -814,7 +814,7 @@ h1 {
   position: absolute;
   inset: 8px;
   border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   pointer-events: none;
 }
 
@@ -867,8 +867,8 @@ button.ghost {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  border-radius: 999px;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
   padding: 0.6rem 1.1rem;
   border: 1px solid transparent;
   text-decoration: none;
@@ -932,7 +932,7 @@ button.ghost.danger:not(:disabled):hover {
 .page-head {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: end;
   margin-bottom: 1rem;
 }
@@ -1032,7 +1032,7 @@ button.ghost.danger:not(:disabled):hover {
 .page-head-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
@@ -1068,14 +1068,14 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0.5rem 0 0;
   padding: 0.65rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--card);
   font-size: 0.92rem;
 }
 
 .share-panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding-top: 0.75rem;
 }
 
@@ -1087,7 +1087,7 @@ button.ghost.danger:not(:disabled):hover {
 .share-panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -1112,7 +1112,7 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--gold-soft);
   min-width: 0;
 }
@@ -1145,7 +1145,7 @@ button.ghost.danger:not(:disabled):hover {
   font-size: 0.85rem;
   width: auto;
   margin-top: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .buy-bar-actions .btn.secondary {
@@ -1181,7 +1181,7 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0 0 0.75rem;
   padding: 0.45rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--gold-soft);
 }
 
@@ -1225,7 +1225,7 @@ tr.selected-row td,
   padding: 0.85rem 1rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow);
 }
 
@@ -1241,7 +1241,7 @@ tr.selected-row td,
   display: inline-flex;
   padding: 0.15rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-deep);
   gap: 0.15rem;
 }
@@ -1250,7 +1250,7 @@ tr.selected-row td,
   min-height: 2rem;
   padding: 0.25rem 0.75rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -1293,7 +1293,7 @@ tr.selected-row td,
 .deck-progress-bar {
   margin-top: 0.65rem;
   height: 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-deep);
   overflow: hidden;
 }
@@ -1350,7 +1350,7 @@ tr.selected-row td,
   display: inline-flex;
   padding: 0.15rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-deep);
   gap: 0.15rem;
   flex: 0 0 auto;
@@ -1360,7 +1360,7 @@ tr.selected-row td,
   min-height: 2rem;
   padding: 0.25rem 0.85rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -1403,7 +1403,7 @@ tr.selected-row td,
   gap: 0.65rem;
   padding: 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   box-shadow: var(--shadow);
   min-width: 0;
 }
@@ -1488,7 +1488,7 @@ tr.selected-row td,
 /* Compact stepper so the +/− controls fit inside the narrow grid card
    (a full-size stepper is wider than the card and overflows the container). */
 .grid-card-owned .owned-wrap {
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .grid-card-owned .owned-btn {
@@ -1508,7 +1508,7 @@ tr.selected-row td,
 .card-search {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .card-search-input {
@@ -1517,7 +1517,7 @@ tr.selected-row td,
   min-height: 2.75rem;
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -1542,7 +1542,7 @@ tr.selected-row td,
 
 .filter-drawer {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
   /* visible so the Sort menu panel is not clipped */
   overflow: visible;
@@ -1553,11 +1553,11 @@ tr.selected-row td,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 2.75rem;
   padding: 0.55rem 0.9rem;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1646,7 +1646,7 @@ tr.selected-row td,
 
 .filters {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   flex-wrap: wrap;
   color: var(--muted);
 }
@@ -1662,14 +1662,14 @@ tr.selected-row td,
 
 .sort-menu {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raise-1);
 }
 
 .sort-menu-btn {
   min-height: 2.5rem;
   padding: 0.35rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -1688,7 +1688,7 @@ tr.selected-row td,
 }
 
 .sort-menu-panel {
-  z-index: 60;
+  z-index: var(--z-menu);
   /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
   color: var(--muted);
   width: min(20rem, calc(100vw - 2rem));
@@ -1697,7 +1697,7 @@ tr.selected-row td,
   padding: 0.75rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow);
 }
 
@@ -1720,10 +1720,10 @@ tr.selected-row td,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 2.5rem;
   padding: 0.15rem 0.35rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .sort-menu-item label {
@@ -1780,7 +1780,7 @@ tr.selected-row td,
   overflow: auto;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-18);
   box-shadow: var(--shadow);
 }
 
@@ -1831,7 +1831,7 @@ th {
   background: var(--card-sunk);
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: var(--z-raise-1);
 }
 
 /* Sortable column headers. The button hugs its label and the arrow hangs in the
@@ -1859,7 +1859,7 @@ th {
 
 .th-sort-btn:focus-visible {
   outline: none;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   box-shadow: var(--focus-ring);
 }
 
@@ -1897,7 +1897,7 @@ tr.done td {
   width: 108px;
   height: 151px;
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--thumb-bg);
   display: block;
 }
@@ -1913,7 +1913,7 @@ tr.done td {
   border: none;
   background: transparent;
   cursor: zoom-in;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .thumb-btn:hover .thumb,
@@ -1929,7 +1929,7 @@ tr.done td {
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: 3.25rem 0.75rem 0.75rem;
@@ -1965,7 +1965,7 @@ tr.done td {
   max-width: min(640px, calc(100vw - 1.5rem));
   max-height: calc(100dvh - 4.5rem);
   object-fit: contain;
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
   background: #111;
 }
@@ -1981,7 +1981,7 @@ tr.done td {
   padding: 0.6rem 0.9rem;
   max-width: calc(100vw - 1.5rem);
   box-sizing: border-box;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
@@ -2050,7 +2050,7 @@ html[data-lp-layer="left"] .lightbox-close {
   top: 1rem;
   right: 1rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.55rem 1rem;
   background: var(--card);
   color: var(--ink);
@@ -2064,14 +2064,14 @@ html[data-lp-layer="left"] .lightbox-close {
   padding: 0.85rem 1rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
 }
 
 .deck-filter-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
   margin-bottom: 0.65rem;
   font-weight: 600;
   font-size: 0.92rem;
@@ -2106,7 +2106,7 @@ html[data-lp-layer="left"] .lightbox-close {
   padding: 0.25rem 0.35rem;
   background: color-mix(in srgb, var(--card) 80%, transparent);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .alt-art .thumb {
@@ -2230,7 +2230,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .deck-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .deck-leader-groups {
@@ -2246,7 +2246,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .deck-leader-group-head {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin: 0 0 0.75rem;
   min-width: 0;
 }
@@ -2255,7 +2255,7 @@ html[data-lp-layer="left"] .lightbox-close {
   width: 40px;
   height: 56px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--thumb-bg);
   display: block;
   border: 1px solid var(--line);
@@ -2293,7 +2293,7 @@ html[data-lp-layer="left"] .lightbox-close {
   flex-direction: column;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   padding: 1rem;
   box-shadow: var(--shadow);
   cursor: pointer;
@@ -2334,7 +2334,7 @@ html[data-lp-layer="left"] .lightbox-close {
   width: 72px;
   height: 100px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--thumb-bg);
   display: block;
   border: 1px solid var(--line);
@@ -2377,7 +2377,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .deck-detail-title-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -2408,7 +2408,7 @@ html[data-lp-layer="left"] .lightbox-close {
   color: var(--muted, inherit);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   cursor: pointer;
 }
 
@@ -2434,7 +2434,7 @@ html[data-lp-layer="left"] .lightbox-close {
   right: 0;
   max-width: 30rem;
   height: 2.75rem;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -2468,7 +2468,7 @@ html[data-lp-layer="left"] .lightbox-close {
 
 .deck-detail-head {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: flex-start;
   min-width: 0;
 }
@@ -2490,7 +2490,7 @@ html[data-lp-layer="left"] .lightbox-close {
   width: 84px;
   height: 117px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow);
   background: var(--card);
@@ -2513,7 +2513,7 @@ html[data-lp-layer="left"] .lightbox-close {
   color: var(--gold-ink);
   background: var(--gold-soft);
   border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   padding: 0.15rem 0.45rem;
   line-height: 1.2;
 }
@@ -2543,7 +2543,7 @@ html[data-lp-layer="left"] .lightbox-close {
 
 .row-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   margin-top: auto;
   padding-top: 0.8rem;
   justify-content: flex-end;
@@ -2553,11 +2553,11 @@ html[data-lp-layer="left"] .lightbox-close {
   display: grid;
   /* minmax(0, 1fr): a bare auto track grows to the widest child's min-content (the file input's intrinsic width), pushing the form past a phone's edge. */
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
   max-width: 720px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-18);
   padding: 1.25rem;
   box-shadow: var(--shadow);
 }
@@ -2567,7 +2567,7 @@ html[data-lp-layer="left"] .lightbox-close {
   margin: 0;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--info-line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--info-bg);
   color: var(--info-ink);
   font-size: 0.9rem;
@@ -2589,7 +2589,7 @@ html[data-lp-layer="left"] .lightbox-close {
   font: inherit;
   font-size: 1rem;
   padding: 0.7rem 0.8rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line);
   background: var(--field-bg);
 }
@@ -2603,10 +2603,10 @@ html[data-lp-layer="left"] .lightbox-close {
 
 .import-modes {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.25rem;
   background: var(--bg-deep);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   width: fit-content;
 }
 
@@ -2614,7 +2614,7 @@ html[data-lp-layer="left"] .lightbox-close {
   border: none;
   background: transparent;
   padding: 0.55rem 1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
@@ -2629,12 +2629,12 @@ html[data-lp-layer="left"] .lightbox-close {
 
 .paste-block {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .paste-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .paste-actions .btn.secondary {
@@ -2646,7 +2646,7 @@ html[data-lp-layer="left"] .lightbox-close {
   font-size: 0.9em;
   background: var(--bg-deep);
   padding: 0.1em 0.35em;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 
 .banner,
@@ -2654,7 +2654,7 @@ html[data-lp-layer="left"] .lightbox-close {
   background: var(--gold-soft);
   color: var(--gold-ink);
   border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   padding: 0.75rem 1rem;
 }
 
@@ -2676,7 +2676,7 @@ html[data-lp-layer="left"] .lightbox-close {
   max-width: 34rem;
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .replace-deck-dialog .replace-deck-title {
@@ -2698,7 +2698,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .replace-deck-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .replace-deck-actions .btn {
@@ -2733,7 +2733,7 @@ html[data-lp-layer="left"] .lightbox-close {
   min-height: 5.5rem;
   padding: 1rem 1.1rem;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: color-mix(in srgb, var(--danger) 8%, var(--card));
 }
 
@@ -2789,7 +2789,7 @@ html[data-lp-layer="left"] .lightbox-close {
   .topbar {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: var(--z-sticky);
     width: 100%;
     max-width: 100%;
   }
@@ -2836,7 +2836,7 @@ html[data-lp-layer="left"] .lightbox-close {
   .brand a {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--space-2);
     height: 1.45rem;
     max-width: 100%;
     overflow: hidden;
@@ -2867,7 +2867,7 @@ html[data-lp-layer="left"] .lightbox-close {
     width: auto;
     max-width: 100%;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-2);
     font-size: 0.85rem;
   }
 
@@ -3003,7 +3003,7 @@ html[data-lp-layer="left"] .lightbox-close {
   }
 
   .deck-card .row-actions {
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 
   .deck-card .row-actions button {
@@ -3021,7 +3021,7 @@ html[data-lp-layer="left"] .lightbox-close {
   .mobile-card {
     position: relative;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius-12);
     padding: 0.55rem;
     box-shadow: var(--shadow);
     width: 100%;
@@ -3341,7 +3341,7 @@ html[data-lp-layer="left"] .lightbox-close {
   min-height: 2.5rem;
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--surface);
   color: var(--ink);
 }
@@ -3356,14 +3356,14 @@ html[data-lp-layer="left"] .lightbox-close {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .group-buy-card {
   display: block;
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   text-decoration: none;
   color: inherit;
   background: var(--surface);
@@ -3381,11 +3381,11 @@ html[data-lp-layer="left"] .lightbox-close {
 .empty-state {
   display: grid;
   justify-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 2.5rem 1.25rem;
   text-align: center;
   border: 1px dashed var(--line-strong);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   background: color-mix(in srgb, var(--card) 70%, transparent);
 }
 
@@ -3517,7 +3517,7 @@ html[data-lp-layer="left"] .lightbox-close {
   font-weight: 700;
   letter-spacing: 0.01em;
   padding: 0.2rem 0.45rem;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid transparent;
   line-height: 1.2;
   overflow: hidden;
@@ -3594,7 +3594,7 @@ html[data-lp-layer="left"] .lightbox-close {
   line-height: 1.2;
   padding: 0.15rem 0.45rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   background: var(--bg-deep);
   white-space: nowrap;
@@ -3627,7 +3627,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .group-buy-order-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: 0.85rem;
   color: var(--muted);
 }
@@ -3639,7 +3639,7 @@ html[data-lp-layer="left"] .lightbox-close {
   color: inherit;
   background: var(--surface, #fff);
   border: 1px solid var(--border, #ccc);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   padding: 0.4rem 0.5rem;
   min-height: 2.25rem;
 }
@@ -3698,7 +3698,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .group-buy-receipt-paste {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: 0.85rem;
   color: var(--muted);
   min-width: 0;
@@ -3712,7 +3712,7 @@ html[data-lp-layer="left"] .lightbox-close {
   color: inherit;
   background: var(--surface, #fff);
   border: 1px solid var(--border, #ccc);
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   padding: 0.55rem 0.65rem;
   width: 100%;
   min-width: 0;
@@ -3723,7 +3723,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .group-buy-receipt-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
 }
 
@@ -3790,7 +3790,7 @@ html[data-lp-layer="left"] .lightbox-close {
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid var(--line, #ccc);
   background: var(--surface, #fff);
   white-space: nowrap;
@@ -3834,7 +3834,7 @@ html[data-lp-layer="left"] .lightbox-close {
   margin: 0.35rem 0 0;
   padding-left: 1.1rem;
   display: grid;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -3970,7 +3970,7 @@ html[data-lp-layer="left"] .lightbox-close {
 
 .alt-art-wants .group-buy-who-chip {
   font-size: 0.74rem;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 /* One line per chip (#902): the chips get their own row across the whole tile, under the
@@ -4102,7 +4102,7 @@ html[data-lp-layer="left"] .lightbox-close {
   min-height: 2rem;
   padding: 0.35rem 0.75rem;
   font-size: 0.82rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   white-space: nowrap;
 }
 
@@ -4123,7 +4123,7 @@ html[data-lp-layer="left"] .lightbox-close {
   display: inline-block;
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(28, 25, 21, 0.18);
 }
@@ -4162,7 +4162,7 @@ html[data-lp-layer="left"] .lightbox-close {
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   gap: 2px;
 }
 
@@ -4170,7 +4170,7 @@ html[data-lp-layer="left"] .lightbox-close {
   flex: 1 1 0;
   min-height: 0.6rem;
   border: 1px solid #000;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
 }
 
 .grid-card:has(> .group-buy-color-rail),
@@ -4225,7 +4225,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .group-buy-qty-controls {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .group-buy-qty-input {
@@ -4233,7 +4233,7 @@ html[data-lp-layer="left"] .lightbox-close {
   min-height: 2rem;
   text-align: center;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--surface);
   color: var(--ink);
   font-weight: 600;
@@ -4272,7 +4272,7 @@ html[data-lp-layer="left"] .lightbox-close {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--surface);
 }
 
@@ -4376,7 +4376,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .deck-editor-select .ui-select-button {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--field-bg);
   color: var(--ink);
   padding: 0.4rem 0.55rem;
@@ -4415,7 +4415,7 @@ html[data-lp-layer="left"] .lightbox-close {
   justify-content: space-between;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: color-mix(in srgb, var(--card) 85%, transparent);
   min-width: 0;
 }
@@ -4488,7 +4488,7 @@ html[data-lp-layer="left"] .lightbox-close {
   min-width: 0;
   padding: 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--card);
 }
 
@@ -4540,7 +4540,7 @@ html[data-lp-layer="left"] .lightbox-close {
 
   .don-available-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .deck-editor .filter-drawer-toggle,
@@ -4643,7 +4643,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton {
   display: block;
   background: color-mix(in srgb, var(--line) 55%, var(--card));
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   animation: skeleton-breathe 1.55s ease-in-out infinite;
   /* Keep layout stable — never grow from content. */
   flex-shrink: 0;
@@ -4670,12 +4670,12 @@ html[data-lp-layer="left"] .lightbox-close {
   width: 14rem;
   max-width: 100%;
   height: 1.85rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .skeleton-line {
   height: 0.85rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .skeleton-line-lg {
@@ -4701,7 +4701,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-btn {
   width: min(12rem, 100%);
   height: 2.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .skeleton-btn-sm {
@@ -4713,7 +4713,7 @@ html[data-lp-layer="left"] .lightbox-close {
   flex: 0 0 auto;
   width: 84px;
   height: 117px;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 @media (max-width: 800px) {
@@ -4757,14 +4757,14 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-drawer {
   width: 100%;
   height: 2.75rem;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   margin: 0 0 0.75rem;
 }
 
 .skeleton-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   margin: 0 0 0.75rem;
   min-width: 0;
@@ -4774,19 +4774,19 @@ html[data-lp-layer="left"] .lightbox-close {
   flex: 1 1 14rem;
   min-width: 0;
   height: 2.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .skeleton-toggle {
   width: 7.5rem;
   height: 2.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .skeleton-thumb {
   width: 108px;
   height: 151px;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .skeleton-thumb-lg {
@@ -4797,7 +4797,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-chip {
   width: 3.25rem;
   height: 1.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .skeleton-card-list {
@@ -4808,17 +4808,17 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-row-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: 0.65rem 0.75rem;
   background: color-mix(in srgb, var(--card) 72%, transparent);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   min-width: 0;
 }
 
 .skeleton-mobile-cards {
   display: none;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .skeleton-mobile-card {
@@ -4828,7 +4828,7 @@ html[data-lp-layer="left"] .lightbox-close {
   padding: 0.85rem;
   background: color-mix(in srgb, var(--card) 85%, transparent);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   box-shadow: var(--shadow);
   min-width: 0;
 }
@@ -4836,7 +4836,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-deck-card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-18);
   padding: 1.1rem;
   box-shadow: var(--shadow);
 }
@@ -4850,27 +4850,27 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-deck-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: var(--space-4);
   margin-top: 0.85rem;
 }
 
 .skeleton-create-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
   margin: 0 0 1.25rem;
 }
 
 .skeleton-gb-list {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .skeleton-gb-card {
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--card);
   display: grid;
   gap: 0.45rem;
@@ -4879,7 +4879,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-gb-card-top {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
 }
 
@@ -4893,7 +4893,7 @@ html[data-lp-layer="left"] .lightbox-close {
 .skeleton-progress {
   width: 100%;
   height: 3.5rem;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   margin: 0 0 0.85rem;
 }
 
@@ -4920,14 +4920,14 @@ html[data-lp-layer="left"] .lightbox-close {
   padding: 2rem;
   box-shadow: var(--shadow);
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   justify-items: start;
 }
 
 .skeleton-logo {
   width: min(180px, 60%);
   height: 2.4rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
 }
 
 .skeleton-auth-card .skeleton-btn {
@@ -4993,7 +4993,7 @@ button.ghost.scan-open {
   flex: 0 0 auto;
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -5009,7 +5009,7 @@ button.ghost.scan-open:hover {
 .scan-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-drawer);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5025,7 +5025,7 @@ button.ghost.scan-open:hover {
   overflow-y: auto;
   padding: 1rem 1.15rem 1.15rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
   box-shadow: var(--shadow);
 }
@@ -5034,7 +5034,7 @@ button.ghost.scan-open:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin-bottom: 0.85rem;
 }
 
@@ -5046,7 +5046,7 @@ button.ghost.scan-open:hover {
 .scan-drop {
   padding: 1rem;
   border: 1px dashed var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   text-align: center;
   transition: border-color 120ms ease, background 120ms ease;
 }
@@ -5065,7 +5065,7 @@ button.ghost.scan-open:hover {
 .scan-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   justify-content: center;
 }
 
@@ -5087,7 +5087,7 @@ button.ghost.scan-open:hover {
 
 .scan-bar {
   height: 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-deep);
   overflow: hidden;
 }
@@ -5154,11 +5154,11 @@ button.ghost.scan-open:hover {
    under a tapping finger. */
 .scan-note {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0 0 0.85rem;
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--surface-2, rgba(0, 0, 0, 0.03));
   font-size: 0.85rem;
   min-width: 0;
@@ -5191,7 +5191,7 @@ button.ghost.scan-open:hover {
 
 .scan-manual-row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .scan-manual-row input {
@@ -5215,10 +5215,10 @@ button.ghost.scan-open:hover {
   left: 50%;
   bottom: 1.5rem;
   transform: translateX(-50%);
-  z-index: 95;
+  z-index: var(--z-page-drop);
   padding: 0.7rem 1.1rem;
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card);
   box-shadow: var(--shadow);
   font-weight: 700;
@@ -5273,7 +5273,7 @@ button.ghost.scan-open:hover {
 
 .scan-diag-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin-top: 0.5rem;
 }
 
@@ -5283,7 +5283,7 @@ button.ghost.scan-open:hover {
 .live-capture-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-inspect);
   padding: 0;
   background: #000;
   overflow: hidden;
@@ -5307,7 +5307,7 @@ button.ghost.scan-open:hover {
 .live-status {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5330,7 +5330,7 @@ button.ghost.scan-open:hover {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5346,7 +5346,7 @@ button.ghost.scan-open:hover {
   font: inherit;
   font-weight: 600;
   padding: 0.5rem 0.9rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -5355,7 +5355,7 @@ button.ghost.scan-open:hover {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5376,7 +5376,7 @@ button.ghost.scan-open:hover {
   width: 4.2rem;
   height: 4.2rem;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 3px solid #fff;
   background: rgba(255, 255, 255, 0.9);
   cursor: pointer;
@@ -5403,7 +5403,7 @@ button.ghost.scan-open:hover {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--gold-ink);
   background: var(--gold-soft);
   border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
@@ -5425,13 +5425,13 @@ button.ghost.scan-open:hover {
 
 .head-popover-panel {
   position: fixed;
-  z-index: 90;
+  z-index: var(--z-drawer);
   max-height: min(32rem, calc(100svh - 6rem));
   overflow: auto;
   padding: 0.9rem 1rem 1rem;
   background: var(--card);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow-lift);
   text-align: left;
 }
@@ -5485,7 +5485,7 @@ button.ghost.scan-open:hover {
 
 .head-popover-sections {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .head-popover-sections > * + * {
@@ -5509,7 +5509,7 @@ button.ghost.scan-open:hover {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: transparent;
   color: var(--ink);
   font-weight: 600;
@@ -5572,7 +5572,7 @@ button.ghost.scan-open:hover {
 .deck-owned-meter-text {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: 0.8rem;
   color: var(--muted);
 }
@@ -5598,7 +5598,7 @@ button.ghost.scan-open:hover {
   height: 2rem;
   padding: 0;
   border: 1px solid rgba(226, 180, 88, 0.35);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: rgba(239, 230, 210, 0.85);
   cursor: pointer;
@@ -5624,7 +5624,7 @@ button.ghost.scan-open:hover {
   height: 2rem;
   padding: 0;
   border: 1px solid rgba(226, 180, 88, 0.35);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: rgba(239, 230, 210, 0.85);
   text-decoration: none;
@@ -5720,7 +5720,7 @@ button.ghost.scan-open:hover {
   flex: 0 0 auto;
   min-width: 1.35rem;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--warn);
   color: #fff;
   font-size: 0.78rem;
@@ -5751,7 +5751,7 @@ button.ghost.scan-open:hover {
 /* Transient "what moved" chip: floats over the Add cards header (right of its label), takes no space. */
 .dh-delta-slot {
   position: absolute;
-  z-index: 6;
+  z-index: var(--z-raise-6);
   top: 0.45rem;
   left: 0.75rem;
   right: 2.4rem;
@@ -5764,7 +5764,7 @@ button.ghost.scan-open:hover {
   max-width: 100%;
   padding: 0.3rem 0.75rem;
   border: 1px solid var(--info-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--info-bg);
   color: var(--info-ink);
   box-shadow: var(--shadow);
@@ -5806,7 +5806,7 @@ button.ghost.scan-open:hover {
   min-height: 0;
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
 }
 
@@ -5815,7 +5815,7 @@ button.ghost.scan-open:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 2.75rem;
   padding: 0.3rem 0.5rem 0.3rem 0.9rem;
   border-bottom: 1px solid var(--line);
@@ -5836,7 +5836,7 @@ button.ghost.scan-open:hover {
 
 .stats-dock-scroll {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-content: start;
   min-height: 0;
   min-width: 0;
@@ -5860,14 +5860,14 @@ button.ghost.scan-open:hover {
   left: max(0.75rem, env(safe-area-inset-left, 0px));
   transition: transform 0.2s ease, opacity 0.2s ease;
   bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-  z-index: 30;
+  z-index: var(--z-hud);
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   height: 2.75rem;
   padding: 0 1rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -5912,7 +5912,7 @@ button.ghost.scan-open:hover {
 .stats-sheet-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-menu);
   padding: 0;
   display: flex;
   align-items: flex-end;
@@ -5992,7 +5992,7 @@ button.ghost.scan-open:hover {
     width: 100%;
     padding: 0.7rem 0 0.9rem;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-14);
     background: var(--card);
     color: var(--ink);
     font: inherit;
@@ -6080,7 +6080,7 @@ button.ghost.scan-open:hover {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .deck-toolbar > .list-toolbar-row,
@@ -6109,7 +6109,7 @@ button.ghost.scan-open:hover {
     gap: 0.4rem;
     padding: 0.5rem 0.7rem;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-14);
     background: var(--card);
   }
 
@@ -6126,7 +6126,7 @@ button.ghost.scan-open:hover {
     flex: 1 1 100%;
     min-width: 0;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--radius-14);
     background: var(--card);
   }
 }
@@ -6356,7 +6356,7 @@ tr.row-flash > td {
   margin-left: 0.4rem;
   padding: 0 0.4rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.7rem;
   line-height: 1.35;
   color: var(--accent);
@@ -6383,7 +6383,7 @@ tr.row-flash > td {
 .used-in-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   max-width: 100%;
   margin: 0;
@@ -6396,7 +6396,7 @@ tr.row-flash > td {
   max-width: 100%;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card-sunk);
   color: var(--ink);
   font-size: 0.75rem;
@@ -6426,15 +6426,45 @@ button.remove-extra {
   font-size: 0.82rem;
 }
 
-/* Shared feedback dialog (packages/site-legal): map its tokens to the planner palette. */
+/*
+ * Token bridge for the shared packages: --ui-* is the one set this app maps (the :root block
+ * below); the site-legal (--fb-*) and patch-notes (--wn-*) families alias it, and so does the
+ * Log Pose chat (--lp-*, logPose.css) wherever the values are the same.
+ */
+
+/* Deck analytics panels (packages/deck-analytics) read their own --da-* tokens: the planner's palette, light and dark. */
+:root {
+  --da-ink: var(--ink);
+  --da-muted: var(--muted);
+  --da-label: var(--label);
+  --da-line: var(--line);
+  --da-line-strong: var(--line-strong);
+  --da-card: var(--card);
+  --da-card-sunk: var(--card-sunk);
+  --da-bg-deep: var(--bg-deep);
+  --da-accent: var(--accent);
+  --da-gold: var(--gold);
+  --da-gold-bright: var(--gold-bright);
+  --da-gold-soft: var(--gold-soft);
+  --da-gold-ink: var(--gold-ink);
+  --da-violet-ink: var(--violet-ink);
+  --da-warn: var(--warn);
+  --da-warn-ink: var(--warn-ink);
+  --da-danger: var(--danger);
+  --da-shadow-lift: var(--shadow-lift);
+  --da-font-body: var(--font-body);
+  --da-font-display: var(--font-display);
+}
+
+/* Shared feedback dialog (packages/site-legal). */
 .feedback-backdrop {
-  --fb-bg: var(--card);
-  --fb-ink: var(--ink);
-  --fb-line: var(--line-strong);
-  --fb-field-bg: var(--field-bg);
-  --fb-accent: var(--primary-bg, var(--accent));
-  --fb-on-accent: var(--primary-ink);
-  --fb-danger: var(--danger);
+  --fb-bg: var(--ui-panel-bg);
+  --fb-ink: var(--ui-ink);
+  --fb-line: var(--ui-line);
+  --fb-field-bg: var(--ui-field-bg);
+  --fb-accent: var(--ui-primary);
+  --fb-on-accent: var(--ui-on-primary);
+  --fb-danger: var(--ui-danger);
 }
 
 /* Shared pop-ups (packages/ui, Headless UI): map its tokens to the planner palette. */
@@ -6451,15 +6481,22 @@ button.remove-extra {
   --ui-accent: var(--gold);
   --ui-selected: var(--card-sunk);
   --ui-active: var(--gold-soft);
+  --ui-line: var(--line-strong);
+  --ui-line-soft: var(--line);
+  --ui-primary: var(--primary-bg, var(--accent));
+  --ui-on-primary: var(--primary-ink);
+  --ui-danger: var(--danger);
+  --ui-font: var(--font-body);
+  --ui-font-display: var(--font-display);
 }
 
-/* What's new card (packages/patch-notes): map its tokens to the planner palette (light and dark). */
+/* What's new card (packages/patch-notes), through the --ui-* set. */
 .wn-card {
-  --wn-bg: var(--card);
-  --wn-ink: var(--ink);
-  --wn-line: var(--line-strong);
-  --wn-accent: var(--primary-bg, var(--accent));
-  --wn-on-accent: var(--primary-ink);
+  --wn-bg: var(--ui-panel-bg);
+  --wn-ink: var(--ui-ink);
+  --wn-line: var(--ui-line);
+  --wn-accent: var(--ui-primary);
+  --wn-on-accent: var(--ui-on-primary);
   font-family: var(--font-body);
 }
 
@@ -6474,7 +6511,7 @@ button.remove-extra {
 
 .meta-controls {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: end;
   flex-wrap: wrap;
 }
@@ -6482,7 +6519,7 @@ button.remove-extra {
 .meta-select {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: 0.9rem;
 }
 
@@ -6501,7 +6538,7 @@ button.remove-extra {
 .meta-leader-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .meta-leader-grid > li {
@@ -6517,7 +6554,7 @@ button.remove-extra {
   min-width: 0;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   padding: 1rem;
   box-shadow: var(--shadow);
   color: inherit;
@@ -6541,7 +6578,7 @@ a.meta-leader-card:focus-visible {
   width: 72px;
   height: 100px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   background: var(--thumb-bg);
   display: block;
@@ -6600,7 +6637,7 @@ a.meta-leader-card:focus-visible {
 
 .meta-leader-head {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: flex-start;
   flex-wrap: wrap;
   margin-bottom: 1rem;
@@ -6622,14 +6659,14 @@ a.meta-leader-card:focus-visible {
 
 .meta-deck-list {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .meta-deck {
   min-width: 0;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   padding: 0.5rem 0.9rem 0.8rem;
   box-shadow: var(--shadow);
 }
@@ -6681,7 +6718,7 @@ a.meta-leader-card:focus-visible {
 .meta-deck-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-top: 0.25rem;
 }
 
@@ -6722,7 +6759,7 @@ a.meta-leader-card:focus-visible {
 .meta-card-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .meta-card {
@@ -6763,7 +6800,7 @@ a.meta-leader-card:focus-visible {
   right: 4px;
   bottom: 4px;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--sea-night);
   color: var(--gold-soft);
   font-size: 0.75rem;
@@ -6868,7 +6905,7 @@ html[data-lp-dock] .topbar {
     width: auto;
     max-width: 100%;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .topbar .user > * {
@@ -6961,7 +6998,7 @@ html[data-lp-dock] .topbar {
 
 .scan-tray-media {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .scan-tray-art {
@@ -6969,7 +7006,7 @@ html[data-lp-dock] .topbar {
   display: block;
   width: 2.1rem;
   aspect-ratio: 5 / 7;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   background: var(--bg-deep);
   overflow: hidden;
 }
@@ -7038,7 +7075,7 @@ html[data-lp-dock] .topbar {
 .scan-chip {
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.5;
@@ -7123,7 +7160,7 @@ button.ghost.scan-tray-fix {
 .scan-share-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 2rem;
   cursor: pointer;
   font-weight: 600;
@@ -7188,14 +7225,14 @@ button.ghost.scan-tray-fix {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .scan-added {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .scan-added-title {
@@ -7230,7 +7267,7 @@ button.ghost.scan-tray-fix {
   .scan-tray-foot {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--space-3);
     padding-top: 0.4rem;
   }
 
@@ -7244,7 +7281,7 @@ button.ghost.scan-tray-fix {
   .scan-tray-foot-actions {
     flex: none;
     flex-wrap: nowrap;
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 }
 
@@ -7260,7 +7297,7 @@ button.ghost.scan-tray-fix {
   min-height: 1.75rem;
   margin-top: 0.1rem;
   padding: 0 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
@@ -7300,7 +7337,7 @@ button.ghost.scan-tray-fix {
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin: 0 0 1.1rem;
   padding: 0;
   list-style: none;
@@ -7314,7 +7351,7 @@ button.ghost.scan-tray-fix {
   padding: 0.85rem 1.1rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   box-shadow: var(--shadow);
 }
 
@@ -7334,7 +7371,7 @@ button.ghost.scan-tray-fix {
   flex: 0 0 auto;
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--dot, #888);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent);
 }
@@ -7349,7 +7386,7 @@ button.ghost.scan-tray-fix {
 .color-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -7359,7 +7396,7 @@ button.ghost.scan-tray-fix {
   gap: 0.35rem;
   padding: 0.1rem 0.55rem 0.1rem 0.4rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card-sunk);
   color: var(--ink);
   font-size: 0.74rem;
@@ -7389,7 +7426,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-left: auto;
   min-width: 0;
 }
@@ -7412,7 +7449,7 @@ button.ghost.scan-tray-fix {
 }
 
 .collection-toolbar .card-search-input {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .color-filter {
@@ -7431,7 +7468,7 @@ button.ghost.scan-tray-fix {
   height: 2.5rem;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--card);
   color: var(--ink);
   cursor: pointer;
@@ -7480,7 +7517,7 @@ button.ghost.scan-tray-fix {
   min-height: 2.5rem;
   padding: 0.25rem 0.95rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -7502,7 +7539,7 @@ button.ghost.scan-tray-fix {
 .collection-toolbar .sort-menu-btn,
 .collection-filter-btn {
   min-height: 2.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.35rem 0.95rem;
   font-weight: 600;
 }
@@ -7524,7 +7561,7 @@ button.ghost.scan-tray-fix {
   min-width: 1.25rem;
   height: 1.25rem;
   padding: 0 0.3rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--primary-bg);
   color: var(--primary-ink);
   font-size: 0.74rem;
@@ -7536,13 +7573,13 @@ button.ghost.scan-tray-fix {
 }
 
 .collection-filter-panel {
-  z-index: 60;
+  z-index: var(--z-menu);
   width: min(18rem, calc(100vw - 1rem));
   padding: 0.75rem;
   color: var(--ink);
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow-lift);
 }
 
@@ -7590,13 +7627,13 @@ button.ghost.scan-tray-fix {
 /* Grid tiles: art first, copies badge on the art, then name, id + price, colours. */
 .collection-grid {
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .grid-card.collection-grid-card {
   gap: 0.55rem;
   padding: 0.6rem;
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
 }
 
@@ -7630,7 +7667,7 @@ button.ghost.scan-tray-fix {
   min-width: 1.7rem;
   padding: 0.1rem 0.45rem;
   border: 2px solid var(--card);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--primary-bg);
   color: var(--primary-ink);
   font-size: 0.8rem;
@@ -7649,7 +7686,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -7671,16 +7708,16 @@ button.ghost.scan-tray-fix {
 @media (max-width: 560px) {
   .collection-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .stat-cards {
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .stat-cards li {
     padding: 0.6rem 0.7rem;
-    border-radius: 14px;
+    border-radius: var(--radius-14);
   }
 
   .stat-cards .stat-label {
@@ -7776,7 +7813,7 @@ button.ghost.scan-tray-fix {
 .landing-features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .landing-feature {
@@ -7784,7 +7821,7 @@ button.ghost.scan-tray-fix {
   padding: 1rem 1.1rem 1.1rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow);
 }
 
@@ -7816,7 +7853,7 @@ button.ghost.scan-tray-fix {
   padding: 0.5rem 0.8rem;
   border: 1px solid var(--line);
   border-left: 3px solid var(--gold);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--card-sunk);
   color: var(--muted);
   font-size: 0.88rem;
@@ -7870,7 +7907,7 @@ button.ghost.scan-tray-fix {
   color: rgba(239, 230, 210, 0.85);
   background: transparent;
   border: 1px solid rgba(226, 180, 88, 0.35);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -7896,7 +7933,7 @@ button.ghost.scan-tray-fix {
   color: #fff;
   background: var(--danger);
   border: 2px solid var(--sea-night);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-sizing: content-box;
 }
 
@@ -7908,7 +7945,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin-bottom: 0.4rem;
 }
 
@@ -7925,7 +7962,7 @@ button.ghost.scan-tray-fix {
 
 .bell-item {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: flex-start;
   padding: 0.55rem 0;
   border-top: 1px solid var(--line);
@@ -7936,7 +7973,7 @@ button.ghost.scan-tray-fix {
   width: 0.5rem;
   height: 0.5rem;
   margin-top: 0.4rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: transparent;
 }
 
@@ -7987,7 +8024,7 @@ button.ghost.scan-tray-fix {
 
 .alert-form-row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: stretch;
   min-width: 0;
 }
@@ -8002,7 +8039,7 @@ button.ghost.scan-tray-fix {
   min-height: 2.5rem;
   box-sizing: border-box;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--field-bg);
   color: var(--ink);
   font: inherit;
@@ -8043,7 +8080,7 @@ button.ghost.scan-tray-fix {
 
 .alert-form-checks {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   flex-wrap: wrap;
 }
 
@@ -8064,7 +8101,7 @@ button.ghost.scan-tray-fix {
 
 .alert-form-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   justify-content: flex-end;
   align-items: center;
 }
@@ -8090,7 +8127,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   height: 2.5rem;
   min-width: 0;
 }
@@ -8107,7 +8144,7 @@ button.ghost.scan-tray-fix {
   padding: 0 0.3rem 0 0.7rem;
   border: 1px solid var(--info-line);
   border-left-width: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   color: var(--info-ink);
   background: var(--info-bg);
 }
@@ -8170,7 +8207,7 @@ button.ghost.scan-tray-fix {
   margin: 0;
   padding: 0 0.55rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -8207,13 +8244,13 @@ button.ghost.scan-tray-fix {
   left: 50%;
   bottom: calc(100% + 0.5rem);
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: var(--z-raise-2);
   width: min(20rem, calc(100vw - 2rem));
   box-sizing: border-box;
   padding: 0.8rem 0.9rem;
   background: var(--card);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow-lift);
 }
 
@@ -8236,7 +8273,7 @@ button.ghost.scan-tray-fix {
   left: 50%;
   bottom: calc(100% + 0.5rem);
   transform: translateX(-50%);
-  z-index: 3;
+  z-index: var(--z-raise-3);
   width: min(26rem, calc(100vw - 1.5rem));
   /* Room for the lightbox controls under it (Card page, Owned stepper, Price alert, Price history). */
   max-height: calc(100dvh - 23.5rem);
@@ -8247,7 +8284,7 @@ button.ghost.scan-tray-fix {
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow-lift);
 }
 
@@ -8294,7 +8331,7 @@ button.ghost.scan-tray-fix {
   display: inline-flex;
   flex: none;
   border: 1px solid var(--line-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-9);
   overflow: hidden;
 }
 
@@ -8341,7 +8378,7 @@ button.ghost.scan-tray-fix {
 .ph-stat {
   min-width: 0;
   padding: 0.3rem 0.4rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--card-sunk);
 }
 
@@ -8385,7 +8422,7 @@ button.ghost.scan-tray-fix {
   position: relative;
   aspect-ratio: 360 / 168;
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .ph-chart {
@@ -8438,7 +8475,7 @@ button.ghost.scan-tray-fix {
   display: grid;
   gap: 0.05rem;
   padding: 0.25rem 0.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid var(--line-strong);
   background: var(--card);
   box-shadow: var(--shadow);
@@ -8462,7 +8499,7 @@ button.ghost.scan-tray-fix {
   font-size: 0.85rem;
   color: var(--muted);
   border: 1px dashed var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--card-sunk);
 }
 
@@ -8489,14 +8526,14 @@ button.ghost.scan-tray-fix {
   min-width: 0;
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--card-sunk);
 }
 
 .ph-buy-main {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 1.9rem;
 }
@@ -8506,7 +8543,7 @@ button.ghost.scan-tray-fix {
   min-width: 4.6rem;
   box-sizing: border-box;
   padding: 0.18rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid currentColor;
   font-size: 0.72rem;
   font-weight: 700;
@@ -8586,7 +8623,7 @@ button.ghost.scan-tray-fix {
   box-sizing: border-box;
   padding: 0 0.6rem;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -8620,7 +8657,7 @@ button.ghost.scan-tray-fix {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -8637,7 +8674,7 @@ button.ghost.scan-tray-fix {
   display: grid;
   place-items: center;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--card);
 }
 
@@ -8672,7 +8709,7 @@ button.ghost.scan-tray-fix {
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   box-shadow: var(--shadow);
 }
 
@@ -8699,7 +8736,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 2rem;
 }
@@ -8717,7 +8754,7 @@ button.ghost.scan-tray-fix {
 .alert-dialog {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: 0.75rem;
@@ -8734,7 +8771,7 @@ button.ghost.scan-tray-fix {
   color: var(--ink);
   background: var(--card);
   border: 1px solid var(--line-strong);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   box-shadow: var(--shadow-lift);
 }
 
@@ -8742,7 +8779,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .alert-dialog-head h2 {
@@ -8774,7 +8811,7 @@ button.ghost.scan-tray-fix {
 
 .alert-art-picker {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   overflow-x: auto;
   padding: 0.25rem 0.25rem 0.6rem;
   margin: 0 -0.25rem 0.4rem;
@@ -8792,7 +8829,7 @@ button.ghost.scan-tray-fix {
   color: var(--ink);
   background: var(--card-sunk);
   border: 2px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   cursor: pointer;
   font: inherit;
 }
@@ -8805,7 +8842,7 @@ button.ghost.scan-tray-fix {
 .alert-art-tile .thumb {
   width: 3.6rem;
   height: auto;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
 }
 
 .alert-art-name {
@@ -8838,7 +8875,7 @@ button.ghost.scan-tray-fix {
   color: var(--info-ink);
   background: var(--info-bg);
   border: 1px solid var(--info-line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .alerts-empty {
@@ -8847,7 +8884,7 @@ button.ghost.scan-tray-fix {
   text-align: center;
   background: var(--card-sunk);
   border: 1px dashed var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
 }
 
 .alerts-empty h2 {
@@ -8876,7 +8913,7 @@ button.ghost.scan-tray-fix {
   padding: 0.7rem 0.9rem;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   box-shadow: var(--shadow);
 }
 
@@ -8911,7 +8948,7 @@ button.ghost.scan-tray-fix {
   font-size: 0.78rem;
   font-weight: 600;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ink);
   background: var(--card-sunk);
 }
@@ -8959,7 +8996,7 @@ button.ghost.scan-tray-fix {
 
 .alert-target-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -8970,7 +9007,7 @@ button.ghost.scan-tray-fix {
 
 .alert-actions {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .alert-act {
@@ -9015,7 +9052,7 @@ button.ghost.scan-tray-fix {
   .alert-toggles {
     grid-area: toggles;
     display: flex;
-    gap: 1rem;
+    gap: var(--space-4);
   }
 
   .alert-actions {
@@ -9040,14 +9077,14 @@ button.ghost.scan-tray-fix {
 /* "New version available" card: fixed bottom-right in the What's new card's spot, so nothing shifts. */
 .update-card {
   position: fixed;
-  z-index: 80;
+  z-index: var(--z-popover);
   right: max(1rem, env(safe-area-inset-right, 0px));
   bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
   box-sizing: border-box;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0.85rem 1rem 0.9rem;
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
   color: var(--ink);
   box-shadow: var(--shadow-lift);
@@ -9129,7 +9166,7 @@ button.ghost.scan-tray-fix {
   margin: 0;
   padding: 0.15rem 0.45rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -9166,14 +9203,14 @@ button.ghost.scan-tray-fix {
 }
 
 .buy-split-panel {
-  z-index: 90;
+  z-index: var(--z-drawer);
   width: min(21rem, calc(100vw - 16px));
   max-height: min(28rem, calc(100dvh - 1rem));
   overflow: auto;
   padding: 0.9rem 1rem 1rem;
   background: var(--card);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   box-shadow: var(--shadow-lift);
   color: var(--ink);
   text-align: left;
@@ -9186,7 +9223,7 @@ button.ghost.scan-tray-fix {
 
 .buy-split-rows {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -9287,7 +9324,7 @@ button.ghost.scan-tray-fix {
 .buy-split-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 89;
+  z-index: var(--z-buy-scrim);
   background: rgb(10 18 24 / 0.5);
   transition: opacity 180ms ease-out;
 }
@@ -9364,7 +9401,7 @@ button.ghost.scan-tray-fix {
   width: 100%;
   aspect-ratio: 5 / 7;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line);
   background: var(--thumb-bg);
   box-shadow: var(--shadow);
@@ -9377,7 +9414,7 @@ button.ghost.scan-tray-fix {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   cursor: zoom-in;
 }
 
@@ -9422,7 +9459,7 @@ button.ghost.scan-tray-fix {
 
 .card-facts li {
   padding: 0.15rem 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: var(--card);
   font-size: 0.82rem;
@@ -9460,7 +9497,7 @@ button.ghost.scan-tray-fix {
   gap: 0.45rem;
   min-height: 7.5rem;
   padding: 0.7rem 0.85rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--card);
   border: 1px solid var(--line);
   min-width: 0;
@@ -9501,7 +9538,7 @@ button.ghost.scan-tray-fix {
 
 .card-actions {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   justify-items: start;
   min-width: 0;
 }
@@ -9518,19 +9555,19 @@ button.ghost.scan-tray-fix {
   bottom: auto;
   left: 0;
   transform: none;
-  z-index: 5;
+  z-index: var(--z-raise-5);
 }
 
 .card-cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: start;
 }
 
 .card-col {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -9543,7 +9580,7 @@ button.ghost.scan-tray-fix {
 .card-panel {
   min-width: 0;
   padding: 1rem;
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   border: 1px solid var(--line);
   background: var(--card);
   box-shadow: var(--shadow);
@@ -9553,7 +9590,7 @@ button.ghost.scan-tray-fix {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
   min-width: 0;
@@ -9567,7 +9604,7 @@ button.ghost.scan-tray-fix {
 .card-price-skel {
   display: block;
   height: 18rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .card-arts {
@@ -9591,7 +9628,7 @@ button.ghost.scan-tray-fix {
   gap: 0.2rem;
   justify-items: center;
   padding: 0.4rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 2px solid var(--line);
   background: var(--card-sunk);
   color: inherit;
@@ -9617,7 +9654,7 @@ button.ghost.scan-tray-fix {
   width: 100%;
   aspect-ratio: 5 / 7;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   background: var(--thumb-bg);
   display: block;
 }
@@ -9646,14 +9683,14 @@ button.ghost.scan-tray-fix {
 .card-play-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
 }
 
 .card-play-stats > div {
   min-width: 0;
   padding: 0.5rem 0.65rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--card-sunk);
 }
 
@@ -9684,7 +9721,7 @@ button.ghost.scan-tray-fix {
   display: block;
   height: 4rem;
   margin-bottom: 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
 }
 
 .card-play .card-play-cta {
@@ -9712,7 +9749,7 @@ button.ghost.scan-tray-fix {
   gap: 0.65rem;
   min-width: 0;
   padding: 0.4rem 0.5rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   background: var(--card-sunk);
   color: inherit;
@@ -9734,7 +9771,7 @@ a.card-play-row:focus-visible {
   width: 40px;
   height: 56px;
   object-fit: cover;
-  border-radius: 5px;
+  border-radius: var(--radius-5);
   border: 1px solid var(--line);
   background: var(--thumb-bg);
   display: block;
@@ -9802,7 +9839,7 @@ a.card-play-row:focus-visible {
   width: fit-content;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--gold);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--gold-soft);
   color: var(--gold-ink);
   font-size: 0.72rem;
@@ -10019,7 +10056,7 @@ a.card-play-row:focus-visible {
 
 .collector-picker {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
@@ -10038,7 +10075,7 @@ a.card-play-row:focus-visible {
   min-height: 2rem;
   padding: 0.2rem 0.7rem;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -10085,13 +10122,13 @@ a.card-play-row:focus-visible {
   position: fixed;
   left: 50%;
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  z-index: 120;
+  z-index: var(--z-nav-drawer);
   display: flex;
   align-items: center;
   gap: 0.9rem;
   max-width: calc(100vw - 2rem);
   padding: 0.55rem 0.9rem;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--ink);
   color: var(--bg);
   box-shadow: var(--shadow-lift);
@@ -10141,7 +10178,7 @@ a.card-play-row:focus-visible {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: var(--space-2);
     min-width: 0;
   }
 
@@ -10183,7 +10220,7 @@ a.card-play-row:focus-visible {
   }
 
   .collector-step {
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   /* 36px visible buttons, padded to a 44px hit area; the 0.5rem gap keeps neighbours from overlapping. */

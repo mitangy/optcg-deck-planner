@@ -1,22 +1,83 @@
 import { lazy, Suspense, type ComponentProps } from "react";
-import { AuthLoadingSkeleton, GroupBuyDetailSkeleton, GroupBuysListSkeleton } from "./Skeleton";
+import {
+  AuthLoadingSkeleton,
+  DeckDetailSkeleton,
+  DecksListSkeleton,
+  GroupBuyDetailSkeleton,
+  GroupBuysListSkeleton,
+  ShoppingListSkeleton,
+} from "./Skeleton";
 
 /**
  * Route pages whose code lives in its own module, loaded on first visit instead of
  * with the entry bundle. Each fallback is the skeleton the page itself shows while its
  * data loads, so the hand-off from "code loading" to "data loading" does not move anything.
  * Pages that are pre-rendered or shown to signed-out visitors on first paint (landing,
- * legal, /meta, /cards/:id) stay eager.
+ * legal, /meta, /cards/:id, login, public share links) stay eager.
  */
-const GroupBuysPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuysPage })));
-const GroupBuyDetailPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuyDetailPage })));
-const GroupBuyJoinPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuyJoinPage })));
-const PublicGroupBuyPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.PublicGroupBuyPage })));
+const ShoppingPageImpl = lazy(() => import("./pages/shopping/ShoppingPage").then((m) => ({ default: m.ShoppingPage })));
+const DecksPageImpl = lazy(() => import("./pages/decks/DecksPage").then((m) => ({ default: m.DecksPage })));
+const DeckDetailPageImpl = lazy(() => import("./pages/decks/DeckDetailPage").then((m) => ({ default: m.DeckDetailPage })));
+const CollectionPageImpl = lazy(() => import("./pages/collection/CollectionPage").then((m) => ({ default: m.CollectionPage })));
+const AlertsRouteImpl = lazy(() => import("./pages/AlertsRoute").then((m) => ({ default: m.AlertsRoute })));
+const ImportPageImpl = lazy(() => import("./pages/ImportPage").then((m) => ({ default: m.ImportPage })));
+const GroupBuysPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuysPage })));
+const GroupBuyDetailPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuyDetailPage })));
+const GroupBuyJoinPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuyJoinPage })));
+const PublicGroupBuyPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.PublicGroupBuyPage })));
 const FriendsPageImpl = lazy(() => import("./friends/FriendsPage").then((m) => ({ default: m.FriendsPage })));
 const FriendPageImpl = lazy(() => import("./friends/FriendPage").then((m) => ({ default: m.FriendPage })));
 const FriendDeckPageImpl = lazy(() => import("./friends/FriendDeckPage").then((m) => ({ default: m.FriendDeckPage })));
 const CardScannerImpl = lazy(() => import("./CardScanner").then((m) => ({ default: m.CardScanner })));
 const ScanValidatePageImpl = lazy(() => import("./devtools/ScanValidatePage"));
+
+export function ShoppingPage() {
+  return (
+    <Suspense fallback={<ShoppingListSkeleton />}>
+      <ShoppingPageImpl />
+    </Suspense>
+  );
+}
+
+export function DecksPage() {
+  return (
+    <Suspense fallback={<DecksListSkeleton />}>
+      <DecksPageImpl />
+    </Suspense>
+  );
+}
+
+export function DeckDetailPage() {
+  return (
+    <Suspense fallback={<DeckDetailSkeleton />}>
+      <DeckDetailPageImpl />
+    </Suspense>
+  );
+}
+
+export function CollectionPage() {
+  return (
+    <Suspense fallback={<ShoppingListSkeleton label="Loading your collection…" />}>
+      <CollectionPageImpl />
+    </Suspense>
+  );
+}
+
+export function AlertsRoute() {
+  return (
+    <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
+      <AlertsRouteImpl />
+    </Suspense>
+  );
+}
+
+export function ImportPage() {
+  return (
+    <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
+      <ImportPageImpl />
+    </Suspense>
+  );
+}
 
 export function GroupBuysPage() {
   return (

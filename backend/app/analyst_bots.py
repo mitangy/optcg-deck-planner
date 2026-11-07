@@ -20,7 +20,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, defer
 
+from app.core.statuses import LessonStatus
 from app.analyst_stats import MIN_GAMES, _record
+from app.analyst import access
 from app.models import AnalystLesson, BotMatch, User
 
 MAX_REPLAY_BYTES = 1_000_000
@@ -350,7 +352,7 @@ def shared_bot_lessons(db: Session, leader: str, opponent: str | None) -> list[d
     """Approved bot lessons for a leader (and a matchup when an opponent is given), read by every player's Log Pose."""
     q = select(AnalystLesson).where(
         AnalystLesson.source == "bots",
-        AnalystLesson.status == "approved",
+        AnalystLesson.status == LessonStatus.APPROVED,
         or_(AnalystLesson.leader_id == leader, AnalystLesson.opponent_id == leader),
     )
     if opponent:
@@ -398,16 +400,15 @@ def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | N
     # The admin can edit a lesson's text, so also match the wording as first posted (kept in evidence); rows saved before that match on text.
     if any(text in (t, _posted_text(ev)) for t, ev in db.execute(same).all()):
         return {"skipped": True}
-    from app.routers import analyst as player_lessons  # the same cap as player drafts; read at call time
 
     waiting = len(
-        db.scalars(select(AnalystLesson.id).where(AnalystLesson.user_id == admin.id, AnalystLesson.status == "draft")).all()
+        db.scalars(select(AnalystLesson.id).where(AnalystLesson.user_id == admin.id, AnalystLesson.status == LessonStatus.DRAFT)).all()
     )
-    if waiting >= player_lessons.MAX_DRAFT_LESSONS:
+    if waiting >= access.MAX_DRAFT_LESSONS:
         raise BotLessonError(409, "Too many lessons are waiting for review")
     row = AnalystLesson(
         user_id=admin.id,
-        status="draft",
+        status=LessonStatus.DRAFT,
         source="bots",
         text=text,
         leader_id=leader_id,

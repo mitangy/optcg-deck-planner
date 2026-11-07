@@ -11,6 +11,7 @@ import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } fro
 import { PriceHistory } from "./PriceHistory";
 import { SITE_ORIGIN } from "./seo/routeMetaTable";
 import { Skeleton } from "./Skeleton";
+import { qk } from "./queryKeys";
 
 const STALE_MS = 5 * 60_000;
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
@@ -181,7 +182,7 @@ function TournamentPlay({
           <dl className="card-play-stats">
             <div>
               <dt>{u.is_leader ? "Meta share" : "In decks"}</dt>
-              <dd>{u.total_decks ? formatPercent(u.rate) : "–"}</dd>
+              <dd>{u.total_decks ? formatPercent(u.rate) : "—"}</dd>
             </div>
             <div>
               <dt>{u.is_leader ? "Decks led" : "Decks"}</dt>
@@ -189,7 +190,7 @@ function TournamentPlay({
             </div>
             <div>
               <dt>{u.is_leader ? "All decks" : "Avg copies"}</dt>
-              <dd>{u.is_leader ? u.total_decks.toLocaleString("en-US") : u.average_copies != null ? u.average_copies.toFixed(1) : "–"}</dd>
+              <dd>{u.is_leader ? u.total_decks.toLocaleString("en-US") : u.average_copies != null ? u.average_copies.toFixed(1) : "—"}</dd>
             </div>
           </dl>
           <p className="muted card-play-headline">
@@ -311,7 +312,7 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
   const days = parseDays(params.get("days"));
 
   const q = useQuery({
-    queryKey: ["meta", "card", cardId, days],
+    queryKey: qk.meta.card(cardId, days),
     queryFn: () => api.cardDetail(cardId, days),
     staleTime: STALE_MS,
     retry: false,

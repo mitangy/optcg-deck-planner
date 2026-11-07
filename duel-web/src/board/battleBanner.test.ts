@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEMO_VIEW } from "./fixtures/demoViews";
 import type { PlayerView } from "../net/protocol";
 import { describeBattle } from "./battleBanner";
+import type { BattleState } from "@optcg/rules";
 
 // Distinct leader cards so the banner can't pass by naming the wrong one.
 const VIEW: PlayerView = {
@@ -12,7 +13,7 @@ const VIEW: PlayerView = {
 const nameOf = (defId: string) => defId;
 
 function banner(battle: unknown, fromSeat = false): string {
-  return describeBattle({ ...VIEW, battle }, nameOf, fromSeat);
+  return describeBattle({ ...VIEW, battle: battle as BattleState | null }, nameOf, fromSeat);
 }
 
 describe("describeBattle", () => {

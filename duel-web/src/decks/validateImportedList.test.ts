@@ -1,0 +1,122 @@
+import { describe, expect, it } from "vitest";
+import { ensureTestDecks, saveDeck, validateImportedList } from "./storage";
+
+describe("validateImportedList", () => {
+  it("accepts curated ST01 list with leader", () => {
+    const v = validateImportedList(`1xST01-001
+4xST01-003
+4xST01-006
+4xST01-008
+4xST01-009
+4xST01-014`);
+    expect(v.ok).toBe(true);
+    expect(v.leaderId).toBe("ST01-001");
+    expect(v.cards).toHaveLength(20);
+  });
+
+  it("enforces Leader deck-construction rules (OP12-001: no cost 5+)", () => {
+    const bad = validateImportedList("1xOP12-001\n4xST01-003\n1xOP01-051");
+    expect(bad.ok).toBe(false);
+    expect(bad.errors.join(" ")).toContain("OP01-051");
+    expect(validateImportedList("1xOP12-001\n4xST01-003").ok).toBe(true);
+  });
+
+  it("rejects over-4 but allows uncurated OPTCG ids as stubs", () => {
+    const v = validateImportedList("1xST01-001\n5xST01-003\n1xOP99-999");
+    expect(v.ok).toBe(false);
+    expect(v.errors.some((e) => /max 4|copies/i.test(e))).toBe(true);
+    expect(v.errors.some((e) => /OP99-999/.test(e))).toBe(false);
+    expect(v.warnings.some((w) => /OP99-999/.test(w))).toBe(true);
+  });
+
+  it("accepts 7 copies of a card that allows any number (OP16-042) (#579)", () => {
+    const ok = validateImportedList("1xOP01-060\n7xOP16-042");
+    expect(ok.errors.filter((e) => /copies/.test(e))).toEqual([]);
+    expect(ok.ok).toBe(true);
+    // A normal blue card at 7 copies must still error, so this can tell the cases apart.
+    const bad = validateImportedList("1xOP01-060\n7xEB01-022");
+    expect(bad.ok).toBe(false);
+    expect(bad.errors.some((e) => /EB01-022 has 7 copies \(max 4\)/.test(e))).toBe(true);
+  });
+
+  it("accepts Test OP16 Teach seed list including OP16-080", () => {
+    const v = validateImportedList(`1xOP16-080
+4xEB04-058
+3xOP09-086
+4xOP09-093
+2xOP09-095
+2xOP09-096
+4xOP09-099
+4xOP12-112
+2xOP14-108
+4xOP16-104
+2xOP16-106
+4xOP16-108
+4xOP16-109
+4xOP16-110
+1xOP16-115
+2xOP16-116
+4xOP16-119`);
+    expect(v.ok).toBe(true);
+    expect(v.leaderId).toBe("OP16-080");
+    expect(v.cards.length).toBeGreaterThanOrEqual(40);
+  });
+});
+
+describe("ensureTestDecks", () => {
+  function stubLocalStorage() {
+    const mem = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => mem.get(k) ?? null,
+        setItem: (k: string, v: string) => {
+          mem.set(k, v);
+        },
+        removeItem: (k: string) => {
+          mem.delete(k);
+        },
+      },
+    });
+    return mem;
+  }
+
+  it("seeds Teach-named OP16 deck once", () => {
+    stubLocalStorage();
+    const decks = ensureTestDecks();
+    const teach = decks.find((d) => d.id === "test-op16-black");
+    expect(teach?.name).toMatch(/Teach/i);
+    expect(teach?.leaderId).toBe("OP16-080");
+  });
+
+  it("renames a seed deck still under its old Test name to the Starter name, keeping its id (#282)", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op16-black")!;
+    saveDeck({ id: first.id, name: "Test OP16 Teach (black/yellow)", leaderId: first.leaderId, cards: first.cards });
+    const again = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(again?.name).toBe("Starter: OP16 Teach");
+    expect(again?.cards).toEqual(first.cards);
+  });
+
+  it("keeps a name the player gave a seed deck, old or new (#282)", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op17-red")!;
+    saveDeck({ id: first.id, name: "My red", leaderId: first.leaderId, cards: first.cards });
+    expect(ensureTestDecks().find((d) => d.id === "test-op17-red")?.name).toBe("My red");
+  });
+
+  it("does not overwrite Configure edits on re-seed", () => {
+    stubLocalStorage();
+    const first = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(first).toBeTruthy();
+    saveDeck({
+      id: first!.id,
+      name: "My Teach edit",
+      leaderId: first!.leaderId,
+      cards: first!.cards.slice(0, 10),
+    });
+    const again = ensureTestDecks().find((d) => d.id === "test-op16-black");
+    expect(again?.name).toBe("My Teach edit");
+    expect(again?.cards).toHaveLength(10);
+  });
+});

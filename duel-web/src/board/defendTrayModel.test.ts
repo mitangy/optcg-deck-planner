@@ -72,7 +72,7 @@ describe("resolveStagedCounters", () => {
   /** Replays the sends against a hand that shrinks like the server's. */
   function replay(sent: Intent[]): (string | undefined)[] {
     const h = hand.map((c) => c.id);
-    return sent.map((i) => h.splice(i.handIndex as number, 1)[0]);
+    return sent.map((i) => h.splice((i as { handIndex: number }).handIndex, 1)[0]);
   }
 
   it("sends the highest hand slot first so later slots stay valid", () => {

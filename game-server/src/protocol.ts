@@ -1,304 +1,26 @@
 /**
  * Duel wire protocol — protocolVersion 5 (generic effect choice requests).
- * Intents / views come from @optcg/rules; this module only validates envelopes.
+ * Message types, constants and envelope parsers live in @optcg/duel-protocol (shared with duel-web); this module
+ * re-exports them and keeps the two parsers that need the game server's own modules or the engine's runtime:
+ * room creation options (seed / first-seat guards, bot levels) and intents (validated by @optcg/rules).
  */
-import { BOT_LEVELS, parseIntent, type BotLevel, type GameEvent, type Intent, type Seat } from "@optcg/rules";
+import { BOT_LEVELS, parseIntent, type BotLevel, type Intent, type Seat } from "@optcg/rules";
+import {
+  PROTOCOL_VERSION,
+  asPlayerDeck,
+  bad,
+  expectEnvelope,
+  isProtocolVersion,
+  type BotRoomOptions,
+  type PlayerDeckWire,
+  type ProtocolVersion,
+} from "@optcg/duel-protocol";
 import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
-export const PROTOCOL_VERSION = 5 as const;
+export * from "@optcg/duel-protocol";
 
 /** Ranked games give each player a 15 minute chess clock (30 minutes total). */
 export const RANKED_SEAT_SECONDS = 15 * 60;
-
-export type ProtocolVersion = typeof PROTOCOL_VERSION;
-
-export type DuelJoinOptions = {
-  protocolVersion: ProtocolVersion;
-  /** Legacy / local freeform id when gameToken is absent. */
-  devUserId?: string;
-  /** FastAPI HMAC bearer (preferred). */
-  gameToken?: string;
-  /** Required when server has DEV_JOIN_SECRET set. */
-  secret?: string;
-  preferredSeat?: Seat;
-  /** Step 5: join as read-only spectator (public view; both hands hidden). */
-  role?: "player" | "spectator";
-  /** Optional deck for this seat (overrides create-time placeholder for that seat). */
-  deck?: PlayerDeckWire;
-  /**
-   * Move a live match to this device: rebind the seat the signed-in account
-   * holds to this connection (#451). Needs role "player" and a preferredSeat.
-   */
-  takeover?: boolean;
-  /**
-   * Practice only: a game token of the account that controls this (guest) seat,
-   * so that account can later take the seat over. Ignored when invalid.
-   */
-  ownerToken?: string;
-};
-
-/** Close code sent to a socket whose seat moved to another device (#451). */
-export const TAKEN_OVER_CLOSE_CODE = 4451;
-
-export type PlayerDeckWire = {
-  leaderId: string;
-  deck: string[];
-};
-
-export type DuelCreateOptions = {
-  protocolVersion?: ProtocolVersion;
-  seed?: number;
-  /** Default true for Step 2 scripts. */
-  autoSkipMulligan?: boolean;
-  /** Who goes first in the first game. Honored only on local/dev servers; deployed servers flip a coin (#549). */
-  firstSeat?: 0 | 1;
-  players?: [PlayerDeckWire, PlayerDeckWire];
-  /**
-   * Optional clocks. Ranked queue always forces a 15 minute chess clock per player (seatSeconds), no match clock and no turn clock.
-   * Omit / 0 = disabled for that clock.
-   */
-  timer?: {
-    turnSeconds?: number;
-    matchSeconds?: number;
-    /** Chess clock: each player's own time bank, spent while they must act. */
-    seatSeconds?: number;
-  };
-  /** Server-only capability; never sent to browser clients. */
-  rankedAttestation?: string;
-  /**
-   * "Play vs Bot" (#631): seat 1 is played by the server with this deck. The room is never ranked and
-   * the game is not saved to match history.
-   */
-  bot?: BotRoomOptions;
-};
-
-export type BotRoomOptions = { level: BotLevel; deck: PlayerDeckWire };
-
-export type ErrorCode =
-  | "illegal_intent"
-  | "match_not_ready"
-  | "match_over"
-  | "bad_protocol"
-  | "rate_limited"
-  | "unauthorized"
-  | "room_full"
-  | "unsupported_deck"
-  /** Ranked: the paired opponent never joined the match room. */
-  | "opponent_no_show";
-
-/** Public per-seat player info (additive; older clients ignore it). */
-export type SeatPlayerInfo = {
-  /** Username, else account name; null when the seat is unknown. Never an email. */
-  name: string | null;
-};
-
-/** Signed matchup-brief ticket for one player seat of an unranked room. */
-export type BriefTicketWire = {
-  ticket: string;
-  /** The seat's own leader. */
-  leaderId: string;
-  /** The other seat's leader. */
-  opponentId: string;
-  /** The seat's own 50-card deck (no leader). */
-  deck: string[];
-};
-
-export type WelcomeMessage = {
-  protocolVersion: ProtocolVersion;
-  matchId: string;
-  /** Player seat, or camera seat when role is spectator. */
-  seat: Seat;
-  role?: "player" | "spectator";
-  view: unknown;
-  /** Indexed by seat. */
-  players?: [SeatPlayerInfo, SeatPlayerInfo];
-  /** Whether the room is ranked. Absent from older servers. */
-  ranked?: boolean;
-  /**
-   * How this game's turn order was decided: null = coin flip (the first game), otherwise the seat that
-   * chose (a rematch's loser). Absent from older servers.
-   */
-  firstSeatPickedBy?: Seat | null;
-  /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
-  brief?: BriefTicketWire;
-  /** Present in a "Play vs Bot" room: seat 1 is the server's bot (#631). */
-  bot?: { level: BotLevel };
-};
-
-export type EventsMessage = {
-  protocolVersion: ProtocolVersion;
-  events: GameEvent[];
-  /** Replay intents applied once these events happened (undo rewinds to a step). */
-  step?: number;
-};
-
-export type ViewMessage = {
-  protocolVersion: ProtocolVersion;
-  view: unknown;
-};
-
-export type ErrorMessage = {
-  protocolVersion: ProtocolVersion;
-  code: ErrorCode | string;
-  message: string;
-};
-
-export type MatchOverMessage = {
-  protocolVersion: ProtocolVersion;
-  result: {
-    winner: Seat;
-    reason: string;
-  };
-};
-
-/** Cosmetics are non-authoritative display prefs (alt art per defId). */
-export type ArtPrefsMap = Record<string, string>;
-
-export type CosmeticsMessage = {
-  protocolVersion: ProtocolVersion;
-  seat: Seat;
-  artPrefs: ArtPrefsMap;
-};
-
-/**
- * A player's custom playmat / card back, downscaled by the sender and relayed
- * to the room as base64 data URLs. Purely cosmetic; null = use the default.
- */
-export type SeatSkin = {
-  playmat: string | null;
-  cardBack: string | null;
-  /** TCGPlayer productId of the DON!! card art (#440); null = the bundled art. */
-  donArt: number | null;
-};
-
-export type SkinMessage = {
-  protocolVersion: ProtocolVersion;
-  seat: Seat;
-  skin: SeatSkin;
-};
-
-/** Size caps (characters of the data URL) so skins cannot bloat room memory. */
-export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
-export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
-
-const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
-/**
- * A signed link to an uploaded cosmetic, relative to the API base. Players
- * fetch the image from the API (cached by the browser) instead of the game
- * server relaying up to 450 KB of base64 to every seat and spectator.
- */
-const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d{1,12}\/public\/[A-Za-z0-9_-]{16,128}$/;
-
-/** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
-function asDonArtId(raw: unknown): number | null {
-  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
-    ? raw
-    : null;
-}
-
-function asSkinImage(raw: unknown, maxChars: number, field: string): string | null {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw === "string" && SKIN_PUBLIC_PATH.test(raw)) return raw;
-  if (typeof raw !== "string" || raw.length > maxChars || !SKIN_DATA_URL.test(raw)) {
-    throw Object.assign(new Error(`${field} must be a small base64 image data URL, a cosmetic link, or null`), {
-      code: "bad_protocol" as const,
-    });
-  }
-  return raw;
-}
-
-/** Parse client → server skin update for the sender's seat. */
-export function parseSkinMessage(raw: unknown): SeatSkin {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("skin message body required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const skin = (o.skin && typeof o.skin === "object" ? o.skin : {}) as Record<string, unknown>;
-  return {
-    playmat: asSkinImage(skin.playmat, SKIN_MAX_PLAYMAT_CHARS, "playmat"),
-    cardBack: asSkinImage(skin.cardBack, SKIN_MAX_CARD_BACK_CHARS, "cardBack"),
-    donArt: asDonArtId(skin.donArt),
-  };
-}
-
-export function isProtocolVersion(v: unknown): v is ProtocolVersion {
-  return v === PROTOCOL_VERSION;
-}
-
-export function parseJoinOptions(raw: unknown): DuelJoinOptions {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("Join options required"), { code: "bad_protocol" as const });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const gameToken =
-    typeof o.gameToken === "string" && o.gameToken.trim()
-      ? o.gameToken.trim()
-      : undefined;
-  const devUserId =
-    typeof o.devUserId === "string" && o.devUserId.trim()
-      ? o.devUserId.trim()
-      : undefined;
-  if (!gameToken && !devUserId) {
-    throw Object.assign(new Error("gameToken or devUserId required"), {
-      code: "unauthorized" as const,
-    });
-  }
-  const preferredSeat = o.preferredSeat;
-  if (preferredSeat !== undefined && preferredSeat !== 0 && preferredSeat !== 1) {
-    throw Object.assign(new Error("preferredSeat must be 0 or 1"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const roleRaw = o.role;
-  let role: "player" | "spectator" | undefined;
-  if (roleRaw === "spectator" || roleRaw === "player") {
-    role = roleRaw;
-  } else if (roleRaw !== undefined) {
-    throw Object.assign(new Error("role must be player or spectator"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  let deck: PlayerDeckWire | undefined;
-  if (o.deck !== undefined) {
-    deck = asPlayerDeck(o.deck);
-  }
-  if (o.takeover !== undefined && typeof o.takeover !== "boolean") {
-    throw Object.assign(new Error("takeover must be a boolean"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const takeover = o.takeover === true ? true : undefined;
-  if (takeover && (role === "spectator" || preferredSeat === undefined)) {
-    throw Object.assign(new Error("takeover needs a player role and preferredSeat"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const ownerToken =
-    typeof o.ownerToken === "string" && o.ownerToken.trim() ? o.ownerToken.trim() : undefined;
-  return {
-    protocolVersion: PROTOCOL_VERSION,
-    takeover,
-    ownerToken,
-    devUserId,
-    gameToken,
-    secret: typeof o.secret === "string" ? o.secret : undefined,
-    preferredSeat: preferredSeat as Seat | undefined,
-    role,
-    deck,
-  };
-}
 
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
@@ -314,15 +36,13 @@ export function parseCreateOptions(raw: unknown): {
 } {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   if (o.protocolVersion !== undefined && !isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported protocolVersion on create"), {
-      code: "bad_protocol" as const,
-    });
+    throw bad("Unsupported protocolVersion on create");
   }
   const seed = gameSeed(
     typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
   );
   if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
-    throw Object.assign(new Error("firstSeat must be 0 or 1"), { code: "bad_protocol" as const });
+    throw bad("firstSeat must be 0 or 1");
   }
   const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);
   const autoSkipMulligan = o.autoSkipMulligan !== false;
@@ -332,9 +52,7 @@ export function parseCreateOptions(raw: unknown): {
   if (o.bot !== undefined) {
     const b = o.bot && typeof o.bot === "object" ? (o.bot as Record<string, unknown>) : null;
     if (!b || typeof b.level !== "string" || !BOT_LEVELS.includes(b.level as BotLevel)) {
-      throw Object.assign(new Error(`bot.level must be one of ${BOT_LEVELS.join(", ")}`), {
-        code: "bad_protocol" as const,
-      });
+      throw bad(`bot.level must be one of ${BOT_LEVELS.join(", ")}`);
     }
     bot = { level: b.level as BotLevel, deck: asPlayerDeck(b.deck) };
   }
@@ -343,9 +61,7 @@ export function parseCreateOptions(raw: unknown): {
   let seatUserIds: [number, number] | undefined;
   if (o.seatUserIds !== undefined) {
     if (!Array.isArray(o.seatUserIds) || o.seatUserIds.length !== 2) {
-      throw Object.assign(new Error("seatUserIds must be a 2-tuple"), {
-        code: "bad_protocol" as const,
-      });
+      throw bad("seatUserIds must be a 2-tuple");
     }
     const [a, b] = o.seatUserIds as [unknown, unknown];
     if (
@@ -355,16 +71,14 @@ export function parseCreateOptions(raw: unknown): {
       !Number.isSafeInteger(b) ||
       a === b
     ) {
-      throw Object.assign(new Error("seatUserIds must be distinct integers"), {
-        code: "bad_protocol" as const,
-      });
+      throw bad("seatUserIds must be distinct integers");
     }
     seatUserIds = [a, b];
   }
   let players: [PlayerDeckWire, PlayerDeckWire] | undefined;
   if (o.players !== undefined) {
     if (!Array.isArray(o.players) || o.players.length !== 2) {
-      throw Object.assign(new Error("players must be a 2-tuple"), { code: "bad_protocol" as const });
+      throw bad("players must be a 2-tuple");
     }
     const [a, b] = o.players as [unknown, unknown];
     players = [asPlayerDeck(a), asPlayerDeck(b)];
@@ -407,339 +121,20 @@ export function parseCreateOptions(raw: unknown): {
   };
 }
 
-function asPlayerDeck(raw: unknown): PlayerDeckWire {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("player deck object required"), { code: "bad_protocol" as const });
-  }
-  const o = raw as Record<string, unknown>;
-  if (typeof o.leaderId !== "string" || !Array.isArray(o.deck)) {
-    throw Object.assign(new Error("leaderId + deck[] required"), { code: "bad_protocol" as const });
-  }
-  if (o.deck.length > 200) {
-    throw Object.assign(new Error("deck may contain at most 200 cards"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const normalizeId = (value: unknown, field: string): string => {
-    if (typeof value !== "string") {
-      throw Object.assign(new Error(`${field} must be a card id`), {
-        code: "bad_protocol" as const,
-      });
-    }
-    const id = value.trim().toUpperCase();
-    if (!/^[A-Z0-9_-]{1,32}$/.test(id)) {
-      throw Object.assign(new Error(`${field} is not a valid card id`), {
-        code: "bad_protocol" as const,
-      });
-    }
-    return id;
-  };
-  return {
-    leaderId: normalizeId(o.leaderId, "leaderId"),
-    deck: o.deck.map((id) => normalizeId(id, "deck entry")),
-  };
-}
-
 export function parseIntentMessage(raw: unknown): Intent {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("intent message body required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
+  const o = expectEnvelope(raw, "intent message");
   if (
     !o.intent ||
     typeof o.intent !== "object" ||
     typeof (o.intent as { type?: unknown }).type !== "string"
   ) {
-    throw Object.assign(new Error("intent object with type required"), {
-      code: "bad_protocol" as const,
-    });
+    throw bad("intent object with type required");
   }
   // The engine indexes arrays with intent fields, so the shape is checked here (refactor 0.2).
   const parsed = parseIntent(o.intent);
   if (!parsed.ok) {
-    throw Object.assign(new Error(parsed.message), { code: "bad_protocol" as const });
+    throw bad(parsed.message);
   }
   return parsed.intent;
 }
 
-/** Parse client → server cosmetics update (artPrefs for the sender's seat). */
-export function parseCosmeticsMessage(raw: unknown): ArtPrefsMap {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("cosmetics message body required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  return asArtPrefsMap(o.artPrefs);
-}
-
-function asArtPrefsMap(raw: unknown): ArtPrefsMap {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw Object.assign(new Error("artPrefs object required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const out: ArtPrefsMap = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof k !== "string" || !k.trim()) continue;
-    if (typeof v !== "string" || !v.trim()) continue;
-    // Bound size so cosmetics cannot bloat room memory.
-    if (Object.keys(out).length >= 200) break;
-    out[k.trim()] = v.trim();
-  }
-  return out;
-}
-
-
-/** Max characters per chat line (after trimming / control-char stripping). */
-export const CHAT_MAX_LENGTH = 200;
-
-/** Relayed match chat line. `seat` is the sender (players only). */
-export type ChatMessage = {
-  protocolVersion: ProtocolVersion;
-  id: string;
-  seat: Seat;
-  text: string;
-  /** Server receive time (epoch ms). */
-  at: number;
-};
-
-/** Replayed on join / sync so reconnecting clients keep the conversation. */
-export type ChatHistoryMessage = {
-  protocolVersion: ProtocolVersion;
-  messages: ChatMessage[];
-};
-
-/** Validates an inbound chat body and returns the cleaned text. */
-export function parseChatMessage(raw: unknown): string {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("chat message body required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  if (typeof o.text !== "string") {
-    throw Object.assign(new Error("chat text required"), { code: "bad_protocol" as const });
-  }
-  // Collapse whitespace and drop control characters so a line can't break layout.
-  const text = o.text
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, CHAT_MAX_LENGTH);
-  if (!text) {
-    throw Object.assign(new Error("chat text is empty"), { code: "bad_protocol" as const });
-  }
-  return text;
-}
-
-/** Most cards a hand_order message may list (a hand never holds more). */
-export const HAND_ORDER_MAX_IDS = 100;
-/** Longest card instance id a hand_order message may carry. */
-export const HAND_ORDER_MAX_ID_LENGTH = 64;
-
-/**
- * A player's own left-to-right hand order (card instance ids), sent whenever
- * they sort or drag cards around. Unranked rooms show it to spectators so their
- * fans match; it is never relayed to the other player.
- */
-export type HandOrderMessage = {
-  protocolVersion?: ProtocolVersion;
-  ids: string[];
-};
-
-/** Validates an inbound hand_order body and returns the ids. */
-export function parseHandOrderMessage(raw: unknown): string[] {
-  const ids = raw && typeof raw === "object" ? (raw as Record<string, unknown>).ids : undefined;
-  if (
-    !Array.isArray(ids) ||
-    ids.length > HAND_ORDER_MAX_IDS ||
-    ids.some((id) => typeof id !== "string" || id.length > HAND_ORDER_MAX_ID_LENGTH)
-  ) {
-    throw Object.assign(new Error("hand_order needs an ids array of short strings"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  return ids as string[];
-}
-
-/**
- * Undo (unranked rooms only). A seat requests taking back the last action (#497)
- * or the whole turn (#536); the other seat accepts or declines. Practice
- * clients auto-accept.
- */
-export type UndoAction = "request" | "accept" | "decline" | "cancel";
-
-/** What a request takes back: the last action, or every action of that turn. */
-export type UndoScope = "action" | "turn";
-
-/** A parsed undo message: `scope` / `force` only matter on a "request". */
-export type UndoRequestBody = {
-  action: UndoAction;
-  scope: UndoScope;
-  force: boolean;
-  /** An "accept" names the request it saw (`pending.id`); absent from older clients (#540). */
-  id?: number;
-};
-
-/** One undoable action: who took it and a short description ("play Nami"). */
-export type UndoActionInfo = { seat: Seat; label: string };
-
-/** Whether one scope can be undone right now, and why not. */
-export type UndoOption = {
-  /** Can be requested without force. */
-  available: boolean;
-  /** Actions it would take back (0 when none). */
-  steps: number;
-  /** Why it cannot be requested plainly; absent when `available`. */
-  blockedReason?: string;
-  /** Blocked only by a reveal, so a forced request is accepted. */
-  forceable: boolean;
-  /** What was revealed, when a reveal sits in the range (forced undo lets them redo it). */
-  revealReason?: string;
-};
-
-/** Undo availability + any open request, pushed on join / sync / change. */
-export type UndoStateMessage = {
-  protocolVersion: ProtocolVersion;
-  /** False in ranked rooms (undo is never offered there). */
-  enabled: boolean;
-  /** Turn of the state an undo would restore right now, or null when nothing to undo. */
-  targetTurn: number | null;
-  /** The action an undo would take back (the last one, by either seat), or null. */
-  action: UndoActionInfo | null;
-  /** Per-scope availability (#536); absent from older servers. */
-  options: { action: UndoOption; turn: UndoOption } | null;
-  /** Why no scope can be requested plainly ("Nothing to undo yet", "Undo stops here: ..."); null when one can. */
-  blockedReason: string | null;
-  /** Open request awaiting the other seat's answer. */
-  pending: {
-    /** Server-assigned, new for every request, so an accept can name the one it saw (#540). */
-    id: number;
-    from: Seat;
-    toTurn: number;
-    action: UndoActionInfo | null;
-    scope: UndoScope;
-    /** Actions the request takes back. */
-    steps: number;
-    /** Requested past a reveal. */
-    force: boolean;
-    /** What was revealed, set when `force`. */
-    revealReason: string | null;
-  } | null;
-};
-
-/** Broadcast after an accepted undo rewinds the match. */
-export type UndoAppliedMessage = {
-  protocolVersion: ProtocolVersion;
-  toTurn: number;
-  /** Replay intent count after the rewind; battle-log lines past it are dropped. */
-  toStep: number;
-  /** Seat that asked for the undo. */
-  by: Seat;
-  /** The action that was taken back (the last one when the whole turn went). */
-  action: UndoActionInfo;
-  /** What was taken back; "action" from older servers. */
-  scope: UndoScope;
-  /** How many actions went. */
-  steps: number;
-};
-
-/**
- * Rematch (unranked rooms): both seats "request", then the loser picks
- * "first" or "second"; "decline" withdraws / refuses. A "request" may carry
- * a `deck` to play the next game with instead of the seat's current deck;
- * a deck on any other action is a protocol error.
- */
-export type RematchAction = "request" | "decline" | "first" | "second";
-
-export type RematchStateMessage = {
-  protocolVersion: ProtocolVersion;
-  /** Match is over, the room is unranked and both players are still here. */
-  available: boolean;
-  requested: [boolean, boolean];
-  /** True when that seat's current request carries a different deck. */
-  newDeck: [boolean, boolean];
-  declinedBy: Seat | null;
-  /** Set once both agreed: the loser, who picks first / second. */
-  chooser: Seat | null;
-};
-
-export function parseRematchMessage(raw: unknown): { action: RematchAction; deck?: PlayerDeckWire } {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("rematch message body required"), { code: "bad_protocol" as const });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), { code: "bad_protocol" as const });
-  }
-  if (o.action !== "request" && o.action !== "decline" && o.action !== "first" && o.action !== "second") {
-    throw Object.assign(new Error("rematch action must be request|decline|first|second"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  if (o.deck === undefined || o.deck === null) return { action: o.action };
-  if (o.action !== "request") {
-    throw Object.assign(new Error("rematch deck is only allowed with action request"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  return { action: o.action, deck: asPlayerDeck(o.deck) };
-}
-
-export function parseUndoMessage(raw: unknown): UndoRequestBody {
-  if (!raw || typeof raw !== "object") {
-    throw Object.assign(new Error("undo message body required"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  const o = raw as Record<string, unknown>;
-  if (!isProtocolVersion(o.protocolVersion)) {
-    throw Object.assign(new Error("Unsupported or missing protocolVersion"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  if (
-    o.action !== "request" &&
-    o.action !== "accept" &&
-    o.action !== "decline" &&
-    o.action !== "cancel"
-  ) {
-    throw Object.assign(new Error("undo action must be request|accept|decline|cancel"), {
-      code: "bad_protocol" as const,
-    });
-  }
-  if (o.scope !== undefined && o.scope !== "action" && o.scope !== "turn") {
-    throw Object.assign(new Error("undo scope must be action|turn"), { code: "bad_protocol" as const });
-  }
-  if (o.force !== undefined && typeof o.force !== "boolean") {
-    throw Object.assign(new Error("undo force must be a boolean"), { code: "bad_protocol" as const });
-  }
-  if (o.id !== undefined && (typeof o.id !== "number" || !Number.isSafeInteger(o.id))) {
-    throw Object.assign(new Error("undo id must be an integer"), { code: "bad_protocol" as const });
-  }
-  return {
-    action: o.action,
-    scope: o.scope ?? "action",
-    force: o.force === true,
-    ...(o.id === undefined ? {} : { id: o.id }),
-  };
-}

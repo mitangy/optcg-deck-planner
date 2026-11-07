@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Intent } from "../net/protocol";
 import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
+import { stubIntent } from "./fixtures/stubCard";
 
 const endTurn: Intent = { type: "end_turn" };
 const passCounter: Intent = { type: "pass_counter" };
@@ -28,7 +29,7 @@ describe("splitPrimaryIntent", () => {
   it("never picks an answer the choice prompt owns", () => {
     const pending: Intent[] = [
       { type: "resolve_pending_choice", accept: true },
-      { type: "order_pending_effects", order: [] },
+      stubIntent({ type: "order_pending_effects", order: [] }),
     ];
     expect(splitPrimaryIntent(pending)).toEqual({ primary: null, rest: pending });
   });
@@ -47,7 +48,7 @@ describe("splitPrimaryIntent", () => {
 });
 
 describe("dockIntents", () => {
-  const trigger: Intent = { type: "resolve_trigger", accept: true };
+  const trigger: Intent = stubIntent({ type: "resolve_trigger", accept: true });
 
   it("docks Keep as the primary with the redraw beside it during the mulligan (#368)", () => {
     expect(dockIntents([redo, keep])).toEqual({ primary: keep, extras: [redo] });

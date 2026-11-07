@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import catalog_sync
+from app.core.time import as_utc
 from app.catalog_sync import TCGCSV_BASE, _get_json, refresh_special_flags
 from app.models import CatalogPrinting
 
@@ -41,17 +42,13 @@ _HEADERS = {
 }
 
 
-def _utc(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-
-
 def recent_groups(groups: list[dict], now: datetime, days: int) -> list[dict]:
     """Groups published within `days` of now, plus upcoming ones. publishedOn is naive UTC."""
-    cutoff = _utc(now) - timedelta(days=days)
+    cutoff = as_utc(now) - timedelta(days=days)
     keep = []
     for group in groups:
         try:
-            published = _utc(datetime.fromisoformat(str(group["publishedOn"]).replace("Z", "+00:00")))
+            published = as_utc(datetime.fromisoformat(str(group["publishedOn"]).replace("Z", "+00:00")))
         except (KeyError, ValueError):
             continue
         if published >= cutoff:
@@ -111,7 +108,7 @@ def _record_history(db: Session, history: dict[int, float | None], now: datetime
     """Latest market price of the day wins in the price history (#946)."""
     from app.price_history import record_prices_safely
 
-    record_prices_safely(db, _utc(now).date(), history)
+    record_prices_safely(db, as_utc(now).date(), history)
 
 
 def apply_prices(db: Session, prices: dict[int, tuple], now: datetime) -> dict[str, int]:

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BackLink } from "./BackLink";
+import { BackLink } from "../layout/BackLink";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -14,7 +14,8 @@ import {
   type SavedDeck,
 } from "../decks/storage";
 import { applyPlannerDeepLink, parsePlannerDeepLink } from "../decks/planner";
-import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
+import { ensureAuth } from "../auth/session";
+import { googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { NavMenu } from "../nav/NavMenu";
@@ -265,12 +266,7 @@ export function DeckListPage() {
     if (link) window.history.replaceState(window.history.state, "", "/decks");
     let cancelled = false;
     void (async () => {
-      let me: AuthUser | null = null;
-      try {
-        me = await fetchAuthMe();
-      } catch {
-        me = null;
-      }
+      const me: AuthUser | null = await ensureAuth();
       // The link is consumed by the first effect run, which StrictMode may already have cancelled.
       if (link) openImported(await applyPlannerDeepLink(link, Boolean(me)));
       if (!cancelled) setSignedIn(Boolean(me));

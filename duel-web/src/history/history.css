@@ -10,18 +10,18 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .history-row {
   display: grid;
   grid-template-columns: 3.4rem minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
   border-left-width: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   min-width: 0;
 }
@@ -58,7 +58,7 @@
   width: 2.6rem;
   aspect-ratio: 5 / 7;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
@@ -76,7 +76,7 @@
   margin: 0;
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
 }
 
@@ -135,7 +135,7 @@
 
 .analyst-link-row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -146,7 +146,7 @@
   min-height: 44px;
   background: var(--arena-mid);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   color: var(--ink);
   padding: 0.6rem 0.75rem;
   font: inherit;
@@ -208,14 +208,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .lesson-row {
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
   border-left-width: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   min-width: 0;
 }
@@ -258,7 +258,7 @@
 .lesson-source {
   padding: 0 0.4rem;
   border: 1px solid var(--chrome-bright);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
@@ -277,7 +277,7 @@
 .lesson-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-top: 0.6rem;
 }
 
@@ -329,7 +329,7 @@
 .match-log {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -337,7 +337,7 @@
 .match-log-turns {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -345,7 +345,7 @@
 .match-log-turn {
   padding: 0.65rem 0.9rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   min-width: 0;
   scroll-margin-top: 4rem;
@@ -357,7 +357,7 @@
 
 .match-log-turn-title {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   align-items: baseline;
   margin: 0 0 0.4rem;
   font-size: 0.75rem;
@@ -384,7 +384,7 @@
 .match-log-jump {
   position: sticky;
   top: var(--sticky-head-h, 0px);
-  z-index: 5;
+  z-index: var(--z-raise-5);
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
@@ -404,7 +404,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: var(--arena-panel);
   color: var(--muted, var(--chrome));
   font-size: 0.8rem;
@@ -444,7 +444,7 @@
   .match-log-openings {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 
   /* A lone hand takes the whole row. */
@@ -457,7 +457,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr);
     grid-template-areas: "lines hands";
-    column-gap: 1rem;
+    column-gap: var(--space-4);
     align-items: start;
   }
 
@@ -563,7 +563,7 @@
 @media (max-width: 480px) {
   .history-row-link {
     grid-template-columns: 2.6rem 2rem minmax(0, 1fr) auto auto;
-    gap: 0.5rem;
+    gap: var(--space-2);
     padding-inline: 0.65rem;
   }
 
@@ -576,7 +576,7 @@
 .history-item {
   display: flex;
   align-items: stretch;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .history-item > .history-row-link {
@@ -598,7 +598,7 @@
   gap: 0.35rem;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   color: inherit;
   font-weight: 700;
@@ -652,7 +652,7 @@
   resize: vertical;
   background: var(--arena-mid);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   color: var(--ink);
   padding: 0.6rem 0.75rem;
   font: inherit;
@@ -662,14 +662,14 @@
 .sim-import-pick {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .sim-import-pick label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   min-width: 0;
   font-size: 0.75rem;
   color: var(--muted);
@@ -680,7 +680,7 @@
   min-height: 44px;
   background: var(--arena-mid);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   color: var(--ink);
   padding: 0.5rem 0.6rem;
   font: inherit;

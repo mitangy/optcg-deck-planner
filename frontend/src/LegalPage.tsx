@@ -1,25 +1,15 @@
-import { BrandWordmark } from "./BrandWordmark";
 import { Link } from "react-router-dom";
 import { LEGAL_TITLES, LegalDocument, LegalNav, type LegalKind } from "@optcg/site-legal";
 import { ThemeToggle } from "./ThemeToggle";
+import { Topbar } from "./Topbar";
 
 /** Public Terms & credits / Privacy / Cookies page (no sign-in needed). */
 export function LegalPage({ kind }: { kind: LegalKind }) {
   return (
     <div className="app public-app">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <Topbar>
+        <ThemeToggle />
+      </Topbar>
       <main className="app-main legal-main">
         <div className="page-head">
           <div>
