@@ -227,9 +227,9 @@ def test_only_the_owner_can_review_a_lesson(analyst):  # noqa: F811
 
 def test_drafts_stop_at_the_review_limit(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     """Claude can't pile up more drafts than the review limit (#246)."""
-    from app.routers import analyst as analyst_router
+    from app.analyst import access as analyst_access
 
-    monkeypatch.setattr(analyst_router, "MAX_DRAFT_LESSONS", 2)
+    monkeypatch.setattr(analyst_access, "MAX_DRAFT_LESSONS", 2)
     c, _ = analyst
     _me, token = _me_and_token(c)
     link = {"X-Analyst-Token": token}

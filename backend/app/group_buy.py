@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.statuses import GroupBuyStatus
 from app.group_buy_merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy_settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
 from app.models import (
@@ -42,7 +43,7 @@ from app.schemas import (
 from app.tcgplayer_receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app import services
 
-FROZEN_STATUSES = frozenset({"locked", "ordered", "completed"})
+FROZEN_STATUSES = frozenset({GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED})
 
 TCGPLAYER_MASS_ENTRY_BASE = "https://www.tcgplayer.com/massentry"
 TCGPLAYER_PRODUCT_LINE = "One Piece Card Game"
@@ -199,7 +200,7 @@ def _viewer_zero_customs(
     viewer_user_id: int,
 ) -> dict[str, MergedMemberQty]:
     """Custom qty=0 rows so the viewer can bump a line back up from the UI."""
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         return {}
     member = next((m for m in group.members if m.user_id == viewer_user_id), None)
     if member is None:
@@ -580,7 +581,7 @@ def create_group_buy(
     group = GroupBuy(
         host_user_id=user.id,
         title=title[:200],
-        status="open",
+        status=GroupBuyStatus.OPEN,
         invite_token=secrets.token_urlsafe(18),
     )
     db.add(group)
@@ -710,7 +711,7 @@ def update_contribution(
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     member = _require_member(group, user)
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         raise PermissionError("Group buy is locked; contributions cannot change")
     member.deck_ids_json = _dump_deck_ids(deck_ids)
     db.commit()
@@ -729,7 +730,7 @@ def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> No
         .join(GroupBuy, GroupBuy.id == GroupBuyMember.group_buy_id)
         .where(
             GroupBuyMember.user_id == user.id,
-            GroupBuy.status == "open",
+            GroupBuy.status == GroupBuyStatus.OPEN,
         )
     ).all()
     changed = False
@@ -755,7 +756,7 @@ def set_member_qty(
     """Set how many copies the current user wants to buy for a card."""
     group = _get_group(db, group_id)
     member = _require_member(group, user)
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         raise PermissionError("Group buy is locked; quantities cannot change")
     card_id = card_id.upper().strip()
     if not card_id:
@@ -809,7 +810,7 @@ def clear_member_qty(
     """Remove a qty override so the line follows shopping still-need again."""
     group = _get_group(db, group_id)
     _require_member(group, user)
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         raise PermissionError("Group buy is locked; quantities cannot change")
     card_id = card_id.upper().strip()
     existing = db.scalar(
@@ -829,7 +830,7 @@ def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDe
     """Clear all of the current user's qty overrides (back to shopping still-need)."""
     group = _get_group(db, group_id)
     _require_member(group, user)
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         raise PermissionError("Group buy is locked; quantities cannot change")
     db.execute(
         delete(GroupBuyQtyOverride).where(
@@ -901,13 +902,13 @@ def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
 def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status in ("ordered", "completed"):
+    if group.status in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise PermissionError(f"Group buy is already {group.status}")
-    if group.status == "locked":
+    if group.status == GroupBuyStatus.LOCKED:
         return get_group_buy(db, user, group_id)
 
     _freeze_snapshot(db, group)
-    group.status = "locked"
+    group.status = GroupBuyStatus.LOCKED
     group.locked_at = datetime.now(timezone.utc)
     db.commit()
     return get_group_buy(db, user, group_id)
@@ -916,9 +917,9 @@ def lock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
 def unlock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status in ("ordered", "completed"):
+    if group.status in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise PermissionError(f"{group.status.capitalize()} group buys cannot be unlocked")
-    group.status = "open"
+    group.status = GroupBuyStatus.OPEN
     group.locked_at = None
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
     db.commit()
@@ -934,16 +935,16 @@ def mark_ordered(
     """Record that the bulk order was placed (after lock). Does not change Owned."""
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
+    if group.status == GroupBuyStatus.COMPLETED:
         raise PermissionError("Group buy is already completed")
-    if group.status == "open":
+    if group.status == GroupBuyStatus.OPEN:
         raise PermissionError("Lock for checkout before marking ordered")
-    if group.status not in ("locked", "ordered"):
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
         raise PermissionError("Group buy cannot be marked ordered from this status")
 
     if body is not None:
         _apply_order_fields(group, body)
-    group.status = "ordered"
+    group.status = GroupBuyStatus.ORDERED
     if group.ordered_at is None:
         group.ordered_at = datetime.now(timezone.utc)
     db.commit()
@@ -959,7 +960,7 @@ def update_order(
     """Update order notes / shipping / split while locked, ordered, or completed."""
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "open":
+    if group.status == GroupBuyStatus.OPEN:
         raise PermissionError("Lock or mark ordered before editing order details")
     _apply_order_fields(group, body)
     db.commit()
@@ -974,7 +975,7 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
     """
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
+    if group.status == GroupBuyStatus.COMPLETED:
         return get_group_buy(db, user, group_id)
     raise PermissionError(
         "Import a TCGPlayer receipt and Mark purchased for matched cards — "
@@ -1082,7 +1083,7 @@ def leave_group_buy(db: Session, user: User, group_id: int) -> None:
     member = _require_member(group, user)
     if group.host_user_id == user.id:
         raise ValueError("Host can't leave; delete the group buy instead")
-    if group.status != "open":
+    if group.status != GroupBuyStatus.OPEN:
         raise ValueError("Ask the host to unlock first")
     for row in list(group.qty_overrides):
         if row.user_id == user.id:
@@ -1120,7 +1121,7 @@ def save_receipt_text(db: Session, user: User, group_id: int, receipt_text: str)
     """Persist the host's TCGPlayer receipt paste (survives refresh)."""
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status not in ("locked", "ordered"):
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
         raise PermissionError("Receipt can only be saved while locked or ordered")
     cleaned = (receipt_text or "").strip()[:200_000]
     if cleaned != (group.receipt_text or ""):
@@ -1269,11 +1270,11 @@ def apply_receipt_to_group_buy(
     """
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status == "completed":
+    if group.status == GroupBuyStatus.COMPLETED:
         raise PermissionError("Group buy is already completed")
-    if group.status == "open":
+    if group.status == GroupBuyStatus.OPEN:
         raise PermissionError("Lock for checkout before applying a receipt")
-    if group.status not in ("locked", "ordered"):
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
         raise PermissionError("Group buy cannot apply a receipt from this status")
 
     cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
@@ -1312,8 +1313,8 @@ def apply_receipt_to_group_buy(
     # Ensure ordered before mutating owned / snapshot
     status_before = group.status
     set_ordered_at = False
-    if group.status == "locked":
-        group.status = "ordered"
+    if group.status == GroupBuyStatus.LOCKED:
+        group.status = GroupBuyStatus.ORDERED
         if group.ordered_at is None:
             group.ordered_at = datetime.now(timezone.utc)
             set_ordered_at = True
@@ -1367,7 +1368,7 @@ def apply_receipt_to_group_buy(
     db.flush()
     remaining = any(int(row.qty) > 0 for row in group.snapshot_lines)
     if not remaining:
-        group.status = "completed"
+        group.status = GroupBuyStatus.COMPLETED
 
     db.commit()
     return get_group_buy(db, user, group_id)
@@ -1381,7 +1382,7 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
     """
     group = _get_group(db, group_id)
     _require_host(group, user)
-    if group.status not in ("ordered", "completed"):
+    if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise PermissionError("Nothing to undo in this status")
 
     applies = sorted(
@@ -1424,8 +1425,8 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
             )
 
     status_before = (apply_event.status_before or "ordered").strip()
-    if status_before not in ("locked", "ordered"):
-        status_before = "ordered"
+    if status_before not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        status_before = GroupBuyStatus.ORDERED
     group.status = status_before
     if int(apply_event.set_ordered_at or 0):
         group.ordered_at = None

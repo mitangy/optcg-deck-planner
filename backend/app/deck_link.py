@@ -31,6 +31,7 @@ from collections import Counter
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
+from app.duel import decks
 from app.domain import is_don_card, is_leader_card
 from app.models import Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
 
@@ -53,13 +54,6 @@ COMPLETE_MAIN = 50
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
-
-
-def _duel_limits():
-    # Imported late: the router imports this module, and tests patch its limits.
-    from app.routers import duel_decks
-
-    return duel_decks
 
 
 def _dump(body: dict) -> str:
@@ -345,15 +339,14 @@ def _write_from_planner(db: Session, row: DuelSavedDeck, deck: Deck) -> None:
 
 
 def _new_duel_row(db: Session, user_id: int, deck: Deck, body: dict) -> DuelSavedDeck | None:
-    limits = _duel_limits()
-    live = limits._live_count(db, user_id)
-    if live >= limits.MAX_DECKS:
+    live = decks.live_count(db, user_id)
+    if live >= decks.MAX_DECKS:
         return None
     for n in range(1, 6):
         deck_id = f"planner-{deck.id}" + ("" if n == 1 else f"-{n}")
-        row = limits._row(db, user_id, deck_id)
+        row = decks.find_row(db, user_id, deck_id)
         if row is None:
-            if limits._row_count(db, user_id) >= limits.MAX_ROWS:
+            if decks.row_count(db, user_id) >= decks.MAX_ROWS:
                 return None
             row = DuelSavedDeck(user_id=user_id, deck_id=deck_id, updated_at_ms=0)
             db.add(row)

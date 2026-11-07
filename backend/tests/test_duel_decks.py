@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.main import app
 from app.models import User
-from app.routers import duel_decks
+from app.duel import decks as duel_decks
 
 
 @pytest.fixture()

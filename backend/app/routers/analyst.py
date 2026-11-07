@@ -16,12 +16,15 @@ from sqlalchemy.orm import Session
 from app.analyst_stats import matchup_stats
 from app.tournament_stats import tournament_stats
 from app.tournament_sync import sync_status
+from app.analyst import access
+from app.analyst.access import chat_enabled_for
 from app.auth import get_current_user
 from app.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
 from app.config import Settings, get_settings
+from app.core.statuses import LessonStatus
 from app.db import get_db
 from app.roles import is_banned
-from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
+from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
 from app.routers.duel import match_history
 from app.schemas import (
     CARD_ID_PATTERN,
@@ -100,47 +103,6 @@ CHAT_TOKEN_SECONDS = 30 * 60
 
 def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
     return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
-
-
-def is_chat_owner(settings: Settings, user: User) -> bool:
-    """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_chat_email_set
-
-
-def is_model_admin(settings: Settings, user: User) -> bool:
-    """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_model_admin_email_set
-
-
-# The models the chat may run on; the first is the default.
-CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5")
-
-
-def chat_model(db: Session) -> str:
-    """The saved chat model, or the default when none is saved (or the saved one is no longer offered)."""
-    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == "chat_model"))
-    return value if value in CHAT_MODELS else CHAT_MODELS[0]
-
-
-def _service_configured(settings: Settings) -> bool:
-    return bool(settings.analyst_service_secret and settings.analyst_public_url)
-
-
-def access_status(db: Session, user: User) -> str | None:
-    row = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user.id))
-    return row
-
-
-def chat_enabled_for(settings: Settings, user: User, db: Session) -> bool:
-    """The in-app chat panel is on for owners, and for players an owner approved, once the analyst service is configured."""
-    if not _service_configured(settings):
-        return False
-    return is_chat_owner(settings, user) or access_status(db, user) == "approved"
-
-
-def requests_open(settings: Settings) -> bool:
-    """Players can ask for access only when the service is on and someone is there to approve."""
-    return _service_configured(settings) and bool(settings.analyst_chat_email_set)
 
 
 def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
@@ -322,9 +284,6 @@ def put_sharing(
     return body
 
 
-MAX_DRAFT_LESSONS = 100
-
-
 def _match_ids(evidence: str | None) -> list[str]:
     """Player lessons keep a JSON list of match ids; bot lessons keep a JSON object with a summary instead."""
     try:
@@ -369,9 +328,9 @@ def draft_lesson(
 ) -> AnalystLessonOut:
     """Claude saves a lesson as a draft for the link owner to review. Evidence must be the owner's own games."""
     waiting = db.scalar(
-        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == "draft")
+        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == LessonStatus.DRAFT)
     )
-    if waiting >= MAX_DRAFT_LESSONS:
+    if waiting >= access.MAX_DRAFT_LESSONS:
         raise HTTPException(status_code=409, detail="Too many lessons are waiting for review")
     match_ids = list(dict.fromkeys(body.match_ids))
     if match_ids:
@@ -388,7 +347,7 @@ def draft_lesson(
             raise HTTPException(status_code=400, detail=f"Not your matches: {', '.join(unknown)}")
     row = AnalystLesson(
         user_id=user.id,
-        status="draft",
+        status=LessonStatus.DRAFT,
         text=body.text.strip(),
         leader_id=body.leader_id,
         opponent_id=body.opponent_id,
@@ -442,7 +401,7 @@ def review_lesson(
         row.text = body.text.strip()
     if body.status is not None and body.status != row.status:
         row.status = body.status
-        row.reviewed_at = None if body.status == "draft" else datetime.now(timezone.utc)
+        row.reviewed_at = None if body.status == LessonStatus.DRAFT else datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _lesson_out(row)

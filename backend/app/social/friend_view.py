@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal
 
 from fastapi import HTTPException
@@ -11,8 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import services
+from app.core.statuses import FriendshipStatus
+from app.core.time import as_utc
 from app.domain import is_don_card, parse_cost
-from app.friend_schemas import SparePrinting, SpareItem
+from app.social.schemas import SparePrinting, SpareItem
 from app.models import CatalogCard, CatalogPrinting, Friendship, TradeKeep, User, UserSharing
 from app.roles import is_banned
 
@@ -51,7 +53,7 @@ def are_friends(db: Session, a: int, b: int) -> bool:
     f = db.scalar(
         select(Friendship).where(Friendship.user_low_id == low, Friendship.user_high_id == high)
     )
-    return f is not None and f.status == "accepted"
+    return f is not None and f.status == FriendshipStatus.ACCEPTED
 
 
 def require_friend_view(db: Session, viewer: User, owner_id: int, scope: Scope) -> tuple[User, Sharing]:
@@ -76,7 +78,7 @@ def require_friend_view(db: Session, viewer: User, owner_id: int, scope: Scope) 
 def unix(dt: datetime | None) -> int | None:
     if dt is None:
         return None
-    return int((dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).timestamp())
+    return int(as_utc(dt).timestamp())
 
 
 def _is_don(card_id: str, cat: CatalogCard | None) -> bool:

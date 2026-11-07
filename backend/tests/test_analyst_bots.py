@@ -273,9 +273,9 @@ def test_a_bot_lesson_already_stored_in_any_status_is_skipped_915(analyst):  # n
 
 def test_bot_lesson_drafts_stop_at_the_review_limit_915(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     """The admin's review queue can't grow past MAX_DRAFT_LESSONS from bot lessons either (#915)."""
-    from app.routers import analyst as analyst_router
+    from app.analyst import access as analyst_access
 
-    monkeypatch.setattr(analyst_router, "MAX_DRAFT_LESSONS", 2)
+    monkeypatch.setattr(analyst_access, "MAX_DRAFT_LESSONS", 2)
     c, SessionLocal = analyst
     _admin(SessionLocal)
     codes = [_post_lesson(c, text=f"Bot lesson number {n} about Zoro.").status_code for n in range(3)]

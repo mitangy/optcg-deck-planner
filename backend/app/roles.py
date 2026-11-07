@@ -11,6 +11,8 @@ from typing import Protocol
 ROLES = ("user", "moderator", "admin")
 # What the admin may hand out through the API.
 ASSIGNABLE_ROLES = ("user", "moderator")
+# Accounts with moderation powers: ban and unban, answer reports.
+STAFF_ROLES = ("admin", "moderator")
 
 
 class _Account(Protocol):
@@ -24,7 +26,7 @@ def is_admin(u: _Account) -> bool:
 
 
 def is_staff(u: _Account) -> bool:
-    return u.role in ("admin", "moderator")
+    return u.role in STAFF_ROLES
 
 
 def is_banned(u: _Account) -> bool:

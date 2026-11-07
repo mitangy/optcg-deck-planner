@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
-from app import friend_view as fv
 from app import services
-from app.friend_schemas import TradeLineIn, TradeLineOut, TradeOut
+from app.core.statuses import TradeStatus
+from app.core.time import as_utc, utcnow
+from app.social import friend_view as fv
+from app.social.schemas import TradeLineIn, TradeLineOut, TradeOut
 from app.models import (
     CatalogCard,
     CatalogPrinting,
@@ -29,14 +31,6 @@ OFFER_TTL = timedelta(days=14)
 MAX_OPEN_OFFERS_PER_PAIR = 5
 
 Key = tuple[str, str, int | None]  # (side, card_id, product_id)
-
-
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _utc(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def merge_lines(lines: list[TradeLineIn]) -> dict[Key, int]:
@@ -131,7 +125,7 @@ def open_offer_count(db: Session, sender_id: int, recipient_id: int) -> int:
             select(TradeOffer.id).where(
                 TradeOffer.from_user_id == sender_id,
                 TradeOffer.to_user_id == recipient_id,
-                TradeOffer.status == "pending",
+                TradeOffer.status == TradeStatus.PENDING,
             )
         ).all()
     )
@@ -166,7 +160,7 @@ def create_offer(
     offer = TradeOffer(
         from_user_id=sender.id,
         to_user_id=recipient.id,
-        status="pending",
+        status=TradeStatus.PENDING,
         message=message.strip(),
         parent_offer_id=parent_id,
         created_at=now,
@@ -195,11 +189,11 @@ def expire_stale(db: Session, user_id: int) -> None:
     db.execute(
         update(TradeOffer)
         .where(
-            TradeOffer.status == "pending",
+            TradeOffer.status == TradeStatus.PENDING,
             TradeOffer.expires_at <= utcnow(),
             or_(TradeOffer.from_user_id == user_id, TradeOffer.to_user_id == user_id),
         )
-        .values(status="expired")
+        .values(status=TradeStatus.EXPIRED)
     )
     db.commit()
 
@@ -209,13 +203,13 @@ def cancel_between(db: Session, a: int, b: int) -> None:
     db.execute(
         update(TradeOffer)
         .where(
-            TradeOffer.status.in_(("pending", "accepted")),
+            TradeOffer.status.in_((TradeStatus.PENDING, TradeStatus.ACCEPTED)),
             or_(
                 and_(TradeOffer.from_user_id == a, TradeOffer.to_user_id == b),
                 and_(TradeOffer.from_user_id == b, TradeOffer.to_user_id == a),
             ),
         )
-        .values(status="cancelled", responded_at=utcnow())
+        .values(status=TradeStatus.CANCELLED, responded_at=utcnow())
     )
 
 
@@ -311,8 +305,8 @@ def load_offer(db: Session, user: User, offer_id: int) -> TradeOffer:
     offer = db.get(TradeOffer, offer_id)
     if offer is None or user.id not in (offer.from_user_id, offer.to_user_id):
         raise HTTPException(status_code=404, detail="Not found.")
-    if offer.status == "pending" and _utc(offer.expires_at) <= utcnow():
-        offer.status = "expired"
+    if offer.status == TradeStatus.PENDING and as_utc(offer.expires_at) <= utcnow():
+        offer.status = TradeStatus.EXPIRED
         db.commit()
     return offer
 

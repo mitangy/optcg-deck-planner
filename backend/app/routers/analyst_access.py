@@ -6,17 +6,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.statuses import AccessStatus
+from app.core.time import as_utc
 from app.analyst_credit import TOPUP_USD, credit_for, month_key, month_start, spent_since
+from app.analyst.access import FREE_SPOTS_KEY, free_spots, is_chat_owner, requests_open, spots_used
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import AnalystAccess, AnalystSetting, User
 from app.rate_limit import RateLimiter, client_ip
-from app.routers.analyst import is_chat_owner, requests_open
 from app.schemas import (
     AnalystAccessDecisionIn,
     AnalystAccessList,
@@ -39,11 +41,7 @@ _request_rate = RateLimiter(max_calls=5, period_s=3600, name="analyst_access_req
 # Rows are stored until an owner answers and the per-IP key can be spoofed, so cap the total too.
 _request_global_rate = RateLimiter(max_calls=100, period_s=3600, name="analyst_access_request_global_rate")
 
-_ORDER = {"pending": 0, "approved": 1, "denied": 2}
-
-
-def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+_ORDER = {AccessStatus.PENDING: 0, AccessStatus.APPROVED: 1, AccessStatus.DENIED: 2}
 
 
 def _owner_only(settings: Settings, user: User) -> None:
@@ -51,23 +49,8 @@ def _owner_only(settings: Settings, user: User) -> None:
         raise HTTPException(status_code=403, detail="Only Log Pose owners can answer requests")
 
 
-FREE_SPOTS_KEY = "free_spots"
 # A row that only exists to be locked while free spots are counted and handed out.
 SPOTS_LOCK_KEY = "spots_lock"
-
-
-def free_spots(db: Session, settings: Settings) -> int:
-    """How many players are approved at once when they ask: the owners' setting, else ANALYST_FREE_SPOTS."""
-    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == FREE_SPOTS_KEY))
-    try:
-        return max(0, int(value)) if value is not None else settings.analyst_free_spots
-    except ValueError:
-        return settings.analyst_free_spots
-
-
-def spots_used(db: Session) -> int:
-    """Spots taken: every player the free-spots rule approved, whatever their status now, so a revoked player keeps theirs."""
-    return db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.auto_approved.is_(True))) or 0
 
 
 def _lock_spots(db: Session) -> None:
@@ -116,7 +99,7 @@ def request_access(
     if not requests_open(settings):
         raise HTTPException(status_code=403, detail="Log Pose isn't taking access requests right now")
     row = db.scalar(select(AnalystAccess).where(AnalystAccess.user_id == user.id))
-    if is_chat_owner(settings, user) or (row is not None and row.status == "approved"):
+    if is_chat_owner(settings, user) or (row is not None and row.status == AccessStatus.APPROVED):
         raise HTTPException(status_code=409, detail="You already have Log Pose")
     now = datetime.now(timezone.utc)
     if row is None:
@@ -129,7 +112,7 @@ def request_access(
         db.add(
             AnalystAccess(
                 user_id=user.id,
-                status="approved" if free else "pending",
+                status=AccessStatus.APPROVED if free else AccessStatus.PENDING,
                 note=body.note,
                 auto_approved=free,
                 decided_at=now if free else None,
@@ -137,12 +120,12 @@ def request_access(
         )
         db.commit()
         return AnalystAccessRequested(access="approved" if free else "pending")
-    elif row.status == "pending":
+    elif row.status == AccessStatus.PENDING:
         raise HTTPException(status_code=409, detail="Your request is already waiting")
     else:
-        if row.decided_at is not None and now - _aware(row.decided_at) < REREQUEST_AFTER:
+        if row.decided_at is not None and now - as_utc(row.decided_at) < REREQUEST_AFTER:
             raise HTTPException(status_code=429, detail="Your last request was answered less than a day ago; you can ask again tomorrow")
-        row.status = "pending"
+        row.status = AccessStatus.PENDING
         row.note = body.note
         row.decided_at = None
         row.created_at = now
@@ -193,7 +176,7 @@ def request_topup(
 ) -> None:
     """A player out of credit asks owners for more. Asking again while it waits changes nothing."""
     row = db.scalar(select(AnalystAccess).where(AnalystAccess.user_id == user.id))
-    if row is None or row.status != "approved" or is_chat_owner(settings, user):
+    if row is None or row.status != AccessStatus.APPROVED or is_chat_owner(settings, user):
         raise HTTPException(status_code=403, detail="Only players with Log Pose credit can ask for more")
     now = datetime.now(timezone.utc)
     credit = credit_for(settings, user, row, now)

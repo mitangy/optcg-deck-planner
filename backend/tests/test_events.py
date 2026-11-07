@@ -37,7 +37,7 @@ def _seeded_event(request):
 @pytest.fixture()
 def clock(monkeypatch: pytest.MonkeyPatch):
     state = {"now": MID}
-    monkeypatch.setattr(ev, "now_utc", lambda: state["now"])
+    monkeypatch.setattr(ev, "utcnow", lambda: state["now"])
     return state
 
 

@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime
 
+from app.core.time import as_utc
 from app.models import DuelMatchProgress, DuelPresence
 
 # Snapshots land every ~15 s; readers also skip entries older than friends.PRESENCE_TTL.
@@ -53,8 +54,7 @@ def _progress_user_key(user_id: int) -> str:
 
 
 def _parse_time(value: str) -> datetime:
-    when = datetime.fromisoformat(value)
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    return as_utc(datetime.fromisoformat(value))
 
 
 # --- presence -----------------------------------------------------------------

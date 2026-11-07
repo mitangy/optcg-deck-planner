@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.statuses import FeedbackStatus
 from app.models import Feedback
 
 log = logging.getLogger("uvicorn.error")
@@ -325,7 +326,7 @@ async def poll_once(
                 page=post.link[:200],
                 discord_message_id=post.message_id,
                 discord_author=post.author[:64],
-                status="open",
+                status=FeedbackStatus.OPEN,
             )
             db.add(row)
             try:

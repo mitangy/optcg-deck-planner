@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,9 +10,10 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_live, redis_client, trades
+from app.core.statuses import FriendshipStatus
 from app.auth import get_current_user
 from app.config import Settings, get_settings
+from app.core.time import as_utc, utcnow
 from app.db import get_db
 from app.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship, User
 from app.rate_limit import RateLimiter
@@ -25,14 +26,12 @@ from app.schemas import (
     FriendRequestResult,
     FriendsOut,
 )
-from app.server_urls import normalize_server_url
+from app.server_urls import known_game_server_urls, normalize_server_url
+from app.social import trades
+from app.social.presence import friend_status, friendship, live_presence, pair, room_server_url
 
 router = APIRouter(prefix="/friends", tags=["friends"])
 
-# A game-server snapshot lands every ~15s; allow a few missed pushes.
-PRESENCE_TTL = timedelta(seconds=60)
-# The lobby polls about every 10s while open.
-ONLINE_TTL = timedelta(seconds=45)
 INVITE_TTL = timedelta(minutes=10)
 # An invite is sent right after the room is created, before the game-server
 # has reported it; give the room this long to show up in presence.
@@ -43,74 +42,8 @@ _request_rate = RateLimiter(max_calls=20, period_s=60, name="friends_request_rat
 _invite_rate = RateLimiter(max_calls=20, period_s=60, name="friends_invite_rate")
 
 
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _utc(dt: datetime) -> datetime:
-    # SQLite drops tzinfo on round-trip; everything is stored as UTC.
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def _pair(a: int, b: int) -> tuple[int, int]:
-    return (a, b) if a < b else (b, a)
-
-
-def _friendship(db: Session, a: int, b: int) -> Friendship | None:
-    low, high = _pair(a, b)
-    return db.scalar(
-        select(Friendship).where(Friendship.user_low_id == low, Friendship.user_high_id == high)
-    )
-
-
 def _other(f: Friendship, me: int) -> int:
     return f.user_high_id if f.user_low_id == me else f.user_low_id
-
-
-def live_presence(db: Session, user_ids: list[int], now: datetime) -> dict[int, list[DuelPresence]]:
-    """Fresh presence rows per user (stale rows from a dead game-server are skipped)."""
-    if not user_ids:
-        return {}
-    rows: list[DuelPresence] | None = None
-    r = redis_client.get_redis()
-    if r is not None:
-        try:
-            rows = duel_live.read_presence(r, user_ids)
-        except redis_client.RedisError:
-            redis_client.report_failure("presence read")
-    if rows is None:
-        rows = list(db.scalars(select(DuelPresence).where(DuelPresence.user_id.in_(user_ids))))
-    out: dict[int, list[DuelPresence]] = {}
-    for row in rows:
-        if now - _utc(row.updated_at) <= PRESENCE_TTL:
-            out.setdefault(row.user_id, []).append(row)
-    return out
-
-
-def friend_status(
-    rows: list[DuelPresence], seen_at: datetime | None, now: datetime
-) -> tuple[str, str | None, bool]:
-    """(status, spectatable room id, ranked) for one friend."""
-    players = [r for r in rows if r.role == "player"]
-    # A live game outranks an open lobby room if a player somehow holds both.
-    for row in sorted(players, key=lambda r: r.phase == "waiting"):
-        if row.phase == "waiting":
-            # Waiting rooms stay private: joining one takes an invite.
-            return "waiting", None, row.ranked
-        return "in_game", row.room_id, row.ranked
-    for row in rows:
-        if row.role == "spectator":
-            # Same rule as for players: an unstarted room's id is invite-only.
-            room_id = None if row.phase == "waiting" else row.room_id
-            return "spectating", room_id, row.ranked
-    if seen_at is not None and now - _utc(seen_at) <= ONLINE_TTL:
-        return "online", None, False
-    return "offline", None, False
-
-
-def room_server_url(rows: list[DuelPresence], room_id: str | None) -> str | None:
-    """The pool a room is on, as its game server last reported it."""
-    return next((r.server_url for r in rows if r.room_id == room_id and r.server_url), None)
 
 
 def _mark_seen(db: Session, user_id: int, now: datetime) -> None:
@@ -124,9 +57,9 @@ def _mark_seen(db: Session, user_id: int, now: datetime) -> None:
 def _invite_is_live(
     invite: DuelInvite, presence: dict[int, list[DuelPresence]], now: datetime
 ) -> bool:
-    if _utc(invite.expires_at) <= now:
+    if as_utc(invite.expires_at) <= now:
         return False
-    if now - _utc(invite.created_at) <= INVITE_ROOM_GRACE:
+    if now - as_utc(invite.created_at) <= INVITE_ROOM_GRACE:
         return True
     # After the grace window the inviter must still be seated in that room.
     return any(
@@ -153,7 +86,7 @@ def list_friends(
 
     other_ids = {_other(f, user.id) for f in rows} | {i.from_user_id for i in invites}
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(other_ids)))}
-    accepted_ids = [_other(f, user.id) for f in rows if f.status == "accepted"]
+    accepted_ids = [_other(f, user.id) for f in rows if f.status == FriendshipStatus.ACCEPTED]
     presence = live_presence(db, list({*accepted_ids, *(i.from_user_id for i in invites)}), now)
     seen = {
         s.user_id: s.seen_at
@@ -167,7 +100,7 @@ def list_friends(
         other = users.get(_other(f, user.id))
         if other is None or not other.username:
             continue
-        if f.status == "accepted":
+        if f.status == FriendshipStatus.ACCEPTED:
             status, room_id, ranked = friend_status(presence.get(other.id, []), seen.get(other.id), now)
             friends.append(
                 FriendOut(
@@ -196,7 +129,7 @@ def list_friends(
             room_id=i.room_id,
             # The game server's own report beats what the inviter's client said when it sent the invite.
             server_url=room_server_url(presence.get(i.from_user_id, []), i.room_id) or i.server_url,
-            expires_at=int(_utc(i.expires_at).timestamp()),
+            expires_at=int(as_utc(i.expires_at).timestamp()),
         )
         for i in invites
         if i.from_user_id in accepted and i.from_user_id in users and _invite_is_live(i, presence, now)
@@ -218,17 +151,17 @@ def send_request(
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="You can't add yourself.")
 
-    existing = _friendship(db, user.id, target.id)
+    existing = friendship(db, user.id, target.id)
     if existing is not None:
-        if existing.status == "accepted":
+        if existing.status == FriendshipStatus.ACCEPTED:
             raise HTTPException(status_code=409, detail="You're already friends.")
         if existing.requester_id == user.id:
-            return FriendRequestResult(status="pending")
+            return FriendRequestResult(status=FriendshipStatus.PENDING)
         # They already asked you: sending one back accepts theirs.
-        existing.status = "accepted"
+        existing.status = FriendshipStatus.ACCEPTED
         existing.accepted_at = utcnow()
         db.commit()
-        return FriendRequestResult(status="accepted")
+        return FriendRequestResult(status=FriendshipStatus.ACCEPTED)
 
     count = db.scalar(
         select(func.count())
@@ -238,15 +171,15 @@ def send_request(
     if (count or 0) >= MAX_FRIENDS:
         raise HTTPException(status_code=400, detail="Your friends list is full.")
 
-    low, high = _pair(user.id, target.id)
-    db.add(Friendship(user_low_id=low, user_high_id=high, requester_id=user.id, status="pending"))
+    low, high = pair(user.id, target.id)
+    db.add(Friendship(user_low_id=low, user_high_id=high, requester_id=user.id, status=FriendshipStatus.PENDING))
     try:
         db.commit()
     except IntegrityError:
         # They sent one at the same moment; the row exists now.
         db.rollback()
-        return FriendRequestResult(status="pending")
-    return FriendRequestResult(status="pending")
+        return FriendRequestResult(status=FriendshipStatus.PENDING)
+    return FriendRequestResult(status=FriendshipStatus.PENDING)
 
 
 @router.post("/requests/{other_id}/accept", response_model=FriendRequestResult)
@@ -255,13 +188,13 @@ def accept_request(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
 ) -> FriendRequestResult:
-    f = _friendship(db, user.id, other_id)
-    if f is None or f.status != "pending" or f.requester_id == user.id:
+    f = friendship(db, user.id, other_id)
+    if f is None or f.status != FriendshipStatus.PENDING or f.requester_id == user.id:
         raise HTTPException(status_code=404, detail="No friend request from that player.")
-    f.status = "accepted"
+    f.status = FriendshipStatus.ACCEPTED
     f.accepted_at = utcnow()
     db.commit()
-    return FriendRequestResult(status="accepted")
+    return FriendRequestResult(status=FriendshipStatus.ACCEPTED)
 
 
 @router.delete("/{other_id}", status_code=204)
@@ -271,7 +204,7 @@ def remove_friend(
     user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     """Unfriend, decline an incoming request, or cancel an outgoing one."""
-    f = _friendship(db, user.id, other_id)
+    f = friendship(db, user.id, other_id)
     if f is not None:
         db.delete(f)
     db.execute(
@@ -296,8 +229,8 @@ def invite_friend(
 ) -> DuelInviteOut:
     if not _invite_rate.allow(f"duel-invite:{user.id}"):
         raise HTTPException(status_code=429, detail="Too many invites. Try again in a minute.")
-    f = _friendship(db, user.id, other_id)
-    if f is None or f.status != "accepted":
+    f = friendship(db, user.id, other_id)
+    if f is None or f.status != FriendshipStatus.ACCEPTED:
         raise HTTPException(status_code=403, detail="You can only invite friends.")
     now = utcnow()
     # One live invite per sender/recipient pair: a new room replaces the old one.
@@ -305,8 +238,6 @@ def invite_friend(
         delete(DuelInvite).where(DuelInvite.from_user_id == user.id, DuelInvite.to_user_id == other_id)
     )
     # The recipient's client dials this address with its game token: keep only pools this API has handed out.
-    from app.routers.duel import known_game_server_urls  # duel imports this module
-
     server_url = normalize_server_url(body.server_url)
     if server_url not in known_game_server_urls(settings):
         server_url = None
@@ -327,7 +258,7 @@ def invite_friend(
         from_username=user.username or "Player",
         room_id=invite.room_id,
         server_url=invite.server_url,
-        expires_at=int(_utc(invite.expires_at).timestamp()),
+        expires_at=int(as_utc(invite.expires_at).timestamp()),
     )
 
 
