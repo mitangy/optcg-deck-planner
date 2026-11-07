@@ -12,11 +12,7 @@ export function donArtUrl(productId: number | null | undefined): string {
 }
 
 /** A TCGPlayer productId (positive 31-bit integer), or null for anything else; never a string or URL. */
-export function asDonArtId(raw: unknown): number | null {
-  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
-    ? raw
-    : null;
-}
+export { asDonArtId } from "@optcg/duel-protocol";
 
 /** DON!! face for a seat's side of the board; no seat means your own (#440). */
 export const DonArtContext = createContext<(seat?: Seat) => string>(() => DON_CARD_ART);

@@ -18,6 +18,7 @@ import {
 import type { CardView, ChoiceOptionView, Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
 import { arrangementAnswer, groupAnswer } from "./deckOrder";
 import { briefShown } from "./matchBriefModel";
+import type { PlayCardIntent } from "./intentFields";
 
 /**
  * Whether the game offers the copilot at all: everything the matchup brief needs (an unranked room, a player, a
@@ -310,7 +311,7 @@ function takenEffect(step: PlanStep, sent: Intent, view: PlayerView): boolean {
 function playIntent(step: Extract<PlanStep, { action: "play" }>, view: PlayerView): Intent | string {
   const handIndex = view.you.hand.findIndex((c) => c.id === step.card);
   if (handIndex < 0) return "That card is no longer in your hand.";
-  const options = view.legalIntents.filter((i) => i.type === "play_card" && i.handIndex === handIndex);
+  const options = view.legalIntents.filter((i): i is PlayCardIntent => i.type === "play_card" && i.handIndex === handIndex);
   if (!options.length) return "That card can't be played right now.";
   const plain = options.find((i) => i.trashCharacterId == null);
   if (plain) return plain;

@@ -172,6 +172,17 @@ function buildPlayerView(state: MatchState, seat: Seat) {
 }
 
 /**
+ * What a client receives as `view` on the wire: a player's view, or the spectator variant of it
+ * (`getSpectatorView` adds `spectator`, `cameraSeat` and `you.handCount`). Derived from the builders so the
+ * wire type cannot drift from what the engine emits.
+ */
+export type PlayerView = ReturnType<typeof getPlayerView> & {
+  spectator?: boolean;
+  cameraSeat?: Seat;
+  you: { handCount?: number };
+};
+
+/**
  * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has
  * no `hand`, so clients that guard against hand leaks keep working. With
  * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,

@@ -1,6 +1,7 @@
 import { lookupCard } from "../cards/atlas";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
 import type { Intent, PlayerView } from "../net/protocol";
+import { handIndexOf } from "./intentFields";
 import { battleEndpoints } from "./battleArc";
 import { counterAfterBlock } from "./counterSkipBlock";
 import { findCard } from "./battleBanner";
@@ -104,8 +105,9 @@ export function deriveDefend(
   const events: EventChip[] = [];
   if (phase === "counter") {
     for (const i of intents) {
-      if (typeof i.handIndex !== "number") continue;
-      const card = view.you.hand[i.handIndex];
+      const handIndex = handIndexOf(i);
+      if (handIndex === undefined) continue;
+      const card = view.you.hand[handIndex];
       if (!card) continue;
       const entry = lookupCard(card.defId);
       if (i.type === "counter_from_hand") {

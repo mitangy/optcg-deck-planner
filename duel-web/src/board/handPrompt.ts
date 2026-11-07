@@ -1,4 +1,5 @@
 import type { Intent, PendingChoiceView, PlayerView, Seat } from "../net/protocol";
+import { handIndexOf } from "./intentFields";
 import type { Box } from "./battleArc";
 
 /** The card an intent just played from your hand, and where it sat. */
@@ -14,8 +15,9 @@ export function handUseFromIntent(
   hand: PlayerView["you"]["hand"],
   measure: (instanceId: string) => Box | null,
 ): HandUse | null {
-  if (typeof intent.handIndex !== "number") return null;
-  const card = hand[intent.handIndex];
+  const handIndex = handIndexOf(intent);
+  if (handIndex === undefined) return null;
+  const card = hand[handIndex];
   if (!card) return null;
   const box = measure(card.id);
   return box ? { instanceId: card.id, defId: card.defId, box } : null;

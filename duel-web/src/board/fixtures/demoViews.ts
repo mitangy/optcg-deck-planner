@@ -1,4 +1,5 @@
-import type { CardView, ChatLine, PlayerView, RematchState, Seat, UndoState } from "../../net/protocol";
+import { stubCard } from "./stubCard";
+import type { CardView, ChatLine, Intent, PlayerView, RematchState, Seat, UndoState } from "../../net/protocol";
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../battleLog";
 import { lookupCard } from "../../cards/atlas";
 import type { RematchDeckOption } from "../../decks/rematchDecks";
@@ -72,8 +73,12 @@ export const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
 /** Static playmat preview for layout QA (`/demo`). Not a live match. */
 export const DEMO_VIEW: PlayerView = {
   seat: 0,
+  firstSeat: 0,
+  pendingChoices: [],
   you: {
-    leader: {
+    faceUpLife: [],
+    resolving: [],
+    leader: stubCard({
       id: "y-leader",
       defId: "ST01-001",
       rested: false,
@@ -81,41 +86,41 @@ export const DEMO_VIEW: PlayerView = {
       printedPower: 5000,
       attachedDonCount: 2,
       statusLabels: [],
-    },
+    }),
     characters: [
-      {
+      stubCard({
         id: "y-c1",
         defId: "ST01-003",
         power: 3000,
         printedPower: 3000,
         statusLabels: ["Summoning sick"],
-      },
-      {
+      }),
+      stubCard({
         id: "y-c2",
         defId: "ST01-006",
         rested: true,
         power: 1000,
         printedPower: 1000,
         statusLabels: ["Rested", "Stun"],
-      },
-      {
+      }),
+      stubCard({
         id: "y-c3",
         defId: "ST01-008",
         power: 6000,
         printedPower: 5000,
         attachedDonCount: 1,
         statusLabels: [],
-      },
-      { id: "y-saul", defId: "OP17-089", power: 5000, printedPower: 5000, fieldCost: 16, statusLabels: [] },
+      }),
+      stubCard({ id: "y-saul", defId: "OP17-089", power: 5000, printedPower: 5000, fieldCost: 16, statusLabels: [] }),
     ],
-    stage: {
+    stage: stubCard({
       id: "y-stage",
       defId: "OP16-021",
       rested: false,
       power: 0,
       printedPower: 0,
       statusLabels: [],
-    },
+    }),
     hand: [
       { id: "y-h1", defId: "ST01-003" },
       { id: "y-h2", defId: "ST01-006" },
@@ -142,29 +147,32 @@ export const DEMO_VIEW: PlayerView = {
     turnsStarted: 3,
   },
   opponent: {
-    leader: {
+    faceUpLife: [],
+    resolving: [],
+    mulliganDone: false,
+    leader: stubCard({
       id: "o-leader",
       defId: "ST01-001",
       power: 5000,
       printedPower: 5000,
       statusLabels: [],
-    },
+    }),
     characters: [
-      {
+      stubCard({
         id: "o-c1",
         defId: "ST01-008",
         power: 4000,
         printedPower: 5000,
         statusLabels: ["Nullified", "Cannot be rested"],
-      },
-      {
+      }),
+      stubCard({
         id: "o-c2",
         defId: "ST01-009",
         rested: true,
         power: 4000,
         printedPower: 4000,
         statusLabels: ["Rested", "Unrestable"],
-      },
+      }),
     ],
     stage: null,
     handCount: 6,
@@ -551,8 +559,8 @@ export function withHandReveals(base: PlayerView): PlayerView {
 /** `?full`: a full board, so playing a Character asks which one to replace. */
 export function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
-    { id: "y-c4", defId: "ST01-009", power: 4000, printedPower: 4000, statusLabels: [] },
-    { id: "y-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] },
+    stubCard({ id: "y-c4", defId: "ST01-009", power: 4000, printedPower: 4000, statusLabels: [] }),
+    stubCard({ id: "y-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] }),
   ];
   const characters = [...base.you.characters, ...extra].slice(0, 5);
   return {
@@ -562,7 +570,7 @@ export function withFullBoard(base: PlayerView): PlayerView {
     you: { ...base.you, characters },
     legalIntents: [
       ...base.legalIntents.filter((i) => i.type !== "play_card"),
-      ...characters.map((c) => ({ type: "play_card", handIndex: 0, trashCharacterId: c.id })),
+      ...characters.map((c): Intent => ({ type: "play_card", handIndex: 0, trashCharacterId: c.id })),
     ],
   };
 }
@@ -579,9 +587,9 @@ export function withRestedField(base: PlayerView, params: URLSearchParams): Play
   if (rest == null && !lead && !oppFull) return base;
   const n = rest ?? 0;
   const oppExtra: CardView[] = [
-    { id: "o-c3", defId: "ST01-003", power: 3000, printedPower: 3000, statusLabels: [] },
-    { id: "o-c4", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] },
-    { id: "o-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] },
+    stubCard({ id: "o-c3", defId: "ST01-003", power: 3000, printedPower: 3000, statusLabels: [] }),
+    stubCard({ id: "o-c4", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] }),
+    stubCard({ id: "o-c5", defId: "ST01-014", power: 2000, printedPower: 2000, statusLabels: [] }),
   ];
   const oppChars = oppFull
     ? [...base.opponent.characters, ...oppExtra].slice(0, 5)
@@ -601,7 +609,7 @@ export function withRestedField(base: PlayerView, params: URLSearchParams): Play
       characters: restFirst(oppChars),
       leader: { ...base.opponent.leader, rested: lead || base.opponent.leader.rested },
       stage: lead
-        ? { id: "o-stage", defId: "OP16-021", rested: true, power: 0, printedPower: 0, statusLabels: [] }
+        ? stubCard({ id: "o-stage", defId: "OP16-021", rested: true, power: 0, printedPower: 0, statusLabels: [] })
         : base.opponent.stage,
     },
   };
@@ -662,7 +670,7 @@ export function withManyStatuses(base: PlayerView): PlayerView {
  */
 export function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
   if (params.has("attack")) {
-    const attacks = ["y-leader", "y-c3"].flatMap((attackerId) => [
+    const attacks = ["y-leader", "y-c3"].flatMap((attackerId): Intent[] => [
       { type: "declare_attack", attackerId, target: { kind: "leader" } },
       { type: "declare_attack", attackerId, target: { kind: "character", instanceId: "o-c2" } },
     ]);

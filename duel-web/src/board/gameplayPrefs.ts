@@ -6,7 +6,7 @@ export type EndTurnWarning = { reason: string | null };
 
 function distinct(intents: readonly Intent[], type: string, key: string): number {
   const ids = new Set<unknown>();
-  for (const i of intents) if (i.type === type) ids.add(i[key]);
+  for (const i of intents) if (i.type === type) ids.add((i as Record<string, unknown>)[key]);
   return ids.size;
 }
 

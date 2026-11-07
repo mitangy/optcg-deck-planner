@@ -84,6 +84,7 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
+| `duel-protocol` | `packages/duel-protocol/src` | vitest |
 | `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
 | `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
 | `alt-arts` | `scripts/test_sync_alt_arts.py` | unittest |

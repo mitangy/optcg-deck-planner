@@ -1,4 +1,5 @@
 import type { CardView } from "../net/protocol";
+import { stubCard } from "./fixtures/stubCard";
 import { FriendInvites } from "../friends/FriendsPanel";
 import type { FriendInvite } from "../friends/friendsApi";
 import { useCardBackUrl } from "../cardBack";
@@ -40,7 +41,7 @@ type Props = {
 };
 
 function leaderCard(id: string, defId: string | null | undefined): CardView {
-  return { id, defId: defId ?? "" };
+  return stubCard({ id, defId: defId ?? "" });
 }
 
 /** Empty board sides: 50-card decks, 10 DON!!, nothing in play yet. */

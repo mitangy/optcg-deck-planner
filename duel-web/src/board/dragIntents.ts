@@ -1,4 +1,5 @@
 import type { Intent } from "../net/protocol";
+import type { PlayCardIntent } from "./intentFields";
 import { findAttackIntent } from "./intentFilter";
 
 /** Active pointer-drag payload for legal give_don / play_card / attack /
@@ -158,7 +159,7 @@ export function collapseReplacePlays(intents: Intent[]): Intent[] {
   });
 }
 
-export function isReplacePlay(intent: Intent): boolean {
+export function isReplacePlay(intent: Intent): intent is PlayCardIntent & { trashCharacterId: string } {
   return isPlayCard(intent) && typeof intent.trashCharacterId === "string";
 }
 

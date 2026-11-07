@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { listAtlasIds, lookupCard } from "../cards/atlas";
+import { intentLabel } from "../board/intentLabel";
 import {
   PROTOCOL_VERSION,
   assertNoOpponentHand,
-  intentLabel,
   parseError,
   parseMatchOver,
   parseRematchState,

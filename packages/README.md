@@ -5,6 +5,7 @@ Shared libraries for the deck planner (`frontend/`), the duel app (`duel-web/`) 
 | Package | Purpose | First step |
 |---------|---------|------------|
 | [rules](./rules/) | Headless authoritative rules engine | [Step 1](../docs/duel-client/steps/01-rules-engine.md) |
+| [duel-protocol](./duel-protocol/) | The duel wire protocol shared by game-server and duel-web: message names, constants, error codes, payload types and envelope parsers. Reaches `@optcg/rules` for `PlayerView`, `Intent` and `GameEvent` through `import type` only | — |
 | [deck-analytics](./deck-analytics/) | Deck stats, draw odds and build hints for the planner and duel-web | — |
 | [price-timing](./price-timing/) | "When to buy" for a card: art kind, typical price curve after release and a plain verdict, for the planner and Log Pose | — |
 | [analyst-client](./analyst-client/) | Log Pose chat for the planner and duel-web: SSE client, session, safe markdown, compass + panel (`src/logPose.css` themes via `--lp-*` properties) | — |

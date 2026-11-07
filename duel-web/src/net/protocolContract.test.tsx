@@ -7,7 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 vi.mock("@colyseus/sdk", () => ({ Client: class {} }));
 
-const { PROTOCOL_VERSION, intentLabel, parseView, parseWelcome } = await import("./protocol");
+const { PROTOCOL_VERSION, parseView, parseWelcome } = await import("./protocol");
+const { intentLabel } = await import("../board/intentLabel");
 const { DuelClient } = await import("./duelClient");
 const { ChoicePrompt } = await import("../board/ChoicePrompt");
 const { EffectOrderPrompt } = await import("../board/EffectOrderPrompt");

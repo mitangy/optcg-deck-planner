@@ -18,6 +18,7 @@
     "test:ui": "npm run test -w @optcg/ui",
     "test:site-legal": "npm run test -w @optcg/site-legal",
     "test:analyst-client": "npm run test -w @optcg/analyst-client",
+    "test:duel-protocol": "npm run test -w @optcg/duel-protocol",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",
     "dev:game-server": "npm run dev -w @optcg/game-server",

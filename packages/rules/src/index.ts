@@ -25,6 +25,7 @@ export {
   listLegalIntents,
   getPlayerView,
   getSpectatorView,
+  type PlayerView,
   projectGameEvents,
   projectPendingChoice,
   assertInvariants,

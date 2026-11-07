@@ -18,6 +18,7 @@
     "@optcg/analyst-client": "*",
     "@optcg/card-core": "*",
     "@optcg/deck-analytics": "*",
+    "@optcg/duel-protocol": "*",
     "@optcg/patch-notes": "*",
     "@optcg/rules": "*",
     "@optcg/site-legal": "*",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { actionKeyTags } from "./hotkeys";
-import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
+import { intentLabel } from "./intentLabel";
+import type { Intent, PlayerView } from "../net/protocol";
 import { ConfirmButton } from "./ConfirmButton";
 import { useClickCopy } from "./clickCopy";
 import { dockAnchor, sameAnchor, stripReserve, type DockAnchor } from "./dockAnchor";

@@ -579,7 +579,7 @@ module.exports = {
       { file: "game-server/src/rooms/DuelRoom.ts", from: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n    };", to: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n      brief: this.briefFor(cameraSeat),\n    };" },
       { file: "duel-web/src/board/matchBriefModel.ts", from: "o.role === \"player\" && ", to: "" },
       { file: "duel-web/src/pages/DuelPage.tsx", from: "matchBrief={role === \"player\" ? { brief, ranked } : undefined}", to: "matchBrief={{ brief, ranked }}" },
-      { file: "duel-web/src/net/protocol.ts", from: "role === \"spectator\" || view.spectator ? undefined : parseBriefTicket(o.brief)", to: "parseBriefTicket(o.brief)" },
+      { file: "packages/duel-protocol/src/serverMessages.ts", from: "role === \"spectator\" || view.spectator ? undefined : parseBriefTicket(o.brief)", to: "parseBriefTicket(o.brief)" },
       { file: "duel-web/src/state/DuelSession.tsx", from: "setBrief(r === \"player\" ? (b ?? null) : null);", to: "setBrief(b ?? null);" },
     ], kills: ["match-brief.spec.ts > a spectator of a practice room gets no Brief button or card, even with Log Pose on (#401) [desktop-1280]"] },
 
@@ -712,7 +712,7 @@ module.exports = {
     // Both layers: the server's welcome sync and the client's own sync request after a takeover join.
     { id: "e2e-handoff-new-device-gets-no-board", args: "device-handoff --project=desktop-1280", edits: [
       { file: "game-server/src/rooms/DuelRoom.ts", from: "    if (this.matchStarted && this.match) this.sendSync(client);\n    this.refreshMetadata();", to: "    this.refreshMetadata();" },
-      { file: "duel-web/src/net/duelClient.ts", from: "        if (params.takeover) room.send(\"sync\", { protocolVersion: PROTOCOL_VERSION });", to: "" },
+      { file: "duel-web/src/net/duelClient.ts", from: "        if (params.takeover) room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });", to: "" },
     ], kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]", "device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
     { id: "e2e-handoff-practice-overlay-never-mounts", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/HotseatPage.tsx", from: "{takenOver && matchId ? (", to: "{false && matchId ? (", kills: ["device-handoff.spec.ts > practice: the lobby of a second device resumes the match and the first device is told (#451) [desktop-1280]"] },
     { id: "e2e-handoff-room-overlay-never-mounts", args: "device-handoff --project=desktop-1280", file: "duel-web/src/pages/DuelPage.tsx", from: "{takenOver && matchId && (seat === 0 || seat === 1) ? (", to: "{false && matchId && (seat === 0 || seat === 1) ? (", kills: ["device-handoff.spec.ts > private room: the host moves to a third device while the guest plays on (#451) [desktop-1280]"] },
