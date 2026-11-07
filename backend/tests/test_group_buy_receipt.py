@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from app import group_buy
+from app.group_buy import service as group_buy
 from app.models import Owned
 from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
-from app.tcgplayer_receipt import parse_tcgplayer_receipt
+from app.group_buy.receipt import parse_tcgplayer_receipt
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 

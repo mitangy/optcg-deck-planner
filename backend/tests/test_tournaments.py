@@ -13,10 +13,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app import db as app_db
-from app import tournament_sync as ts
+from app.analyst import tournament_sync as ts
 from app.config import Settings
 from app.models import Tournament, TournamentDeck, TournamentGame
-from app.tournament_stats import tournament_stats
+from app.analyst.tournament_stats import tournament_stats
 from tests.db_support import make_bare_engine, requires_postgres
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)

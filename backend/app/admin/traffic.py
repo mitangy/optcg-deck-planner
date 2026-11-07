@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 import httpx
 
-from app.admin_hosting import ProviderError, _client, _get
+from app.admin.hosting import ProviderError, _client, _get
 from app.config import Settings
 
 CACHE_SECONDS = 600

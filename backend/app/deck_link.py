@@ -187,7 +187,7 @@ def _new_planner_deck(db: Session, user_id: int, body: dict) -> Deck | None:
     db.flush()
     user = db.get(User, user_id)
     if user is not None:
-        from app import group_buy
+        from app.group_buy import service as group_buy
 
         group_buy.include_deck_in_open_group_buys(db, user, deck.id)
     return deck

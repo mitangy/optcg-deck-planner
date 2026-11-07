@@ -24,7 +24,7 @@ async def lifespan(_app: FastAPI):
         from app.catalog_sync import refresh_special_flags
         from app.db import SessionLocal
 
-        from app.analyst_stats import backfill_seats
+        from app.analyst.stats import backfill_seats
 
         db = SessionLocal()
         try:
@@ -32,9 +32,10 @@ async def lifespan(_app: FastAPI):
             backfill_seats(db)
         finally:
             db.close()
-    from app.tournament_sync import start_background
+    from app.analyst.tournament_sync import start_background
 
-    from app import discord_feedback, price_refresh
+    from app import price_refresh
+    from app.admin import discord_feedback
     from app.duel import progress_sweep
 
     sync_task = start_background(settings)

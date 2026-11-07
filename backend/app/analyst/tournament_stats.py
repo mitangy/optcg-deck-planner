@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.analyst_stats import MIN_GAMES, _record
+from app.analyst.stats import MIN_GAMES, _record
 from app.models import Tournament, TournamentDeck, TournamentGame
 
 SOURCE = "Limitless TCG tournaments"

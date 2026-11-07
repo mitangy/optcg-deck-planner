@@ -421,7 +421,7 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     db.refresh(deck)
     # Open group buys with an explicit deck filter should pick up new imports.
     # (Null contribution already means "all decks".)
-    from app import group_buy
+    from app.group_buy import service as group_buy
 
     group_buy.include_deck_in_open_group_buys(db, user, deck.id)
     return deck
@@ -461,7 +461,7 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     db.refresh(deck)
-    from app import group_buy
+    from app.group_buy import service as group_buy
 
     group_buy.include_deck_in_open_group_buys(db, user, deck.id)
     return deck

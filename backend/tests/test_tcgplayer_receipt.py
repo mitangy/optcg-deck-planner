@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.models import CatalogCard, CatalogPrinting
-from app.tcgplayer_receipt import (
+from app.group_buy.receipt import (
     aggregate_receipt_matches,
     parse_receipt_line,
     parse_tcgplayer_receipt,

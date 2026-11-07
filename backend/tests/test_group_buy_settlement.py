@@ -1,4 +1,4 @@
-from app.group_buy_settlement import build_settlements, split_shipping
+from app.group_buy.settlement import build_settlements, split_shipping
 
 
 def test_split_shipping_equal_among_buyers():
@@ -52,7 +52,7 @@ def test_build_settlements_totals():
 
 
 def test_tax_always_splits_by_card_cost():
-    from app.group_buy_settlement import split_tax
+    from app.group_buy.settlement import split_tax
 
     shares = split_tax(3.0, card_costs={1: 20.0, 2: 10.0})
     assert shares[1] == 2.0
