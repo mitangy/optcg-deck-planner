@@ -8,7 +8,7 @@ import { loadWhileSaving, type ReplayNavState } from "../replay/replayRetry";
 import { ReplayControls } from "../replay/ReplayControls";
 import { useReplay, type Replay } from "../replay/useReplay";
 import { useGameReview } from "../replay/useGameReview";
-import { BackLink } from "./BackLink";
+import { BackLink } from "../layout/BackLink";
 import "../history/history.css";
 import "../replay/replay.css";
 

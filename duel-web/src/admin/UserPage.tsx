@@ -1,9 +1,8 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useState } from "react";
 import "./admin.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "../pages/BackLink";
 import { type AdminUser, type AdminUserDetail, type AdminUserMatch, fetchAdminUser } from "./adminApi";
 import { GAME_MODES, agoText, dateOf, formatSignupSource, modeLabel, percent, presenceText, resultOf, soloNote, stampOf, totalGames, usd } from "./adminLogic";
 import { Gate, useAdminWho } from "./AdminGate";
@@ -284,16 +283,8 @@ export default function UserPage() {
   }
   const d = state.data;
   return (
-    <div className="app-shell">
-      <div className="page adm-page adm-userpage">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink {...BACK} />
-          <h1 className="page-title">{userLabel(d.user)}</h1>
-          <span className="adm-role">{who.me.role}</span>
-        </header>
-        <Detail d={d} actor={who.actor} onUser={(u) => setState({ status: "ready", data: { ...d, user: { ...d.user, ...u } } })} />
-      </div>
-    </div>
+    <PageShell pageClass="adm-page adm-userpage" back={BACK} title={userLabel(d.user)} headerExtra={<span className="adm-role">{who.me.role}</span>}>
+      <Detail d={d} actor={who.actor} onUser={(u) => setState({ status: "ready", data: { ...d, user: { ...d.user, ...u } } })} />
+    </PageShell>
   );
 }

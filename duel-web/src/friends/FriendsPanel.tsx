@@ -13,6 +13,7 @@ import {
   type FriendsState,
 } from "./friendsApi";
 import { Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
+import { usePolling } from "../lib/usePolling";
 import { openReport } from "../reports/reportDialog";
 import "./friends.css";
 
@@ -40,26 +41,12 @@ export function useFriends(enabled: boolean) {
 
   useEffect(() => {
     alive.current = true;
-    if (!enabled) {
-      setState(null);
-      return () => {
-        alive.current = false;
-      };
-    }
-    void refresh();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
+    if (!enabled) setState(null);
     return () => {
       alive.current = false;
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, refresh]);
+  }, [enabled]);
+  usePolling(refresh, POLL_MS, enabled);
 
   return { state, loadError, refresh };
 }
