@@ -1,25 +1,12 @@
-import { useEffect, useState } from "react";
+import { CARD_LAYOUT_KEY } from "./storage/keys";
+import { choiceCodec, usePersistedState } from "./storage/persisted";
 
 export type CardLayout = "list" | "grid";
 
-const CARD_LAYOUT_KEY = "optcg_card_layout";
+const layoutCodec = choiceCodec<CardLayout>(["list", "grid"]);
 
 export function useCardLayout() {
-  const [layout, setLayout] = useState<CardLayout>(() => {
-    try {
-      return localStorage.getItem(CARD_LAYOUT_KEY) === "grid" ? "grid" : "list";
-    } catch {
-      return "list";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(CARD_LAYOUT_KEY, layout);
-    } catch {
-      /* ignore */
-    }
-  }, [layout]);
-  return [layout, setLayout] as const;
+  return usePersistedState<CardLayout>(CARD_LAYOUT_KEY, "list", layoutCodec);
 }
 
 export function CardLayoutToggle({

@@ -9,6 +9,7 @@ import { OwnedCell, ownedCellIsTotal } from "../../OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../columnSort";
 import { usedInSortValue } from "../shopping/ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
+import { COLSORT_COLLECTION_KEY } from "../../storage/keys";
 
 function collectionColumnValue(item: OwnedCard, key: string) {
   switch (key) {
@@ -42,7 +43,7 @@ export function CollectionItemsView({
   showAltArts: boolean;
   altRow: (item: OwnedCard) => ReactNode;
 }) {
-  const { sort, onSort } = useColumnSort("optcg_colsort_collection");
+  const { sort, onSort } = useColumnSort(COLSORT_COLLECTION_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
   if (items.length === 0) return null;
   const hasAltRow = (item: OwnedCard) => showAltArts && (item.alt_arts?.length ?? 0) > 0;

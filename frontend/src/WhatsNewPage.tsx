@@ -1,7 +1,6 @@
-import { BrandWordmark } from "./BrandWordmark";
-import { Link } from "react-router-dom";
 import { WhatsNewFeed } from "@optcg/patch-notes";
 import { ThemeToggle } from "./ThemeToggle";
+import { Topbar } from "./Topbar";
 import { UpdateNotice, VersionStatus } from "./UpdateNotice";
 
 /** Public page: everything that changed in the planner, newest first. Opening it counts as seeing the latest update. */
@@ -9,19 +8,9 @@ export function WhatsNewPage() {
   return (
     <div className="app public-app">
       <UpdateNotice />
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <Link to="/">
-              <BrandWordmark />
-              <span>Planner</span>
-            </Link>
-          </div>
-          <div className="user">
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <Topbar>
+        <ThemeToggle />
+      </Topbar>
       <main className="app-main legal-main">
         <div className="page-head">
           <div>

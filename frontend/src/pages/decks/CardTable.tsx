@@ -13,6 +13,7 @@ import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwn
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../columnSort";
 import { busyProductFor } from "../../cache/busyKey";
 import { OwnedInput } from "../OwnedInputs";
+import { COLSORT_DECK_KEY } from "../../storage/keys";
 
 /** "4 go to Luffy first" when earlier leaders use some of the owned copies. */
 function OwnedClaimNote({ card }: { card: CardView }) {
@@ -78,7 +79,7 @@ export function CardTable({
   /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
 }) {
-  const { sort, onSort } = useColumnSort("optcg_colsort_deck");
+  const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
   // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
   const buySplit = (c: CardView) =>
     onAltBuyChange && canSplitBuy(c) ? (

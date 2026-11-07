@@ -43,36 +43,17 @@ import { isDonCard } from "../../donCards";
 import { ShoppingStatStrip } from "./shoppingStats";
 import { ShoppingSharePanel } from "../SharePanels";
 import { ShoppingAddPanel } from "./ShoppingAddPanel";
+import {
+  COLSORT_SHOPPING_KEY,
+  SHOPPING_EXTRAS_KEY,
+  SHOPPING_ONLY_NEED_KEY,
+  SHOPPING_SELECTED_KEY,
+  SHOW_SHOPPING_DONS_KEY,
+} from "../../storage/keys";
+import { jsonSetCodec, usePersistedState } from "../../storage/persisted";
 
-const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
-
-const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
-
-const SHOPPING_EXTRAS_KEY = "optcg_shopping_include_extras";
-
-const SHOPPING_ONLY_NEED_KEY = "optcg_shopping_only_need";
-
-function loadSelectedCardIds(): Set<string> {
-  try {
-    const raw = localStorage.getItem(SHOPPING_SELECTED_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((x): x is string => typeof x === "string"));
-  } catch {
-    return new Set();
-  }
-}
-
-function loadShowShoppingDons(): boolean {
-  try {
-    const raw = localStorage.getItem(SHOW_SHOPPING_DONS_KEY);
-    if (raw === null) return true;
-    return raw === "1";
-  } catch {
-    return true;
-  }
-}
+const isString = (x: unknown): x is string => typeof x === "string";
+const selectedCardsCodec = jsonSetCodec(isString);
 
 export function ShoppingPage() {
   const qc = useQueryClient();
@@ -82,7 +63,7 @@ export function ShoppingPage() {
   const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
   const [filterReady, setFilterReady] = useState(false);
-  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(() => loadSelectedCardIds());
+  const [selectedCardIds, setSelectedCardIds] = usePersistedState<Set<string>>(SHOPPING_SELECTED_KEY, new Set(), selectedCardsCodec);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
 
@@ -98,14 +79,6 @@ export function ShoppingPage() {
     if (!filterReady || selectedDeckIds === null) return;
     saveShoppingDeckFilter(selectedDeckIds);
   }, [selectedDeckIds, filterReady]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SHOPPING_SELECTED_KEY, JSON.stringify([...selectedCardIds]));
-    } catch {
-      /* ignore */
-    }
-  }, [selectedCardIds]);
 
   const activeDeckIds = selectedDeckIds ?? allDeckIds;
   const shoppingKey = useMemo(
@@ -156,7 +129,7 @@ export function ShoppingPage() {
     },
   });
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHOPPING_ONLY_NEED_KEY, true);
-  const [showDons, setShowDons] = useState(loadShowShoppingDons);
+  const [showDons, setShowDons] = usePersistedOpen(SHOW_SHOPPING_DONS_KEY, true);
   const shoppingUnavailableSorts = useMemo(() => ["user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -193,13 +166,6 @@ export function ShoppingPage() {
   });
   const sortingByDeck = effectiveSorts.includes("deck");
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(SHOW_SHOPPING_DONS_KEY, showDons ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [showDons]);
 
   const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
   const [collectorUndo, setCollectorUndo] = useState<{ cardId: string; productId: number; qty: number; label: string } | null>(null);
@@ -743,7 +709,7 @@ export function ShoppingPage() {
               onChange={setSorts}
               onlyNeed={onlyNeed}
               unavailableKeys={shoppingUnavailableSorts}
-              columnSortKey="optcg_colsort_shopping"
+              columnSortKey={COLSORT_SHOPPING_KEY}
               priceHint="Price is what you still pay for each card, highest first, with picked alt arts at their own price."
             />
             <label>

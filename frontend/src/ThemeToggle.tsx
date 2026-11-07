@@ -1,7 +1,5 @@
 import { useState } from "react";
-
-/** Keep in sync with the pre-paint script in index.html. */
-export const THEME_STORAGE_KEY = "optcg_theme";
+import { THEME_STORAGE_KEY } from "./storage/keys";
 
 export type ThemePref = "auto" | "light" | "dark";
 

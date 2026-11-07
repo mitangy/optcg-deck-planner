@@ -1,12 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, CatalogCardResult, DeckDetail, money } from "../../api";
 import {
   CardSearchInput,
   CollapsibleDrawer,
-  COLOR_ORDER,
-  usePersistedChoice,
-  useShowAltArts,
 } from "../../cardListControls";
 import { invalidateOwnedViews } from "../../ownedCollection";
 import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
@@ -16,19 +13,14 @@ import { CardThumb } from "../../CardThumb";
 import { InlineSkeleton } from "../../Skeleton";
 import { isDonCardType } from "../../donCards";
 import {
-  CATALOG_TYPE_FILTERS,
   COLOR_OPTIONS,
   CARD_TYPE_OPTIONS,
   catalogRowKey,
   AltArtChip,
 } from "../collection/CatalogAddDrawer";
 import { DON_DECK_LIMIT, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditing";
-
-const DECK_EDITOR_COLOR_KEY = "optcg_deck_editor_color";
-
-const DECK_EDITOR_TYPE_KEY = "optcg_deck_editor_card_type";
-
-const DECK_SEARCH_OPEN_KEY = "optcg_deck_search_open";
+import { DECK_EDITOR_COLOR_KEY, DECK_EDITOR_TYPE_KEY, DECK_SEARCH_OPEN_KEY } from "../../storage/keys";
+import { useCatalogSearch } from "../../useCatalogSearch";
 
 /** Main-deck rows (leader included, DON!! excluded) in the shape the stats and hints code reads. */
 function toStatsCards(cards: DeckDetail["cards"]): DeckStatsCard[] {
@@ -71,32 +63,12 @@ export function DeckEditorPanel({
     if (text) setDelta({ text, key: ++deltaKey.current });
   }
 
-  const [query, setQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = usePersistedChoice(DECK_EDITOR_COLOR_KEY, "", ["", ...COLOR_ORDER]);
-  const [cardType, setCardType] = usePersistedChoice(DECK_EDITOR_TYPE_KEY, "", CATALOG_TYPE_FILTERS);
+  const { query, setQuery, color, setColor, cardType, setCardType, searchEnabled, searchQ } = useCatalogSearch({
+    colorKey: DECK_EDITOR_COLOR_KEY,
+    typeKey: DECK_EDITOR_TYPE_KEY,
+  });
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
-    return () => window.clearTimeout(t);
-  }, [query]);
-
-  const [showAltArts] = useShowAltArts();
-  const searchEnabled = Boolean(debouncedQ || color || cardType);
-  const searchQ = useQuery({
-    queryKey: ["catalog-search", debouncedQ, color, cardType, showAltArts],
-    queryFn: () =>
-      api.searchCatalog({
-        q: debouncedQ || undefined,
-        color: color || undefined,
-        card_type: cardType || undefined,
-        limit: 40,
-        alts: showAltArts,
-      }),
-    enabled: searchEnabled,
-  });
 
   const neededById = useMemo(() => {
     const map = new Map<string, number>();

@@ -5,8 +5,7 @@ import { invalidateOwnedViews } from "../../ownedCollection";
 import { OwnedInput } from "../OwnedInputs";
 import { useFullShoppingById } from "../shopping/lightboxActions";
 import { CatalogAddDrawer } from "./CatalogAddDrawer";
-
-const COLLECTION_ADD_OPEN_KEY = "optcg_collection_add_open";
+import { COLLECTION_ADD_OPEN_KEY } from "../../storage/keys";
 
 /** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
 export function CollectionOwnedControl({

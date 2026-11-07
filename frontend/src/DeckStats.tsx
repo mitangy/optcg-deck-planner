@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog } from "@optcg/ui/popups";
 import type { DeckStatsCard } from "@optcg/deck-analytics";
+import { DECK_STATS_COLLAPSED_KEY } from "./storage/keys";
+import { bool01, usePersistedState } from "./storage/persisted";
 import { DeckStatsPanel, type HintsState } from "@optcg/deck-analytics/ui";
 
 /** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
 export const DOCK_QUERY = "(min-width: 1200px)";
-const COLLAPSED_KEY = "optcg_deck_stats_collapsed";
 
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(query).matches : false));
@@ -21,21 +22,7 @@ export function useMediaQuery(query: string): boolean {
 }
 
 function useStatsCollapsed() {
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(COLLAPSED_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [collapsed]);
-  return [collapsed, setCollapsed] as const;
+  return usePersistedState(DECK_STATS_COLLAPSED_KEY, false, bool01);
 }
 
 function StatsIcon() {
