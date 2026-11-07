@@ -9,7 +9,7 @@
  *     not a cost, so accepting and then paying partially (or not at all) still counts (#213, #515).
  *
  * Writes and reads are derived from the compiled instructions (`effects/compile.ts`) and the runtime
- * (`engine/runtime.ts`); the tables below name the runtime code each one mirrors.
+ * (`engine/vm.ts`, `engine/ops.ts`, `engine/choices.ts`); the tables below name the runtime code each one mirrors.
  */
 import { ABILITY_REGISTRY, type AbilityRegistry, compileAbility } from "../../cards/abilities.js";
 import { compileDelayed, compileStandalone, delayedEffects, type Instr, type Program } from "../../effects/compile.js";
@@ -71,7 +71,7 @@ export const EVENT_CARRIES_CARD: Record<GameEventKind, boolean> = {
  */
 const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"]);
 
-/** Filter keys whose string value names a variable (`filterMatches` in engine/queries.ts reads `ctx.vars[...]`). */
+/** Filter keys whose string value names a variable (`filterMatches` in engine/selectors.ts reads `ctx.vars[...]`). */
 const FILTER_VAR_KEYS = ["excludeVar", "inVar", "notColorsOfVar", "sameNameAsVar"] as const;
 const VAR_CONDS: ReadonlySet<string> = new Set(["var_count", "var_all_match", "var_any_match"]);
 
@@ -139,7 +139,7 @@ function initialDefs(ability: Ability): Defs {
   return defs;
 }
 
-/** What one instruction writes, mirroring `exec` / `execActInner` / the look resolution in engine/runtime.ts. */
+/** What one instruction writes, mirroring `exec` / `execActInner` / the look resolution in engine/vm.ts, ops.ts and choices.ts. */
 function writesOf(instr: Instr, defOf: () => Def): { name: string; def: Def; keepOld?: boolean }[] {
   switch (instr.op) {
     case "select": case "mode": return [{ name: instr.bind, def: OTHER }];
