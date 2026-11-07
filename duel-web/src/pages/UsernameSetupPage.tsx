@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
-import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
+import { clearAuth, ensureAuth } from "../auth/session";
+import { fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
 
 /**
@@ -21,7 +22,7 @@ export function UsernameSetupPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const me = await fetchAuthMe().catch(() => null);
+      const me = await ensureAuth();
       if (cancelled) return;
       if (!me) {
         navigate("/", { replace: true });
@@ -66,6 +67,7 @@ export function UsernameSetupPage() {
             onClick={() => {
               void flushAccountSync().then(logoutSession).then(() => {
                 stopAccountSync({ clearDecks: true });
+                clearAuth();
                 setRating(null);
                 navigate("/", { replace: true });
               });

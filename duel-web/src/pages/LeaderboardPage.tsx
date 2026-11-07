@@ -2,7 +2,8 @@ import { PageShell } from "../layout/PageShell";
 import { useCallback, useEffect, useState } from "react";
 import { BountyAmount } from "../Bounty";
 import { pinnedYou } from "../home/bounties";
-import { fetchAuthMe, fetchLeaderboard, fetchRatingMe, type LeaderboardEntry, type RatingMe } from "../net/api";
+import { ensureAuth } from "../auth/session";
+import { fetchLeaderboard, fetchRatingMe, type LeaderboardEntry, type RatingMe } from "../net/api";
 
 /** The backend caps the leaderboard at 100 players. */
 const LIMIT = 100;
@@ -31,7 +32,7 @@ export function LeaderboardPage() {
 
   useEffect(() => {
     let live = true;
-    fetchAuthMe()
+    ensureAuth()
       .then((u) => (u ? fetchRatingMe() : null))
       .then((r) => live && setMe(r))
       .catch(() => undefined);

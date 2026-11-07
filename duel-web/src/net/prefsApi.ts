@@ -1,6 +1,6 @@
 /** Account-backed duel settings and uploaded playmats / card backs. */
 import { getApiBaseUrl } from "../config";
-import { ApiError, withJsonHeaders } from "./api";
+import { ApiError, apiCall } from "../api/http";
 
 export type CosmeticKind = "playmat" | "cardBack";
 
@@ -21,20 +21,7 @@ export type AccountCosmetics = {
   active: Record<CosmeticKind, number | null>;
 };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, { credentials: "include", ...init, headers: withJsonHeaders(init) });
-  if (!res.ok) {
-    let detail = `${fallback} (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return (res.status === 204 ? undefined : await res.json()) as T;
-}
+const call = apiCall;
 
 const json = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),

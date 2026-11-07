@@ -18,6 +18,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@optcg/analyst-client": "*",
+    "@optcg/api-client": "*",
     "@optcg/deck-analytics": "*",
     "@optcg/patch-notes": "*",
     "@optcg/price-timing": "*",

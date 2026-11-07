@@ -56,4 +56,8 @@ describe("scripts/vercel-ignore-build.sh watches packages/card-core for every ap
   it("builds when the shared vite version-file plugin changes (refactor 2.3)", () => {
     expect(exitCodeAfterChange("tools/vite/versionFile.mjs")).toBe(1);
   });
+
+  it("builds when the shared HTTP client changes (refactor 2.1b)", () => {
+    expect(exitCodeAfterChange("packages/api-client/src/request.ts")).toBe(1);
+  });
 });

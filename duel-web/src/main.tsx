@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { createAnalyticsBeforeSend, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
-import { startAccountSync } from "./account/accountSync";
+import { watchAccountSync } from "./account/accountSync";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "./styles.css";
@@ -30,7 +30,7 @@ const analyticsBeforeSend = createAnalyticsBeforeSend();
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
 // Signed-in players get their settings and playmat / card back from the account.
-void startAccountSync();
+watchAccountSync();
 // Lobby and Settings say when a newer deploy is live than this bundle.
 startUpdateChecks();
 
