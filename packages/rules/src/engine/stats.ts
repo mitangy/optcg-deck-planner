@@ -127,7 +127,7 @@ export function protectedFromSource(state: MatchState, target: Located, restrict
 export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: CardInstance, attackerDefId: string): boolean {
   const attackerLoc = findBattleCard(state, attackerDefId);
   const attrs = attackerLoc ? attributesOf(state, attackerLoc) : (getCardDef(attackerDefId).attribute ?? "").split("/");
-  // "Cannot be K.O.'d in battle by Leaders" compiles to the `__leader` pseudo-attribute (tools/cardText/grammar.ts).
+  // "Cannot be K.O.'d in battle by Leaders" compiles to the `__leader` pseudo-attribute (tools/cardText/grammar/statics.ts).
   if (getCardDef(attackerDefId).type === "leader") attrs.push("__leader");
   for (const { entry, s } of staticsFor(state, seat, card)) {
     if (s.s === "restrict" && s.restriction === "cannot_be_ko_in_battle_by_attribute" && s.attribute && attrs.includes(s.attribute)) return true;
