@@ -21,6 +21,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, defer
 
 from app.core.statuses import LessonStatus
+from app.roles import Role
 from app.analyst.stats import MIN_GAMES, _record
 from app.analyst import access
 from app.analyst.models import AnalystLesson, BotMatch
@@ -388,7 +389,7 @@ def _posted_text(evidence: str | None) -> str | None:
 
 def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | None, cards: list[str], evidence: str) -> dict:
     """Save a bot lesson as a draft for the admin to review. A lesson with the same leader, opponent and text in any status is skipped."""
-    admin = db.scalar(select(User).where(User.role == "admin").order_by(User.id).limit(1))
+    admin = db.scalar(select(User).where(User.role == Role.ADMIN).order_by(User.id).limit(1))
     if admin is None:
         raise BotLessonError(503, "No admin account to review bot lessons")
     text = text.strip()

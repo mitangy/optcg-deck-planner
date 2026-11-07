@@ -310,7 +310,7 @@ def list_tournaments(db: DB, user: Me) -> SummariesOut:
     ).all()
     cutoff = utcnow() - FINISHED_VISIBLE
     rows = [t for t in rows if t.status != TournamentStatus.FINISHED or (t.finished_at and as_utc(t.finished_at) >= cutoff)]
-    order = {"running": 0, "open": 1, "finished": 2}
+    order = {TournamentStatus.RUNNING: 0, TournamentStatus.OPEN: 1, TournamentStatus.FINISHED: 2}
     rows.sort(key=lambda t: (order.get(t.status, 3), -as_utc(t.created_at).timestamp(), -t.id))
 
     ids = [t.id for t in rows]
@@ -336,7 +336,7 @@ def list_tournaments(db: DB, user: Me) -> SummariesOut:
                 size=t.size,
                 status=t.status,
                 players_joined=sum(1 for p in players if p.tournament_id == t.id and p.status == TournamentPlayerStatus.JOINED),
-                my_role="organizer" if t.organizer_id == user.id else (mine_row.status if mine_row else "joined"),
+                my_role="organizer" if t.organizer_id == user.id else (mine_row.status if mine_row else TournamentPlayerStatus.JOINED),
                 my_match_ready=t.id in ready and t.status == TournamentStatus.RUNNING,
             )
         )

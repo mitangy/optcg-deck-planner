@@ -120,7 +120,7 @@ def request_access(
             )
         )
         db.commit()
-        return AnalystAccessRequested(access="approved" if free else "pending")
+        return AnalystAccessRequested(access=AccessStatus.APPROVED if free else AccessStatus.PENDING)
     elif row.status == AccessStatus.PENDING:
         raise HTTPException(status_code=409, detail="Your request is already waiting")
     else:
@@ -131,7 +131,7 @@ def request_access(
         row.decided_at = None
         row.created_at = now
     db.commit()
-    return AnalystAccessRequested(access="pending")
+    return AnalystAccessRequested(access=AccessStatus.PENDING)
 
 
 @router.get("/requests", response_model=AnalystAccessList)

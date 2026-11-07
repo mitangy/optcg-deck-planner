@@ -9,6 +9,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Te
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base
+from app.roles import Role
 
 if TYPE_CHECKING:
     from app.planner.models import Deck, Owned, ShoppingExtra
@@ -33,7 +34,7 @@ class User(Base):
     # Scanner training samples (#852): on by default; PATCH /preferences turns it off.
     share_scans: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # "user" | "moderator" | "admin" (see app/roles.py). Only ADMIN_EMAIL is ever admin.
-    role: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
+    role: Mapped[str] = mapped_column(String(16), default=Role.USER, server_default="user")
     # Set while the account is banned (#667); the ban also bumps session_version.
     banned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ban_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
