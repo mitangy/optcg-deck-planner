@@ -3,6 +3,7 @@
  * stores only an instruction index and JSON bindings, so any paused program can
  * be serialized and resumed exactly.
  */
+import { assertNever } from "../assertNever.js";
 import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, Target, Value } from "./types.js";
 
 export type Instr =
@@ -208,6 +209,7 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
       return;
     }
     case "unattach_don": out.push({ op: "act", effect: { do: "move_don", from: { ref: "all", selector: { player: "you", zone: "leader_or_character", filter: { donGiven: { op: ">=", value: 1 } } } }, to: { ref: "all", selector: { player: "you", zone: "don" } }, count: cost.count } }); return;
+    default: return assertNever(cost, "cost");
   }
 }
 

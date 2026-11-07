@@ -9,7 +9,7 @@
  *     not a cost, so accepting and then paying partially (or not at all) still counts (#213, #515).
  *
  * Writes and reads are derived from the compiled instructions (`effects/compile.ts`) and the runtime
- * (`engine/vm.ts`, `engine/ops.ts`, `engine/choices.ts`); the tables below name the runtime code each one mirrors.
+ * (`engine/vm.ts`, `engine/ops/`, `engine/choices.ts`); the tables below name the runtime code each one mirrors.
  */
 import { ABILITY_REGISTRY, type AbilityRegistry, compileAbility } from "../../cards/abilities.js";
 import { compileDelayed, compileStandalone, delayedEffects, type Instr, type Program } from "../../effects/compile.js";

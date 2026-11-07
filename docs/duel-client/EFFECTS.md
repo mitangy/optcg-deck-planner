@@ -16,7 +16,7 @@ authoring steps see [packages/rules/README.md](../../packages/rules/README.md)
 | Generated abilities | `packages/rules/src/cards/generated/abilities.json` | Output of `npx tsx src/tools/cardText/generate.ts` from the printed text |
 | Manual overrides | `packages/rules/src/cards/manualAbilities.ts` | Reviewed `abilities` / `patch` entries for text the compiler cannot express |
 | Effect catalog | `packages/rules/src/cards/effectCatalog.ts` | `EFFECT_CATALOG`: one row per printed clause with its support status; also `abilitySupport` per card |
-| Engine | `packages/rules/src/engine/` | `intents.ts` (apply and list intents), `procedure.ts` (triggers, ordering), `runtime.ts` (instruction interpreter), `queries.ts`, `views.ts` |
+| Engine | `packages/rules/src/engine/` | `intents.ts` (apply and list intents), `procedure.ts` (triggers, ordering), `runtime.ts` (instruction interpreter barrel), `ops.ts` + `ops/` (leaf op handler table), `queries.ts`, `views.ts` |
 | Engine queue | `MatchState.pendingChoices` | FIFO prompts for the player who must answer |
 
 Inspect UI shows `CardDef.effectText`. **Display text alone is not rules
@@ -64,20 +64,33 @@ way round.
 - Remount the prompt with `key={choice.id}` so local reorder state resets when
   a later order window opens.
 
-## Adding an op or a new effect kind
+## Adding a new effect op
 
 A card that only combines existing pieces needs data, not engine code (see the
-README checklist). A new mechanic is an engine change:
+README checklist). A new `Effect["do"]` variant is an engine change. The compiler
+tells you what is missing: each step below has a compile-time check, so `npm run
+typecheck -w @optcg/rules` lists the files you have not touched yet.
 
-1. Add the type to `effects/types.ts` and its checks to `effects/validate.ts`.
-2. If it needs several steps or a player choice, compile it in `effects/compile.ts`
-   (the frame stores only an instruction index and JSON bindings, so it can be
-   serialized and resumed).
-3. Resolve it in `engine/` and, if players see it, project it in `engine/views.ts`
-   without leaking hidden information.
-4. Teach the compiler grammar (`src/tools/cardText/`) the printed phrasing, then
+1. `effects/types.ts`: add the variant to `Effect` (new conditions, costs and
+   statics go in `Cond`, `Cost`, `Static` the same way).
+2. `effects/validate.ts`: add its entry to the matching `tagged(...)` map. The maps
+   are `satisfies Record<Effect["do"], V>` (and `Cond["c"]`, `Cost["k"]`,
+   `Static["s"]`), so a missing or extra variant fails `tsc`.
+3. `effects/compile.ts`: only if the op needs several steps or a player choice,
+   lower it to instructions (the frame stores only an instruction index and JSON
+   bindings, so it can be serialized and resumed). Plain leaf ops fall through to
+   `{ op: "act" }`. `compileCost` ends in `assertNever`, so a new `Cost` kind must be
+   handled there.
+4. `engine/ops/`: add the handler to the group that fits (`zones`, `modifiers`,
+   `don`, `life`, `info`, `flow`) and list its tag in that file's `OpTable<...>`
+   type. `engine/ops/index.ts` assembles `OPS: { [K in Effect["do"]]: OpHandler<K> }`,
+   so an op with no handler fails `tsc`. Ops the compiler lowers instead go in
+   `engine/ops/lowered.ts` and keep throwing "has no leaf executor".
+5. If players see it, project it in `engine/views.ts` (and `describeEvents.ts` for new
+   events) without leaking hidden information.
+6. Teach the compiler grammar (`src/tools/cardText/`) the printed phrasing, then
    regenerate `abilities.json`.
-5. Add scenario rows (`src/__tests__/scenarios/`) and a mutation for each in
+7. Add scenario rows (`src/__tests__/scenarios/`) and a mutation for each in
    `tools/mutation-check/suites/rules.cjs`.
 
 ## Coverage policy
