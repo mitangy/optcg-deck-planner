@@ -135,8 +135,9 @@ checks out with `fetch-depth: 0`, finds the PR base SHA, runs `--check-anchors`
 (so a stale anchor fails a PR even when the path filter skips the rules job) and
 runs `--matrix`.
 `mutation-proofs-part` runs one matrix entry per part in parallel, installs only
-what its suite needs (root `npm ci`, the `duel-web`, `frontend` and `mobile`
-installs, or Python plus `backend/requirements-dev.txt` with `BACKEND_PYTHON` set),
+what its suite needs (root `npm ci`, which also serves the `duel-web` and
+`frontend` suites since both are workspaces, the `mobile` install, or Python plus
+`backend/requirements-dev.txt` with `BACKEND_PYTHON` set),
 and runs `run.cjs <suite> --only <only>`. It is skipped when nothing changed.
 `mutation-proofs` waits for both and keeps the original check name. It fails
 unless the plan succeeded and the parts succeeded or were skipped.

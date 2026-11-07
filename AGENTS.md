@@ -14,6 +14,7 @@ Two services plus a zero-setup local DB:
 
 - Backend: FastAPI in `backend/`, runs on `http://localhost:8000`.
 - Frontend: Vite/React SPA in `frontend/`, runs on `http://localhost:5173`.
+- JS install: `frontend/`, `duel-web/`, `packages/*`, `game-server/` and `analyst/` are npm workspaces of the repo root. Run `npm ci` (or `npm install`) **once at the repo root**; there are no per-app lockfiles or per-app installs (`mobile/` and `trailer/` are outside the workspace and keep their own).
 - DB: defaults to local SQLite (`backend/optcg.db`); tables auto-create on backend startup via `init_db()`. No Postgres needed locally.
 
 Non-obvious caveats:
@@ -29,6 +30,7 @@ Non-obvious caveats:
 Common commands:
 
 - Backend tests: `cd backend && python3 -m pytest`
+- Install JS deps (all workspaces): `npm ci` at the repo root
 - Frontend tests: `cd frontend && npm test`
 - Frontend typecheck + build: `cd frontend && npm run build` (runs `tsc --noEmit && vite build`)
 - Frontend dev: `cd frontend && npm run dev`

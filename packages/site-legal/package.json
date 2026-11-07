@@ -5,8 +5,16 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*.css": "./src/*.css",
+    "./*": "./src/*.ts"
+  },
   "scripts": {
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@optcg/ui": "*"
   },
   "devDependencies": {
     "@headlessui/react": "^2.2.10",

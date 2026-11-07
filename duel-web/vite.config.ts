@@ -51,20 +51,9 @@ export default defineConfig(() => {
       // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
       prerenderPlugin({ name: "duel", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
     ],
-    resolve: {
-      // Deck stats, odds and build hints plus the legal footer and pages, shared with the planner; see packages/.
-      alias: [
-        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
-        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
-        { find: /^@optcg\/patch-notes/, replacement: fileURLToPath(new URL("../packages/patch-notes/src", import.meta.url)) },
-        { find: /^@optcg\/ui/, replacement: fileURLToPath(new URL("../packages/ui/src", import.meta.url)) },
-        // The rules engine, for the replay viewer only: import "@optcg/rules/replayTimeline" from the lazy replay chunk, never the package index.
-        { find: /^@optcg\/rules/, replacement: fileURLToPath(new URL("../packages/rules/src", import.meta.url)) },
-        { find: /^@optcg\/analyst-client/, replacement: fileURLToPath(new URL("../packages/analyst-client/src", import.meta.url)) },
-      ],
-      // Package sources sit outside this app, so pin React and Headless UI (used by @optcg/ui) to this app's copy.
-      dedupe: ["react", "react-dom", "@headlessui/react"],
-    },
+    // @optcg/* packages resolve through the npm workspace symlinks in node_modules (their "exports" map to src/),
+    // so there is no alias list here. The main bundle never imports @optcg/rules at runtime (types only); only
+    // the lazy replay chunk (src/replay/) imports it, by subpath (@optcg/rules/replayTimeline), never the package index.
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
       "import.meta.env.VITE_BUILD_TIME": JSON.stringify(builtAt),

@@ -13,10 +13,14 @@
  * off for a path after checking that no test, build or script in the other
  * jobs reads it. Cross-directory dependencies behind the table (checked with
  * grep, #739):
- *   - packages/*: duel-web and frontend alias `@optcg/*` to packages/*\/src
- *     (vite.config.ts, vitest.config.ts, tsconfig.json); game-server and analyst
- *     depend on @optcg/rules; every package's tests run in the rules job; the
- *     duel-web e2e specs import packages/patch-notes.
+ *   - packages/*: duel-web and frontend are npm workspaces that depend on
+ *     `@optcg/*` (resolved through node_modules links to packages/*\/src);
+ *     game-server and analyst depend on @optcg/rules; every package's tests
+ *     run in the rules job; the duel-web e2e specs import packages/patch-notes.
+ *   - package.json, package-lock.json: the root lockfile covers every workspace
+ *     (packages, game-server, analyst, frontend, duel-web), and every JS job
+ *     installs from it, so a change there can break any of them. The same holds
+ *     for frontend/package.json and duel-web/package.json (they feed that lock).
  *   - packages/rules/protocol-fixtures: also read by the mobile tests.
  *   - game-server: duel-web e2e starts it (duel-web/playwright.config.ts).
  *   - backend/tests/fixtures: game-server's briefTicket test reads the shared vector.
@@ -36,6 +40,8 @@ const FLAGS = ["rules", "duel_web", "duel_e2e", "frontend", "backend", "mobile"]
 const RULES = [
   { test: (p) => p === ".github/workflows/ci.yml", flags: FLAGS },
   { test: (p) => p === "package.json" || p === "package-lock.json", flags: FLAGS },
+  // App manifests are part of the root workspace lock: every JS job's `npm ci` reads them.
+  { test: (p) => p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("tools/ci/"), flags: FLAGS },
   { test: (p) => p.startsWith("docs/"), flags: [] },
   // Only files directly in the repo root: README.md, CLAUDE.md, AGENTS.md.

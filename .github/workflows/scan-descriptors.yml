@@ -38,10 +38,11 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # frontend/ is an npm workspace: one install from the repo root.
       - name: Install frontend deps
-        working-directory: frontend
+        working-directory: .
         run: npm ci
 
       - name: Fetch reference card images

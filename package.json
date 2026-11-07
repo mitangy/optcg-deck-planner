@@ -4,10 +4,12 @@
   "workspaces": [
     "packages/*",
     "game-server",
-    "analyst"
+    "analyst",
+    "frontend",
+    "duel-web"
   ],
   "scripts": {
-    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/price-timing && npm run test -w @optcg/patch-notes && npm run test -w @optcg/ui && npm run test -w @optcg/site-legal && npm run test -w @optcg/analyst-client && npm run test -w @optcg/game-server && npm run test -w @optcg/analyst",
+    "test": "npm test --workspaces --if-present",
     "test:rules": "npm run test -w @optcg/rules",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:price-timing": "npm run test -w @optcg/price-timing",
@@ -20,7 +22,8 @@
     "dev:game-server": "npm run dev -w @optcg/game-server",
     "test:mutation": "node tools/mutation-check/run.cjs",
     "test:analyst": "npm run test -w @optcg/analyst",
-    "start:analyst": "npm run start -w @optcg/analyst"
+    "start:analyst": "npm run start -w @optcg/analyst",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": {
     "node": ">=22"
