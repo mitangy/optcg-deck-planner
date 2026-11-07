@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.models import CatalogCard, Deck
-from app.planner.decks import delete_deck, get_deck_detail, list_decks, set_deck_as_main
+from app.planner.decks import deck_summary, delete_deck, get_deck_detail, list_decks, set_deck_as_main
 from tests.conftest import add_deck_with_cards, make_user
 
 
@@ -327,3 +327,20 @@ def test_deck_rename_body_rejects_blank_and_strips_526():
     assert DeckRename(name="  Hi ").name == "Hi"
     with pytest.raises(ValidationError):
         DeckRename(name="   ")
+
+
+def test_deck_summary_matches_its_list_entry_and_ignores_other_players_main_decks_refactor_3_9d(db):
+    _seed_leader_catalog(db)
+    me = make_user(db, email="a@test", name="A", sub="a")
+    other = make_user(db, email="b@test", name="B", sub="b")
+    cards = {"OP01-001": 1, "OP01-016": 4}
+    first = _make_leader_deck(db, me, "First", cards, sort_order=1)
+    second = _make_leader_deck(db, me, "Second", cards, sort_order=2)
+    # Another player's marked Main for the same leader must not decide who is Main for me.
+    _make_leader_deck(db, other, "Theirs", cards, sort_order=0, is_main=True)
+
+    listed = {d.id: d for d in list_decks(db, me)}
+    assert deck_summary(db, me, second) == listed[second.id]
+    assert deck_summary(db, me, first) == listed[first.id]
+    assert deck_summary(db, me, first).is_main is True
+    assert deck_summary(db, me, second).is_main is False

@@ -87,8 +87,7 @@ def post_deck(
         deck = deck_svc.create_deck(db, user, body.name, body.decklist)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summaries = {d.id: d for d in deck_svc.list_decks(db, user)}
-    return summaries[deck.id]
+    return deck_svc.deck_summary(db, user, deck)
 
 
 @router.delete("/decks/{deck_id}")

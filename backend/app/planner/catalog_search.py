@@ -103,28 +103,15 @@ def _fuzzy_card_costs(db: Session, matcher: fuzzy.QueryMatcher) -> dict[str, int
     return out
 
 
-def search_catalog(
-    db: Session,
-    *,
-    q: str = "",
-    color: str = "",
-    card_type: str = "",
-    limit: int = 40,
-    alts: bool = False,
-    user_id: int | None = None,
-) -> list[CatalogCardResult]:
-    """Search cards by name, id, color, type, rarity, or set.
+def _substring_rows(
+    db: Session, query: str, color: str, card_type: str, limit: int
+) -> tuple[list[CatalogCard], list]:
+    """Cards matching the text/colour/type filters, exact id first, then cheaper price, then name.
 
-    With ``alts`` each matched card is followed by its alt-art printings as their
-    own rows (``alt_product_id`` set), capped at ``limit`` rows in total.
-
-    Text also matches any printing's name or set, so a card reprinted in another
-    set is found there (one row per card, shown as its preferred printing).
+    Also returns the colour/type filters on their own, which the fuzzy pass reuses.
     """
-    limit = max(1, min(limit, 100))
     stmt = select(CatalogCard)
     filters = []
-    query = (q or "").strip()
     if query:
         like = f"%{query}%"
         filters.append(
@@ -167,47 +154,59 @@ def search_catalog(
         order.insert(0, (func.upper(CatalogCard.card_id) == q_upper).desc())
     stmt = stmt.order_by(*order).limit(limit)
     rows = list(db.scalars(stmt).all())
-    qtokens = fuzzy.tokens(query)
-    matcher = fuzzy.QueryMatcher(qtokens)
-    if qtokens and len(rows) < limit:
-        # Typo-tolerant pass: cards the substring search missed, closest first.
-        seen = {r.card_id for r in rows}
-        costs = _fuzzy_card_costs(db, matcher)
-        costs = {cid: c for cid, c in costs.items() if cid not in seen}
-        if len(costs) > 500:
-            costs = dict(sorted(costs.items(), key=lambda kv: kv[1])[:500])
-        if costs:
-            extra_stmt = select(CatalogCard).where(CatalogCard.card_id.in_(costs), *other_filters)
-            extra = list(db.scalars(extra_stmt).all())
-            extra.sort(
-                key=lambda r: (
-                    costs[r.card_id],
-                    r.market_price is None,
-                    r.market_price if r.market_price is not None else 1e9,
-                    r.name,
-                    r.card_id,
-                )
-            )
-            rows.extend(extra[: limit - len(rows)])
+    return rows, other_filters
 
-    def base_result(row: CatalogCard) -> CatalogCardResult:
-        return CatalogCardResult(
-            card_id=row.card_id,
-            name=row.name,
-            rarity=row.rarity or "",
-            color=row.color or "",
-            card_type=row.card_type or "",
-            cost=parse_cost(row.cost),
-            market_price=row.market_price,
-            low_price=row.low_price,
-            image_url=row.image_url or "",
-            tcgplayer_url=row.tcgplayer_url or "",
-            group_name=row.group_name or "",
+
+def _fuzzy_extra_rows(
+    db: Session, matcher: fuzzy.QueryMatcher, rows: list[CatalogCard], other_filters: list, limit: int
+) -> list[CatalogCard]:
+    """Typo-tolerant pass: cards the substring search missed, closest first (at most ``limit - len(rows)``)."""
+    seen = {r.card_id for r in rows}
+    costs = _fuzzy_card_costs(db, matcher)
+    costs = {cid: c for cid, c in costs.items() if cid not in seen}
+    if len(costs) > 500:
+        costs = dict(sorted(costs.items(), key=lambda kv: kv[1])[:500])
+    if not costs:
+        return []
+    extra_stmt = select(CatalogCard).where(CatalogCard.card_id.in_(costs), *other_filters)
+    extra = list(db.scalars(extra_stmt).all())
+    extra.sort(
+        key=lambda r: (
+            costs[r.card_id],
+            r.market_price is None,
+            r.market_price if r.market_price is not None else 1e9,
+            r.name,
+            r.card_id,
         )
+    )
+    return extra[: limit - len(rows)]
 
-    if not alts:
-        return [base_result(row) for row in rows]
 
+def _base_result(row: CatalogCard) -> CatalogCardResult:
+    return CatalogCardResult(
+        card_id=row.card_id,
+        name=row.name,
+        rarity=row.rarity or "",
+        color=row.color or "",
+        card_type=row.card_type or "",
+        cost=parse_cost(row.cost),
+        market_price=row.market_price,
+        low_price=row.low_price,
+        image_url=row.image_url or "",
+        tcgplayer_url=row.tcgplayer_url or "",
+        group_name=row.group_name or "",
+    )
+
+
+def _with_alt_rows(
+    db: Session,
+    rows: list[CatalogCard],
+    query: str,
+    matcher: fuzzy.QueryMatcher,
+    limit: int,
+    user_id: int | None,
+) -> list[CatalogCardResult]:
+    """Each matched card followed by its alt-art printings as rows of their own, capped at ``limit`` rows."""
     ids = {row.card_id for row in rows}
     alt_map = alt_arts_map(db, ids)
     alt_owned = alt_owned_map(db, user_id) if user_id is not None else {}
@@ -241,13 +240,13 @@ def search_catalog(
             )
         ) or text_hit(row.name, row.group_name)
         if card_hit or row.card_id in plain_text_hit:
-            out.append(base_result(row))
+            out.append(_base_result(row))
         for alt in alt_map.get(row.card_id, []):
             if len(out) >= limit:
                 break
             if not card_hit and not text_hit(alt.name, alt.group_name):
                 continue
-            base = base_result(row)
+            base = _base_result(row)
             out.append(
                 base.model_copy(
                     update={
@@ -263,3 +262,35 @@ def search_catalog(
                 )
             )
     return out
+
+
+def search_catalog(
+    db: Session,
+    *,
+    q: str = "",
+    color: str = "",
+    card_type: str = "",
+    limit: int = 40,
+    alts: bool = False,
+    user_id: int | None = None,
+) -> list[CatalogCardResult]:
+    """Search cards by name, id, color, type, rarity, or set.
+
+    With ``alts`` each matched card is followed by its alt-art printings as their
+    own rows (``alt_product_id`` set), capped at ``limit`` rows in total.
+
+    Text also matches any printing's name or set, so a card reprinted in another
+    set is found there (one row per card, shown as its preferred printing).
+    """
+    limit = max(1, min(limit, 100))
+    query = (q or "").strip()
+    rows, other_filters = _substring_rows(db, query, color, card_type, limit)
+    qtokens = fuzzy.tokens(query)
+    matcher = fuzzy.QueryMatcher(qtokens)
+    if qtokens and len(rows) < limit:
+        rows.extend(_fuzzy_extra_rows(db, matcher, rows, other_filters, limit))
+
+    if not alts:
+        return [_base_result(row) for row in rows]
+    return _with_alt_rows(db, rows, query, matcher, limit, user_id)
+

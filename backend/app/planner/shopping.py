@@ -84,28 +84,8 @@ def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) ->
     return round(total, 2)
 
 
-def shopping_list(
-    db: Session,
-    user: User,
-    deck_ids: list[int] | None = None,
-    include_extras: bool = True,
-    include_collector: bool = True,
-) -> ShoppingResponse:
-    """Master shopping list for a user.
-
-    Need per card is the MAX copies required by any single selected deck
-    (not the sum across decks). Owned is shared, so still_need = max(0, need − owned
-    − alt copies owned).
-
-    Cards added directly (ShoppingExtra) carry a target number of copies to own.
-    They fold into Need by max with the deck Need, never summed, and are included
-    whatever ``deck_ids`` selects unless ``include_extras`` is False.
-
-    Collector copies (#1031) are alt printings wanted on top of the decks. They
-    claim owned copies of that printing first (only the rest cover deck Need),
-    never count toward Need, and add their own still-needed copies and cost to
-    the totals. ``include_collector`` False ignores them entirely (public views).
-    """
+def _selected_decks(db: Session, user: User, deck_ids: list[int] | None) -> list[Deck]:
+    """The user's decks in sort order, narrowed to ``deck_ids`` when given."""
     decks = db.scalars(
         select(Deck)
         .where(Deck.user_id == user.id)
@@ -115,7 +95,13 @@ def shopping_list(
     if deck_ids is not None:
         wanted = set(deck_ids)
         decks = [d for d in decks if d.id in wanted]
-    sum_leaders = bool(getattr(user, "sum_across_leaders", False))
+    return decks
+
+
+def _deck_need(
+    decks: list[Deck], sum_leaders: bool
+) -> tuple[dict[str, dict[str, int]], dict[str, list[str]], dict[str, list[int]], dict[str, int]]:
+    """Per card: need by leader group, decks using it, deck indexes using it, and the combined need."""
     # Max per (card, leader group); Need is the max or sum of those groups.
     need_by_group: dict[str, dict[str, int]] = defaultdict(dict)
     used_in: dict[str, list[str]] = defaultdict(list)
@@ -136,24 +122,11 @@ def shopping_list(
         card_id: sum(by_group.values()) if sum_leaders else max(by_group.values())
         for card_id, by_group in need_by_group.items()
     }
-    deck_need = dict(need)
-    extras: dict[str, int] = {}
-    if include_extras:
-        extras = {
-            row.card_id: row.qty
-            for row in db.scalars(
-                select(ShoppingExtra).where(ShoppingExtra.user_id == user.id)
-            ).all()
-            if row.qty > 0
-        }
-        for card_id, qty in extras.items():
-            need[card_id] = max(need.get(card_id, 0), qty)
-    collector = _collector_map(db, user.id) if include_collector else {}
-    for card_id in collector:
-        # A card with only a collector want still needs a parent row (need 0).
-        need.setdefault(card_id, 0)
+    return need_by_group, used_in, card_deck_indexes, need
 
-    # Leader group order = earliest selected deck for that leader.
+
+def _leader_group_order(decks: list[Deck]) -> tuple[dict[str, int], dict[str, list[int]]]:
+    """Leader group order = earliest selected deck for that leader, plus each group's deck indexes."""
     leader_group_rank: dict[str, int] = {}
     leader_deck_indexes: dict[str, list[int]] = defaultdict(list)
     for deck_idx, deck in enumerate(decks):
@@ -161,26 +134,10 @@ def shopping_list(
         if group not in leader_group_rank:
             leader_group_rank[group] = deck_idx
         leader_deck_indexes[group].append(deck_idx)
+    return leader_group_rank, leader_deck_indexes
 
-    owned = owned_map(db, user.id)
-    alt_owned = alt_owned_map(db, user.id)
-    deck_alt_owned = _deck_alt_owned_map(alt_owned, collector)
-    display_choices = _display_choice_map(db, user.id)
-    leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
-    catalog = catalog_map(db, set(need) | leader_ids)
-    collector_pids = {pid for by_pid in collector.values() for pid in by_pid}
-    collector_printings = (
-        {
-            row.product_id: row
-            for row in db.scalars(
-                select(CatalogPrinting).where(CatalogPrinting.product_id.in_(collector_pids))
-            ).all()
-        }
-        if collector_pids
-        else {}
-    )
-    product_ids = primary_product_ids(db, set(need))
 
+def _group_labels(decks: list[Deck], catalog: dict[str, CatalogCard]) -> dict[str, str]:
     group_labels: dict[str, str] = {}
     for deck in decks:
         group = _leader_group_id(deck)
@@ -188,7 +145,17 @@ def shopping_list(
             continue
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
         group_labels[group] = leader.name if leader else deck.name
+    return group_labels
 
+
+def _merged_alt_wants(
+    db: Session,
+    user: User,
+    decks: list[Deck],
+    extras: dict[str, int],
+    need: dict[str, int],
+    sum_leaders: bool,
+) -> dict[str, dict[int, int]]:
     # Max alt-want per product within each leader, combined across leaders the
     # same way as Need (max, or sum), then clamp sum to shopping need.
     wants_by_deck = _printing_wants_for_decks(db, [d.id for d in decks])
@@ -220,6 +187,109 @@ def shopping_list(
             by_pid[row.product_id] = max(by_pid.get(row.product_id, 0), row.qty)
     for card_id, by_pid in list(merged_wants.items()):
         merged_wants[card_id] = clamp_alt_want_map(by_pid, need.get(card_id, 0))
+    return merged_wants
+
+
+def _deck_sort_context(
+    indexes: list[int],
+    decks: list[Deck],
+    leader_group_rank: dict[str, int],
+    leader_deck_indexes: dict[str, list[int]],
+    catalog: dict[str, CatalogCard],
+) -> tuple[str, str | None, str | None, int]:
+    """Where a card sorts (``deck_sort_key``), its primary leader card id and name, and its leader count."""
+    primary_idx = indexes[0] if indexes else 9999
+    primary_deck = decks[primary_idx] if indexes else None
+    primary_group = _leader_group_id(primary_deck) if primary_deck else "__none"
+    group_rank = leader_group_rank.get(primary_group, 9999)
+    # Within a leader: cards from the first same-leader deck, then later additions.
+    within_rank = 9999
+    for wi, deck_idx in enumerate(leader_deck_indexes.get(primary_group, [])):
+        if deck_idx in indexes:
+            within_rank = wi
+            break
+    deck_sort_key = f"{group_rank:04d}-{within_rank:04d}-{primary_idx:04d}"
+    if not indexes:
+        # Added directly: after every deck card.
+        deck_sort_key = "9999-9999-9999"
+
+    card_leader_ids = {
+        decks[i].leader_card_id
+        for i in indexes
+        if decks[i].leader_card_id
+    }
+    primary_leader_card_id = primary_deck.leader_card_id if primary_deck else None
+    primary_leader_name = None
+    if primary_leader_card_id and primary_leader_card_id in catalog:
+        primary_leader_name = catalog[primary_leader_card_id].name
+    return deck_sort_key, primary_leader_card_id, primary_leader_name, max(1, len(card_leader_ids))
+
+
+def shopping_list(
+    db: Session,
+    user: User,
+    deck_ids: list[int] | None = None,
+    include_extras: bool = True,
+    include_collector: bool = True,
+) -> ShoppingResponse:
+    """Master shopping list for a user.
+
+    Need per card is the MAX copies required by any single selected deck
+    (not the sum across decks). Owned is shared, so still_need = max(0, need − owned
+    − alt copies owned).
+
+    Cards added directly (ShoppingExtra) carry a target number of copies to own.
+    They fold into Need by max with the deck Need, never summed, and are included
+    whatever ``deck_ids`` selects unless ``include_extras`` is False.
+
+    Collector copies (#1031) are alt printings wanted on top of the decks. They
+    claim owned copies of that printing first (only the rest cover deck Need),
+    never count toward Need, and add their own still-needed copies and cost to
+    the totals. ``include_collector`` False ignores them entirely (public views).
+    """
+    decks = _selected_decks(db, user, deck_ids)
+    sum_leaders = bool(getattr(user, "sum_across_leaders", False))
+    need_by_group, used_in, card_deck_indexes, need = _deck_need(decks, sum_leaders)
+    deck_need = dict(need)
+    extras: dict[str, int] = {}
+    if include_extras:
+        extras = {
+            row.card_id: row.qty
+            for row in db.scalars(
+                select(ShoppingExtra).where(ShoppingExtra.user_id == user.id)
+            ).all()
+            if row.qty > 0
+        }
+        for card_id, qty in extras.items():
+            need[card_id] = max(need.get(card_id, 0), qty)
+    collector = _collector_map(db, user.id) if include_collector else {}
+    for card_id in collector:
+        # A card with only a collector want still needs a parent row (need 0).
+        need.setdefault(card_id, 0)
+    leader_group_rank, leader_deck_indexes = _leader_group_order(decks)
+
+    owned = owned_map(db, user.id)
+    alt_owned = alt_owned_map(db, user.id)
+    deck_alt_owned = _deck_alt_owned_map(alt_owned, collector)
+    display_choices = _display_choice_map(db, user.id)
+    leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
+    catalog = catalog_map(db, set(need) | leader_ids)
+    collector_pids = {pid for by_pid in collector.values() for pid in by_pid}
+    collector_printings = (
+        {
+            row.product_id: row
+            for row in db.scalars(
+                select(CatalogPrinting).where(CatalogPrinting.product_id.in_(collector_pids))
+            ).all()
+        }
+        if collector_pids
+        else {}
+    )
+    product_ids = primary_product_ids(db, set(need))
+
+    group_labels = _group_labels(decks, catalog)
+
+    merged_wants = _merged_alt_wants(db, user, decks, extras, need, sum_leaders)
 
     alts = alt_arts_map(
         db, set(need), wanted=merged_wants, owned=alt_owned, collector=collector
@@ -288,30 +358,9 @@ def shopping_list(
             )
 
         indexes = card_deck_indexes[card_id]
-        primary_idx = indexes[0] if indexes else 9999
-        primary_deck = decks[primary_idx] if indexes else None
-        primary_group = _leader_group_id(primary_deck) if primary_deck else "__none"
-        group_rank = leader_group_rank.get(primary_group, 9999)
-        # Within a leader: cards from the first same-leader deck, then later additions.
-        within_rank = 9999
-        for wi, deck_idx in enumerate(leader_deck_indexes.get(primary_group, [])):
-            if deck_idx in indexes:
-                within_rank = wi
-                break
-        deck_sort_key = f"{group_rank:04d}-{within_rank:04d}-{primary_idx:04d}"
-        if not indexes:
-            # Added directly: after every deck card.
-            deck_sort_key = "9999-9999-9999"
-
-        card_leader_ids = {
-            decks[i].leader_card_id
-            for i in indexes
-            if decks[i].leader_card_id
-        }
-        primary_leader_card_id = primary_deck.leader_card_id if primary_deck else None
-        primary_leader_name = None
-        if primary_leader_card_id and primary_leader_card_id in catalog:
-            primary_leader_name = catalog[primary_leader_card_id].name
+        deck_sort_key, primary_leader_card_id, primary_leader_name, leader_count = _deck_sort_context(
+            indexes, decks, leader_group_rank, leader_deck_indexes, catalog
+        )
 
         items.append(
             ShoppingItem(
@@ -337,7 +386,7 @@ def shopping_list(
                 deck_sort_key=deck_sort_key,
                 primary_leader_card_id=primary_leader_card_id,
                 primary_leader_name=primary_leader_name,
-                leader_count=max(1, len(card_leader_ids)),
+                leader_count=leader_count,
                 need_by_leader=(
                     [
                         LeaderNeed(label=group_labels.get(g, g), need=n)

@@ -144,6 +144,22 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
         .options(selectinload(Deck.cards))
         .order_by(Deck.sort_order, Deck.id)
     ).all()
+    return _summaries(db, user, decks, decks)
+
+
+def deck_summary(db: Session, user: User, deck: Deck) -> DeckSummary:
+    """The list entry for one deck, without building every other deck's summary."""
+    if deck.leader_card_id:
+        rivals = db.scalars(
+            select(Deck).where(Deck.user_id == user.id, Deck.leader_card_id == deck.leader_card_id)
+        ).all()
+    else:
+        rivals = [deck]
+    return _summaries(db, user, [deck], rivals)[0]
+
+
+def _summaries(db: Session, user: User, decks: list[Deck], main_pool: list[Deck]) -> list[DeckSummary]:
+    """Summaries for ``decks``; ``main_pool`` holds the decks that compete for each leader's Main flag."""
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = catalog_map(db, all_ids | leader_ids)
@@ -151,7 +167,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     alt_owned = _deck_alt_owned_map(alt_owned_map(db, user.id), _collector_map(db, user.id))
     main_by_leader: dict[str, int] = {}
     for leader_id in leader_ids:
-        main = _resolve_main_deck(decks, leader_id)
+        main = _resolve_main_deck(main_pool, leader_id)
         if main is not None:
             main_by_leader[leader_id] = main.id
     out: list[DeckSummary] = []
