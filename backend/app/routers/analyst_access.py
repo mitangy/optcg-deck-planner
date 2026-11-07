@@ -35,9 +35,9 @@ router = APIRouter(prefix="/analyst/access", tags=["analyst"])
 REREQUEST_AFTER = timedelta(hours=24)
 MAX_LISTED = 200
 
-_request_rate = RateLimiter(max_calls=5, period_s=3600)
+_request_rate = RateLimiter(max_calls=5, period_s=3600, name="analyst_access_request_rate")
 # Rows are stored until an owner answers and the per-IP key can be spoofed, so cap the total too.
-_request_global_rate = RateLimiter(max_calls=100, period_s=3600)
+_request_global_rate = RateLimiter(max_calls=100, period_s=3600, name="analyst_access_request_global_rate")
 
 _ORDER = {"pending": 0, "approved": 1, "denied": 2}
 

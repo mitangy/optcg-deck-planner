@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_optional_user
 from app.config import Settings, get_settings
+from app.tokens import OpsToken
 from app.db import get_db
 from app.models import Feedback, User
 from app.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
-from app.routers.api import _require_catalog_token
 from app.schemas import FeedbackIn, FeedbackOut, FeedbackStatusIn
 from app.usernames import duel_display_name
 
@@ -82,19 +82,16 @@ def create_feedback(
     return _out(row, user)
 
 
-@router.get("", response_model=list[FeedbackOut])
+@router.get("", response_model=list[FeedbackOut], dependencies=[OpsToken])
 def list_feedback(
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
     status: str | None = "open",
     limit: int = 200,
 ) -> list[FeedbackOut]:
-    """Feedback for triage, newest first (guarded by the admin catalog token).
+    """Feedback for triage, newest first (guarded by the ops admin token).
 
     Pass ``status=all`` to include fixed and won't-fix items.
     """
-    _require_catalog_token(x_catalog_token, settings)
     query = select(Feedback, User).outerjoin(User, User.id == Feedback.user_id)
     if status and status != "all":
         query = query.where(Feedback.status == status)
@@ -102,16 +99,13 @@ def list_feedback(
     return [_out(row, user) for row, user in rows]
 
 
-@router.patch("/{feedback_id}", response_model=FeedbackOut)
+@router.patch("/{feedback_id}", response_model=FeedbackOut, dependencies=[OpsToken])
 def update_feedback(
     feedback_id: int,
     body: FeedbackStatusIn,
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> FeedbackOut:
-    """Mark feedback open, fixed or won't-fix (admin catalog token)."""
-    _require_catalog_token(x_catalog_token, settings)
+    """Mark feedback open, fixed or won't-fix (ops admin token)."""
     row = db.get(Feedback, feedback_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Feedback not found")
