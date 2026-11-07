@@ -128,8 +128,12 @@ const internals = (room: DuelRoom) => room as unknown as RoomInternals;
 
 /** Send `steps` legal intents from whichever seat can act, ending the turn now and then. */
 async function playSome(clients: [ClientRoom, ClientRoom], bags: [SeatBag, SeatBag], steps: number) {
+  const actingSeat = () => ([0, 1] as const).find((s) => bags[s].views.at(-1)!.winner == null && bags[s].views.at(-1)!.legalIntents.length > 0);
+  const over = () => bags.some((b) => b.views.at(-1)!.winner != null);
   for (let i = 0; i < steps; i++) {
-    const seat = ([0, 1] as const).find((s) => bags[s].views.at(-1)!.winner == null && bags[s].views.at(-1)!.legalIntents.length > 0);
+    // After an end_turn the next seat's turn can land a view or two after the first new one, so wait for it.
+    await waitUntil(() => actingSeat() !== undefined || over(), 5000).catch(() => {});
+    const seat = actingSeat();
     if (seat === undefined) return;
     const legal = bags[seat].views.at(-1)!.legalIntents;
     const pick = i % 4 === 3 ? (legal.find((x) => x.type === "end_turn") ?? legal[0]!) : legal[0]!;
