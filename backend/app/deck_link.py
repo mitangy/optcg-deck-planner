@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.duel import decks
 from app.domain import is_don_card, is_leader_card
 from app.models import Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
+from app.planner.catalog_repo import catalog_map
 
 log = logging.getLogger(__name__)
 
@@ -115,9 +116,7 @@ def _owned_deck(db: Session, user_id: int, planner_id: object) -> Deck | None:
 
 
 def _catalog(db: Session, ids: set[str]):
-    from app.services import _catalog_map
-
-    return _catalog_map(db, ids)
+    return catalog_map(db, ids)
 
 
 def _main_counts(cards: list[tuple[str, int]], leader: str | None, catalog) -> Counter:

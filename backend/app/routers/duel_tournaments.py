@@ -12,7 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_tournaments as logic
+from app.duel import tournaments as logic
 from app.core.statuses import FriendshipStatus, TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
 from app.core.time import as_utc, utcnow
 from app.auth import get_current_user
@@ -20,9 +20,9 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer, User
 from app.rate_limit import RateLimiter
-from app.server_urls import known_game_server_urls
+from app.duel.server_urls import known_game_server_urls
 from app.social.presence import friendship, live_presence, room_server_url
-from app.server_urls import normalize_server_url
+from app.duel.server_urls import normalize_server_url
 
 router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 

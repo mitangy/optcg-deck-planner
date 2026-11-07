@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from tests.db_support import make_bare_engine, make_test_engine, using_postgres
 from app.config import get_settings
 from app.db import _ensure_user_username, get_db
-from app.game_tokens import verify_game_token
+from app.duel.tokens import verify_game_token
 from app.main import app
 from app.models import DuelRating, User
 from app.routers import auth as auth_router

@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app import duel_tournaments as logic
+from app.duel import tournaments as logic
 from app.auth import SESSION_COOKIE, create_session_token
 from app.config import get_settings
 from app.db import get_db

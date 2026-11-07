@@ -30,7 +30,7 @@ from app.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
 from app.roles import is_banned
 from app.duel.matches import latest_progress
-from app.routers.duel_prefs import _active_attr, _sniff_mime, public_sig
+from app.duel.cosmetics import active_attr, public_sig, sniff_mime
 from app.social.presence import friendship as friendship_between, live_presence
 
 router = APIRouter(prefix="/duel", tags=["duel"])
@@ -128,11 +128,11 @@ def _snapshot(db: Session, settings: Settings, target: User, body: PlayerReportI
         except (binascii.Error, ValueError):
             data = b""
         # image_src is capped at 800,000 characters, so the decoded image is at most 600 KB.
-        mime = _sniff_mime(data) if data else None
+        mime = sniff_mime(data) if data else None
         if mime:
             return None, mime, data
     prefs = db.get(DuelUserSettings, target.id)
-    active_id = getattr(prefs, _active_attr(body.image_kind), None) if prefs else None
+    active_id = getattr(prefs, active_attr(body.image_kind), None) if prefs else None
     row = db.get(DuelCosmetic, active_id) if active_id else None
     if row is not None and row.user_id == target.id:
         return row.id, row.mime, bytes(row.data)

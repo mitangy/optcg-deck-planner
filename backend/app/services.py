@@ -37,6 +37,14 @@ from app.models import (
     ShoppingExtraPrinting,
     User,
 )
+from app.planner.catalog_repo import (
+    alt_arts_map,
+    alt_owned_map,
+    catalog_map,
+    deck_card_lines,
+    owned_map,
+    primary_product_ids,
+)
 from app.schemas import (
     CardView,
     CatalogCardResult,
@@ -64,75 +72,6 @@ class DeckOversizeError(Exception):
         super().__init__(
             f"Deck would have {projected} cards (limit {limit}: 50 + 1 leader). Confirm to continue."
         )
-
-
-def _catalog_map(db: Session, card_ids: set[str]) -> dict[str, CatalogCard]:
-    if not card_ids:
-        return {}
-    rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
-    return {r.card_id: r for r in rows}
-
-
-def _alt_arts_map(
-    db: Session,
-    card_ids: set[str],
-    wanted: dict[str, dict[int, int]] | None = None,
-    owned: dict[str, dict[int, int]] | None = None,
-    collector: dict[str, dict[int, int]] | None = None,
-) -> dict[str, list[PrintingView]]:
-    """Special printings with different art than the preferred catalog row.
-
-    Excludes the primary product id and any special whose image_url matches the
-    preferred face (plain reprints that reuse base art).
-    """
-    if not card_ids:
-        return {}
-    primary_ids = _primary_product_ids(db, card_ids)
-    preferred_image = {
-        row.card_id: (row.image_url or "").strip()
-        for row in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
-    }
-    rows = db.scalars(
-        select(CatalogPrinting).where(
-            CatalogPrinting.card_id.in_(card_ids),
-            CatalogPrinting.is_special == 1,
-        )
-    ).all()
-    want = wanted or {}
-    have = owned or {}
-    coll = collector or {}
-    out: dict[str, list[PrintingView]] = defaultdict(list)
-    for row in rows:
-        if row.product_id == primary_ids.get(row.card_id):
-            continue
-        img = (row.image_url or "").strip()
-        pref_img = preferred_image.get(row.card_id, "")
-        if img and pref_img and img == pref_img:
-            continue
-        out[row.card_id].append(
-            PrintingView(
-                product_id=row.product_id,
-                name=row.name,
-                market_price=row.market_price,
-                low_price=row.low_price,
-                image_url=row.image_url,
-                tcgplayer_url=row.tcgplayer_url,
-                group_name=row.group_name,
-                is_special=True,
-                wanted=int(want.get(row.card_id, {}).get(row.product_id, 0)),
-                owned=int(have.get(row.card_id, {}).get(row.product_id, 0)),
-                collector=int(coll.get(row.card_id, {}).get(row.product_id, 0)),
-            )
-        )
-    for card_id in out:
-        out[card_id].sort(
-            key=lambda p: (
-                p.market_price is None,
-                p.market_price if p.market_price is not None else 1e9,
-                p.product_id,
-            )
-        )
-    return out
 
 
 def _printing_wants_for_decks(
@@ -242,21 +181,6 @@ def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) ->
     return round(total, 2)
 
 
-def _owned_map(db: Session, user_id: int) -> dict[str, int]:
-    rows = db.scalars(select(Owned).where(Owned.user_id == user_id)).all()
-    return {r.card_id: r.qty for r in rows}
-
-
-def _alt_owned_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
-    """card_id -> product_id -> copies of that alt printing the user owns (qty > 0)."""
-    rows = db.scalars(select(OwnedPrinting).where(OwnedPrinting.user_id == user_id)).all()
-    out: dict[str, dict[int, int]] = defaultdict(dict)
-    for row in rows:
-        if row.qty > 0:
-            out[row.card_id][row.product_id] = row.qty
-    return dict(out)
-
-
 def _collector_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
     """card_id -> product_id -> collector copies the user wants on top of their decks (qty > 0)."""
     rows = db.scalars(select(CollectorWant).where(CollectorWant.user_id == user_id)).all()
@@ -301,25 +225,6 @@ def _alts_owned_total(alt_owned: dict[str, dict[int, int]], card_id: str) -> int
     return sum(alt_owned.get(card_id, {}).values())
 
 
-def _primary_product_ids(db: Session, card_ids: set[str]) -> dict[str, int]:
-    """Preferred TCGPlayer product id per card number (standard printing, then cheapest)."""
-    if not card_ids:
-        return {}
-    rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.card_id.in_(card_ids))).all()
-    best: dict[str, tuple[tuple, int]] = {}
-    for row in rows:
-        key = (
-            int(row.is_special or 0),
-            row.market_price is None,
-            row.market_price if row.market_price is not None else 1e9,
-            row.product_id,
-        )
-        prev = best.get(row.card_id)
-        if prev is None or key < prev[0]:
-            best[row.card_id] = (key, row.product_id)
-    return {card_id: pair[1] for card_id, pair in best.items()}
-
-
 def _card_view(
     card_id: str,
     needed: int,
@@ -362,10 +267,6 @@ def _card_view(
     )
 
 
-def _deck_card_lines(deck: Deck) -> list[ParsedCard]:
-    return [ParsedCard(card_id=c.card_id, needed=c.needed) for c in deck.cards]
-
-
 def _same_leader_decks(decks: list[Deck], leader_card_id: str | None) -> list[Deck]:
     if not leader_card_id:
         return []
@@ -405,9 +306,9 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     ).all()
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
-    catalog = _catalog_map(db, all_ids | leader_ids)
-    owned = _owned_map(db, user.id)
-    alt_owned = _deck_alt_owned_map(_alt_owned_map(db, user.id), _collector_map(db, user.id))
+    catalog = catalog_map(db, all_ids | leader_ids)
+    owned = owned_map(db, user.id)
+    alt_owned = _deck_alt_owned_map(alt_owned_map(db, user.id), _collector_map(db, user.id))
     main_by_leader: dict[str, int] = {}
     for leader_id in leader_ids:
         main = _resolve_main_deck(decks, leader_id)
@@ -416,7 +317,7 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
     out: list[DeckSummary] = []
     for deck in decks:
         leader = catalog.get(deck.leader_card_id) if deck.leader_card_id else None
-        main_cards, don_cards = deck_size_counts(_deck_card_lines(deck), catalog)
+        main_cards, don_cards = deck_size_counts(deck_card_lines(deck), catalog)
         owned_copies = sum(
             min(owned.get(c.card_id, 0) + _alts_owned_total(alt_owned, c.card_id), c.needed)
             for c in deck.cards
@@ -486,7 +387,7 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
     if deck_count >= MAX_DECKS_PER_USER:
         raise ValueError(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
-    catalog = _catalog_map(db, {c.card_id for c in parsed})
+    catalog = catalog_map(db, {c.card_id for c in parsed})
     leader_id = find_leader_id(parsed, catalog)
 
     max_order = db.scalar(
@@ -656,17 +557,17 @@ def get_deck_detail(
     if target is None:
         raise LookupError("Deck not found")
 
-    owned = _owned_map(db, user.id)
-    alt_owned = _alt_owned_map(db, user.id)
+    owned = owned_map(db, user.id)
+    alt_owned = alt_owned_map(db, user.id)
     collector = _collector_map(db, user.id)
     deck_alt_owned = _deck_alt_owned_map(alt_owned, collector)
     display_choices = _display_choice_map(db, user.id)
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
-    catalog = _catalog_map(db, all_ids | leader_ids)
+    catalog = catalog_map(db, all_ids | leader_ids)
     deck_wants = _printing_wants_for_decks(db, [target.id]).get(target.id, {})
-    alts = _alt_arts_map(db, all_ids, wanted=deck_wants, owned=alt_owned, collector=collector)
-    product_ids = _primary_product_ids(db, all_ids)
+    alts = alt_arts_map(db, all_ids, wanted=deck_wants, owned=alt_owned, collector=collector)
+    product_ids = primary_product_ids(db, all_ids)
 
     baseline = _resolve_main_deck(decks, target.leader_card_id)
     is_main = baseline is not None and baseline.id == target.id
@@ -737,7 +638,7 @@ def get_deck_detail(
     if target.leader_card_id and target.leader_card_id in catalog:
         leader_name = catalog[target.leader_card_id].name
 
-    main_cards, don_cards = deck_size_counts(_deck_card_lines(target), catalog)
+    main_cards, don_cards = deck_size_counts(deck_card_lines(target), catalog)
 
     return DeckDetail(
         id=target.id,
@@ -936,8 +837,8 @@ def search_catalog(
         return [base_result(row) for row in rows]
 
     ids = {row.card_id for row in rows}
-    alt_map = _alt_arts_map(db, ids)
-    alt_owned = _alt_owned_map(db, user_id) if user_id is not None else {}
+    alt_map = alt_arts_map(db, ids)
+    alt_owned = alt_owned_map(db, user_id) if user_id is not None else {}
     needle = query.lower()
     plain_text_hit: set[str] = set()
 
@@ -1052,7 +953,7 @@ def upsert_deck_card(
 
     existing = next((c for c in deck.cards if c.card_id == card_id), None)
     catalog_ids = {c.card_id for c in deck.cards} | {card_id}
-    catalog = _catalog_map(db, catalog_ids)
+    catalog = catalog_map(db, catalog_ids)
 
     projected: dict[str, int] = {c.card_id: c.needed for c in deck.cards}
     if needed <= 0:
@@ -1061,7 +962,7 @@ def upsert_deck_card(
         projected[card_id] = needed
     projected_lines = [ParsedCard(card_id=cid, needed=qty) for cid, qty in projected.items()]
 
-    main_now, _don_now = deck_size_counts(_deck_card_lines(deck), catalog)
+    main_now, _don_now = deck_size_counts(deck_card_lines(deck), catalog)
     main_projected, don_projected = deck_size_counts(projected_lines, catalog)
 
     if don_projected > DON_DECK_LIMIT:
@@ -1121,7 +1022,7 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
         raise LookupError("Deck not found")
     parsed = parse_decklist(decklist)  # ValueError("No cards found...") when empty
     _check_distinct_card_cap(parsed)
-    catalog = _catalog_map(db, {c.card_id for c in parsed})
+    catalog = catalog_map(db, {c.card_id for c in parsed})
     _main, don_count = deck_size_counts(parsed, catalog)
     if don_count > DON_DECK_LIMIT:
         raise ValueError(f"DON!! deck would have {don_count} cards (maximum {DON_DECK_LIMIT})")
@@ -1472,12 +1373,12 @@ def shopping_list(
             leader_group_rank[group] = deck_idx
         leader_deck_indexes[group].append(deck_idx)
 
-    owned = _owned_map(db, user.id)
-    alt_owned = _alt_owned_map(db, user.id)
+    owned = owned_map(db, user.id)
+    alt_owned = alt_owned_map(db, user.id)
     deck_alt_owned = _deck_alt_owned_map(alt_owned, collector)
     display_choices = _display_choice_map(db, user.id)
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
-    catalog = _catalog_map(db, set(need) | leader_ids)
+    catalog = catalog_map(db, set(need) | leader_ids)
     collector_pids = {pid for by_pid in collector.values() for pid in by_pid}
     collector_printings = (
         {
@@ -1489,7 +1390,7 @@ def shopping_list(
         if collector_pids
         else {}
     )
-    product_ids = _primary_product_ids(db, set(need))
+    product_ids = primary_product_ids(db, set(need))
 
     group_labels: dict[str, str] = {}
     for deck in decks:
@@ -1531,7 +1432,7 @@ def shopping_list(
     for card_id, by_pid in list(merged_wants.items()):
         merged_wants[card_id] = clamp_alt_want_map(by_pid, need.get(card_id, 0))
 
-    alts = _alt_arts_map(
+    alts = alt_arts_map(
         db, set(need), wanted=merged_wants, owned=alt_owned, collector=collector
     )
     items: list[ShoppingItem] = []
@@ -1682,11 +1583,11 @@ def owned_collection(
     a card owned only through alts is listed too. ``owned`` is base copies;
     ``alts_owned`` is alt copies; total_copies counts both.
     """
-    base = {card_id: qty for card_id, qty in _owned_map(db, user.id).items() if qty > 0}
-    alt_owned = _alt_owned_map(db, user.id)
+    base = {card_id: qty for card_id, qty in owned_map(db, user.id).items() if qty > 0}
+    alt_owned = alt_owned_map(db, user.id)
     card_ids = set(base) | set(alt_owned)
     # Every alt printing of these cards (owned or not) with the user's count, and the art they chose to show.
-    alts = _alt_arts_map(db, card_ids, owned=alt_owned, collector=_collector_map(db, user.id))
+    alts = alt_arts_map(db, card_ids, owned=alt_owned, collector=_collector_map(db, user.id))
     display_choices = _display_choice_map(db, user.id)
     # Still-to-buy copies on the list for the ticked decks (+ directly added cards).
     buying = {
@@ -1694,8 +1595,8 @@ def owned_collection(
         for item in shopping_list(db, user, deck_ids=deck_ids).items
         if item.still_need > 0
     }
-    catalog = _catalog_map(db, card_ids)
-    product_ids = _primary_product_ids(db, card_ids)
+    catalog = catalog_map(db, card_ids)
+    product_ids = primary_product_ids(db, card_ids)
     alt_prices: dict[int, float | None] = {}
     if alt_owned:
         pids = {pid for by_pid in alt_owned.values() for pid in by_pid}
@@ -2128,14 +2029,14 @@ def public_share_view(
         # come from whoever opened the link (#741).
         detail = get_deck_detail(db, owner, link.deck_id)
         if viewer is not None:
-            viewer_owned = _owned_map(db, viewer.id)
-            viewer_alt_owned = _alt_owned_map(db, viewer.id)
+            viewer_owned = owned_map(db, viewer.id)
+            viewer_alt_owned = alt_owned_map(db, viewer.id)
             viewer_display = _display_choice_map(db, viewer.id)
         else:
             viewer_owned = {}
             viewer_alt_owned = {}
             viewer_display = {}
-        viewer_alts = _alt_arts_map(
+        viewer_alts = alt_arts_map(
             db, {c.card_id for c in detail.cards}, wanted={}, owned=viewer_alt_owned
         )
         items: list[ShoppingItem] = []

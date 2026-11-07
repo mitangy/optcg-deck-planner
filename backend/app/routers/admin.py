@@ -19,7 +19,6 @@ from app import admin_hosting, admin_traffic
 from app.core.statuses import AccessStatus, FriendshipStatus, ReportStatus
 from app.core.time import as_utc_or_none
 from app.analyst_credit import month_start, spent_since
-from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import (
@@ -46,10 +45,10 @@ from app.models import (
     PlayerWarning,
     User,
 )
-from app.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
+from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
-from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
-from app.routers.analyst import require_service
+from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin
+from app.core.security import Admin, Staff, require_service
 from app.social.presence import ONLINE_TTL, live_presence
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -57,21 +56,6 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 DB = Annotated[Session, Depends(get_db)]
 GUEST_SUFFIX = "@localhost"
 
-
-def require_staff(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if not is_staff(user):
-        raise HTTPException(status_code=403, detail="Staff only")
-    return user
-
-
-def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if not is_admin(user):
-        raise HTTPException(status_code=403, detail="Admin only")
-    return user
-
-
-Staff = Annotated[User, Depends(require_staff)]
-Admin = Annotated[User, Depends(require_admin)]
 
 # The windows the admin charts offer (#691); anything else is a 422.
 RANGE_DAYS = (7, 14, 30, 90)
