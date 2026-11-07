@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { flushSync } from "react-dom";
 import { DuelClient } from "../net/duelClient";
@@ -42,13 +43,9 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import {
-  indexViewInstances,
-  narrateEvents,
-  rewindBattleLog,
-  type BattleLogEntry,
-  type InstanceIndex,
-} from "../board/battleLog";
+import type { BattleLogEntry } from "../board/battleLog";
+import { classifyServerError, createMatchStore, SPECTATOR_CAP_MESSAGE, type MatchStore } from "./matchStore";
+import { MatchStoreContext } from "./useMatch";
 
 type ConnectOpts = {
   serverUrl?: string;
@@ -77,7 +74,7 @@ type ConnectOpts = {
   };
 };
 
-export const SPECTATOR_CAP_MESSAGE = "This match already has the most spectators.";
+export { SPECTATOR_CAP_MESSAGE };
 
 /** A match request: the board opens at once and shows this while it resolves. */
 export type MatchLaunch = {
@@ -176,52 +173,57 @@ export class LaunchCancelledError extends Error {
   }
 }
 
+type SessionActions = Pick<
+  DuelSession,
+  | "client"
+  | "takeOver"
+  | "clearBattleLog"
+  | "sendChat"
+  | "sendHandOrder"
+  | "sendRematch"
+  | "sendUndo"
+  | "setRating"
+  | "connect"
+  | "queueRanked"
+  | "cancelQueue"
+  | "reconnect"
+  | "tryResumeFromStorage"
+  | "sendIntent"
+  | "concede"
+  | "startMatch"
+  | "leave"
+  | "clearError"
+>;
+
 const Ctx = createContext<DuelSession | null>(null);
 
 export function DuelSessionProvider({ children }: { children: React.ReactNode }) {
   const clientRef = useRef(new DuelClient());
+  /** Everything the server told us about the match lives in this store (see matchStore.ts); the session below only owns session concerns. */
+  const storeRef = useRef<MatchStore | null>(null);
+  if (!storeRef.current) {
+    storeRef.current = createMatchStore("online", { resuming: loadMatchResume()?.mode === "duel" });
+  }
+  const store = storeRef.current;
   const serverUrlRef = useRef<string | null>(null);
   /** The last skin sent carried an account upload path (see skinShare.ts). */
   const skinSentAsPathRef = useRef(false);
   const seatRef = useRef<Seat | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [takenOver, setTakenOver] = useState(false);
   const [launch, setLaunch] = useState<MatchLaunch | null>(null);
   const [launching, setLaunching] = useState(false);
   /** Bumped by every startMatch / leave: a connect that finishes under an older value was abandoned. */
   const launchGenRef = useRef(0);
   const launchingRef = useRef(false);
-  const [queueing, setQueueing] = useState(false);
-  const [canReconnect, setCanReconnect] = useState(false);
-  const [resuming, setResuming] = useState(() => loadMatchResume()?.mode === "duel");
-  const [reconnecting, setReconnecting] = useState(false);
-  const [matchId, setMatchId] = useState<string | null>(null);
-  const [seat, setSeat] = useState<Seat | null>(null);
-  const [role, setRole] = useState<"player" | "spectator">("player");
   const connectRoleRef = useRef<"player" | "spectator">("player");
-  const [view, setView] = useState<PlayerView | null>(null);
-  const [players, setPlayers] = useState<SeatPlayers | null>(null);
-  const [ranked, setRanked] = useState<boolean | null>(null);
-  const [firstSeatPickedBy, setFirstSeatPickedBy] = useState<Seat | null | undefined>(undefined);
-  const [brief, setBrief] = useState<BriefTicketWire | null>(null);
-  const [vsBot, setVsBot] = useState(false);
-  const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
-  const viewRef = useRef<PlayerView | null>(null);
-  /** Board instance ids → cards, so log lines can name attackers / blockers. */
-  const instancesRef = useRef<InstanceIndex>(new Map());
-  const [errorBanner, setErrorBanner] = useState<string | null>(null);
-  const [matchOver, setMatchOver] = useState<MatchOverMessage["result"] | null>(null);
-  const [timer, setTimer] = useState<TimerMessage | null>(null);
-  const [chat, setChat] = useState<ChatLine[]>([]);
-  const [undo, setUndo] = useState<UndoState | null>(null);
-  const [awayUntil, setAwayUntil] = useState<[number | null, number | null]>([null, null]);
-  const [rematch, setRematch] = useState<RematchState | null>(null);
-  const [seatSkins, setSeatSkins] = useState<[SeatSkin | null, SeatSkin | null]>([null, null]);
   const [rating, setRating] = useState<number | null>(null);
   const [lastServerUrl, setLastServerUrl] = useState<string | null>(null);
 
-  const value = useMemo<DuelSession>(() => {
+  const match = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+
+  /** The methods never change identity: they read the store and refs, not render-time state. */
+  const actions = useMemo(() => {
     const client = clientRef.current;
+    const { dispatch } = store;
 
     function persistToken(token: string, roomId: string) {
       const s = seatRef.current;
@@ -241,29 +243,11 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
     function wireHandlers() {
       client.setHandlers({
-        onWelcome: ({ matchId: id, seat: s, view: v, role: r, players: p, ranked: rk, firstSeatPickedBy: pb, brief: b }) => {
-          setPlayers(p ?? null);
-          setFirstSeatPickedBy(pb);
-          setRanked(typeof rk === "boolean" ? rk : null);
-          setBrief(r === "player" ? (b ?? null) : null);
+        onWelcome: (info) => {
+          const { seat: s, role: r } = info;
           seatRef.current = s;
-          setMatchId(id);
-          setSeat(s);
-          setRole(r);
-          viewRef.current = v;
-          instancesRef.current = new Map();
-          indexViewInstances(v, instancesRef.current);
-          setView(v);
-          setBattleLog([]);
-          // A welcome starts (or resyncs) a game: a rematch clears the last
-          // result; a resync of a finished game re-sends match_over after this.
-          setMatchOver(null);
-          setRematch(null);
-          setConnected(true);
-          setReconnecting(false);
-          setCanReconnect(r === "player");
-          setQueueing(false);
-          setResuming(false);
+          // A welcome starts (or resyncs) a game; the reducer clears the last result / rematch / log.
+          dispatch({ type: "welcome", info });
           if (r === "player" && (s === 0 || s === 1)) {
             setCosmeticsPublisher((publishSeat, prefs) => {
               if (publishSeat !== seatRef.current) return;
@@ -277,40 +261,17 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
             });
           }
           const tok = client.getReconnectionToken();
-          if (tok) persistToken(tok, id);
+          if (tok) persistToken(tok, info.matchId);
         },
-        onView: (v) => {
-          viewRef.current = v;
-          indexViewInstances(v, instancesRef.current);
-          setView(v);
-        },
-        onEvents: (events, step) => {
-          const turn = viewRef.current?.turnNumber ?? 1;
-          // Spectators follow a camera seat but are not "You".
-          const youSeat = viewRef.current?.spectator ? null : seatRef.current;
-          indexViewInstances(viewRef.current, instancesRef.current);
-          const lines = narrateEvents(events, {
-            youSeat,
-            turnNumber: turn,
-            instances: instancesRef.current,
-          });
-          if (lines.length) {
-            const stamped = step === undefined ? lines : lines.map((l) => ({ ...l, step }));
-            setBattleLog((prev) => [...prev, ...stamped]);
-          }
-        },
+        onView: (view) => dispatch({ type: "view", view }),
+        onEvents: (events, step) => dispatch({ type: "events", events, step }),
         onCosmetics: (msg) => {
           replaceSeatArtPrefs(msg.seat, msg.artPrefs);
         },
-        onSkin: (msg) => {
-          setSeatSkins((prev) => {
-            const next: [SeatSkin | null, SeatSkin | null] = [prev[0], prev[1]];
-            next[msg.seat] = msg.skin;
-            return next;
-          });
-        },
+        onSkin: (msg) => dispatch({ type: "skin", msg }),
         onError: (err) => {
-          if (isSeatReservationExpiredError(err.message)) return;
+          const outcome = classifyServerError(err, store.getSnapshot(), connectRoleRef.current);
+          if (outcome.kind === "ignore") return;
           if (skinSentAsPathRef.current && isSkinPathRejected(err)) {
             // A game server from before public paths: share the art as data URLs instead.
             skinSentAsPathRef.current = false;
@@ -319,73 +280,30 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
             });
             return;
           }
-          // A spectator who arrives before the first deal is not in trouble:
-          // the board already says "Waiting for the match to start…".
-          if (err.code === "match_not_ready" && !viewRef.current) return;
-          if (err.code === "room_full" && connectRoleRef.current === "spectator") {
-            resetMatch();
-            setErrorBanner(SPECTATOR_CAP_MESSAGE);
-            return;
-          }
-          if (err.code === "opponent_no_show") {
-            // Ranked opponent never arrived and the room closed: back to the
-            // lobby with the reason instead of "Waiting for opponent…" forever.
-            resetMatch();
-            setErrorBanner(err.message);
-            return;
-          }
-          setErrorBanner(`${err.code}: ${err.message}`);
+          if (outcome.kind === "reset") resetMatchEffects();
+          dispatch({ type: "error", err, connectRole: connectRoleRef.current });
         },
-        onStaleIllegalIntent: () => {
-          // A late action's "Not your turn" must not linger into your next turn.
-          setErrorBanner((b) => (b?.startsWith("illegal_intent:") ? null : b));
-        },
+        onStaleIllegalIntent: () => dispatch({ type: "staleIllegalIntent" }),
         onMatchOver: (msg) => {
-          setMatchOver(msg.result);
-          setCanReconnect(false);
+          dispatch({ type: "matchOver", result: msg.result });
           clearMatchResume();
         },
-        onTimer: (msg) => setTimer(msg),
-        onChat: (lines) => {
-          // History replays on every sync; merge by id so nothing duplicates.
-          setChat((prev) => {
-            const seen = new Set(prev.map((l) => l.id));
-            const fresh = lines.filter((l) => !seen.has(l.id));
-            return fresh.length ? [...prev, ...fresh].slice(-100) : prev;
-          });
-        },
-        onUndoState: (state) => setUndo(state),
-        onPresence: (away) => setAwayUntil(away),
-        onRematchState: (state) => setRematch(state),
-        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
-          const youSeat = viewRef.current?.spectator ? null : seatRef.current;
-          setBattleLog((prev) => rewindBattleLog(prev, toTurn, by, youSeat, toStep, action?.label, scope === "turn"));
-        },
+        onTimer: (msg) => dispatch({ type: "timer", msg }),
+        onChat: (lines) => dispatch({ type: "chat", lines }),
+        onUndoState: (state) => dispatch({ type: "undoState", state }),
+        onPresence: (awayUntil) => dispatch({ type: "presence", awayUntil }),
+        onRematchState: (state) => dispatch({ type: "rematchState", state }),
+        onUndoApplied: (info) => dispatch({ type: "undoApplied", info }),
         onTakenOver: () => {
           // The seat is theirs now: keep the last board on screen, stop every
           // path that would reclaim it, and drop the (dead) resume token.
-          setTakenOver(true);
-          setConnected(false);
-          setReconnecting(false);
-          setCanReconnect(false);
-          setQueueing(false);
-          setResuming(false);
+          dispatch({ type: "takenOver" });
           clearMatchResume();
         },
-        onDisconnect: () => {
-          setConnected(false);
-          setReconnecting(false);
-          setQueueing(false);
-        },
-        onDrop: () => {
-          setConnected(false);
-          setReconnecting(true);
-        },
-        onReconnect: () => {
-          setConnected(true);
-          setReconnecting(false);
-        },
-        onQueued: () => setQueueing(true),
+        onDisconnect: () => dispatch({ type: "disconnect" }),
+        onDrop: () => dispatch({ type: "drop" }),
+        onReconnect: () => dispatch({ type: "reconnect" }),
+        onQueued: () => dispatch({ type: "queued" }),
         onReconnectionToken: (token, roomId) => persistToken(token, roomId),
       });
     }
@@ -406,50 +324,30 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       return new LaunchCancelledError();
     }
 
-    function resetMatch() {
+    /** Session-side half of leaving a match (resume blob, cosmetics, socket); `resetMatch` also clears the store. */
+    function resetMatchEffects() {
       clearMatchResume();
       setCosmeticsPublisher(null);
       resetAllSeatArtPrefs();
-      setSeatSkins([null, null]);
-      setTakenOver(false);
       // Don't wait for the server's close handshake (slow on a cold / busy
       // server): reset locally and let the socket close in the background.
       void client.disconnect(true);
-      setAwayUntil([null, null]);
-      setRematch(null);
-      setConnected(false);
-      setReconnecting(false);
-      setQueueing(false);
-      setCanReconnect(false);
-      setResuming(false);
-      setMatchId(null);
-      setSeat(null);
       seatRef.current = null;
-      setRole("player");
-      setView(null);
-      setPlayers(null);
-      setRanked(null);
-      setFirstSeatPickedBy(undefined);
-      setBrief(null);
-      setVsBot(false);
-      setMatchOver(null);
-      setTimer(null);
-      setChat([]);
-      setUndo(null);
     }
 
-    return {
+    function resetMatch() {
+      resetMatchEffects();
+      dispatch({ type: "reset" });
+    }
+
+    const actions: SessionActions = {
       client,
-      launch,
-      launching,
-      connected,
-      takenOver,
       takeOver(roomId, seat, mintToken) {
-        value.startMatch(
+        actions.startMatch(
           { status: "Moving the match here…", leaderId: null, invite: false },
           async (gen) => {
             const gameToken = mintToken ? await mintToken() : (await mintAccountGameToken()).token;
-            await value.connect(
+            await actions.connect(
               {
                 serverUrl: serverUrlRef.current ?? getGameServerUrl(),
                 gameToken,
@@ -462,73 +360,37 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           },
         );
       },
-      queueing,
-      canReconnect,
-      resuming,
-      reconnecting,
-      matchId,
-      seat,
-      role,
-      view,
-      players,
-      ranked,
-      firstSeatPickedBy,
-      brief,
-      vsBot,
-      battleLog,
-      clearBattleLog: () => setBattleLog([]),
-      errorBanner,
-      matchOver,
-      timer,
-      chat,
+      clearBattleLog: () => dispatch({ type: "clearBattleLog" }),
       sendChat(text) {
         try {
           client.sendChat(text);
         } catch (e) {
-          setErrorBanner(e instanceof Error ? e.message : "Chat failed");
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Chat failed" });
         }
       },
       sendHandOrder: (ids) => client.sendHandOrder(ids),
-      undo,
-      awayUntil,
-      seatSkins,
-      rematch,
       sendRematch(action, deck) {
         try {
           client.sendRematch(action, deck);
         } catch (e) {
-          setErrorBanner(e instanceof Error ? e.message : "Rematch failed");
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Rematch failed" });
         }
       },
       sendUndo(action, opts) {
         try {
           client.sendUndo(action, opts);
         } catch (e) {
-          setErrorBanner(e instanceof Error ? e.message : "Undo failed");
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Undo failed" });
         }
       },
-      rating,
-      lastServerUrl,
       setRating,
       async connect(opts, gen) {
         // Left or relaunched while the task was minting / fetching the deck:
         // touch neither the client nor the newer match's state.
         if (launchGenRef.current !== gen) throw cancelled();
-        setErrorBanner(null);
-        setTakenOver(false);
-        setMatchOver(null);
-        setTimer(null);
-        setChat([]);
-        setUndo(null);
-        setView(null);
-        setRanked(null);
-        setFirstSeatPickedBy(undefined);
-        setBrief(null);
-        setVsBot(Boolean(opts.createOptions?.bot));
-        setQueueing(false);
-        setResuming(false);
-        setRole(opts.role ?? "player");
-        connectRoleRef.current = opts.role ?? "player";
+        const role = opts.role ?? "player";
+        dispatch({ type: "connectStarted", role, vsBot: Boolean(opts.createOptions?.bot) });
+        connectRoleRef.current = role;
         // A new match: forget the last match's server (unset → the client's own).
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
@@ -537,25 +399,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         if (launchGenRef.current !== gen) throw abandon();
         seatRef.current = info.seat;
         flushSync(() => {
-          setMatchId(info.matchId);
-          setSeat(info.seat);
-          setConnected(true);
-          setCanReconnect((opts.role ?? "player") === "player");
+          dispatch({ type: "joined", matchId: info.matchId, seat: info.seat, canReconnect: role === "player" });
         });
         const tok = client.getReconnectionToken();
         if (tok) persistToken(tok, info.matchId);
       },
       async queueRanked(opts, gen) {
         if (launchGenRef.current !== gen) throw cancelled();
-        setErrorBanner(null);
-        setMatchOver(null);
-        setTimer(null);
-        setChat([]);
-        setUndo(null);
-        setView(null);
-        setTakenOver(false);
-        setQueueing(true);
-        setResuming(false);
+        dispatch({ type: "queueStarted" });
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
@@ -564,68 +415,62 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           if (launchGenRef.current !== gen) throw abandon();
           seatRef.current = info.seat;
           flushSync(() => {
-            setMatchId(info.matchId);
-            setSeat(info.seat);
-            setConnected(true);
-            setCanReconnect(true);
-            setQueueing(false);
+            dispatch({ type: "joined", matchId: info.matchId, seat: info.seat, canReconnect: true, queueing: false });
           });
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, info.matchId);
         } catch (e) {
-          setQueueing(false);
+          dispatch({ type: "queueCancelled" });
           throw e;
         }
       },
       async cancelQueue() {
         await client.cancelQueue();
-        setQueueing(false);
+        dispatch({ type: "queueCancelled" });
       },
       async reconnect() {
-        setErrorBanner(null);
-        setReconnecting(true);
+        dispatch({ type: "reconnectStarted" });
         wireHandlers();
         try {
           const info = await client.reconnect({
             serverUrl: serverUrlRef.current ?? undefined,
           });
           seatRef.current = info.seat;
-          setMatchId(info.matchId);
-          setSeat(info.seat);
-          setConnected(true);
-          setReconnecting(false);
-          setCanReconnect(true);
-          setResuming(false);
+          dispatch({
+            type: "joined",
+            matchId: info.matchId,
+            seat: info.seat,
+            canReconnect: true,
+            reconnecting: false,
+            resuming: false,
+          });
         } catch (e) {
           clearMatchResume();
-          setReconnecting(false);
-          setCanReconnect(false);
-          setResuming(false);
-          setErrorBanner(
-            isSeatReservationExpiredError(e)
+          dispatch({
+            type: "reconnectFailed",
+            banner: isSeatReservationExpiredError(e)
               ? "You were away too long and your seat was released."
               : e instanceof Error
                 ? e.message
                 : "Reconnect failed",
-          );
+          });
           throw e;
         }
       },
       async tryResumeFromStorage() {
         const blob = loadMatchResume();
         if (!blob || blob.mode !== "duel") {
-          setResuming(false);
+          dispatch({ type: "resumeEnded" });
           return false;
         }
         // Past Colyseus grace → token is dead; skip instead of surfacing
         // "seat reservation expired" on every late refresh.
         if (!isResumeWithinGrace(blob.savedAt)) {
           clearMatchResume();
-          setResuming(false);
+          dispatch({ type: "resumeEnded" });
           return false;
         }
-        setResuming(true);
-        setErrorBanner(null);
+        dispatch({ type: "resumeStarted" });
         serverUrlRef.current = blob.serverUrl;
         setLastServerUrl(blob.serverUrl);
         seatRef.current = blob.seat;
@@ -637,24 +482,17 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           });
           seatRef.current = info.seat;
           flushSync(() => {
-            setMatchId(info.matchId);
-            setSeat(info.seat);
-            setConnected(true);
-            setCanReconnect(true);
-            setResuming(false);
+            dispatch({ type: "joined", matchId: info.matchId, seat: info.seat, canReconnect: true, resuming: false });
           });
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, info.matchId);
           return true;
         } catch (e) {
           clearMatchResume();
-          setResuming(false);
           const msg = e instanceof Error ? e.message : "Resume failed";
           // Expired grace tokens are expected after idle / free-tier sleep —
           // don't leave a scary banner on the lobby redirect path.
-          if (!isSeatReservationExpiredError(msg)) {
-            setErrorBanner(msg);
-          }
+          dispatch({ type: "resumeEnded", banner: isSeatReservationExpiredError(msg) ? undefined : msg });
           return false;
         }
       },
@@ -662,24 +500,20 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         try {
           client.sendIntent(intent);
         } catch (e) {
-          setErrorBanner(e instanceof Error ? e.message : "Send failed");
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Send failed" });
         }
       },
       concede() {
         try {
           client.concede();
         } catch (e) {
-          setErrorBanner(e instanceof Error ? e.message : "Concede failed");
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Concede failed" });
         }
       },
       startMatch(next, task) {
         const gen = ++launchGenRef.current;
         launchingRef.current = true;
-        setErrorBanner(null);
-        setTakenOver(false);
-        setView(null);
-        setMatchId(null);
-        setSeat(null);
+        dispatch({ type: "launchStarted" });
         setLaunch(next);
         setLaunching(true);
         const settle = () => {
@@ -693,8 +527,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           (e: unknown) => {
             if (launchGenRef.current !== gen) return;
             settle();
-            setQueueing(false);
-            setErrorBanner(e instanceof Error ? e.message : "Connect failed");
+            dispatch({ type: "launchFailed", banner: e instanceof Error ? e.message : "Connect failed" });
           },
         );
       },
@@ -706,52 +539,55 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         resetMatch();
       },
       clearError() {
-        setErrorBanner(null);
+        dispatch({ type: "setError", message: null });
       },
     };
-  }, [
-    launch,
-    launching,
-    connected,
-    takenOver,
-    queueing,
-    canReconnect,
-    resuming,
-    reconnecting,
-    matchId,
-    seat,
-    role,
-    view,
-    players,
-    ranked,
-    firstSeatPickedBy,
-    brief,
-    vsBot,
-    battleLog,
-    errorBanner,
-    matchOver,
-    timer,
-    chat,
-    undo,
-    awayUntil,
-    seatSkins,
-    rematch,
-    rating,
-    lastServerUrl,
-  ]);
+    return actions;
+  }, [store]);
+
+  const value = useMemo<DuelSession>(
+    () => ({
+      ...actions,
+      launch,
+      launching,
+      connected: match.connected,
+      takenOver: match.takenOver,
+      queueing: match.queueing,
+      canReconnect: match.canReconnect,
+      resuming: match.resuming,
+      reconnecting: match.reconnecting,
+      matchId: match.matchId,
+      seat: match.seat,
+      role: match.role,
+      view: match.view,
+      players: match.players,
+      ranked: match.ranked,
+      firstSeatPickedBy: match.firstSeatPickedBy,
+      brief: match.brief,
+      vsBot: match.vsBot,
+      battleLog: match.battleLog,
+      errorBanner: match.errorBanner,
+      matchOver: match.matchOver,
+      timer: match.timer,
+      chat: match.chat,
+      undo: match.undo,
+      awayUntil: match.awayUntil,
+      seatSkins: match.seatSkins,
+      rematch: match.rematch,
+      rating,
+      lastServerUrl,
+    }),
+    [actions, match, launch, launching, rating, lastServerUrl],
+  );
 
   useEffect(() => {
     const blob = loadMatchResume();
     if (blob?.mode !== "duel") {
-      setResuming(false);
+      store.dispatch({ type: "resumeEnded" });
       return;
     }
-    void value.tryResumeFromStorage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const valueRef = useRef(value);
-  valueRef.current = value;
+    void actions.tryResumeFromStorage();
+  }, [actions, store]);
 
   // Phones suspend the page (and often its socket) while another app is in
   // front. Keep the resume blob's clock at "last seen alive" so a discarded tab
@@ -760,16 +596,16 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     let checking = false;
     async function recoverIfDropped() {
-      const s = valueRef.current;
+      const s = store.getSnapshot();
       if (checking || s.role !== "player" || !s.canReconnect || !s.matchId || s.matchOver) return;
-      const client = s.client;
+      const client = actions.client;
       if (client.isReconnecting || !client.getReconnectionToken()) return;
       checking = true;
       try {
         if (await client.isAlive()) return;
         // The SDK may have noticed the close while we waited; let it finish.
         if (client.isReconnecting) return;
-        await valueRef.current.reconnect();
+        await actions.reconnect();
       } catch {
         /* reconnect() already set the banner */
       } finally {
@@ -778,14 +614,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     }
     const onVisibility = () => {
       if (document.visibilityState === "visible") void recoverIfDropped();
-      else if (valueRef.current.connected) touchMatchResume();
+      else if (store.getSnapshot().connected) touchMatchResume();
     };
     const onPageHide = () => {
-      if (valueRef.current.connected) touchMatchResume();
+      if (store.getSnapshot().connected) touchMatchResume();
     };
     const onResume = () => void recoverIfDropped();
     const heartbeat = window.setInterval(() => {
-      if (valueRef.current.connected) touchMatchResume();
+      if (store.getSnapshot().connected) touchMatchResume();
     }, 5000);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
@@ -798,9 +634,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       window.removeEventListener("pageshow", onResume);
       window.removeEventListener("online", onResume);
     };
-  }, []);
+  }, [actions, store]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <MatchStoreContext.Provider value={store}>
+      <Ctx.Provider value={value}>{children}</Ctx.Provider>
+    </MatchStoreContext.Provider>
+  );
 }
 
 export function useDuelSession(): DuelSession {
