@@ -17,6 +17,7 @@ import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
 import { withFakeTime } from "./fakeTime.js";
+import { withRoomEnv } from "./roomEnv.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -841,20 +842,14 @@ describe("DuelRoom", () => {
   });
 
   it("a paired ranked room sends the waiting player back when the opponent never joins (#302)", async () => {
-    const prev = process.env.RANKED_NO_SHOW_SECONDS;
-    process.env.RANKED_NO_SHOW_SECONDS = "0.3";
-    let room: DuelRoom;
-    try {
-      room = await colyseus.createRoom<DuelRoom>("duel", {
+    const room = await withRoomEnv({ rankedNoShowSeconds: 0.3 }, () =>
+      colyseus.createRoom<DuelRoom>("duel", {
         protocolVersion: PROTOCOL_VERSION,
         ranked: true,
         rankedAttestation: getRankedMatchCreateSecret(),
         seatUserIds: [41, 42],
-      });
-    } finally {
-      if (prev === undefined) delete process.env.RANKED_NO_SHOW_SECONDS;
-      else process.env.RANKED_NO_SHOW_SECONDS = prev;
-    }
+      }),
+    );
     const bag: SeatBag = { views: [], errors: [] };
     const c1 = await colyseus.connectTo(room, {
       protocolVersion: PROTOCOL_VERSION,
@@ -1119,6 +1114,35 @@ describe("DuelRoom", () => {
     c1.send("sync", { protocolVersion: PROTOCOL_VERSION });
     await waitUntil(() => history.some((h) => h.some((l) => l.text === "good luck")), 5000);
 
+    await c0.leave(true);
+    await c1.leave(true);
+  });
+
+  it("stamps the protocol version on every message the room sends, whether to one client or to all (refactor 3.5b)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 33, autoSkipMulligan: true });
+    const seen: { type: string; protocolVersion: unknown; first: string }[] = [];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    // "*" hears the types nobody registered a handler for, which here is all of them.
+    c0.onMessage("*", (type: string | number, msg: Record<string, unknown>) => {
+      seen.push({ type: String(type), protocolVersion: msg?.protocolVersion, first: Object.keys(msg ?? {})[0] ?? "" });
+    });
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    const heard = (type: string) => seen.some((m) => m.type === type);
+    await waitUntil(() => heard("welcome"), 5000);
+    c0.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    // To one client: a refused chat line. To everyone: a relayed chat line, then the match ending.
+    c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "   " });
+    c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "hi" });
+    c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    await waitUntil(() => heard("match_over"), 5000);
+    await roundTrip(c0);
+    for (const type of ["welcome", "view", "error", "chat", "match_over", "presence", "undo_state"]) {
+      assert.ok(heard(type), `saw a ${type} message`);
+    }
+    for (const m of seen) {
+      assert.equal(m.protocolVersion, PROTOCOL_VERSION, `${m.type} carries the version`);
+      assert.equal(m.first, "protocolVersion", `${m.type} lists the version first`);
+    }
     await c0.leave(true);
     await c1.leave(true);
   });
@@ -1501,7 +1525,8 @@ describe("DuelRoom", () => {
     assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: turnSteps, toStep: 0 });
     assert.equal(t.steps(), 0);
     assert.equal(JSON.stringify(internals(t.room).match), atStart);
-    assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
+    // undo_state follows undo_applied, so wait for it rather than reading the state the applied message beat.
+    await waitUntil(() => t.last(t.other).blockedReason === "Nothing to undo yet", 5000);
     await t.close();
   });
 
@@ -2093,9 +2118,7 @@ describe("DuelRoom", () => {
 
   describe("practice games (#988)", () => {
     async function played(seatUids: [number, number], ownerUid?: number) {
-      const prev = process.env.MATCH_OUTBOX_DATABASE_URL;
-      process.env.MATCH_OUTBOX_DATABASE_URL = "postgres://outbox.invalid/db";
-      try {
+      return withRoomEnv({ outboxEnabled: true }, async () => {
         const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 71, autoSkipMulligan: true });
         const solo: SoloGamePayload[] = [];
         const matches: MatchResultPayload[] = [];
@@ -2114,10 +2137,7 @@ describe("DuelRoom", () => {
         await waitUntil(() => bag.over !== undefined, 5000);
         await new Promise((r) => setTimeout(r, 100));
         return { solo, matches };
-      } finally {
-        if (prev === undefined) delete process.env.MATCH_OUTBOX_DATABASE_URL;
-        else process.env.MATCH_OUTBOX_DATABASE_URL = prev;
-      }
+      });
     }
 
     it("a hotseat game under one signed-in owner is a practice game with no winner, not a match (#988)", async () => {

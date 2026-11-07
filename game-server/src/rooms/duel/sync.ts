@@ -2,19 +2,18 @@ import type { Client } from "colyseus";
 import type { BotLevel, Seat } from "@optcg/rules";
 import { mintBriefTicket } from "../../briefTicket.js";
 import {
-  PROTOCOL_VERSION,
   type BriefTicketWire,
   type SeatPlayerInfo,
   type WelcomeMessage,
 } from "../../protocol.js";
-import type { DuelCore } from "./context.js";
+import type { DuelCore, WireBody } from "./context.js";
 
 /** Brings one client up to date: the welcome, its view and everything stored for it (join, sync, reconnect). */
 export class SyncSender {
   constructor(
     private readonly core: Pick<
       DuelCore,
-      "game" | "io" | "clocks" | "undo" | "chat" | "rematch" | "spectators" | "cosmetics" | "seatForClient"
+      "game" | "io" | "clocks" | "undo" | "chat" | "rematch" | "spectators" | "cosmetics" | "seats"
     >,
   ) {}
 
@@ -27,7 +26,7 @@ export class SyncSender {
   playersInfo(): [SeatPlayerInfo, SeatPlayerInfo] {
     const { game } = this.core;
     const info = (seat: Seat): SeatPlayerInfo => ({
-      name: game.seats[seat]?.displayName ?? game.seatNames[seat] ?? null,
+      name: this.core.seats.slot(seat)?.displayName ?? game.seatNames[seat] ?? null,
     });
     return [info(0), info(1)];
   }
@@ -55,10 +54,9 @@ export class SyncSender {
 
   /** Welcome, view, stored cosmetics, chat history and undo state for a seated player: what a new game opens with. */
   sendPlayerStart(client: Client, seat: Seat) {
-    const { game, spectators, cosmetics, chat, undo } = this.core;
+    const { game, io, spectators, cosmetics, chat, undo } = this.core;
     const view = spectators.playerView(game.match!, seat);
-    const welcome: WelcomeMessage = {
-      protocolVersion: PROTOCOL_VERSION,
+    const welcome: WireBody<WelcomeMessage> = {
       matchId: game.matchId,
       seat,
       role: "player",
@@ -69,11 +67,8 @@ export class SyncSender {
       brief: this.briefFor(seat),
       ...this.botInfo(),
     };
-    client.send("welcome", welcome);
-    client.send("view", {
-      protocolVersion: PROTOCOL_VERSION,
-      view,
-    });
+    io.send(client, "welcome", welcome);
+    io.send(client, "view", { view });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     undo.sendState(client);
@@ -81,23 +76,23 @@ export class SyncSender {
 
   /** Re-send everything the client needs to render the room (the "sync" message, a join, a reconnect). */
   sendSync(client: Client) {
-    const { game, io, clocks, rematch, spectators } = this.core;
+    const { game, io, clocks, rematch, seats, spectators } = this.core;
     const spec = spectators.forClient(client);
     if (spec) {
       this.sendSpectatorSync(client, spec.cameraSeat);
       return;
     }
-    const seat = this.core.seatForClient(client);
+    const seat = seats.seatForClient(client);
     if (seat === null || !game.match) {
       io.sendError(client, "match_not_ready", "Match not started");
       return;
     }
     this.sendPlayerStart(client, seat);
-    client.send("timer", clocks.timerPayload());
-    client.send("presence", { protocolVersion: PROTOCOL_VERSION, awayUntil: [...game.awayUntil] });
+    io.send(client, "timer", clocks.timerPayload());
+    io.send(client, "presence", { awayUntil: seats.awayUntil() });
     if (game.match.winner !== null && game.matchOverSent) {
       this.sendMatchOver(client);
-      if (!game.ranked) client.send("rematch_state", rematch.state());
+      if (!game.ranked) io.send(client, "rematch_state", rematch.state());
     }
   }
 
@@ -108,8 +103,7 @@ export class SyncSender {
       return;
     }
     const view = spectators.spectatorView(game.match, cameraSeat);
-    const welcome: WelcomeMessage = {
-      protocolVersion: PROTOCOL_VERSION,
+    const welcome: WireBody<WelcomeMessage> = {
       matchId: game.matchId,
       seat: cameraSeat,
       ...this.botInfo(),
@@ -119,11 +113,8 @@ export class SyncSender {
       ranked: game.ranked,
       firstSeatPickedBy: game.firstSeatPickedBy,
     };
-    client.send("welcome", welcome);
-    client.send("view", {
-      protocolVersion: PROTOCOL_VERSION,
-      view,
-    });
+    io.send(client, "welcome", welcome);
+    io.send(client, "view", { view });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     if (game.match.winner !== null && game.matchOverSent) this.sendMatchOver(client);
@@ -131,8 +122,7 @@ export class SyncSender {
 
   private sendMatchOver(client: Client) {
     const { game } = this.core;
-    client.send("match_over", {
-      protocolVersion: PROTOCOL_VERSION,
+    this.core.io.send(client, "match_over", {
       result: {
         winner: game.match!.winner,
         reason: game.endReason ?? game.match!.winReason ?? "unknown",

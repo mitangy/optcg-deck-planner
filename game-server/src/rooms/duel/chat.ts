@@ -49,10 +49,7 @@ export class RoomChat {
 
   sendHistory(client: Client) {
     if (this.chatLog.length === 0) return;
-    client.send("chat_history", {
-      protocolVersion: PROTOCOL_VERSION,
-      messages: this.chatLog,
-    });
+    this.core.io.send(client, "chat_history", { messages: this.chatLog });
   }
 
   /** A connection is gone: forget its rate-limit window. */

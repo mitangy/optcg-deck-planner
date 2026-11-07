@@ -2,7 +2,6 @@ import type { Client } from "colyseus";
 import { deserializeMatch, revealReason, serializeMatch, type GameEvent, type Intent, type MatchState, type Seat } from "@optcg/rules";
 import { undoLabel } from "../../undoLabel.js";
 import {
-  PROTOCOL_VERSION,
   parseUndoMessage,
   type UndoAction,
   type UndoAppliedMessage,
@@ -10,7 +9,7 @@ import {
   type UndoScope,
   type UndoStateMessage,
 } from "../../protocol.js";
-import type { DuelCore } from "./context.js";
+import type { DuelCore, WireBody } from "./context.js";
 
 /** Per-action snapshots kept for undo (unranked rooms only). */
 const UNDO_HISTORY_LIMIT = 40;
@@ -134,7 +133,7 @@ export class UndoHistory {
     return { available: true, steps: range.length, forceable: false };
   }
 
-  state(): UndoStateMessage {
+  state(): WireBody<UndoStateMessage> {
     const { game } = this.core;
     const enabled = !game.ranked;
     const over = !game.match || game.match.winner !== null || game.matchOverSent;
@@ -150,7 +149,6 @@ export class UndoHistory {
       }
     }
     return {
-      protocolVersion: PROTOCOL_VERSION,
       enabled,
       targetTurn: top ? top.turnNumber : null,
       action: top ? { seat: top.seat, label: top.label } : null,
@@ -161,7 +159,7 @@ export class UndoHistory {
   }
 
   sendState(client: Client) {
-    client.send("undo_state", this.state());
+    this.core.io.send(client, "undo_state", this.state());
   }
 
   broadcastState() {
@@ -295,8 +293,7 @@ export class UndoHistory {
       steps,
     });
 
-    const applied: UndoAppliedMessage = {
-      protocolVersion: PROTOCOL_VERSION,
+    const applied: WireBody<UndoAppliedMessage> = {
       toTurn: snap.turnNumber,
       toStep: snap.intentCount,
       by,

@@ -1,5 +1,4 @@
 import { seatLog, type Seat } from "@optcg/rules";
-import { getMatchOutboxDatabaseUrl } from "../../env.js";
 import {
   LatestOnlySender,
   type MatchProgressPayload,
@@ -8,11 +7,6 @@ import {
 } from "../../writeback.js";
 import type { DuelCore } from "./context.js";
 import { BOT_SEAT } from "./bots.js";
-
-/** Results are only written to the outbox on a deployed server (or one with MATCH_OUTBOX_DATABASE_URL set). */
-function outboxDisabledLocally(): boolean {
-  return !getMatchOutboxDatabaseUrl() && process.env.NODE_ENV !== "production";
-}
 
 /** Builds and sends what the backend keeps of a game: its result, per-turn progress snapshots, and solo (bot / practice) reports. */
 export class MatchPersistence {
@@ -23,7 +17,7 @@ export class MatchPersistence {
   constructor(
     private readonly core: Pick<
       DuelCore,
-      "game" | "io" | "time" | "ingestSeats" | "persistMatchProgress" | "persistMatchResult" | "persistSoloGame"
+      "game" | "config" | "io" | "time" | "ingestSeats" | "persistMatchProgress" | "persistMatchResult" | "persistSoloGame"
     >,
   ) {
     this.progress = new LatestOnlySender(
@@ -53,7 +47,8 @@ export class MatchPersistence {
     if (s0 == null || s1 == null) return { skip: "missing_user_ids" };
     // Skip ingest for synthetic legacy negative ids unless both are real (>0).
     if (s0 <= 0 || s1 <= 0) return { skip: "legacy_dev_users" };
-    if (outboxDisabledLocally()) return { skip: "local_outbox_disabled" };
+    // Results are only written to the outbox on a deployed server (or one with MATCH_OUTBOX_DATABASE_URL set).
+    if (!this.core.config.outboxEnabled) return { skip: "local_outbox_disabled" };
     return [s0, s1];
   }
 
@@ -86,7 +81,7 @@ export class MatchPersistence {
   /** Fire and forget: match_over never waits on the API, and a few quick retries are all a stats row is worth. */
   private reportSoloGame(payload: SoloGamePayload): Promise<void> {
     const { game, io, time } = this.core;
-    if (outboxDisabledLocally()) {
+    if (!this.core.config.outboxEnabled) {
       io.log("info", "solo_game_skip", { matchId: game.matchId, reason: "local_outbox_disabled" });
       return Promise.resolve();
     }

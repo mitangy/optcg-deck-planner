@@ -1,6 +1,6 @@
 import { listLegalIntents, type Intent, type Seat } from "@optcg/rules";
-import { PROTOCOL_VERSION, type TimerMessage } from "../../protocol.js";
-import type { DuelCore } from "./context.js";
+import type { TimerMessage } from "../../protocol.js";
+import type { DuelCore, WireBody } from "./context.js";
 import type { TimerHandle } from "./time.js";
 
 /** How often the tick loop checks the clocks. */
@@ -163,11 +163,10 @@ export class MatchClocks {
     this.clockSeat = null;
   }
 
-  timerPayload(): TimerMessage {
+  timerPayload(): WireBody<TimerMessage> {
     this.chargeSeatClock();
     const seatClocks = this.seatSeconds != null;
     return {
-      protocolVersion: PROTOCOL_VERSION,
       turnSeconds: this.turnSeconds,
       matchSeconds: this.matchSeconds,
       turnEndsAt: this.turnEndsAt,
