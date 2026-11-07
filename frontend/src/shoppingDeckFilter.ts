@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
-
-export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
+import { SHOPPING_DECKS_KEY } from "./storage/keys";
 
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {

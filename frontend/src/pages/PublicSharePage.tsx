@@ -21,8 +21,7 @@ import { ShoppingListSkeleton } from "../Skeleton";
 import { isDonCardType } from "../donCards";
 import { shoppingColumnValue, sharedUsedIn } from "./shopping/ShoppingItemsView";
 import { formatShoppingListStats } from "./shopping/shoppingStats";
-
-const SHARE_ONLY_NEED_KEY = "optcg_share_only_need";
+import { COLSORT_SHARE_KEY, SHARE_ONLY_NEED_KEY } from "../storage/keys";
 
 export function PublicSharePage() {
   const { token = "" } = useParams();
@@ -64,7 +63,7 @@ export function PublicSharePage() {
     list = [...list].sort((a, b) => compareCardOrder(a, b, ["color", "set"]));
     return list;
   }, [data, onlyNeed, search]);
-  const { sort, onSort } = useColumnSort("optcg_colsort_share");
+  const { sort, onSort } = useColumnSort(COLSORT_SHARE_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
 
   return (

@@ -1,7 +1,6 @@
 import { useShoppingCardState, ShoppingExtraControl } from "./lightboxActions";
 import { CatalogAddDrawer } from "../collection/CatalogAddDrawer";
-
-const SHOPPING_ADD_OPEN_KEY = "optcg_shopping_add_open";
+import { SHOPPING_ADD_OPEN_KEY } from "../../storage/keys";
 
 export function ShoppingAddPanel({ defaultOpen, deckIds }: { defaultOpen: boolean; deckIds?: number[] }) {
   const { shoppingById, ownedOf, loading } = useShoppingCardState(deckIds);

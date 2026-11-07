@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { CardView, money } from "../../api";
 import { deckRemainingMarket } from "../../deckCost";
-
-/* v2: default-closed public link (resets older localStorage "open" so mobile chrome stays shorter). */
-const DECK_PROGRESS_MODE_KEY = "optcg_deck_progress_mode";
+import { DECK_PROGRESS_MODE_KEY } from "../../storage/keys";
+import { choiceCodec, usePersistedState } from "../../storage/persisted";
 
 type DeckProgressMode = "copies" | "uniques";
 
@@ -26,22 +25,10 @@ function summarizeDeckProgress(cards: CardView[]) {
   };
 }
 
+const progressModeCodec = choiceCodec<DeckProgressMode>(["copies", "uniques"]);
+
 function useDeckProgressMode() {
-  const [mode, setMode] = useState<DeckProgressMode>(() => {
-    try {
-      return localStorage.getItem(DECK_PROGRESS_MODE_KEY) === "uniques" ? "uniques" : "copies";
-    } catch {
-      return "copies";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(DECK_PROGRESS_MODE_KEY, mode);
-    } catch {
-      /* ignore */
-    }
-  }, [mode]);
-  return [mode, setMode] as const;
+  return usePersistedState<DeckProgressMode>(DECK_PROGRESS_MODE_KEY, "copies", progressModeCodec);
 }
 
 export function DeckProgressSummary({ cards }: { cards: CardView[] }) {

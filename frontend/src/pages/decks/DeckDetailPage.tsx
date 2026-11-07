@@ -45,8 +45,7 @@ import { DeckEditorPanel } from "./DeckEditorPanel";
 import { DeckProgressSummary } from "./DeckProgressSummary";
 import { CardTable } from "./CardTable";
 import { AvailableDonSection } from "./AvailableDonSection";
-
-const DECK_ONLY_NEED_KEY = "optcg_deck_only_need";
+import { COLSORT_DECK_KEY, DECK_ONLY_NEED_KEY } from "../../storage/keys";
 
 function filterCards(
   cards: CardView[],
@@ -597,7 +596,7 @@ export function DeckDetailPage() {
               onChange={setSorts}
               onlyNeed={onlyNeed}
               unavailableKeys={deckUnavailableSorts}
-              columnSortKey="optcg_colsort_deck"
+              columnSortKey={COLSORT_DECK_KEY}
             />
             <label>
               <input

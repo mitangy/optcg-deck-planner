@@ -18,6 +18,7 @@ import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwn
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../columnSort";
 import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
+import { COLSORT_SHOPPING_KEY } from "../../storage/keys";
 
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
@@ -144,7 +145,7 @@ export function ShoppingItemsView({
   /** Owner pages: collector copy lines under their card (#1031). */
   collector?: CollectorControls;
 }) {
-  const { sort, onSort } = useColumnSort("optcg_colsort_shopping");
+  const { sort, onSort } = useColumnSort(COLSORT_SHOPPING_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
   if (items.length === 0) return null;
   // Master Shopping's alt tiles are always editable, so they own the per-art counts.

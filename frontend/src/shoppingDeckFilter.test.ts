@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SHOPPING_DECKS_KEY, loadShoppingDeckFilter, saveShoppingDeckFilter } from "./shoppingDeckFilter";
+import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "./shoppingDeckFilter";
+import { SHOPPING_DECKS_KEY } from "./storage/keys";
 
 afterEach(() => {
   vi.restoreAllMocks();

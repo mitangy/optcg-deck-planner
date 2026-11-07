@@ -1,3 +1,4 @@
+import { ALERTS_ADD_OPEN_KEY } from "../storage/keys";
 import { PriceAlertsPage } from "../PriceAlerts";
 import { CatalogAddDrawer } from "./collection/CatalogAddDrawer";
 
@@ -8,7 +9,7 @@ export function AlertsRoute() {
         <CatalogAddDrawer
           className="alerts-add"
           summary="Search for a card to watch"
-          storageKey="optcg_alerts_add_open"
+          storageKey={ALERTS_ADD_OPEN_KEY}
           defaultOpen={false}
           idleHint="Search the catalog by name or ID to watch a card's price"
           renderAction={renderAction}

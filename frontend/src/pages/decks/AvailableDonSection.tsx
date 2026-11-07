@@ -1,13 +1,14 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { api, CatalogCardResult, DeckDetail, money } from "../../api";
 import { CardSearchInput, CollapsibleDrawer } from "../../cardListControls";
 import { CardThumb } from "../../CardThumb";
 import { InlineSkeleton } from "../../Skeleton";
 import { isDonCardType } from "../../donCards";
 import { DON_DECK_LIMIT, setDeckCardNeeded } from "./deckEditing";
-
-const DECK_DON_AVAILABLE_OPEN_KEY = "optcg_deck_don_available_open";
+import { CATALOG_SEARCH_DEBOUNCE_MS } from "../../useCatalogSearch";
+import { useDebouncedValue } from "../../useDebouncedValue";
+import { DECK_DON_AVAILABLE_OPEN_KEY } from "../../storage/keys";
 
 export function AvailableDonSection({
   deckId,
@@ -21,11 +22,7 @@ export function AvailableDonSection({
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
-    return () => window.clearTimeout(t);
-  }, [query]);
+  const debouncedQ = useDebouncedValue(query, CATALOG_SEARCH_DEBOUNCE_MS).trim();
   const donQ = useQuery({
     queryKey: ["catalog-don", debouncedQ],
     queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),

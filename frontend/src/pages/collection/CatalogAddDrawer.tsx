@@ -1,18 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
-import { api, CatalogCardResult, money } from "../../api";
+import type { ReactNode } from "react";
+import { CatalogCardResult, money } from "../../api";
 import {
   CardSearchInput,
   CollapsibleDrawer,
   COLOR_ORDER,
-  usePersistedChoice,
-  useShowAltArts,
 } from "../../cardListControls";
 import { Select } from "@optcg/ui/popups";
 import { CardThumb } from "../../CardThumb";
 import { InlineSkeleton } from "../../Skeleton";
-
-export const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
+import { CATALOG_TYPE_FILTERS, useCatalogSearch } from "../../useCatalogSearch";
 
 export const CARD_TYPE_OPTIONS = CATALOG_TYPE_FILTERS.map((t) => ({ value: t as string, label: t || "All types" }));
 
@@ -52,29 +48,9 @@ export function CatalogAddDrawer({
   renderMeta?: (card: CatalogCardResult) => ReactNode;
   renderAction: (card: CatalogCardResult) => ReactNode;
 }) {
-  const [query, setQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [color, setColor] = usePersistedChoice(`${storageKey}_color`, "", ["", ...COLOR_ORDER]);
-  const [cardType, setCardType] = usePersistedChoice(`${storageKey}_card_type`, "", CATALOG_TYPE_FILTERS);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQ(query.trim()), 250);
-    return () => window.clearTimeout(t);
-  }, [query]);
-
-  const [showAltArts] = useShowAltArts();
-  const searchEnabled = Boolean(debouncedQ || color || cardType);
-  const searchQ = useQuery({
-    queryKey: ["catalog-search", debouncedQ, color, cardType, showAltArts],
-    queryFn: () =>
-      api.searchCatalog({
-        q: debouncedQ || undefined,
-        color: color || undefined,
-        card_type: cardType || undefined,
-        limit: 40,
-        alts: showAltArts,
-      }),
-    enabled: searchEnabled,
+  const { query, setQuery, color, setColor, cardType, setCardType, searchEnabled, searchQ } = useCatalogSearch({
+    colorKey: `${storageKey}_color`,
+    typeKey: `${storageKey}_card_type`,
   });
 
   return (

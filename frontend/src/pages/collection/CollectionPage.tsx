@@ -1,6 +1,6 @@
 import { useCardEdits } from "../../cache/useCardEdits";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, money, OwnedCard } from "../../api";
 import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
@@ -10,7 +10,6 @@ import {
   compareCardOrder,
   OWNED_DEFAULT_SORTS,
   OWNED_SORT_KEYS,
-  OWNED_SORTS_KEY,
   SortMenu,
   useCardSorts,
   usePersistedChoice,
@@ -34,25 +33,20 @@ import { AltArtsRow } from "../../MarketPrice";
 import { ShoppingListSkeleton } from "../../Skeleton";
 import { isDonCard } from "../../donCards";
 import { OwnedInput } from "../OwnedInputs";
+import {
+  COLLECTION_COLORS_KEY,
+  COLSORT_COLLECTION_KEY,
+  COLLECTION_SHOW_DONS_KEY,
+  COLLECTION_SPARES_KEY,
+  COLLECTION_TYPE_KEY,
+  OWNED_SORTS_KEY,
+} from "../../storage/keys";
+import { jsonArrayCodec, usePersistedState } from "../../storage/persisted";
 import { CollectionAddPanel, CollectionOwnedControl } from "./CollectionAddPanel";
 import { CollectionItemsView } from "./CollectionItemsView";
 
-const COLLECTION_SHOW_DONS_KEY = "optcg_collection_show_dons";
-
-const COLLECTION_SPARES_KEY = "optcg_collection_spares_only";
-
-const COLLECTION_COLORS_KEY = "optcg_collection_colors";
-
-const COLLECTION_TYPE_KEY = "optcg_collection_type";
-
-function loadCollectionColors(): string[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(COLLECTION_COLORS_KEY) ?? "[]") as unknown;
-    return Array.isArray(parsed) ? parsed.filter((c): c is string => COLOR_ORDER.includes(c as string)) : [];
-  } catch {
-    return [];
-  }
-}
+const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
+const collectionColorsCodec = jsonArrayCodec(isColor);
 
 export function CollectionPage() {
   const qc = useQueryClient();
@@ -72,7 +66,7 @@ export function CollectionPage() {
   const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [sparesOnly, setSparesOnly] = usePersistedOpen(COLLECTION_SPARES_KEY, false);
-  const [colors, setColors] = useState<string[]>(loadCollectionColors);
+  const [colors, setColors] = usePersistedState<string[]>(COLLECTION_COLORS_KEY, [], collectionColorsCodec);
   const [typeChoice, setTypeChoice] = usePersistedChoice(COLLECTION_TYPE_KEY, "", ["", ...COLLECTION_TYPES]);
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
@@ -86,14 +80,6 @@ export function CollectionPage() {
     },
     onDragStateChange: setPageDragging,
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(COLLECTION_COLORS_KEY, JSON.stringify(colors));
-    } catch {
-      /* ignore */
-    }
-  }, [colors]);
 
   const allItems = data?.items ?? [];
   const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
@@ -183,7 +169,7 @@ export function CollectionPage() {
                 <span />
               )}
               <div className="collection-toolbar-tools">
-                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} columnSortKey="optcg_colsort_collection" />
+                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} columnSortKey={COLSORT_COLLECTION_KEY} />
                 <CollectionFilterMenu badge={activeFilters}>
                   <div className="collection-filter-list">
                     <label>

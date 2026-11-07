@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import type { GroupBuyReceiptLine, GroupBuyReceiptMatchReport } from "./api";
 import { api } from "./api";
 import { SortableTh, sortByColumn, useColumnSort } from "./columnSort";
+import { COLSORT_RECEIPT_KEY } from "./storage/keys";
 
 const STATUS_LABEL: Record<string, string> = {
   exact: "Matched",
@@ -166,7 +167,7 @@ export function ReceiptImportPanel({
     return report.lines.filter((l) => (showMatched ? true : isMismatchLine(l)));
   }, [report, showMatched]);
 
-  const { sort, onSort } = useColumnSort("optcg_colsort_receipt");
+  const { sort, onSort } = useColumnSort(COLSORT_RECEIPT_KEY);
   const tableLines = useMemo(
     () =>
       sortByColumn(visibleLines, sort, (line, key) => {

@@ -21,10 +21,10 @@ const DeckDetailPageImpl = lazy(() => import("./pages/decks/DeckDetailPage").the
 const CollectionPageImpl = lazy(() => import("./pages/collection/CollectionPage").then((m) => ({ default: m.CollectionPage })));
 const AlertsRouteImpl = lazy(() => import("./pages/AlertsRoute").then((m) => ({ default: m.AlertsRoute })));
 const ImportPageImpl = lazy(() => import("./pages/ImportPage").then((m) => ({ default: m.ImportPage })));
-const GroupBuysPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuysPage })));
-const GroupBuyDetailPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuyDetailPage })));
-const GroupBuyJoinPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.GroupBuyJoinPage })));
-const PublicGroupBuyPageImpl = lazy(() => import("./GroupBuys").then((m) => ({ default: m.PublicGroupBuyPage })));
+const GroupBuysPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuysPage })));
+const GroupBuyDetailPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuyDetailPage })));
+const GroupBuyJoinPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.GroupBuyJoinPage })));
+const PublicGroupBuyPageImpl = lazy(() => import("./pages/groupBuys").then((m) => ({ default: m.PublicGroupBuyPage })));
 const FriendsPageImpl = lazy(() => import("./friends/FriendsPage").then((m) => ({ default: m.FriendsPage })));
 const FriendPageImpl = lazy(() => import("./friends/FriendPage").then((m) => ({ default: m.FriendPage })));
 const FriendDeckPageImpl = lazy(() => import("./friends/FriendDeckPage").then((m) => ({ default: m.FriendDeckPage })));
