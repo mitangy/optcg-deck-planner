@@ -5,6 +5,7 @@ import {
   maxCopiesFor,
   registerAtlasStub,
 } from "../cards/atlas";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "../lib/safeStorage";
 import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
@@ -197,8 +198,8 @@ function readAll(): SavedDeck[] {
   }
 }
 
-function writeAll(decks: SavedDeck[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+function writeAll(decks: SavedDeck[]): boolean {
+  return safeSetItem(STORAGE_KEY, JSON.stringify(decks));
 }
 
 export function listSavedDecks(): SavedDeck[] {
@@ -209,7 +210,11 @@ export function getSavedDeck(id: string): SavedDeck | undefined {
   return readAll().find((d) => d.id === id);
 }
 
-export function saveDeck(input: {
+export function saveDeck(input: SaveDeckInput): SavedDeck {
+  return saveDeckResult(input).deck;
+}
+
+type SaveDeckInput = {
   id?: string;
   name: string;
   leaderId: string;
@@ -222,7 +227,14 @@ export function saveDeck(input: {
   plannerDeckId?: number;
   /** Omit to keep the existing value. */
   editedLocally?: boolean;
-}): SavedDeck {
+};
+
+/**
+ * Same as `saveDeck`, but also reports whether the browser kept the write. A full quota or disabled storage
+ * leaves `persisted` false: the deck is still returned and announced (account sync can carry it) but a reload
+ * would lose it, so a caller can tell the player.
+ */
+export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persisted: boolean } {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
   const existing = decks.find((d) => d.id === id);
@@ -249,9 +261,9 @@ export function saveDeck(input: {
   const idx = decks.findIndex((d) => d.id === id);
   if (idx >= 0) decks[idx] = next;
   else decks.push(next);
-  writeAll(decks);
+  const persisted = writeAll(decks);
   emit({ kind: "upsert", deck: next });
-  return next;
+  return { deck: next, persisted };
 }
 
 /** Persist preferred alt art for one card on a saved deck (`null` = standard). */
@@ -299,7 +311,7 @@ export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[]
 
 /** Forget every deck in this browser (sign-out: they belonged to the account). */
 export function clearLocalDecks() {
-  localStorage.removeItem(STORAGE_KEY);
+  safeRemoveItem(STORAGE_KEY);
   setSelectedDeckId(null);
   announceChanged();
 }
@@ -448,12 +460,12 @@ export function upsertPlannerDeck(input: {
 }
 
 export function getSelectedDeckId(): string | null {
-  return localStorage.getItem(SELECTED_KEY);
+  return safeGetItem(SELECTED_KEY);
 }
 
 export function setSelectedDeckId(id: string | null) {
-  if (!id) localStorage.removeItem(SELECTED_KEY);
-  else localStorage.setItem(SELECTED_KEY, id);
+  if (!id) safeRemoveItem(SELECTED_KEY);
+  else safeSetItem(SELECTED_KEY, id);
 }
 
 export function getSelectedDeck(): SavedDeck | null {
@@ -478,7 +490,7 @@ export function setArtPref(cardId: string, altId: string | null) {
   const prefs = getArtPrefs();
   if (!altId) delete prefs[cardId];
   else prefs[cardId] = altId;
-  localStorage.setItem(ART_PREFS_KEY, JSON.stringify(prefs));
+  safeSetItem(ART_PREFS_KEY, JSON.stringify(prefs));
 }
 
 /**
