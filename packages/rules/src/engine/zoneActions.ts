@@ -8,6 +8,7 @@ import { isNegated, playerRestricted } from "./queries.js";
 import { type Located, alloc, isOnField, locate, putCard, putOnField, takeCard } from "./state.js";
 import type { Sim } from "./sim.js";
 import { abilityGateOpen, dispatchEvent, queueWindow } from "./triggers.js";
+import { B } from "../effects/bindings.js";
 
 const MAX_CHARACTERS = 5;
 
@@ -55,7 +56,7 @@ export function beginPlay(sim: Sim, seat: Seat, entry: { id: InstanceId; defId: 
   const def = getCardDef(entry.defId);
   if (def.type === "character" && state.players[seat].characters.length >= MAX_CHARACTERS) {
     putCard(state, seat, "resolving", entry);
-    const frame: ResolutionFrame = { id: alloc(state, "frame"), seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: "__trash_for_space", window: "rule", operationIndex: 0, bindings: { _rested: rested, _costPaid: costPaid, _fromZone: fromZone }, program: "trash_for_space" };
+    const frame: ResolutionFrame = { id: alloc(state, "frame"), seat, sourceInstanceId: entry.id, sourceDefId: entry.defId, abilityId: "__trash_for_space", window: "rule", operationIndex: 0, bindings: { [B.rested]: rested, [B.costPaid]: costPaid, [B.fromZone]: fromZone }, program: "trash_for_space" };
     state.resolutionFrames.push(frame);
     return;
   }

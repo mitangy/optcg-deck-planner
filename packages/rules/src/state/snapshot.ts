@@ -1,6 +1,7 @@
 import { abilityById, programFor, REGISTRY_HASH } from "../cards/abilities.js";
 import type { MatchState } from "../types.js";
 import { isValidRngState } from "../rng.js";
+import { B, getBinding } from "../effects/bindings.js";
 
 export const RULES_VERSION = "0.3.0";
 export const MATCH_STATE_VERSION = 3 as const;
@@ -43,7 +44,7 @@ function validateContinuations(state: MatchState): void {
     let length: number;
     // Engine-generated programs (not card abilities) have fixed two-instruction bodies.
     if (frame.program === "trash_for_space" || frame.program === "attack_tax") length = 2;
-    else if (typeof frame.bindings._delay === "number") length = Number.MAX_SAFE_INTEGER;
+    else if (getBinding(frame, B.delay) !== undefined) length = Number.MAX_SAFE_INTEGER;
     else {
       const entry = abilityById(frame.abilityId);
       if (!entry || entry.cardId !== frame.sourceDefId) invalid(`${frame.id}: unknown source ability`);
@@ -61,7 +62,7 @@ function validateContinuations(state: MatchState): void {
     if (choice.resolutionFrameId && !frames.has(choice.resolutionFrameId)) invalid(`${choice.id}: references a missing frame`);
     if (choice.resolutionFrameId) {
       const frame = state.resolutionFrames.find((f) => f.id === choice.resolutionFrameId)!;
-      if (frame.bindings._await !== choice.id) invalid(`${choice.id}: frame is not awaiting this choice`);
+      if (frame.bindings[B.await] !== choice.id) invalid(`${choice.id}: frame is not awaiting this choice`);
     }
   }
   for (const trigger of state.triggerQueue) if (!abilityById(trigger.abilityId)) invalid(`${trigger.id}: unknown queued ability`);

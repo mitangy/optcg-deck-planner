@@ -9,6 +9,7 @@ import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, res
 import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue, withQueryCache } from "./queries.js";
 import { abilityGateOpen, defaultAnswer, dispatchEvent, finishPlay, newBatch, resolveEffectChoice, startAbility, type Sim } from "./runtime.js";
 import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./state.js";
+import { CB } from "../effects/bindings.js";
 
 function fail(state: MatchState, code: string, message: string): ApplyResult {
   return { ok: false, state, events: [], error: { code, message } };
@@ -64,7 +65,7 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
     if (eligible.length === 0) continue;
     // The prompt appears for a single eligible Stage too, so the opponent cannot tell 1 from 2+ (#369).
     if (eligible.length === 1 && !state.privateChoicesV2) { playStartStage(player, eligible[0]!); continue; }
-    const bindings: Record<string, string> = { __startStage: "1" };
+    const bindings: Record<string, string> = { [CB.startStage]: "1" };
     const options = eligible.map((defId, i) => { bindings[`stage${i}`] = defId; return { id: `stage${i}`, defId, zone: "deck" as const, ownerSeat: seat, eligible: true }; });
     state.pendingChoices.push({
       id: alloc(state, "choice"), seat, kind: "effect", cardDefId: leaderDef.id, optional: false,
@@ -280,7 +281,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       return e ? err("INVALID_ORDER", e) : null;
     }
     if (front.kind === "order_effects") return err("WRONG_CHOICE", "Use order_pending_effects");
-    if (front.bindings?.__startStage) return resolveStartStage(sim, front, intent.selectedOptionIds ?? []);
+    if (front.bindings?.[CB.startStage]) return resolveStartStage(sim, front, intent.selectedOptionIds ?? []);
     if (front.kind === "life_trigger") { const e = resolveLifeTrigger(sim, front, intent.accept); return e ? err("INVALID_CHOICE", e) : null; }
     const e = resolveEffectChoice(sim, front, { accept: intent.accept, ...(intent.selectedOptionIds ? { selectedOptionIds: intent.selectedOptionIds } : {}), ...(intent.orderedOptionIds ? { orderedOptionIds: intent.orderedOptionIds } : {}), ...(intent.topOptionIds ? { topOptionIds: intent.topOptionIds } : {}) });
     return e ? err("INVALID_CHOICE", e) : null;

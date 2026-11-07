@@ -11,7 +11,15 @@ export interface Sim {
   rng: Rng;
 }
 
-/** Source of the effect currently executing (for "by your … card's effect" checks). */
+/**
+ * Source of the effect currently executing (for "by your … card's effect" checks).
+ *
+ * Kept as dynamic scope rather than a `Sim` field on purpose: `dispatchEvent` and `findReplacement` are
+ * reached from ~40 call sites that only hold a `MatchState` (battle, rules, zone moves), so carrying it
+ * on `Sim` would thread `sim` through all of them for no behaviour gain. Synchronous-only: `withActing`
+ * restores the previous marker in `finally`, so it must never wrap an `await` (see the facade in
+ * `engine.ts`).
+ */
 let acting: { seat: Seat; id: InstanceId; defId: string } | null = null;
 
 export function actingSource(): { seat: Seat; id: InstanceId; defId: string } | null {

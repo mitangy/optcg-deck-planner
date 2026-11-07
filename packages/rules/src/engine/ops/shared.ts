@@ -10,6 +10,7 @@ import { locateDon } from "../donLocation.js";
 import type { Sim } from "../sim.js";
 import { type Located, isOnField, locate, otherSeat } from "../state.js";
 import { type ExecResult, frameCtx } from "../vm.js";
+import { B, REPL_PREFIX, V, getBinding, recordAffected, replKey, setBinding } from "../../effects/bindings.js";
 
 /** One variant of the effect DSL, by its `do` tag. */
 export type OpEffect<K extends Effect["do"]> = Extract<Effect, { do: K }>;
@@ -51,37 +52,37 @@ export function resolveTargets(state: MatchState, frame: ResolutionFrame, target
       const opp = attacker?.seat === frame.seat ? defender : attacker;
       return pick(target.role === "own_battler" ? own : opp);
     }
-    case "event_card": { const id = frame.bindings._event; const loc = typeof id === "string" ? locate(state, id) : null; return loc ? [loc] : []; }
+    case "event_card": { const id = getBinding(frame, B.event); const loc = id !== undefined ? locate(state, id) : null; return loc ? [loc] : []; }
     case "choose": return [];
   }
 }
 /** Apply a removal to each target in order; may pause for replacement prompts. */
 export function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | "rest" | null, apply: (loc: Located) => void, done?: () => void): ExecResult {
   const { state } = sim;
-  if (!Array.isArray(frame.bindings._actTargets)) frame.bindings._affected = [];
-  const record = (loc: Located) => { const list = Array.isArray(frame.bindings._affected) ? frame.bindings._affected : []; frame.bindings._affected = [...list, loc.id]; };
-  if (!Array.isArray(frame.bindings._actTargets)) frame.bindings._actTargets = targets.map((t) => t.id);
-  const ids = frame.bindings._actTargets as string[];
-  let index = typeof frame.bindings._actIndex === "number" ? frame.bindings._actIndex : 0;
+  if (getBinding(frame, B.actTargets) === undefined) frame.bindings[V.affected] = [];
+  const record = (loc: Located) => recordAffected(frame, loc.id);
+  if (getBinding(frame, B.actTargets) === undefined) setBinding(frame, B.actTargets, targets.map((t) => t.id));
+  const ids = getBinding(frame, B.actTargets)!;
+  let index = getBinding(frame, B.actIndex) ?? 0;
   for (; index < ids.length; index += 1) {
     const loc = locate(state, ids[index]!);
     if (!loc) continue;
     // A replaced removal never happens, even when the replacement moved the
     // target itself off the field (Marco K.O.'ing himself instead).
-    const replKey = `_repl:${loc.id}`;
-    if (frame.bindings[replKey] === true) continue;
+    const flag = replKey(loc.id);
+    if (frame.bindings[flag] === true) continue;
     if (kind && isOnField(loc) && loc.zone !== "leader") {
       if (removalBlocked(state, loc, frame.seat, kind, locate(state, frame.sourceInstanceId))) continue;
       const byOpponent = frame.seat !== loc.seat;
-      if (frame.bindings[replKey] === undefined) {
+      if (frame.bindings[flag] === undefined) {
         const events: ReplacementEvent[] = kind === "rest"
           ? (byOpponent ? ["rested_by_opponent_effect"] : [])
           : kind === "ko" ? ["ko", "ko_by_effect", "removed", ...(byOpponent ? ["removed_by_opponent_effect" as const] : [])] : ["removed", ...(byOpponent ? ["removed_by_opponent_effect" as const] : [])];
         const hit = events.length ? findReplacement(state, loc, events, byOpponent) : null;
         if (hit) {
-          frame.bindings._actIndex = index;
-          frame.bindings._actEvents = events;
-          frame.bindings._actByOpponent = byOpponent;
+          setBinding(frame, B.actIndex, index);
+          setBinding(frame, B.actEvents, events);
+          setBinding(frame, B.actByOpponent, byOpponent);
           pushReplacementFrame(sim, hit, loc.id, frame.id);
           return "interrupt";
         }
@@ -90,7 +91,7 @@ export function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located
     apply(loc);
     record(loc);
   }
-  for (const key of Object.keys(frame.bindings)) if (key === "_actTargets" || key === "_actIndex" || key === "_actEvents" || key === "_actByOpponent" || key.startsWith("_repl:")) delete frame.bindings[key];
+  for (const key of Object.keys(frame.bindings)) if (key === B.actTargets || key === B.actIndex || key === B.actEvents || key === B.actByOpponent || key.startsWith(REPL_PREFIX)) delete frame.bindings[key];
   done?.();
   return "next";
 }

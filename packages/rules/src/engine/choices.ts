@@ -9,6 +9,7 @@ import { isOnField, locate, putCard, takeCard } from "./state.js";
 import type { Sim } from "./sim.js";
 import { beginPlay } from "./zoneActions.js";
 import { frameCtx } from "./vm.js";
+import { B, CB, getBinding } from "../effects/bindings.js";
 
 // ---------------------------------------------------------------------------
 // Choice resolution
@@ -25,7 +26,7 @@ export interface ChoiceAnswer {
 export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: ChoiceAnswer): string | null {
   const { state } = sim;
   const frame = state.resolutionFrames.find((f) => f.id === choice.resolutionFrameId);
-  if (!frame || frame.bindings._await !== choice.id) return "Ability continuation is missing";
+  if (!frame || frame.bindings[B.await] !== choice.id) return "Ability continuation is missing";
   const request = choice.request;
   const b = choice.bindings ?? {};
   if (!request) return "Choice has no request";
@@ -34,7 +35,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
     case "confirm": {
       if (!answer.accept && !choice.optional) return "This choice cannot be declined";
       if (answer.accept && choice.unpayable) return "You cannot pay this cost";
-      apply = () => { frame.bindings[b.__bind!] = answer.accept; if (!answer.accept && choice.seat === frame.seat) frame.bindings.__declined = true; frame.operationIndex += 1; };
+      apply = () => { frame.bindings[b[CB.bind]!] = answer.accept; if (!answer.accept && choice.seat === frame.seat) frame.bindings[B.declined] = true; frame.operationIndex += 1; };
       break;
     }
     case "mode": {
@@ -42,7 +43,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
       if (picked.length !== 1 || !request.options.some((o) => o.id === picked[0])) return "Choose exactly one option";
       if (request.options.find((o) => o.id === picked[0])?.eligible === false) return "That option is not available";
       const index = request.options.findIndex((o) => o.id === picked[0]);
-      apply = () => { frame.bindings[b.__bind!] = index; if (!b.__repeat) frame.operationIndex += 1; };
+      apply = () => { frame.bindings[b[CB.bind]!] = index; if (!b[CB.repeat]) frame.operationIndex += 1; };
       break;
     }
     case "select": {
@@ -53,7 +54,8 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
       const ids = picked.map((id) => b[id]!);
       const donExists = (id: string) => state.players.some((p) => p.costArea.some((d) => d.id === id) || p.attachedDons.some((d) => d.id === id));
       for (const id of ids) if (!locate(state, id) && !donExists(id)) return "A selected card is no longer available";
-      const meta = typeof frame.bindings._selectMeta === "string" ? JSON.parse(frame.bindings._selectMeta) as { totalCostAtMost: unknown; totalPowerAtMost: unknown; distinctNames: boolean } : null;
+      const selectMeta = getBinding(frame, B.selectMeta);
+      const meta = selectMeta !== undefined ? JSON.parse(selectMeta) as { totalCostAtMost: unknown; totalPowerAtMost: unknown; distinctNames: boolean } : null;
       if (meta?.totalCostAtMost != null) {
         const ctx = frameCtx(frame);
         const limit = evalValue(state, ctx, meta.totalCostAtMost as number);
@@ -70,7 +72,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
         const names = ids.map((id) => getCardDef(locate(state, id)!.defId).name);
         if (new Set(names).size !== names.length) return "Choose cards with different names";
       }
-      apply = () => { frame.bindings[b.__bind!] = ids; delete frame.bindings._selectMeta; frame.operationIndex += 1; };
+      apply = () => { frame.bindings[b[CB.bind]!] = ids; delete frame.bindings[B.selectMeta]; frame.operationIndex += 1; };
       break;
     }
     case "look": {
@@ -106,7 +108,7 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
     }
   }
   state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
-  delete frame.bindings._await;
+  delete frame.bindings[B.await];
   apply();
   sim.events.push({ type: "pending_choice_resolved", seat: choice.seat, kind: choice.kind, cardDefId: choice.cardDefId, accepted: answer.accept, ...(choice.privateToSeat != null ? { privateToSeat: choice.privateToSeat } : {}) });
   return null;

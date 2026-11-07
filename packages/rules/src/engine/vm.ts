@@ -15,6 +15,7 @@ import { finishPlay } from "./zoneActions.js";
 import { coverBatch } from "./replacement.js";
 import { execAct } from "./ops.js";
 import { donOptionInfo } from "./donLocation.js";
+import { B, CB, V, getBinding, replKey } from "../effects/bindings.js";
 
 // ---------------------------------------------------------------------------
 // Choices
@@ -24,7 +25,7 @@ export function pushChoice(sim: Sim, frame: ResolutionFrame, choice: Omit<Pendin
   const { state } = sim;
   const full: PendingChoice = { id: alloc(state, "choice"), resolutionFrameId: frame.id, cardDefId: frame.sourceDefId, sourceInstanceId: frame.sourceInstanceId, ...choice };
   state.pendingChoices.push(full);
-  frame.bindings._await = full.id;
+  frame.bindings[B.await] = full.id;
   sim.events.push({ type: "pending_choice_added", seat: full.seat, kind: full.kind, cardDefId: full.cardDefId, sourceInstanceId: full.sourceInstanceId, optional: full.optional, prompt: full.prompt, ...(full.privateToSeat != null ? { privateToSeat: full.privateToSeat } : {}), ...(full.hideCardDefFromOthers ? { hideCardDefFromOthers: true } : {}) });
   return full;
 }
@@ -50,7 +51,7 @@ function optionFor(state: MatchState, loc: Located, id: string, chooser?: Seat):
 }
 
 export function frameCtx(frame: ResolutionFrame): EvalCtx {
-  return { seat: frame.seat, sourceId: frame.sourceInstanceId, sourceDefId: frame.sourceDefId, vars: frame.bindings, ...(typeof frame.bindings._event === "string" ? { eventCardId: frame.bindings._event } : {}) };
+  return { seat: frame.seat, sourceId: frame.sourceInstanceId, sourceDefId: frame.sourceDefId, vars: frame.bindings, ...(getBinding(frame, B.event) !== undefined ? { eventCardId: getBinding(frame, B.event)! } : {}) };
 }
 
 export function promptPrefix(frame: ResolutionFrame): string {
@@ -64,16 +65,16 @@ export function promptPrefix(frame: ResolutionFrame): string {
 const TRASH_FOR_SPACE: Program = {
   abilityId: "__trash_for_space",
   instrs: [
-    { op: "select", bind: "_space", selector: { player: "you", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "trash to make room" },
-    { op: "act", effect: { do: "to_trash", target: { ref: "var", name: "_space" } } },
+    { op: "select", bind: V.space, selector: { player: "you", zone: "character" }, min: 1, max: 1, chooser: "you", purpose: "trash to make room" },
+    { op: "act", effect: { do: "to_trash", target: { ref: "var", name: V.space } } },
   ],
 };
 
 const ATTACK_TAX: Program = {
   abilityId: "__attack_tax",
   instrs: [
-    { op: "select", bind: "_tax", selector: { player: "you", zone: "hand" }, min: 99, max: 99, chooser: "you", purpose: "trash to attack", countValue: { count: { of: "var", name: "_taxCount" } } },
-    { op: "act", effect: { do: "to_trash", target: { ref: "var", name: "_tax" } } },
+    { op: "select", bind: V.tax, selector: { player: "you", zone: "hand" }, min: 99, max: 99, chooser: "you", purpose: "trash to attack", countValue: { count: { of: "var", name: V.taxCount } } },
+    { op: "act", effect: { do: "to_trash", target: { ref: "var", name: V.tax } } },
   ],
 };
 
@@ -81,10 +82,11 @@ const delayedPrograms = new Map<string, Program>();
 function programOf(frame: ResolutionFrame): Program {
   if (frame.program === "trash_for_space") return TRASH_FOR_SPACE;
   if (frame.program === "attack_tax") return ATTACK_TAX;
-  if (typeof frame.bindings._delay === "number") {
-    const key = `${frame.abilityId}#${frame.bindings._delay}`;
+  const delay = getBinding(frame, B.delay);
+  if (delay !== undefined) {
+    const key = `${frame.abilityId}#${delay}`;
     let program = delayedPrograms.get(key);
-    if (!program) { program = compileDelayed(abilityById(frame.abilityId)!.ability, frame.bindings._delay); delayedPrograms.set(key, program); }
+    if (!program) { program = compileDelayed(abilityById(frame.abilityId)!.ability, delay); delayedPrograms.set(key, program); }
     return program;
   }
   if (frame.program === "replacement") {
@@ -93,7 +95,7 @@ function programOf(frame: ResolutionFrame): Program {
     if (!optional) return base;
     const shift = 2;
     const shifted = base.instrs.map((instr) => shiftJumps(instr, shift));
-    return { abilityId: base.abilityId, instrs: [{ op: "confirm", bind: "_did", prompt: "use this replacement effect" }, { op: "jumpIfFalse", name: "_did", to: shifted.length + shift }, ...shifted] };
+    return { abilityId: base.abilityId, instrs: [{ op: "confirm", bind: V.did, prompt: "use this replacement effect" }, { op: "jumpIfFalse", name: V.did, to: shifted.length + shift }, ...shifted] };
   }
   return programFor(frame.abilityId);
 }
@@ -113,7 +115,7 @@ export function runFrames(sim: Sim): void {
     if (state.winner !== null) { state.resolutionFrames = []; state.pendingChoices = []; return; }
     if (++guard > 5000) throw new Error("Ability resolution did not terminate");
     const frame = state.resolutionFrames[state.resolutionFrames.length - 1]!;
-    if (typeof frame.bindings._await === "string") return;
+    if (getBinding(frame, B.await) !== undefined) return;
     const program = programOf(frame);
     if (frame.operationIndex >= program.instrs.length) { completeFrame(sim, frame); continue; }
     const instr = program.instrs[frame.operationIndex]!;
@@ -132,17 +134,17 @@ function completeFrame(sim: Sim, frame: ResolutionFrame): void {
     const index = p.resolving.findIndex((c) => c.id === frame.sourceInstanceId);
     if (index >= 0) {
       const [card] = p.resolving.splice(index, 1);
-      finishPlay(sim, frame.seat, card!, Boolean(frame.bindings._rested), Number(frame.bindings._costPaid ?? 0), String(frame.bindings._fromZone ?? "hand"));
+      finishPlay(sim, frame.seat, card!, Boolean(frame.bindings[B.rested]), Number(frame.bindings[B.costPaid] ?? 0), String(frame.bindings[B.fromZone] ?? "hand"));
     }
     return;
   }
   if (frame.program === "replacement") {
-    const replaced = frame.bindings._did !== false;
-    const parentId = frame.bindings._parent;
-    const target = frame.bindings._target;
+    const replaced = frame.bindings[V.did] !== false;
+    const parentId = frame.bindings[B.parent];
+    const target = frame.bindings[B.target];
     const parent = state.resolutionFrames.find((f) => f.id === parentId);
     if (parent && typeof target === "string") {
-      parent.bindings[`_repl:${target}`] = replaced;
+      parent.bindings[replKey(target)] = replaced;
       if (replaced) coverBatch(state, frame, parent);
     }
     else if (typeof target === "string") {
@@ -180,26 +182,26 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       const payCtx: EvalCtx = instr.chooser === "opponent" ? { ...ctx, seat: otherSeat(frame.seat) } : ctx;
       if (instr.costs && !canPayCosts(state, payCtx, instr.costs)) {
         const hiddenCosts = state.privateChoicesV2 && instr.chooser !== "opponent" ? instr.costs.filter(costDependsOnHiddenInfo) : [];
-        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, payCtx, c))) { frame.bindings[instr.bind] = false; frame.bindings.__declined = true; return "next"; }
+        if (hiddenCosts.length === 0 || !instr.costs.every((c) => hiddenCosts.includes(c) || canPayCost(state, payCtx, c))) { frame.bindings[instr.bind] = false; frame.bindings[B.declined] = true; return "next"; }
         unpayable = true;
       }
       const ability = abilityById(frame.abilityId)?.ability;
       const detail = frame.program === "replacement" ? `use ${nameOf(frame.sourceDefId)}'s effect instead?` : instr.costs && (instr.prompt === "pay the cost" || instr.prompt === "use this effect") ? `pay the cost to activate: ${ability?.text ?? ""}` : `${instr.prompt}? ${ability?.text ?? ""}`;
-      pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { __bind: instr.bind }, ...(unpayable ? { unpayable: true } : {}) });
+      pushChoice(sim, frame, { seat: instr.chooser === "opponent" ? otherSeat(frame.seat) : frame.seat, kind: "effect", optional: true, prompt: `${promptPrefix(frame)} — ${detail}`.trim(), request: { type: "confirm" }, bindings: { [CB.bind]: instr.bind }, ...(unpayable ? { unpayable: true } : {}) });
       return "wait";
     }
     case "mode": {
       const chooser = instr.chooser === "you" ? frame.seat : otherSeat(frame.seat);
       // Labels are written from the controller's view; reword them when the opponent chooses.
       const options: ChoiceOption[] = instr.labels.map((label, index) => ({ id: `m${index}`, label: chooser === frame.seat ? label : forOpponent(label), eligible: !instr.costOptions || (instr.costOptions[index] ?? []).every((c) => canPayCost(state, ctx, c)) }));
-      pushChoice(sim, frame, { seat: chooser, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — ${instr.prompt ?? "choose one"}.`, request: { type: "mode", options }, bindings: { __bind: instr.bind } });
+      pushChoice(sim, frame, { seat: chooser, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — ${instr.prompt ?? "choose one"}.`, request: { type: "mode", options }, bindings: { [CB.bind]: instr.bind } });
       return "wait";
     }
     case "select": return execSelect(sim, frame, instr);
     case "delay":
       {
         const vars: Record<string, BindingValue> = {};
-        for (const [k, v] of Object.entries(frame.bindings)) if (!k.startsWith("__") && k !== "_await" && k !== "_delay" && k !== "_selectMeta") vars[k] = v;
+        for (const [k, v] of Object.entries(frame.bindings)) if (!k.startsWith("__") && k !== B.await && k !== B.delay && k !== B.selectMeta) vars[k] = v;
         // "At the end of this turn, trash this Character": if it leaves the field first it is a new card, so the effect lapses (#656).
         const src = locate(state, frame.sourceInstanceId);
         const selfBound = (src?.zone === "character" || src?.zone === "stage") && JSON.stringify(compileDelayed(abilityById(frame.abilityId)!.ability, instr.index).instrs).includes('"ref":"self"');
@@ -207,7 +209,7 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
       }
       return "next";
     case "look": return execLook(sim, frame, instr);
-    case "act": frame.bindings.__acted = true; return execAct(sim, frame, instr.effect);
+    case "act": frame.bindings[B.acted] = true; return execAct(sim, frame, instr.effect);
   }
 }
 
@@ -240,7 +242,7 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     frame.bindings[instr.bind] = list.map((l) => l.id);
     return "next";
   }
-  const bindings: Record<string, string> = { __bind: instr.bind };
+  const bindings: Record<string, string> = { [CB.bind]: instr.bind };
   const options = list.map((loc, index) => {
     const id = `o${index}`;
     bindings[id] = loc.id;
@@ -255,7 +257,7 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     seat: chooser, kind: "effect", optional: false, prompt, request: { type: "select", min, max, options, ...(instr.distinctNames ? { distinctNames: true as const } : {}), ...(instr.totalCostAtMost != null ? { totalCostAtMost: evalValue(state, ctx, instr.totalCostAtMost) } : {}), ...(instr.totalPowerAtMost != null ? { totalPowerAtMost: evalValue(state, ctx, instr.totalPowerAtMost) } : {}) }, bindings,
     ...(hidden ? { privateToSeat: chooser, optionCount: options.length } : {}),
   });
-  frame.bindings._selectMeta = JSON.stringify({ totalCostAtMost: instr.totalCostAtMost ?? null, totalPowerAtMost: instr.totalPowerAtMost ?? null, distinctNames: instr.distinctNames ?? false });
+  frame.bindings[B.selectMeta] = JSON.stringify({ totalCostAtMost: instr.totalCostAtMost ?? null, totalPowerAtMost: instr.totalPowerAtMost ?? null, distinctNames: instr.distinctNames ?? false });
   return "wait";
 }
 

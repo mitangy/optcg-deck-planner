@@ -75,7 +75,7 @@ jobs:
         run: |
           SHARDS=(
             "src/engine/sim.ts,src/engine/triggers.ts,src/engine/zoneActions.ts,src/engine/vm.ts,src/engine/replacement.ts,src/engine/ops.ts,src/engine/ops/zones.ts,src/engine/ops/modifiers.ts,src/engine/ops/don.ts,src/engine/ops/life.ts,src/engine/ops/info.ts,src/engine/ops/flow.ts,src/engine/ops/shared.ts,src/engine/choices.ts,src/engine/donLocation.ts"
-            "src/engine/evalCtx.ts,src/engine/statics.ts,src/engine/stats.ts,src/engine/selectors.ts,src/engine/evaluate.ts,src/engine/costs.ts"
+            "src/engine/evalCtx.ts,src/engine/statics.ts,src/engine/stats.ts,src/engine/selectors.ts,src/engine/evaluate.ts,src/engine/costs.ts,src/effects/bindings.ts"
             "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts,src/engine/perspective.ts"
             "src/effects/validate.ts,src/effects/compile.ts"
             "src/engine/procedure.ts,src/engine/state.ts"
