@@ -4,12 +4,13 @@
  *
  * Usage: npx tsx src/sim/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3]
  * Spec keys: kind = normal | hard | legacy (an older bot: LEGACY_BOT=<file exporting chooseLegacy>, e.g. a copy of src/bot from git at the commit to compare with), evalMode, prior = meta | true | generic,
- * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs.
+ * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs,
+ * weights = path to a value model JSON (linear or mlp, see bot/valueModel.ts) used for winProb and evalMode=learned instead of the committed valueWeights.json (no commas in the path).
  * Prints wins, win rate with a 95% Wilson interval, and CPU time per hard decision for each side.
  */
 import { fork } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { buildDeckPrior, type BotLevel, type BotOptions } from "../bot/index.js";
+import { buildDeckPrior, weightsMatchFeatures, type BotLevel, type BotOptions, type ValueModel } from "../bot/index.js";
 import { createSeededRng } from "../rng.js";
 import type { PlayerDeckConfig } from "../types.js";
 import { playBotGame, type Chooser } from "./selfPlay.js";
@@ -35,6 +36,11 @@ async function optionsOf(spec: Spec, decks: DeckFile[]): Promise<{ level: BotLev
   if (spec.samples) opts.samples = Number(spec.samples);
   if (spec.maxEvals) opts.maxEvals = Number(spec.maxEvals);
   if (spec.budgetMs) opts.budgetMs = Number(spec.budgetMs);
+  if (spec.weights) {
+    const model = JSON.parse(readFileSync(spec.weights, "utf8")) as ValueModel;
+    if (!weightsMatchFeatures(model)) throw new Error(`${spec.weights}: feature names do not match featureSet ${model.featureSet ?? "v1"}`);
+    opts.valueWeights = model;
+  }
   if (spec.prior === "true") opts.prior = "true";
   else if (spec.prior === "generic") opts.prior = { lists: { "?": decks.map((d) => d.deck) } };
   else if (spec.prior === "meta") opts.prior = buildDeckPrior(decks);
