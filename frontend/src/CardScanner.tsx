@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@optcg/ui/popups";
 import { api } from "./api";
+import { meQueryKey } from "./auth/useMe";
 import type { CatalogCardResult, ShoppingItem, User } from "./api";
 import { CardCaptureLive, isLiveCaptureSupported } from "./CardCaptureLive";
 import { CardThumb } from "./CardThumb";
@@ -458,7 +459,7 @@ export function CardScanner({
     try {
       await api.addOwned(payload);
       // Fire-and-forget; skipped unless the user's sharing switch is on (#852).
-      if (qc.getQueryData<User | null>(["me"])?.share_scans === true) {
+      if (qc.getQueryData<User | null>(meQueryKey)?.share_scans === true) {
         void uploadScanSamples(traySamples(tray.rows, tray.items)).then(() =>
           qc.invalidateQueries({ queryKey: ["scan-samples"] }),
         );

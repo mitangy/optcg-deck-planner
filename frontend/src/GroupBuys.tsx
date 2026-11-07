@@ -1,5 +1,6 @@
 import { BrandWordmark } from "./BrandWordmark";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMe } from "./auth/useMe";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Select } from "@optcg/ui/popups";
@@ -1010,7 +1011,7 @@ export function GroupBuyDetailPage() {
     enabled: Number.isFinite(groupId) && groupId > 0,
   });
   const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
-  const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const meQ = useMe();
 
   const detail = detailQ.data;
   const members = detail?.members ?? [];
@@ -1948,7 +1949,7 @@ export function PublicGroupBuyPage() {
 export function GroupBuyJoinPage() {
   const { token = "" } = useParams();
   const navigate = useNavigate();
-  const meQ = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const meQ = useMe();
   const previewQ = useQuery({
     queryKey: ["group-buy-invite", token],
     queryFn: () => api.groupBuyInvitePreview(token),

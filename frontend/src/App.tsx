@@ -55,7 +55,8 @@ import { LegalPage } from "./LegalPage";
 import { PlannerLandingPage } from "./LandingPage";
 import { PublicCardScreen } from "./PublicCardScreen";
 import { PublicMetaScreen } from "./PublicMetaScreen";
-import { KEEP_PRERENDER_WHILE_LOADING, setSignedInHint } from "./prerendered";
+import { KEEP_PRERENDER_WHILE_LOADING } from "./prerendered";
+import { meQueryKey, useMe } from "./auth/useMe";
 import { RouteMeta } from "./seo/RouteMeta";
 import { WhatsNewPage } from "./WhatsNewPage";
 import { CardLayoutToggle, useCardLayout, type CardLayout } from "./CardLayout";
@@ -87,7 +88,7 @@ import {
 } from "./CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { nameWithBreaks } from "./cardName";
-import { SHOPPING_DECKS_KEY, loadShoppingDeckFilter, savedShoppingDeckIds, useSavedShoppingDeckIds } from "./shoppingDeckFilter";
+import { loadShoppingDeckFilter, saveShoppingDeckFilter, savedShoppingDeckIds, useSavedShoppingDeckIds } from "./shoppingDeckFilter";
 import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import {
   collectionTotals,
@@ -332,17 +333,6 @@ function DeckExportPanel({
         <ShareStatus message={exportMsg} />
     </div>
   );
-}
-
-function useMe() {
-  return useQuery({
-    queryKey: ["me"],
-    queryFn: async () => {
-      const user = await api.me();
-      setSignedInHint(user != null);
-      return user;
-    },
-  });
 }
 
 function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
@@ -716,7 +706,7 @@ function Shell({ user, children }: { user: User; children: ReactNode }) {
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: meQueryKey });
       navigate("/login");
     },
   });
@@ -1603,7 +1593,7 @@ function ShoppingPage() {
 
   useEffect(() => {
     if (!filterReady || selectedDeckIds === null) return;
-    localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(selectedDeckIds));
+    saveShoppingDeckFilter(selectedDeckIds);
   }, [selectedDeckIds, filterReady]);
 
   useEffect(() => {
@@ -1648,17 +1638,17 @@ function ShoppingPage() {
   const setSumAcrossLeaders = useMutation({
     mutationFn: (value: boolean) => api.updatePreferences({ sum_across_leaders: value }),
     onMutate: (value) => {
-      const prev = qc.getQueryData<User | null>(["me"]);
-      qc.setQueryData<User | null>(["me"], (old) =>
+      const prev = qc.getQueryData<User | null>(meQueryKey);
+      qc.setQueryData<User | null>(meQueryKey, (old) =>
         old ? { ...old, sum_across_leaders: value } : old,
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["me"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(meQueryKey, ctx.prev);
     },
     onSettled: () => {
-      void qc.invalidateQueries({ queryKey: ["me"] });
+      void qc.invalidateQueries({ queryKey: meQueryKey });
       invalidateAltWantViews(qc);
     },
   });
