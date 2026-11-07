@@ -23,6 +23,7 @@ module.exports = {
     m("ci-docs-run-rules", 'p.startsWith("docs/"), flags: []', 'p.startsWith("docs/"), flags: ["rules"]', ["docs and root markdown files turn nothing on"]),
     m("ci-nested-markdown-exempt", "/^[^/]+\\.md$/.test(p)", "/\\.md$/.test(p)", ["markdown below the root is not exempt"]),
     m("ci-workflow-change-runs-nothing", 'p === ".github/workflows/ci.yml", flags: FLAGS', 'p === ".github/workflows/ci.yml", flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),
+    m("ci-setup-actions-run-nothing", 'p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS', 'p === ".nvmrc" || p.startsWith(".github/actions/"), flags: []', ["the Node version file and the composite setup actions turn every job on"]),
     m("ci-root-manifest-runs-nothing", 'p === "package.json" || p === "package-lock.json", flags: FLAGS', 'p === "package.json" || p === "package-lock.json", flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),
     m("ci-app-manifest-runs-own-job-only", 'p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p === "frontend/package.json" || p === "duel-web/package.json", flags: ["frontend", "duel_web", "duel_e2e"]', ["an app manifest feeds the root lock"]),
     m("ci-tools-ci-runs-nothing", 'p.startsWith("tools/ci/"), flags: FLAGS', 'p.startsWith("tools/ci/"), flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),

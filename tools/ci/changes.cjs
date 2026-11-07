@@ -21,6 +21,8 @@
  *     (packages, game-server, analyst, frontend, duel-web), and every JS job
  *     installs from it, so a change there can break any of them. The same holds
  *     for frontend/package.json and duel-web/package.json (they feed that lock).
+ *   - .nvmrc, .github/actions/: every job's Node setup reads them (the composite
+ *     setup-node-deps and pr-base actions).
  *   - packages/rules/protocol-fixtures: also read by the mobile tests.
  *   - game-server: duel-web e2e starts it (duel-web/playwright.config.ts).
  *   - backend/tests/fixtures: game-server's briefTicket test reads the shared vector.
@@ -39,6 +41,8 @@ const FLAGS = ["rules", "duel_web", "duel_e2e", "frontend", "backend", "mobile"]
 /** Ordered: the first matching rule wins. `flags: []` means no job needs to run. */
 const RULES = [
   { test: (p) => p === ".github/workflows/ci.yml", flags: FLAGS },
+  // The composite actions (setup-node-deps, pr-base) and .nvmrc are used by every JS job's setup.
+  { test: (p) => p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS },
   { test: (p) => p === "package.json" || p === "package-lock.json", flags: FLAGS },
   // App manifests are part of the root workspace lock: every JS job's `npm ci` reads them.
   { test: (p) => p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"] },

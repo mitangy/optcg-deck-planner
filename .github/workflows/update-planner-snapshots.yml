@@ -16,14 +16,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      # frontend/ is an npm workspace: one install from the repo root.
-      - run: npm ci
-        working-directory: .
+      - uses: ./.github/actions/setup-node-deps
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test e2e/visual.spec.ts --update-snapshots
       - uses: actions/upload-artifact@v7

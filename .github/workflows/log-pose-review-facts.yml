@@ -46,22 +46,19 @@ jobs:
       ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:
       - name: Check configuration
+        env:
+          POST: ${{ inputs.post }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "Add the ANTHROPIC_API_KEY repository secret to run the review fact-check." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if [ "${{ inputs.post }}" = "true" ] && { [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; }; then
+          if [ "$POST" = "true" ] && { [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; }; then
             echo "post=true needs ANALYST_API_URL and ANALYST_SERVICE_SECRET." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-deps
       - name: Fetch the current meta decks
         if: ${{ env.META_API_URL != '' }}
         run: npm run meta-decks -w @optcg/analyst -- --api "$META_API_URL" --out "$PWD/meta-decks.json" --leaders 16 --days 30
@@ -80,8 +77,10 @@ jobs:
           npm run eval:review-facts -w @optcg/analyst -- "${ARGS[@]}"
       - name: Summary
         if: always()
+        env:
+          VARIANT: ${{ inputs.variant }}
         run: |
-          f="analyst/evals/out/review-facts/${{ inputs.variant }}/report.md"
+          f="analyst/evals/out/review-facts/${VARIANT}/report.md"
           if [ -f "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
       - uses: actions/upload-artifact@v7
         if: always()
