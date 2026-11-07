@@ -373,6 +373,12 @@ jobs:
         working-directory: backend
         run: |
           pip install -r requirements-dev.txt
+      - uses: ./.github/actions/setup-node-deps
+      - name: Generated API types are current
+        # packages/api-client/src/generated/schema.ts is built from app.openapi() (refactor 2.1c): fails when a
+        # route or response model changed without `node tools/ci/openapi-types.cjs` being run and committed.
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: node tools/ci/openapi-types.cjs --check
       - name: Backend tests
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         working-directory: backend

@@ -12,6 +12,7 @@ module.exports = {
     m("ci-backend-runs-e2e", 'p.startsWith("scripts/"), flags: ["backend"]', 'p.startsWith("scripts/"), flags: ["backend", "duel_e2e"]', ["a backend-only change leaves the duel e2e shards off"]),
     m("ci-packages-skips-duel-web", 'p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p.startsWith("packages/"), flags: ["rules", "duel_e2e", "frontend"]', ["a packages change runs duel-web"]),
     m("ci-fixtures-skip-mobile", 'flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"]', 'flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["protocol fixtures also run the mobile tests"]),
+    m("ci-generated-api-types-skip-backend", 'p.startsWith("packages/api-client/src/generated/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"]', 'p.startsWith("packages/api-client/src/generated/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["the generated API types also run the backend job that regenerates them (refactor 2.1c)"]),
     m("ci-game-server-skips-e2e", 'p.startsWith("game-server/"), flags: ["rules", "duel_e2e"]', 'p.startsWith("game-server/"), flags: ["rules"]', ["game-server changes run the rules job and the duel e2e shards"]),
     m("ci-golden-decklists-skip-backend", 'p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"]', 'p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["the golden deck lists also run the backend tests"]),
     m("ci-ticket-vector-skips-rules", 'p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"]', 'p.startsWith("backend/tests/fixtures/"), flags: ["backend"]', ["the ticket vector shared with game-server"]),
@@ -78,6 +79,12 @@ module.exports = {
       ["discord-zero-sha-posts-backlog", "if (!beforeSha || ZERO_SHA.test(beforeSha))", "if (!beforeSha)", "an all-zero before sha posts nothing"],
       ["discord-unreadable-before-is-empty", "const before = loadBefore();", "const before = loadBefore() || [];", "a before commit that cannot be read posts nothing"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/discord-patch-notes.cjs", from, to, kills: [kill], args: '"tools/ci/discord-patch-notes.test.cjs"' })),
+    // Generated API types drift check (refactor 2.1c)
+    ...[
+      ["openapi-types-crlf-is-drift", 'committed.replace(/\\r\\n/g, "\\n")', "committed", "a Windows checkout with CRLF line endings is not drift"],
+      ["openapi-types-longer-file-passes", "const n = Math.max(a.length, b.length);", "const n = Math.min(a.length, b.length);", "a type the backend added fails the check even when every committed line still matches"],
+      ["openapi-types-changed-line-passes", "if (a[i] !== b[i]) return", "if (a[i] !== a[i]) return", "a changed line fails the check and names the first differing line"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/openapi-types.cjs", from, to, kills: [kill], args: '"tools/ci/openapi-types.test.cjs"' })),
     // Anchor tooling (tools/mutation-check/anchors.cjs, locate.cjs, move.cjs; refactor 1.1)
     ...[
       ["anchors-no-loose-fallback", "const re = looseRegex(from);", "const re = null;", "a re-indented, re-wrapped anchor applies through the whitespace fallback"],

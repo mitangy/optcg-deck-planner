@@ -145,7 +145,7 @@ ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "data" / "alt_a
 def alt_art_product_ids() -> frozenset[int]:
     """TCGPlayer productIds duel-web verified as distinct alt art (#762).
 
-    Written by `scripts/sync_alt_arts.py`; covers promo printings whose name has
+    Written by `backend/scripts/sync_alt_arts.py`; covers promo printings whose name has
     no marker. A missing or unreadable file means no extra ids.
     """
     try:

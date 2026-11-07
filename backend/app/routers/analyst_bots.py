@@ -26,7 +26,14 @@ from app.analyst.bots import (
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.security import require_service
-from app.analyst.schemas import BotLessonIn
+from app.analyst.schemas import (
+    BotBatchOut,
+    BotGameSearchOut,
+    BotLessonIn,
+    BotLessonSavedOut,
+    BotReplayOut,
+    BotSimStatsOut,
+)
 from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
@@ -55,13 +62,13 @@ class BotGamesIn(BaseModel):
     games: list[BotGameIn] = Field(min_length=1, max_length=MAX_BATCH_GAMES)
 
 
-@router.post("/bot-games")
+@router.post("/bot-games", response_model=BotBatchOut)
 def ingest_bot_games(body: BotGamesIn, _: Service, db: Annotated[Session, Depends(get_db)]) -> dict:
     """Store a batch of self-play games. Sending the same batch id and indexes again adds nothing."""
     return ingest_batch(db, body.batch_id, clean_levels(body.levels), [g.model_dump() for g in body.games])
 
 
-@router.get("/bot-games")
+@router.get("/bot-games", response_model=BotGameSearchOut)
 def search_bot_games_route(
     _: Service,
     db: Annotated[Session, Depends(get_db)],
@@ -84,7 +91,7 @@ def search_bot_games_route(
     )
 
 
-@router.get("/bot-games/{game_id}/replay")
+@router.get("/bot-games/{game_id}/replay", response_model=BotReplayOut)
 def bot_replay(game_id: str, _: Service, db: Annotated[Session, Depends(get_db)]) -> dict:
     out = bot_game_replay(db, game_id)
     if out is None:
@@ -92,7 +99,7 @@ def bot_replay(game_id: str, _: Service, db: Annotated[Session, Depends(get_db)]
     return out
 
 
-@router.get("/stats/sim")
+@router.get("/stats/sim", response_model=BotSimStatsOut, response_model_exclude_unset=True)
 def analyst_sim_stats(
     _: Service,
     db: Annotated[Session, Depends(get_db)],
@@ -111,7 +118,7 @@ def analyst_sim_stats(
     return out
 
 
-@router.post("/bot-lessons")
+@router.post("/bot-lessons", response_model=BotLessonSavedOut, response_model_exclude_unset=True)
 def post_bot_lesson(body: BotLessonIn, _: Service, db: Annotated[Session, Depends(get_db)]) -> dict:
     """A line bot games and real games agree on, saved as a draft for the admin. Once approved it reaches every player's Log Pose."""
     try:

@@ -813,4 +813,6 @@ def test_restoring_a_takedown_from_the_uploads_list_stays_admin_only_812(client)
     assert as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/restore").status_code == 403
     res = as_user(c, admin).post(f"/admin/cosmetics/{item['id']}/restore")
     assert res.status_code == 200 and res.json()["taken_down_at"] is None
+    # The restore answer has always carried these two beyond the list row; the response model must keep them (refactor 2.1c).
+    assert (res.json()["user_id"], res.json()["taken_down"]) == (zoro, False)
     assert [i["id"] for i in as_user(c, mod).get("/admin/cosmetics").json()["items"]] == [item["id"]]
