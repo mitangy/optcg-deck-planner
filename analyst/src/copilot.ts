@@ -8,6 +8,8 @@ import { z } from "zod";
 import type { Catalog, CardRow } from "./catalog";
 import { PlannerApiError, plannerCall, type PlannerApi } from "./matches";
 import type { ToolDef } from "./server";
+import { metaFor } from "./toolMeta";
+import { jsonResult as textOf, refusalResult as refusal } from "./toolResult";
 
 export const PLAN_TOOL = "propose_turn_plan";
 export const CHOICE_TOOL = "answer_choice";
@@ -369,7 +371,6 @@ const planStep = z.object({
 });
 type PlanStepInput = z.infer<typeof planStep>;
 
-const refusal = (error: string) => ({ isError: true, content: [{ type: "text" as const, text: error }] });
 
 const MAX_STEPS = 15;
 
@@ -524,6 +525,7 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
 export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): ToolDef {
   return {
     name: PLAN_TOOL,
+    ...metaFor(PLAN_TOOL),
     title: "Plan the turn",
     description:
       "Plan the player's whole turn from the <game> block. Nothing is played: the app shows the steps as a card the player can run with Play this turn. " +
@@ -545,7 +547,7 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
       // Playing is the player's to ask for; the app asking Log Pose to go on (autopilot) is the same request.
       if (!r.ok) return refusal(r.error);
       const plan = { ...r.plan, ...(input.play_now === true || game.autopilot === true ? { autoplay: true as const } : {}) };
-      return { content: [{ type: "text" as const, text: JSON.stringify(plan) }] };
+      return textOf(plan);
     },
   };
 }
@@ -660,6 +662,7 @@ export function checkChoiceAnswer(catalog: Catalog, game: GameContext, input: Ch
 export function answerChoiceTool(catalog: Catalog, game: GameContext | undefined): ToolDef {
   return {
     name: CHOICE_TOOL,
+    ...metaFor(CHOICE_TOOL),
     title: "Answer the pending choice",
     description:
       "Answer the player's pending choice while the app is playing their turn for them. choiceId = the Choice id in the <game> block. accept false declines (only when the block says you may). " +
@@ -680,7 +683,7 @@ export function answerChoiceTool(catalog: Catalog, game: GameContext | undefined
       if (game.plans === false) return refusal("Turn play-out is off for this game; say what you would pick instead.");
       if (!game.autopilot) return refusal("The player makes their own choices unless they asked you to play their turn; say what you would pick.");
       const r = checkChoiceAnswer(catalog, game, args as ChoiceInput);
-      return r.ok ? { content: [{ type: "text" as const, text: JSON.stringify(r.answer) }] } : refusal(r.error);
+      return r.ok ? textOf(r.answer) : refusal(r.error);
     },
   };
 }

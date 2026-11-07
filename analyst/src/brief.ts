@@ -7,12 +7,13 @@ import { checkBudget, claimStream, recordRefusal, recordUsage, refusalNow } from
 import { flattenCited, replayCited } from "./citations";
 import { ChatHttpError } from "./errors";
 import { BRIEF_INSTRUCTIONS } from "./prompts/brief";
+import type { ToolName } from "./toolMeta";
 import { newRounds, runToolRounds } from "./rounds";
 import type { briefBody } from "./schemas";
 import type { Block, ChatDeps, PlacedCitation, SseEvent } from "./types";
 
 /** The shared tools a brief may use. Personal tools are never offered, so a brief can be cached for everyone. */
-export const BRIEF_TOOLS = ["playbook", "matchup_stats", "tournament_stats", "get_cards", "analyze_deck", "draw_odds"];
+export const BRIEF_TOOLS: ToolName[] = ["playbook", "matchup_stats", "tournament_stats", "get_cards", "analyze_deck", "draw_odds"];
 const BRIEF_MAX_ROUNDS = 5;
 const BRIEF_MAX_TOKENS = 1500;
 

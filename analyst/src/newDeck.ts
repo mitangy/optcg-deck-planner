@@ -9,6 +9,8 @@ import { deckFromLines } from "./decks";
 import type { OfficialLibrary } from "./official/library";
 import { problemsOf } from "./proposals";
 import type { ToolDef } from "./server";
+import { metaFor } from "./toolMeta";
+import { jsonResult as textOf, refusalResult as refusal } from "./toolResult";
 
 export const NEW_DECK_TOOL = "propose_new_deck";
 export const NEW_DECK_TOO_MANY_ERROR = "One new deck per answer, please.";
@@ -74,14 +76,13 @@ export async function proposeNewDeck(catalog: Catalog, library: OfficialLibrary 
   };
 }
 
-const textOf = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
-const refusal = (error: string) => ({ isError: true, content: [{ type: "text" as const, text: error }] });
 
 /** The chat's propose_new_deck tool. Made fresh for every turn. */
 export function newDeckTool(catalog: Catalog, knowledge: { library?: OfficialLibrary }): ToolDef {
   let made = 0;
   return {
     name: NEW_DECK_TOOL,
+    ...metaFor(NEW_DECK_TOOL),
     title: "Build new deck",
     description:
       "Build a new deck for the player when they ask you to build, make or create one. Give the leader and the full main deck (every card by number with 1-4 copies, or more for a card that allows any number, 50 cards in all, leader and DON!! not counted). " +

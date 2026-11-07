@@ -23,6 +23,7 @@ const chatReview = "analyst/src/review.ts";
 const chatRounds = "analyst/src/rounds.ts";
 const chatSchemas = "analyst/src/schemas.ts";
 const sources = "analyst/src/sources.ts";
+const toolMeta = "analyst/src/toolMeta.ts";
 const proposals = "analyst/src/proposals.ts";
 const newDeck = "analyst/src/newDeck.ts";
 const editLines = "analyst/src/editLines.ts";
@@ -417,7 +418,7 @@ module.exports = {
     { id: "chat-proposal-save-failure-loses-turn", file: chatChatTurn, from: "{ proposals }).catch((err) =>\n          console.error(\"saving deck edit proposals failed\", err instanceof Error ? err.message : err),\n        );", to: "{ proposals });", kills: ["still finishes the turn when saving the proposal fails (#400)"] },
     { id: "chat-refused-edit-emitted", file: chatRounds, from: "if (tool.name === PROPOSE_TOOL && !result.isError && onProposal)", to: "if (tool.name === PROPOSE_TOOL && onProposal)", kills: ["gives a refused edit no card and tells the model why (#400)"] },
     { id: "chat-ref-shown-to-model", file: chatChatTurn, from: "lines.push(`open deck: ${d.name ?? \"(unnamed)\"}${list.length", to: "lines.push(`open deck: ${d.name ?? \"(unnamed)\"} ${d.ref}${list.length", kills: ["never shows the app's deck ref to the model (#400)"] },
-    { id: "sources-proposal-no-adapter", file: sources, from: "  propose_deck_edit: proposalAdapter,\n", to: "", kills: ["sends a deck edit back to the model as one cited deck source (#400)", "sends the deck edit back to the model as search results only, never mixed with text (#400)"] },
+    { id: "sources-proposal-no-adapter", file: toolMeta, from: ", sources: proposalAdapter }", to: " }", kills: ["sends a deck edit back to the model as one cited deck source (#400)", "sends the deck edit back to the model as search results only, never mixed with text (#400)"] },
     // Log Pose makes edits and builds decks (#726)
     { id: "proposal-apply-dropped", file: proposals, from: "      apply: input.apply === true,", to: "      apply: false,", kills: ["marks a proposal for auto-apply only when the model asked for it (#726)", "passes the apply flag through on the proposal event (#726)"] },
     { id: "proposal-apply-always", file: proposals, from: "      apply: input.apply === true,", to: "      apply: true,", kills: ["marks a proposal for auto-apply only when the model asked for it (#726)", "passes the apply flag through on the proposal event (#726)"] },
@@ -435,7 +436,7 @@ module.exports = {
     { id: "chat-draft-not-saved", file: chatChatTurn, from: "        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/drafts`, true, { drafts }).catch(", to: "        await Promise.resolve(undefined).catch(", kills: ["streams the deck as a deck_draft event and saves it after the turn (#726)"] },
     { id: "chat-draft-save-failure-loses-turn", file: chatChatTurn, from: "{ drafts }).catch((err) =>\n          console.error(\"saving new deck drafts failed\", err instanceof Error ? err.message : err),\n        );", to: "{ drafts });", kills: ["still finishes the turn when saving the draft fails (#726)"] },
     { id: "chat-refused-draft-emitted", file: chatRounds, from: "if (tool.name === NEW_DECK_TOOL && !result.isError && onDraft)", to: "if (tool.name === NEW_DECK_TOOL && onDraft)", kills: ["gives a refused deck no card and tells the model why (#726)"] },
-    { id: "sources-new-deck-no-adapter", file: sources, from: "  propose_new_deck: newDeckAdapter,\n", to: "", kills: ["tells the model a new deck opens on the create page and nothing is saved (#726)"] },
+    { id: "sources-new-deck-no-adapter", file: toolMeta, from: ", sources: newDeckAdapter }", to: " }", kills: ["tells the model a new deck opens on the create page and nothing is saved (#726)"] },
     { id: "sources-apply-not-said", file: sources, from: "v.apply === true ? \"The app is making", to: "false ? \"The app is making", kills: ["tells the model an apply edit is being made to the open deck, with Undo on the card (#726)"] },
 
     // ——— Log Pose eval (#403) ———
@@ -564,7 +565,7 @@ module.exports = {
     { id: "eval-resume-repeats", file: evRunner, from: "for (let rep = 0; rep < opts.reps; rep++) if (!done.has(`${c.id}#${rep}`)) work.push({ c, gold, rep });", to: "for (let rep = 0; rep < opts.reps; rep++) work.push({ c, gold, rep });", kills: ["resumes without repeating a case that already has a result"] },
 
     // goldfish simulate (#402)
-    { id: "sim-adapter-missing", file: sources, from: "  simulate: simulateAdapter,\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
+    { id: "sim-adapter-missing", file: toolMeta, from: ", sources: simulateAdapter }", to: " }", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
     { id: "sim-support-warning-dropped", file: sources, from: "    ...simSupportFacts(v),\n", to: "", kills: ["makes a goldfish run one sim: source with a sentence per turn and the engine-support warning (#402)"] },
     { id: "sim-id-ignores-life", file: sim, from: "    opponentLife: q.opponentLife,\n    opponentPower: q.opponentPower,\n    mulligan: q.mulligan,\n    keepCards: [...q.keepCards].sort(),", to: "    opponentPower: q.opponentPower,\n    mulligan: q.mulligan,\n    keepCards: [...q.keepCards].sort(),", kills: ["gives the same question the same sim: source, and a new one for another dummy Life or game count (#402)"] },
     { id: "sim-id-keepcards-order", file: sim, from: "keepCards: [...q.keepCards].sort(),", to: "keepCards: q.keepCards,", kills: ["gives the same question the same sim: source, and a new one for another dummy Life or game count (#402)"] },
@@ -577,7 +578,7 @@ module.exports = {
     { id: "tourney-names-event-ids", file: matches, from: "    out[k] = skip.includes(k) ? v : withCardNames(v, skip);", to: "    out[k] = withCardNames(v, skip);", kills: ["reads tournament stats with the service secret only and names leaders and cards"] },
     { id: "tourney-min-players-param", file: matches, from: "params.set(\"min_players\", String(q.minPlayers))", to: "params.set(\"minPlayers\", String(q.minPlayers))", kills: ["reads tournament stats with the service secret only and names leaders and cards", "offers tournament_stats beside matchup_stats only when the planner API is configured"] },
     { id: "tourney-tool-reads-duel-stats", file: server, from: "return json(await tournamentStats(api, args));", to: "return json(await matchupStats(api, args));", kills: ["offers tournament_stats beside matchup_stats only when the planner API is configured"] },
-    { id: "tourney-no-adapter", file: sources, from: "  tournament_stats: tournamentAdapter,\n", to: "", kills: ["offers tournament_stats beside matchup_stats only when the planner API is configured"] },
+    { id: "tourney-no-adapter", file: toolMeta, from: ", sources: tournamentAdapter }", to: " }", kills: ["offers tournament_stats beside matchup_stats only when the planner API is configured"] },
     { id: "tourney-meta-source", file: sources, from: "searchResult(\"tourney:meta\",", to: "searchResult(\"stats:meta\",", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
     { id: "tourney-overview-leader-source", file: sources, from: "searchResult(`tourney:${l.leader}`,", to: "searchResult(`stats:${l.leader}`,", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
     { id: "tourney-top-win-rate-dropped", file: sources, from: "        ...top.map((l, i) => recordSentence(", to: "        ...[].map((l: Rec, i: number) => recordSentence(", kills: ["ranks the meta overview with its minimum sample and gives each leader a meta share"] },
@@ -1138,9 +1139,9 @@ module.exports = {
     {"id": "ph-best-estimate-dropped", "file": "analyst/src/priceHistory.ts", "from": "est_low: best.estLow ?? null,", "to": "est_low: null,", "kills": ["adds a best time to buy"]},
     {"id": "ph-base-art-note-inverted", "file": "analyst/src/priceHistory.ts", "from": "...(productId === 0 ? [", "to": "...(productId !== 0 ? [", "kills": ["calls a Manga art a chase art that holds"]},
     {"id": "ph-tool-not-registered", "file": "analyst/src/server.ts", "from": "    registerPrices(add, knowledge.stats);\n", "to": "", "kills": ["is offered with the planner API, to MCP and chat alike"]},
-    {"id": "ph-adapter-unregistered", "file": "analyst/src/sources.ts", "from": "  price_history: priceHistoryAdapter,\n", "to": "", "kills": ["turns an answer into one price: search result per art", "answers a price_history call with a cited price: source"]},
+    {"id": "ph-adapter-unregistered", "file": "analyst/src/toolMeta.ts", "from": ", sources: priceHistoryAdapter }", "to": " }", "kills": ["turns an answer into one price: search result per art", "answers a price_history call with a cited price: source"]},
     {"id": "ph-source-always-product", "file": "analyst/src/sources.ts", "from": "const id = `price:${v.card_id}${v.product_id ? `#${v.product_id}` : \"\"}`;", "to": "const id = `price:${v.card_id}#${v.product_id}`;", "kills": ["names the base art without a product part"]},
-    {"id": "ph-status-label-dropped", "file": "analyst/src/rounds.ts", "from": "  price_history: \"Checking price history\",\n", "to": "", "kills": ["answers a price_history call with a cited price: source"]},
+    {"id": "ph-status-label-dropped", "file": "analyst/src/toolMeta.ts", "from": "status: \"Checking price history\"", "to": "status: \"Working\"", "kills": ["answers a price_history call with a cited price: source"]},
     { id: "chat970-scope-not-sent", file: chatChatTurn, from: "{ title, scope })).id;", to: "{ title })).id;", kills: ["creates the thread with the scope and title the client sent", "scopes to general and titles from the message"] },
     { id: "chat970-scope-title-ignored", file: chatChatTurn, from: "body.scope_title || body.message", to: "body.message", kills: ["creates the thread with the scope and title the client sent"] },
     { id: "chat970-scope-defaults-to-none", file: chatChatTurn, from: "matchScope ?? body.scope ?? \"general\"", to: "matchScope ?? body.scope ?? \"\"", kills: ["scopes to general and titles from the message"] },
@@ -1164,6 +1165,8 @@ module.exports = {
     {"id": "usage-write-failure-not-logged", "file": "analyst/src/budget.ts", "from": "      logEvent(\"usage_record_failed\",", "to": "      void (", "kills": ["retries a failed usage write once, then logs it", "does not retry a usage write the planner refused with a 4xx", "logs a failed review usage write too"]},
     {"id": "refusal-check-fail-open-silent", "file": "analyst/src/budget.ts", "from": "    logEvent(\"refusal_check_failed_open\",", "to": "    void (", "kills": ["logs refusal_check_failed_open when the mid-answer cap check fails"]},
     {"id": "usage-log-leaks-token", "file": "analyst/src/budget.ts", "from": "user: userKey(token), kind, model, cost_usd: cost", "to": "user: token, kind, model, cost_usd: cost", "kills": ["retries a failed usage write once, then logs it"]},
+    {"id": "mcp-result-leaks-value", "file": "analyst/src/toolResult.ts", "from": "export const toMcpResult = (r: ToolResult) => ({ content: r.content, ...(r.isError ? { isError: true } : {}) });", "to": "export const toMcpResult = (r: ToolResult) => r;", "kills": ["answers the connector with the tool's text only, never the value the app side reads (refactor 3.7a)"], "args": "src/toolMeta.test.ts"},
+    {"id": "mcp-result-not-converted", "file": "analyst/src/server.ts", "from": "async (args: Record<string, unknown>) => toMcpResult(await t.run(args)),", "to": "(args: Record<string, unknown>) => t.run(args),", "kills": ["answers the connector with the tool's text only, never the value the app side reads (refactor 3.7a)"], "args": "src/toolMeta.test.ts"},
   ],
 };
 

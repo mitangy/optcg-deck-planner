@@ -30,6 +30,9 @@ import { analyzePosition, fetchReplayFor, MAX_BUDGET_MS } from "./position";
 import { searchCards } from "./search";
 import { listMySimGamesSummary, reviewSimGame } from "./simGames";
 import { exclusive, simulateDeck } from "./simulate";
+import type { SourceAdapter } from "./sources";
+import { metaFor, type ToolName } from "./toolMeta";
+import { failureResult, jsonResult, toMcpResult, type ToolResult } from "./toolResult";
 
 export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
 Talk like a veteran player and judge: give game plans, mulligan advice, matchup reasoning, key turns, combo lines and unusual or "cheese" lines when they exist, and say how strong players would pilot the deck.
@@ -81,12 +84,8 @@ const compactCard = (c: CardRow) => ({
   trigger: c.trigger || undefined,
 });
 
-const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
-
-const failure = (err: unknown) => ({
-  isError: true,
-  content: [{ type: "text" as const, text: err instanceof Error ? err.message : String(err) }],
-});
+const json = jsonResult;
+const failure = failureResult;
 
 /** The signed-in player behind a personal connector link. */
 export type PersonalContext = { api: PlannerApi; token: string };
@@ -94,11 +93,13 @@ export type PersonalContext = { api: PlannerApi; token: string };
 /** Official rules material and the strategy playbook; tools that need them are left out without them. */
 export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
-
-/** One analyst tool, served over MCP and to the in-app chat alike. */
+/** One analyst tool, served over MCP and to the in-app chat alike. `status` and `sources` come from `TOOL_META`. */
 export type ToolDef = {
-  name: string;
+  name: ToolName;
+  /** The status line the app shows while the tool runs. */
+  status: string;
+  /** Turns this tool's answer value into citable sources; none keeps the plain text. */
+  sources?: SourceAdapter;
   title: string;
   description: string;
   inputSchema: z.ZodRawShape;
@@ -107,7 +108,7 @@ export type ToolDef = {
 };
 
 type Add = <S extends z.ZodRawShape>(
-  name: string,
+  name: ToolName,
   config: { title: string; description: string; inputSchema: S; annotations: ToolAnnotations },
   handler: (args: z.infer<z.ZodObject<S>>) => Promise<ToolResult>,
 ) => void;
@@ -122,7 +123,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     server.registerTool(
       t.name,
       { title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations },
-      (args: Record<string, unknown>) => t.run(args),
+      async (args: Record<string, unknown>) => toMcpResult(await t.run(args)),
     );
   }
   return server;
@@ -132,7 +133,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
 export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): ToolDef[] {
   const tools: ToolDef[] = [];
   const add: Add = (name, config, handler) => {
-    tools.push({ name, ...config, run: handler as ToolDef["run"] });
+    tools.push({ name, ...config, ...metaFor(name), run: handler as ToolDef["run"] });
   };
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 

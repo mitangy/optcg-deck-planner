@@ -11,6 +11,8 @@ import type { Edit } from "./editLines";
 import { deckBanCheck } from "./knowledge";
 import type { OfficialLibrary } from "./official/library";
 import type { ToolDef } from "./server";
+import { metaFor } from "./toolMeta";
+import { jsonResult as textOf, refusalResult as refusal } from "./toolResult";
 
 export const PROPOSE_TOOL = "propose_deck_edit";
 
@@ -171,14 +173,13 @@ export async function checkTextEdits(
   return { count: now.count, problems: [...new Set([...own, ...introduced])] };
 }
 
-const textOf = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
-const refusal = (error: string) => ({ isError: true, content: [{ type: "text" as const, text: error }] });
 
 /** The chat's propose_deck_edit tool, bound to the deck the player has open. Made fresh for every turn. */
 export function deckEditTool(catalog: Catalog, knowledge: { library?: OfficialLibrary }, deck: ContextDeck | undefined): ToolDef {
   let made = 0;
   return {
     name: PROPOSE_TOOL,
+    ...metaFor(PROPOSE_TOOL),
     title: "Suggest deck edit",
     description:
       "Suggest changes to the deck open in the app (the deck in the <context> block). By default nothing is changed: the app shows them as a card with Apply and Dismiss. " +

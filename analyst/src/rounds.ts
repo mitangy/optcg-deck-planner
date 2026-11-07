@@ -7,38 +7,9 @@ import type { ToolDef } from "./server";
 import { CHOICE_TOOL, PLAN_TOOL, type ChoiceAnswer, type TurnPlan } from "./copilot";
 import { NEW_DECK_TOOL, type NewDeckDraft } from "./newDeck";
 import { PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
-import { adaptToolResult } from "./sources";
+import { adaptToolResult } from "./toolMeta";
 
 export const MAX_TOOL_ROUNDS = 12;
-
-const STATUS: Record<string, string> = {
-  search_cards: "Searching cards",
-  get_cards: "Reading card text",
-  analyze_deck: "Analyzing the deck",
-  draw_odds: "Working out draw odds",
-  simulate: "Running goldfish games",
-  export_deck: "Exporting the list",
-  rules_lookup: "Checking the rules",
-  card_rulings: "Checking rulings",
-  ban_list: "Checking the ban list",
-  playbook: "Reading the playbook",
-  matchup_stats: "Pulling win rates",
-  tournament_stats: "Pulling tournament results",
-  price_history: "Checking price history",
-  search_matches: "Searching recorded games",
-  sim_stats: "Pulling bot-simulation results",
-  analyze_position: "Analyzing the position",
-  replay_match: "Replaying a game",
-  list_my_decks: "Reading your decks",
-  list_my_matches: "Reading your match history",
-  review_match: "Replaying your game",
-  draft_lesson: "Saving a lesson draft",
-  my_lessons: "Reading your lessons",
-  propose_deck_edit: "Checking the suggested change",
-  propose_new_deck: "Checking the new deck",
-  propose_turn_plan: "Checking the turn plan",
-  answer_choice: "Answering the prompt",
-};
 
 export function apiTools(tools: ToolDef[]) {
   return tools.map((t) => {
@@ -68,12 +39,12 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
   try {
     const result = await tool.run(parsed.data as Record<string, unknown>);
     const text = result.content.map((c) => c.text).join("\n");
-    if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(JSON.parse(text) as Omit<DeckEditProposal, "id">) });
-    if (tool.name === NEW_DECK_TOOL && !result.isError && onDraft) onDraft({ id: String(block.id), ...(JSON.parse(text) as Omit<NewDeckDraft, "id">) });
-    if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(JSON.parse(text) as Omit<TurnPlan, "id">) });
-    if (tool.name === CHOICE_TOOL && !result.isError && onChoice) onChoice({ id: String(block.id), ...(JSON.parse(text) as Omit<ChoiceAnswer, "id">) });
+    if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(result.value as Omit<DeckEditProposal, "id">) });
+    if (tool.name === NEW_DECK_TOOL && !result.isError && onDraft) onDraft({ id: String(block.id), ...(result.value as Omit<NewDeckDraft, "id">) });
+    if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(result.value as Omit<TurnPlan, "id">) });
+    if (tool.name === CHOICE_TOOL && !result.isError && onChoice) onChoice({ id: String(block.id), ...(result.value as Omit<ChoiceAnswer, "id">) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
-    const sources = result.isError ? null : adaptToolResult(tool.name, text);
+    const sources = result.isError ? null : adaptToolResult(tool.name, result.value);
     return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
   } catch (err) {
     return { ...base, is_error: true, content: err instanceof Error ? err.message : String(err) };
@@ -197,7 +168,7 @@ export async function runToolRounds(state: RoundsState, o: RoundsOptions): Promi
       break;
     }
     state.toolCalls += calls.length;
-    for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: STATUS[name] ?? "Working" } });
+    for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: o.tools.find((t) => t.name === name)?.status ?? "Working" } });
     state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan, o.onDraft, o.onChoice))) });
   }
   return state;
