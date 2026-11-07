@@ -122,6 +122,8 @@ jobs:
       - run: npm run eval:validate -w @optcg/analyst
       # The path filter that decides which of these jobs a pull request runs.
       - run: node --test "tools/ci/*.test.cjs"
+      # The mutation-check tooling itself: whitespace-tolerant anchors, --locate-stale, move.cjs.
+      - run: node --test "tools/mutation-check/*.test.cjs"
       # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
       - run: npm run fuzz:smoke -w @optcg/rules
       # Views (getPlayerView per seat after every move) must stay well ahead of the uncached path, timed in one process.

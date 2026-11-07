@@ -27,6 +27,45 @@ runs in PR CI and on every push to main.
 node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 ```
 
+An anchor is matched exactly first. If that finds nothing, a whitespace-tolerant
+fallback is tried: one-or-more whitespace in `from` matches one-or-more
+whitespace in the source (a line break plus indentation is one run), and
+leading/trailing whitespace of `from` is ignored. Whitespace is never added or
+dropped next to punctuation, and the fallback must still match exactly once.
+`--check-anchors` lists the anchors that matched only this way ("loose") but
+does not fail on them; update their `from` when convenient. The logic lives in
+`anchors.cjs`.
+
+## Moving code
+
+Moving or reformatting code makes anchors stale. Fix them in this order:
+
+```bash
+git mv backend/app/config.py backend/app/core/config.py   # 1. move the files (a folder works too)
+node tools/mutation-check/move.cjs backend/app/config.py backend/app/core/config.py   # 2. rewrite suite references
+node tools/mutation-check/run.cjs --check-anchors                  # 3. which anchors are still stale or loose?
+node tools/mutation-check/run.cjs --locate-stale [suite]           # 4. where did the stale ones go?
+# 5. fix what is left by hand (edit `file`/`from`), then re-run step 3
+node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove the moved mutations
+```
+
+- `move.cjs <old> <new>` rewrites the exact repo-relative path in
+  `suites/*.cjs`, and templates that interpolate a path constant
+  (`const src = "duel-web/src"` then `` `${src}/nav/x.ts` ``). It does not
+  understand paths built with `path.join` or string concatenation; step 3
+  catches those. `--dry-run` prints what it would change; `--suites-dir <dir>`
+  points it elsewhere (the tests use that).
+- `--locate-stale [suite]` takes each anchor with no match in its file and
+  searches the tracked files (`git ls-files`) for a unique match, exact text
+  first, then whitespace-tolerant. It prints `suite id: old-file -> new-file`,
+  `not found`, or `ambiguous: N files`, and exits 1 while any stale anchor stays
+  unlocated. The search covers the suite's directory plus the old file's
+  package/app root; `--locate-scope <dir>` replaces that with one directory.
+  The suite files themselves are never searched.
+- The tests for this tooling are `tools/mutation-check/*.test.cjs`
+  (`node --test "tools/mutation-check/*.test.cjs"`); CI runs them next to
+  `tools/ci`, and their mutations live in `suites/ci.cjs`.
+
 | Suite | Tests | Runner |
 |---|---|---|
 | `rules` | `packages/rules/src/__tests__` | vitest |

@@ -58,5 +58,33 @@ module.exports = {
       ["discord-zero-sha-posts-backlog", "if (!beforeSha || ZERO_SHA.test(beforeSha))", "if (!beforeSha)", "an all-zero before sha posts nothing"],
       ["discord-unreadable-before-is-empty", "const before = loadBefore();", "const before = loadBefore() || [];", "a before commit that cannot be read posts nothing"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/discord-patch-notes.cjs", from, to, kills: [kill], args: '"tools/ci/discord-patch-notes.test.cjs"' })),
+    // Anchor tooling (tools/mutation-check/anchors.cjs, locate.cjs, move.cjs; refactor 1.1)
+    ...[
+      ["anchors-no-loose-fallback", "const re = looseRegex(from);", "const re = null;", "a re-indented, re-wrapped anchor applies through the whitespace fallback"],
+      ["anchors-loose-accepts-many", "if (found.count !== 1) return { error: true, count: found.count };", "if (found.count < 1) return { error: true, count: found.count };", "an anchor matching twice only after whitespace folding is stale"],
+      ["anchors-loose-beats-exact", "if (spans.length) return { count: spans.length, mode: \"exact\", spans, from: variant };", "", "an exact match wins even when a reformatted copy exists"],
+      ["anchors-loose-optional-space", "tokens.map(escapeRe).join(\"\\\\s+\")", "tokens.map(escapeRe).join(\"\\\\s*\")", "never adds or removes whitespace next to punctuation"],
+      ["anchors-loose-doubles-indent", "if (lead && replacement.startsWith(lead)) replacement = replacement.slice(lead.length);", "", "does not double the indentation or newline"],
+      ["anchors-loose-doubles-newline", "if (trail && replacement.endsWith(trail)) replacement = replacement.slice(0, replacement.length - trail.length);", "", "does not double the indentation or newline"],
+      ["anchors-crlf-not-exact", "!text.includes(from) && text.includes(crlf(from))", "false", "a CRLF source still matches an LF anchor exactly"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/mutation-check/anchors.cjs", from, to, kills: [kill], args: '"tools/mutation-check/anchors.test.cjs"' })),
+    ...[
+      ["locate-exact-only", "for (const mode of [\"exact\", \"loose\"]) {", "for (const mode of [\"exact\"]) {", "a moved and re-indented anchor is located through the whitespace fallback"],
+      ["locate-ambiguous-picks-first", "if (hits.length === 1 && hits[0].count === 1)", "if (hits.length >= 1)", "an anchor found in two files is ambiguous"],
+      ["locate-unlocated-not-counted", "unlocated += 1;\n          if (!hits.length)", "if (!hits.length)", "counts as unlocated"],
+      ["locate-searches-whole-repo", "return [...new Set([cwd === \".\" ? \"\" : cwd, root])];", "return [\"\"];", "the search stays inside the suite's directory unless a scope is given"],
+      ["locate-reports-healthy-anchor", "if (findAnchor(own, edit.from).count === 1) continue;", "", "an anchor that still matches once in its own file is not reported"],
+      ["locate-ignores-loose-hits", "if (found.count > 0 && (mode === \"loose\" || found.mode === \"exact\")) hits.push", "if (found.count > 0 && mode === \"exact\" && found.mode === \"exact\") hits.push", "a moved and re-indented anchor is located through the whitespace fallback"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/mutation-check/locate.cjs", from, to, kills: [kill], args: '"tools/mutation-check/locate.test.cjs"' })),
+    ...[
+      ["move-no-path-boundary", "(?=/|(?![\\\\w.-]))", "", "not a sibling with the same prefix"],
+      ["move-no-prefix-guard", "(?<![\\\\w./-])", "", "not a sibling with the same prefix"],
+      ["move-ignores-constants", "if (value === undefined || under(value, old) || !rest) return match;", "return match;", "a template that interpolates a directory constant follows the move"],
+      ["move-always-literal", "return moved.startsWith(`${value}/`) ? `\\${${name}}/${moved.slice(value.length + 1)}` : moved;", "return moved;", "a template that interpolates a directory constant follows the move"],
+      ["move-rewrites-moved-constant-users", "if (value === undefined || under(value, old) || !rest) return match;", "if (value === undefined || !rest) return match;", "moving the directory a constant names moves the constant"],
+      ["move-dry-run-writes", "if (!dryRun) fs.writeFileSync(abs, text);", "fs.writeFileSync(abs, text);", "a dry run reports the rewrite without touching the suite"],
+      ["move-skips-literal", "if (name === undefined) { count += 1; return next; }", "if (name === undefined) return match;", "a literal file path is rewritten wherever a suite names it"],
+      ["move-ignores-suites-dir", "const suitesDir = dirIndex >= 0 ? path.resolve(argv[dirIndex + 1]) : path.join(__dirname, \"suites\");", "const suitesDir = path.join(__dirname, \"suites\");", "rewrites a suites directory in place"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/mutation-check/move.cjs", from, to, kills: [kill], args: '"tools/mutation-check/move.test.cjs"' })),
   ],
 };
