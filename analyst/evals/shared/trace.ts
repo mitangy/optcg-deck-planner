@@ -1,5 +1,5 @@
 /** Reads the turn runChat saved (the eval planner captures it): the answer, its citations, the tool calls and what the tools returned. */
-import { flattenCited, type Message, type PlacedCitation } from "../src/chat";
+import { flattenCited, type Message, type PlacedCitation } from "../../src/chat";
 
 type Block = Record<string, unknown> & { type: string };
 

@@ -4,8 +4,8 @@
  * its step summary). Exit 0: all good. Exit 1: a reference went stale or drifted (reported, fix the case).
  * Exit 2: the official site could not be read twice in a row.
  */
-import { loadCatalog } from "../src/catalog";
-import { OfficialLibrary } from "../src/official/library";
+import { loadCatalog } from "../../src/catalog";
+import { OfficialLibrary } from "../../src/official/library";
 import { CASES } from "./cases";
 import { goldFor, OfficialUnavailable } from "./gold";
 import { loadCases } from "./load";

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { type AdminDayMatches, type AdminOverview, type DayMatch, fetchAdminMatches } from "./adminApi";
 import { BarChart, RangePicker, Tile } from "./charts";
-import { ariaSort, dayLabel, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, timeOf } from "./adminLogic";
+import { ariaSort, dayLabel, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, spendText, timeOf } from "./adminLogic";
 
 const n = (v: number) => v.toLocaleString("en-US");
 
@@ -228,7 +228,7 @@ export function PlayersTab({
           <h2 className="panel-title">Log Pose, this month</h2>
           <div className="adm-tiles adm-tiles-inner">
             <Tile label="Questions" value={n(lp.questions_month)} />
-            <Tile label="Spend" value={`$${lp.spend_month_usd.toFixed(2)}`} />
+            <Tile label="Spend" value={spendText(lp.spend_month_usd)} />
             <Tile label="Players with access" value={n(lp.users_with_access)} />
           </div>
         </section>

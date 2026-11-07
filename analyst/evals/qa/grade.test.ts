@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { loadCatalog } from "../src/catalog";
+import { loadCatalog } from "../../src/catalog";
 import { CASES, RAYLEIGH_OK } from "./cases";
 import { gradeAnswer } from "./grade";
-import { offlineJudge, rubricScore, type Judge } from "./grade/judge";
+import { offlineJudge, rubricScore, type Judge } from "../grade/judge";
 import { selftest } from "./selftest";
 import type { CaseD, EvalCase, Gold, Rubric } from "./types";
 

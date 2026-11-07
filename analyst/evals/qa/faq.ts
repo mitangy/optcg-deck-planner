@@ -2,7 +2,7 @@
  * Resolves a FAQ reference (card id plus the hash of the question) against the live official rows, the way
  * the model sees them through card_rulings: same order, same source ids. Nothing here holds Bandai text.
  */
-import { shortHash } from "../src/sources";
+import { shortHash } from "../../src/sources";
 
 export type Row = { question: string; answer: string };
 export type Polarity = "yes" | "no" | "other";

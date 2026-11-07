@@ -1,6 +1,6 @@
 /** report.md for the deck-advice eval (#678), and for a side-by-side comparison. */
-import type { EvalRunPost } from "../post";
-import { mean } from "../stats";
+import type { EvalRunPost } from "../shared/post";
+import { mean } from "../qa/stats";
 import { lostSignificantly } from "./sim";
 import type { Preference, PositionBias, CaseComparison } from "./compare";
 import type { AnswerRow } from "./pipeline";

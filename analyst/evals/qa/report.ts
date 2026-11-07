@@ -1,5 +1,5 @@
 /** The one-line summary, report.md, the declared metrics for the claude-api report builder, and baseline.json. */
-import { judgeCostUsd } from "./grade/judge";
+import { judgeCostUsd } from "../grade/judge";
 import type { ErrorRow, EvalCase, Row, RunMeta } from "./types";
 import { caseMeans, flipped, mean, pairedDelta, score, wilson, type Metric } from "./stats";
 

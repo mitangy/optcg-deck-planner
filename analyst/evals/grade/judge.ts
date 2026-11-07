@@ -8,8 +8,8 @@
  */
 import { costUsd, type Usage } from "../../src/chat";
 import { MODELS } from "../../src/models";
-import { withRetry } from "../retry";
-import type { Rubric, Verdict } from "../types";
+import { withRetry } from "../shared/retry";
+import type { Rubric, Verdict } from "../qa/types";
 
 export const JUDGE_MODEL: string = MODELS.sonnet;
 /** The judge for D-group rubrics (pinned here, not ANALYST_CHAT_MODEL, so a changed chat model doesn't change the judge). */
