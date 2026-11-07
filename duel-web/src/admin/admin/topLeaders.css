@@ -1,0 +1,58 @@
+/* —— Top leaders —— */
+
+.adm-leaders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.adm-leader {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 2rem 3.2rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.adm-leader-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-leader-name small,
+.adm-uname small,
+.adm-run small,
+.adm-rows small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.adm-leader-bar {
+  height: 8px;
+  border-radius: var(--radius-4);
+  background: rgb(var(--chrome-rgb) / 0.1);
+  overflow: hidden;
+}
+
+.adm-leader-bar i {
+  display: block;
+  height: 100%;
+  background: var(--chrome);
+}
+
+.adm-leader-num,
+.adm-leader-win {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-leader-win {
+  color: var(--muted);
+}

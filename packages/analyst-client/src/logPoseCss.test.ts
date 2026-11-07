@@ -25,9 +25,18 @@ function unbalancedBrace(css: string): string | null {
   return open.length ? `the block opened on line ${open[open.length - 1]} is never closed` : null;
 }
 
+/** The stylesheets the index pulls in with `@import "./x.css";`, in order (logPose.css is only that list). */
+function importedParts(index: string): string[] {
+  return [...index.matchAll(/^@import "(\.\/[^"]+)";$/gm)].map((m) => m[1]!);
+}
+
 describe("logPose.css", () => {
   it("logPose.css closes every block, so the host app's theme rules bundled after it stay top level (#417)", () => {
-    const css = readFileSync(new URL("./logPose.css", import.meta.url), "utf8");
-    expect(unbalancedBrace(css)).toBeNull();
+    const indexUrl = new URL("./logPose.css", import.meta.url);
+    const parts = importedParts(readFileSync(indexUrl, "utf8"));
+    expect(parts.length).toBeGreaterThan(0);
+    for (const part of parts) {
+      expect(unbalancedBrace(readFileSync(new URL(part, indexUrl), "utf8")), part).toBeNull();
+    }
   });
 });
