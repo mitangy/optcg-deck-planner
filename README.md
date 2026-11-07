@@ -81,6 +81,8 @@ npm run start:analyst                   # repo root; Log Pose service
 | Every JS workspace's unit tests | `npm test` (repo root) |
 | One package or service | `npm run test:rules`, `test:game-server`, `test:analyst`, `test:ui`, `test:patch-notes`, ... (see root `package.json`) |
 | Typecheck every workspace | `npm run typecheck` |
+| Lint TypeScript (ESLint, `eslint.config.js`; warnings do not fail) | `npm run lint` (repo root) |
+| Lint Python (ruff, `ruff.toml`) | `ruff check backend scripts` (`ruff` is pinned in `backend/requirements-dev.txt`) |
 | Planner / duel-web | `cd frontend && npm test`; `cd duel-web && npm test` |
 | Planner / duel-web browser tests (Playwright) | `npm run e2e` inside the app |
 | Backend | `cd backend && python3 -m pytest` |

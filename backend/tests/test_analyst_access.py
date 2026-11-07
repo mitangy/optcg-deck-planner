@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from app.auth import SESSION_COOKIE, create_session_token
 from app.config import get_settings

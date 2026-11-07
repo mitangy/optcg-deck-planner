@@ -66,7 +66,8 @@ describe("Stress Test Sunday banner (#794)", () => {
     const early = at("2026-11-01T00:00:00Z");
     expect(bannerCta(staff, early)).toBe("join");
     expect(staffNote(staff, early)).toBe("You can play, but staff aren't eligible for prizes.");
-    expect(staffNote({ ...staff, opted_in: true }, at("2026-11-22T18:00:00Z"))).toBe("You can play, but staff aren't eligible for prizes.");
+    const optedIn = { ...staff, opted_in: true };
+    expect(staffNote(optedIn, at("2026-11-22T18:00:00Z"))).toBe("You can play, but staff aren't eligible for prizes.");
     expect(staffNote({ ...staff, viewer: "player" }, early)).toBeNull();
     expect(staffNote({ ...staff, status: "drawn" }, early)).toBeNull();
   });

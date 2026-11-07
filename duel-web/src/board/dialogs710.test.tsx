@@ -62,6 +62,7 @@ function Board({ children, startOpen = false }: { children: (close: () => void) 
     onHelp,
     fullscreenOffered: false,
     onToggleFullscreen: () => {},
+    onToggleTabMute: () => {},
   });
   return (
     <div className="board-root">
@@ -243,6 +244,7 @@ describe("Replay More sheet on the shared Dialog", () => {
     cameraSeat: 0,
     yourSeat: 0,
     playerNames: ["You", "Nami"],
+    branch: null,
   };
   const noop = () => {};
   const actions: ReplayControlsActions = {
@@ -254,7 +256,9 @@ describe("Replay More sheet on the shared Dialog", () => {
     goTurn: noop,
     setSpeed: noop,
     setRevealAll: noop,
-    flip: noop,
+    undoMove: noop,
+    backToGame: noop,
+    startBranch: () => null,
   };
   const more = () => document.querySelector<HTMLButtonElement>('button[aria-label="More replay options"]')!;
   const opened = () => document.querySelector<HTMLElement>('[aria-label="More replay options"][role="dialog"]');

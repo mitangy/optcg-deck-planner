@@ -81,6 +81,7 @@ function Board({ children }: { children: ReactNode }) {
     onHelp: () => {},
     fullscreenOffered: false,
     onToggleFullscreen: () => {},
+    onToggleTabMute: () => {},
   });
   return <div className="board-root">{children}</div>;
 }
