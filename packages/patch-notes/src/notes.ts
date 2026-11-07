@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-07
+  { date: "2026-11-07", app: "duel", pr: 1080, title: "Pasted deck lists read every card", text: "Pasting a deck list now reads lines like \"OP01-001 3\" as 3 copies, and keeps every card when a line lists several, such as \"2xOP01-001 3xOP01-016\"." },
   { date: "2026-11-07", app: "duel", pr: 1076, title: "The home page loads faster", text: "The Duel home page now opens much sooner, especially on a phone or a slow connection. The match board, the deck editor and your account pages load when you open them." },
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1030, title: "Import your OPTCGSim games into Log Pose", text: "In Settings, under Log Pose, you can now import your OPTCGSim games: choose your exported games file or paste one combat log. Claude can then list them and review any one turn by turn, from your side of the table. Only you can see them, player names are not kept, and Clear imported games removes them all." },
