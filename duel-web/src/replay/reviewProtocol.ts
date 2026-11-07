@@ -1,5 +1,5 @@
 /** Messages between the replay page and its review worker (#967). Types only, so the page does not bundle the engine twice. */
-import type { MatchReplay } from "@optcg/rules/replayTimeline";
+import type { MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import type { GameReview } from "./reviewModel";
 
 export type ReviewRequest = { type: "start"; replay: MatchReplay };

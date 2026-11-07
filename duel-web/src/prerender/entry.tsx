@@ -1,5 +1,5 @@
 /**
- * Build-time pre-render entry (#914). scripts/seo/prerender-plugin.mjs bundles this for Node after
+ * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
  * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
  *
  * Every page here is a public route. Pages that are safe to render on a server (the how-to-play page,

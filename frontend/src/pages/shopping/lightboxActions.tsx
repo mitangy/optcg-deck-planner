@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api, ShoppingItem } from "../../api";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { nextExtraTarget, totalOwnedCopies } from "../../shoppingExtras";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { LightboxPriceAlertControl } from "../../PriceAlerts";
-import { LightboxPriceHistoryControl } from "../../PriceHistory";
-import { qk } from "../../queryKeys";
+import { useSavedShoppingDeckIds } from "./shoppingDeckFilter";
+import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { LightboxPriceAlertControl } from "../../prices/PriceAlerts";
+import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
+import { qk } from "../../cache/queryKeys";
 
 /** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
 function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {

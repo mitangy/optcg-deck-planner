@@ -40,7 +40,7 @@ Install once from the repo root (`npm ci`); all commands below run inside `packa
 npm test
 npm run typecheck
 npm run sim          # ≥100 random games
-npm run export-atlas # writes cardAtlas.json for mobile/ and duel-web/ (see src/scripts/exportAtlas.ts)
+npm run export-atlas # writes cardAtlas.json for mobile/ and duel-web/ (see src/cli/exportAtlas.ts)
 SIM_GAMES=200 npm run sim
 npm run scenario-coverage             # supported cards no test mentions, by set (a to-do list, not a gate)
 npm run scenario-coverage -- --summary OP01 EB01

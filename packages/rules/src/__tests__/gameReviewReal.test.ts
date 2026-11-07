@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { getPlayerView } from "../engine.js";
 import { rankOptions } from "../bot/analysis.js";
 import { createSeededRng } from "../rng.js";
-import { replayApply, replayStart } from "../matchReplay.js";
+import { replayApply, replayStart } from "../replay/matchReplay.js";
 import { stableJson } from "../review/classify.js";
-import { MOVE_CLASSES, reviewGame } from "../gameReview.js";
-import { MATCH_REPLAY_SCHEMA, type MatchReplay } from "../matchReplay.js";
+import { MOVE_CLASSES, reviewGame } from "../review/gameReview.js";
+import { MATCH_REPLAY_SCHEMA, type MatchReplay } from "../replay/matchReplay.js";
 import { expandDeck, loadFixture } from "../testing/replay.js";
 
 describe("game review on a real recording (#967)", () => {

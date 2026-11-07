@@ -1,5 +1,5 @@
 import { ALERTS_ADD_OPEN_KEY } from "../storage/keys";
-import { PriceAlertsPage } from "../PriceAlerts";
+import { PriceAlertsPage } from "../prices/PriceAlerts";
 import { CatalogAddDrawer } from "./collection/CatalogAddDrawer";
 
 export function AlertsRoute() {

@@ -9,7 +9,7 @@ import { goldfishScore, chooseSimMulligan } from "../bot/mulligan.js";
 import { weightsMatchFeatures } from "../bot/valueModel.js";
 import { createMatch, getPlayerView } from "../engine.js";
 import { evaluateLearned } from "../bot/index.js";
-import { replayMatch } from "../matchReplay.js";
+import { replayMatch } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { fitLogistic, samplesFromReplay, type Sample } from "../sim/fitValue.js";
 import { playBotGame } from "../sim/selfPlay.js";

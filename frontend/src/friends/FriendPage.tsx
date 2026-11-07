@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { money } from "../api";
-import { CardArtImg } from "../CardThumb";
+import { CardArtImg } from "../ui/CardThumb";
 import { FriendCollection } from "./FriendCollection";
 import { FriendSpares } from "./FriendSpares";
 import { TradeTray } from "./TradeTray";
@@ -10,7 +10,7 @@ import { friendsApi, type FriendProfile } from "./friendsApi";
 import { counterPrefill, type TrayLine } from "./tradeLogic";
 import { Empty, LoadError, Tabs } from "./ui";
 import { useFriend } from "./useFriend";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 type FriendTab = "decks" | "collection" | "spares";
 

@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, CollectorLine, money, needBreakdownLabel, ShoppingItem, User } from "../../api";
-import { blankMassEntryUrl, buildMassEntryExport } from "../../tcgplayerMassEntry";
-import { shoppingShownPrice } from "../../deckCost";
-import { UndoToast } from "../../CollectorLine";
-import { collectorSelectKey, itemNeedsCopies } from "../../collectorLines";
+import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
+import { shoppingShownPrice } from "./deckCost";
+import { UndoToast } from "../collection/CollectorLine";
+import { collectorSelectKey, itemNeedsCopies } from "../collection/collectorLines";
 import { useMe } from "../../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
   CardSearchInput,
   CollapsibleFilters,
@@ -19,17 +19,17 @@ import {
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
-} from "../../cardListControls";
-import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { CardScanner } from "../../lazyPages";
-import { useImageDrop } from "../../useImageDrop";
-import { baseTileFor, shownProductId } from "../../altArt";
+} from "../../ui/cardListControls";
+import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "./shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { CardScanner } from "../../app/lazyPages";
+import { useImageDrop } from "../../hooks/useImageDrop";
+import { baseTileFor, shownProductId } from "../../cards/altArt";
 import { useCardEdits } from "../../cache/useCardEdits";
 import { busyKeyFor } from "../../cache/busyKey";
-import { AltArtsRow } from "../../MarketPrice";
-import { ShoppingListSkeleton } from "../../Skeleton";
-import { useNarrowLayout } from "../../useNarrowLayout";
+import { AltArtsRow } from "../../cards/MarketPrice";
+import { ShoppingListSkeleton } from "../../ui/Skeleton";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 import { useFullShoppingById, ShoppingScanHitAction } from "./lightboxActions";
 import { invalidateAltWantViews, invalidateCollectorViews } from "../../cache/invalidate";
 import {
@@ -39,7 +39,7 @@ import {
 } from "../../cache/optimistic";
 import { type CollectorControls, ShoppingItemsView } from "./ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
-import { isDonCard } from "../../donCards";
+import { isDonCard } from "../../cards/donCards";
 import { ShoppingStatStrip } from "./shoppingStats";
 import { ShoppingSharePanel } from "../SharePanels";
 import { ShoppingAddPanel } from "./ShoppingAddPanel";
@@ -51,7 +51,7 @@ import {
   SHOW_SHOPPING_DONS_KEY,
 } from "../../storage/keys";
 import { jsonSetCodec, usePersistedState } from "../../storage/persisted";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 const isString = (x: unknown): x is string => typeof x === "string";
 const selectedCardsCodec = jsonSetCodec(isString);

@@ -4,7 +4,7 @@
 import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { BindingValue, InstanceId, Seat } from "../types.js";
-import { otherSeat } from "./state.js";
+import { otherSeat } from "./zones.js";
 
 export interface EvalCtx {
   seat: Seat;

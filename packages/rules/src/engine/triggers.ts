@@ -5,7 +5,7 @@ import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import type { Ability, GameEventKind, Trigger } from "../effects/types.js";
 import type { BindingValue, CardInstance, InstanceId, MatchState, ResolutionFrame, Seat } from "../types.js";
 import { type EvalCtx, ctxFor, evalCond, filterMatches, isNegated } from "./queries.js";
-import { alloc, fieldCards, isOnField, locate } from "./state.js";
+import { alloc, fieldCards, isOnField, locate } from "./zones.js";
 import { actingSource, type Sim, turnLog } from "./sim.js";
 import { B, getBinding } from "../effects/bindings.js";
 

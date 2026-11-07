@@ -51,8 +51,8 @@ test("the ticket vector shared with game-server runs the rules job too (#739)", 
 
 test("analyst, scripts, frontend and mobile each run their own job (#739)", () => {
   assert.deepEqual(on(["analyst/src/chat.ts"]), ["rules"]);
-  assert.deepEqual(on(["scripts/sync_alt_arts.py"]), ["backend"]);
-  assert.deepEqual(on(["frontend/src/App.tsx"]), ["frontend"]);
+  assert.deepEqual(on(["backend/scripts/sync_alt_arts.py"]), ["backend"]);
+  assert.deepEqual(on(["frontend/src/app/App.tsx"]), ["frontend"]);
   assert.deepEqual(on(["mobile/src/config.ts"]), ["mobile"]);
   assert.deepEqual(on(["tools/mutation-check/suites/rules.cjs"]), ["rules"]);
 });
@@ -98,7 +98,7 @@ test("root lint and compiler config run the lint and typecheck jobs; ruff.toml o
 test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
   assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
   assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
-  assert.deepEqual(on(["frontend/src/App.tsx"]), ["frontend"]);
+  assert.deepEqual(on(["frontend/src/app/App.tsx"]), ["frontend"]);
 });
 
 test("other workflows do not trigger the app jobs, and flags union across paths (#739)", () => {
@@ -111,9 +111,9 @@ test("an empty path list runs everything (#739)", () => {
 });
 
 test("prerender and vercel-ignore scripts run the apps that import or read them, not the backend (refactor 0.1)", () => {
-  assert.deepEqual(on(["scripts/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
-  assert.deepEqual(on(["scripts/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
-  assert.deepEqual(on(["scripts/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["tools/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["tools/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["tools/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
 });
 
 test("the shared vite plugins run the apps that import them, not the backend (refactor 2.3)", () => {

@@ -3,7 +3,7 @@ import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { applyIntent, assertInvariants, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
 import { compileStandalone } from "../effects/compile.js";
 import { projectGameEvents } from "../engine/views.js";
-import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../state/snapshot.js";
+import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../engine/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, Seat } from "../types.js";
 

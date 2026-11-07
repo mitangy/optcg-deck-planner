@@ -1,18 +1,18 @@
-import { Topbar } from "../Topbar";
+import { Topbar } from "./Topbar";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { api, User } from "../api";
-import { DUEL_URL } from "../duelLink";
-import { DiscordLink } from "../DiscordLink";
-import { CornerNotices } from "../UpdateNotice";
+import { DUEL_URL } from "./duelLink";
+import { DiscordLink } from "./DiscordLink";
+import { CornerNotices } from "./UpdateNotice";
 import { BuildTag } from "@optcg/ui/appShell";
-import { ThemeToggle } from "../ThemeToggle";
-import { NotificationsBell } from "../PriceAlerts";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { NotificationsBell } from "../prices/PriceAlerts";
 import { FriendsNavLink } from "../friends/FriendsNavLink";
-import { CardLightboxActionContext } from "../CardThumb";
+import { CardLightboxActionContext } from "../ui/CardThumb";
 import { renderLightboxActions } from "../pages/shopping/lightboxActions";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const qc = useQueryClient();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyIntent, createMatch, skipMulligans } from "../engine.js";
-import { revealReason, revealsHiddenInfo } from "../revealsHiddenInfo.js";
+import { revealReason, revealsHiddenInfo } from "../replay/revealsHiddenInfo.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
 

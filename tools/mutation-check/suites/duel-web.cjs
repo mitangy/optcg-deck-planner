@@ -193,7 +193,7 @@ module.exports = {
     { id: "replay-cursor-remembers-wrong-step", file: `${src}/replay/replayCursor.ts`, from: "      remember(target, state);\n      return state;", to: "      remember(target + 1, state);\n      return state;", kills: ["step back past a checkpoint lands on the previous step (#476)"] },
     { id: "replay-cursor-seeks-from-later-state", edits: [
       { file: `${src}/replay/replayCursor.ts`, from: "if (s <= target && (!near || s > near.step))", to: "if (!near || s > near.step)" },
-      { file: "packages/rules/src/replayTimeline.ts", from: "  if (near && near.step <= target && near.step > from) {", to: "  if (near && near.step > from) {" },
+      { file: "packages/rules/src/replay/replayTimeline.ts", from: "  if (near && near.step <= target && near.step > from) {", to: "  if (near && near.step > from) {" },
     ], kills: ["step back past a checkpoint lands on the previous step (#476)"] },
     { id: "replay-next-turn-stays-put", file: `${src}/replay/replayCursor.ts`, from: "turnStarts.find((s) => s.step > step)", to: "turnStarts.find((s) => s.step >= step)", kills: ["next turn jumps to the following turn's first step (#476)"] },
     { id: "replay-prev-turn-stays-put", file: `${src}/replay/replayCursor.ts`, from: "for (const s of t.turnStarts) if (s.step < step) found = s.step;", to: "for (const s of t.turnStarts) if (s.step <= step) found = s.step;", kills: ["previous turn goes to the start of this turn, then the one before (#476)"] },

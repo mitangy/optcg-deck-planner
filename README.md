@@ -20,8 +20,8 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the pieces fit togeth
 | [`packages/`](packages/) | Shared libraries, consumed from source (see below) | TypeScript | bundled into the apps and services |
 | [`mobile/`](mobile/) | Expo duel client. **Paused**: not maintained or shipped; kept in CI and in the mutation suites. | Expo / React Native | not deployed |
 | [`trailer/`](trailer/) | Remotion project and capture scripts for the duel app trailer | Node | not deployed |
-| [`scripts/`](scripts/) | Python data scripts (catalog import, cosmetics, preview art, price backfill), `scripts/seo` prerender helpers, `vercel-ignore-build.sh` | Python / Node | run by hand or by workflows |
-| [`tools/`](tools/) | Repo tooling: `ci/` (PR path filter and checks), `mutation-check/`, `pr-assets/` | Node | CI only |
+| [`backend/scripts/`](backend/scripts/) | Python data scripts (catalog import, cosmetics, preview art, price backfill) and their `test_*.py` files | Python | run by hand or by workflows |
+| [`tools/`](tools/) | Repo tooling: `ci/` (PR path filter and checks), `mutation-check/`, `pr-assets/`, `seo/` (pre-render plugin and route table both SPAs import), `vercel-ignore-build.sh`, `dev-lan.sh` | Node | CI and builds |
 | [`docs/`](docs/) | [Architecture map](docs/ARCHITECTURE.md), [scaling](docs/scaling.md), [card scanning](docs/card-scanning.md), [duel client plans](docs/duel-client/README.md) | | |
 
 ### Packages
@@ -73,7 +73,7 @@ cd duel-web && npm run dev              # Vite dev server (see duel-web/.env.exa
 npm run dev:game-server                 # repo root; Colyseus on 0.0.0.0:2567 by default
 npm run start:analyst                   # repo root; Log Pose service
 ```
-`scripts/dev-lan.sh` starts the stack for testing from another device on your network.
+`tools/dev-lan.sh` starts the stack for testing from another device on your network.
 
 ## Tests
 
@@ -83,11 +83,11 @@ npm run start:analyst                   # repo root; Log Pose service
 | One package or service | `npm run test:rules`, `test:game-server`, `test:analyst`, `test:ui`, `test:patch-notes`, ... (see root `package.json`) |
 | Typecheck every workspace | `npm run typecheck` |
 | Lint TypeScript (ESLint, `eslint.config.js`; warnings do not fail) | `npm run lint` (repo root) |
-| Lint Python (ruff, `ruff.toml`) | `ruff check backend scripts` (`ruff` is pinned in `backend/requirements-dev.txt`) |
+| Lint Python (ruff, `ruff.toml`) | `ruff check backend` (`ruff` is pinned in `backend/requirements-dev.txt`) |
 | Planner / duel-web | `cd frontend && npm test`; `cd duel-web && npm test` |
 | Planner / duel-web browser tests (Playwright) | `npm run e2e` inside the app |
 | Backend | `cd backend && python3 -m pytest` |
-| Python script tests | `cd scripts && python3 -m unittest test_bandai_metadata test_cosmetics_product_ids test_sync_preview_art test_sync_alt_arts test_backfill_price_history` |
+| Python script tests | `cd backend/scripts && python3 -m unittest test_bandai_metadata test_cosmetics_product_ids test_sync_preview_art test_sync_alt_arts test_backfill_price_history` |
 | PR path filter and CI checks | `node --test "tools/ci/*.test.cjs"` |
 | Mutation-check tooling | `node --test "tools/mutation-check/*.test.cjs"` |
 | Mutation anchors (no tests run) | `node tools/mutation-check/run.cjs --check-anchors` |
@@ -113,7 +113,7 @@ Browsing the bare Render host (`/`) returns a small JSON index; use `/health` or
 
 ### Current prod
 - **Vercel** project `miko21/optcg-deck-planner` — **Root Directory = `.`** (repo root), config in the root `vercel.json` (install with `npm ci` at the repo root, build with `cd frontend && npx vite build`, output `frontend/dist`, `/api/*` rewrite → Render). Do **not** set Vercel's Root Directory to `frontend/` — the root `vercel.json` is the single source of truth.
-- **Vercel** project for the duel app, Root Directory `duel-web`, config in `duel-web/vercel.json` (install `cd .. && npm ci`, build `npx vite build`, output `dist`, same `/api/*` rewrite). Both Vercel projects deploy **from `main` only**: `deploymentEnabled` is `false` for every other branch in both `vercel.json` files, and an `ignoreCommand` (`scripts/vercel-ignore-build.sh`) skips builds that touch none of the app's paths.
+- **Vercel** project for the duel app, Root Directory `duel-web`, config in `duel-web/vercel.json` (install `cd .. && npm ci`, build `npx vite build`, output `dist`, same `/api/*` rewrite). Both Vercel projects deploy **from `main` only**: `deploymentEnabled` is `false` for every other branch in both `vercel.json` files, and an `ignoreCommand` (`tools/vercel-ignore-build.sh`) skips builds that touch none of the app's paths.
 - **Render** service `optcg-api` (`srv-d9i5jin41pts73an781g`, root `backend`)
 - **Render** services `optcg-game-server` and `optcg-analyst` (Node, installed from the repo root with `npm ci --workspace=...`, each with a `buildFilter` on its own paths and the packages it uses). `render.yaml` describes all three, but the services are configured in the Render dashboard, so a setting there only takes effect once it is copied to the dashboard (`docs/scaling.md`). The game server can also be deployed blue/green through `.github/workflows/game-server-blue-green.yml` (see `docs/scaling.md`).
 - **Neon** project `optcg-deck-planner` (`DATABASE_URL` on Render)

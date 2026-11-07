@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, DeckSummary } from "../../api";
-import { savedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { CompassIcon } from "../../ThemeIcons";
-import { CardArtImg } from "../../CardThumb";
-import { DecksListSkeleton } from "../../Skeleton";
-import { qk } from "../../queryKeys";
+import { savedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { CompassIcon } from "../../ui/ThemeIcons";
+import { CardArtImg } from "../../ui/CardThumb";
+import { DecksListSkeleton } from "../../ui/Skeleton";
+import { qk } from "../../cache/queryKeys";
 
 type DeckLeaderGroup = {
   key: string;

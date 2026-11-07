@@ -4,7 +4,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { Cond, CountExpr, Value } from "../effects/types.js";
 import type { CardInstance, MatchState } from "../types.js";
-import { activeDon, donOnField, otherSeat } from "./state.js";
+import { activeDon, donOnField, otherSeat } from "./zones.js";
 import { type EvalCtx, namesOfDef, relSeat, seatsFor } from "./evalCtx.js";
 import { locateCard } from "./statics.js";
 import { basePowerOf, costOf, powerOf } from "./stats.js";

@@ -1,15 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { DeckDetail, PrintingView, OwnedCollectionResponse, ShoppingResponse } from "../api";
-import { remainingCostForCard } from "../deckCost";
+import { remainingCostForCard } from "../pages/shopping/deckCost";
 import {
   applyCollectorToShopping,
   collectorCostTotal,
   deckAltsOwned,
   collectorStillTotal,
   refreshCollectorHave,
-} from "../collectorLines";
-import { patchOwnedCollection, patchOwnedCollectionAlt } from "../ownedCollection";
-import { qk } from "../queryKeys";
+} from "../pages/collection/collectorLines";
+import { patchOwnedCollection, patchOwnedCollectionAlt } from "../pages/collection/ownedCollection";
+import { qk } from "./queryKeys";
 
 function sumAltOwned(alts: { owned?: number }[]): number {
   return alts.reduce((n, a) => n + (a.owned ?? 0), 0);
