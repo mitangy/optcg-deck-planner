@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     analyst_model_admin_emails: str = "gamefreakmichaeltang@gmail.com"
     # The one admin account (#667): made admin on startup; any other admin row is demoted.
     admin_email: str = "gamefreakmichaeltang@gmail.com"
+    # Vercel /api rewrite sends this in X-Optcg-Proxy-Secret; unset keeps trusting X-Forwarded-For.
+    proxy_shared_secret: str = ""
     # Admin page Hosting tab: read-only tokens, each tab card shows "not connected" while unset.
     vercel_token: str = ""
     vercel_team_id: str = ""

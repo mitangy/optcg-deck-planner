@@ -1,4 +1,4 @@
-/** Backend mutations (backend/, pytest). Needs a Python with requirements.txt installed: set BACKEND_PYTHON. */
+/** Backend mutations (backend/, pytest). Needs a Python with requirements-dev.txt installed: set BACKEND_PYTHON. */
 const auth = "backend/app/auth.py";
 const config = "backend/app/config.py";
 const sync = "backend/app/catalog_sync.py";
@@ -41,6 +41,8 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // Test harness must not write backend/optcg.db (refactor 0.7)
+    {"id": "tests-app-engine-uses-default-sqlite-file", "file": "backend/tests/conftest.py", "from": "os.environ[\"DATABASE_URL\"] = f\"sqlite:///{_APP_DB_DIR}/app.db\"", "to": "os.environ.pop(\"DATABASE_URL\", None)", "kills": ["test_running_the_app_lifespan_in_tests_does_not_create_backend_optcg_db_refactor_0_7"], "args": "tests/test_no_stray_db.py"},
     // Den Den Mushi: Discord posts become feedback tickets and GitHub issues (#979)
     {"id": "discord-reply-not-posted", "file": "backend/app/discord_feedback.py", "from": "await _request(client, \"POST\", post.reply_path, json=body)", "to": "pass", "kills": ["test_forum_post_is_filed_and_answered_in_its_thread_979", "test_text_channel_message_is_filed_and_answered_as_a_reply_979"], "args": "tests/test_discord_feedback.py"},
     {"id": "discord-mentions-allowed", "file": "backend/app/discord_feedback.py", "from": "\"allowed_mentions\": {\"parse\": []}", "to": "\"allowed_mentions\": {\"parse\": [\"everyone\"]}", "kills": ["test_forum_post_is_filed_and_answered_in_its_thread_979", "test_text_channel_message_is_filed_and_answered_as_a_reply_979"], "args": "tests/test_discord_feedback.py"},

@@ -1,27 +1,25 @@
 from __future__ import annotations
 
-import sys
+import atexit
+import os
+import shutil
+import tempfile
 
 import fakeredis
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from app import redis_client
+# app.db builds its module-level engine from DATABASE_URL at import time, and every
+# `with TestClient(app)` runs the real lifespan (init_db, backfills) against it. Point it at
+# a throwaway file before anything imports app.db, or the suite writes backend/optcg.db.
+_APP_DB_DIR = tempfile.mkdtemp(prefix="optcg-test-app-db-")
+atexit.register(shutil.rmtree, _APP_DB_DIR, ignore_errors=True)
+os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.db"
+
+from app import redis_client  # noqa: E402
 from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
 from app.rate_limit import RateLimiter
 from tests.db_support import make_test_engine
-
-
-@pytest.fixture(autouse=True)
-def _fresh_rate_limits() -> None:
-    # Rate limiters live at module level, so calls from earlier tests in the same
-    # process count against later ones (running the suite twice in one process
-    # hit 429s on /duel/dev-token).
-    for name, module in list(sys.modules.items()):
-        if name == "app" or name.startswith("app."):
-            for value in list(vars(module).values()):
-                if isinstance(value, RateLimiter):
-                    value._hits.clear()
 
 
 @pytest.fixture(scope="module")
