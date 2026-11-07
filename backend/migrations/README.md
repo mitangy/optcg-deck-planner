@@ -61,11 +61,28 @@ the owner's.
    `duel_match_progress.closed`, `analyst_usage.{outcome, tool_calls,
    duration_ms}`, `analyst_access.{topup_usd, auto_approved}`,
    `feedback.discord_author`. Server-default spelling may also differ, and
-   column order always does (ignore order). Decide per difference: either a
-   `0002` migration that backfills NULLs and sets `NOT NULL` (run it on the
-   branch first), or loosen the model; do not edit `0001`.
-4. When the branch matches, `alembic stamp 0001` against **production**. Stamp
-   only writes the `alembic_version` table; it runs no DDL.
+   column order always does (ignore order). The 2026-11-07 comparison of a
+   production branch (`refactor-review/alembic-prod-compare-2026-11-07.md`)
+   found exactly these 17 columns (0 NULL rows in each), two missing indexes
+   (`ix_analyst_eval_runs_suite`, `ix_analyst_usage_thread_id`), the
+   `user_sharing.collection` default (`'off'`, baseline `'friends'`) and the
+   extra table `duel_match_outbox`. `0002_reconcile_production` fixes all of
+   them (backfill, `SET NOT NULL`, drop the extra server defaults, create the
+   indexes, reset the default) and is a no-op on a database built by `0001`.
+   Do not edit `0001`.
+   `duel_match_outbox` is **owned by the game server**
+   (`game-server/src/writeback.ts` creates it), so it is not a model and
+   `0002` leaves it alone; `env.py`'s `include_object` hides it from
+   `alembic check` / autogenerate so it is never proposed for dropping.
+4. Cut over production (owner only), in this order:
+   1. `alembic stamp 0001` against **production**. Stamp only writes the
+      `alembic_version` table; it runs no DDL.
+   2. `alembic upgrade head`, which applies `0002`. Rehearse both commands on
+      the Neon branch first and re-run the comparison (expect zero differences
+      apart from `duel_match_outbox`). The exact SQL is
+      `alembic upgrade 0001:head --sql` (saved with the review notes as
+      `alembic-0002-offline.sql`); every statement is a plain `UPDATE` or DDL
+      and each is idempotent except `SET NOT NULL`, which is safe to repeat.
 5. In a follow-up PR (not before step 4): switch startup from `init_db` to
    `alembic upgrade head` (keep the `startup_lock` advisory lock around it so
    several workers do not race), delete the 25 `_ensure_*` helpers and
