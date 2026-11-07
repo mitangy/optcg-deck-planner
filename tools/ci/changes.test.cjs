@@ -36,6 +36,11 @@ test("the Log Pose contract values also run the backend tests that read them", (
   assert.equal(classify(["packages/analyst-contract/src/index.ts"]).backend, false);
 });
 
+test("the generated API types also run the backend job that regenerates them (refactor 2.1c)", () => {
+  assert.equal(classify(["packages/api-client/src/generated/schema.ts"]).backend, true);
+  assert.equal(classify(["packages/api-client/src/request.ts"]).backend, false);
+});
+
 test("game-server changes run the rules job and the duel e2e shards (#739)", () => {
   assert.deepEqual(on(["game-server/src/app.config.ts"]), ["duel_e2e", "rules"]);
 });
