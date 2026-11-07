@@ -4,6 +4,7 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 import { notesFor } from "../../packages/patch-notes/src/helpers";
+import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
 const KEY = "optcg.patchNotes.lastSeen.duel";
@@ -38,7 +39,7 @@ test("the card shows after an update and Got it keeps it away, even after a relo
   await openLobby(page, "2026-10-05");
   await expect(card(page)).toBeVisible();
   // The newest duel note leads the card (a hard-coded title breaks as soon as more notes land).
-  await expect(card(page)).toContainText(notesFor("duel")[0].title);
+  await expect(card(page)).toContainText(notesFor("duel", PATCH_NOTES)[0].title);
   await expect(card(page)).toContainText("more");
 
   // It overlays the page: dismissing it moves nothing, and it sits fully on screen.

@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type MetaDeck, type MetaLeader, type User } from "./api";
 import { CardArtImg, CardThumb } from "./CardThumb";
-import { rememberLoginNext } from "./GroupBuys";
+import { rememberLoginNext } from "./loginNext";
 import { Skeleton } from "./Skeleton";
 import {
   createMetaDeck,

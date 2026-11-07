@@ -1,10 +1,9 @@
-import { PATCH_NOTES } from "./notes";
 import type { PatchNote } from "./types";
 
 export type AppName = "duel" | "planner";
 
 /** Notes that apply to `app` (its own and the shared ones), newest day first; same-day notes keep their order in notes.ts. */
-export function notesFor(app: AppName, notes: readonly PatchNote[] = PATCH_NOTES): PatchNote[] {
+export function notesFor(app: AppName, notes: readonly PatchNote[]): PatchNote[] {
   return notes
     .filter((n) => n.app === app || n.app === "both")
     .map((n, i) => ({ n, i }))
@@ -13,7 +12,7 @@ export function notesFor(app: AppName, notes: readonly PatchNote[] = PATCH_NOTES
 }
 
 /** Newest date among `app`'s notes, or null when it has none. */
-export function latestNoteDate(app: AppName, notes: readonly PatchNote[] = PATCH_NOTES): string | null {
+export function latestNoteDate(app: AppName, notes: readonly PatchNote[]): string | null {
   return notesFor(app, notes)[0]?.date ?? null;
 }
 
@@ -32,7 +31,7 @@ export function noteKey(n: PatchNote): string {
 export function unseenNotes(
   app: AppName,
   lastSeen: string | null,
-  notes: readonly PatchNote[] = PATCH_NOTES,
+  notes: readonly PatchNote[],
   seenOnLastDay: readonly string[] | null = null,
 ): PatchNote[] {
   if (lastSeen === null) return [];

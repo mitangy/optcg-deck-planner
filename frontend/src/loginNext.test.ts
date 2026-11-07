@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSafeLoginNext } from "./GroupBuys";
+import { isSafeLoginNext } from "./loginNext";
 
 describe("isSafeLoginNext", () => {
   it("allows same-origin relative paths", () => {

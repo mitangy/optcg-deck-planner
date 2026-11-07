@@ -27,3 +27,11 @@ newest date and shows nothing, so a new visitor never gets the backlog. After
 that the card appears when notes are newer than the stored date, and "Got it" or
 "See all" records the newest date. Notes are compared by day, so several
 entries on one day are announced together.
+
+## Bundle size
+
+`notes.ts` is large, so it is its own lazy chunk: `loadPatchNotes()` / `usePatchNotes()`
+(`src/loadNotes.ts`) `import()` it on first use, and `WhatsNewCard` and `WhatsNewFeed` wait for
+it. Never `import "./notes"` statically from anything else in the package (the pre-render
+entry in duel-web and tests are the only exceptions), or the notes land in both apps' entry
+bundles again. `helpers.ts` and `lastSeen.ts` take the notes as an argument for the same reason.

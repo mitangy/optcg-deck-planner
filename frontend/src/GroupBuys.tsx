@@ -45,6 +45,7 @@ import {
 } from "./groupBuyArt";
 import { SortableTh, sortByColumn, useColumnSort, type ColumnSort } from "./columnSort";
 import { invalidateOwnedViews } from "./ownedCollection";
+import { rememberLoginNext } from "./loginNext";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { blankMassEntryUrl } from "./tcgplayerMassEntry";
 import {
@@ -53,7 +54,6 @@ import {
   GroupBuysListSkeleton,
 } from "./Skeleton";
 
-const NEXT_KEY = "optcg_login_next";
 const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
 const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open";
 
@@ -64,40 +64,6 @@ const SHIPPING_SPLIT_LABELS: Record<ShippingSplit, string> = {
   by_cost: "By card cost",
   by_copies: "By copies",
 };
-
-/** Same-origin relative paths only — reject protocol-relative //evil.example. */
-export function isSafeLoginNext(path: string): boolean {
-  if (!path.startsWith("/") || path.startsWith("//")) return false;
-  if (path.includes("\\") || path.includes("://")) return false;
-  try {
-    const decoded = decodeURIComponent(path);
-    if (decoded.startsWith("//") || decoded.includes("://") || decoded.includes("\\")) {
-      return false;
-    }
-  } catch {
-    return false;
-  }
-  return true;
-}
-
-export function rememberLoginNext(path: string) {
-  if (!isSafeLoginNext(path)) return;
-  try {
-    sessionStorage.setItem(NEXT_KEY, path);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function consumeLoginNext(): string | null {
-  try {
-    const next = sessionStorage.getItem(NEXT_KEY);
-    if (next) sessionStorage.removeItem(NEXT_KEY);
-    return next && isSafeLoginNext(next) ? next : null;
-  } catch {
-    return null;
-  }
-}
 
 /** Stable palette for group-buy members — fits the cream/teal product chrome. */
 const MEMBER_COLORS = [
