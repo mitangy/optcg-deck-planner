@@ -7,6 +7,7 @@ import { GridCard } from "../PlannerCard";
 import { CardSearchInput, COLOR_ORDER, matchesCardSearch } from "../cardListControls";
 import { friendsApi, type FriendOwnedItem } from "./friendsApi";
 import { CardRow, Empty, LoadError } from "./ui";
+import { qk } from "../queryKeys";
 
 type SortKey = "name" | "owned" | "price" | "value";
 const SORTS: { key: SortKey; label: string }[] = [
@@ -30,7 +31,7 @@ function sortCollection(items: FriendOwnedItem[], key: SortKey): FriendOwnedItem
 
 /** The cards a friend owns: read only, no buying. */
 export function FriendCollection({ friendId, username }: { friendId: number; username: string }) {
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["friend", friendId, "collection"], queryFn: () => friendsApi.collection(friendId) });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friend.collection(friendId), queryFn: () => friendsApi.collection(friendId) });
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [color, setColor] = useState("");

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "./api";
 import { COLOR_ORDER, usePersistedChoice, useShowAltArts } from "./cardListControls";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { qk } from "./queryKeys";
 
 export const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
 
@@ -22,7 +23,7 @@ export function useCatalogSearch({ colorKey, typeKey }: { colorKey: string; type
   const [showAltArts] = useShowAltArts();
   const searchEnabled = Boolean(debouncedQ || color || cardType);
   const searchQ = useQuery({
-    queryKey: ["catalog-search", debouncedQ, color, cardType, showAltArts],
+    queryKey: qk.catalogSearch.query(debouncedQ, color, cardType, showAltArts),
     queryFn: () =>
       api.searchCatalog({
         q: debouncedQ || undefined,

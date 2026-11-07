@@ -9,6 +9,7 @@ import {
   refreshCollectorHave,
 } from "../collectorLines";
 import { patchOwnedCollection, patchOwnedCollectionAlt } from "../ownedCollection";
+import { qk } from "../queryKeys";
 
 function sumAltOwned(alts: { owned?: number }[]): number {
   return alts.reduce((n, a) => n + (a.owned ?? 0), 0);
@@ -28,7 +29,7 @@ export function applyAltOwnedOptimistic(
   const id = cardId.toUpperCase();
   const patchAlts = (alts: PrintingView[] | undefined) =>
     (alts ?? []).map((a) => (a.product_id === productId ? { ...a, owned: qty } : a));
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) => {
     if (!old) return old;
     let cardsStill = 0;
     let remaining = 0;
@@ -59,10 +60,10 @@ export function applyAltOwnedOptimistic(
       remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100,
     };
   });
-  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: qk.owned.all() }, (old) =>
     old ? patchOwnedCollectionAlt(old, id, productId, qty) : old,
   );
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
+  qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) => {
     if (!old) return old;
     return {
       ...old,
@@ -94,7 +95,7 @@ export function applyAltBuyOptimistic(
   const id = cardId.toUpperCase();
   const patchAlts = (alts: PrintingView[] | undefined) =>
     (alts ?? []).map((a) => (a.product_id === productId ? { ...a, wanted: qty } : a));
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) => {
     if (!old) return old;
     let remaining = 0;
     const items = old.items.map((item) => {
@@ -116,7 +117,7 @@ export function applyAltBuyOptimistic(
     });
     return { ...old, items, remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100 };
   });
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+  qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) =>
     old
       ? {
           ...old,
@@ -136,10 +137,10 @@ export function applyCollectorOptimistic(
   qty: number,
 ) {
   const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) =>
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) =>
     old ? applyCollectorToShopping(old, id, productId, qty) : old,
   );
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) =>
+  qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) =>
     old
       ? {
           ...old,
@@ -172,7 +173,7 @@ function patchOwnedQty(
 
 export function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, qty: number) {
   const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) => {
     if (!old) return old;
     let cardsStill = 0;
     let remaining = 0;
@@ -194,10 +195,10 @@ export function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, card
       remaining_market: Math.round((remaining + collectorCostTotal(items)) * 100) / 100,
     };
   });
-  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: ["owned"] }, (old) =>
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: qk.owned.all() }, (old) =>
     old ? patchOwnedCollection(old, id, qty) : old,
   );
-  qc.setQueriesData<DeckDetail>({ queryKey: ["deck"] }, (old) => {
+  qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) => {
     if (!old) return old;
     return {
       ...old,
@@ -217,7 +218,7 @@ export function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, card
 /** Sets a card's direct target in the cached shopping list: need = max(deck need, target). */
 export function applyWantOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, extraQty: number) {
   const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: ["shopping"] }, (old) => {
+  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) => {
     if (!old) return old;
     let cardsStill = 0;
     let remaining = 0;

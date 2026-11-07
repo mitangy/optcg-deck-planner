@@ -3,6 +3,7 @@ import { useCallback, useMemo } from "react";
 import { friendsApi, type SpareItem, type TradeSide } from "./friendsApi";
 import { useSavedShoppingDeckIds } from "../shoppingDeckFilter";
 import type { CardCap, TrayLine } from "./tradeLogic";
+import { qk } from "../queryKeys";
 
 const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, base: item.base_owned, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
 
@@ -11,7 +12,7 @@ export function useFriendSpares(friendId: number) {
   /** The viewer's Include decks filter narrows "You need"; undefined (all decks) keeps the plain key. */
   const deckIds = useSavedShoppingDeckIds();
   const query = useQuery({
-    queryKey: deckIds ? ["friend", friendId, "spares", deckIds] : ["friend", friendId, "spares"],
+    queryKey: qk.friend.spares(friendId, deckIds),
     queryFn: () => friendsApi.spares(friendId, deckIds),
   });
   const caps = useMemo(() => {

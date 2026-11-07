@@ -2,13 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
-import { meQueryKey, useMe } from "../auth/useMe";
+import { useMe } from "../auth/useMe";
 import { SharingCard } from "./SharingCard";
 import { TradesPanel } from "./TradesPanel";
 import { MySparesPanel } from "./MySparesPanel";
 import { friendsApi } from "./friendsApi";
 import { Empty, LoadError, Tabs } from "./ui";
 import { USERNAME_MAX, usernameFormatError } from "./username";
+import { qk } from "../queryKeys";
 
 type FriendsTab = "friends" | "trades" | "spares";
 const TABS: FriendsTab[] = ["friends", "trades", "spares"];
@@ -20,7 +21,7 @@ export function FriendsPage() {
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab");
   const tab: FriendsTab = TABS.includes(raw as FriendsTab) ? (raw as FriendsTab) : "friends";
-  const trades = useQuery({ queryKey: ["trades"], queryFn: friendsApi.trades, enabled: Boolean(me.data?.username) });
+  const trades = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades, enabled: Boolean(me.data?.username) });
   const tradeCount = (trades.data?.incoming.length ?? 0) + (trades.data?.active.length ?? 0);
 
   if (me.isLoading) return <p className="muted friends-loading">Loading…</p>;
@@ -58,7 +59,7 @@ export function FriendsPage() {
 
 function UsernamePicker() {
   const qc = useQueryClient();
-  const suggestion = useQuery({ queryKey: ["username-suggestion"], queryFn: friendsApi.suggestUsername, staleTime: Infinity });
+  const suggestion = useQuery({ queryKey: qk.usernameSuggestion(), queryFn: friendsApi.suggestUsername, staleTime: Infinity });
   const [name, setName] = useState("");
   const [touched, setTouched] = useState(false);
   useEffect(() => {
@@ -67,7 +68,7 @@ function UsernamePicker() {
   const formatError = name ? usernameFormatError(name) : null;
   const save = useMutation({
     mutationFn: () => friendsApi.setUsername(name.trim()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: meQueryKey }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.me() }),
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -105,13 +106,13 @@ function UsernamePicker() {
 
 function FriendsTabPanel() {
   const qc = useQueryClient();
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["friends"], queryFn: friendsApi.list });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friends(), queryFn: friendsApi.list });
   const [username, setUsername] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ["friends"] });
-    void qc.invalidateQueries({ queryKey: ["trades"] });
-    void qc.invalidateQueries({ queryKey: ["trades-summary"] });
+    void qc.invalidateQueries({ queryKey: qk.friends() });
+    void qc.invalidateQueries({ queryKey: qk.trades() });
+    void qc.invalidateQueries({ queryKey: qk.tradesSummary() });
   };
   const add = useMutation({
     mutationFn: (name: string) => friendsApi.sendRequest(name),

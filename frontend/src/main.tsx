@@ -16,6 +16,7 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 import "./friends/friends.css";
+import { qk } from "./queryKeys";
 
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
@@ -32,7 +33,7 @@ const queryClient = new QueryClient({
 
 // A pre-rendered /meta carries the leaders it was built with: show them at once, and refetch because they are older than the page.
 const seed = readMetaSeed();
-if (seed) queryClient.setQueryData(["meta", "leaders", seed.days], seed.leaders, { updatedAt: Date.parse(seed.generatedAt) });
+if (seed) queryClient.setQueryData(qk.meta.leaders(seed.days), seed.leaders, { updatedAt: Date.parse(seed.generatedAt) });
 
 const rootEl = document.getElementById("root")!;
 releasePrerenderedRoot(rootEl);

@@ -6,13 +6,13 @@ import { api, User } from "../api";
 import { DUEL_URL } from "../duelLink";
 import { DiscordLink } from "../DiscordLink";
 import { CornerNotices } from "../UpdateNotice";
-import { meQueryKey } from "../auth/useMe";
 import { BuildTag } from "../BuildTag";
 import { ThemeToggle } from "../ThemeToggle";
 import { NotificationsBell } from "../PriceAlerts";
 import { FriendsNavLink } from "../friends/FriendsNavLink";
 import { CardLightboxActionContext } from "../CardThumb";
 import { renderLightboxActions } from "../pages/shopping/lightboxActions";
+import { qk } from "../queryKeys";
 
 export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const qc = useQueryClient();
@@ -20,7 +20,7 @@ export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: meQueryKey });
+      await qc.invalidateQueries({ queryKey: qk.me() });
       navigate("/login");
     },
   });

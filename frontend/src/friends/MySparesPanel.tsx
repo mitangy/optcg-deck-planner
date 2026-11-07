@@ -3,16 +3,17 @@ import { money } from "../api";
 import { friendsApi, type MySpareItem } from "./friendsApi";
 import { CardRow, Empty, LoadError, QtyStepper } from "./ui";
 import { useSharing } from "./SharingCard";
+import { qk } from "../queryKeys";
 
 /** Cards you own beyond what your decks and Shopping list need. Keep holds some back from trades. */
 export function MySparesPanel() {
   const qc = useQueryClient();
   const sharing = useSharing();
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["my-spares"], queryFn: friendsApi.mySpares });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.mySpares(), queryFn: friendsApi.mySpares });
   const keep = useMutation({
     mutationFn: (v: { item: MySpareItem; qty: number }) => friendsApi.setKeep(v.item.card_id, v.qty),
     onSuccess: (res) => {
-      qc.setQueryData<{ items: MySpareItem[] }>(["my-spares"], (old) =>
+      qc.setQueryData<{ items: MySpareItem[] }>(qk.mySpares(), (old) =>
         old
           ? {
               items: old.items
@@ -21,12 +22,12 @@ export function MySparesPanel() {
             }
           : old,
       );
-      void qc.invalidateQueries({ queryKey: ["my-spares"] });
+      void qc.invalidateQueries({ queryKey: qk.mySpares() });
     },
   });
   const openTrades = useMutation({
     mutationFn: () => friendsApi.setSharing({ trades_open: true }),
-    onSuccess: (next) => qc.setQueryData(["sharing"], next),
+    onSuccess: (next) => qc.setQueryData(qk.sharing(), next),
   });
 
   if (isLoading) return <p className="muted">Loading…</p>;

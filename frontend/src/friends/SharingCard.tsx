@@ -1,25 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi, type Sharing, type SharingUpdate } from "./friendsApi";
+import { qk } from "../queryKeys";
 
 /** First visit: a clear ask. After that: the four switches, always visible so nothing expands. */
 export function SharingCard() {
   const qc = useQueryClient();
-  const { data, error } = useQuery({ queryKey: ["sharing"], queryFn: friendsApi.sharing });
+  const { data, error } = useQuery({ queryKey: qk.sharing(), queryFn: friendsApi.sharing });
   const save = useMutation({
     mutationFn: (body: SharingUpdate) => friendsApi.setSharing(body),
     // Switches flip right away and snap back if the save fails.
     onMutate: async (body) => {
-      await qc.cancelQueries({ queryKey: ["sharing"] });
-      const before = qc.getQueryData<Sharing>(["sharing"]);
-      if (before) qc.setQueryData<Sharing>(["sharing"], { ...before, ...body });
+      await qc.cancelQueries({ queryKey: qk.sharing() });
+      const before = qc.getQueryData<Sharing>(qk.sharing());
+      if (before) qc.setQueryData<Sharing>(qk.sharing(), { ...before, ...body });
       return { before };
     },
     onError: (_e, _body, ctx) => {
-      if (ctx?.before) qc.setQueryData(["sharing"], ctx.before);
+      if (ctx?.before) qc.setQueryData(qk.sharing(), ctx.before);
     },
     onSuccess: (next) => {
-      qc.setQueryData(["sharing"], next);
-      void qc.invalidateQueries({ queryKey: ["friend"] });
+      qc.setQueryData(qk.sharing(), next);
+      void qc.invalidateQueries({ queryKey: qk.friend.all() });
     },
   });
 
@@ -82,5 +83,5 @@ export function SharingCard() {
 }
 
 export function useSharing() {
-  return useQuery<Sharing>({ queryKey: ["sharing"], queryFn: friendsApi.sharing });
+  return useQuery<Sharing>({ queryKey: qk.sharing(), queryFn: friendsApi.sharing });
 }

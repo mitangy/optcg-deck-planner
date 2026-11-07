@@ -9,6 +9,24 @@ import { readFileSync } from "node:fs";
 import { test as base, expect } from "@playwright/test";
 import { auditPage, formatIssues, issueKey, type AuditIssue } from "./audit";
 import { isKnown } from "./known-issues";
+import type {
+  AlertDirection,
+  CardView,
+  CatalogCardResult,
+  DeckDetail,
+  DeckSummary,
+  GroupBuyDetail,
+  GroupBuyReceiptMatchReport,
+  NotificationsResponse,
+  OwnedCollectionResponse,
+  PriceAlert,
+  PriceAlertsResponse,
+  PriceHistoryResponse,
+  RecentSale,
+  RecentSalesResponse,
+  ShoppingResponse,
+  User,
+} from "../src/api";
 
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8")) as T;
 
@@ -34,7 +52,7 @@ const DON_CARDS = [
   { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
   { card_id: "DON-003", name: "DON!! Card (Nami Gold)", product_id: 303, group_name: "Premium Booster" },
 ].map((c) => ({ ...c, rarity: "DON", color: "", card_type: "DON!!", cost: null, market_price: 1.5, low_price: 1.1 }));
-const SALES = fixture<unknown[]>("sales.json");
+const SALES = fixture<RecentSale[]>("sales.json");
 const SHARE = fixture<unknown>("share.json");
 type MetaDeckFixture = { placing: number | null; [key: string]: unknown };
 const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
@@ -120,7 +138,7 @@ type Planner = {
   /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
   noDecks(): void;
   /** JSON bodies the page POSTed to /price-alerts (the fake keeps them as the viewer's alerts). */
-  priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: string }[];
+  priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: AlertDirection }[];
   /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
   /** Page errors and console errors collected so far (network noise excluded). */
@@ -211,7 +229,7 @@ export const test = base.extend<{ planner: Planner }>({
         section: c.section,
         alt_arts,
         display_art: displayArt.get(c.card_id) ?? null,
-      };
+      } satisfies CardView;
     };
     const mainCards = CARDS.reduce((s, c) => s + c.needed, 0);
     const deckDetail = () => ({
@@ -225,7 +243,7 @@ export const test = base.extend<{ planner: Planner }>({
       main_cards: deckCards === CARDS ? mainCards : deckCards.reduce((s, c) => s + c.needed, 0),
       don_cards: 0,
       hidden_from_friends: deckHidden,
-    });
+    }) satisfies DeckDetail;
     // Mirrors the backend (allocate_still_need_buys): picked alt copies at the alt price, the rest standard (#906).
     const remainingCost = (v: ReturnType<typeof cardView>) => {
       let left = v.still_need;
@@ -296,7 +314,7 @@ export const test = base.extend<{ planner: Planner }>({
         remaining_market: items.reduce((s, i) => s + (i.remaining_cost ?? 0), 0) + lines.reduce((s, l) => s + l.remaining_cost, 0),
         unique_cards: items.length,
         collector_copies: lines.reduce((s, l) => s + l.want, 0),
-      };
+      } satisfies ShoppingResponse;
     };
 
     let groupBuyPurchased = false;
@@ -356,7 +374,7 @@ export const test = base.extend<{ planner: Planner }>({
         receipt_text: "4\tOne Piece Card Game - Memorial Collection - Kid & Killer - Near Mint",
         has_receipt: true,
         can_undo_purchase: groupBuyPurchased,
-      };
+      } satisfies GroupBuyDetail;
     };
 
     // Nothing leaves the machine: the art CDN gets a placeholder, everything else off-box is refused.
@@ -397,13 +415,13 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/decks" && method === "POST") {
         const body = JSON.parse(req.postData() ?? "{}") as { name: string; decklist: string };
         createdDecks.push(body);
-        return json({ id: DECK_ID, name: body.name, leader_card_id: "OP17-039", card_count: 0, total_cards: 0, sort_order: 1 });
+        return json({ id: DECK_ID, name: body.name, leader_card_id: "OP17-039", card_count: 0, total_cards: 0, sort_order: 1 } satisfies DeckSummary);
       }
-      if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false });
+      if (path === "/auth/me") return json({ id: 1, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false } satisfies User);
       if (path === "/decks") {
         const d = deckDetail();
         if (!hasDecks) return json([]);
-        const decks = [
+        const decks: DeckSummary[] = [
           {
             id: DECK_ID,
             name: d.name,
@@ -466,7 +484,7 @@ export const test = base.extend<{ planner: Planner }>({
           total_copies: items.reduce((s, i) => s + i.owned + trueAlts(i), 0),
           total_value: Math.round(items.reduce((s, i) => s + i.value, 0) * 100) / 100,
           unpriced_cards: 0,
-        });
+        } satisfies OwnedCollectionResponse);
       }
       if (path === "/catalog/cards") {
         // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
@@ -478,7 +496,7 @@ export const test = base.extend<{ planner: Planner }>({
               ...c,
               image_url: img(c.product_id),
               tcgplayer_url: "",
-            })),
+            } satisfies CatalogCardResult)),
           );
         }
         if (!q) return json([]);
@@ -495,7 +513,7 @@ export const test = base.extend<{ planner: Planner }>({
             image_url: img(c.product_id),
             tcgplayer_url: "",
             group_name: "Extra Booster: Memorial Collection",
-          })),
+          } satisfies CatalogCardResult)),
         );
       }
       // Collector copies (#1031): PUT /cards/:card/collector/:product, 0..9, alt printings only.
@@ -547,7 +565,7 @@ export const test = base.extend<{ planner: Planner }>({
           id: [...alertsByArt.keys()].indexOf(`${body.card_id}:${body.product_id}`) + 1, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: body.product_id !== 0,
           current_price: null, notify_email: false, notify_app: true, paused: false, armed: true, met_now: false,
           triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...body,
-        });
+        } satisfies PriceAlert);
       }
       if (path === "/price-alerts") {
         return json({
@@ -556,9 +574,9 @@ export const test = base.extend<{ planner: Planner }>({
             id: i + 1, card_name: "", art_name: "", image_url: "", tcgplayer_url: "", is_alt: b.product_id !== 0, current_price: null,
             notify_email: false, notify_app: true, paused: false, armed: true, met_now: false, triggered_at: null, created_at: "2026-11-01T00:00:00Z", ...b,
           })),
-        });
+        } satisfies PriceAlertsResponse);
       }
-      if (path === "/notifications") return json({ items: [], unread: 0 });
+      if (path === "/notifications") return json({ items: [], unread: 0 } satisfies NotificationsResponse);
       if (path.startsWith("/catalog/cards/") && path.endsWith("/printings")) return json([]);
       // Which art a card shows: PUT /owned/:card/display (null = automatic).
       if ((m = path.match(/^\/owned\/([^/]+)\/display$/)) && method === "PUT") {
@@ -584,7 +602,7 @@ export const test = base.extend<{ planner: Planner }>({
           summary: { exact: 1, receipt_copies: 4, needed_copies: 4 },
           can_apply_full: true,
           can_apply_partial: true,
-        });
+        } satisfies GroupBuyReceiptMatchReport);
       }
       if (path === `/group-buys/${GROUP_BUY_ID}/receipt/apply` && method === "POST") {
         owned.set("EB01-003", (owned.get("EB01-003") ?? 0) + 4);
@@ -611,9 +629,9 @@ export const test = base.extend<{ planner: Planner }>({
           released: "2025-09-16",
           current: alt ? alt.market_price : 92,
           points: alt ? [] : chaseCardHistory(),
-        });
+        } satisfies PriceHistoryResponse);
       }
-      if (path.startsWith("/catalog/sales/")) return json({ product_id: Number(path.split("/").pop()), sales: SALES });
+      if (path.startsWith("/catalog/sales/")) return json({ product_id: Number(path.split("/").pop()), sales: SALES } satisfies RecentSalesResponse);
       if (path === `/public/share/${SHARE_TOKEN}/copy` && method === "POST") return signedIn ? json(deckDetail()) : json({ detail: "Not signed in" }, 401);
       if (path === `/public/share/${SHARE_TOKEN}`) return json(signedIn ? { ...(SHARE as object), viewer_signed_in: true } : signedOutShare());
       if (path.startsWith("/public/share/")) return json({ detail: "This share link is no longer available" }, 404);

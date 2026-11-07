@@ -22,6 +22,7 @@ import { isDonCardType } from "../donCards";
 import { shoppingColumnValue, sharedUsedIn } from "./shopping/ShoppingItemsView";
 import { formatShoppingListStats } from "./shopping/shoppingStats";
 import { COLSORT_SHARE_KEY, SHARE_ONLY_NEED_KEY } from "../storage/keys";
+import { qk } from "../queryKeys";
 
 export function PublicSharePage() {
   const { token = "" } = useParams();
@@ -34,7 +35,7 @@ export function PublicSharePage() {
   const navigate = useNavigate();
   // Owned counts on a deck link come from whoever is viewing, so the viewer is part of the key.
   const { data, isLoading, error } = useQuery({
-    queryKey: ["public-share", token, me?.id ?? null],
+    queryKey: qk.share.public(token, me?.id ?? null),
     queryFn: () => api.publicShare(token),
     enabled: Boolean(token) && !meQ.isLoading,
   });
@@ -42,8 +43,8 @@ export function PublicSharePage() {
   const copyDeck = useMutation({
     mutationFn: () => api.copySharedDeck(token),
     onSuccess: (created) => {
-      void qc.invalidateQueries({ queryKey: ["decks"] });
-      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
+      void qc.invalidateQueries({ queryKey: qk.shopping.all() });
       navigate(`/decks/${created.id}`);
     },
   });
