@@ -4,6 +4,7 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import { normalizeCardId } from "@optcg/card-core";
 import { z } from "zod";
 import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis";
 import type { Catalog, CardRow } from "./catalog";
@@ -164,7 +165,7 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
       const found: CardRow[] = [];
       const missing: string[] = [];
       for (const raw of ids) {
-        const card = catalog.cards.get(raw.trim().toUpperCase().replace(/_(?:P\d+|R\d+)$/, ""));
+        const card = catalog.cards.get(normalizeCardId(raw));
         if (card) found.push(card);
         else missing.push(raw);
       }

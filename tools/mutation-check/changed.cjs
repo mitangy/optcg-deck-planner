@@ -122,7 +122,7 @@ const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
  * took 3.8 min for 4), analyst about 74 s (588 tests; the #729 run took 21 min per
  * part for 24). Every part also pays one baseline full run.
  */
-const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 45, frontend: 10, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "deck-analytics": 3, "price-timing": 3, "patch-notes": 3, ui: 3, "site-legal": 3 };
+const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 45, frontend: 10, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "card-core": 3, "deck-analytics": 3, "price-timing": 3, "patch-notes": 3, ui: 3, "site-legal": 3 };
 const DEFAULT_SECONDS = 5;
 /** A mutation with `args` runs one test file: about 5-7 s (#729: 11 narrow duel-web mutations took about 1 min per part). */
 const NARROW_SECONDS = 6;

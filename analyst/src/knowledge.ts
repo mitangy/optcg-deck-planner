@@ -2,7 +2,7 @@
  * Tool answers built from the official material (rules, FAQ, errata, ban list), shaped for the model:
  * section numbers and dates kept so it can cite them, and a note whenever a source couldn't be read.
  */
-import { normalizeStatsCardId } from "@optcg/deck-analytics";
+import { normalizeCardId } from "@optcg/card-core";
 import type { Catalog } from "./catalog";
 import type { Deck } from "./decks";
 import { banListProblems, type BanList } from "./official/banlist";
@@ -95,7 +95,7 @@ function banStatus(list: BanList | undefined, id: string) {
 }
 
 export async function cardRulings(lib: OfficialLibrary, catalog: Catalog, rawIds: readonly string[]) {
-  const ids = [...new Set(rawIds.map((r) => normalizeStatsCardId(r.trim().toUpperCase())))];
+  const ids = [...new Set(rawIds.map((r) => normalizeCardId(r.trim().toUpperCase())))];
   const [faq, errata, list] = await Promise.all([
     within(lib.faq(), WAIT_MS).catch(() => undefined),
     within(lib.errata(), WAIT_MS).catch(() => undefined),

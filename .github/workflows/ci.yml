@@ -460,7 +460,7 @@ jobs:
           cache: "false"
       - name: Install root workspace deps
         # frontend and duel-web are workspaces too: one root install serves them.
-        if: contains(fromJSON('["rules","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","frontend","duel-web"]'), matrix.suite)
+        if: contains(fromJSON('["rules","card-core","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","frontend","duel-web"]'), matrix.suite)
         run: npm ci
       - name: Install mobile deps
         if: matrix.suite == 'mobile'

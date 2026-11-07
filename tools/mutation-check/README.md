@@ -74,6 +74,7 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
+| `card-core` | `packages/card-core/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |

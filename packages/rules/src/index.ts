@@ -18,9 +18,7 @@ export {
   type CardAtlasEntry,
 } from "./cards/definitions.js";
 export { cardDataFor, listCardDataIds, CARD_DATA_CANDIDATE, type CardDataRow } from "./cards/cardData.js";
-export { TCG_PRODUCTS } from "./cards/tcgProducts.js";
 export { CARD_SOURCE_RECORDS, cardSourceRecord, type CardSourceRecord, type FieldVerification } from "./cards/sourceRecords.js";
-export { tcgArtForCard, tcgAltsForCard, tcgProductImageUrl, listTcgMappedCardIds } from "./cards/tcgArt.js";
 export {
   createMatch,
   applyIntent,

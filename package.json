@@ -11,6 +11,7 @@
   "scripts": {
     "test": "npm test --workspaces --if-present",
     "test:rules": "npm run test -w @optcg/rules",
+    "test:card-core": "npm run test -w @optcg/card-core",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:price-timing": "npm run test -w @optcg/price-timing",
     "test:patch-notes": "npm run test -w @optcg/patch-notes",

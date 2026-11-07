@@ -15,26 +15,12 @@ import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
+from cosmetics_common import is_special_name
+
 CATEGORY_ID = 68
 BASE = f"https://tcgcsv.com/tcgplayer/{CATEGORY_ID}"
 UA = "OPTCGDeckPlanner/1.0 (cosmetics-catalog)"
 PAUSE_S = 0.08
-
-SPECIAL_MARKERS = (
-    "alternate art",
-    "alt art",
-    "parallel",
-    "manga",
-    "special rare",
-    "treasure rare",
-    "illustration rare",
-    "winner",
-    "championship",
-    "promo stamp",
-    "(sp)",
-    "(tr)",
-    "premium card collection",
-)
 
 CARD_ID_RE = re.compile(r"^[A-Z0-9]+-\d+[A-Z]?$", re.I)
 
@@ -101,11 +87,6 @@ def normalize_attribute(raw: str | None) -> str | None:
     }
     key = raw.strip().lower()
     return mapping.get(key, raw.strip().title())
-
-
-def is_special(name: str) -> bool:
-    n = name.lower()
-    return any(m in n for m in SPECIAL_MARKERS)
 
 
 def alt_label(name: str) -> str:
@@ -189,7 +170,7 @@ def main() -> None:
                 "rush": effect_has("[Rush]", effect) or effect_has("Rush", effect),
                 "imageUrl": image,
                 "effectText": re.sub(r"<[^>]+>", " ", effect).strip() or None,
-                "_special": is_special(name),
+                "_special": is_special_name(name),
                 "_productId": int(product_id or 0),
             }
             candidates[number].append(entry)

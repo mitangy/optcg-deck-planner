@@ -1,6 +1,6 @@
 import { getCardData } from "./cardData";
+import { isCardId, tcgAltsForCard, tcgArtForCard } from "@optcg/card-core";
 import { showOfficialIdentity } from "../legal";
-import { tcgAltsForCard, tcgArtForCard } from "./tcgArt";
 
 export type CardAltArt = {
   id: string;
@@ -60,13 +60,6 @@ const catalogRows = () => getCardData().catalog as Record<string, CosmeticsCatal
 
 /** Session stubs for OPTCG ids imported beyond curated + catalog. */
 const runtimeStubs = new Map<string, CardAtlasEntry>();
-
-/** Official-style OPTCG card numbers (OP16-080, ST01-001, EB04-058, …). */
-export const OPTCG_CARD_ID_RE = /^[A-Z0-9]+-\d+[A-Z]?$/;
-
-export function isOptcgCardId(id: string): boolean {
-  return OPTCG_CARD_ID_RE.test(id.trim().toUpperCase());
-}
 
 /** Local `/cards/...` mirrors are often missing in deploy; prefer CDN. */
 function isLocalCardsUrl(url: string | undefined): boolean {
@@ -235,7 +228,7 @@ export function lookupCard(defId: string): CardAtlasEntry {
   const hit = resolveAtlasEntry(defId);
   const base =
     hit ??
-    (isOptcgCardId(defId)
+    (isCardId(defId)
       ? stubAtlasEntry(defId, "character")
       : {
           id: defId,

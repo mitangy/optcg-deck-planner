@@ -26,6 +26,11 @@ test("protocol fixtures also run the mobile tests that read them (#739)", () => 
   assert.equal(classify(["packages/rules/src/engine/views.ts"]).mobile, false);
 });
 
+test("the golden deck lists also run the backend tests that read them", () => {
+  assert.equal(classify(["packages/card-core/fixtures/decklists.json"]).backend, true);
+  assert.equal(classify(["packages/card-core/src/decklist.ts"]).backend, false);
+});
+
 test("game-server changes run the rules job and the duel e2e shards (#739)", () => {
   assert.deepEqual(on(["game-server/src/app.config.ts"]), ["duel_e2e", "rules"]);
 });

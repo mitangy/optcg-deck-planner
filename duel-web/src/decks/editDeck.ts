@@ -1,7 +1,8 @@
+import { MAIN_DECK_SIZE } from "@optcg/card-core";
 import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import { getSavedDeck, saveDeck, type SavedDeck } from "./storage";
 
-export const MAX_MAIN_DECK_SIZE = 50;
+export const MAX_MAIN_DECK_SIZE = MAIN_DECK_SIZE;
 
 export type DeckEditResult =
   | { ok: true; deck: SavedDeck }

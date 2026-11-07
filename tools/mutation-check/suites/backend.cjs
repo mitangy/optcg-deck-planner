@@ -313,6 +313,9 @@ module.exports = {
     { id: "list-no-leader-first", file: services, from: "        leader_group_key[key] = (key is None, name,", to: "        leader_group_key[key] = (key is not None, name,", kills: ["test_list_decks_groups_by_leader_with_main_first"] },
 
     // shopping need
+    { id: "decklist-golden-single-space-codes", file: domain, from: "            if not rest or not DECK_TOKEN_RE.search(rest):", to: "            if True:", kills: ["test_parse_decklist_matches_the_shared_golden_case"] },
+    { id: "decklist-golden-upper-case-dropped", file: domain, from: "            card_id = match.group(2).upper()\n            leading_qty", to: "            card_id = match.group(2)\n            leading_qty", kills: ["test_parse_decklist_matches_the_shared_golden_case"] },
+    { id: "complete-main-forty-nine", file: "backend/app/deck_link.py", from: "COMPLETE_MAIN = 50", to: "COMPLETE_MAIN = 49", kills: ["test_main_deck_size_matches_the_shared_constant"] },
     { id: "decklist-trailing-qty-ignored", file: domain, from: "            trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None", to: "            trailing = None", kills: ["test_parse_decklist_qty_after_card_id"] },
     { id: "shopping-need-summed", file: services, from: "        card_id: sum(by_group.values()) if sum_leaders else max(by_group.values())", to: "        card_id: sum(by_group.values())", kills: ["test_shopping_need_is_max_across_decks_not_sum", "test_shopping_need_respects_deck_filter_max"] },
     { id: "shopping-deck-filter-ignored", file: services, from: "    if deck_ids is not None:\n        wanted = set(deck_ids)\n        decks = [d for d in decks if d.id in wanted]\n    sum_leaders = bool(getattr(user, \"sum_across_leaders\", False))\n    # Max per (card, leader group)", to: "    sum_leaders = bool(getattr(user, \"sum_across_leaders\", False))\n    # Max per (card, leader group)", kills: ["test_shopping_need_respects_deck_filter_max"] },
