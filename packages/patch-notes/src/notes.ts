@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-07
+  { date: "2026-11-07", app: "duel", pr: 1141, title: "No false refused-move error on Pass block", text: "On phones, tapping Pass block right as an attack comes in no longer shows a \"refused move\" error." },
   { date: "2026-11-07", app: "planner", pr: 1103, title: "No more \"Image Coming Soon\" cards", text: "When TCGplayer has no picture for a card yet, the planner now skips TCGplayer's \"Image Coming Soon\" banner and shows the card's preview art when there is one. Meta pages also show a dash for a missing percentage, the same as the Duel app." },
   { date: "2026-11-07", app: "duel", pr: 1080, title: "Pasted deck lists read every card", text: "Pasting a deck list now reads lines like \"OP01-001 3\" as 3 copies, and keeps every card when a line lists several, such as \"2xOP01-001 3xOP01-016\"." },
   { date: "2026-11-07", app: "duel", pr: 1076, title: "The home page loads faster", text: "The Duel home page now opens much sooner, especially on a phone or a slow connection. The match board, the deck editor and your account pages load when you open them." },
