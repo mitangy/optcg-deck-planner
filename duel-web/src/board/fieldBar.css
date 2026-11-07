@@ -1,7 +1,7 @@
 /* Field-target bar (FieldTargetBar.tsx): picks are made on the board itself. */
 .field-bar {
   position: fixed;
-  z-index: 45;
+  z-index: var(--z-prompt);
   left: max(0.5rem, var(--safe-l));
   right: max(0.5rem, var(--safe-r));
   /* Over the hand and the action footer, which can't be used mid-pick,
@@ -15,7 +15,7 @@
   gap: 0.3rem 0.75rem;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--chrome);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--deep-rgb) / 0.96);
   color: var(--ink);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -119,7 +119,7 @@
 .field-bar-mid .field-bar-text {
   flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   white-space: nowrap;
 }
 .field-bar-mid .field-bar-title {
@@ -158,7 +158,7 @@
 .intent-bar:has(.intent-prompt-slot:not(:empty)) {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 .intent-bar:has(.intent-prompt-slot:not(:empty)) .intent-empty {
   flex: 1 1 auto;

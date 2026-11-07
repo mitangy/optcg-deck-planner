@@ -20,16 +20,16 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 56;
+  z-index: var(--z-copilot);
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   height: 34px;
   max-width: calc(100vw - 24px);
   padding: 0 0.3rem 0 0.7rem;
   border: 1px solid var(--line-strong, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--lp-surface);
   color: var(--lp-ink);
   box-shadow: var(--lp-shadow);
@@ -53,7 +53,7 @@
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--lp-accent);
   animation: lp-pulse 1.2s ease-in-out infinite;
 }
@@ -77,7 +77,7 @@
   height: 26px;
   padding: 0 0.6rem;
   border: 1px solid var(--lp-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -129,7 +129,7 @@
   padding: 10px 12px;
   min-width: 0;
   border: 1px solid var(--lp-line-d, var(--lp-line));
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--lp-surface-d, var(--lp-surface));
   color: var(--lp-ink-d, var(--lp-ink));
   font-size: 0.875rem;
@@ -160,7 +160,7 @@
 .copilot-step {
   min-width: 0;
   padding: 3px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
   border-left: 3px solid transparent;
   overflow-wrap: anywhere;
 }
