@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Backfill the planner's price history from TCGCSV daily archives (#946).
 
-Usage: python3 scripts/backfill_price_history.py [--start YYYY-MM-DD] [--end YYYY-MM-DD]
+Usage: python3 backend/scripts/backfill_price_history.py [--start YYYY-MM-DD] [--end YYYY-MM-DD]
                                                  [--step-days N] [--dry-run]
 
 TCGCSV keeps one archive per day (from 2024-02-08) at

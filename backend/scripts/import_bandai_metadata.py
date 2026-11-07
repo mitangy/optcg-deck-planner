@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Collect Bandai metadata candidates; never overwrite reviewed gameplay data.
 
-Usage: py -3 scripts/import_bandai_metadata.py --series 569001 --output artifacts/bandai
+Usage: py -3 backend/scripts/import_bandai_metadata.py --series 569001 --output artifacts/bandai
 Use --all-series instead of --series to discover every listed English series.
 Reports distinguish requested-series scope from full discovered-series scope.
 """
@@ -253,7 +253,7 @@ if __name__ == "__main__":
     selection.add_argument("--series", action="append")
     selection.add_argument("--all-series", action="store_true")
     cli.add_argument("--output", type=Path, required=True)
-    cli.add_argument("--catalog", type=Path, default=Path(__file__).resolve().parents[1] / "packages/rules/src/cards/catalogMeta.json")
+    cli.add_argument("--catalog", type=Path, default=Path(__file__).resolve().parents[2] / "packages/rules/src/cards/catalogMeta.json")
     cli.add_argument("--replay", type=Path, help="Re-parse raw snapshots recorded by a previous run's manifest instead of fetching")
     args = cli.parse_args()
     def fetch_polite(url):

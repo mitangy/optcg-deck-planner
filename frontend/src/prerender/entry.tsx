@@ -1,5 +1,5 @@
 /**
- * Build-time pre-render entry (#914). scripts/seo/prerender-plugin.mjs bundles this for Node after
+ * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
  * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
  *
  * Pre-rendered: the logged-out landing page at `/`, the public `/meta` browser and the legal pages.

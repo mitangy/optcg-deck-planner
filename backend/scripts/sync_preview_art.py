@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Keep unofficial card preview art in step with what TCGPlayer has posted.
 
-Usage: python3 scripts/sync_preview_art.py [--dry-run]
+Usage: python3 backend/scripts/sync_preview_art.py [--dry-run]
 
 Cards that are not on Bandai's list yet (cardData source "tcgplayer" /
 "bundled") often have no TCGPlayer image for a while. For those, this script
@@ -48,7 +48,7 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
 CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 TCG_PRODUCTS = ROOT / "packages/card-core/src/tcgProducts.json"

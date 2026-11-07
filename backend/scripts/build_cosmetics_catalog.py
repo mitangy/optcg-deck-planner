@@ -115,7 +115,7 @@ def effect_has(flag: str, text: str) -> bool:
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     out = root / "duel-web" / "src" / "assets" / "cardCatalog.json"
 
     groups = get_json(f"{BASE}/groups")["results"]

@@ -1,6 +1,6 @@
 // Serve a built `dist/` the way Vercel would, using the app's vercel.json routes (#914).
-//   node scripts/seo/serve-dist.mjs duel-web [port]      (duel-web/dist, duel-web/vercel.json)
-//   node scripts/seo/serve-dist.mjs frontend [port]      (frontend/dist, ./vercel.json)
+//   node tools/seo/serve-dist.mjs duel-web [port]      (duel-web/dist, duel-web/vercel.json)
+//   node tools/seo/serve-dist.mjs frontend [port]      (frontend/dist, ./vercel.json)
 // `/api/*` answers 502: point the app at a real API with VITE_API_URL at build time instead.
 import { createServer } from "node:http";
 import { readFileSync, readdirSync, statSync } from "node:fs";

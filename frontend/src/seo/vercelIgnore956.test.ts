@@ -24,8 +24,8 @@ describe("vercel ignoreCommand (#956)", () => {
 
 // Both apps import packages/card-core, but listing it would push the planner's ignoreCommand past 256 characters,
 // so the script itself always watches it (like the root lockfile).
-describe("scripts/vercel-ignore-build.sh watches packages/card-core for every app (#956)", () => {
-  const script = join(dirname(fileURLToPath(import.meta.url)), "../../../scripts/vercel-ignore-build.sh");
+describe("tools/vercel-ignore-build.sh watches packages/card-core for every app (#956)", () => {
+  const script = join(dirname(fileURLToPath(import.meta.url)), "../../../tools/vercel-ignore-build.sh");
 
   /** Commits `file` twice in a scratch repo and returns the script's exit code for `frontend` (1 = build, 0 = skip). */
   function exitCodeAfterChange(file: string): number {

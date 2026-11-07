@@ -18,7 +18,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Allow `python3 scripts/export_cosmetics_from_planner_db.py` from repo root.
+# Allow `python3 backend/scripts/export_cosmetics_from_planner_db.py` from repo root.
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
@@ -31,7 +31,7 @@ from cosmetics_common import (  # noqa: E402
     product_id_from_image_url,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = ROOT / "duel-web" / "src" / "assets" / "cardCatalog.json"
 DEFAULT_SQLITE = ROOT / "backend" / "optcg.db"
 

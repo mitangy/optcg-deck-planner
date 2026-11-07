@@ -16,7 +16,7 @@ if str(_SCRIPTS) not in sys.path:
 
 from cosmetics_common import product_id_from_image_url  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = ROOT / "duel-web" / "src" / "assets" / "cardCatalog.json"
 
 

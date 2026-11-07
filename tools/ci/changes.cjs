@@ -34,8 +34,8 @@
  *   - backend/tests/fixtures: game-server's briefTicket test reads the shared vector.
  *   - analyst: imported by nothing else; it reads packages/rules and
  *     packages/deck-analytics data (covered by the packages rule).
- *   - scripts: the Python script tests mock the data files they touch.
- *   - scripts/seo and scripts/vercel-ignore-build.sh: duel-web and frontend
+ *   - backend/scripts: the Python script tests mock the data files they touch (the backend rule below).
+ *   - tools/seo and tools/vercel-ignore-build.sh: duel-web and frontend
  *     import the prerender plugin in vite.config.ts, their prerender tests read
  *     vercel-routes.mjs, and frontend/src/seo/vercelIgnore956.test.ts reads the
  *     ignore script (the duel e2e builds the app); no backend test reads them.
@@ -54,7 +54,7 @@ const RULES = [
   // Root lint and compiler config: every TypeScript job reads them (eslint.config.js drives the
   // lint job, tsconfig.base.json / tsconfig.web.json are extended by every app and package).
   { test: (p) => p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: FLAGS },
-  // ruff.toml is read only by `ruff check backend scripts`, a step of the backend job.
+  // ruff.toml is read only by `ruff check backend`, a step of the backend job.
   { test: (p) => p === "ruff.toml", flags: ["backend"] },
   // Editor settings: no test, build or script reads them.
   { test: (p) => p === ".editorconfig", flags: [] },
@@ -77,9 +77,9 @@ const RULES = [
   { test: (p) => p.startsWith("game-server/"), flags: ["rules", "duel_e2e"] },
   { test: (p) => p.startsWith("analyst/"), flags: ["rules"] },
   { test: (p) => p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"] },
-  { test: (p) => p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
+  { test: (p) => p.startsWith("tools/seo/") || p === "tools/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("tools/vite/"), flags: ["duel_web", "duel_e2e", "frontend"] },
-  { test: (p) => p.startsWith("backend/") || p.startsWith("scripts/"), flags: ["backend"] },
+  { test: (p) => p.startsWith("backend/"), flags: ["backend"] },
   { test: (p) => p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"] },
   { test: (p) => p.startsWith("frontend/"), flags: ["frontend"] },
   { test: (p) => p.startsWith("mobile/"), flags: ["mobile"] },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRequest } from "../../../scripts/seo/vercel-routes.mjs";
+import { resolveRequest } from "../../../tools/seo/vercel-routes.mjs";
 import leadersFixture from "../decks/metaLeaders.fixture.json";
 import decksFixture from "../decks/metaDecks.fixture.json";
 import type { MetaDeck, MetaLeader } from "../decks/meta";

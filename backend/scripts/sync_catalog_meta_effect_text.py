@@ -5,7 +5,7 @@ Reads existing JSON only (no TCGCSV network). Used when cardCatalog.json already
 has effect text but catalogMeta.json was generated without it.
 
 Usage:
-  python3 scripts/sync_catalog_meta_effect_text.py
+  python3 backend/scripts/sync_catalog_meta_effect_text.py
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     catalog_path = root / "duel-web" / "src" / "assets" / "cardCatalog.json"
     meta_path = root / "packages" / "rules" / "src" / "cards" / "catalogMeta.json"
 

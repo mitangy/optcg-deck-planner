@@ -10,8 +10,8 @@
 # without either one needing to be told about the other.
 #
 # Usage:
-#   scripts/dev-lan.sh          # auto-detect LAN IP
-#   scripts/dev-lan.sh 10.0.0.5 # override if auto-detect picks the wrong NIC
+#   tools/dev-lan.sh          # auto-detect LAN IP
+#   tools/dev-lan.sh 10.0.0.5 # override if auto-detect picks the wrong NIC
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 

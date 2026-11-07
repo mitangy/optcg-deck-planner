@@ -1,5 +1,5 @@
 // Renders the 1200x630 link-preview cards (duel-web/public/og-image.png and frontend/public/og-image.png).
-//   node scripts/seo/make-og-image.mjs
+//   node tools/seo/make-og-image.mjs
 // Needs Playwright with a Chromium (set CHROMIUM_PATH to use a specific binary). Re-run after changing the copy below.
 import { createRequire } from "node:module";
 import { readFileSync, writeFileSync, statSync } from "node:fs";

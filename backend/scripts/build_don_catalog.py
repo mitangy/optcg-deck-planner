@@ -5,7 +5,7 @@ The Settings page lets a player pick which DON!! art their DON!! use (#440).
 Each entry is a TCGPlayer product; its image is
 https://tcgplayer-cdn.tcgplayer.com/product/<productId>_400w.jpg.
 
-Usage: python3 scripts/build_don_catalog.py
+Usage: python3 backend/scripts/build_don_catalog.py
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def label(name: str) -> str:
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     out = root / "duel-web" / "src" / "assets" / "donCatalog.json"
 
     groups = get_json(f"{BASE}/groups")["results"]

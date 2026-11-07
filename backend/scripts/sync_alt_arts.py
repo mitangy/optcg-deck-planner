@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Add missing alternate-art printings to the cosmetics catalog (#581).
 
-Usage: python3 scripts/sync_alt_arts.py [--dry-run] [--backend-list-only]
+Usage: python3 backend/scripts/sync_alt_arts.py [--dry-run] [--backend-list-only]
 
 `build_cosmetics_catalog.py` was run once, so alt printings that TCGPlayer
 listed later (or whose name had no "alternate art" marker, like El Thor's
@@ -29,7 +29,7 @@ shortened to about LABEL_MAX characters, or "Promo" when it has none.
 
 Append only: existing alt ids (`p1`, `p2`, ...) are never reordered or removed,
 because saved art choices point at them. New alts take the next free `pN`.
-Hashes are cached in `scripts/data/art_hashes.json` (keyed by productId) so a
+Hashes are cached in `backend/scripts/data/art_hashes.json` (keyed by productId) so a
 later run only downloads pictures it has not seen. Hashing needs Pillow
 (`pip install pillow`); the pure planning logic does not.
 
@@ -53,7 +53,7 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from build_cosmetics_catalog import alt_label  # noqa: E402
@@ -61,7 +61,7 @@ from build_cosmetics_catalog import alt_label  # noqa: E402
 CATALOG = ROOT / "duel-web/src/assets/cardCatalog.json"
 ATLAS = ROOT / "duel-web/src/assets/cardAtlas.json"
 TCG_PRODUCTS = ROOT / "packages/card-core/src/tcgProducts.json"
-HASH_CACHE = ROOT / "scripts/data/art_hashes.json"
+HASH_CACHE = ROOT / "backend/scripts/data/art_hashes.json"
 BACKEND_ALT_LIST = ROOT / "backend/app/data/alt_art_products.json"
 
 UA = "Mozilla/5.0"
