@@ -11,6 +11,7 @@ const reporter = "backend/app/reporter.py";
 const feedback = "backend/app/routers/feedback.py";
 const receipt = "backend/app/group_buy/receipt.py";
 const gb = "backend/app/group_buy/service.py";
+const gbRouter = "backend/app/group_buy/router.py";
 const merge = "backend/app/group_buy/merge.py";
 const settle = "backend/app/group_buy/settlement.py";
 const friends = "backend/app/social/friends_router.py";
@@ -365,6 +366,8 @@ module.exports = {
     { id: "user-printing-shows-last-deck", file: services, from: "            shown = max(shown, group_stored)", to: "            shown = group_stored", kills: ["test_set_user_card_printing_syncs_across_decks"] },
     { id: "deck-detail-wants-dropped", file: "backend/app/services.py", from: "    alts = alt_arts_map(db, all_ids, wanted=deck_wants, owned=alt_owned, collector=collector)", to: "    alts = alt_arts_map(db, all_ids, owned=alt_owned, collector=collector)", kills: ["test_get_deck_detail_includes_wanted"] },
 
+    // group buy router
+    { id: "gb-router-leave-outsider-400", file: gbRouter, from: "        group_buy.leave_group_buy(db, user, group_id)\n    except LookupError as exc:\n        raise HTTPException(status_code=404, detail=str(exc)) from exc\n    except PermissionError as exc:\n        raise HTTPException(status_code=403,", to: "        group_buy.leave_group_buy(db, user, group_id)\n    except LookupError as exc:\n        raise HTTPException(status_code=404, detail=str(exc)) from exc\n    except PermissionError as exc:\n        raise HTTPException(status_code=400,", kills: ["test_leave_route_status_codes_881"], args: "tests/test_group_buy_leave_http.py" },
     // group buy merge / settlement
     { id: "merge-max-not-sum", file: merge, from: "        total = sum(m.qty for m in members)", to: "        total = max(m.qty for m in members)", kills: ["test_merge_sums_still_need_across_members"] },
     { id: "gb-line-total-max", file: gb, from: "        total_qty = sum(m.qty for m in members)", to: "        total_qty = max((m.qty for m in members), default=0)", kills: ["test_create_join_and_merge_sums_still_need"] },
