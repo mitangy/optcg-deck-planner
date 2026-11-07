@@ -46,19 +46,19 @@ export function resolveStagedCounters(
   hand: readonly { id: string }[],
   stagedIds: readonly string[],
 ): Intent[] {
-  const byIndex = new Map<number, Intent>();
+  const byIndex = new Map<number, Extract<Intent, { type: "counter_from_hand" }>>();
   for (const i of intents) {
     if (i.type === "counter_from_hand" && typeof i.handIndex === "number") {
       byIndex.set(i.handIndex, i);
     }
   }
-  const picked: Intent[] = [];
+  const picked: Extract<Intent, { type: "counter_from_hand" }>[] = [];
   for (const id of new Set(stagedIds)) {
     const idx = hand.findIndex((c) => c.id === id);
     const intent = idx >= 0 ? byIndex.get(idx) : undefined;
     if (intent) picked.push(intent);
   }
-  return picked.sort((a, b) => (b.handIndex as number) - (a.handIndex as number));
+  return picked.sort((a, b) => b.handIndex - a.handIndex);
 }
 
 /**

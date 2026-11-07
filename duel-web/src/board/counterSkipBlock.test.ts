@@ -4,6 +4,7 @@ import { DEMO_VIEW } from "./fixtures/demoViews";
 import { counterAfterBlock, followUpCounter } from "./counterSkipBlock";
 import { deriveDefend } from "./defendModel";
 import { parseDropAttr, resolveDropIntents } from "./dragIntents";
+import { stubBattle } from "./fixtures/stubCard";
 
 // ST01-003 Karoo prints +1000; ST01-006 Chopper has no Counter;
 // ST01-014 Guard Point is a 1-cost [Counter] Event; ST01-016 Diable Jambe has no [Counter].
@@ -88,7 +89,7 @@ describe("skip the block by dragging a Counter (#300)", () => {
           { id: "y-h3", defId: "ST01-014" },
         ],
       },
-      battle: { attackerSeat: 1, attackerId: "o-c1", target: { kind: "leader" } },
+      battle: stubBattle({ attackerSeat: 1, attackerId: "o-c1", target: { kind: "leader" } }),
     };
     const block = deriveDefend(view, blockStep, { counterIds: [], blockerId: null })!;
     expect(block.earlyCounters.map((c) => [c.id, c.label])).toEqual([

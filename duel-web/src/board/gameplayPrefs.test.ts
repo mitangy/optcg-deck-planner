@@ -8,13 +8,11 @@ import {
   responseStopPass,
   scheduleAutoPass,
 } from "./gameplayPrefs";
+import { stubIntent } from "./fixtures/stubCard";
 
 const endOnly: Intent[] = [{ type: "end_turn" }];
-const attack = (attackerId: string, kind = "leader"): Intent => ({
-  type: "declare_attack",
-  attackerId,
-  target: { kind },
-});
+const attack = (attackerId: string, kind: "leader" | "character" = "leader"): Intent =>
+  stubIntent({ type: "declare_attack", attackerId, target: { kind } });
 const give = (donId: string, targetId: string): Intent => ({ type: "give_don", donId, targetId });
 
 describe("endTurnLeftovers", () => {
@@ -41,7 +39,7 @@ describe("endTurnLeftovers", () => {
     const optionalOnly: Intent[] = [
       { type: "end_turn" },
       { type: "activate_ability", sourceId: "s", abilityId: "a" },
-      { type: "activate_leader", sourceId: "l" },
+      stubIntent({ type: "activate_leader", sourceId: "l" }),
       { type: "play_card", handIndex: 0 },
     ];
     expect(endTurnLeftovers(optionalOnly)).toBeNull();
@@ -122,7 +120,7 @@ describe("responseStopPass", () => {
   });
 
   it("stops in 'smart' mode whenever a [Counter] event is legal", () => {
-    const withEvent = [...counters, { type: "counter_event", handIndex: 2 }];
+    const withEvent = [...counters, { type: "counter_event" as const, handIndex: 2 }];
     expect(responseStopPass("smart", withEvent, outlook(9000, 1000, 1000))).toBeNull();
   });
 

@@ -36,7 +36,10 @@ import {
   type UndoRequestOptions,
   type UndoApplied,
   type UndoState,
+  CLIENT_MESSAGE,
+  SERVER_MESSAGE,
   TAKEN_OVER_CLOSE_CODE,
+  type ServerMessageType,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
 import { isSeatReservationExpiredError } from "./matchResume";
@@ -188,7 +191,7 @@ export class DuelClient {
         this.wireDuel(room);
         // A takeover's welcome is sent during the join handshake, before the
         // handlers above existed: ask again so the board always arrives (#451).
-        if (params.takeover) room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+        if (params.takeover) room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
 
         // Resolve as soon as the Colyseus room exists so the lobby can show the
         // room id while waiting for the second seat (welcome arrives via handlers).
@@ -340,7 +343,7 @@ export class DuelClient {
         this.room = room;
         this.captureReconnectionToken(room);
         this.wireDuel(room);
-        room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+        room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
         return await this.waitWelcome(room);
       } catch (e) {
         lastErr = e;
@@ -370,23 +373,23 @@ export class DuelClient {
       if (this.passSent === intent.type) return;
       this.passSent = intent.type;
     }
-    this.room.send("intent", { protocolVersion: PROTOCOL_VERSION, intent });
+    this.room.send(CLIENT_MESSAGE.intent, { protocolVersion: PROTOCOL_VERSION, intent });
   }
 
   concede() {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("concede", { protocolVersion: PROTOCOL_VERSION });
+    this.room.send(CLIENT_MESSAGE.concede, { protocolVersion: PROTOCOL_VERSION });
   }
 
   sync() {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("sync", { protocolVersion: PROTOCOL_VERSION });
+    this.room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
   }
 
   /** Publish this seat's alt-art prefs (non-authoritative cosmetics). */
   sendCosmetics(artPrefs: ArtPrefsMap) {
     if (!this.room) return;
-    this.room.send("cosmetics", {
+    this.room.send(CLIENT_MESSAGE.cosmetics, {
       protocolVersion: PROTOCOL_VERSION,
       artPrefs,
     });
@@ -395,24 +398,24 @@ export class DuelClient {
   /** Publish this seat's custom playmat / card back for the opponent to see. */
   sendSkin(skin: SeatSkin) {
     if (!this.room) return;
-    this.room.send("skin", { protocolVersion: PROTOCOL_VERSION, skin });
+    this.room.send(CLIENT_MESSAGE.skin, { protocolVersion: PROTOCOL_VERSION, skin });
   }
 
   sendChat(text: string) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("chat", { protocolVersion: PROTOCOL_VERSION, text });
+    this.room.send(CLIENT_MESSAGE.chat, { protocolVersion: PROTOCOL_VERSION, text });
   }
 
   /** Tell the room this seat's hand order, so spectators' fans match it (ignored in ranked rooms). */
   sendHandOrder(ids: string[]) {
     if (!this.room) return;
-    this.room.send("hand_order", { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
+    this.room.send(CLIENT_MESSAGE.hand_order, { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
   /** `deck` (a "request" only) swaps this seat's deck for the next game. */
   sendRematch(action: RematchAction, deck?: PlayerDeckWire) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("rematch", { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
+    this.room.send(CLIENT_MESSAGE.rematch, { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
   /**
@@ -421,7 +424,7 @@ export class DuelClient {
    */
   sendUndo(action: UndoAction, opts?: UndoRequestOptions) {
     if (!this.room) throw new Error("Not connected");
-    this.room.send("undo", {
+    this.room.send(CLIENT_MESSAGE.undo, {
       protocolVersion: PROTOCOL_VERSION,
       action,
       ...(action === "request" && opts?.scope ? { scope: opts.scope } : {}),
@@ -431,7 +434,7 @@ export class DuelClient {
   }
 
   ping(t = Date.now()) {
-    this.room?.send("ping", { t });
+    this.room?.send(CLIENT_MESSAGE.ping, { t });
   }
 
   /** True while the SDK is retrying a dropped socket on its own. */
@@ -569,165 +572,124 @@ export class DuelClient {
     }
   }
 
+  /**
+   * One row per message the room sends. `handle` parses the payload and delivers it; when it throws, `onBad`
+   * decides what a malformed message does: report a protocol error to the app, drop it quietly (cosmetic or
+   * advisory messages must never break a match), or, with no `onBad`, let the exception propagate.
+   */
+  private messageRoutes(room: Room): MessageRoute[] {
+    return [
+      {
+        type: SERVER_MESSAGE.welcome,
+        onBad: reportBad("Bad welcome"),
+        handle: (raw) => {
+          const msg = parseWelcome(raw);
+          this.handlers.onWelcome?.({
+            matchId: msg.matchId,
+            seat: msg.seat,
+            view: msg.view,
+            role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
+            players: msg.players,
+            ranked: msg.ranked,
+            firstSeatPickedBy: msg.firstSeatPickedBy,
+            brief: msg.brief,
+          });
+          this.endTurnSentOn = null;
+          this.noteView(msg.view);
+          this.handlers.onView?.(msg.view);
+        },
+      },
+      {
+        type: SERVER_MESSAGE.view,
+        onBad: reportBad("Bad view"),
+        handle: (raw) => {
+          const msg = parseView(raw);
+          this.noteView(msg.view);
+          this.handlers.onView?.(msg.view);
+        },
+      },
+      {
+        type: SERVER_MESSAGE.events,
+        handle: (raw) => {
+          if (raw && typeof raw === "object" && Array.isArray((raw as { events?: unknown }).events)) {
+            const step = (raw as { step?: unknown }).step;
+            this.handlers.onEvents?.(
+              (raw as { events: unknown[] }).events,
+              typeof step === "number" ? step : undefined,
+            );
+          }
+        },
+      },
+      {
+        type: SERVER_MESSAGE.error,
+        onBad: () => ({ protocolVersion: PROTOCOL_VERSION, code: "unknown", message: "Malformed error" }),
+        handle: (raw) => {
+          const err = parseError(raw);
+          if (err.code === "illegal_intent") {
+            // A rejected End turn leaves the turn open: let the player act again.
+            this.endTurnSentOn = null;
+            this.passSent = null;
+            this.illegalIntentOn = this.lastView?.turnNumber ?? null;
+          }
+          this.handlers.onError?.(err);
+        },
+      },
+      {
+        type: SERVER_MESSAGE.match_over,
+        onBad: reportBad("Bad match_over"),
+        handle: (raw) => this.handlers.onMatchOver?.(parseMatchOver(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.cosmetics,
+        onBad: reportBad("Bad cosmetics"),
+        handle: (raw) => this.handlers.onCosmetics?.(parseCosmetics(raw)),
+      },
+      // Cosmetic only: a bad skin never surfaces as a match error.
+      { type: SERVER_MESSAGE.skin, onBad: ignoreBad, handle: (raw) => this.handlers.onSkin?.(parseSkin(raw)) },
+      { type: SERVER_MESSAGE.timer, onBad: ignoreBad, handle: (raw) => this.handlers.onTimer?.(parseTimer(raw)) },
+      { type: SERVER_MESSAGE.chat, onBad: ignoreBad, handle: (raw) => this.handlers.onChat?.([parseChat(raw)]) },
+      {
+        type: SERVER_MESSAGE.chat_history,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onChat?.(parseChatHistory(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.rematch_state,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onRematchState?.(parseRematchState(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.presence,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onPresence?.(parsePresence(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.undo_state,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onUndoState?.(parseUndoState(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.undo_applied,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onUndoApplied?.(parseUndoApplied(raw)),
+      },
+      { type: SERVER_MESSAGE.taken_over, handle: () => this.markTakenOver(room) },
+    ];
+  }
+
   private wireDuel(room: Room) {
     noteMatchRoom(room.roomId);
-    room.onMessage("welcome", (raw: unknown) => {
-      try {
-        const msg = parseWelcome(raw);
-        this.handlers.onWelcome?.({
-          matchId: msg.matchId,
-          seat: msg.seat,
-          view: msg.view,
-          role: msg.role ?? (msg.view.spectator ? "spectator" : "player"),
-          players: msg.players,
-          ranked: msg.ranked,
-          firstSeatPickedBy: msg.firstSeatPickedBy,
-          brief: msg.brief,
-        });
-        this.endTurnSentOn = null;
-        this.noteView(msg.view);
-        this.handlers.onView?.(msg.view);
-      } catch (e) {
-        this.handlers.onError?.({
-          protocolVersion: PROTOCOL_VERSION,
-          code: "bad_protocol",
-          message: e instanceof Error ? e.message : "Bad welcome",
-        });
-      }
-    });
-
-    room.onMessage("view", (raw: unknown) => {
-      try {
-        const msg = parseView(raw);
-        this.noteView(msg.view);
-        this.handlers.onView?.(msg.view);
-      } catch (e) {
-        this.handlers.onError?.({
-          protocolVersion: PROTOCOL_VERSION,
-          code: "bad_protocol",
-          message: e instanceof Error ? e.message : "Bad view",
-        });
-      }
-    });
-
-    room.onMessage("events", (raw: unknown) => {
-      if (raw && typeof raw === "object" && Array.isArray((raw as { events?: unknown }).events)) {
-        const step = (raw as { step?: unknown }).step;
-        this.handlers.onEvents?.(
-          (raw as { events: unknown[] }).events,
-          typeof step === "number" ? step : undefined,
-        );
-      }
-    });
-
-    room.onMessage("error", (raw: unknown) => {
-      try {
-        const err = parseError(raw);
-        if (err.code === "illegal_intent") {
-          // A rejected End turn leaves the turn open: let the player act again.
-          this.endTurnSentOn = null;
-          this.passSent = null;
-          this.illegalIntentOn = this.lastView?.turnNumber ?? null;
+    for (const route of this.messageRoutes(room)) {
+      room.onMessage(route.type, (raw: unknown) => {
+        if (!route.onBad) return route.handle(raw);
+        try {
+          route.handle(raw);
+        } catch (e) {
+          const err = route.onBad(e);
+          if (err) this.handlers.onError?.(err);
         }
-        this.handlers.onError?.(err);
-      } catch {
-        this.handlers.onError?.({
-          protocolVersion: PROTOCOL_VERSION,
-          code: "unknown",
-          message: "Malformed error",
-        });
-      }
-    });
-
-    room.onMessage("match_over", (raw: unknown) => {
-      try {
-        this.handlers.onMatchOver?.(parseMatchOver(raw));
-      } catch (e) {
-        this.handlers.onError?.({
-          protocolVersion: PROTOCOL_VERSION,
-          code: "bad_protocol",
-          message: e instanceof Error ? e.message : "Bad match_over",
-        });
-      }
-    });
-
-    room.onMessage("cosmetics", (raw: unknown) => {
-      try {
-        this.handlers.onCosmetics?.(parseCosmetics(raw));
-      } catch (e) {
-        this.handlers.onError?.({
-          protocolVersion: PROTOCOL_VERSION,
-          code: "bad_protocol",
-          message: e instanceof Error ? e.message : "Bad cosmetics",
-        });
-      }
-    });
-
-    room.onMessage("skin", (raw: unknown) => {
-      try {
-        this.handlers.onSkin?.(parseSkin(raw));
-      } catch {
-        // Cosmetic only — a bad skin never surfaces as a match error.
-      }
-    });
-
-    room.onMessage("timer", (raw: unknown) => {
-      try {
-        this.handlers.onTimer?.(parseTimer(raw));
-      } catch {
-        /* ignore malformed timer snapshots */
-      }
-    });
-
-    room.onMessage("chat", (raw: unknown) => {
-      try {
-        this.handlers.onChat?.([parseChat(raw)]);
-      } catch {
-        /* ignore malformed chat lines */
-      }
-    });
-
-    room.onMessage("chat_history", (raw: unknown) => {
-      try {
-        this.handlers.onChat?.(parseChatHistory(raw));
-      } catch {
-        /* ignore malformed chat history */
-      }
-    });
-
-    room.onMessage("rematch_state", (raw: unknown) => {
-      try {
-        this.handlers.onRematchState?.(parseRematchState(raw));
-      } catch {
-        /* ignore malformed rematch state */
-      }
-    });
-
-    room.onMessage("presence", (raw: unknown) => {
-      try {
-        this.handlers.onPresence?.(parsePresence(raw));
-      } catch {
-        /* ignore malformed presence */
-      }
-    });
-
-    room.onMessage("undo_state", (raw: unknown) => {
-      try {
-        this.handlers.onUndoState?.(parseUndoState(raw));
-      } catch {
-        /* ignore malformed undo state */
-      }
-    });
-
-    room.onMessage("undo_applied", (raw: unknown) => {
-      try {
-        this.handlers.onUndoApplied?.(parseUndoApplied(raw));
-      } catch {
-        /* ignore malformed undo notice */
-      }
-    });
-
-    room.onMessage("taken_over", () => this.markTakenOver(room));
+      });
+    }
 
     room.onDrop((code) => {
       if (this.room !== room) return;
@@ -767,3 +729,22 @@ const ONCE_PER_VIEW = new Set<Intent["type"]>(["pass_block", "pass_counter"]);
 export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: PlayerView | null): boolean {
   return endTurnSentOn !== null && view?.turnNumber === endTurnSentOn && !AFTER_END_TURN.has(intent.type);
 }
+
+type MessageRoute = {
+  type: ServerMessageType;
+  handle: (raw: unknown) => void;
+  /** What a message that fails to parse (or whose handler throws) does: an error for the app, or null to drop it. */
+  onBad?: (e: unknown) => ErrorMessage | null;
+};
+
+/** A malformed message that is worth telling the app about: the parse error's text, else `fallback`. */
+const reportBad =
+  (fallback: string) =>
+  (e: unknown): ErrorMessage => ({
+    protocolVersion: PROTOCOL_VERSION,
+    code: "bad_protocol",
+    message: e instanceof Error ? e.message : fallback,
+  });
+
+/** A malformed message that is dropped. */
+const ignoreBad = (): null => null;

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { cantAttackReason, type AttackBlockContext } from "./attackBlock";
+import { stubIntent } from "./fixtures/stubCard";
 
 const base: AttackBlockContext = { phase: "main", busy: false, turnsStarted: 3, intents: [] };
 
 describe("cantAttackReason", () => {
   it("is silent when the server lists an attack for the card (#256)", () => {
-    const intents = [{ type: "declare_attack", attackerId: "c1", target: { kind: "leader" } }];
+    const intents = [stubIntent({ type: "declare_attack", attackerId: "c1", target: { kind: "leader" } })];
     expect(cantAttackReason({ id: "c1", rested: true }, { ...base, intents })).toBeNull();
   });
 
@@ -15,7 +16,7 @@ describe("cantAttackReason", () => {
   });
 
   it("only another card's attack does not count for this one (#256)", () => {
-    const intents = [{ type: "declare_attack", attackerId: "other", target: { kind: "leader" } }];
+    const intents = [stubIntent({ type: "declare_attack", attackerId: "other", target: { kind: "leader" } })];
     expect(cantAttackReason({ id: "c1", rested: true }, { ...base, intents })).toMatch(/^Rested/);
   });
 

@@ -29,6 +29,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the pieces fit togeth
 | Package | Purpose |
 |---------|---------|
 | [`@optcg/rules`](packages/rules/) | Headless, deterministic rules engine, card definitions, bots and simulation; used by game-server, analyst, duel-web (replays and types) |
+| [`@optcg/duel-protocol`](packages/duel-protocol/) | Duel wire protocol (message names, constants, payload types, envelope parsers) shared by game-server and duel-web; type-only link to the rules |
 | [`@optcg/deck-analytics`](packages/deck-analytics/) | Deck stats, draw odds and build hints |
 | [`@optcg/price-timing`](packages/price-timing/) | "When to buy" verdicts from price history |
 | [`@optcg/analyst-client`](packages/analyst-client/) | Log Pose chat client and panel for both apps |

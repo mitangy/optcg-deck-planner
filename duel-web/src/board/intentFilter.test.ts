@@ -7,6 +7,7 @@ import {
   hasBoardActions,
   matchesBoardId,
 } from "./intentFilter";
+import { stubIntent } from "./fixtures/stubCard";
 
 const intents: Intent[] = [
   { type: "end_turn" },
@@ -152,7 +153,7 @@ describe("pending-choice / trigger globals", () => {
     const pending: Intent[] = [
       { type: "resolve_pending_choice", accept: true } as Intent,
       { type: "resolve_pending_choice", accept: false } as Intent,
-      { type: "resolve_trigger", accept: true } as Intent,
+      stubIntent({ type: "resolve_trigger", accept: true }),
       { type: "play_card", handIndex: 0 },
       { type: "declare_attack", attackerId: "c1", target: { kind: "leader" } },
     ];

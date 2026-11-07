@@ -61,6 +61,10 @@ import {
   type SeatSkin,
   type SkinMessage,
   type ErrorCode,
+  type TimerMessage,
+  CLIENT_MESSAGE,
+  ProtocolError,
+  errorCodeOf,
   type BotRoomOptions,
   type PlayerDeckWire,
   type SeatPlayerInfo,
@@ -331,19 +335,19 @@ export class DuelRoom extends Room implements PresenceSource {
     this.state.protocolVersion = PROTOCOL_VERSION;
     if (parsed.bot) this.seatBot(parsed.bot);
 
-    this.onMessage("intent", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.intent, (client, message) => {
       this.handleIntent(client, message);
     });
 
-    this.onMessage("concede", (client) => {
+    this.onMessage(CLIENT_MESSAGE.concede, (client) => {
       this.handleConcede(client);
     });
 
-    this.onMessage("sync", (client) => {
+    this.onMessage(CLIENT_MESSAGE.sync, (client) => {
       this.sendSync(client);
     });
 
-    this.onMessage("ping", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.ping, (client, message) => {
       const t =
         message && typeof message === "object"
           ? (message as { t?: number }).t
@@ -351,26 +355,26 @@ export class DuelRoom extends Room implements PresenceSource {
       client.send("pong", { t });
     });
 
-    this.onMessage("skin", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.skin, (client, message) => {
       this.handleSkin(client, message);
     });
-    this.onMessage("cosmetics", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.cosmetics, (client, message) => {
       this.handleCosmetics(client, message);
     });
 
-    this.onMessage("chat", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.chat, (client, message) => {
       this.handleChat(client, message);
     });
 
-    this.onMessage("hand_order", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.hand_order, (client, message) => {
       this.handleHandOrder(client, message);
     });
 
-    this.onMessage("undo", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.undo, (client, message) => {
       this.handleUndo(client, message);
     });
 
-    this.onMessage("rematch", (client, message) => {
+    this.onMessage(CLIENT_MESSAGE.rematch, (client, message) => {
       this.handleRematch(client, message);
     });
 
@@ -433,11 +437,11 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       return this.resolveIdentity(options);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
+      const err = e as Error;
       this.log("warn", "join_rejected", {
         matchId: this.matchId,
         sessionId: client.sessionId,
-        code: err.code ?? "bad_protocol",
+        code: errorCodeOf(e, "bad_protocol"),
         message: err.message,
       });
       throw e;
@@ -475,8 +479,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       identity = this.resolveIdentity(options);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.rejectJoin(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.rejectJoin(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
 
@@ -484,8 +488,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       reservedSeat = this.reservedSeatFor(identity);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.rejectJoin(client, err.code ?? "unauthorized", err.message);
+      const err = e as Error;
+      this.rejectJoin(client, errorCodeOf(e, "unauthorized"), err.message);
       return;
     }
 
@@ -787,7 +791,7 @@ export class DuelRoom extends Room implements PresenceSource {
     if (role === "player" && join.deck) assertKnownDeck(join.deck);
     const required = getDevJoinSecret();
     if (required && join.secret !== required) {
-      throw Object.assign(new Error("unauthorized"), { code: "unauthorized" as const });
+      throw new ProtocolError("unauthorized", "unauthorized");
     }
     // Practice seats are guest ids; a valid ownerToken names the account that may
     // take them over. An invalid one is ignored, never a reason to reject the join.
@@ -795,9 +799,7 @@ export class DuelRoom extends Room implements PresenceSource {
     if (join.gameToken) {
       const payload = verifyGameToken(join.gameToken);
       if (!payload) {
-        throw Object.assign(new Error("invalid game token"), {
-          code: "unauthorized" as const,
-        });
+        throw new ProtocolError("invalid game token", "unauthorized");
       }
       return {
         displayId: payload.email,
@@ -812,9 +814,7 @@ export class DuelRoom extends Room implements PresenceSource {
       };
     }
     if (requireGameToken()) {
-      throw Object.assign(new Error("gameToken required"), {
-        code: "unauthorized" as const,
-      });
+      throw new ProtocolError("gameToken required", "unauthorized");
     }
     const displayId = join.devUserId!;
     return {
@@ -897,14 +897,10 @@ export class DuelRoom extends Room implements PresenceSource {
     if (identity.role === "spectator" || !this.presetSeatUserIds) return null;
     const seat = this.presetSeatUserIds.indexOf(identity.userId) as -1 | Seat;
     if (seat !== 0 && seat !== 1) {
-      throw Object.assign(new Error("Identity is not reserved for this match"), {
-        code: "unauthorized" as const,
-      });
+      throw new ProtocolError("Identity is not reserved for this match", "unauthorized");
     }
     if (identity.preferredSeat !== seat) {
-      throw Object.assign(new Error("Identity is not reserved for the requested seat"), {
-        code: "unauthorized" as const,
-      });
+      throw new ProtocolError("Identity is not reserved for the requested seat", "unauthorized");
     }
     return seat;
   }
@@ -1047,8 +1043,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       ids = parseHandOrderMessage(message);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     // Ranked rooms never show hands to spectators, so there is nothing to keep.
@@ -1081,8 +1077,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       artPrefs = parseCosmeticsMessage(message);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     this.seatArtPrefs[seat] = artPrefs;
@@ -1130,8 +1126,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       skin = parseSkinMessage(message);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     // An image a moderator already took down must not be relayed again (#810).
@@ -1175,8 +1171,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       text = parseChatMessage(message);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     if (!this.consumeChatRateLimit(client.sessionId)) {
@@ -1297,8 +1293,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       intent = parseIntentMessage(message);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
 
@@ -1423,8 +1419,8 @@ export class DuelRoom extends Room implements PresenceSource {
       ({ action, deck } = parseRematchMessage(message));
       if (deck) assertKnownDeck(deck);
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     const state = this.rematchState();
@@ -1625,8 +1621,8 @@ export class DuelRoom extends Room implements PresenceSource {
     try {
       ({ action, scope, force, id } = parseUndoMessage(message));
     } catch (e) {
-      const err = e as Error & { code?: ErrorCode };
-      this.sendError(client, err.code ?? "bad_protocol", err.message);
+      const err = e as Error;
+      this.sendError(client, errorCodeOf(e, "bad_protocol"), err.message);
       return;
     }
     if (this.ranked) {
@@ -1908,7 +1904,7 @@ export class DuelRoom extends Room implements PresenceSource {
     this.clockSeat = null;
   }
 
-  private timerPayload() {
+  private timerPayload(): TimerMessage {
     this.chargeSeatClock();
     const seatClocks = this.seatSeconds != null;
     return {
@@ -2581,13 +2577,13 @@ export class DuelRoom extends Room implements PresenceSource {
   }
 
   /** Turn a join away, with a log line so a stranded opponent can be traced. */
-  private rejectJoin(client: Client, code: ErrorCode | string, message: string) {
+  private rejectJoin(client: Client, code: ErrorCode, message: string) {
     this.log("warn", "join_rejected", { matchId: this.matchId, sessionId: client.sessionId, code, message });
     this.sendError(client, code, message);
     client.leave();
   }
 
-  private sendError(client: Client, code: ErrorCode | string, message: string) {
+  private sendError(client: Client, code: ErrorCode, message: string) {
     client.send("error", {
       protocolVersion: PROTOCOL_VERSION,
       code,

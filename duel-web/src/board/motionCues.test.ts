@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { CardView, PlayerView } from "../net/protocol";
 import { MAX_CUES, motionCues, type MotionCue } from "./motionCues";
+import { stubCard, stubOf } from "./fixtures/stubCard";
 
 function card(id: string, defId = "ST01-003", power = 3000): CardView {
-  return { id, defId, power, printedPower: power, statusLabels: [] };
+  return stubCard({ id, defId, power, printedPower: power, statusLabels: [] });
 }
 
 function baseView(): PlayerView {
-  return {
+  return stubOf<PlayerView>({
     seat: 0,
     you: {
       leader: card("y-leader", "ST01-001", 5000),
@@ -46,7 +47,7 @@ function baseView(): PlayerView {
     winner: null,
     winReason: null,
     legalIntents: [],
-  };
+  });
 }
 
 type You = PlayerView["you"];

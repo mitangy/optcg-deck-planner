@@ -1,6 +1,7 @@
 import { lookupCard } from "../cards/atlas";
 import { counterValueFor, formatCounter } from "../cards/counterValue";
-import { intentLabel, type Intent, type PlayerView } from "../net/protocol";
+import { intentLabel } from "./intentLabel";
+import type { Intent, PlayerView } from "../net/protocol";
 import type { Box } from "./battleArc";
 import type { DefendModel } from "./defendModel";
 import { collapseReplacePlays } from "./dragIntents";
@@ -49,16 +50,18 @@ export type CardActionText = {
   title: string;
 };
 
-function targetName(view: PlayerView | undefined, intent: Intent): string | null {
+function targetName(view: PlayerView | undefined, intent: { targetId?: string }): string | null {
   if (intent.targetId == null) return null;
   // intentLabel already resolves the name; "Activate X → Y" ends with Y.
-  const full = intentLabel({ type: "activate_ability", sourceId: intent.targetId }, view);
+  const full = intentLabel({ type: "activate_ability", sourceId: intent.targetId, abilityId: "" }, view);
   return full.replace(/^Activate /, "");
 }
 
 /** Wording for a button that sits on the card it acts on. */
-export function cardActionText(intent: Intent, view?: PlayerView): CardActionText {
-  const title = intentLabel(intent, view);
+export function cardActionText(anIntent: Intent, view?: PlayerView): CardActionText {
+  const title = intentLabel(anIntent, view);
+  // `activate_leader` is the pre-`activate_ability` shape; tests and older callers still pass it.
+  const intent = anIntent as Intent | { type: "activate_leader"; targetId?: string };
   switch (intent.type) {
     case "activate_ability": {
       const target = targetName(view, intent);
