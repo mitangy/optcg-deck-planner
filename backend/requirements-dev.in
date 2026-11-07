@@ -5,6 +5,6 @@
 # In-memory Redis for the tests.
 fakeredis>=2.30,<3
 pytest>=8.3.0,<10
-pytest-recording>=0.13.2,<0.14
+pytest-recording>=0.14.1,<0.15
 # Lint for backend/ and scripts/ (ruff.toml at the repo root), run in CI.
-ruff>=0.16,<0.17
+ruff>=0.17.3,<0.18
