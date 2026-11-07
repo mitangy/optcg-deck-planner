@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { usePageMeta } from "@optcg/ui/seo";
 import { cardImageUrl } from "@optcg/ui/cardArt";
+import { loadCardData } from "../cards/cardData";
 import { formatDeckRow, formatPercent, playMetaDeck, type MetaDeck, type MetaLeader } from "../decks/meta";
 import { dataTail, leaderIntro, colorList } from "../leaders/leaderIntro";
 import { leaderPath, parseLeaderSlug, resolveLeaderRoute } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
 import { NavMenu } from "../nav/NavMenu";
-import { SITE_ORIGIN } from "../seo/routeMeta";
+import { SITE_ORIGIN } from "../seo/routeMetaTable";
 import { BackLink } from "./BackLink";
 import { DeckCards, LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";
@@ -42,8 +43,15 @@ export function ColorChips({ color }: { color: string }) {
 function PlayButton({ leader, deck, className, children }: { leader: MetaLeader; deck: MetaDeck; className: string; children: string }) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  function play() {
+  async function play() {
     setError(null);
+    // Saving a deck checks its cards against the card data, which loads on its own (B-02).
+    try {
+      await loadCardData();
+    } catch {
+      setError("Could not load the card list. Check your connection and try again.");
+      return;
+    }
     const result = playMetaDeck({ leaderId: leader.leader_id, name: leader.name }, deck);
     if (!result.ok) {
       setError(result.errors.join(" · ") || "Could not add this deck");

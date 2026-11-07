@@ -41,6 +41,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Headers for a JSON API call: the caller's own headers are kept, and a request with a body gets a JSON
+ * Content-Type unless the caller chose one (an image upload sends its own). No body and no headers: none.
+ */
+export function withJsonHeaders(init: RequestInit): Headers | undefined {
+  if (!init.body && !init.headers) return undefined;
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  return headers;
+}
+
 export async function apiError(res: Response, fallback: string): Promise<ApiError> {
   let detail = fallback;
   try {

@@ -188,7 +188,7 @@ describe("protocol parsers", () => {
       {
         id: "c1",
         seat: 0,
-        kind: "on_play",
+        kind: "on_play" as unknown as "effect",
         cardDefId: "ST01-005",
         optional: true,
         prompt: "Usopp — On Play: draw 1 card?",

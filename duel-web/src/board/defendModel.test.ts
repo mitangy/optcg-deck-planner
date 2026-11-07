@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { lookupCard } from "../cards/atlas";
 import { counterValueFor } from "../cards/counterValue";
 import type { Intent, PlayerView } from "../net/protocol";
-import { DEMO_VIEW } from "../pages/DemoPage";
+import { DEMO_VIEW } from "./fixtures/demoViews";
 import { deriveDefend } from "./defendModel";
 import { responseStopPass } from "./gameplayPrefs";
 

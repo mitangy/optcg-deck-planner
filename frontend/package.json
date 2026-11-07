@@ -12,10 +12,17 @@
     "upload-descriptors": "tsx scripts/upload-descriptors.mjs",
     "pack-detector": "node scripts/pack-detector.mjs",
     "e2e": "playwright test",
-    "e2e:visual": "playwright test --grep @visual"
+    "e2e:visual": "playwright test --grep @visual",
+    "typecheck": "tsc --noEmit && tsc -p e2e"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
+    "@optcg/analyst-client": "*",
+    "@optcg/deck-analytics": "*",
+    "@optcg/patch-notes": "*",
+    "@optcg/price-timing": "*",
+    "@optcg/site-legal": "*",
+    "@optcg/ui": "*",
     "@tanstack/react-query": "^5.66.0",
     "@techstark/opencv-js": "^5.0.0-release.1",
     "@vercel/analytics": "^2.0.1",
@@ -31,13 +38,13 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vercel/blob": "^2.8.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^4.7.0",
     "jpeg-js": "^0.4.4",
-    "jsdom": "^29.1.1",
+    "jsdom": "^26.1.0",
     "pngjs": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "~5.7.2",
-    "vite": "^6.0.0",
+    "vite": "^7.3.6",
     "vitest": "^3.2.7"
   }
 }

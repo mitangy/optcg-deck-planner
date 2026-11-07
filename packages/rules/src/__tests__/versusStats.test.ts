@@ -9,7 +9,7 @@ const pairs = (wins: (0 | 1 | 2 | null)[]): PairRow[] =>
   ]);
 
 describe("versus paired statistics", () => {
-  it("scores a split pair as half, so the paired interval is narrower than the one over single games when A never loses both (#VALUE_PR)", () => {
+  it("scores a split pair as half, so the paired interval is narrower than the one over single games when A never loses both (#1095)", () => {
     const rows = pairs([...Array<2>(8).fill(2), ...Array<1>(12).fill(1)]);
     const p = pairedStats(rows);
     expect(p).toMatchObject({ aBoth: 8, split: 12, bBoth: 0 });
@@ -22,13 +22,13 @@ describe("versus paired statistics", () => {
     expect(p.pairedCi[1] - p.pairedCi[0]).toBeLessThan(hi - lo - 0.02);
   });
 
-  it("leaves out a pair with an unfinished game (#VALUE_PR)", () => {
+  it("leaves out a pair with an unfinished game (#1095)", () => {
     const p = pairedStats(pairs([2, 0, null, 1]));
     expect(p).toMatchObject({ aBoth: 1, split: 1, bBoth: 1 });
     expect(p.pairedRate).toBeCloseTo(0.5, 10);
   });
 
-  it("has no information without a finished pair (#VALUE_PR)", () => {
+  it("has no information without a finished pair (#1095)", () => {
     expect(pairedStats(pairs([null])).pairedCi).toEqual([0, 1]);
   });
 });

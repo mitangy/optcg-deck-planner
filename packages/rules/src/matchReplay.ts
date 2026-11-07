@@ -5,7 +5,6 @@
  * is kept server-side and never sent to players as-is.
  */
 import { applyIntent, createMatch, skipMulligans } from "./engine.js";
-import { createSeededRng } from "./rng.js";
 import { reseedMatch } from "./reseed.js";
 import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
 
@@ -56,7 +55,7 @@ export function replayStart(replay: MatchReplay): MatchState {
       { leaderId: replay.players[1].leaderId, deck: [...replay.players[1].deck] },
     ],
   });
-  return replay.skipMulligans ? skipMulligans(state, createSeededRng(replay.seed)) : state;
+  return replay.skipMulligans ? skipMulligans(state) : state;
 }
 
 /** Re-seed the match for every reseed recorded at `i` (before intent `i`, or after the last one). */
@@ -71,7 +70,7 @@ function reseedAt(state: MatchState, replay: MatchReplay, i: number): MatchState
 /** Apply recorded intent `i` to the state before it. Throws if the room's accepted move is now illegal. */
 export function replayApply(state: MatchState, replay: MatchReplay, i: number): { state: MatchState; events: GameEvent[] } {
   const { seat, intent } = replay.intents[i]!;
-  const result = applyIntent(reseedAt(state, replay, i), intent, { seat, rng: createSeededRng(replay.seed) });
+  const result = applyIntent(reseedAt(state, replay, i), intent, { seat });
   if (!result.ok) {
     throw new Error(`Replay diverged at intent ${i} (${intent.type}): ${result.error?.message ?? "illegal"}`);
   }

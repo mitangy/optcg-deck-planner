@@ -48,7 +48,7 @@ services:
       - key: ANALYST_PUBLIC_URL
         sync: false
       # Comma-separated emails that get the in-app Log Pose panel (empty: nobody).
-      # Spend caps default to $3/day per player and $50/month total (backend/app/config.py).
+      # Spend caps default to $1/day per player and $250/month total (analyst_chat_daily_usd / analyst_chat_monthly_usd in backend/app/config.py; keep this note in sync).
       - key: ANALYST_CHAT_EMAILS
         sync: false
       # Den Den Mushi (#979): files posts from a Discord channel as feedback. Off unless both are set.
@@ -78,6 +78,11 @@ services:
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
+      # Guards the game-server pool pointer, card reports and feedback triage (kept apart from
+      # CATALOG_SYNC_TOKEN, which the catalog workflows hold). Set the same value as the GitHub
+      # secret OPS_ADMIN_TOKEN. While unset those routes still accept CATALOG_SYNC_TOKEN.
+      - key: OPS_ADMIN_TOKEN
+        sync: false
       # Optional Redis / Key Value (redis://… or rediss://…). Unset: rate limits are
       # per worker and presence / live-game progress stay in Postgres.
       - key: REDIS_URL

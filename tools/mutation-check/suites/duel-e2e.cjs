@@ -577,7 +577,7 @@ module.exports = {
     { id: "e2e-panel-header-button-drags", args: "log-pose-dock --project=desktop-1280 -g \"header button\"", file: "packages/analyst-client/src/PanelResize.tsx", from: "closest(\"button:not(.lp-move)\")", to: "closest(\"button.nope\")", kills: ["log-pose-dock.spec.ts > pressing a header button and moving the pointer does not drag the window (#432) [desktop-1280]"] },
     { id: "e2e-brief-to-spectators", args: "match-brief --project=desktop-1280 -g \"spectator of a practice room\"", edits: [
       { file: "game-server/src/rooms/DuelRoom.ts", from: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n    };", to: "      role: \"spectator\",\n      view,\n      players: this.playersInfo(),\n      ranked: this.ranked,\n      firstSeatPickedBy: this.firstSeatPickedBy,\n      brief: this.briefFor(cameraSeat),\n    };" },
-      { file: "duel-web/src/board/matchBrief.ts", from: "o.role === \"player\" && ", to: "" },
+      { file: "duel-web/src/board/matchBriefModel.ts", from: "o.role === \"player\" && ", to: "" },
       { file: "duel-web/src/pages/DuelPage.tsx", from: "matchBrief={role === \"player\" ? { brief, ranked } : undefined}", to: "matchBrief={{ brief, ranked }}" },
       { file: "duel-web/src/net/protocol.ts", from: "role === \"spectator\" || view.spectator ? undefined : parseBriefTicket(o.brief)", to: "parseBriefTicket(o.brief)" },
       { file: "duel-web/src/state/DuelSession.tsx", from: "setBrief(r === \"player\" ? (b ?? null) : null);", to: "setBrief(b ?? null);" },
@@ -685,11 +685,11 @@ module.exports = {
     // DON!! card art (#440)
     { id: "e2e-don-art-strip-ignores-side-art", args: "don-art --project=desktop-1280 -g shows", file: "duel-web/src/board/SideField.tsx", from: "            donArt={donArtUrl}\n", to: "", kills: ["don-art.spec.ts > your DON!! shows the chosen art and the opponent's the default (#440) [desktop-1280]"] },
     // What's new (#450)
-    { id: "e2e-wn-got-it-not-remembered", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "    markAllSeen(app);\n    setOpen(false);", to: "    setOpen(false);", kills: ["whats-new.spec.ts > the card shows after an update and Got it keeps it away, even after a reload (#450) [desktop-1280]"] },
+    { id: "e2e-wn-got-it-not-remembered", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "    markAllSeen(app, undefined, all);\n    setOpen(false);", to: "    setOpen(false);", kills: ["whats-new.spec.ts > the card shows after an update and Got it keeps it away, even after a reload (#450) [desktop-1280]"] },
     // Both layers: the See all click and the page itself record the day as seen.
     { id: "e2e-wn-see-all-not-remembered", args: "whats-new --project=desktop-1280", edits: [
       { file: "packages/patch-notes/src/WhatsNewCard.tsx", from: "<Link to={to} className=\"wn-card-link\" onClick={dismiss}>", to: "<Link to={to} className=\"wn-card-link\">" },
-      { file: "duel-web/src/pages/WhatsNewPage.tsx", from: "    markAllSeen(\"duel\");\n", to: "" },
+      { file: "packages/patch-notes/src/WhatsNewList.tsx", from: "    if (all) markAllSeen(app, undefined, all);\n", to: "" },
     ], kills: ["whats-new.spec.ts > See all opens the full list and the card stays away afterwards (#450) [desktop-1280]"] },
     { id: "e2e-wn-first-visit-not-recorded", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/lastSeen.ts", from: "    markAllSeen(app, storage, notes);\n    return [];", to: "    return [];", kills: ["whats-new.spec.ts > a first visit shows no card and quietly marks the newest update as seen (#450) [desktop-1280]"] },
     { id: "e2e-wn-card-in-flow", args: "whats-new --project=desktop-1280", file: "packages/patch-notes/src/whatsNew.css", from: ".wn-card {\n  position: fixed;", to: ".wn-card {\n  position: static;", kills: ["whats-new.spec.ts > the card shows after an update and Got it keeps it away, even after a reload (#450) [desktop-1280]"] },

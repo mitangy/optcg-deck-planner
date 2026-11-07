@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import hmac
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_optional_user
 from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
-from app.config import Settings, get_settings
+from app.tokens import CatalogToken
 from app.db import get_db
 from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
 from app.rate_limit import RateLimiter, client_ip
@@ -75,13 +74,6 @@ _sales_rate_limiter = RateLimiter(max_calls=30, period_s=60, name="api_sales_rat
 # Uncached lookups each hold a worker thread on a TCGPlayer call; cap them in
 # total, since the per-IP key above can be spoofed.
 _sales_upstream_limiter = RateLimiter(max_calls=60, period_s=60, name="api_sales_upstream_limiter")
-
-
-def _require_catalog_token(x_catalog_token: str | None, settings: Settings) -> None:
-    provided = x_catalog_token or ""
-    expected = settings.catalog_sync_token or ""
-    if not expected or not hmac.compare_digest(provided, expected):
-        raise HTTPException(status_code=401, detail="Invalid catalog sync token")
 
 
 @router.get("/decks", response_model=list[DeckSummary])
@@ -967,15 +959,12 @@ def catalog_price_history(
     )
 
 
-@router.post("/catalog/price-history/import", response_model=PriceHistoryImportResult)
+@router.post("/catalog/price-history/import", response_model=PriceHistoryImportResult, dependencies=[CatalogToken])
 def import_price_history(
     body: PriceHistoryImport,
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ):
     """Backfill one day of market prices (token-guarded, used by the backfill workflow)."""
-    _require_catalog_token(x_catalog_token, settings)
     if len(body.prices) > MAX_IMPORT_PRODUCTS:
         raise HTTPException(status_code=413, detail="Too many products in one day")
     known = price_history.known_product_ids(db, list(body.prices))
@@ -985,18 +974,13 @@ def import_price_history(
     return PriceHistoryImportResult(day=body.day.isoformat(), stored=stored)
 
 
-@router.post("/admin/sync-catalog", status_code=202)
-def admin_sync_catalog(
-    background_tasks: BackgroundTasks,
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
-):
+@router.post("/admin/sync-catalog", status_code=202, dependencies=[CatalogToken])
+def admin_sync_catalog(background_tasks: BackgroundTasks):
     """Enqueue a full catalog sync and return immediately (202).
 
     The sync is long-running, so it runs as a background job instead of blocking
     this request (which would time out the caller and the free Render instance).
     """
-    _require_catalog_token(x_catalog_token, settings)
     # Claim before returning so /status never briefly reports a stale finish.
     if not try_claim_sync_slot():
         return {"status": "already_running", "detail": "A catalog sync is already in progress"}
@@ -1004,11 +988,7 @@ def admin_sync_catalog(
     return {"status": "started", "detail": "Catalog sync started in the background"}
 
 
-@router.get("/admin/sync-catalog/status")
-def admin_sync_catalog_status(
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
-):
+@router.get("/admin/sync-catalog/status", dependencies=[CatalogToken])
+def admin_sync_catalog_status():
     """Report the background catalog sync state (guarded by the same token)."""
-    _require_catalog_token(x_catalog_token, settings)
     return sync_status()

@@ -66,6 +66,26 @@ test("the workflow, root manifests and tools/ci turn every job on (#739)", () =>
   assert.deepEqual(on(["tools/ci/changes.cjs"]), ALL);
 });
 
+test("the Node version file and the composite setup actions turn every job on (refactor 1.4)", () => {
+  assert.deepEqual(on([".nvmrc"]), ALL);
+  assert.deepEqual(on([".github/actions/setup-node-deps/action.yml"]), ALL);
+  assert.deepEqual(on([".github/actions/pr-base/action.yml"]), ALL);
+});
+
+test("root lint and compiler config run the lint and typecheck jobs; ruff.toml only the backend; .editorconfig none (refactor 1.3)", () => {
+  assert.deepEqual(on(["eslint.config.js"]), ALL);
+  assert.deepEqual(on(["tsconfig.base.json"]), ALL);
+  assert.deepEqual(on(["tsconfig.web.json"]), ALL);
+  assert.deepEqual(on(["ruff.toml"]), ["backend"]);
+  assert.deepEqual(on([".editorconfig"]), []);
+});
+
+test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
+  assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["frontend/src/App.tsx"]), ["frontend"]);
+});
+
 test("other workflows do not trigger the app jobs, and flags union across paths (#739)", () => {
   assert.deepEqual(on([".github/workflows/nightly.yml"]), []);
   assert.deepEqual(on(["mobile/src/a.ts", "backend/app/main.py"]), ["backend", "mobile"]);
@@ -73,4 +93,10 @@ test("other workflows do not trigger the app jobs, and flags union across paths 
 
 test("an empty path list runs everything (#739)", () => {
   assert.deepEqual(on([]), ALL);
+});
+
+test("prerender and vercel-ignore scripts run the apps that import or read them, not the backend (refactor 0.1)", () => {
+  assert.deepEqual(on(["scripts/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["scripts/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["scripts/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
 });

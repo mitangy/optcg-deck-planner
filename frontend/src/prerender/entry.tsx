@@ -16,7 +16,7 @@ import { PlannerLandingPage } from "../LandingPage";
 import { LegalPage } from "../LegalPage";
 import { META_SEED_ID } from "../prerendered";
 import { PublicMetaScreen } from "../PublicMetaScreen";
-import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMeta";
+import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
 import type { MetaLeadersResponse } from "../api";
 
 export type PrerenderedFile = { file: string; content: string };

@@ -1,5 +1,5 @@
 import { useLayoutEffect, type RefObject } from "react";
-import { fanSpan } from "./handFan";
+import { fanSpan } from "./handFanGeometry";
 
 /**
  * Keeps the desktop fan inside your mat: measures the mat and a card, then sets

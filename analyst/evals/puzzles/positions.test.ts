@@ -153,7 +153,7 @@ describe("the cards of a lethal board", () => {
       h.act(1, { type: "pass_block" });
       const play = listLegalIntents(h.state, 1).find((i) => i.type === "counter_event");
       expect(play, id).toBeDefined();
-      const r = applyIntent(h.state, play!, { seat: 1, rng: h.rng });
+      const r = applyIntent(h.state, play!, { seat: 1 });
       expect(r.ok, id).toBe(true);
       const asks = r.state.pendingChoices.map((c) => c.request?.type);
       expect(asks.every((t) => t === "select"), id).toBe(true);

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hmac
-import os
 import threading
 import time
 import uuid
@@ -11,6 +10,7 @@ import weakref
 from collections import defaultdict, deque
 
 from app import redis_client
+from app.config import get_settings
 
 
 class RateLimiter:
@@ -85,7 +85,7 @@ PROXY_SECRET_HEADER = "x-optcg-proxy-secret"
 
 
 def _from_vercel(request) -> bool:
-    secret = os.environ.get("PROXY_SHARED_SECRET", "")
+    secret = get_settings().proxy_shared_secret
     if not secret:
         return True  # Not configured yet: keep trusting X-Forwarded-For as before.
     sent = request.headers.get(PROXY_SECRET_HEADER, "")

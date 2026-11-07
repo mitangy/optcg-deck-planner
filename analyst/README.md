@@ -76,6 +76,8 @@ Spend is limited three ways, all set on the planner API (optcg-api): each approv
 
 Needs `ANTHROPIC_API_KEY` here, plus `ANALYST_PUBLIC_URL`, `ANALYST_CHAT_EMAILS` and the shared `ANALYST_SERVICE_SECRET` on `optcg-api`. Without the key, `/chat` answers 503 and the connector works as before.
 
+Code layout: `src/index.ts` reads the environment (`config.ts`) and listens; `src/app.ts` is the Express app (MCP links, CORS, the SSE routes). The three endpoints are `chatTurn.ts`, `review.ts` and `brief.ts`, sharing `rounds.ts` (the tool loop), `budget.ts` (admission, caps, usage rows), `citations.ts`, `schemas.ts`, `models.ts` (model ids and prices) and `anthropic.ts` (the SDK adapter); `chat.ts` only re-exports them. Prompts live in `src/prompts/` and `prompts/system.ts` assembles each mode's system blocks. Every tool has one entry in `toolMeta.ts` (status line and citation adapter), and a tool's answer carries its value (`toolResult.ts`) so nothing parses JSON back.
+
 ## Add it to Claude
 
 1. Deploy the `optcg-analyst` service from `render.yaml` (Blueprint sync).
@@ -136,7 +138,7 @@ Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jso
 
 ### Review facts eval (#675)
 
-`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/chat.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
+`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/review.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
 
 ```bash
 npm run eval:review-facts -- --model-api scripted --n 3   # free dry run: scripted review and extractor

@@ -4,7 +4,7 @@
  * Character, with a block allowed. The gold is found by trying every block the engine allows with every set of Counter
  * cards it allows, so it is exact; a position where any line meets a pending choice is not a fair puzzle and makes none.
  */
-import { applyIntent, createSeededRng, listLegalIntents, type Intent, type MatchState, type Rng, type Seat } from "@optcg/rules";
+import { applyIntent, listLegalIntents, type Intent, type MatchState, type Rng, type Seat } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
 import { boardCards, fullySupported, labelOf, shownCardIds } from "./describe";
 import { finish, headOf, pickOf, type Made } from "./generators";
@@ -20,7 +20,7 @@ export function blockStepOf(state: MatchState, intentIndex: number): MatchState 
   const attacker = state.activeSeat;
   const intent = listLegalIntents(state, attacker).filter((i) => i.type === "declare_attack")[intentIndex];
   if (!intent) return null;
-  const declared = applyIntent(state, intent, { seat: attacker, rng: createSeededRng(1) });
+  const declared = applyIntent(state, intent, { seat: attacker });
   if (!declared.ok || declared.state.phase !== "block" || declared.state.pendingChoices.length || !declared.state.battle) return null;
   return declared.state;
 }

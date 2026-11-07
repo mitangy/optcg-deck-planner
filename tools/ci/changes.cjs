@@ -13,16 +13,28 @@
  * off for a path after checking that no test, build or script in the other
  * jobs reads it. Cross-directory dependencies behind the table (checked with
  * grep, #739):
- *   - packages/*: duel-web and frontend alias `@optcg/*` to packages/*\/src
- *     (vite.config.ts, vitest.config.ts, tsconfig.json); game-server and analyst
- *     depend on @optcg/rules; every package's tests run in the rules job; the
- *     duel-web e2e specs import packages/patch-notes.
+ *   - packages/*: duel-web and frontend are npm workspaces that depend on
+ *     `@optcg/*` (resolved through node_modules links to packages/*\/src);
+ *     game-server and analyst depend on @optcg/rules; every package's tests
+ *     run in the rules job; the duel-web e2e specs import packages/patch-notes.
+ *   - package.json, package-lock.json: the root lockfile covers every workspace
+ *     (packages, game-server, analyst, frontend, duel-web), and every JS job
+ *     installs from it, so a change there can break any of them. The same holds
+ *     for frontend/package.json and duel-web/package.json (they feed that lock).
+ *   - eslint.config.js, tsconfig.base.json, tsconfig.web.json: the lint job and every
+ *     app's and package's typecheck read them. ruff.toml: the backend job's ruff step.
+ *   - .nvmrc, .github/actions/: every job's Node setup reads them (the composite
+ *     setup-node-deps and pr-base actions).
  *   - packages/rules/protocol-fixtures: also read by the mobile tests.
  *   - game-server: duel-web e2e starts it (duel-web/playwright.config.ts).
  *   - backend/tests/fixtures: game-server's briefTicket test reads the shared vector.
  *   - analyst: imported by nothing else; it reads packages/rules and
  *     packages/deck-analytics data (covered by the packages rule).
  *   - scripts: the Python script tests mock the data files they touch.
+ *   - scripts/seo and scripts/vercel-ignore-build.sh: duel-web and frontend
+ *     import the prerender plugin in vite.config.ts, their prerender tests read
+ *     vercel-routes.mjs, and frontend/src/seo/vercelIgnore956.test.ts reads the
+ *     ignore script (the duel e2e builds the app); no backend test reads them.
  */
 "use strict";
 
@@ -31,7 +43,18 @@ const FLAGS = ["rules", "duel_web", "duel_e2e", "frontend", "backend", "mobile"]
 /** Ordered: the first matching rule wins. `flags: []` means no job needs to run. */
 const RULES = [
   { test: (p) => p === ".github/workflows/ci.yml", flags: FLAGS },
+  // The composite actions (setup-node-deps, pr-base) and .nvmrc are used by every JS job's setup.
+  { test: (p) => p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS },
   { test: (p) => p === "package.json" || p === "package-lock.json", flags: FLAGS },
+  // Root lint and compiler config: every TypeScript job reads them (eslint.config.js drives the
+  // lint job, tsconfig.base.json / tsconfig.web.json are extended by every app and package).
+  { test: (p) => p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: FLAGS },
+  // ruff.toml is read only by `ruff check backend scripts`, a step of the backend job.
+  { test: (p) => p === "ruff.toml", flags: ["backend"] },
+  // Editor settings: no test, build or script reads them.
+  { test: (p) => p === ".editorconfig", flags: [] },
+  // App manifests are part of the root workspace lock: every JS job's `npm ci` reads them.
+  { test: (p) => p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("tools/ci/"), flags: FLAGS },
   { test: (p) => p.startsWith("docs/"), flags: [] },
   // Only files directly in the repo root: README.md, CLAUDE.md, AGENTS.md.
@@ -47,6 +70,7 @@ const RULES = [
   { test: (p) => p.startsWith("game-server/"), flags: ["rules", "duel_e2e"] },
   { test: (p) => p.startsWith("analyst/"), flags: ["rules"] },
   { test: (p) => p.startsWith("backend/tests/fixtures/"), flags: ["backend", "rules"] },
+  { test: (p) => p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("backend/") || p.startsWith("scripts/"), flags: ["backend"] },
   { test: (p) => p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"] },
   { test: (p) => p.startsWith("frontend/"), flags: ["frontend"] },

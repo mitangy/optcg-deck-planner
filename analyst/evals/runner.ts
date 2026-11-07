@@ -90,7 +90,7 @@ export async function runEval(deps: RunnerDeps, opts: RunOptions): Promise<RunRe
 
   // Which tools the chat offers, to skip cases that need a tool that is not on main yet.
   const probe = evalPlanner({ ...deps.planner });
-  const offered = new Set(buildTools(deps.catalog, undefined, { api: probe.api, token: "chat.eval" }, { library: deps.library, playbook: deps.knowledge.playbook, stats: probe.api }).map((t) => t.name));
+  const offered = new Set<string>(buildTools(deps.catalog, undefined, { api: probe.api, token: "chat.eval" }, { library: deps.library, playbook: deps.knowledge.playbook, stats: probe.api }).map((t) => t.name));
 
   const selected = opts.cases.filter((c) => opts.groups.includes(c.group) && (!opts.only || opts.only.test(c.id)));
   const work: { c: EvalCase; gold: Gold; rep: number }[] = [];

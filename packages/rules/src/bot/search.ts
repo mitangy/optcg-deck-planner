@@ -39,7 +39,7 @@ export const HARD_DEFAULTS = {
    * 32-unit hidden layer, no card bag; held-out log-loss 0.445 / accuracy 78.1% on 4200 games against 0.580 / 67.0% for the linear v1 model):
    * in paired self-play (equal evaluations per decision, 1000 games) Hard with the learned score won 54.6% (95% CI 52-58%) against Hard with the
    * hand-tuned score, confirmed at 54.7% (52-58%) on fresh deals. The earlier linear v1 model only reached 48.1% (45-51%), so the score stayed
-   * hand-tuned until then (#VALUE_PR). The same model produces the win probabilities of position analysis.
+   * hand-tuned until then (#1095). The same model produces the win probabilities of position analysis.
    */
   evalMode: "learned" as "learned" | "hand",
   opponentModel: "normal" as "normal" | "greedy",
@@ -56,7 +56,6 @@ export const HARD_DEFAULTS = {
 } as const;
 
 type Candidate = Intent;
-const UNUSED_RNG = createSeededRng(1);
 const keyOf = (i: Intent): string => JSON.stringify(i);
 const now = (): number => performance.now();
 
@@ -176,7 +175,7 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w
       let best = -Infinity;
       let baseScore = -Infinity;
       cands.forEach((c, i) => {
-        const r = applyIntent(s, c, { seat: actor, rng: UNUSED_RNG });
+        const r = applyIntent(s, c, { seat: actor });
         if (!r.ok) return;
         const v = evaluateLearned(r.state, actor, r.state.turnNumber, w);
         if (i === 0) baseScore = v;
@@ -204,8 +203,8 @@ function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, mem
     const greedy = opponentModel === "greedy" && actor !== me && view.phase === "main" && view.pendingChoices.length === 0;
     const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor], weights) : chooseBotIntent(view, { level: "normal", rng: rngs[actor] });
     if (!intent) break;
-    let r = applyIntent(s, intent, { seat: actor, rng: UNUSED_RNG });
-    if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor, rng: UNUSED_RNG });
+    let r = applyIntent(s, intent, { seat: actor });
+    if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor });
     if (!r.ok) break;
     s = r.state;
   }
@@ -216,7 +215,7 @@ interface Scored { score: number; prob: number }
 
 function scoreCandidate(det: MatchState, seat: Seat, cand: Candidate, endTurn: number, seed: number, memory: TurnMemory | null, knobs: Knobs): Scored | null {
   try {
-    const applied = applyIntent(det, cand, { seat, rng: UNUSED_RNG });
+    const applied = applyIntent(det, cand, { seat });
     if (!applied.ok) return null;
     const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel, knobs.valueWeights);
     return knobs.evalMode === "learned"

@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+import pytest
+
+from app.config import get_settings
 from app.rate_limit import RateLimiter
+
+
+@pytest.fixture(autouse=True)
+def _settings_follow_env():
+    # PROXY_SHARED_SECRET is read through the cached Settings; re-read it per test.
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 def test_rate_limiter_allows_until_cap():
@@ -84,3 +95,21 @@ def test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured_323(monkeyp
 
     monkeypatch.delenv("PROXY_SHARED_SECRET", raising=False)
     assert client_ip(_Request({"X-Forwarded-For": "203.0.113.7", "CF-Connecting-IP": "76.76.21.21"})) == "203.0.113.7"
+
+
+@pytest.mark.parametrize(
+    ("module", "attrs"),
+    [
+        ("app.routers.meta", ["_rate_limiter"]),
+        ("app.routers.analyst_access", ["_request_rate", "_request_global_rate"]),
+    ],
+)
+def test_route_limiters_share_one_budget_across_workers_through_redis_refactor_0_6(fake_redis, module, attrs):
+    import importlib
+
+    mod = importlib.import_module(module)
+    for attr in attrs:
+        limiter = getattr(mod, attr)
+        assert limiter.name, f"{module}.{attr} has no name, so each worker would get its own budget"
+        assert limiter.allow("shared-key") is True
+        assert fake_redis.zcard(f"rl:{limiter.name}:shared-key") == 1

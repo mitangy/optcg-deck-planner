@@ -48,7 +48,7 @@ import { RequestAccessView, RequestsList } from "./AccessViews";
 import { OwnerTabs } from "./OwnerTabs";
 import { UsageView } from "./UsageView";
 import { FeedbackBar, useFeedback } from "./Feedback";
-import { answerStart, targetKey } from "./feedback";
+import { answerStart, targetKey } from "./feedbackModel";
 import { ModelPicker } from "./ModelPicker";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { readThreadHint, writeThreadHint } from "./threadStore";

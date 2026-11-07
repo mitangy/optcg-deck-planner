@@ -169,7 +169,7 @@ describe("fitting the card bag", () => {
     expect(buildVocab(samples, table, 3)).toEqual(["B"]);
   });
 
-  it("a fit without the card bag has an empty vocabulary even when cards would pass the minimum count (#VALUE_PR)", () => {
+  it("a fit without the card bag has an empty vocabulary even when cards would pass the minimum count (#1095)", () => {
     const { samples, table } = bagCorpus();
     expect(fitBatched(samples, table, { ...opts, model: "mlp", epochs: 1 }).vocab).toEqual(["A", "B"]);
     const model = fitBatched(samples, table, { ...opts, model: "mlp", epochs: 1, bag: false });
@@ -179,13 +179,13 @@ describe("fitting the card bag", () => {
 });
 
 describe("fitValue command line", () => {
-  it("--no-bag turns the card bag off and needs feature set v2 (#VALUE_PR)", () => {
+  it("--no-bag turns the card bag off and needs feature set v2 (#1095)", () => {
     expect(fitFlags(["--features", "v2", "--model", "mlp"], null).noBag).toBe(false);
     expect(fitFlags(["--features", "v2", "--model", "mlp", "--no-bag"], null).noBag).toBe(true);
     expect(() => fitFlags(["--no-bag"], null)).toThrow(/v2/);
   });
 
-  it("--like-compare reproduces the committed model's kind and hyperparameters, and a flag still overrides them (#VALUE_PR)", () => {
+  it("--like-compare reproduces the committed model's kind and hyperparameters, and a flag still overrides them (#1095)", () => {
     const like = fitFlags(["--like-compare"], VALUE_WEIGHTS);
     expect(like).toMatchObject({ featureSet: "v2", kind: "mlp", noBag: true, hidden: 32, epochs: 20, batch: 512, l2: 0.003, seed: 1 });
     expect(fitFlags(["--like-compare", "--l2", "0.1", "--hidden", "8"], VALUE_WEIGHTS)).toMatchObject({ l2: 0.1, hidden: 8, kind: "mlp" });

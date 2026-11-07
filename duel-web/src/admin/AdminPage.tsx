@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import "./admin.css";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { NavMenu } from "../nav/NavMenu";
 import { BackLink } from "../pages/BackLink";

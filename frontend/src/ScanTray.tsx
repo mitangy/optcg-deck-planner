@@ -5,7 +5,7 @@ import type { CatalogCardResult, ShoppingItem } from "./api";
 import { CardArtImg } from "./CardThumb";
 import { MarketPrice } from "./MarketPrice";
 import { ScanShare } from "./ScanShare";
-import { MAX_ROW_QTY, trayNeedText, trayReadyCount, type TrayRow } from "./scanTray";
+import { MAX_ROW_QTY, trayNeedText, trayReadyCount, type TrayRow } from "./scanTrayModel";
 
 export type ScanTarget = "collection" | "shopping";
 

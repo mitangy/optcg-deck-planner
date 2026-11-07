@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import { changeOver, priceHistory, weeklySample } from "./priceHistory";
 import { buildTools } from "./server";
-import { adaptToolResult, type SearchResultBlock } from "./sources";
+import type { SearchResultBlock } from "./sources";
+import { adaptToolResult } from "./toolMeta";
 
 const catalog = loadCatalog();
 const TODAY = "2026-11-04";
@@ -174,7 +175,7 @@ describe("price_history as a source and a tool (#946)", () => {
   it("turns an answer into one price: search result per art, with every fact citable on its own", async () => {
     const tool = buildTools(catalog, undefined, undefined, { stats: planner(ALT).api }).find((t) => t.name === "price_history")!;
     const out = await tool.run({ card_id: "OP05-119", product_id: 555 });
-    const blocks = adaptToolResult("price_history", out.content[0]!.text)!;
+    const blocks = adaptToolResult("price_history", out.value)!;
     expect(blocks.every((b) => b.type === "search_result")).toBe(true);
     const r = blocks[0] as SearchResultBlock;
     expect(r.source).toBe("price:OP05-119#555");
@@ -189,6 +190,6 @@ describe("price_history as a source and a tool (#946)", () => {
   it("names the base art without a product part", async () => {
     const tool = buildTools(catalog, undefined, undefined, { stats: planner({ ...ALT, product_id: 0 }).api }).find((t) => t.name === "price_history")!;
     const out = await tool.run({ card_id: "OP05-119" });
-    expect(adaptToolResult("price_history", out.content[0]!.text)!.map((b) => (b as SearchResultBlock).source)).toEqual(["price:OP05-119"]);
+    expect(adaptToolResult("price_history", out.value)!.map((b) => (b as SearchResultBlock).source)).toEqual(["price:OP05-119"]);
   });
 });

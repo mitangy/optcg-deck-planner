@@ -7,6 +7,7 @@ module.exports = {
   args: '"tools/ci/*.test.cjs"',
   mutations: [
     m("ci-duel-web-skips-e2e", 'p.startsWith("duel-web/"), flags: ["duel_web", "duel_e2e"]', 'p.startsWith("duel-web/"), flags: ["duel_web"]', ["a duel-web change runs the duel-web unit and e2e jobs only"]),
+    m("ci-seo-scripts-backend-only", 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["duel_web", "duel_e2e", "frontend"]', 'p.startsWith("scripts/seo/") || p === "scripts/vercel-ignore-build.sh", flags: ["backend"]', ["prerender and vercel-ignore scripts run the apps that import or read them"]),
     m("ci-backend-runs-e2e", 'p.startsWith("scripts/"), flags: ["backend"]', 'p.startsWith("scripts/"), flags: ["backend", "duel_e2e"]', ["a backend-only change leaves the duel e2e shards off"]),
     m("ci-packages-skips-duel-web", 'p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p.startsWith("packages/"), flags: ["rules", "duel_e2e", "frontend"]', ["a packages change runs duel-web"]),
     m("ci-fixtures-skip-mobile", 'flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"]', 'flags: ["rules", "duel_web", "duel_e2e", "frontend"]', ["protocol fixtures also run the mobile tests"]),
@@ -22,7 +23,13 @@ module.exports = {
     m("ci-docs-run-rules", 'p.startsWith("docs/"), flags: []', 'p.startsWith("docs/"), flags: ["rules"]', ["docs and root markdown files turn nothing on"]),
     m("ci-nested-markdown-exempt", "/^[^/]+\\.md$/.test(p)", "/\\.md$/.test(p)", ["markdown below the root is not exempt"]),
     m("ci-workflow-change-runs-nothing", 'p === ".github/workflows/ci.yml", flags: FLAGS', 'p === ".github/workflows/ci.yml", flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),
+    m("ci-setup-actions-run-nothing", 'p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS', 'p === ".nvmrc" || p.startsWith(".github/actions/"), flags: []', ["the Node version file and the composite setup actions turn every job on"]),
     m("ci-root-manifest-runs-nothing", 'p === "package.json" || p === "package-lock.json", flags: FLAGS', 'p === "package.json" || p === "package-lock.json", flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),
+    m("ci-lint-config-runs-nothing", 'p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: FLAGS', 'p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: []', ["root lint and compiler config run the lint and typecheck jobs"]),
+    m("ci-ruff-config-runs-all", 'p === "ruff.toml", flags: ["backend"]', 'p === "ruff.toml", flags: FLAGS', ["ruff.toml only the backend"]),
+    m("ci-ruff-config-runs-nothing", 'p === "ruff.toml", flags: ["backend"]', 'p === "ruff.toml", flags: []', ["ruff.toml only the backend"]),
+    m("ci-editorconfig-runs-all", 'p === ".editorconfig", flags: []', 'p === ".editorconfig", flags: FLAGS', [".editorconfig none"]),
+    m("ci-app-manifest-runs-own-job-only", 'p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"]', 'p === "frontend/package.json" || p === "duel-web/package.json", flags: ["frontend", "duel_web", "duel_e2e"]', ["an app manifest feeds the root lock"]),
     m("ci-tools-ci-runs-nothing", 'p.startsWith("tools/ci/"), flags: FLAGS', 'p.startsWith("tools/ci/"), flags: []', ["the workflow, root manifests and tools/ci turn every job on"]),
     m("ci-other-workflows-run-all", 'p.startsWith(".github/"), flags: []', 'p.startsWith(".github/"), flags: FLAGS', ["other workflows do not trigger the app jobs"]),
     m("ci-flags-not-unioned", "for (const f of rule ? rule.flags : FLAGS) on.add(f);", "on.clear(); for (const f of rule ? rule.flags : FLAGS) on.add(f);", ["flags union across paths"]),
@@ -34,6 +41,11 @@ module.exports = {
       ["ci-media-no-snapshots", ' || dir.endsWith("-snapshots")', "", "card art, app assets and Playwright baselines are allowed"],
       ["ci-media-no-assets", 'dir === "public" || dir === "assets"', 'dir === "public"', "card art, app assets and Playwright baselines are allowed"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/pr-media.cjs", from, to, kills: [kill] })),
+    ...[
+      ["case-collisions-exact-stem-only", 'const key = (MODULE_EXT.test(p) ? p.replace(MODULE_EXT, "") : p).toLowerCase();', 'const key = p.toLowerCase();', "a component and a module that share a stem in different case collide"],
+      ["case-collisions-case-sensitive", 'p.replace(MODULE_EXT, "") : p).toLowerCase();', 'p.replace(MODULE_EXT, "") : p);', "two paths that differ only by case collide whatever their extension"],
+      ["case-collisions-same-stem-flagged", "if (stems.size > 1) out.push", "if (stems.size > 0) out.push", "a test, a stylesheet or a same-case sibling does not collide"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/case-collisions.cjs", from, to, kills: [kill], args: '"tools/ci/case-collisions.test.cjs"' })),
     ...[
       ["retrain-gate-min-test", "if (newM.n < minTest)", "if (newM.n < 0)", "refuses a test set smaller than the minimum"],
       ["retrain-gate-top1-tie", "!(newM.top1 > oldM.top1)", "newM.top1 < oldM.top1", "refuses a tie on top1"],

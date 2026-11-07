@@ -10,7 +10,6 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 
 from app.brief_tickets import verify_brief_ticket
 from app.config import get_settings

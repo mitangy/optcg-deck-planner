@@ -25,7 +25,7 @@ function lookChoice(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): Pending
       rest,
       restLabel: "",
     },
-  } as PendingChoiceView;
+  } as unknown as PendingChoiceView;
 }
 
 /** Rows of the put-back list, top of deck first. */

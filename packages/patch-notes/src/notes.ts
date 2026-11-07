@@ -11,8 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-07
-  // TODO(VALUE_PR): add `pr: <number>` to the entry below once the pull request exists.
-  { date: "2026-11-07", app: "duel", title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
+  { date: "2026-11-07", app: "duel", pr: 1076, title: "The home page loads faster", text: "The Duel home page now opens much sooner, especially on a phone or a slow connection. The match board, the deck editor and your account pages load when you open them." },
+  { date: "2026-11-07", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
   // 2026-11-06
   { date: "2026-11-06", app: "duel", pr: 1030, title: "Import your OPTCGSim games into Log Pose", text: "In Settings, under Log Pose, you can now import your OPTCGSim games: choose your exported games file or paste one combat log. Claude can then list them and review any one turn by turn, from your side of the table. Only you can see them, player names are not kept, and Clear imported games removes them all." },
   { date: "2026-11-06", app: "planner", pr: 1031, title: "Collector copies on top of your decks", text: "Want a gold-stamped or other alt art as a keepsake on top of what your decks need? Open the price on a card in Master Shopping and choose Want a collector copy too. It shows as its own line under the card, owned copies fill it first, and it is counted in your totals. Remove it any time, with Undo." },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./admin.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { NavMenu } from "../nav/NavMenu";

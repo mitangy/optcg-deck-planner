@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LAYOUT_RESET, layoutMoved } from "./layoutReset";
 
-const DEFAULT = { panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "", promptPos: "", previewPopupPos: "", popupSize: 100, previewPopupSize: 100, panelSizesBig: "", promptDock: "" };
+const DEFAULT: Parameters<typeof layoutMoved>[0] = { panelLayout: "", panelSizes: "", handFanPos: "", oppHandSpot: "", spectatorNearFanPos: "", spectatorFarFanPos: "", promptPos: "", previewPopupPos: "", popupSize: 100, previewPopupSize: 100, panelSizesBig: "", promptDock: "" };
 const PIECES = ["panelLayout", "panelSizes", "handFanPos", "oppHandSpot", "spectatorNearFanPos", "spectatorFarFanPos", "promptPos", "previewPopupPos", "popupSize", "previewPopupSize", "panelSizesBig", "promptDock"] as const;
 
 describe("Reset layout", () => {

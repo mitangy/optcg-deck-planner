@@ -43,6 +43,7 @@ function Board() {
     },
     fullscreenOffered: false,
     onToggleFullscreen: () => {},
+    onToggleTabMute: () => {},
   });
   return (
     <div className="board-root">

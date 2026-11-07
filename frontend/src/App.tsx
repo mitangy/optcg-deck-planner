@@ -110,15 +110,13 @@ import { LightboxPriceAlertControl, NotificationsBell, PriceAlertsPage } from ".
 import { CardPage } from "./CardPage";
 import { MetaPage } from "./MetaPage";
 import { FriendsNavLink } from "./friends/FriendsNavLink";
-import { FriendsPage } from "./friends/FriendsPage";
-import { FriendPage } from "./friends/FriendPage";
-import { FriendDeckPage } from "./friends/FriendDeckPage";
+import { FriendDeckPage, FriendPage, FriendsPage } from "./lazyPages";
 import { HideFromFriendsItem } from "./friends/HideFromFriends";
 import { CardArtImg, CardLightboxActionContext, CardThumb, MobileCardMedia } from "./CardThumb";
 import { LightboxPriceHistoryControl } from "./PriceHistory";
 import { GridCard, MobileCard } from "./PlannerCard";
-import { CardScanner, useImageDrop } from "./CardScanner";
-import ScanValidatePage from "./devtools/ScanValidatePage";
+import { CardScanner, ScanValidatePage } from "./lazyPages";
+import { useImageDrop } from "./useImageDrop";
 import { baseTileFor, mainImageUrl, shownMarket, shownProductId } from "./altArt";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "./displayArtViews";
 import { AltArtsRow, MarketPrice } from "./MarketPrice";
@@ -132,14 +130,8 @@ import {
   totalOwned,
 } from "./OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "./columnSort";
-import {
-  consumeLoginNext,
-  GroupBuyDetailPage,
-  GroupBuyJoinPage,
-  GroupBuysPage,
-  PublicGroupBuyPage,
-  rememberLoginNext,
-} from "./GroupBuys";
+import { consumeLoginNext, rememberLoginNext } from "./loginNext";
+import { GroupBuyDetailPage, GroupBuyJoinPage, GroupBuysPage, PublicGroupBuyPage } from "./lazyPages";
 import {
   AuthLoadingSkeleton,
   DeckDetailSkeleton,

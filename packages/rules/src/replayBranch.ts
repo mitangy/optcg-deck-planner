@@ -3,7 +3,6 @@
  * Own-path entry (`@optcg/rules/replayBranch`) for the lazy replay chunk: it imports only the engine, never the simulator.
  */
 import { applyIntent, getPlayerView } from "./engine.js";
-import { createSeededRng } from "./rng.js";
 import type { MatchReplay } from "./matchReplay.js";
 import type { GameEvent, Intent, MatchState, Seat } from "./types.js";
 
@@ -16,7 +15,7 @@ export type BranchApply = { ok: true; state: MatchState; events: GameEvent[] } |
  * identical to the recorded one plays out identically. Reseeds are not applied: they belong to recorded intents.
  */
 export function applyBranchIntent(state: MatchState, replay: MatchReplay, seat: Seat, intent: Intent): BranchApply {
-  const result = applyIntent(state, intent, { seat, rng: createSeededRng(replay.seed) });
+  const result = applyIntent(state, intent, { seat });
   if (!result.ok) return { ok: false, message: result.error?.message ?? "That move is not allowed" };
   return { ok: true, state: result.state, events: result.events };
 }

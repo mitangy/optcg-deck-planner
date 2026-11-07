@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_VIEW } from "../pages/DemoPage";
+import { DEMO_VIEW } from "./fixtures/demoViews";
 import { indexLiveCards, readinessLabel } from "./liveTargets";
 
 describe("liveTargets", () => {

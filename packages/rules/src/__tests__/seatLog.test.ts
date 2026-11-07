@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID, getCardDef } from "../cards/definitions.js";
 import { applyIntent, createMatch, listLegalIntents, projectGameEvents, skipMulligans } from "../engine.js";
 import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
-import { createSeededRng } from "../rng.js";
 import { seatLog } from "../seatLog.js";
 import type { GameEvent, MatchState, Seat } from "../types.js";
 
@@ -13,10 +12,8 @@ function playedGame() {
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
   ];
   const seed = 23;
-  const rng = createSeededRng(seed);
   let state: MatchState = skipMulligans(
     createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }),
-    rng,
   );
   const hands = [state.players[0].hand.map((c) => c.defId), state.players[1].hand.map((c) => c.defId)];
   const intents: MatchReplay["intents"] = [];
@@ -31,7 +28,7 @@ function playedGame() {
       legal.find((x) => x.type.startsWith("pass")) ??
       legal.find((x) => x.type === "end_turn") ??
       legal[0]!;
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     expect(result.ok).toBe(true);
     state = result.state;
     intents.push({ seat, intent });
@@ -52,7 +49,6 @@ function gameWithMulligans() {
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
   ];
   const seed = 5;
-  const rng = createSeededRng(seed);
   let state = createMatch({ seed, firstSeat: 0, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] });
   const dealt = state.players[0].hand.map((c) => c.defId);
   const intents: MatchReplay["intents"] = [
@@ -63,7 +59,7 @@ function gameWithMulligans() {
   ];
   let kept: string[][] = [];
   for (const [i, { seat, intent }] of intents.entries()) {
-    const result = applyIntent(state, intent, { seat, rng });
+    const result = applyIntent(state, intent, { seat });
     expect(result.ok).toBe(true);
     state = result.state;
     if (i === 1) kept = state.players.map((p) => p.hand.map((c) => c.defId));

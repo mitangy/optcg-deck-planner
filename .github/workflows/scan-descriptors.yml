@@ -34,15 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend deps
-        working-directory: frontend
-        run: npm ci
+      # frontend/ is an npm workspace: one install from the repo root.
+      - uses: ./.github/actions/setup-node-deps
 
       - name: Fetch reference card images
         working-directory: frontend

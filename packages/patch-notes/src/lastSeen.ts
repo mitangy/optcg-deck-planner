@@ -1,5 +1,4 @@
 import { latestNoteDate, noteKey, notesFor, unseenNotes, type AppName } from "./helpers";
-import { PATCH_NOTES } from "./notes";
 import type { PatchNote } from "./types";
 
 /** The slice of Storage we use, so tests can pass a plain object. */
@@ -52,7 +51,7 @@ export function readSeenOnLastDay(app: AppName, storage: NotesStorage | null = d
  * day were shown, so a note added later the same day is still announced.
  * Never moves backwards.
  */
-export function markAllSeen(app: AppName, storage: NotesStorage | null = defaultStorage(), notes: readonly PatchNote[] = PATCH_NOTES): void {
+export function markAllSeen(app: AppName, storage: NotesStorage | null = defaultStorage(), notes: readonly PatchNote[]): void {
   try {
     const latest = latestNoteDate(app, notes);
     if (!latest) return;
@@ -85,7 +84,7 @@ export function markSeen(app: AppName, date: string, storage: NotesStorage | nul
 export function loadUnseen(
   app: AppName,
   storage: NotesStorage | null = defaultStorage(),
-  notes: readonly PatchNote[] = PATCH_NOTES,
+  notes: readonly PatchNote[],
 ): PatchNote[] {
   const lastSeen = readLastSeen(app, storage);
   if (lastSeen === null) {

@@ -289,7 +289,7 @@ def test_admin_list_names_the_discord_author_as_reporter_979(db):
     poll(forum_with((t, tid)), db)
     db.add(Feedback(kind="bug", message="anon one", app="duel"))
     db.commit()
-    out = list_feedback(db, Settings(catalog_sync_token="adm"), x_catalog_token="adm", status="all")
+    out = list_feedback(db, status="all")
     assert {o.app: o.reporter for o in out} == {"discord": "Discord · Zoro", "duel": "anonymous"}
 
 

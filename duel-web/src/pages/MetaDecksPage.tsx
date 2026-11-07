@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackLink } from "./BackLink";
 import { CardArt } from "../cards/CardArt";
 import { cardImageUrl } from "@optcg/ui/cardArt";
+import { loadCardData } from "../cards/cardData";
 import { listSavedDecks, setSelectedDeckId } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import {
@@ -121,8 +122,15 @@ function MetaDeckItem({
     });
   }
 
-  function add() {
+  async function add() {
     setError(null);
+    // Saving a deck checks its cards against the card data, which loads on its own (B-02).
+    try {
+      await loadCardData();
+    } catch {
+      setError("Could not load the card list. Check your connection and try again.");
+      return;
+    }
     const result = addMetaDeck(leader, deck);
     setTick((n) => n + 1);
     if (!result.ok) {

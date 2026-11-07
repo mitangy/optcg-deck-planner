@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "./catalog";
 import { buildTools } from "./server";
-import { adaptToolResult, deckSourceId, gameResults, groupTurns, recordSentence, searchResult, splitFacts, type SearchResultBlock, type ToolContent } from "./sources";
+import { deckSourceId, gameResults, groupTurns, recordSentence, searchResult, splitFacts, type SearchResultBlock, type ToolContent } from "./sources";
+import { adaptToolResult, type ToolName } from "./toolMeta";
 
 const catalog = loadCatalog();
 
@@ -10,7 +11,7 @@ const allSources = (blocks: ToolContent[] | null) => results(blocks).map((b) => 
 /** The sources a tool's facts got, leaving out the note: source its loose notes are folded into (#394). */
 const sources = (blocks: ToolContent[] | null) => allSources(blocks).filter((s) => !s.startsWith("note:"));
 const texts = (b: SearchResultBlock) => b.content.map((c) => c.text);
-const adapt = (tool: string, value: unknown) => adaptToolResult(tool, JSON.stringify(value));
+const adapt = (tool: ToolName, value: unknown) => adaptToolResult(tool, value);
 
 const GAME = {
   matchId: "m1",
@@ -36,7 +37,7 @@ describe("tool answers as citable sources (#390)", () => {
   it("gives each card its own card: source with the printed facts as separate blocks (#390)", async () => {
     const tool = buildTools(catalog).find((t) => t.name === "get_cards")!;
     const out = await tool.run({ ids: ["OP01-001", "OP01-016"] });
-    const blocks = adaptToolResult("get_cards", out.content[0]!.text);
+    const blocks = adaptToolResult("get_cards", out.value);
     expect(sources(blocks)).toEqual(["card:OP01-001", "card:OP01-016"]);
     const zoro = results(blocks)[0]!;
     expect(zoro.title).toBe(`${catalog.cards.get("OP01-001")!.name} (OP01-001)`);
@@ -45,9 +46,9 @@ describe("tool answers as citable sources (#390)", () => {
   });
 
   it("keeps the plain text for a tool with no adapter, an error-shaped answer or text that isn't JSON (#390)", () => {
-    expect(adaptToolResult("export_deck", '{"list":"1xOP01-001"}')).toBeNull();
+    expect(adaptToolResult("export_deck", { list: "1xOP01-001" })).toBeNull();
     expect(adaptToolResult("get_cards", "Couldn't read the deck")).toBeNull();
-    expect(adaptToolResult("get_cards", '{"cards":[],"missing":["X"]}')).toBeNull();
+    expect(adaptToolResult("get_cards", { cards: [], missing: ["X"] })).toBeNull();
   });
 
   it("enables citations on every search result and never sends an empty text block (#390)", () => {
@@ -277,7 +278,7 @@ describe("tool answers as citable sources (#390)", () => {
     expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["matchup_stats", "tournament_stats"]));
     const out = await tools.find((t) => t.name === "tournament_stats")!.run({ leader: "OP01-001", opponent: "OP02-001", minPlayers: 16 });
     expect(urls).toEqual(["https://api.test/analyst/tournaments/stats?leader=OP01-001&opponent=OP02-001&min_players=16"]);
-    expect(allSources(adaptToolResult("tournament_stats", out.content[0]!.text))).toEqual(["tourney:OP01-001~OP02-001"]);
+    expect(allSources(adaptToolResult("tournament_stats", out.value))).toEqual(["tourney:OP01-001~OP02-001"]);
   });
 
   it("titles a playbook note with whether a player reviewed it and the set it was written for (#390)", () => {
