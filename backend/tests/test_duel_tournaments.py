@@ -637,6 +637,36 @@ def test_an_old_room_stays_joinable_while_its_host_is_seated_in_it_997(client):
     assert _play(c, code, m, b).json()["action"] == "host"
 
 
+def test_a_host_tapping_play_again_mid_game_goes_back_to_their_live_room_and_the_result_counts_1006(client):
+    c, S = client
+    code, ids, t = _setup(c, S, 4)
+    m = _ready(t)[0]
+    a, b = m["a"]["user_id"], m["b"]["user_id"]
+    _play(c, code, m, a)
+    _play(c, code, m, a, room_id="live-room")
+    with S() as db:
+        for uid in (a, b):
+            db.add(
+                DuelPresence(
+                    user_id=uid,
+                    room_id="live-room",
+                    instance_id="gs-1",
+                    role="player",
+                    phase="playing",
+                    server_url="https://gs.example",
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
+        db.commit()
+    again = _play(c, code, m, a).json()
+    assert (again["action"], again["room_id"]) == ("join", "live-room")
+    # The opponent is not told to wait for a new room either.
+    assert _play(c, code, m, b).json()["action"] == "join"
+    _ingest(c, "live-room", a, b, 1)
+    ready = {x["id"]: x for x in _get(c, a, code)["matches"]}[m["id"]]
+    assert ready["status"] == "done" and ready["winner_id"] == b
+
+
 def test_only_the_two_players_can_play_a_match_997(client):
     c, S = client
     code, ids, t = _setup(c, S, 4)

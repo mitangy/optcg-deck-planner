@@ -224,6 +224,9 @@ function addDon(b: Board, zone: number, slot: number, rested: boolean): void {
 
 // ---------------------------------------------------------------- text patterns
 
+/** Longest text line parsed; the longest line in the fixtures is under 200 characters. */
+const MAX_TEXT_LINE = 2000;
+
 const ID = "([^\\[\\]\\s]+)";
 const RE = {
   prefix: /^\[([^\]]+)\]\s*(.*)$/,
@@ -507,6 +510,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
   };
 
   const handleText = (rawLine: string): void => {
+    if (rawLine.length > MAX_TEXT_LINE) return; // real lines are under 200 chars; the lazy patterns below go quadratic on a long one
     const text = cleanSimText(rawLine);
     if (!text) return;
     if (META.some((r) => r.test(text))) return;
