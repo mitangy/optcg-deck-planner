@@ -2,7 +2,8 @@
  * Deck input for the analyst: pasted lists (OPTCGSim `4xOP01-006`, Limitless `4 OP01-006`,
  * most "qty + card number" variants), planner share links, or a structured list.
  */
-import { normalizeStatsCardId, type DeckStatsCard } from "@optcg/deck-analytics";
+import { normalizeCardId } from "@optcg/card-core";
+import type { DeckStatsCard } from "@optcg/deck-analytics";
 import type { Catalog } from "./catalog";
 import { plannerApiUrlFrom } from "./config";
 
@@ -34,7 +35,7 @@ export function parseDeckLine(raw: string): { id: string; copies: number } | nul
   const line = raw.replace(/^(\s*\d+)x(?=[A-Z])/i, "$1x ");
   const m = CARD_ID.exec(line);
   if (!m) return null;
-  const id = normalizeStatsCardId(m[1]!);
+  const id = normalizeCardId(m[1]!);
   const before = line.slice(0, m.index).trim();
   const after = line.slice(m.index + m[0].length).trim();
   const lead = /^(\d+)\s*x?\b/i.exec(before) ?? /^(\d+)x$/i.exec(before);
@@ -48,7 +49,7 @@ export function deckFromLines(catalog: Catalog, entries: readonly { id: string; 
   const warnings: string[] = [];
   const unknown = new Set<string>();
   const copies = new Map<string, number>();
-  let leaderId = leaderHint ? normalizeStatsCardId(leaderHint) : null;
+  let leaderId = leaderHint ? normalizeCardId(leaderHint) : null;
   if (leaderId && catalog.cards.get(leaderId)?.type !== "leader") {
     warnings.push(`${leaderId} is not a known leader.`);
     leaderId = null;
@@ -56,7 +57,7 @@ export function deckFromLines(catalog: Catalog, entries: readonly { id: string; 
   const oversized = new Set<string>();
   for (const e of entries) {
     if (!(e.copies > 0)) continue;
-    const id = normalizeStatsCardId(e.id);
+    const id = normalizeCardId(e.id);
     // Draw odds work in time and memory proportional to the deck size, so a huge count must not reach them.
     if (e.copies > MAX_LINE_COPIES) {
       oversized.add(id);

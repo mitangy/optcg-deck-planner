@@ -1,6 +1,6 @@
 /** report.md for the review-facts eval (#675). */
-import type { EvalRunPost } from "../post";
-import { wilson } from "../stats";
+import type { EvalRunPost } from "../shared/post";
+import { wilson } from "../qa/stats";
 import type { ClaimRow, ReviewRow } from "./pipeline";
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;

@@ -1,5 +1,5 @@
 # Ruff lint for the FastAPI backend and the Python scripts (refactor 1.3).
-# Run from the repo root: `ruff check backend scripts` (CI: backend job).
+# Run from the repo root: `ruff check backend` (CI: backend job).
 # Lint only; there is no formatter pass, so no source file is reformatted.
 target-version = "py312"
 line-length = 120

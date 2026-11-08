@@ -1,7 +1,7 @@
 /** Duration-limited effects ("during this turn", "until the start of your next turn", …). */
 import type { Duration } from "../effects/types.js";
 import type { MatchState, Modifier, ModifierEffect, ModifierExpiry, Seat } from "../types.js";
-import { alloc } from "./state.js";
+import { alloc } from "./zones.js";
 
 /** Absolute turn number of `seat`'s next turn (assumes alternating turns). */
 export function nextTurnOf(state: MatchState, seat: Seat): number {

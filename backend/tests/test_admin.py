@@ -8,12 +8,14 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app import admin_hosting, admin_traffic
-from app import db as app_db
-from app.auth import (
+from app.admin import hosting as admin_hosting
+from app.admin import traffic as admin_traffic
+from app.core import db as app_db
+from app.core import seed
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     SESSION_COOKIE,
     create_login_ticket,
@@ -21,33 +23,31 @@ from app.auth import (
     create_session_token,
     new_oauth_nonce,
 )
-from app.config import Settings, get_settings
-from app.models import (
+from app.core.config import Settings, get_settings
+from app.analyst.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystThread,
     AnalystToken,
     AnalystUsage,
     BotMatch,
-    Deck,
+)
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
-    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
     DuelMatchSeat,
-    DuelPresence,
     DuelRating,
     DuelSavedDeck,
     DuelSoloGame,
-    Friendship,
-    Owned,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.planner.models import Deck, Owned
+from app.social.models import DuelLobbySeen, DuelPresence, Friendship
 from app.roles import can_ban, can_delete, can_set_role
-from tests.db_support import make_bare_engine
 from tests.test_duel import client  # noqa: F401  (fixture)
 
 ADMIN_EMAIL = "gamefreakmichaeltang@gmail.com"
@@ -172,7 +172,7 @@ def test_auth_me_carries_the_role_667(api):
 
 
 def test_the_admin_role_counts_as_chat_owner_and_model_admin_667():
-    from app.routers.analyst import is_chat_owner, is_model_admin
+    from app.analyst.access import is_chat_owner, is_model_admin
 
     settings = Settings(analyst_chat_emails="", analyst_model_admin_emails="")
     assert is_chat_owner(settings, user_obj(1, "admin")) and is_model_admin(settings, user_obj(1, "admin"))
@@ -240,8 +240,8 @@ def test_banned_accounts_get_403_even_with_a_current_cookie_and_unban_restores_t
 
 
 def test_banned_users_log_pose_tokens_are_refused_668(api):
-    from app.models import AnalystAccess
-    from app.routers.analyst import mint_chat_token
+    from app.analyst.models import AnalystAccess
+    from app.analyst.auth import mint_chat_token
 
     c, S = api
     mod, plain = mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
@@ -346,18 +346,6 @@ def test_the_admin_user_list_shows_each_accounts_source_or_null_when_unknown_905
     login(c, S, admin)
     rows = {u["id"]: u["signup_source"] for u in c.get("/admin/users").json()["users"]}
     assert rows[tracked] == {"ref": "google.com"} and rows[direct] == {} and rows[unknown] is None
-
-
-def test_startup_adds_the_signup_source_column_to_an_existing_users_table_905(monkeypatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL)"))
-        conn.execute(text("INSERT INTO users (id, email) VALUES (1, 'a@x.test')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_user_signup_source()
-    app_db._ensure_user_signup_source()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT signup_source FROM users")).all() == [(None,)]
 
 
 def test_a_banned_google_sign_in_is_sent_back_with_an_error_and_no_ticket_667(api, monkeypatch: pytest.MonkeyPatch):
@@ -643,7 +631,7 @@ def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691
 
 
 def test_overview_counts_planner_decks_and_log_pose_use_667(api):
-    from app.models import AnalystAccess, AnalystUsage
+    from app.analyst.models import AnalystAccess, AnalystUsage
 
     c, S = api
     admin, p = mk(S, ADMIN_EMAIL, "admin"), mk(S, "p@x.test")
@@ -711,8 +699,8 @@ def test_the_two_historic_eval_runs_are_seeded_once_oldest_first_667(api):
     c, S = api
     login(c, S, mk(S, ADMIN_EMAIL, "admin"))
     bind = S.kw["bind"]
-    app_db._seed_eval_runs(bind)
-    app_db._seed_eval_runs(bind)  # a restart must not add them again
+    seed.seed_eval_runs(bind)
+    seed.seed_eval_runs(bind)  # a restart must not add them again
     evals = c.get("/admin/bots").json()["evals"]
     assert [(e["label"], e["correct"], e["total"]) for e in evals] == [("Baseline", 43.5, 50), ("PR #415 prompt + grader", 48.5, 50)]
     assert evals[1]["groups"]["D"] == {"correct": 9, "total": 10}
@@ -1102,31 +1090,16 @@ def test_a_traffic_provider_error_never_carries_the_token_and_is_not_cached_1020
 
 # ------------------------------------------------------------------ startup
 
-def test_startup_makes_only_the_admin_email_admin_and_adds_the_columns_667(monkeypatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                "CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL UNIQUE, name VARCHAR(255), "
-                "google_sub VARCHAR(255) NOT NULL UNIQUE, created_at TIMESTAMP)"
-            )
-        )
-        for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test"]):
+def test_startup_makes_only_the_admin_email_admin_667(startup_engine):
+    app_db.init_db()
+    with startup_engine.begin() as conn:
+        for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test", "other@x.test"]):
             conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (:i, :e, 'n', :s)"), {"i": i + 1, "e": email, "s": f"s{i}"})
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_user_role_columns()
-    with engine.begin() as conn:
         conn.execute(text("UPDATE users SET role = 'admin' WHERE email = 'someone@x.test'"))
-    app_db._ensure_admin_role()
-    with engine.connect() as conn:
+    app_db.init_db()
+    with startup_engine.connect() as conn:
         roles = dict(conn.execute(text("SELECT lower(email), role FROM users")).all())
-        cols = conn.execute(text("SELECT banned_at, ban_reason, banned_by FROM users")).all()
-    assert roles == {"gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user"}
-    assert cols == [(None, None, None)] * 2
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT lower(email), role FROM users WHERE email = 'someone@x.test'")).one()[1] == "user"
-    assert {"role", "banned_at", "ban_reason", "banned_by"} <= {c["name"] for c in inspect(engine).get_columns("users")}
-    engine.dispose()
+    assert roles == {"gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user", "other@x.test": "user"}
 
 
 def _replay_fixtures(S, p0: int, p1: int) -> None:

@@ -1,0 +1,432 @@
+/* —— Leader ability prompt —— */
+.ability-prompt {
+  position: absolute;
+  left: 50%;
+  /* Also read by the max-height limits (board.css, popupScale.css) so a tall pop-up stops under the top bar (#660). */
+  --prompt-base-bottom: 7.5rem;
+  bottom: var(--prompt-base-bottom);
+  transform: translateX(-50%);
+  z-index: var(--z-ability-prompt);
+  width: min(420px, calc(100vw - 1.5rem));
+  background: rgb(var(--deep-rgb) / 0.96);
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-12);
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.ability-prompt h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--chrome-bright);
+}
+.ability-prompt p {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.ability-prompt-section {
+  margin: 0.45rem 0;
+}
+.ability-prompt-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.ability-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.ability-chip {
+  border: 1px solid var(--line);
+  background: var(--arena-mid);
+  color: var(--ink);
+  border-radius: var(--radius-6);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.ability-chip.selected {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 1px var(--chrome);
+}
+.ability-prompt-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: 0.55rem;
+}
+
+.ability-prompt-waiting {
+  border-style: dashed;
+  opacity: 0.95;
+}
+.ability-prompt-waiting .meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.search-option-row .ability-chip:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.search-order-list {
+  display: grid;
+  /* One shrinkable column: a long nowrap card name must ellipsize, not widen
+     the list past the prompt and push the row buttons off-screen. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.38rem;
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.search-order-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.search-order-actions {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.search-order-actions button {
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--arena-mid);
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .ability-prompt {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    --prompt-base-bottom: 6.75rem;
+    bottom: var(--prompt-base-bottom);
+    width: auto;
+    max-height: calc(100dvh - var(--prompt-base-bottom) - var(--hud-h, 0px) - 0.5rem);
+    overflow-y: auto;
+    transform: none;
+  }
+}
+
+
+/* —— Simultaneous effect order prompt —— */
+.effect-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.effect-order-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: var(--arena-mid);
+}
+.effect-order-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+.effect-order-text strong {
+  font-size: 0.78rem;
+  color: var(--chrome-bright);
+}
+.effect-order-move {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.effect-order-move .ability-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* —— Generic choice prompt (protocol 5) —— */
+.choice-prompt {
+  width: min(560px, calc(100vw - 1.5rem));
+  /* Stay below the top bar and above the hand rail at any viewport height. */
+  max-height: min(640px, calc(100dvh - 12rem));
+  background: rgb(12, 18, 28);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.choice-intro {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+.choice-intro p {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: var(--space-2);
+  margin: 0.35rem 0;
+}
+.choice-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.choice-option .card-tile {
+  cursor: pointer;
+}
+/* A rested target stays upright in the picker: turned sideways it shrinks to
+   ~64x46 (45x32 on phone) and its power badge lands on the name. The
+   "Rested" chip under it carries the state instead. */
+.choice-option .card-tile.rested {
+  transform: none;
+}
+.choice-option .card-tile.rested .card-overlays {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+.choice-option .card-tile.rested .status-chips {
+  bottom: 1.55rem;
+}
+.choice-option.selected .card-tile {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+.choice-option.disabled .card-tile {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* DON!! option: fixed-size slot so a rested (sideways) DON!! never shifts the row. */
+.choice-don-card {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.choice-don-card img {
+  width: 42px;
+  height: 59px;
+  border-radius: var(--radius-4);
+  object-fit: cover;
+  transition: transform 140ms ease;
+}
+.choice-don-card.rested img {
+  transform: rotate(90deg);
+  filter: brightness(0.8);
+}
+.choice-don.selected .choice-don-card {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+.choice-don-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.choice-don .choice-option-caption {
+  max-width: 88px;
+}
+.choice-option-caption {
+  font-size: 0.6rem;
+  line-height: 1.2;
+  color: var(--muted);
+  text-align: center;
+  min-height: 1.5em;
+}
+.choice-badge {
+  display: inline-block;
+  margin-right: 0.2rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-4);
+  background: var(--chrome);
+  color: #0b1018;
+  font-weight: 700;
+}
+.choice-chip {
+  min-height: 2.5rem;
+}
+.choice-rest-note {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.choice-order-name {
+  font-size: 0.75rem;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.choice-place-seg {
+  display: inline-flex;
+  flex: none;
+}
+.choice-place {
+  min-width: 3.6rem !important;
+  font-size: 0.7rem;
+}
+.choice-place-seg .choice-place:first-child {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.choice-place-seg .choice-place:last-child {
+  margin-left: -1px;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+/* One Top/Bottom switch for a whole "top or bottom" put-back. */
+.choice-side-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.choice-side-row .choice-place {
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--arena-mid);
+  color: inherit;
+}
+.choice-place[aria-pressed="true"] {
+  position: relative;
+  border-color: var(--chrome) !important;
+  background: rgb(var(--chrome-rgb) / 0.22) !important;
+  color: var(--chrome-bright) !important;
+  font-weight: 700;
+}
+/* Put-back order lists: caps name each end of the pile, a dashed row marks
+   the untouched rest of it, rows drag to reorder. */
+.order-cap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+.order-cap::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong, var(--line));
+}
+.order-cap-top {
+  margin-bottom: 0.3rem;
+}
+.order-cap-bottom {
+  margin-top: 0.3rem;
+}
+.search-order-list.order-list {
+  padding-left: 0;
+  list-style: none;
+}
+.order-list .order-row {
+  justify-content: flex-start;
+  gap: 0.4rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.order-list .order-row {
+  flex-wrap: wrap;
+}
+/* The name keeps at least ~6rem; below that the buttons wrap under it and
+   a long name gets two lines before it ellipsizes. */
+.order-list .order-row .choice-order-name {
+  flex: 1 1 6rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.order-list .order-row .search-order-actions {
+  flex: none;
+  margin-left: auto;
+}
+.order-list.is-dragging,
+.order-list.is-dragging .order-row {
+  cursor: grabbing;
+}
+.order-list .order-row.is-drag {
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.16);
+}
+.order-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  min-height: 2rem;
+  color: var(--muted);
+  font-size: 1rem;
+  touch-action: none;
+}
+.order-list .order-rest {
+  justify-content: center;
+  padding: 0.2rem;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.deck-preview strong {
+  color: var(--chrome-bright);
+}
+.choice-modes {
+  flex-direction: column;
+}
+.choice-mode {
+  text-align: left;
+  white-space: normal;
+}
+
+@media (max-width: 640px) {
+  .choice-prompt {
+    width: auto;
+    max-height: calc(100dvh - 8rem);
+  }
+  .choice-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  }
+}
+

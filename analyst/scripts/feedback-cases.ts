@@ -5,12 +5,12 @@
  *
  * Reads GET /admin/feedback/export with the analyst service secret (ANALYST_API_URL and ANALYST_SERVICE_SECRET name the
  * planner API and its secret) and writes one JSON line per rating: the question, the stored answer, the player's note
- * and a todo. A person finishes each one (gold, group) before it goes in evals/cases.ts. Player names are never read.
+ * and a todo. A person finishes each one (gold, group) before it goes in evals/qa/cases.ts. Player names are never read.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { stubsJsonl, type FeedbackItem } from "../evals/feedbackCases";
+import { stubsJsonl, type FeedbackItem } from "../evals/qa/feedbackCases";
 
 const flag = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);

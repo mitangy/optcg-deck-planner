@@ -1,0 +1,156 @@
+/* Version + "am I on the latest deploy?" line (Settings › About, lobby footer). */
+.version-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.version-line {
+  min-width: 0;
+}
+
+.version-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.version-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: var(--radius-round);
+  background: var(--line-strong);
+}
+
+.version-status[data-status="latest"] .version-dot {
+  background: var(--ok);
+}
+
+.version-status[data-status="update"] .version-dot {
+  background: var(--chrome);
+}
+
+.version-status[data-status="update"] .version-state {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.home-version {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 1rem;
+  opacity: 0.8;
+}
+
+.about-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.home-version .version-status {
+  justify-content: center;
+}
+
+.lobby label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.35rem;
+}
+
+.lobby input {
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  color: var(--ink);
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+}
+
+.lobby input:focus {
+  outline: 2px solid var(--chrome);
+  outline-offset: 1px;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.toggle {
+  align-self: flex-start;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--radius-6);
+  border: 1px solid var(--line);
+  background: var(--arena-mid);
+  color: var(--chrome-bright);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.error-text {
+  color: #ef9a9a;
+  margin-top: 0.35rem;
+}
+
+.actions {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.deck-config {
+  /* A column-flex child with auto margins shrinks to its content, so the page
+     would change width (and jump) as search results and art load; fill instead. */
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: max(1.25rem, var(--safe-t)) max(1.25rem, var(--safe-r))
+    max(3rem, calc(var(--safe-b) + 1.5rem)) max(1.25rem, var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.deck-config-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.deck-config-back {
+  flex: 0 0 auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deck-config-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.deck-config-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 5vw, 2.1rem);
+  color: var(--chrome-bright);
+  letter-spacing: 0.04em;
+}
+

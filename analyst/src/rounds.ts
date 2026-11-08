@@ -4,10 +4,10 @@ import { streamTo } from "./citations";
 import type { Refusal } from "./errors";
 import type { Block, ChatDeps, Message, ModelReply, SseEvent, Usage } from "./types";
 import type { ToolDef } from "./server";
-import { CHOICE_TOOL, PLAN_TOOL, type ChoiceAnswer, type TurnPlan } from "./copilot";
-import { NEW_DECK_TOOL, type NewDeckDraft } from "./newDeck";
-import { PROPOSE_TOOL, type DeckEditProposal } from "./proposals";
-import { adaptToolResult } from "./toolMeta";
+import type { ChoiceAnswer, TurnPlan } from "./copilot";
+import type { NewDeckDraft } from "./newDeck";
+import type { DeckEditProposal } from "./proposals";
+import { adaptToolResult, metaFor, type ClientActionName } from "./toolMeta";
 
 export const MAX_TOOL_ROUNDS = 12;
 
@@ -30,7 +30,13 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEditProposal) => void, onPlan?: (p: TurnPlan) => void, onDraft?: (d: NewDeckDraft) => void, onChoice?: (a: ChoiceAnswer) => void): Promise<Block> {
+/** What each client action carries (the SSE event of the same name), without the tool_use id the loop adds. */
+type ClientActionPayloads = { proposal: DeckEditProposal; deck_draft: NewDeckDraft; plan: TurnPlan; choice: ChoiceAnswer };
+
+/** Handlers for the tools whose result the app acts on, keyed by action. Adding an action is its payload here, `action` on the tool's `TOOL_META` entry and its handler. */
+export type ClientActions = { [K in ClientActionName]?: (payload: ClientActionPayloads[K]) => void };
+
+async function runTool(tools: ToolDef[], block: Block, clientActions?: ClientActions): Promise<Block> {
   const tool = tools.find((t) => t.name === block.name);
   const base = { type: "tool_result", tool_use_id: block.id };
   if (!tool) return { ...base, is_error: true, content: `Unknown tool ${String(block.name)}` };
@@ -39,10 +45,9 @@ async function runTool(tools: ToolDef[], block: Block, onProposal?: (p: DeckEdit
   try {
     const result = await tool.run(parsed.data as Record<string, unknown>);
     const text = result.content.map((c) => c.text).join("\n");
-    if (tool.name === PROPOSE_TOOL && !result.isError && onProposal) onProposal({ id: String(block.id), ...(result.value as Omit<DeckEditProposal, "id">) });
-    if (tool.name === NEW_DECK_TOOL && !result.isError && onDraft) onDraft({ id: String(block.id), ...(result.value as Omit<NewDeckDraft, "id">) });
-    if (tool.name === PLAN_TOOL && !result.isError && onPlan) onPlan({ id: String(block.id), ...(result.value as Omit<TurnPlan, "id">) });
-    if (tool.name === CHOICE_TOOL && !result.isError && onChoice) onChoice({ id: String(block.id), ...(result.value as Omit<ChoiceAnswer, "id">) });
+    const action = metaFor(tool.name)?.action;
+    const handler = action && !result.isError ? (clientActions?.[action] as ((payload: unknown) => void) | undefined) : undefined;
+    if (handler) handler({ id: String(block.id), ...(result.value as object) });
     // Facts become search results the model can cite; anything we can't adapt goes back as plain text.
     const sources = result.isError ? null : adaptToolResult(tool.name, result.value);
     return { ...base, ...(result.isError ? { is_error: true } : {}), content: sources ?? text };
@@ -89,14 +94,8 @@ type RoundsOptions = {
   maxRounds: number;
   maxTokens: number;
   effort: "low" | "medium" | "high";
-  /** Called with each deck edit the model proposes (chat only). */
-  onProposal?: (p: DeckEditProposal) => void;
-  /** Called with each turn plan the model proposes (Log Pose copilot). */
-  onPlan?: (p: TurnPlan) => void;
-  /** Called with each answer to a pending choice the model gives while the app plays the turn (Log Pose copilot). */
-  onChoice?: (a: ChoiceAnswer) => void;
-  /** Called with each new deck the model builds (chat only, #726). */
-  onDraft?: (d: NewDeckDraft) => void;
+  /** Handlers for deck edits and drafts (chat) and turn plans and choice answers (Log Pose copilot) the model proposes. */
+  clientActions?: ClientActions;
   /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
   recheck?: (cost: number) => Promise<Refusal | null>;
   /**
@@ -169,7 +168,7 @@ export async function runToolRounds(state: RoundsState, o: RoundsOptions): Promi
     }
     state.toolCalls += calls.length;
     for (const name of new Set(calls.map((c) => String(c.name)))) o.emit({ event: "status", data: { text: o.tools.find((t) => t.name === name)?.status ?? "Working" } });
-    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.onProposal, o.onPlan, o.onDraft, o.onChoice))) });
+    state.turn.push({ role: "user", content: await Promise.all(calls.map((c) => runTool(o.tools, c, o.clientActions))) });
   }
   return state;
 }

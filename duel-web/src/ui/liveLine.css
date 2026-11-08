@@ -1,0 +1,194 @@
+/* —— Live line, Ask Log Pose tile, Unranked, wave drift —— */
+
+.live-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  background: #3fcf6d;
+  box-shadow: 0 0 0 0 rgba(63, 207, 109, 0.55);
+  animation: live-pulse 2s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  70% {
+    box-shadow: 0 0 0 7px rgba(63, 207, 109, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 207, 109, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .live-dot {
+  animation: none;
+}
+
+.live-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius-12);
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+}
+
+.live-empty-title {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.live-empty-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.live-empty-invite {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.live-empty-alt {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.live-empty-small {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: rgb(var(--panel-rgb) / 0.6);
+  border-color: var(--line);
+}
+
+.live-empty-small:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
+}
+
+.voyage-delta-none {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.logpose-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.35);
+  border-radius: var(--radius-12);
+  background: linear-gradient(135deg, rgb(var(--chrome-rgb) / 0.12), rgb(var(--panel-rgb) / 0.6) 70%);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.logpose-tile:hover {
+  border-color: var(--chrome);
+}
+
+.logpose-tile-glyph {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-round);
+  color: var(--chrome-bright);
+  font-size: 0.95rem;
+}
+
+.logpose-tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.logpose-tile-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.logpose-tile-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* The wave texture behind the lobby drifts sideways, one tile (120px) per 90s. The page's own
+   copy of the texture is switched off while the lobby is up, and this fixed layer carries it.
+   The layer is one tile wider than the screen and moves by transform, so the drift never repaints. */
+:root:has(.home-shell) {
+  --wave-layer: none;
+}
+
+.home-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-shell::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: -120px;
+  width: calc(100% + 120px);
+  z-index: var(--z-under);
+  pointer-events: none;
+  background-image: var(--wave-src);
+  background-size: 120px 24px;
+  will-change: transform;
+  animation: wave-drift 90s linear infinite;
+}
+
+@keyframes wave-drift {
+  to {
+    transform: translateX(120px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-shell::before {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .home-shell::before {
+  animation: none;
+}
+

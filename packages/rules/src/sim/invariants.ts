@@ -4,7 +4,7 @@
  * with the fuzzer rather than in the engine.
  */
 import { applyIntent } from "../engine.js";
-import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
+import { deserializeMatch, serializeMatch } from "../engine/snapshot.js";
 import type { Intent, MatchState, PlayerState, Seat } from "../types.js";
 
 /** Cards a seat owns across every zone (Leader included, attached DON!! excluded). */

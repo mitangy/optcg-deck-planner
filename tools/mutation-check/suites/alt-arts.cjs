@@ -1,7 +1,7 @@
-/** Alt art sync script mutations (scripts/test_sync_alt_arts.py, unittest) (#581). */
-const F = "scripts/sync_alt_arts.py";
+/** Alt art sync script mutations (backend/scripts/test_sync_alt_arts.py, unittest) (#581). */
+const F = "backend/scripts/sync_alt_arts.py";
 module.exports = {
-  cwd: "scripts",
+  cwd: "backend/scripts",
   runner: "unittest",
   module: "test_sync_alt_arts",
   mutations: [

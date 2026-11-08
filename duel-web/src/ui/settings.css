@@ -1,0 +1,159 @@
+/* —— Settings: playmat —— */
+
+.playmat-preview {
+  width: 100%;
+  aspect-ratio: 12 / 7;
+  border-radius: var(--radius-12);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  background:
+    radial-gradient(90% 120% at 50% 50%, rgb(var(--sea-rgb) / 0.18), transparent 70%),
+    linear-gradient(180deg, var(--mat-top), var(--mat-bottom));
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+label.btn {
+  position: relative;
+}
+
+label.btn:focus-within {
+  box-shadow: var(--focus);
+}
+
+label.btn.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.field input.range {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--chrome);
+}
+
+/* —— Playmat / card back image editor —— */
+.img-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(var(--abyss-rgb) / 0.78);
+  overflow-y: auto;
+}
+
+.img-editor {
+  width: min(560px, 100%);
+  max-height: 100dvh;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 1rem;
+  border-radius: var(--radius-14);
+  border: 1px solid var(--line);
+  background: var(--panel, #12202b);
+}
+
+.img-editor-frame {
+  width: 100%;
+  /* Cap height so tall card-back frames fit small screens. */
+  max-height: 55dvh;
+  margin-inline: auto;
+  border-radius: var(--radius-10);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: repeating-conic-gradient(#1a2a36 0% 25%, #12202b 0% 50%) 0 0 / 16px 16px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.img-editor-frame:active {
+  cursor: grabbing;
+}
+
+.img-editor-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.img-editor-actions {
+  justify-content: flex-end;
+}
+
+/* —— Keyboard shortcut help —— */
+
+.kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.1em 0.5em;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-6);
+  background: rgba(0, 0, 0, 0.28);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.hotkey-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.hotkey-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.hotkey-row dt,
+.hotkey-row dd {
+  margin: 0;
+}
+
+.hotkey-row dd {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+/* —— Bounty (ranked rating) —— */
+
+.bounty-amount {
+  font-family: var(--font-num);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.berry-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+

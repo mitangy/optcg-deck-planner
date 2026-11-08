@@ -1,0 +1,104 @@
+/* —— Leaderboard page —— */
+
+.leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  /* Loading, error and the list share a height, so the footer does not jump. */
+  min-height: 14rem;
+}
+
+.leaderboard-note {
+  margin: 0;
+}
+
+.leaderboard-cols,
+.leaderboard-list .bounty-row {
+  gap: var(--space-2);
+}
+
+.leaderboard-cols {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.leaderboard-cols .bounty-rank,
+.leaderboard-cols .bounty-name {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.leaderboard-list .bounty-rank,
+.leaderboard-cols .bounty-rank {
+  flex: 0 0 2rem;
+}
+
+.leaderboard-bounty {
+  flex: 0 0 6.25rem;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.leaderboard-games {
+  flex: 0 0 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.leaderboard-cols .leaderboard-bounty {
+  display: block;
+  text-align: right;
+}
+
+.leaderboard-you {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  color: var(--chrome-bright);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Phone landscape: eight 44px rows would not fit, so the list tightens instead of hiding the last link. */
+@media (max-height: 480px) {
+  .nav-link {
+    min-height: 36px;
+  }
+
+  .nav-drawer-nav {
+    padding-top: max(0.5rem, var(--safe-t));
+    padding-bottom: max(0.5rem, var(--safe-b));
+  }
+}
+
+/* The menu button costs the account chip 44px on a phone; claw some back from the gaps. */
+@media (max-width: 479px) {
+  .topbar-inner {
+    gap: var(--space-2);
+  }
+
+  .topbar-left {
+    gap: 0;
+  }
+
+  .topbar-right {
+    gap: 0.35rem;
+  }
+
+  /* Planner and History are in the menu, so phones drop their shortcuts to keep the account name readable. */
+  .topbar-right .icon-btn.topbar-in-menu {
+    display: none;
+  }
+}
+

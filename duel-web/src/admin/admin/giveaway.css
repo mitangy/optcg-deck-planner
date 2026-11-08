@@ -1,0 +1,178 @@
+/* —— Giveaway event tab (#794) —— */
+
+.adm-evt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.adm-evt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.adm-evt-head .panel-title {
+  margin: 0;
+  min-width: 0;
+}
+
+.adm-evt-hash {
+  display: block;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: var(--arena-mid);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.adm-evt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+}
+
+.adm-evt-winners {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adm-evt-winners li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.adm-evt-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adm-evt-who small {
+  color: var(--muted);
+}
+
+/* Event picker and form (#1019). The picker row never changes height, so opening the form or switching events moves nothing above it. */
+.adm-evt-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adm-evt-picker .adm-evt-select {
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+
+.adm-evt-picker .btn {
+  flex: 0 0 auto;
+}
+
+.adm-evt-head-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.adm-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.adm-danger:disabled {
+  color: inherit;
+  border-color: var(--line);
+}
+
+.adm-evt-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.adm-evt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.adm-evt-grid > * {
+  min-width: 0;
+}
+
+.adm-evt-wide {
+  grid-column: 1 / -1;
+}
+
+.adm-evt-form textarea {
+  resize: vertical;
+}
+
+/* Reserved so a message never resizes the form. */
+.adm-evt-error {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .adm-evt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm-evt-head {
+    flex-wrap: wrap;
+  }
+
+  .adm-evt-head-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* Advisory flag pills (#809): they wrap inside a fixed-width cell so the row never grows sideways. */
+.adm-evt-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 9rem;
+}
+
+.adm-evt-flags-inline {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .adm-evt-flags-inline {
+    display: flex;
+    min-width: 0;
+    margin-top: 0.3rem;
+  }
+
+  .adm-evt-flagcol {
+    display: none;
+  }
+}
+
+/* The table scrolls inside its own box, never the page. */
+.adm-evt-table {
+  max-width: 100%;
+  max-height: 28rem;
+  overflow: auto;
+}

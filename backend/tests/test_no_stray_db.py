@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import db as app_db
+from app.core import db as app_db
 from app.main import app
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]

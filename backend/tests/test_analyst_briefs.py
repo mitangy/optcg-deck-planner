@@ -11,10 +11,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
-from app.brief_tickets import verify_brief_ticket
-from app.config import get_settings
-from app.game_tokens import game_token_secret, mint_game_token
-from app.models import AnalystMatchBrief
+from app.analyst.brief_tickets import verify_brief_ticket
+from app.core.config import get_settings
+from app.duel.tokens import game_token_secret, mint_game_token
+from app.analyst.models import AnalystMatchBrief
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_chat import _as, _session, chat  # noqa: F401  (fixtures)
 from tests.test_duel import client  # noqa: F401  (fixture)

@@ -1,0 +1,237 @@
+/* —— Match chat (floats top-left on narrow; lives in the rail on wide) —— */
+
+.chat-panel {
+  position: absolute;
+  top: 3.75rem;
+  left: 0.5rem;
+  z-index: var(--z-log);
+  width: min(280px, 46vw);
+  max-height: min(48vh, 420px);
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--deep-rgb) / 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.chat-panel.collapsed {
+  width: auto;
+  max-height: none;
+}
+
+.chat-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chat-toggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--chrome-bright);
+}
+
+.chat-count,
+.chat-unread {
+  min-width: 1.4rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-pill);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-count:empty {
+  display: none;
+}
+
+.chat-count {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chat-unread {
+  background: var(--chrome);
+  color: var(--on-chrome);
+}
+
+.chat-body {
+  flex: 1;
+  min-height: 3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0.6rem 0.4rem;
+}
+
+.chat-empty,
+.chat-readonly {
+  margin: 0.25rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.chat-readonly {
+  padding: 0 0.6rem 0.5rem;
+}
+
+.chat-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chat-line {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.chat-who {
+  margin-right: 0.4rem;
+  font-weight: 700;
+  color: #9cc7e0;
+}
+
+.chat-line.mine .chat-who {
+  color: var(--chrome-bright);
+}
+
+.chat-form {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+
+.chat-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: var(--arena-mid);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.chat-input:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.2);
+}
+
+.chat-send {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border: 1px solid rgb(var(--btn-edge-rgb) / 0.45);
+  border-radius: var(--radius-8);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  color: var(--on-chrome);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* `/ff` result floats over the bottom of the chat log so the input never moves. */
+.chat-form-wrap {
+  position: relative;
+}
+
+.chat-command {
+  position: absolute;
+  left: 0.45rem;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  z-index: var(--z-raise-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: var(--arena-mid);
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+
+.chat-command.hint {
+  bottom: 100%;
+  margin-bottom: 0.2rem;
+  pointer-events: none;
+}
+
+.chat-command > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chat-command .chat-command-confirm {
+  order: 3;
+  flex: 1 0 100%;
+}
+
+.chat-command button {
+  min-height: 32px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-command .chat-command-confirm {
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  color: var(--on-chrome);
+}
+
+/* Narrow: chat and battle log float from the top of the play area (not the
+   board root) so a wrapped HUD can never cover them. Phone blocks below
+   refine the battle-log pill. */
+@media not ((min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px)))) {
+  .arena .arena-body {
+    position: relative;
+  }
+
+  .arena .battle-log {
+    top: 4px;
+  }
+
+  .arena .chat-panel {
+    top: 4px;
+    left: 6px;
+  }
+
+  .arena .chat-panel.collapsed {
+    border-radius: var(--radius-pill);
+  }
+}
+

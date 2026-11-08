@@ -16,6 +16,7 @@
   "dependencies": {
     "@colyseus/schema": "^5.0.14",
     "@colyseus/tools": "^0.18.3",
+    "@optcg/duel-protocol": "*",
     "@optcg/rules": "*",
     "@types/pg": "^8.23.1",
     "colyseus": "^0.18.5",

@@ -5,7 +5,7 @@
  */
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";
 import { compileCardText } from "./compileCard.js";
-import { clean, parseCondition, parseCosts, parseStatement, parseStaticSentence } from "./grammar.js";
+import { clean, parseCondition, parseCosts, parseStatement, parseStaticSentence } from "./grammar/index.js";
 import { normalizeText, protect, restoreNames, segment, sentences } from "./normalize.js";
 import type { Ctx } from "./phrases.js";
 

@@ -1,0 +1,7 @@
+{
+  "_note": "Values the API (backend/app) must keep equal to @optcg/analyst-contract. Read by backend/tests/test_analyst_contract.py and src/contract.test.ts.",
+  "scopePattern": "^(general|match:[A-Za-z0-9_-]{1,64}|deck:planner:[0-9]{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$",
+  "chatModels": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"],
+  "budgetRefusals": ["credit", "daily", "monthly"],
+  "usageRefusals": ["credit", "daily", "monthly", "busy"]
+}

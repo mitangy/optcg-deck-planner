@@ -1,15 +1,12 @@
 import { ensureDefsForPlayers, unsupportedCardsForDeck } from "@optcg/rules";
-import type { PlayerDeckWire } from "./protocol.js";
+import { bad, type PlayerDeckWire } from "./protocol.js";
 
 /** Throw (code bad_protocol) when a deck names a card the engine has no definition for. */
 export function assertKnownDeck(deck: PlayerDeckWire): void {
   try {
     ensureDefsForPlayers([deck]);
   } catch (e) {
-    throw Object.assign(
-      new Error(`Deck rejected: ${e instanceof Error ? e.message : String(e)}`),
-      { code: "bad_protocol" as const },
-    );
+    throw bad(`Deck rejected: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

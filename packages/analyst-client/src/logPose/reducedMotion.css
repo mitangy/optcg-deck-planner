@@ -1,0 +1,28 @@
+/* ——— Reduced motion: pulse instead of swing, no slide-in ——— */
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-compass[data-working] .lp-needle {
+    animation: none;
+  }
+  .lp-compass[data-working] .lp-compass-svg {
+    animation: lp-pulse 1.4s ease-in-out infinite;
+  }
+  .lp-panel {
+    animation: none;
+  }
+  .lp-compass {
+    transition: none;
+  }
+}
+
+:root[data-motion="reduce"] .lp-compass[data-working] .lp-needle {
+  animation: none;
+}
+
+:root[data-motion="reduce"] .lp-compass[data-working] .lp-compass-svg {
+  animation: lp-pulse 1.4s ease-in-out infinite;
+}
+
+:root[data-motion="reduce"] .lp-panel {
+  animation: none;
+}

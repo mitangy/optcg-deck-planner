@@ -2,17 +2,17 @@
  * Decks for the nightly bot self-play (#635): the current meta, from the backend's public /meta endpoints
  * (the same Limitless top finishes the duel app's meta deck browser shows).
  */
+import { MAIN_DECK_SIZE } from "@optcg/card-core";
+
 export type SelfPlayDeck = { name: string; leaderId: string; deck: string[] };
 
 type MetaLeaderRow = { leader_id: string; name?: string; decks: number };
 type MetaDeckRow = { placing: number | null; event?: string; date?: string; cards: { card_id: string; count: number }[] };
 
-export const DECK_SIZE = 50;
-
 /** The 50 card ids of a meta deck, copies repeated; null when the list is not exactly 50 cards. */
 export function expandDeck(cards: { card_id: string; count: number }[]): string[] | null {
   const ids = cards.flatMap((c) => Array.from({ length: Math.max(0, Math.trunc(c.count)) }, () => c.card_id));
-  return ids.length === DECK_SIZE ? ids : null;
+  return ids.length === MAIN_DECK_SIZE ? ids : null;
 }
 
 /** The best-placed complete deck (placed decks first, then newest), or null when none is a full 50-card list. */

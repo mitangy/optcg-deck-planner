@@ -1,3 +1,4 @@
+import type { SseEventName } from "@optcg/analyst-contract";
 import type { Catalog } from "./catalog";
 import type { PlannerApi } from "./matches";
 import type { Knowledge } from "./server";
@@ -27,6 +28,6 @@ export type CallModel = (
   onCite?: (citation: Citation) => void,
 ) => Promise<ModelReply>;
 
-export type SseEvent = { event: "thread" | "status" | "text" | "cite" | "proposal" | "deck_draft" | "plan" | "choice" | "done" | "error"; data: Record<string, unknown> };
+export type SseEvent = { event: SseEventName; data: Record<string, unknown> };
 
 export type ChatDeps = { api: PlannerApi; catalog: Catalog; knowledge: Knowledge; callModel: CallModel };

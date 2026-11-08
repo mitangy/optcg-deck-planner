@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from app import group_buy
+from app.group_buy import service as group_buy
 from tests.friend_support import as_user, client, make_user  # noqa: F401
 
 
 def _create(S, host_id: int):
     with S() as db:
-        from app.models import User
+        from app.core.models import User
 
         host = db.get(User, host_id)
         return group_buy.create_group_buy(db, host, "Old name")
@@ -29,7 +29,7 @@ def test_host_can_rename_a_locked_group_buy_879(client):
     host = make_user(S, "host")
     created = _create(S, host)
     with S() as db:
-        from app.models import User
+        from app.core.models import User
 
         group_buy.lock_group_buy(db, db.get(User, host), created.id)
     r = as_user(c, host).put(f"/group-buys/{created.id}/title", json={"title": "Locked rename"})
@@ -43,7 +43,7 @@ def test_member_cannot_rename_group_buy_879(client):
     friend = make_user(S, "friend")
     created = _create(S, host)
     with S() as db:
-        from app.models import User
+        from app.core.models import User
 
         group_buy.join_group_buy(db, db.get(User, friend), created.invite_token)
     r = as_user(c, friend).put(f"/group-buys/{created.id}/title", json={"title": "Hijacked"})

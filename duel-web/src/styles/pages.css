@@ -1,0 +1,391 @@
+/* Suspense fallback for lazy routes: reserves the viewport so the footer and chrome do not jump when the page lands. */
+.route-fallback {
+  min-height: 100dvh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* With the legal footer below a page, the page fills the screen minus the
+   footer, so short pages put it at the bottom edge instead of below the fold. */
+#root:has(> .site-footer) {
+  display: flex;
+  flex-direction: column;
+}
+
+#root:has(> .site-footer) > :not(.site-footer) {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+.lobby {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 2rem max(1.25rem, var(--safe-r)) max(3rem, calc(var(--safe-b) + 1.5rem))
+    max(1.25rem, var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.lobby-wide {
+  max-width: 640px;
+}
+
+.lobby-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.lobby-setup-panel {
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-10);
+  padding: 1rem 1.1rem 1.15rem;
+  background:
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.1), transparent 55%),
+    var(--arena-panel);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.lobby-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lobby-textarea,
+.lobby .ui-select-button {
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  color: var(--ink);
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+  font: inherit;
+}
+
+.lobby-textarea {
+  resize: vertical;
+  min-height: 7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.hotseat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.55rem 0.85rem;
+  background: linear-gradient(90deg, #1a3a2a, #243044);
+  border-bottom: 1px solid var(--chrome);
+  color: var(--chrome-bright);
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.hotseat-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.resume-banner {
+  border: 1px solid var(--chrome);
+  background: rgba(40, 60, 45, 0.45);
+}
+
+.card-tile {
+  position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.card-inspect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-inspect);
+  background: rgb(var(--abyss-rgb) / 0.82);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  cursor: pointer;
+}
+
+.card-inspect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--arena-panel);
+  border: 1px solid var(--chrome);
+  border-radius: 16px 16px 12px 12px;
+  padding: 0.65rem 1rem 1rem;
+  max-width: 720px;
+  width: 100%;
+  max-height: min(92dvh, 760px);
+  overflow: hidden;
+  cursor: default;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease-out;
+}
+
+.card-inspect-handle {
+  width: 48px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.28);
+  margin: 0.15rem auto 0.1rem;
+  flex-shrink: 0;
+  padding: 10px 24px;
+  box-sizing: content-box;
+  background-clip: content-box;
+  cursor: grab;
+  touch-action: none;
+}
+
+.card-inspect-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.card-inspect-toolbar .card-inspect-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.card-inspect-done {
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 5.5rem;
+  padding: 0.5rem 1.1rem;
+  font-weight: 700;
+}
+
+.card-inspect-scroll {
+  display: grid;
+  grid-template-columns: minmax(160px, 280px) minmax(200px, 1fr);
+  gap: var(--space-4);
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: 0.25rem;
+  overscroll-behavior: contain;
+}
+
+.card-inspect-art {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.card-inspect-img {
+  width: 100%;
+  max-width: 280px;
+  border-radius: var(--radius-8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.card-inspect-fallback {
+  width: 180px;
+  height: 250px;
+  display: grid;
+  place-items: center;
+  background: #333;
+  border-radius: var(--radius-8);
+  color: #fff;
+  font-weight: 700;
+}
+
+.card-inspect-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.card-inspect-name {
+  margin: 0;
+  color: var(--chrome-bright);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+}
+
+.card-inspect-id {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.card-inspect-effect-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--chrome);
+  margin-bottom: 0.25rem;
+}
+
+.card-inspect-effect p {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.card-inspect-effect .card-inspect-ability-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  font-style: italic;
+  white-space: normal;
+}
+
+.card-inspect-alt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.card-inspect-alt-btn {
+  min-height: 36px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.card-report-open {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.card-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.card-report-text {
+  background: var(--arena-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  color: var(--ink);
+  padding: 0.55rem 0.65rem;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.card-report-error {
+  margin: 0;
+  color: var(--crimson-bright);
+  font-size: 0.8rem;
+}
+
+.card-report-sent {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.card-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.card-report-actions .btn {
+  min-height: 40px;
+}
+
+@media (min-width: 641px) {
+  .card-inspect-backdrop {
+    align-items: center;
+  }
+
+  .card-inspect {
+    border-radius: var(--radius-12);
+  }
+
+  .card-inspect-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-inspect-scroll {
+    grid-template-columns: 1fr;
+  }
+
+  .card-inspect-img {
+    max-width: 220px;
+    margin: 0 auto;
+  }
+}
+
+.lobby-brand {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 3.5rem);
+  letter-spacing: 0.06em;
+  line-height: 0.95;
+  color: var(--chrome-bright);
+  margin: 0;
+  text-shadow: 0 0 24px rgb(var(--chrome-rgb) / 0.35);
+}
+
+.lobby-sub {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.build-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  opacity: 0.85;
+  user-select: all;
+  white-space: nowrap;
+}
+
+.build-tag-lobby {
+  display: inline-block;
+  margin: -0.35rem 0 0.85rem;
+  opacity: 0.7;
+}
+

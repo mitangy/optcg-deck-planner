@@ -38,7 +38,7 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
     : base.you.costArea;
   const trashFor = (cards: string[]) =>
     trash == null ? cards : Array.from({ length: trash }, (_, i) => cards[i % cards.length] ?? "ST01-003");
-  const faceUpFor = (lifeCount: number, current?: Array<{ index: number; defId: string }>) =>
+  const faceUpFor = (lifeCount: number, current: Array<{ index: number; defId: string }>) =>
     faceUp == null
       ? current
       : Array.from({ length: Math.min(faceUp, lifeCount) }, (_, i) => ({ index: i, defId: ["OP16-108", "OP09-082", "ST01-003"][i % 3]! }));
@@ -136,7 +136,7 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
           { type: "end_turn" },
           { type: "declare_attack", attackerId: "y-leader", target: { kind: "leader" } },
           ...(params.has("attackready")
-            ? [{ type: "declare_attack", attackerId: "y-c3", target: { kind: "leader" } }]
+            ? [{ type: "declare_attack" as const, attackerId: "y-c3", target: { kind: "leader" as const } }]
             : []),
           ...colored.legalIntents.filter((i) => i.type === "give_don"),
         ],

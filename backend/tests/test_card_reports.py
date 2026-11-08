@@ -5,12 +5,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests.db_support import make_test_engine
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
-from app.game_tokens import mint_game_token
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
+from app.duel.tokens import mint_game_token
 from app.main import app
-from app.models import User
+from app.core.models import User
 from app.routers import duel
 
 ADMIN = {"X-Catalog-Token": "test-admin-token"}
@@ -115,7 +115,7 @@ def test_fixed_reports_leave_the_default_open_list(client):
 
 
 def test_reports_are_capped_in_total_across_clients_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
 
     c, _ = client
     monkeypatch.setattr(duel, "_report_global_rate", RateLimiter(max_calls=2, period_s=3600))
