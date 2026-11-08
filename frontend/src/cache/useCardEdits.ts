@@ -3,11 +3,11 @@ import { useState } from "react";
 import { api } from "../api";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../cards/displayArtViews";
 import { busyKeyFor, busyProductFor } from "./busyKey";
-import { invalidateAltOwnedViews, invalidateAltWantViews } from "./invalidate";
-import { applyAltBuyOptimistic, applyAltOwnedOptimistic } from "./optimistic";
+import { invalidateAltOwnedViews, invalidateAltWantViews, invalidateCollectorViews } from "./invalidate";
+import { applyAltBuyOptimistic, applyAltOwnedOptimistic, applyCollectorOptimistic } from "./optimistic";
 
 /**
- * Save alt-art owned counts, buy picks and the chosen display art from a page: optimistic patches to
+ * Save alt-art owned counts, buy picks, collector wants (#1035) and the chosen display art from a page: optimistic patches to
  * every cached view, the save, then a refetch so values and totals come from the server. The
  * Collection keeps no other editing state; Shopping and the Deck page pass `saveAltBuy` because
  * only the buy-pick API call differs between them (`setCardPrinting` vs `setDeckCardPrinting`).
@@ -18,6 +18,7 @@ export function useCardEdits({
 }: { saveAltBuy?: (cardId: string, productId: number, qty: number) => Promise<void> } = {}) {
   const qc = useQueryClient();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const changeAltOwned = async (cardId: string, productId: number, qty: number) => {
     setError(null);
@@ -46,6 +47,20 @@ export function useCardEdits({
       setBusyKey(null);
     }
   };
+  const changeCollector = async (cardId: string, productId: number, qty: number) => {
+    setError(null);
+    setCollectorBusyKey(busyKeyFor(cardId, productId));
+    applyCollectorOptimistic(qc, cardId, productId, qty);
+    try {
+      const res = await api.setCollectorWant(cardId, productId, qty);
+      applyCollectorOptimistic(qc, cardId, productId, res.qty);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      invalidateCollectorViews(qc);
+      setCollectorBusyKey(null);
+    }
+  };
   const changeDisplayArt = async (cardId: string, productId: number) => {
     setError(null);
     applyDisplayArtOptimistic(qc, cardId, productId);
@@ -59,5 +74,18 @@ export function useCardEdits({
   };
   /** The alt printing of `cardId` whose save is in flight, if any. */
   const busyProductId = (cardId: string) => busyProductFor(busyKey, cardId);
-  return { busyKey, error, setError, changeAltOwned, changeAltBuy, changeDisplayArt, busyProductId };
+  /** The alt printing of `cardId` whose collector save is in flight, if any. */
+  const collectorBusyProductId = (cardId: string) => busyProductFor(collectorBusyKey, cardId);
+  return {
+    busyKey,
+    collectorBusyKey,
+    error,
+    setError,
+    changeAltOwned,
+    changeAltBuy,
+    changeCollector,
+    changeDisplayArt,
+    busyProductId,
+    collectorBusyProductId,
+  };
 }

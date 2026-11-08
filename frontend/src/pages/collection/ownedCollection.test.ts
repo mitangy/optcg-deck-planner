@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OwnedCard, OwnedCollectionResponse, PrintingView } from "../../api";
 import { compareCardOrder } from "../../ui/cardListControls";
-import { collectionTotals, patchOwnedCollection, patchOwnedCollectionAlt, patchOwnedCollectionDisplayArt } from "./ownedCollection";
+import { collectionTotals, patchOwnedCollection, patchOwnedCollectionAlt, patchOwnedCollectionCollector, patchOwnedCollectionDisplayArt } from "./ownedCollection";
 
 const card = (card_id: string, owned: number, market_price: number | null): OwnedCard => ({
   card_id,
@@ -138,5 +138,21 @@ describe("owned collection", () => {
     const next = patchOwnedCollectionDisplayArt(old, "a", 201);
     expect(next.items.map((i) => i.display_art)).toEqual([201, undefined]);
     expect(patchOwnedCollectionDisplayArt(next, "A", null).items[0].display_art).toBeNull();
+  });
+
+  it("a collector change sets only that alt of that card (#1035)", () => {
+    const alt = (product_id: number): PrintingView => ({ product_id, name: `alt ${product_id}`, market_price: 5, low_price: null, image_url: "", tcgplayer_url: "", group_name: "", is_special: true, owned: 0, collector: 0 });
+    const old: OwnedCollectionResponse = {
+      items: [
+        { ...card("A", 1, 2), alt_arts: [alt(201), alt(202)] },
+        { ...card("B", 1, 2), alt_arts: [alt(201), alt(202)] },
+      ],
+      unique_cards: 2,
+      total_copies: 2,
+      total_value: 4,
+      unpriced_cards: 0,
+    };
+    const next = patchOwnedCollectionCollector(old, "a", 202, 3);
+    expect(next.items.map((i) => (i.alt_arts ?? []).map((a) => a.collector))).toEqual([[0, 3], [0, 0]]);
   });
 });

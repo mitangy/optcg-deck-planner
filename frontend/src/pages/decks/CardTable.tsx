@@ -63,6 +63,8 @@ export function CardTable({
   altOwnedBusyKey = null,
   onDisplayArtChange,
   onAltBuyChange,
+  onCollectorChange,
+  collectorBusyKey = null,
 }: {
   cards: CardView[];
   onOwnedSaved: () => void;
@@ -78,6 +80,10 @@ export function CardTable({
   onDisplayArtChange?: (cardId: string, productId: number) => void;
   /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
+  /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
+  onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
+  /** `${cardId}:${productId}` while a collector save is in flight. */
+  collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
   // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
@@ -90,6 +96,7 @@ export function CardTable({
         onPick={(productId, qty) => onAltBuyChange(c.card_id, productId, qty)}
         busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
         plainWhenIdle={false}
+        onCollectorPick={onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined}
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
@@ -126,6 +133,10 @@ export function CardTable({
           : undefined
       }
       busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
+      onCollectorChange={
+        onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined
+      }
+      collectorBusyProductId={busyProductFor(collectorBusyKey, c.card_id)}
     />
   );
   if (layout === "grid") {
