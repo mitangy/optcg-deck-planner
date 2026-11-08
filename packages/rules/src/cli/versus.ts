@@ -2,10 +2,12 @@
  * Paired bot-vs-bot comparison (#635): bot A against bot B on the meta decks, every pair of games with the same decks,
  * shuffle and first seat and the bots' seats swapped.
  *
- * Usage: npx tsx src/cli/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3] [--json result.json]
+ * Usage: npx tsx src/cli/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3] [--focus <leaderId>] [--json result.json]
  * Spec keys: kind = normal | hard | legacy (an older bot: LEGACY_BOT=<file exporting chooseLegacy>, e.g. a copy of src/bot from git at the commit to compare with), evalMode, prior = meta | true | generic,
  * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs,
+ * playbooks = on | off | <leaderId>+<leaderId> (leader playbooks, #1173; default on; e.g. playbooks=OP12-061),
  * weights = path to a value model JSON (linear or mlp, see bot/valueModel.ts) used for winProb and evalMode=learned instead of the committed valueWeights.json (no commas in the path).
+ * --focus <leaderId>: in every pair one of the two decks is that leader's deck from the decks file (which seat is drawn by the deck rng) and the other a random deck of another leader, so a leader playbook is measured on its own leader.
  * Prints wins, win rate with a 95% Wilson interval, the pair counts with the paired interval (versusStats.ts), and CPU time per hard decision for each side.
  * --json writes {games, finished, aWins, rate, ci:[lo,hi], pairs:{aBoth,split,bBoth}, pairedCi:[lo,hi]} (rates are fractions of finished games; pairedCi is for the mean pair score).
  */
@@ -33,6 +35,7 @@ async function optionsOf(spec: Spec, decks: DeckFile[]): Promise<{ level: BotLev
   const opts: Partial<BotOptions> = {};
   if (spec.evalMode) opts.evalMode = spec.evalMode as "learned" | "hand";
   if (spec.opp) opts.opponentModel = spec.opp as "normal" | "greedy";
+  if (spec.playbooks) opts.playbooks = spec.playbooks === "on" ? true : spec.playbooks === "off" ? false : spec.playbooks.split("+");
   if (spec.mulligan) opts.mulligan = spec.mulligan as "rule" | "sim";
   if (spec.horizon) opts.horizonTurns = Number(spec.horizon) as 1 | 2;
   if (spec.samples) opts.samples = Number(spec.samples);
@@ -62,6 +65,7 @@ async function worker(): Promise<void> {
   const b = await optionsOf(parseSpec(arg("b")!), decks);
   const [shard, procs] = (arg("shard") ?? "0/1").split("/").map(Number) as [number, number];
   const games = Number(arg("games"));
+  const focus = arg("focus");
   const seed = Number(arg("seed"));
   const global: Partial<BotOptions> = {};
   if (arg("max-evals")) { global.maxEvals = Number(arg("max-evals")); global.budgetMs = Infinity; }
@@ -72,8 +76,17 @@ async function worker(): Promise<void> {
     if (pair % procs !== shard) continue;
     const s = seed + pair;
     const deckRng = createSeededRng(mix(s, 4));
-    const pick = (): PlayerDeckConfig => (({ leaderId, deck }) => ({ leaderId, deck }))(decks[deckRng.nextInt(decks.length)]!);
-    const players: [PlayerDeckConfig, PlayerDeckConfig] = [pick(), pick()];
+    const cfg = ({ leaderId, deck }: DeckFile): PlayerDeckConfig => ({ leaderId, deck });
+    const pick = (): PlayerDeckConfig => cfg(decks[deckRng.nextInt(decks.length)]!);
+    let players: [PlayerDeckConfig, PlayerDeckConfig];
+    if (focus) {
+      const mine = decks.filter((d) => d.leaderId === focus);
+      const rest = decks.filter((d) => d.leaderId !== focus);
+      if (!mine.length || !rest.length) throw new Error(`--focus ${focus}: needs a deck with that leader and a deck with another one`);
+      const f = cfg(mine[deckRng.nextInt(mine.length)]!);
+      const o = cfg(rest[deckRng.nextInt(rest.length)]!);
+      players = deckRng.nextInt(2) === 0 ? [f, o] : [o, f];
+    } else players = [pick(), pick()];
     const aSeat = g % 2 === 0 ? 0 : 1;
     const bots = aSeat === 0 ? [a, b] : [b, a];
     const r = playBotGame({

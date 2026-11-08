@@ -1,15 +1,18 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { Intent, MatchState, Seat } from "../types.js";
 import type { Rng } from "../rng.js";
+import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotLevel, BotView } from "./types.js";
 
 /** Keep a hand with a playable curve: at least two Characters costing 4 or less. Easy keeps unless the rng says otherwise. */
-export function chooseMulligan(view: BotView, level: BotLevel, rng: Rng): Intent {
+export function chooseMulligan(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const mull = legal.find((i) => i.type === "mulligan" && i.doMulligan);
   const keep = legal.find((i) => i.type === "mulligan" && !i.doMulligan);
   if (!mull || !keep) return legal[0]!;
   if (level === "easy") return rng.next() < 0.25 ? mull : keep;
+  const verdict = pb?.mulligan?.(view.you.hand.map((c) => c.defId), view.firstSeat === view.seat);
+  if (verdict) return verdict === "keep" ? keep : mull;
   const cheap = view.you.hand.filter((c) => {
     const def = getCardDef(c.defId);
     return def.type === "character" && def.cost <= 4;
@@ -59,10 +62,12 @@ export function goldfishScore(hand: readonly string[], draws: readonly string[],
 }
 
 /** Keep or mulligan: the hand against sampled redraws, scored by `goldfishScore` over sampled futures. Returns one of the legal mulligan intents. */
-export function chooseSimMulligan(state: MatchState, seat: Seat, view: BotView, rng: Rng, base: Intent): Intent {
+export function chooseSimMulligan(state: MatchState, seat: Seat, view: BotView, rng: Rng, base: Intent, pb?: LeaderPlaybook): Intent {
   const mull = view.legalIntents.find((i) => i.type === "mulligan" && i.doMulligan);
   const keep = view.legalIntents.find((i) => i.type === "mulligan" && !i.doMulligan);
   if (!mull || !keep) return base;
+  const verdict = pb?.mulligan?.(view.you.hand.map((c) => c.defId), state.firstSeat === seat);
+  if (verdict) return verdict === "keep" ? keep : mull;
   const me = state.players[seat];
   // Unknown to the bot: the order of its deck and which of the remaining cards sit in Life. Known: the multiset.
   const rest = [...me.deck, ...me.life];

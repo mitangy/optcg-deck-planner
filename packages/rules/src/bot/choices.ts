@@ -6,6 +6,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { ChoiceOption, ChoiceRequest, Intent, PendingChoice } from "../types.js";
 import type { Rng } from "../rng.js";
+import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotLevel, BotView } from "./types.js";
 import { boardValue, defValue, findBoardCard } from "./value.js";
 
@@ -136,7 +137,7 @@ function answerOrder(view: BotView, r: Extract<ChoiceRequest, { type: "order" }>
 }
 
 /** The bot's answer for the front pending choice (always the seat's own), or a legal default when unsure. */
-export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng): Intent {
+export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const fallback = legal[0]!;
   const choice = view.pendingChoices[0];
@@ -148,6 +149,11 @@ export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng): In
   }
   // Easy sometimes just takes the engine's default answer.
   if (level === "easy" && rng.next() < 0.4) return fallback;
+  // The Leader's own ability (#1173): its playbook may know better than the generic answer. Only a legal-looking answer is used.
+  if (pb?.answerChoice && choice.cardDefId === pb.leaderId) {
+    const hinted = pb.answerChoice(view, choice);
+    if (hinted && hinted.type === "resolve_pending_choice" && (hinted.accept || choice.optional)) return hinted;
+  }
   const r = choice.request;
   if (!r || r.type === "confirm") {
     // Paying to change an attack's target is pointless with no other card to take it (#1169).
