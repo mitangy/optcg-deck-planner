@@ -71,7 +71,7 @@ describe("Master Shopping collector picker (#1031)", () => {
     // Nothing is left to buy: no split rows or total, only the picker (open from the start).
     expect(panel.textContent).not.toContain("Total");
     expect(panel.querySelector("button[aria-label^='Increase']")).toBeNull();
-    expect(panel.textContent).toContain("Want a collector copy too");
+    expect(panel.textContent).toContain("Want an extra copy too");
     click(panel.querySelector("button[aria-label='Pick Alt 1 as a collector copy']"));
     expect(picks).toEqual([[1, 1]]);
     // An art that already has a collector copy shows Added instead of Pick.

@@ -23,6 +23,11 @@ export function useFullShoppingById(deckIds?: number[]): Map<string, ShoppingIte
   return useFullShoppingState(deckIds).byId;
 }
 
+/** Copies bought as the alt after a + or − on its search row: one step with the stepper, never above the added copies (#1165). */
+export function nextAltPick(current: number, extraTarget: number, adding: boolean): number {
+  return Math.max(0, Math.min(adding ? current + 1 : current - 1, extraTarget));
+}
+
 /** "Add" for a card that needs nothing yet; otherwise a copies-to-buy stepper. Same footprint either way. */
 export function ShoppingExtraControl({
   cardId,
@@ -44,11 +49,17 @@ export function ShoppingExtraControl({
   const qc = useQueryClient();
   const stillNeed = item?.still_need ?? 0;
   const extraQty = item?.extra_qty ?? 0;
+  const altPicked = altProductId > 0 ? (item?.alt_arts?.find((a) => a.product_id === altProductId)?.wanted ?? 0) : 0;
   const save = useMutation({
     mutationFn: async ({ target, adding }: { target: number; adding: boolean }) => {
       const res = await api.setShoppingExtra(cardId, target);
       // Adding from an alt-art row also shows that art for the card.
       if (adding && altProductId > 0) await api.setDisplayArt(cardId, altProductId);
+      // An alt-art row also buys that copy as the alt (#1165), never more of them than the added copies.
+      if (altProductId > 0) {
+        const altQty = nextAltPick(altPicked, target, adding);
+        if (altQty !== altPicked) await api.setCardPrinting(cardId, altProductId, altQty);
+      }
       return res;
     },
     // Stay pending until the list refetches, so a quick second press never steps from stale counts.
