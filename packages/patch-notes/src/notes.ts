@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
   { date: "2026-11-08", app: "planner", pr: 1165, title: "Collector is now Extra copy", text: "Collector copies are now called Extra copy, so it is clear they add a copy on top of what your decks need. On alt art tiles Buy ×N now reads Buying ×N. Picking an extra copy of the art your deck copy already uses asks first. Adding an alt art from Master Shopping's Add cards now buys that copy as the alt art." },
+  { date: "2026-11-08", app: "planner", pr: 1164, title: "Price alert Edit works with Price history open", text: "Under an enlarged card, Edit on your price alert now opens the alert editor even when Price history is open, and opening one closes the other." },
   { date: "2026-11-08", app: "duel", pr: 1063, title: "A server hiccup no longer signs you out", text: "A brief server hiccup no longer signs you out of the duel app or puts you in the queue as a guest." },
   { date: "2026-11-08", app: "both", pr: 1063, title: "No blank page after an update", text: "After an update, opening a page you hadn't visited yet reloads the app instead of showing a blank page." },
   { date: "2026-11-08", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
