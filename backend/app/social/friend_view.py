@@ -127,7 +127,11 @@ def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, Ca
     """Per-card holdings for every card the user owns or keeps (DON!! excluded)."""
     owned = total_owned(db, user.id)
     alts = catalog_repo.alt_owned_map(db, user.id)
-    reserved = {i.card_id: i.need for i in shopping_svc.shopping_list(db, user).items}
+    # Copies a collector want claims are held back too (`have` is capped at the want, #1032).
+    reserved = {
+        i.card_id: i.need + sum(line.have for line in i.collector_wants)
+        for i in shopping_svc.shopping_list(db, user).items
+    }
     keeps = {
         k.card_id: k.keep_qty
         for k in db.scalars(select(TradeKeep).where(TradeKeep.user_id == user.id)).all()

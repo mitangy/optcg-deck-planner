@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.planner import decks as deck_svc, shopping as shopping_svc, owned as owned_svc
+from app.social import friend_view
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.main import app
@@ -170,3 +171,22 @@ def test_collector_endpoint_sets_rejects_base_and_zero_deletes_1031(db):
         assert db.query(CollectorWant).count() == 0
     finally:
         app.dependency_overrides.clear()
+
+
+def test_collector_copies_are_not_tradeable_spares_for_friends_1032(db):
+    user = _seed(db)
+    # Own 2 gold, collector want 1, no deck: one is claimed by the collector want, one is spare.
+    owned_svc.set_alt_owned(db, user, NAMI, GOLD, 2)
+    owned_svc.set_collector_want(db, user, NAMI, GOLD, 1)
+
+    held, _ = friend_view.holdings(db, user)
+
+    assert held[NAMI].owned_total == 2
+    assert held[NAMI].reserved == 1
+    assert held[NAMI].spare == 1
+
+    # Own 1 gold and want 1: the only copy fills the collector want, nothing is spare.
+    owned_svc.set_alt_owned(db, user, NAMI, GOLD, 1)
+    held, _ = friend_view.holdings(db, user)
+
+    assert held[NAMI].spare == 0

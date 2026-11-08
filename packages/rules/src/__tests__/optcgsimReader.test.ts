@@ -224,4 +224,23 @@ describe("OPTCGSim combat log reader (#1030)", () => {
     expect(report.turns).toBe(games[0].turns.length + games[1].turns.length);
     expect(report.eventsByKind.attack).toBe(19);
   });
+
+  it("a single huge text line is skipped instead of stalling the parser, and the normal lines around it still parse (#1033)", () => {
+    const huge = "x [A][1] vs ".repeat(33_000);
+    const log = [
+      "RZ1|PLY|1|PlayerA#1|OP00-001",
+      "RZ1|PLY|2|PlayerB#2|OP00-002",
+      "[PlayerA#1] Chose to go First",
+      "[PlayerA#1] Draw 1 Don",
+      huge,
+      "[PlayerA#1] Draw 2 Cards",
+    ].join("\n");
+    const t0 = performance.now();
+    const g = parseSimGame({ playerName: "PlayerA#1", oppPlayerName: "PlayerB#2", turnOrder: 0, result: "Won", combatLog: log });
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(2000);
+    expect(g.unknownLines.some((l) => l.length > 10_000)).toBe(false);
+    expect(g.firstPlayer).toBe("me");
+    expect(g.turns[0].events.some((e) => e.kind === "draw")).toBe(true);
+  });
 });

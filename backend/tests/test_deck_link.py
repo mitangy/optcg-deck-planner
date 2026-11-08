@@ -80,6 +80,13 @@ def _put(c, deck_id, at, deck=None):
     return c.put(f"/duel/decks/{deck_id}", json={"deck": deck or _duel(), "updatedAt": at})
 
 
+def _bulk(c, deck_id, at, deck=None) -> dict:
+    """The first-sign-in upload of one deck; returns that deck's response."""
+    res = c.put("/duel/decks", json={"decks": [{"id": deck_id, "deck": deck or _duel(), "updatedAt": at}]})
+    assert res.status_code == 200, res.text
+    return res.json()["decks"][0]
+
+
 def _planner_cards(S, deck_id: int) -> dict[str, int]:
     with S() as db:
         rows = db.scalars(select(DeckCard).where(DeckCard.deck_id == deck_id)).all()
@@ -450,7 +457,7 @@ def test_a_guest_deck_identical_to_a_synced_deck_is_dropped_not_duplicated_1027(
     pid = _mirrored_planner_deck(c, S, uid, artPrefs={"OP01-016": "keep"})
     survivor_before = _duel_rows(S, uid)[0].updated_at_ms
     guest = _duel("Guest copy", cards=["OP01-016"] * 50, artPrefs={"OP01-016": "ignored", "OP01-017": "p9"})
-    res = _put(c, "guest-1", 5000, guest).json()
+    res = _bulk(c, "guest-1", 5000, guest)
     assert res["deleted"] is True and res["updatedAt"] == 5001
     assert res["mergedInto"] == f"planner-{pid}"
     assert len(_planner_decks(S, uid)) == 1
@@ -460,7 +467,7 @@ def test_a_guest_deck_identical_to_a_synced_deck_is_dropped_not_duplicated_1027(
     assert json.loads(survivor.data)["artPrefs"] == {"OP01-016": "keep", "OP01-017": "p9"}
     assert survivor.updated_at_ms > survivor_before
     # Sending it again (older than the tombstone) stays a tombstone.
-    assert _put(c, "guest-1", 5000, guest).json()["deleted"] is True
+    assert _bulk(c, "guest-1", 5000, guest)["deleted"] is True
     assert len(_planner_decks(S, uid)) == 1
 
 
@@ -486,7 +493,7 @@ def test_a_guest_deck_that_differs_is_created_normally_1027(client):
         "other-cards": _duel("A", cards=["OP01-016"] * 49 + ["OP01-017"]),
         "other-leader": _duel("B", leader=OTHER_LEADER, cards=["OP01-016"] * 50),
     }.items():
-        res = _put(c, name, 100, deck).json()
+        res = _bulk(c, name, 100, deck)
         assert res["deleted"] is False and res["deck"]["plannerDeckId"] is not None
     assert len(_planner_decks(S, uid)) == 3
 
@@ -496,7 +503,7 @@ def test_editing_an_existing_deck_into_a_copy_of_another_is_not_merged_1027(clie
     uid = _user(S)
     _mirrored_planner_deck(c, S, uid)
     assert _put(c, "mine", 100, _duel("Mine", cards=["OP01-017"] * 4)).json()["deleted"] is False
-    res = _put(c, "mine", 200, _duel("Mine", cards=["OP01-016"] * 50)).json()
+    res = _bulk(c, "mine", 200, _duel("Mine", cards=["OP01-016"] * 50))
     assert res["deleted"] is False and res["mergedInto"] is None
     assert len(_planner_decks(S, uid)) == 2
 
@@ -506,8 +513,8 @@ def test_a_guest_deck_with_a_planner_link_or_a_seed_id_is_never_merged_away_1027
     uid = _user(S)
     pid = _mirrored_planner_deck(c, S, uid)
     same = ["OP01-016"] * 50
-    linked = _put(c, "claims", 100, _duel("Claims", cards=same, plannerDeckId=pid)).json()
-    seed = _put(c, "test-seed", 100, _duel("Seed", cards=same)).json()
+    linked = _bulk(c, "claims", 100, _duel("Claims", cards=same, plannerDeckId=pid))
+    seed = _bulk(c, "test-seed", 100, _duel("Seed", cards=same))
     assert linked["deleted"] is False and seed["deleted"] is False
     assert seed["deck"]["plannerDeckId"] is None
 
@@ -521,3 +528,38 @@ def test_replacing_a_planner_deck_list_updates_the_duel_deck_1027(client):
     out = c.get("/duel/decks").json()["decks"][0]
     assert out["deck"]["leaderId"] == OTHER_LEADER
     assert out["deck"]["cards"] == ["OP01-017"] * 50
+
+
+def test_a_single_deck_save_never_merges_a_new_deck_into_an_identical_synced_one_1027(client):
+    c, S = client
+    uid = _user(S)
+    pid = _mirrored_planner_deck(c, S, uid)
+    same = _duel("Copy", cards=["OP01-016"] * 50)
+    res = _put(c, "copy-1", 100, same).json()
+    assert res["deleted"] is False and res["mergedInto"] is None
+    assert res["deck"]["plannerDeckId"] not in (None, pid)
+    # Two identical blank decks made one after the other both stay.
+    first = _put(c, "blank-1", 200, _duel("New deck", cards=[])).json()
+    second = _put(c, "blank-2", 201, _duel("New deck", cards=[])).json()
+    assert first["deleted"] is False and second["deleted"] is False
+    assert len(_planner_decks(S, uid)) == 4
+
+
+def test_a_duel_save_keeps_the_planner_cards_of_an_oversized_linked_deck_1027(client):
+    c, S = client
+    uid = _user(S)
+    pid = _mirrored_planner_deck(c, S, uid)
+    assert c.put(f"/decks/{pid}/cards/OP01-017", json={"needed": 15, "confirm_oversize": True}).status_code == 200  # 65 main cards
+    with S() as db:
+        db.add(DeckCardPrinting(deck_id=pid, card_id="OP01-017", product_id=78, qty=2))
+        db.commit()
+    before = _planner_cards(S, pid)
+    assert before["OP01-017"] == 15
+    row = _duel_rows(S, uid)[0]
+    stale = {**json.loads(row.data), "name": "Renamed in duel", "artPrefs": {"OP01-016": "p1"}}
+    assert _put(c, row.deck_id, row.updated_at_ms + 10, stale).status_code == 200
+    assert _planner_cards(S, pid) == before
+    with S() as db:
+        assert db.get(Deck, pid).name == "Renamed in duel"
+        left = db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.deck_id == pid)).all()
+        assert [(p.card_id, p.qty) for p in left] == [("OP01-017", 2)]
