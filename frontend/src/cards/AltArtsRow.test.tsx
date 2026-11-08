@@ -124,3 +124,49 @@ describe("AltArtsRow Show control (#702)", () => {
     expect(host.querySelector(".alt-show-btn, .alt-shown-chip")).toBeNull();
   });
 });
+
+describe("AltArtsRow collector toggle (#1035)", () => {
+  function renderCollector(collector: number, onCollectorChange?: (id: number, qty: number) => void) {
+    const host = document.createElement("div");
+    document.body.append(host);
+    act(() => {
+      createRoot(host).render(
+        <QueryClientProvider client={new QueryClient()}>
+          <AltArtsRow
+            alts={[{ ...alt, collector }]}
+            cardId={CARD_ID}
+            base={{ name: "Base", image_url: "b.jpg", market_price: null, product_id: 999999 }}
+            onCollectorChange={onCollectorChange}
+          />
+        </QueryClientProvider>,
+      );
+    });
+    return host;
+  }
+
+  it("Collect on an alt tile asks for one collector copy, and the Base tile has no toggle (#1035)", () => {
+    const calls: [number, number][] = [];
+    const host = renderCollector(0, (id, qty) => calls.push([id, qty]));
+    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Want Alt art as a collector copy"]`)!;
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+    act(() => btn.click());
+    expect(calls).toEqual([[alt.product_id, 1]]);
+    expect(host.querySelector(".alt-art-base .alt-collector-btn, .alt-art-base .alt-collector")).toBeNull();
+  });
+
+  it("the pressed Collector toggle removes the collector copy (#1035)", () => {
+    const calls: [number, number][] = [];
+    const host = renderCollector(2, (id, qty) => calls.push([id, qty]));
+    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Remove Alt art collector copy"]`)!;
+    expect(btn.getAttribute("aria-pressed")).toBe("true");
+    expect(btn.textContent).toBe("★ Collector ×2");
+    act(() => btn.click());
+    expect(calls).toEqual([[alt.product_id, 0]]);
+  });
+
+  it("without onCollectorChange the Collector mark stays a read-only label (#1035)", () => {
+    const host = renderCollector(1);
+    expect(host.querySelector(".alt-collector")?.textContent).toBe("★ Collector");
+    expect(host.querySelector("button.alt-collector-btn")).toBeNull();
+  });
+});

@@ -223,6 +223,8 @@ export function DeckDetailPage() {
     error: altOwnedErr,
     changeAltOwned,
     changeAltBuy,
+    changeCollector,
+    collectorBusyKey,
     changeDisplayArt,
   } = useCardEdits({
     saveAltBuy: async (cardId, productId, qty) => {
@@ -640,6 +642,8 @@ export function DeckDetailPage() {
         onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
         onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+        onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+        collectorBusyKey={collectorBusyKey}
       />
       {additional.length > 0 && (
         <>
@@ -658,6 +662,8 @@ export function DeckDetailPage() {
             onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
             onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+            onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+            collectorBusyKey={collectorBusyKey}
           />
         </>
       )}
@@ -686,6 +692,8 @@ export function DeckDetailPage() {
           onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
           onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+          onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
+          collectorBusyKey={collectorBusyKey}
         />
       )}
     </section>

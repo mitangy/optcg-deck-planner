@@ -23,4 +23,5 @@ export function invalidateCollectorViews(qc: ReturnType<typeof useQueryClient>) 
   invalidateAltOwnedViews(qc);
   void qc.invalidateQueries({ queryKey: qk.shopping.all() });
   void qc.invalidateQueries({ queryKey: qk.deck.all() });
+  void qc.invalidateQueries({ queryKey: qk.owned.all() });
 }

@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.core.auth import resolve_google_user
+from app.core.config import Settings
 from tests.conftest import make_user
 
 
@@ -34,3 +35,15 @@ def test_resolve_refuses_rebind_to_different_sub(db):
             db, email="taken@example.com", sub="sub-attacker", name="Attacker"
         )
     assert exc.value.status_code == 403
+
+
+def test_a_first_google_sign_in_with_admin_email_is_admin_straight_away_another_email_is_not_admin_email(
+    db, monkeypatch
+):
+    monkeypatch.setattr(
+        "app.core.auth.get_settings", lambda: Settings(admin_email="boss@example.com")
+    )
+    boss = resolve_google_user(db, email=" Boss@Example.com ", sub="sub-boss", name="Boss")
+    other = resolve_google_user(db, email="other@example.com", sub="sub-other", name="Other")
+    assert boss.role == "admin"
+    assert other.role == "user"

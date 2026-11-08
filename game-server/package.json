@@ -14,23 +14,23 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.14",
-    "@colyseus/tools": "^0.18.3",
+    "@colyseus/schema": "^5.0.43",
+    "@colyseus/tools": "^0.18.11",
     "@optcg/duel-protocol": "*",
     "@optcg/rules": "*",
     "@types/pg": "^8.23.1",
-    "colyseus": "^0.18.5",
-    "express": "^5.2.1",
-    "pg": "^8.23.0",
-    "tsx": "^4.21.0"
+    "colyseus": "^0.18.10",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
-    "@colyseus/sdk": "^0.18.2",
-    "@colyseus/testing": "^0.18.5",
-    "@electric-sql/pglite": "^0.5.8",
+    "@colyseus/sdk": "^0.18.9",
+    "@colyseus/testing": "^0.18.6",
+    "@electric-sql/pglite": "^0.5.15",
     "@types/express": "^5.0.6",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.6.6",
     "mocha": "^11.7.5",
     "typescript": "~5.7.2"
   }

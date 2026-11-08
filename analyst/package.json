@@ -20,6 +20,9 @@
     "eval:puzzles": "tsx evals/puzzles/run.ts",
     "eval:check-live": "tsx evals/qa/check-live.ts",
     "eval:grade": "tsx evals/qa/grade-human.ts",
+    "eval:grade-export": "tsx evals/qa/grade-export.ts",
+    "eval:grade-import": "tsx evals/qa/grade-import.ts",
+    "eval:judge-agreement": "tsx evals/qa/judge-agreement.ts",
     "eval:validate": "tsx evals/qa/validate.ts",
     "upload-bot-games": "tsx scripts/upload-bot-games.ts",
     "bot-lessons": "tsx scripts/bot-lessons.ts",
@@ -28,20 +31,20 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@optcg/analyst-contract": "*",
     "@optcg/card-core": "*",
     "@optcg/deck-analytics": "*",
     "@optcg/price-timing": "*",
     "@optcg/rules": "*",
-    "express": "^5.2.1",
-    "tsx": "^4.21.0",
+    "express": "^5.3.0",
+    "tsx": "^4.23.15",
     "unpdf": "^1.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.6.6",
     "typescript": "~5.7.2",
     "vitest": "^3.0.5"
   }
