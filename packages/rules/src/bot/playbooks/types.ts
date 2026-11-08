@@ -23,6 +23,12 @@ export interface LeaderPlaybook {
   allowLeaderActivate?(view: BotView): boolean;
   /** Active DON!! the generic policy must leave unspent (plays and gives) this main phase. */
   donReserve?(view: BotView): number;
+  /** Called when the generic main-phase policy is about to end the turn: a legal intent (e.g. a give_don) to send instead, or undefined. Must be idempotent: it is asked again after the intent. */
+  beforeEndTurn?(view: BotView, memory: TurnMemory): Intent | undefined;
+  /** Block and counter steps (Normal and Hard's base pick), before the generic defense: a legal intent (e.g. pass) to send, or undefined. */
+  defense?(view: BotView): Intent | undefined;
+  /** Added to the generic play score of a hand card (`defId`) when choosing what to play. */
+  playBonus?(view: BotView, defId: string): number;
   /** Answer to a pending choice raised by the Leader's own ability (`choice.cardDefId === leaderId`), or undefined for the generic answer. */
   answerChoice?(view: BotView, choice: PendingChoice): Intent | undefined;
 }

@@ -47,7 +47,7 @@ function decide(view: BotView, level: "easy" | "normal", rng: Rng, memory: TurnM
   const pb = level === "easy" ? undefined : playbookFor(view, playbooks);
   if (view.pendingChoices.length > 0) return chooseChoiceAnswer(view, level, rng, pb);
   if (view.phase === "mulligan") return chooseMulligan(view, level, rng, pb);
-  if (view.phase === "block" || view.phase === "counter") return chooseDefense(view, level, rng);
+  if (view.phase === "block" || view.phase === "counter") return chooseDefense(view, level, rng, pb);
   const m = memory ?? memoryFor(rng, view);
   return level === "easy" ? chooseEasyMain(view, rng, m) : chooseNormalMain(view, rng, m, pb);
 }

@@ -53,14 +53,14 @@ function chooseAbility(view: BotView, memory: TurnMemory, rng: Rng, pb?: LeaderP
 }
 
 /** Highest-value card that fits in the DON!! on hand; a full board only makes room for a clearly better card. */
-function choosePlay(view: BotView, rng: Rng, reserve = 0): Play | undefined {
+function choosePlay(view: BotView, rng: Rng, reserve = 0, pb?: LeaderPlaybook): Play | undefined {
   // `reserve` (a playbook's donReserve): a play that would leave fewer active DON!! than that is skipped.
   const plays = view.legalIntents.filter((i): i is Play => i.type === "play_card" && (reserve <= 0 || (view.you.hand[i.handIndex]?.playCost ?? getCardDef(view.you.hand[i.handIndex]!.defId).cost) <= view.you.activeDonCount - reserve));
   const weakest = (id?: string) => (id ? view.you.characters.find((c) => c.id === id) : undefined);
   const score = (p: Play): number => {
     const card = view.you.hand[p.handIndex]!;
     const def = getCardDef(card.defId);
-    let s = defValue(card.defId) + (card.playCost ?? def.cost) * 0.5;
+    let s = defValue(card.defId) + (card.playCost ?? def.cost) * 0.5 + (pb?.playBonus?.(view, card.defId) ?? 0);
     if (def.type === "event") s -= 1.5;
     if (p.trashCharacterId) {
       // Replacing a Character is only worth it when the new card is clearly better than the one lost.
@@ -146,5 +146,13 @@ export function chooseNormalMain(view: BotView, rng: Rng, memory: TurnMemory, pb
     if (legal.some((i) => JSON.stringify(i) === key)) return hinted;
   }
   const reserve = pb?.donReserve?.(view) ?? 0;
-  return choosePlay(view, rng, reserve) ?? chooseAbility(view, memory, rng, pb) ?? chooseGive(view, rng, reserve) ?? chooseAttack(view, rng) ?? end;
+  const pick = choosePlay(view, rng, reserve, pb) ?? chooseAbility(view, memory, rng, pb) ?? chooseGive(view, rng, reserve) ?? chooseAttack(view, rng);
+  if (pick) return pick;
+  // About to end the turn: a playbook may still have a last move (a DON!! to keep a Leader ability online).
+  const last = pb?.beforeEndTurn?.(view, memory);
+  if (last) {
+    const key = JSON.stringify(last);
+    if (legal.some((i) => JSON.stringify(i) === key)) return last;
+  }
+  return end;
 }
