@@ -1,0 +1,100 @@
+/*
+ * Shared design tokens for the planner (frontend), duel-web and every @optcg/* package stylesheet:
+ * the z-index scale, the border-radius scale and the gap scale. Each app imports this file first
+ * (`import "@optcg/ui/tokens.css"` in main.tsx), so every later `var(--z-*)` resolves.
+ *
+ * Values are the literals the stylesheets used before the tokens existed (refactor 4.1a), so
+ * switching a rule to a token changes nothing on screen. Two layers that differ only in order
+ * keep two tokens (--z-dock 17, --z-motion 18 and --z-spotlight 19).
+ *
+ * Reading the z-index scale: a token is a layer, not a number. Rules in one stacking context
+ * compare these values, so a new layer slots between two existing tokens by value; if the number
+ * you need is not here, add a token in order rather than writing a literal. tools/ci/css-tokens.test.cjs
+ * fails on a raw `z-index: <number>` outside this file.
+ *
+ * The apps and packages also override a few of these through their own hooks: --ui-z (packages/ui
+ * pop-ups) and --lp-z-compass / --lp-z-panel (the Log Pose chat) are set by each app to one of the
+ * tokens below.
+ */
+:root {
+  /* ——— z-index: behind and local stacking inside one component (cards, rows, badges) ——— */
+  --z-under: -1;
+  --z-base: 0;
+  --z-raise-1: 1;
+  --z-raise-2: 2;
+  --z-raise-3: 3;
+  --z-raise-4: 4;
+  --z-raise-5: 5;
+  --z-raise-6: 6;
+  --z-raise-8: 8;
+
+  /* ——— z-index: board panels and the hand/action docks (duel-web board) ——— */
+  --z-log: 12; /* battle log, chat panel */
+  --z-col-handle: 15; /* column resize handle, column cut */
+  --z-hand: 16; /* hand dock and fan: under the action dock so End turn stays clickable */
+  --z-dock: 17; /* primary action dock, replay dock */
+  --z-motion: 18; /* attack overlay, motion layer, a hand fan dragged free */
+  --z-spotlight: 19; /* card spotlight above the motion layer */
+  --z-sticky: 20; /* planner sticky top bar, board panel divider, board modal backdrop */
+  --z-ability-prompt: 25;
+  --z-review-pop: 28;
+  --z-overlay-scrim: 29; /* Log Pose board overlay backdrop */
+  --z-hud: 30; /* HUD actions, panel grip, board overlays, planner stats pill */
+  --z-card-actions: 31;
+  --z-hand-confirm: 33;
+  --z-turn-splash: 35;
+  --z-result-pill: 38;
+  --z-hud-bar: 40; /* HUD bar, Log Pose compass (planner) */
+  --z-sheet-scrim: 44;
+  --z-prompt: 45; /* field bar, board prompts, replay sheets, trade tray */
+  --z-float: 46; /* floating prompt layer */
+  --z-topbar: 50; /* site top bar, undo request */
+  --z-aim: 55; /* attack arrow while aiming */
+  --z-copilot: 56;
+  --z-preview: 58; /* card preview popup */
+
+  /* ——— z-index: menus, popovers and sheets ——— */
+  --z-menu: 60; /* menus, drag ghost, filter panels */
+  --z-deck-config: 65;
+  --z-card-menu: 70;
+  --z-popover: 80; /* popovers, what's-new card, market sales */
+  --z-lp-panel: 85; /* Log Pose panel (planner default) */
+  --z-buy-scrim: 89;
+  --z-drawer: 90; /* drawers, scan dialog, panel drop targets */
+  --z-drag-ghost: 91;
+  --z-fan-moving: 92;
+  --z-page-drop: 95;
+  --z-sheet: 100; /* sheet backdrops */
+  --z-nav-drawer: 120; /* nav drawer, undo toast */
+  --z-trash-viewer: 190;
+  --z-inspect: 200; /* card inspect, leave dialog, live capture */
+  --z-reveal: 300;
+  --z-status-tip: 400;
+  --z-attack-warning: 410;
+  --z-modal: 1000; /* dialogs, lightbox, reconnect banner (packages/ui --ui-z default) */
+  --z-moved: 1100; /* "moved to another device" and event overlays */
+  --z-feedback: 2000; /* feedback dialog, above everything */
+
+  /* ——— border-radius ——— */
+  --radius-2: 2px;
+  --radius-3: 3px;
+  --radius-4: 4px;
+  --radius-5: 5px;
+  --radius-6: 6px;
+  --radius-7: 7px;
+  --radius-8: 8px;
+  --radius-9: 9px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-pill: 999px;
+  --radius-round: 50%;
+
+  /* ——— gap (flex and grid) ——— */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+}

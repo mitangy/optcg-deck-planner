@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
-import { BackLink } from "./BackLink";
+import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { deckEditorScope } from "../logPoseScopes";
 import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEditor } from "@optcg/analyst-client";
 import { DECK_EDITOR_STARTERS, deckContext } from "../logPose";
@@ -25,7 +25,6 @@ import {
   type SavedDeck,
 } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
-import { NavMenu } from "../nav/NavMenu";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
 export function DeckConfigurePage() {
@@ -163,27 +162,27 @@ export function DeckConfigurePage() {
   return (
     <div className="app-shell">
       <div className="deck-config deck-config-wide">
-        <header className="deck-config-header">
-          <div className="deck-config-nav">
-            <NavMenu />
-            <BackLink to="/decks" label="Decks" ariaLabel="Back to decks" />
-          </div>
-          <div className="deck-config-heading">
-            <h1 className="deck-config-title deck-name-heading">
-              <DeckNameField
-                key={saved.id}
-                value={draft.name}
-                invalid={blankName}
-                onCommit={(name) => onChangeDraft({ ...draft, name })}
-              />
-            </h1>
-            {/* The blank-name message takes the meta line's place, so nothing below shifts. */}
-            <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
-              {blankName
-                ? BLANK_DECK_NAME_ERROR
-                : `Leader ${lookupCard(deck.leaderId).name} · ${deck.cards.length}/${MAX_MAIN_DECK_SIZE} main`}
-            </p>
-          </div>
+        <DeckConfigHeader
+          back={{ to: "/decks", label: "Decks", ariaLabel: "Back to decks" }}
+          heading={
+            <>
+              <h1 className="deck-config-title deck-name-heading">
+                <DeckNameField
+                  key={saved.id}
+                  value={draft.name}
+                  invalid={blankName}
+                  onCommit={(name) => onChangeDraft({ ...draft, name })}
+                />
+              </h1>
+              {/* The blank-name message takes the meta line's place, so nothing below shifts. */}
+              <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
+                {blankName
+                  ? BLANK_DECK_NAME_ERROR
+                  : `Leader ${lookupCard(deck.leaderId).name} · ${deck.cards.length}/${MAX_MAIN_DECK_SIZE} main`}
+              </p>
+            </>
+          }
+        >
           <div className="deck-planner-actions deck-header-actions">
             <button type="button" className="btn btn-secondary deck-discard-btn" onClick={onDiscard} disabled={!dirty}>
               Discard
@@ -202,7 +201,7 @@ export function DeckConfigurePage() {
               </span>
             ) : null}
           </div>
-        </header>
+        </DeckConfigHeader>
 
         {/* Announced to screen readers; the Save button already shows the state, so nothing shifts. */}
         <p className="visually-hidden" role="status">

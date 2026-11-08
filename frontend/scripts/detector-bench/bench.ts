@@ -5,7 +5,7 @@
  * dynamic onnxruntime-web import and its WASM asset resolve exactly as in the app),
  * then times `detectWithModel` on each photo.
  */
-import { detectWithModel, loadCardDetector } from "../../src/cardDetectModel";
+import { detectWithModel, loadCardDetector } from "../../src/scanner/detect/cardDetectModel";
 
 const params = new URLSearchParams(location.search);
 const photos = (params.get("photos") ?? "").split(",").filter(Boolean);

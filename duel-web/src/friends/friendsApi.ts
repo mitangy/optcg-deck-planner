@@ -1,6 +1,5 @@
 /** Duel-web ↔ FastAPI friends list, presence status, and private-room invites. */
-import { getApiBaseUrl } from "../config";
-import { ApiError } from "../net/api";
+import { apiCall } from "../api/http";
 import type { MatchLaunch } from "../state/DuelSession";
 
 export type FriendStatus = "offline" | "online" | "waiting" | "in_game" | "spectating";
@@ -36,24 +35,7 @@ export type FriendsState = {
   invites: FriendInvite[];
 };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: init.body ? { "Content-Type": "application/json" } : undefined,
-  });
-  if (!res.ok) {
-    let detail = `${fallback} (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return (res.status === 204 ? undefined : await res.json()) as T;
-}
+export const call = apiCall;
 
 export function fetchFriends(): Promise<FriendsState> {
   return call<FriendsState>("/friends", {}, "Could not load friends");

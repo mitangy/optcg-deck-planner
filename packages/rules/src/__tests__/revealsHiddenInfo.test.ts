@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyIntent, createMatch, skipMulligans } from "../engine.js";
-import { createSeededRng } from "../rng.js";
-import { revealReason, revealsHiddenInfo } from "../revealsHiddenInfo.js";
+import { revealReason, revealsHiddenInfo } from "../replay/revealsHiddenInfo.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
@@ -72,11 +71,10 @@ describe("revealsHiddenInfo marks the action an undo must not cross (#497)", () 
 
   it("the Draw Phase draw does not count, so an accidental end turn stays undoable (#497)", () => {
     const seed = 7;
-    const rng = createSeededRng(seed);
     const deck = Array.from({ length: 40 }, () => FILLER);
     let state = createMatch({ seed, firstSeat: 0, players: [{ leaderId: "ST01-001", deck }, { leaderId: "ST01-001", deck }] });
-    state = skipMulligans(state, rng);
-    const r = applyIntent(state, { type: "end_turn" }, { seat: 0, rng });
+    state = skipMulligans(state);
+    const r = applyIntent(state, { type: "end_turn" }, { seat: 0 });
     expect(r.ok).toBe(true);
     expect(r.events.some((e) => e.type === "drew" && e.turnDraw)).toBe(true);
     expect(r.state.players[1].zoneInstanceIds.deck.length).toBeLessThan(state.players[1].zoneInstanceIds.deck.length);

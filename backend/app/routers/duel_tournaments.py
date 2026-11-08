@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,15 +12,18 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_tournaments as logic
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer, User
-from app.rate_limit import RateLimiter
-from app.routers.duel import known_game_server_urls
-from app.routers.friends import _friendship, _utc, live_presence, room_server_url, utcnow
-from app.server_urls import normalize_server_url
+from app.duel import tournaments as logic
+from app.core.statuses import FriendshipStatus, TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
+from app.core.time import as_utc, utcnow
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.core.models import User
+from app.duel.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
+from app.core.rate_limit import RateLimiter
+from app.duel.server_urls import known_game_server_urls
+from app.social.presence import friendship, live_presence, room_server_url
+from app.duel.server_urls import normalize_server_url
 
 router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
@@ -155,7 +158,7 @@ DB = Annotated[Session, Depends(get_db)]
 
 
 def _iso(dt: datetime | None) -> str | None:
-    return _utc(dt).isoformat() if dt else None
+    return as_utc(dt).isoformat() if dt else None
 
 
 def _get(db: Session, code: str, *, lock: bool = False) -> DuelTournament:
@@ -181,7 +184,7 @@ def _joined_count(db: Session, t: DuelTournament) -> int:
         db.scalar(
             select(func.count())
             .select_from(DuelTournamentPlayer)
-            .where(DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == "joined")
+            .where(DuelTournamentPlayer.tournament_id == t.id, DuelTournamentPlayer.status == TournamentPlayerStatus.JOINED)
         )
         or 0
     )
@@ -193,14 +196,14 @@ def _require_organizer(t: DuelTournament, user: User) -> None:
 
 
 def _require_open(t: DuelTournament) -> None:
-    if t.status != "open":
+    if t.status != TournamentStatus.OPEN:
         raise HTTPException(status_code=400, detail="This tournament has already started.")
 
 
 def _room_live(m: DuelTournamentMatch, presence: dict, now: datetime) -> bool:
     if not m.room_id:
         return False
-    if m.room_set_at is not None and now - _utc(m.room_set_at) <= ROOM_FRESH:
+    if m.room_set_at is not None and now - as_utc(m.room_set_at) <= ROOM_FRESH:
         return True
     return any(
         r.room_id == m.room_id and r.role == "player" and r.phase != "finished"
@@ -226,13 +229,13 @@ def _out(db: Session, t: DuelTournament, me: User) -> TournamentOut:
     def person(uid: int | None) -> PersonOut | None:
         return PersonOut(user_id=uid, username=names.get(uid, "Player")) if uid else None
 
-    joined = [p for p in players if p.status == "joined"]
+    joined = [p for p in players if p.status == TournamentPlayerStatus.JOINED]
     mine = next((p for p in players if p.user_id == me.id), None)
     role = "organizer" if t.organizer_id == me.id else (mine.status if mine else None)
     lo, hi = logic.player_limits(t.format, t.size)
 
     now = utcnow()
-    hosts = [m.host_id for m in matches if m.status == "ready" and m.room_id and m.host_id]
+    hosts = [m.host_id for m in matches if m.status == TournamentMatchStatus.READY and m.room_id and m.host_id]
     presence = live_presence(db, list(set(hosts)), now)
 
     standings: list[StandingOut] = []
@@ -265,7 +268,7 @@ def _out(db: Session, t: DuelTournament, me: User) -> TournamentOut:
         winner=person(t.winner_id),
         players=[
             PlayerOut(user_id=p.user_id, username=names.get(p.user_id, "Player"), status=p.status, seed=p.seed)
-            for p in sorted(players, key=lambda p: (p.status != "joined", p.seed or 0, p.id))
+            for p in sorted(players, key=lambda p: (p.status != TournamentPlayerStatus.JOINED, p.seed or 0, p.id))
         ],
         matches=[
             MatchOut(
@@ -277,8 +280,8 @@ def _out(db: Session, t: DuelTournament, me: User) -> TournamentOut:
                 winner_id=m.winner_id,
                 status=m.status,
                 decided_by=m.decided_by,
-                room_open=m.status == "ready" and _room_live(m, presence, now),
-                host_id=m.host_id if m.status == "ready" else None,
+                room_open=m.status == TournamentMatchStatus.READY and _room_live(m, presence, now),
+                host_id=m.host_id if m.status == TournamentMatchStatus.READY else None,
                 result_match_id=m.result_match_id,
             )
             for m in matches
@@ -288,8 +291,8 @@ def _out(db: Session, t: DuelTournament, me: User) -> TournamentOut:
         me=MeOut(
             user_id=me.id,
             role=role,
-            can_join=t.status == "open" and not (mine and mine.status == "joined") and len(joined) < t.size,
-            can_start=t.status == "open" and t.organizer_id == me.id and lo <= len(joined) <= hi,
+            can_join=t.status == TournamentStatus.OPEN and not (mine and mine.status == TournamentPlayerStatus.JOINED) and len(joined) < t.size,
+            can_start=t.status == TournamentStatus.OPEN and t.organizer_id == me.id and lo <= len(joined) <= hi,
         ),
     )
 
@@ -302,13 +305,13 @@ def list_tournaments(db: DB, user: Me) -> SummariesOut:
     rows = db.scalars(
         select(DuelTournament).where(
             or_(DuelTournament.organizer_id == user.id, DuelTournament.id.in_(mine)),
-            DuelTournament.status != "cancelled",
+            DuelTournament.status != TournamentStatus.CANCELLED,
         )
     ).all()
     cutoff = utcnow() - FINISHED_VISIBLE
-    rows = [t for t in rows if t.status != "finished" or (t.finished_at and _utc(t.finished_at) >= cutoff)]
-    order = {"running": 0, "open": 1, "finished": 2}
-    rows.sort(key=lambda t: (order.get(t.status, 3), -_utc(t.created_at).timestamp(), -t.id))
+    rows = [t for t in rows if t.status != TournamentStatus.FINISHED or (t.finished_at and as_utc(t.finished_at) >= cutoff)]
+    order = {TournamentStatus.RUNNING: 0, TournamentStatus.OPEN: 1, TournamentStatus.FINISHED: 2}
+    rows.sort(key=lambda t: (order.get(t.status, 3), -as_utc(t.created_at).timestamp(), -t.id))
 
     ids = [t.id for t in rows]
     players = list(db.scalars(select(DuelTournamentPlayer).where(DuelTournamentPlayer.tournament_id.in_(ids))))
@@ -316,7 +319,7 @@ def list_tournaments(db: DB, user: Me) -> SummariesOut:
         db.scalars(
             select(DuelTournamentMatch.tournament_id).where(
                 DuelTournamentMatch.tournament_id.in_(ids),
-                DuelTournamentMatch.status == "ready",
+                DuelTournamentMatch.status == TournamentMatchStatus.READY,
                 or_(DuelTournamentMatch.player_a_id == user.id, DuelTournamentMatch.player_b_id == user.id),
             )
         )
@@ -332,9 +335,9 @@ def list_tournaments(db: DB, user: Me) -> SummariesOut:
                 format=t.format,
                 size=t.size,
                 status=t.status,
-                players_joined=sum(1 for p in players if p.tournament_id == t.id and p.status == "joined"),
-                my_role="organizer" if t.organizer_id == user.id else (mine_row.status if mine_row else "joined"),
-                my_match_ready=t.id in ready and t.status == "running",
+                players_joined=sum(1 for p in players if p.tournament_id == t.id and p.status == TournamentPlayerStatus.JOINED),
+                my_role="organizer" if t.organizer_id == user.id else (mine_row.status if mine_row else TournamentPlayerStatus.JOINED),
+                my_match_ready=t.id in ready and t.status == TournamentStatus.RUNNING,
             )
         )
     return SummariesOut(tournaments=out)
@@ -352,7 +355,7 @@ def create_tournament(body: TournamentIn, db: DB, user: Me) -> TournamentOut:
     active = db.scalar(
         select(func.count())
         .select_from(DuelTournament)
-        .where(DuelTournament.organizer_id == user.id, DuelTournament.status.in_(("open", "running")))
+        .where(DuelTournament.organizer_id == user.id, DuelTournament.status.in_((TournamentStatus.OPEN, TournamentStatus.RUNNING)))
     )
     if (active or 0) >= MAX_ORGANIZED:
         raise HTTPException(status_code=400, detail="You already have 5 tournaments going.")
@@ -362,7 +365,7 @@ def create_tournament(body: TournamentIn, db: DB, user: Me) -> TournamentOut:
         format=body.format,
         size=body.size,
         timer=body.timer,
-        status="open",
+        status=TournamentStatus.OPEN,
         organizer_id=user.id,
     )
     db.add(t)
@@ -374,7 +377,7 @@ def create_tournament(body: TournamentIn, db: DB, user: Me) -> TournamentOut:
             db.rollback()
             t.code = secrets.token_urlsafe(9)[:12]
             db.add(t)
-    db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=user.id, status="joined"))
+    db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=user.id, status=TournamentPlayerStatus.JOINED))
     db.commit()
     return _out(db, t, user)
 
@@ -388,15 +391,15 @@ def get_tournament(code: str, db: DB, user: Me) -> TournamentOut:
 def join(code: str, db: DB, user: Me) -> TournamentOut:
     t = _get(db, code, lock=True)
     p = _player(db, t, user.id)
-    if p is not None and p.status == "joined":
+    if p is not None and p.status == TournamentPlayerStatus.JOINED:
         return _out(db, t, user)
     _require_open(t)
     if _joined_count(db, t) >= t.size:
         raise HTTPException(status_code=400, detail="This tournament is full.")
     if p is None:
-        db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=user.id, status="joined"))
+        db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=user.id, status=TournamentPlayerStatus.JOINED))
     else:
-        p.status = "joined"
+        p.status = TournamentPlayerStatus.JOINED
     db.commit()
     return _out(db, t, user)
 
@@ -419,11 +422,11 @@ def invite(code: str, body: InviteIn, db: DB, user: Me) -> TournamentOut:
     t = _get(db, code, lock=True)
     _require_organizer(t, user)
     _require_open(t)
-    f = _friendship(db, user.id, body.user_id)
-    if f is None or f.status != "accepted":
+    f = friendship(db, user.id, body.user_id)
+    if f is None or f.status != FriendshipStatus.ACCEPTED:
         raise HTTPException(status_code=403, detail="You can only invite friends.")
     if _player(db, t, body.user_id) is None:
-        db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=body.user_id, status="invited"))
+        db.add(DuelTournamentPlayer(tournament_id=t.id, user_id=body.user_id, status=TournamentPlayerStatus.INVITED))
         db.commit()
     return _out(db, t, user)
 
@@ -459,9 +462,9 @@ def start(code: str, db: DB, user: Me) -> TournamentOut:
 def cancel(code: str, db: DB, user: Me) -> TournamentOut:
     t = _get(db, code, lock=True)
     _require_organizer(t, user)
-    if t.status == "finished":
+    if t.status == TournamentStatus.FINISHED:
         raise HTTPException(status_code=400, detail="This tournament is already finished.")
-    t.status = "cancelled"
+    t.status = TournamentStatus.CANCELLED
     db.commit()
     return _out(db, t, user)
 
@@ -478,7 +481,7 @@ def _match(db: Session, t: DuelTournament, match_id: int) -> DuelTournamentMatch
 
 
 def _require_ready(t: DuelTournament, m: DuelTournamentMatch) -> None:
-    if t.status != "running" or m.status != "ready":
+    if t.status != TournamentStatus.RUNNING or m.status != TournamentMatchStatus.READY:
         raise HTTPException(status_code=409, detail="This match is not ready.")
 
 
@@ -519,7 +522,7 @@ def play(
         and m.host_id != user.id
         and m.room_id is None
         and m.host_claimed_at is not None
-        and now - _utc(m.host_claimed_at) <= HOST_LOCK
+        and now - as_utc(m.host_claimed_at) <= HOST_LOCK
     ):
         return PlayOut(action="wait")
     m.host_id = user.id

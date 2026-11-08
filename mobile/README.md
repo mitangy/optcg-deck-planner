@@ -2,7 +2,9 @@
 
 Expo Router iOS-first client for **Step 3+**: connect to the Colyseus `duel` / `ranked_queue` rooms, render the private player view with **curated real OPTCG card ids / names / art**, and send intents from `view.legalIntents`.
 
-This package is **outside** the root npm workspaces (same isolation as `frontend/` / `duel-web/`).
+> **Status: paused.** Nothing here is maintained or shipped right now; the product duel client is `duel-web/`. The app still has a CI job (`mobile` in `.github/workflows/ci.yml`, typecheck and tests) and a mutation suite (`tools/mutation-check/suites/mobile.cjs`), so keep it passing while it stays in the repo.
+
+This package is **outside** the root npm workspaces (unlike `frontend/` and `duel-web/`, which install from the root `package-lock.json`). It keeps its own `package-lock.json` and install.
 
 **Product web UI is `duel-web/`** (Vite on Vercel). `expo start --web` remains a **local smoke tool only** — it is not the shipped browser frontend (ADR-014).
 

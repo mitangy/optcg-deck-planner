@@ -1,0 +1,254 @@
+/* —— Hand rail (TFT bench) —— */
+
+.hand-rail {
+  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(0deg, rgb(var(--chrome-rgb) / 0.1), transparent 55%),
+    var(--arena-panel);
+  padding: 0.45rem 0.75rem 0.55rem;
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.35);
+  overflow: visible;
+}
+
+.hand-rail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0.35rem;
+}
+
+.hand-rail-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  color: var(--chrome-bright);
+}
+
+.hand-rail-count {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.hand-row {
+  /* Keep overflow-y clip + enough top padding on the inner row so hover/selected
+     lift (-10px) and card tops are not sheared off. overflow-y:visible is not
+     viable while overflow-x is auto (CSS forces the other axis to auto). */
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Inner flex row lives in padded space so hover/selected lift stays inside the rail. */
+.hand-row-inner {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  /* Top padding is lift room — cards sit below it so -10px + shadow stay visible. */
+  padding: 1.35rem 0.15rem 0.55rem;
+  min-height: 0;
+}
+
+.hand-row-inner .card-tile {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+/* Full-bleed art in hand — caption overlays the bottom; contain keeps cost/top visible. */
+.hand-row-inner .card-tile img,
+.hand-row-inner .card-tile .card-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  object-fit: contain;
+  object-position: center top;
+  background: #0e1620;
+}
+
+.hand-row-inner .card-tile .card-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-raise-1);
+}
+
+.hand-row-inner .card-tile:hover,
+.hand-row-inner .card-tile.selected {
+  transform: translateY(-10px);
+  z-index: var(--z-raise-2);
+}
+
+/* —— Cards —— */
+
+.card-tile {
+  position: relative;
+  --tile-r: 7px;
+  border-radius: var(--tile-r);
+  border: 2px solid #2a3544;
+  overflow: hidden;
+  background: #0e1620;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-align: left;
+  flex-shrink: 0;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.card-tile.leader-frame {
+  border-color: var(--chrome);
+  box-shadow:
+    0 0 0 1px rgb(var(--chrome-bright-rgb) / 0.25),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.card-tile.selected {
+  border-color: var(--chrome-bright);
+  box-shadow:
+    0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.35),
+    0 10px 22px rgba(0, 0, 0, 0.5);
+}
+
+.card-tile.rested:not(.selected) {
+  opacity: 0.88;
+  filter: saturate(0.75) brightness(0.9);
+}
+
+.card-tile.rested::after {
+  content: "REST";
+  position: absolute;
+  left: 50%;
+  bottom: 1.6rem;
+  transform: translateX(-50%);
+  z-index: var(--z-raise-2);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-3);
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--chrome-bright);
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.hand-row-inner .card-tile.rested::after {
+  display: none;
+}
+
+.card-tile.compact {
+  width: 64px;
+  height: 90px;
+}
+
+.card-tile.full {
+  width: 92px;
+  height: 128px;
+}
+
+.card-tile img {
+  flex: 1;
+  width: 100%;
+  object-fit: cover;
+  /* Prefer the top of the scan (cost / name) — caption sits below the art. */
+  object-position: center top;
+  min-height: 0;
+}
+
+.card-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* No art to tell cards apart by: the name leads, wrapped, and the id sits small under it. */
+.card-fallback-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.card-fallback-id {
+  font-size: 0.5rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.power-badge,
+.don-badge {
+  position: absolute;
+  z-index: var(--z-raise-1);
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 0.12rem 0.28rem;
+  border-radius: var(--radius-3);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.power-badge {
+  top: 0.25rem;
+  right: 0.25rem;
+  background: rgba(10, 14, 20, 0.85);
+  color: var(--chrome-bright);
+}
+
+.don-badge {
+  top: 0.25rem;
+  left: 0.25rem;
+  background: rgba(60, 100, 30, 0.9);
+  color: #e8ffc8;
+}
+
+.card-caption {
+  background: rgba(0, 0, 0, 0.78);
+  padding: 0.18rem 0.25rem;
+}
+
+.card-caption .name {
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* Dotted names ("Monkey.D.Luffy") have no break point: let them break so
+     the clamp ends in an ellipsis instead of a hard cut at the tile edge. */
+  overflow-wrap: anywhere;
+}
+
+/* Two classes so it beats the later `.card-caption .meta` gray. #ff6b6b on the
+   near-black caption is about 7.5:1. */
+.card-caption .meta.meta-blocked {
+  color: #ff6b6b;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-caption .meta-cost-modified {
+  color: #ffd54f;
+}
+.card-caption .meta {
+  color: #b0bec5;
+  font-size: 0.55rem;
+}
+

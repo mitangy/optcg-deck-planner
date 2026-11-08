@@ -2,7 +2,7 @@
  * Moving around a built timeline. Remembers the states it has already worked out (a small LRU),
  * so stepping back and forth is instant, and otherwise re-applies at most a checkpoint's worth of moves.
  */
-import { timelineStateAt, type MatchState, type ReplayTimeline } from "@optcg/rules/replayTimeline";
+import { timelineStateAt, type MatchState, type ReplayTimeline } from "@optcg/rules/replay/replayTimeline";
 
 const CACHE_SIZE = 32;
 

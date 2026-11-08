@@ -26,12 +26,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-deps
       - name: Download last week's self-play games
         run: |
           mkdir -p games

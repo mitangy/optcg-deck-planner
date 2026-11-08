@@ -8,9 +8,9 @@ import { costUsd, runChat, MAX_TOOL_ROUNDS, type CallModel, type Usage } from ".
 import type { OfficialLibrary } from "../../src/official/library";
 import type { DeckEditProposal } from "../../src/proposals";
 import type { Knowledge } from "../../src/server";
-import { evalPlanner, type PlannerOptions } from "../planner";
-import { withRetry } from "../retry";
-import { summarizeTurn } from "../trace";
+import { evalPlanner, type PlannerOptions } from "../shared/planner";
+import { withRetry } from "../shared/retry";
+import { summarizeTurn } from "../shared/trace";
 import type { AdviceCase } from "./cases";
 
 export class ModelMismatch extends Error {}

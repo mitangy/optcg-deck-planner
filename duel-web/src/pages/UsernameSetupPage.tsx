@@ -1,10 +1,11 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { UsernameForm } from "../auth/UsernameForm";
-import { fetchAuthMe, fetchUsernameSuggestion, logoutSession } from "../net/api";
+import { clearAuth, ensureAuth } from "../auth/session";
+import { fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
-import { NavMenu } from "../nav/NavMenu";
 
 /**
  * First sign-in step: pick a public username before playing.
@@ -21,7 +22,7 @@ export function UsernameSetupPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const me = await fetchAuthMe().catch(() => null);
+      const me = await ensureAuth();
       if (cancelled) return;
       if (!me) {
         navigate("/", { replace: true });
@@ -40,47 +41,42 @@ export function UsernameSetupPage() {
   }, [navigate]);
 
   return (
-    <div className="app-shell">
-      <div className="page page-narrow username-setup">
-        <header className="page-header">
-          <NavMenu />
-          <h1 className="page-title">Choose a username</h1>
-        </header>
-        <section className="panel">
-          <p className="panel-copy">
-            This is the name opponents see on the board and in match results. You can change it
-            later in Settings.
-          </p>
-          {initial === null ? (
-            <p className="field-hint username-loading">Loading suggestion…</p>
-          ) : (
-            <UsernameForm
-              initial={initial}
-              submitLabel="Continue"
-              autoFocus
-              onSaved={() => navigate("/", { replace: true })}
-            />
-          )}
-          <p className="field-hint">
-            By playing you agree to the <Link to="/conduct">Rules of conduct</Link>.
-          </p>
-          <div className="btn-row">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                void flushAccountSync().then(logoutSession).then(() => {
-                  stopAccountSync({ clearDecks: true });
-                  setRating(null);
-                  navigate("/", { replace: true });
-                });
-              }}
-            >
-              Sign out instead
-            </button>
-          </div>
-        </section>
-      </div>
-    </div>
+    <PageShell pageClass="page-narrow username-setup" title="Choose a username">
+      <section className="panel">
+        <p className="panel-copy">
+          This is the name opponents see on the board and in match results. You can change it
+          later in Settings.
+        </p>
+        {initial === null ? (
+          <p className="field-hint username-loading">Loading suggestion…</p>
+        ) : (
+          <UsernameForm
+            initial={initial}
+            submitLabel="Continue"
+            autoFocus
+            onSaved={() => navigate("/", { replace: true })}
+          />
+        )}
+        <p className="field-hint">
+          By playing you agree to the <Link to="/conduct">Rules of conduct</Link>.
+        </p>
+        <div className="btn-row">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              void flushAccountSync().then(logoutSession).then(() => {
+                stopAccountSync({ clearDecks: true });
+                clearAuth();
+                setRating(null);
+                navigate("/", { replace: true });
+              });
+            }}
+          >
+            Sign out instead
+          </button>
+        </div>
+      </section>
+    </PageShell>
   );
 }

@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 36px;
 }
 
@@ -46,7 +46,7 @@
   min-width: 0;
   min-height: 36px;
   padding: 0.4rem 0.7rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid var(--line);
   background: var(--arena-mid);
   color: var(--ink);
@@ -72,7 +72,7 @@
   margin: 0;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: rgb(var(--panel-rgb) / 0.6);
   overflow: hidden;
 }
@@ -94,7 +94,7 @@
   flex: 0 0 auto;
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--muted);
   opacity: 0.45;
 }

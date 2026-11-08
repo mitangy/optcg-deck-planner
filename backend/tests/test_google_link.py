@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 
-from app.auth import resolve_google_user
+from app.core.auth import resolve_google_user
 from tests.conftest import make_user
 
 

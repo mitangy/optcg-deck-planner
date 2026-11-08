@@ -1,0 +1,390 @@
+/* Watch dialog */
+.alert-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  background: rgba(16, 36, 45, 0.7);
+  backdrop-filter: blur(3px);
+}
+
+.alert-dialog-panel {
+  width: min(32rem, 100%);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 1rem 1.1rem 1.1rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-16);
+  box-shadow: var(--shadow-lift);
+}
+
+.alert-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.alert-dialog-head h2 {
+  margin: 0.1rem 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.alert-dialog-head .eyebrow {
+  margin: 0;
+}
+
+.alert-dialog-label {
+  margin: 0.25rem 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-dialog-done {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.alert-dialog-done p {
+  margin: 0;
+}
+
+.alert-art-picker {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.6rem;
+  margin: 0 -0.25rem 0.4rem;
+  min-height: 7.5rem;
+  align-items: flex-start;
+}
+
+.alert-art-tile {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  width: 4.9rem;
+  padding: 0.35rem;
+  color: var(--ink);
+  background: var(--card-sunk);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-10);
+  cursor: pointer;
+  font: inherit;
+}
+
+.alert-art-tile.selected {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.alert-art-tile .thumb {
+  width: 3.6rem;
+  height: auto;
+  border-radius: var(--radius-4);
+}
+
+.alert-art-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.alert-art-price {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alert-art-loading {
+  align-self: center;
+  font-size: 0.85rem;
+}
+
+/* Page */
+.alerts-explainer {
+  max-width: 44rem;
+}
+
+.alerts-note {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--info-ink);
+  background: var(--info-bg);
+  border: 1px solid var(--info-line);
+  border-radius: var(--radius-10);
+}
+
+.alerts-empty {
+  margin-top: 1rem;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  background: var(--card-sunk);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-14);
+}
+
+.alerts-empty h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.1rem;
+}
+
+.alerts-empty p {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.alert-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.alert-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1.6fr) 5rem minmax(0, 1.5fr) auto auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  box-shadow: var(--shadow);
+}
+
+.alert-row.paused {
+  opacity: 0.8;
+}
+
+.alert-art .thumb {
+  width: 3.5rem;
+  height: auto;
+}
+
+.alert-card {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.alert-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.alert-card-art {
+  font-size: 0.85rem;
+}
+
+.alert-chip {
+  margin-top: 0.25rem;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  background: var(--card-sunk);
+}
+
+.alert-chip.watching {
+  color: var(--info-ink);
+  background: var(--info-bg);
+  border-color: var(--info-line);
+}
+
+.alert-chip.hit {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+}
+
+.alert-chip.met {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.alert-chip.paused {
+  color: var(--muted);
+}
+
+.alert-now,
+.alert-target {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.alert-now {
+  font-weight: 600;
+}
+
+.alert-col-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-target-controls {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.alert-toggles {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.alert-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.alert-act {
+  min-height: 2.5rem;
+  padding: 0 0.5rem;
+}
+
+.alert-row-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .alert-row {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "art card now"
+      "target target target"
+      "toggles toggles actions";
+  }
+
+  .alert-art {
+    grid-area: art;
+    align-self: start;
+  }
+
+  .alert-card {
+    grid-area: card;
+  }
+
+  .alert-now {
+    grid-area: now;
+    justify-items: end;
+    align-self: start;
+  }
+
+  .alert-target {
+    grid-area: target;
+  }
+
+  .alert-toggles {
+    grid-area: toggles;
+    display: flex;
+    gap: var(--space-4);
+  }
+
+  .alert-actions {
+    grid-area: actions;
+  }
+
+  .alert-dir {
+    flex: 1 1 8rem;
+  }
+
+  .alert-money {
+    flex: 0 0 6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-art-tile {
+    transition: none;
+  }
+}
+
+/* "New version available" card: fixed bottom-right in the What's new card's spot, so nothing shifts. */
+.update-card {
+  position: fixed;
+  z-index: var(--z-popover);
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
+  box-sizing: border-box;
+  width: min(20rem, calc(100vw - 2rem));
+  padding: 0.85rem 1rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-14);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-lift);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.update-card-heading {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: var(--accent);
+}
+
+.update-card-text {
+  margin: 0;
+  color: var(--muted);
+}
+
+.update-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.update-card-actions .btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.88rem;
+}
+
+.update-card-actions button.ghost {
+  min-height: 2.25rem;
+  padding: 0 0.5rem;
+}
+
+.version-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin: 0.25rem 0 1rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.version-status button.ghost {
+  min-height: 2rem;
+  padding: 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: underline;
+}

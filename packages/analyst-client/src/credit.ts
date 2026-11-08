@@ -1,7 +1,8 @@
 /** The player's monthly Log Pose credit and the limits that can stop them: what the panel's meter and notices say (#446). */
+import { isRefusalCode, type RefusalCode } from "@optcg/analyst-contract";
 import type { DonePayload } from "./client";
 
-export type RefusalCode = "credit" | "daily" | "monthly";
+export type { RefusalCode };
 
 export type Credit = {
   /** This month's credit in dollars; null for an owner, who has none to run out of. */
@@ -28,7 +29,7 @@ const num = (v: unknown): number | null => (typeof v === "number" && Number.isFi
 export function parseCredit(raw: unknown): Credit | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const refusal = r.refusal === "credit" || r.refusal === "daily" || r.refusal === "monthly" ? r.refusal : null;
+  const refusal = isRefusalCode(r.refusal) ? r.refusal : null;
   return {
     creditUsd: num(r.credit_usd),
     spentUsd: num(r.credit_spent_usd) ?? 0,

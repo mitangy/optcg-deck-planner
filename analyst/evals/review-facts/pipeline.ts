@@ -7,7 +7,7 @@ import type { MatchReplay, Seat } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
 import { costUsd, flattenCited, reviewRequest, REVIEW_MAX_LINES, type CallModel, type Usage } from "../../src/chat";
 import { reviewGame } from "../../src/matches";
-import { withRetry } from "../retry";
+import { withRetry } from "../shared/retry";
 import { checkClaim, type Verdict } from "./check";
 import { guardQuotes, type Claim, type Extractor } from "./extract";
 import { actorOf, gameFacts, type GameFacts } from "./facts";

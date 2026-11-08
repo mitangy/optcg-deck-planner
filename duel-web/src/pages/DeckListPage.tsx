@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BackLink } from "./BackLink";
+import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { isIncompleteDeck } from "../decks/deckStatus";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -14,12 +14,12 @@ import {
   type SavedDeck,
 } from "../decks/storage";
 import { applyPlannerDeepLink, parsePlannerDeepLink } from "../decks/planner";
-import { fetchAuthMe, googleLoginUrl, type AuthUser } from "../net/api";
+import { ensureAuth } from "../auth/session";
+import { googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
-import { NavMenu } from "../nav/NavMenu";
 import { Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
-import { colorFill } from "../board/PreviewBadges";
+import { colorFill } from "../board/preview/PreviewBadges";
 import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
 import {
   DECK_SORTS,
@@ -265,12 +265,7 @@ export function DeckListPage() {
     if (link) window.history.replaceState(window.history.state, "", "/decks");
     let cancelled = false;
     void (async () => {
-      let me: AuthUser | null = null;
-      try {
-        me = await fetchAuthMe();
-      } catch {
-        me = null;
-      }
+      const me: AuthUser | null = await ensureAuth();
       // The link is consumed by the first effect run, which StrictMode may already have cancelled.
       if (link) openImported(await applyPlannerDeepLink(link, Boolean(me)));
       if (!cancelled) setSignedIn(Boolean(me));
@@ -321,15 +316,15 @@ export function DeckListPage() {
   return (
     <div className="app-shell">
       <div className="deck-config deck-config-wide deck-list-page">
-        <header className="deck-config-header">
-          <div className="deck-config-nav">
-            <NavMenu />
-            <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          </div>
-          <div className="deck-config-heading">
-            <h1 className="deck-config-title">Decks</h1>
-            <p className="meta deck-list-subtitle">Choose a deck to edit, or create a new one.</p>
-          </div>
+        <DeckConfigHeader
+          back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}
+          heading={
+            <>
+              <h1 className="deck-config-title">Decks</h1>
+              <p className="meta deck-list-subtitle">Choose a deck to edit, or create a new one.</p>
+            </>
+          }
+        >
           <div className="deck-list-header-actions">
             <button
               type="button"
@@ -346,7 +341,7 @@ export function DeckListPage() {
               <span aria-hidden>+</span> New deck
             </button>
           </div>
-        </header>
+        </DeckConfigHeader>
 
         {/* One line whatever the sign-in state, so the decks below never move when it loads. */}
         <p className={`${linkErr ? "error-text" : "meta"} deck-sync-note`} role={linkErr ? "alert" : undefined}>
@@ -380,30 +375,30 @@ export function DeckListPage() {
             </p>
           ) : (
             <>
-              <DeckToolbar query={query} onQuery={setQuery} sort={sort} onSort={pickSort} />
-              {shownDecks.length === 0 ? (
-                <p className="meta deck-list-empty" role="status">
-                  No decks match “{query.trim()}”.{" "}
-                  <button type="button" className="linkish" onClick={() => setQuery("")}>
-                    Clear search
-                  </button>
-                </p>
-              ) : (
-                <ul className="deck-list deck-grid">
-                  {shownDecks.map((deck) => (
-                    <DeckCard
-                      key={deck.id}
-                      deck={deck}
-                      onOpen={() => {
-                        setSelectedDeckId(deck.id);
-                        navigate(`/decks/${deck.id}/configure`);
-                      }}
-                      onPlay={() => playWith(deck)}
-                      onDelete={() => confirmDelete(deck)}
-                    />
-                  ))}
-                </ul>
-              )}
+                  <DeckToolbar query={query} onQuery={setQuery} sort={sort} onSort={pickSort} />
+                  {shownDecks.length === 0 ? (
+                    <p className="meta deck-list-empty" role="status">
+                      No decks match “{query.trim()}”.{" "}
+                      <button type="button" className="linkish" onClick={() => setQuery("")}>
+                        Clear search
+                      </button>
+                    </p>
+                  ) : (
+                    <ul className="deck-list deck-grid">
+                      {shownDecks.map((deck) => (
+                        <DeckCard
+                          key={deck.id}
+                          deck={deck}
+                          onOpen={() => {
+                            setSelectedDeckId(deck.id);
+                            navigate(`/decks/${deck.id}/configure`);
+                          }}
+                          onPlay={() => playWith(deck)}
+                          onDelete={() => confirmDelete(deck)}
+                        />
+                      ))}
+                    </ul>
+                  )}
             </>
           )}
         </section>

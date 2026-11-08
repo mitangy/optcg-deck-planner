@@ -1,6 +1,6 @@
 {
   "synthetic": true,
-  "note": "Invented matchup responses in the backend's shape (backend/app/analyst_stats.py), keyed by leader and opponent. Not real games.",
+  "note": "Invented matchup responses in the backend's shape (backend/app/analyst/stats.py), keyed by leader and opponent. Not real games.",
   "responses": {
     "leader=OP13-004&opponent=OP15-058": {
       "days": 90,

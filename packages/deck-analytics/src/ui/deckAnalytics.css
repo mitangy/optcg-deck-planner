@@ -1,17 +1,21 @@
 /*
  * Deck analytics panels (stats, draw odds, searchers, build hints). Shared by the planner and duel-web.
- * Colours come from the host app's tokens: --ink, --muted, --label, --line, --line-strong, --card,
- * --card-sunk, --bg-deep, --accent, --gold, --gold-bright, --gold-soft, --gold-ink, --violet-ink,
- * --warn, --warn-ink, --danger, --shadow-lift, --font-body, --font-display. The host also styles
- * .muted, .error, .btn.secondary, .layout-toggle, .card-id and .filter-drawer-badge.
+ * Colours and fonts come from this package's own --da-* tokens, which each host app maps once:
+ * --da-ink, --da-muted, --da-label, --da-line, --da-line-strong, --da-card, --da-card-sunk,
+ * --da-bg-deep, --da-accent, --da-gold, --da-gold-bright, --da-gold-soft, --da-gold-ink,
+ * --da-violet-ink, --da-warn, --da-warn-ink, --da-danger, --da-shadow-lift, --da-font-body,
+ * --da-font-display (frontend/src/styles.css, duel-web/src/styles.css). The hint popover renders in a
+ * portal under <body>, so a host that maps them on a wrapper only (duel-web does for the colours)
+ * leaves the popover without them. The host also styles .muted, .error, .btn.secondary,
+ * .layout-toggle, .card-id and .filter-drawer-badge.
  */
 
 /* ——— Deck stats panel (plain CSS charts) ——— */
 .deck-stats {
-  --ds-char: var(--accent);
-  --ds-event: var(--gold);
-  --ds-stage: var(--violet-ink);
-  --ds-none: color-mix(in srgb, var(--muted) 45%, var(--bg-deep));
+  --ds-char: var(--da-accent);
+  --ds-event: var(--da-gold);
+  --ds-stage: var(--da-violet-ink);
+  --ds-none: color-mix(in srgb, var(--da-muted) 45%, var(--da-bg-deep));
   min-width: 0;
 }
 
@@ -24,7 +28,7 @@
 .ds-tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 @media (min-width: 720px) {
@@ -38,9 +42,9 @@
   gap: 0.1rem;
   min-width: 0;
   padding: 0.5rem 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card-sunk);
+  border: 1px solid var(--da-line);
+  border-radius: var(--radius-10);
+  background: var(--da-card-sunk);
 }
 
 .ds-tile-label {
@@ -48,19 +52,19 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--label);
+  color: var(--da-label);
 }
 
 .ds-tile-value {
-  font-family: var(--font-display);
+  font-family: var(--da-font-display);
   font-size: 1.5rem;
   line-height: 1.1;
-  color: var(--ink);
+  color: var(--da-ink);
 }
 
 .ds-tile-sub {
   font-size: 0.74rem;
-  color: var(--muted);
+  color: var(--da-muted);
   overflow-wrap: anywhere;
 }
 
@@ -77,12 +81,12 @@
 
 .ds-block h3 {
   margin: 0 0 0.4rem;
-  font-family: var(--font-body);
+  font-family: var(--da-font-body);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--da-muted);
 }
 
 .ds-block h3.ds-sub {
@@ -98,7 +102,7 @@
   padding: 0;
   list-style: none;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--da-muted);
 }
 
 .ds-split-legend {
@@ -107,7 +111,7 @@
 
 .ds-split-legend strong,
 .ds-note strong {
-  color: var(--ink);
+  color: var(--da-ink);
 }
 
 .ds-key {
@@ -115,7 +119,7 @@
   width: 0.65rem;
   height: 0.65rem;
   margin-right: 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--radius-3);
   vertical-align: -0.05rem;
 }
 
@@ -123,7 +127,7 @@
 .ds-event { background: var(--ds-event); }
 .ds-stage { background: var(--ds-stage); }
 .ds-none { background: var(--ds-none); }
-.ds-c1000 { background: var(--gold); }
+.ds-c1000 { background: var(--da-gold); }
 .ds-c2000 { background: var(--ds-char); }
 .ds-other { background: var(--ds-stage); }
 
@@ -147,7 +151,7 @@
 .ds-col-label {
   font-size: 0.7rem;
   line-height: 1rem;
-  color: var(--muted);
+  color: var(--da-muted);
   white-space: nowrap;
 }
 
@@ -156,7 +160,7 @@
   min-height: 0;
   display: flex;
   align-items: flex-end;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--da-line-strong);
 }
 
 .ds-stack {
@@ -173,19 +177,19 @@
 }
 
 .ds-seg + .ds-seg {
-  border-top: 1px solid var(--card);
+  border-top: 1px solid var(--da-card);
 }
 
 .ds-split {
   display: flex;
   height: 1.1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
-  background: var(--bg-deep);
+  background: var(--da-bg-deep);
 }
 
 .ds-split-seg + .ds-split-seg {
-  border-left: 2px solid var(--card);
+  border-left: 2px solid var(--da-card);
 }
 
 .ds-toggle {
@@ -194,7 +198,7 @@
   gap: 0.45rem;
   margin: 0.55rem 0 0;
   font-size: 0.85rem;
-  color: var(--ink);
+  color: var(--da-ink);
   cursor: pointer;
 }
 
@@ -206,7 +210,7 @@
 .ds-note {
   margin: 0.55rem 0 0;
   font-size: 0.88rem;
-  color: var(--muted);
+  color: var(--da-muted);
 }
 
 .ds-chips {
@@ -224,9 +228,9 @@
   gap: 0.35rem;
   max-width: 100%;
   padding: 0.15rem 0.2rem 0.15rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--card-sunk);
+  border: 1px solid var(--da-line);
+  border-radius: var(--radius-pill);
+  background: var(--da-card-sunk);
   font-size: 0.82rem;
 }
 
@@ -240,9 +244,9 @@
 .ds-chip-count {
   min-width: 1.4rem;
   padding: 0 0.4rem;
-  border-radius: 999px;
-  background: var(--gold-soft);
-  color: var(--gold-ink);
+  border-radius: var(--radius-pill);
+  background: var(--da-gold-soft);
+  color: var(--da-gold-ink);
   font-weight: 700;
   text-align: center;
 }
@@ -252,8 +256,8 @@
   width: 0.65rem;
   height: 0.65rem;
   margin-left: -0.25rem;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-round);
+  border: 1px solid var(--da-line-strong);
 }
 
 .ds-hbars {
@@ -268,7 +272,7 @@
   display: grid;
   grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 1.75rem;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: 0.84rem;
 }
 
@@ -280,8 +284,8 @@
 
 .ds-hbar-track {
   height: 0.6rem;
-  border-radius: 999px;
-  background: var(--bg-deep);
+  border-radius: var(--radius-pill);
+  background: var(--da-bg-deep);
   overflow: hidden;
 }
 
@@ -289,12 +293,12 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  background: linear-gradient(90deg, var(--da-gold), var(--da-gold-bright));
 }
 
 .ds-hbar-count {
   text-align: right;
-  color: var(--muted);
+  color: var(--da-muted);
 }
 
 .ds-empty {
@@ -307,7 +311,7 @@
   display: grid;
   align-content: center;
   justify-items: start;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 12rem;
 }
 
@@ -396,16 +400,16 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  background: var(--bg-deep);
+  border: 1px solid var(--da-line-strong);
+  border-radius: var(--radius-10);
+  background: var(--da-bg-deep);
 }
 
 .ds-pick label {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 1.85rem;
   font-size: 0.85rem;
   cursor: pointer;
@@ -439,16 +443,16 @@
   gap: 0.15rem;
   min-width: 0;
   padding: 0.35rem 0.1rem 0.3rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-deep);
+  border: 1px solid var(--da-line);
+  border-radius: var(--radius-10);
+  background: var(--da-bg-deep);
 }
 
 .ds-odds-turn {
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--label);
+  color: var(--da-label);
 }
 
 .ds-odds-val {
@@ -462,15 +466,15 @@
   align-items: flex-end;
   width: 0.65rem;
   height: 100%;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--da-muted) 18%, transparent);
   overflow: hidden;
 }
 
 .ds-odds-bar > span {
   display: block;
   width: 100%;
-  background: linear-gradient(0deg, var(--gold), var(--gold-bright));
+  background: linear-gradient(0deg, var(--da-gold), var(--da-gold-bright));
 }
 
 .ds-search-list {
@@ -486,10 +490,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3.1rem 3.6rem 3.1rem;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 2.4rem;
   padding: 0 0.4rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   font-size: 0.84rem;
 }
 
@@ -501,7 +505,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--label);
+  color: var(--da-label);
 }
 
 .ds-search-head span:nth-child(n + 2) {
@@ -534,19 +538,19 @@
 }
 
 .ds-search-row.ds-warn {
-  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  background: color-mix(in srgb, var(--da-warn) 14%, transparent);
 }
 
 .ds-search-row.ds-warn .ds-search-chance {
-  color: var(--warn-ink);
+  color: var(--da-warn-ink);
 }
 
 /* The popover floats in a portal, outside the tray, so it needs the tier colours too. */
 .dh-tray,
 .dh-pop {
-  --dh-rule: var(--danger);
-  --dh-shape: var(--warn);
-  --dh-synergy: var(--accent);
+  --dh-rule: var(--da-danger);
+  --dh-shape: var(--da-warn);
+  --dh-synergy: var(--da-accent);
 }
 
 .dh-tray {
@@ -583,7 +587,7 @@
 /* "+N more": the full list overlays whatever is below, the tray keeps its height. */
 .dh-chips.dh-expanded {
   position: absolute;
-  z-index: 30;
+  z-index: var(--z-hud);
   top: 0;
   left: 0;
   right: 6.9rem;
@@ -591,10 +595,10 @@
   max-height: 60dvh;
   overflow: hidden auto;
   padding: 0.5rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: var(--card);
-  box-shadow: var(--shadow-lift);
+  border: 1px solid var(--da-line-strong);
+  border-radius: var(--radius-12);
+  background: var(--da-card);
+  box-shadow: var(--da-shadow-lift);
 }
 
 .dh-chips > li {
@@ -624,10 +628,10 @@
   /* Stable hit target: 32px on desktop, 44px on touch (see pointer: coarse below). */
   min-height: 2rem;
   padding: 0.15rem 0.65rem 0.15rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--dh-c) 12%, var(--card));
-  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--da-line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--dh-c) 12%, var(--da-card));
+  color: var(--da-ink);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
@@ -643,12 +647,12 @@
 
 .dh-chip:hover,
 .dh-chip[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--dh-c) 22%, var(--card));
+  background: color-mix(in srgb, var(--dh-c) 22%, var(--da-card));
 }
 
 .dh-chip.dh-off {
   /* Dimmed by colour, not opacity: 0.6 opacity dropped the text to 3.8:1 in the light theme. */
-  color: var(--muted);
+  color: var(--da-muted);
   border-style: dashed;
 }
 
@@ -658,17 +662,17 @@
 
 /* "+N more" / "Show less" / dismissed toggles: chip-shaped, fixed width so toggling never reflows the tray. */
 .dh-chip.dh-toggle {
-  --dh-c: var(--muted);
+  --dh-c: var(--da-muted);
   justify-content: center;
   min-width: 6.3rem;
   padding: 0.15rem 0.7rem;
-  background: var(--card-sunk);
+  background: var(--da-card-sunk);
   white-space: nowrap;
 }
 
 .dh-chip.dh-toggle:hover,
 .dh-chip.dh-toggle[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--muted) 16%, var(--card));
+  background: color-mix(in srgb, var(--da-muted) 16%, var(--da-card));
 }
 
 @media (pointer: coarse) {
@@ -685,7 +689,7 @@
   flex: 0 0 auto;
   width: 0.55rem;
   height: 0.55rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--dh-c);
 }
 
@@ -697,19 +701,19 @@
 }
 
 .dh-pop {
-  z-index: 80;
+  z-index: var(--z-popover);
   box-sizing: border-box;
   max-height: calc(100dvh - 1.5rem);
   overflow-y: auto;
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.8rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--line-strong));
+  border: 1px solid color-mix(in srgb, var(--dh-c) 55%, var(--da-line-strong));
   border-top: 3px solid var(--dh-c);
-  border-radius: 12px;
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow-lift);
+  border-radius: var(--radius-12);
+  background: var(--da-card);
+  color: var(--da-ink);
+  box-shadow: var(--da-shadow-lift);
 }
 
 .dh-pop-title {
@@ -719,12 +723,12 @@
 .dh-pop-detail {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--muted);
+  color: var(--da-muted);
 }
 
 .dh-pop-cards {
   display: grid;
-  gap: 0.25rem;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -733,7 +737,7 @@
 
 .dh-pop-cards li {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -748,7 +752,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .dh-ask {

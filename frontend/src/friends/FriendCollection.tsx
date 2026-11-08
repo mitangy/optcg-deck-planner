@@ -2,11 +2,12 @@ import { Select } from "@optcg/ui/popups";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { money } from "../api";
-import { CardLayoutToggle, useCardLayout } from "../CardLayout";
-import { GridCard } from "../PlannerCard";
-import { CardSearchInput, COLOR_ORDER, matchesCardSearch } from "../cardListControls";
+import { CardLayoutToggle, useCardLayout } from "../ui/CardLayout";
+import { GridCard } from "../ui/PlannerCard";
+import { CardSearchInput, COLOR_ORDER, matchesCardSearch } from "../ui/cardListControls";
 import { friendsApi, type FriendOwnedItem } from "./friendsApi";
 import { CardRow, Empty, LoadError } from "./ui";
+import { qk } from "../cache/queryKeys";
 
 type SortKey = "name" | "owned" | "price" | "value";
 const SORTS: { key: SortKey; label: string }[] = [
@@ -30,7 +31,7 @@ function sortCollection(items: FriendOwnedItem[], key: SortKey): FriendOwnedItem
 
 /** The cards a friend owns: read only, no buying. */
 export function FriendCollection({ friendId, username }: { friendId: number; username: string }) {
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["friend", friendId, "collection"], queryFn: () => friendsApi.collection(friendId) });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friend.collection(friendId), queryFn: () => friendsApi.collection(friendId) });
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [color, setColor] = useState("");

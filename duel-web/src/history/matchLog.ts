@@ -1,5 +1,5 @@
 /** A finished game's turn-by-turn log, as the match page shows it from your seat. */
-import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/battleLog";
+import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/match/battleLog";
 import type { SeatLogJson } from "./historyApi";
 
 export type MatchLogTurn = {

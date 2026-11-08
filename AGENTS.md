@@ -1,6 +1,6 @@
 # AGENTS.md — OPTCG Deck Planner
 
-See `CLAUDE.md` for product context and required UI-polish rules. See `README.md` for the canonical local-dev and deploy commands.
+See `CLAUDE.md` for product context and required UI-polish rules. See `README.md` for the repo map, local-dev, test and deploy commands, and `docs/ARCHITECTURE.md` for how the apps, services and packages fit together. This file only adds what is specific to agent environments (Cursor Cloud, headless Linux VMs).
 
 ## Never create accounts in production for testing
 
@@ -10,26 +10,28 @@ See `CLAUDE.md` for product context and required UI-polish rules. See `README.md
 
 ## Cursor Cloud specific instructions
 
-Two services plus a zero-setup local DB:
+The minimum for planner work is two services plus a zero-setup local DB (the duel app, game server and Log Pose service are optional; see `README.md` for how to start them):
 
 - Backend: FastAPI in `backend/`, runs on `http://localhost:8000`.
 - Frontend: Vite/React SPA in `frontend/`, runs on `http://localhost:5173`.
-- DB: defaults to local SQLite (`backend/optcg.db`); tables auto-create on backend startup via `init_db()`. No Postgres needed locally.
+- JS install: `frontend/`, `duel-web/`, `packages/*`, `game-server/` and `analyst/` are npm workspaces of the repo root. Run `npm ci` (or `npm install`) **once at the repo root**; there are no per-app lockfiles or per-app installs (`mobile/`, which is paused, and `trailer/` are outside the workspace and keep their own).
+- DB: defaults to local SQLite (`backend/optcg.db`); the schema is built on backend startup by `alembic upgrade head` (via `init_db()`; an old `backend/optcg.db` made before Alembic must be deleted or `alembic stamp 0001`-ed). No Postgres needed locally.
 
 Non-obvious caveats:
 
 - Only `python3` is available (no `python`). Run the backend and tests with `python3 -m ...`: `python3 -m uvicorn app.main:app --reload --port 8000` and `python3 -m pytest`. Console scripts (`uvicorn`, `pytest`) install to `~/.local/bin`, which is not on PATH.
-- The `.env` files are gitignored and are recreated from `*.env.example` by the update script. `enable_dev_login` defaults to `False` in `backend/app/config.py`, so **without `backend/.env` the "Dev login (local)" button fails**. Keep `FRONTEND_ORIGIN` as `http://...` locally — an `https://` origin flips the app into production mode and it refuses to start with dev login / default `SESSION_SECRET`.
+- The `.env` files are gitignored and are recreated from `*.env.example` by the update script. `enable_dev_login` defaults to `False` in `backend/app/core/config.py`, so **without `backend/.env` the "Dev login (local)" button fails**. Keep `FRONTEND_ORIGIN` as `http://...` locally — an `https://` origin flips the app into production mode and it refuses to start with dev login / default `SESSION_SECRET`.
 - For Google OAuth from duel-web, `VITE_API_URL` and backend `BACKEND_PUBLIC_URL` must share the same hostname (`localhost` or `127.0.0.1`, not mixed). Otherwise the OAuth nonce cookie is missing on callback → `Invalid OAuth state`.
 - Auth for local testing: click **Dev login (local)** on the sign-in screen (no Google OAuth needed). It logs in as `dev@localhost`.
 - The card catalog is empty locally, so imported cards render as their ID with "(not in catalog)" and no prices/images. This is expected — real names/prices require the optional TCGCSV catalog sync (`POST /admin/sync-catalog`) and external network access.
 - `backend/scripts/seed.py` is a no-op locally: it only imports data when a sibling `../optcg_tracker/` cache exists (not in this repo). Skipping it is fine; tables still auto-create on startup.
-- README's local-dev commands use Windows syntax (`py -3`, `copy`); on this Linux VM use `python3` and `cp`.
+- Only `start-backend.bat` and the `py -3` / `copy` variants noted in `README.md` are Windows-specific; the README's main commands use `python3` and `cp`, which is what this Linux VM needs.
 
 Common commands:
 
 - Backend tests: `cd backend && python3 -m pytest`
-- Frontend tests: `cd frontend && npm test`
+- Install JS deps (all workspaces): `npm ci` at the repo root
+- All JS unit tests: `npm test` at the repo root; one app: `cd frontend && npm test` (or `duel-web`)
 - Frontend typecheck + build: `cd frontend && npm run build` (runs `tsc --noEmit && vite build`)
 - Frontend dev: `cd frontend && npm run dev`
 

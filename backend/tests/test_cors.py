@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.cors import TieredCORSMiddleware
+from app.core.cors import TieredCORSMiddleware
 
 EXACT = "https://optcgduel.app"
 BRANCH = "https://optcg-duel-web-git-feat-x-miko21.vercel.app"

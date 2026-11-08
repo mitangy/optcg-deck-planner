@@ -1,0 +1,104 @@
+/* Admin page (#667). Uses the shared palette tokens, so every theme and light mode follow. */
+
+.adm-page {
+  max-width: 1100px;
+}
+
+.adm-role {
+  margin-left: auto;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.adm-tabbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adm-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+}
+
+.adm-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.adm-tab {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adm-tab[aria-selected="true"] {
+  background: rgb(var(--chrome-rgb) / 0.16);
+  border-color: var(--chrome);
+  color: var(--ink);
+}
+
+.adm-refresh {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+}
+
+.adm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  /* Loading, error and data share a floor, so the footer does not jump. */
+  min-height: 16rem;
+}
+
+.adm-muted {
+  color: var(--muted);
+}
+
+.adm-error {
+  margin: 0;
+  color: var(--crimson-bright);
+  font-size: 0.85rem;
+}
+
+.adm-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.adm-sub {
+  margin: 0.4rem 0 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}

@@ -1,0 +1,309 @@
+/* —— "Rotate for bigger cards" pill: in the idle midline strip, portrait only ——
+   The strip between the mats is always reserved, so the pill neither moves
+   the board nor covers either field (as a fixed toast it sat on the DON!!
+   row and Trash). It takes the strip's height; the ✕ keeps a 44px hit area
+   that reaches past the strip without painting over anything. */
+
+.arena .midline .rotate-hint {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 0 0.7rem;
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--deep-rgb) / 0.96);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rotate-hint-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rotate-hint-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--chrome-bright);
+}
+
+.rotate-hint-close {
+  position: relative;
+  width: calc(var(--midline-h) + 6px);
+  height: 100%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* Invisible 44px tap target around the small ✕. */
+.rotate-hint-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+.rotate-hint-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* —— Pile and DON!! captions: readable on any playmat ——
+   Uploaded mats can be bright (or undimmed), and the gold-on-transparent
+   captions vanished on them. Each caption sits on a dark chip instead. */
+.arena .side-field .zone-pile-meta,
+.arena .side-field .don-strip-label {
+  padding: 0.1em 0.45em 0.15em;
+  border-radius: var(--radius-6);
+  background: rgb(var(--abyss-rgb) / 0.74);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  opacity: 1;
+}
+
+.arena .side-field .zone-pile-label,
+.arena .side-field .don-strip-label {
+  color: #e6d6ad;
+}
+
+.arena .side-field .zone-pile-count,
+.arena .side-field .don-strip-nums {
+  color: #fff4d6;
+}
+
+/* Pile captions go on one line ("DECK 38") so the chip adds no height and
+   the count never slides under the pile below (it used to on phones). */
+.arena:not(.arena-lp) .side-field .zone-pile-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.3em;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.arena:not(.arena-lp) .side-field .zone-pile-label {
+  letter-spacing: 0.04em;
+}
+
+/* Desktop: bigger counts (DON!! 3/6, Deck 38) and captions. */
+.arena.arena-wide:not(.arena-lp) .side-field .zone-pile-label {
+  font-size: clamp(0.55rem, calc(var(--c) * 0.12), 0.8rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .zone-pile-count {
+  font-size: clamp(0.85rem, calc(var(--c) * 0.22), 1.45rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-label {
+  font-size: clamp(0.55rem, calc(var(--c) * 0.12), 0.8rem);
+}
+
+.arena.arena-wide:not(.arena-lp) .side-field .don-strip-nums {
+  font-size: clamp(0.85rem, calc(var(--c) * 0.24), 1.5rem);
+  line-height: 1.05;
+}
+
+/* Desktop rail: long action labels ("Activate X → Y") wrap inside the rail
+   instead of running past its edge. Wrapping (not clipping) keeps the key tab
+   above the button visible. */
+.arena.arena-wide:not(.arena-lp) .board-col .intent-row .intent-btn {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* —— Tilted board (desktop setting): seen from your seat ——
+
+   Both mats lean back as one table: rotateX around the near (bottom) edge,
+   with perspective so the opponent's side is smaller and further away. The
+   inner box is laid out taller than the playmat (--tilt-grow) and hangs off
+   its top; the tilt folds that extra height back into view, so the near mat
+   ends up bigger than the flat board and nothing is clipped. Only transform,
+   so hit-testing (drops, clicks) follows what you see and BoardMotion's
+   translate / scale still compose. */
+.arena.arena-tilt .playmat {
+  --tilt: 30deg;
+  --tilt-grow: 1.45;
+  /* Lift the tilted table toward the HUD: the far edge ends up ~8px below it
+     and the near edge clears the hand strip by the same amount. */
+  --tilt-lift: 4cqh;
+}
+
+.arena.arena-tilt .playmat-inner {
+  height: calc(100cqh * var(--tilt-grow));
+  margin-top: calc(100cqh * (1 - var(--tilt-grow)) - var(--tilt-lift));
+  justify-content: flex-end;
+  transform-origin: 50% 100%;
+  transform: perspective(calc(100cqh * 2.4)) rotateX(var(--tilt));
+}
+
+/* Same sizing as the flat desktop mats, from the taller (pre-tilt) box. */
+.arena.arena-wide.arena-tilt:not(.arena-lp) .side-field {
+  --mat-h: calc(
+    (100cqh * var(--tilt-grow) - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2
+  );
+}
+
+/* —— Pre-view board (queueing / connecting / starting practice) —— */
+
+.arena-pending .hud-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.arena-pending .hud-status .hud-phase {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-spinner {
+  flex: none;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid rgb(var(--chrome-bright-rgb) / 0.25);
+  border-top-color: var(--gold, #f0dca8);
+  border-radius: var(--radius-round);
+  animation: pending-spin 0.9s linear infinite;
+}
+
+@keyframes pending-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.arena .midline .pending-prompt {
+  animation: pending-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pending-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena .midline .pending-prompt {
+    animation: none;
+  }
+}
+
+/* Private room invite floats over the empty mat instead of replacing it. */
+.arena-pending .playmat {
+  position: relative;
+}
+
+.arena-pending .pending-invite {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raise-8);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+/* Incoming friend invites ride above the room card, so the card never moves
+   when one arrives or is dismissed. */
+.arena-pending .pending-invite-stack {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(460px, 100%);
+  min-width: 0;
+}
+
+.arena-pending .pending-invite-incoming {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 0.6rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.arena-pending .pending-invite-stack:not(:has(.room-invite)) .pending-invite-incoming {
+  position: static;
+}
+
+.arena-pending .pending-invite .room-invite,
+.arena-pending .pending-invite .notice {
+  pointer-events: auto;
+}
+
+.arena-pending .pending-invite .notice {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.arena-pending .arena-left,
+.arena-pending .arena-rail {
+  opacity: 0;
+}
+
+/* —— Trash: same pile size as the Deck, caption overlaid on its face ——
+   The trash sits in the short bottom row, so a full Deck-sized stack plus a
+   caption line underneath would spill into the Deck pile above it (or off the
+   mat). The one-line chip rides on the bottom of the stack instead, so the pile
+   is exactly as tall as its face. */
+.arena .side-field .zone-trash .zone-pile {
+  position: relative;
+}
+
+.arena .side-field .zone-trash .zone-pile-meta {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--c) * 0.03);
+  transform: translateX(-50%);
+  max-width: 100%;
+  pointer-events: none;
+}
+
+/* Dock height: the strip below makes room for it, the dock itself is this tall. */
+.arena {
+  --dock-h: 2.75rem;
+}
+
+/* Desktop with the dock (DuelBoard adds .arena-docked, fixed for the whole game
+   so the dock appearing never moves the mats): the midline strip is tall enough
+   for the dock to sit in the gap between the mats. Phones never get the class. */
+.arena.arena-docked .playmat {
+  --midline-h: calc(var(--dock-h) + 0.5rem);
+}
+
+/* The divider line and diamond end before the dock (--dock-reserve, measured by
+   PrimaryDock) and centre in what is left. */
+.arena.arena-docked .midline {
+  box-sizing: border-box;
+  padding-right: var(--dock-reserve, 0px);
+}
+

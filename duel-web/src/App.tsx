@@ -1,34 +1,11 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
 import { LeaveGameDialog } from "./LeaveGameDialog";
 import { defaultLogPosePage, logPoseChromeFor, openDeckFor, openNewDeckFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
-import { AuthCompletePage } from "./pages/AuthCompletePage";
-import { DeckConfigurePage } from "./pages/DeckConfigurePage";
-import { DeckListPage } from "./pages/DeckListPage";
-import { PlayOnlinePage } from "./pages/PlayOnlinePage";
-import { OptcgSimOnlinePage } from "./pages/OptcgSimOnlinePage";
-import { PlayOnPhonePage } from "./pages/PlayOnPhonePage";
-import { MetaDecksPage } from "./pages/MetaDecksPage";
-import { LeaderPage } from "./pages/LeaderPage";
-import { LeadersIndexPage } from "./pages/LeadersIndexPage";
-import { NewDeckPage } from "./pages/NewDeckPage";
-import { DemoPage } from "./pages/DemoPage";
-import { EventRulesPage } from "./pages/EventRulesPage";
-import { DuelPage } from "./pages/DuelPage";
-import { HotseatPage } from "./pages/HotseatPage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { LegalPage } from "./pages/LegalPage";
-import { LobbyPage } from "./pages/LobbyPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { HistoryPage } from "./pages/HistoryPage";
-import { MatchLogPage } from "./pages/MatchLogPage";
-import { UsernameSetupPage } from "./pages/UsernameSetupPage";
-import { WhatsNewPage } from "./pages/WhatsNewPage";
-import { TournamentsPage } from "./tournaments/TournamentsPage";
-import { TournamentPage } from "./tournaments/TournamentPage";
+import { APP_ROUTES } from "./routes";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
 import { ReportHost } from "./reports/ReportHost";
@@ -36,15 +13,9 @@ import { openFeedback } from "./feedbackDialog";
 import { RouteMeta } from "./seo/RouteMeta";
 import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
-import { applyPopupSize } from "./board/popupSize";
+import { applyPopupSize } from "./board/preview/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
-import { useMediaQuery } from "./board/useMediaQuery";
-
-// The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
-const ReplayPage = lazy(() => import("./pages/ReplayPage"));
-// Staff only, so nobody else downloads it.
-const AdminPage = lazy(() => import("./admin/AdminPage"));
-const AdminUserPage = lazy(() => import("./admin/UserPage"));
+import { useMediaQuery } from "@optcg/ui/hooks";
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();
@@ -79,41 +50,14 @@ export function App() {
   return (
     <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={sources} ownClaude={ownClaude}>
       <RouteMeta />
-      <Routes>
-        <Route path="/" element={<LobbyPage />} />
-        <Route path="/play-one-piece-tcg-online" element={<PlayOnlinePage />} />
-        <Route path="/optcg-sim-online" element={<OptcgSimOnlinePage />} />
-        <Route path="/play-optcg-on-phone" element={<PlayOnPhonePage />} />
-        <Route path="/leaders" element={<LeadersIndexPage />} />
-        <Route path="/leaders/:slug" element={<LeaderPage />} />
-        <Route path="/watch/:roomId" element={<LobbyPage />} />
-        <Route path="/decks" element={<DeckListPage />} />
-        <Route path="/decks/meta" element={<MetaDecksPage />} />
-        <Route path="/decks/new" element={<NewDeckPage />} />
-        <Route path="/decks/:deckId/configure" element={<DeckConfigurePage />} />
-        <Route path="/decks/configure" element={<Navigate to="/decks" replace />} />
-        <Route path="/duel" element={<DuelPage />} />
-        <Route path="/hotseat" element={<HotseatPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route path="/tournaments" element={<TournamentsPage />} />
-        <Route path="/tournaments/:code" element={<TournamentPage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/history/:matchId" element={<MatchLogPage />} />
-        <Route path="/replay/:matchId" element={<Suspense fallback={null}><ReplayPage /></Suspense>} />
-        <Route path="/admin" element={<Suspense fallback={null}><AdminPage /></Suspense>} />
-        <Route path="/admin/users/:id" element={<Suspense fallback={null}><AdminUserPage /></Suspense>} />
-        <Route path="/auth/complete" element={<AuthCompletePage />} />
-        <Route path="/welcome/username" element={<UsernameSetupPage />} />
-        <Route path="/demo" element={<DemoPage />} />
-        <Route path="/whats-new" element={<WhatsNewPage />} />
-        <Route path="/events/:eventId/rules" element={<EventRulesPage />} />
-        <Route path="/terms" element={<LegalPage kind="terms" />} />
-        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
-        <Route path="/cookies" element={<LegalPage kind="cookies" />} />
-        <Route path="/conduct" element={<LegalPage kind="conduct" />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* One stable fallback for every lazy route: it only reserves the viewport, so nothing jumps when the page lands. */}
+      <Suspense fallback={<div className="route-fallback" aria-busy="true" />}>
+        <Routes>
+          {APP_ROUTES.map((r) => (
+            <Route key={r.path} path={r.path} element={r.element} />
+          ))}
+        </Routes>
+      </Suspense>
       {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" extraLinks={FOOTER_LINKS} externalLinks={FOOTER_EXTERNAL_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
       <FeedbackHost />
       <ReportHost />

@@ -3,7 +3,7 @@
  * every line the engine allows, not by a rule of thumb. A search gives up (and its puzzle is rejected) when a line meets
  * something the position text cannot ask about: a choice the engine puts to a player, or too many lines to try.
  */
-import { applyIntent, createSeededRng, type Intent, type MatchState, type Seat } from "@optcg/rules";
+import { applyIntent, type Intent, type MatchState, type Seat } from "@optcg/rules";
 
 /** The position holds something that makes the answer unfair to ask: a pending choice, or a line the engine refuses. */
 export class Unfair extends Error {}
@@ -19,7 +19,7 @@ export function step(state: MatchState, intent: Intent, seat: Seat, budget?: Bud
     budget.used += 1;
     if (budget.used > budget.cap) throw new OverCap(`more than ${budget.cap} engine steps`);
   }
-  const r = applyIntent(state, intent, { seat, rng: createSeededRng(1) });
+  const r = applyIntent(state, intent, { seat });
   if (!r.ok) throw new Unfair(`${intent.type} refused: ${r.error?.message ?? "?"}`);
   return r.state;
 }

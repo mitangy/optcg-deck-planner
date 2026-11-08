@@ -1,7 +1,6 @@
+import { PageShell } from "../layout/PageShell";
 import { Link } from "react-router-dom";
 import { FAN_DISCLAIMER } from "@optcg/site-legal";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "./BackLink";
 import "./playOnline.css";
 import "./landing973.css";
 
@@ -59,110 +58,19 @@ const FEATURES: readonly { title: string; body: string }[] = [
 /** Public landing page for people searching "OPTCG sim online". */
 export function OptcgSimOnlinePage() {
   return (
-    <div className="app-shell">
-      <div className="page play-online">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-        </header>
+    <PageShell pageClass="play-online" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}>
 
-        <section className="play-online-hero">
-          <h1 className="page-title play-online-title">OPTCG sim online: play the One Piece TCG in your browser</h1>
-          <p className="play-online-notice" role="note">
-            <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
-          </p>
-          <p className="play-online-lede">
-            OPTCG Duel is a free OPTCG sim that runs in your browser. There is no download and no install, so it works on a PC, a Mac, a
-            Chromebook or a phone. Open the page, pick a deck and play: the rules engine handles DON!! attaching, attacks, blocks, counters,
-            triggers and life for you, and you only make the decisions.
-          </p>
-          <div className="play-online-cta">
-            <Link to="/" className="btn btn-primary btn-lg">
-              Play now
-            </Link>
-            <Link to="/leaders" className="btn btn-secondary btn-lg">
-              Top leaders
-            </Link>
-          </div>
-        </section>
-
-        <section className="panel" aria-labelledby="sim-compare">
-          <h2 className="panel-title" id="sim-compare">
-            Browser vs download simulators
-          </h2>
-          <p className="panel-copy landing-copy">
-            Some simulators are programs you download and install. A browser simulator skips that step. The table below compares the two kinds in
-            general terms; the details differ from one download simulator to the next.
-          </p>
-          <div className="landing-table-wrap">
-            <table className="landing-table">
-              <thead>
-                <tr>
-                  <th scope="col">Feature</th>
-                  <th scope="col">OPTCG Duel (browser)</th>
-                  <th scope="col">Download simulators</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARISON.map((r) => (
-                  <tr key={r.row}>
-                    <th scope="row">{r.row}</th>
-                    <td>{r.browser}</td>
-                    <td>{r.download}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="panel" aria-labelledby="sim-features">
-          <h2 className="panel-title" id="sim-features">
-            What you can do
-          </h2>
-          <ul className="play-online-features">
-            {FEATURES.map((f) => (
-              <li key={f.title}>
-                <b>{f.title}</b>
-                <span>{f.body}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="panel-copy landing-copy">
-            Playing on a phone? Read <Link to="/play-optcg-on-phone">how to play the One Piece TCG on your phone</Link>. New to the site? See{" "}
-            <Link to="/play-one-piece-tcg-online">how to play OPTCG online</Link>.
-          </p>
-        </section>
-
-        <section className="panel" aria-labelledby="sim-other">
-          <h2 className="panel-title" id="sim-other">
-            Other ways to play
-          </h2>
-          <p className="panel-copy landing-copy">
-            There is more than one way to play the One Piece TCG without a table in front of you.{" "}
-            <a href="https://www.optcgsim.com/" target="_blank" rel="nofollow noopener">
-              OPTCGSim
-            </a>{" "}
-            is a popular free downloadable simulator. Local game stores also run in-person events, which are the best way to play the real
-            cards against people near you. Pick whatever suits how you like to play.
-          </p>
-        </section>
-
-        <section className="panel" aria-labelledby="sim-faq">
-          <h2 className="panel-title" id="sim-faq">
-            Questions
-          </h2>
-          <dl className="play-online-faq">
-            {OPTCG_SIM_FAQ.map((item) => (
-              <div key={item.q}>
-                <dt>{item.q}</dt>
-                <dd>{item.a}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <div className="play-online-cta play-online-cta-end">
+      <section className="play-online-hero">
+        <h1 className="page-title play-online-title">OPTCG sim online: play the One Piece TCG in your browser</h1>
+        <p className="play-online-notice" role="note">
+          <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
+        </p>
+        <p className="play-online-lede">
+          OPTCG Duel is a free OPTCG sim that runs in your browser. There is no download and no install, so it works on a PC, a Mac, a
+          Chromebook or a phone. Open the page, pick a deck and play: the rules engine handles DON!! attaching, attacks, blocks, counters,
+          triggers and life for you, and you only make the decisions.
+        </p>
+        <div className="play-online-cta">
           <Link to="/" className="btn btn-primary btn-lg">
             Play now
           </Link>
@@ -170,7 +78,92 @@ export function OptcgSimOnlinePage() {
             Top leaders
           </Link>
         </div>
+      </section>
+
+      <section className="panel" aria-labelledby="sim-compare">
+        <h2 className="panel-title" id="sim-compare">
+          Browser vs download simulators
+        </h2>
+        <p className="panel-copy landing-copy">
+          Some simulators are programs you download and install. A browser simulator skips that step. The table below compares the two kinds in
+          general terms; the details differ from one download simulator to the next.
+        </p>
+        <div className="landing-table-wrap">
+          <table className="landing-table">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col">OPTCG Duel (browser)</th>
+                <th scope="col">Download simulators</th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON.map((r) => (
+                <tr key={r.row}>
+                  <th scope="row">{r.row}</th>
+                  <td>{r.browser}</td>
+                  <td>{r.download}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel" aria-labelledby="sim-features">
+        <h2 className="panel-title" id="sim-features">
+          What you can do
+        </h2>
+        <ul className="play-online-features">
+          {FEATURES.map((f) => (
+            <li key={f.title}>
+              <b>{f.title}</b>
+              <span>{f.body}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="panel-copy landing-copy">
+          Playing on a phone? Read <Link to="/play-optcg-on-phone">how to play the One Piece TCG on your phone</Link>. New to the site? See{" "}
+          <Link to="/play-one-piece-tcg-online">how to play OPTCG online</Link>.
+        </p>
+      </section>
+
+      <section className="panel" aria-labelledby="sim-other">
+        <h2 className="panel-title" id="sim-other">
+          Other ways to play
+        </h2>
+        <p className="panel-copy landing-copy">
+          There is more than one way to play the One Piece TCG without a table in front of you.{" "}
+          <a href="https://www.optcgsim.com/" target="_blank" rel="nofollow noopener">
+            OPTCGSim
+          </a>{" "}
+          is a popular free downloadable simulator. Local game stores also run in-person events, which are the best way to play the real
+          cards against people near you. Pick whatever suits how you like to play.
+        </p>
+      </section>
+
+      <section className="panel" aria-labelledby="sim-faq">
+        <h2 className="panel-title" id="sim-faq">
+          Questions
+        </h2>
+        <dl className="play-online-faq">
+          {OPTCG_SIM_FAQ.map((item) => (
+            <div key={item.q}>
+              <dt>{item.q}</dt>
+              <dd>{item.a}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <div className="play-online-cta play-online-cta-end">
+        <Link to="/" className="btn btn-primary btn-lg">
+          Play now
+        </Link>
+        <Link to="/leaders" className="btn btn-secondary btn-lg">
+          Top leaders
+        </Link>
       </div>
-    </div>
+    </PageShell>
   );
 }

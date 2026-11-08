@@ -1,10 +1,11 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useState } from "react";
+import "./admin.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "../pages/BackLink";
 import { type AdminUser, type AdminUserDetail, type AdminUserMatch, fetchAdminUser } from "./adminApi";
-import { GAME_MODES, agoText, dateOf, formatSignupSource, modeLabel, percent, presenceText, resultOf, soloNote, stampOf, totalGames, usd } from "./adminLogic";
+import { GAME_MODES, dateOf, formatSignupSource, modeLabel, percent, presenceText, resultOf, soloNote, stampOf, totalGames, usd } from "./adminLogic";
+import { staffAgo } from "../lib/relativeTime";
 import { Gate, useAdminWho } from "./AdminGate";
 import { Tile } from "./charts";
 import { type Actor, RoleControl, UserButtons, useUserActions, userLabel } from "./UserActions";
@@ -80,7 +81,7 @@ function Header({ d, actor, onUser, onGone }: { d: AdminUserDetail; actor: Actor
         <Tile label="Joined" value={dateOf(u.created_at)} sub={<span title={source.title}>{source.text}</span>} />
         <Tile
           label="Last seen"
-          value={d.last_seen_at ? agoText(d.last_seen_at) : "Never"}
+          value={d.last_seen_at ? staffAgo(d.last_seen_at) : "Never"}
           sub={d.last_seen_at ? `${stampOf(d.last_seen_at)} UTC` : "No activity recorded"}
         />
         <Tile label="Games played" value={n(totalGames(u.games))} sub="All modes" />
@@ -211,7 +212,7 @@ function Detail({ d, actor, onUser }: { d: AdminUserDetail; actor: Actor; onUser
             <Tile label="Access" value={lp.access ?? "none"} />
             <Tile label="Questions" value={n(lp.questions_month)} sub={`this month, ${n(lp.questions_total)} total`} />
             <Tile label="Spend" value={usd(lp.spend_month_usd)} sub={`this month, ${usd(lp.spend_total_usd)} total`} />
-            <Tile label="Threads" value={n(lp.threads)} sub={lp.last_used_at ? `Last used ${agoText(lp.last_used_at)}` : "Never used"} />
+            <Tile label="Threads" value={n(lp.threads)} sub={lp.last_used_at ? `Last used ${staffAgo(lp.last_used_at)}` : "Never used"} />
           </div>
         </section>
 
@@ -283,16 +284,8 @@ export default function UserPage() {
   }
   const d = state.data;
   return (
-    <div className="app-shell">
-      <div className="page adm-page adm-userpage">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink {...BACK} />
-          <h1 className="page-title">{userLabel(d.user)}</h1>
-          <span className="adm-role">{who.me.role}</span>
-        </header>
-        <Detail d={d} actor={who.actor} onUser={(u) => setState({ status: "ready", data: { ...d, user: { ...d.user, ...u } } })} />
-      </div>
-    </div>
+    <PageShell pageClass="adm-page adm-userpage" back={BACK} title={userLabel(d.user)} headerExtra={<span className="adm-role">{who.me.role}</span>}>
+      <Detail d={d} actor={who.actor} onUser={(u) => setState({ status: "ready", data: { ...d, user: { ...d.user, ...u } } })} />
+    </PageShell>
   );
 }

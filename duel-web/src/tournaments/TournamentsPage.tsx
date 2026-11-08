@@ -1,9 +1,8 @@
+import { PageShell } from "../layout/PageShell";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Select } from "@optcg/ui/popups";
-import { NavMenu } from "../nav/NavMenu";
 import { googleLoginUrl } from "../net/api";
-import { BackLink } from "../pages/BackLink";
 import { TIMER_PRESET_OPTIONS, type TimerPreset } from "../home/timerPreset";
 import { ROUND_ROBIN_SIZES, SINGLE_ELIM_SIZES } from "./bracket";
 import { useTournaments, useWho } from "./hooks";
@@ -115,74 +114,67 @@ export function TournamentsPage() {
   const rest = (list ?? []).filter((t) => !invites.includes(t));
 
   return (
-    <div className="app-shell">
-      <div className="page tpage">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">Tournaments</h1>
-        </header>
+    <PageShell pageClass="tpage" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Tournaments">
 
-        {who.status === "loading" ? <p className="panel-copy tnote">Loading…</p> : null}
-        {who.status === "signed-out" ? (
-          <section className="panel">
-            <p className="panel-copy">Sign in to run or join a tournament with your friends.</p>
-            <div className="btn-row">
-              <a className="btn btn-primary" href={googleLoginUrl()}>
-                Sign in with Google
-              </a>
-            </div>
-          </section>
-        ) : null}
-        {who.status === "no-username" ? (
-          <section className="panel">
-            <p className="panel-copy">Pick a username first so your friends can find you.</p>
-            <div className="btn-row">
-              <Link className="btn btn-primary" to="/welcome/username">
-                Pick a username
-              </Link>
-            </div>
-          </section>
-        ) : null}
-
-        {who.status === "ready" ? (
-          <div className="tgrid">
-            <div className="tcol">
-              {note ? <p className="error-text">{note}</p> : null}
-              {error && !list ? <p className="error-text">{error}</p> : null}
-              {invites.map((t) => (
-                <section key={t.id} className="notice notice-gold" aria-label="Tournament invite">
-                  <div className="notice-body">
-                    <strong>{t.name}</strong>
-                    <span>You are invited</span>
-                  </div>
-                  <div className="notice-actions">
-                    <button type="button" className="btn btn-primary btn-sm" disabled={busyId === t.id} onClick={() => void answer(t.code, t.id, true)}>
-                      Join
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" disabled={busyId === t.id} onClick={() => void answer(t.code, t.id, false)}>
-                      Decline
-                    </button>
-                  </div>
-                </section>
-              ))}
-              <section className="panel" aria-label="Your tournaments">
-                <h2 className="panel-title">Your tournaments</h2>
-                {rest.length > 0 ? (
-                  <ul className="trow-list">
-                    {rest.map((t) => (
-                      <TournamentRow key={t.id} t={t} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="panel-copy tnote">{list ? "None yet. Create one, or open a link a friend sent you." : "Loading…"}</p>
-                )}
-              </section>
-            </div>
-            <CreateForm />
+      {who.status === "loading" ? <p className="panel-copy tnote">Loading…</p> : null}
+      {who.status === "signed-out" ? (
+        <section className="panel">
+          <p className="panel-copy">Sign in to run or join a tournament with your friends.</p>
+          <div className="btn-row">
+            <a className="btn btn-primary" href={googleLoginUrl()}>
+              Sign in with Google
+            </a>
           </div>
-        ) : null}
-      </div>
-    </div>
+        </section>
+      ) : null}
+      {who.status === "no-username" ? (
+        <section className="panel">
+          <p className="panel-copy">Pick a username first so your friends can find you.</p>
+          <div className="btn-row">
+            <Link className="btn btn-primary" to="/welcome/username">
+              Pick a username
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {who.status === "ready" ? (
+        <div className="tgrid">
+          <div className="tcol">
+            {note ? <p className="error-text">{note}</p> : null}
+            {error && !list ? <p className="error-text">{error}</p> : null}
+            {invites.map((t) => (
+              <section key={t.id} className="notice notice-gold" aria-label="Tournament invite">
+                <div className="notice-body">
+                  <strong>{t.name}</strong>
+                  <span>You are invited</span>
+                </div>
+                <div className="notice-actions">
+                  <button type="button" className="btn btn-primary btn-sm" disabled={busyId === t.id} onClick={() => void answer(t.code, t.id, true)}>
+                    Join
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busyId === t.id} onClick={() => void answer(t.code, t.id, false)}>
+                    Decline
+                  </button>
+                </div>
+              </section>
+            ))}
+            <section className="panel" aria-label="Your tournaments">
+              <h2 className="panel-title">Your tournaments</h2>
+              {rest.length > 0 ? (
+                <ul className="trow-list">
+                  {rest.map((t) => (
+                    <TournamentRow key={t.id} t={t} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="panel-copy tnote">{list ? "None yet. Create one, or open a link a friend sent you." : "Loading…"}</p>
+              )}
+            </section>
+          </div>
+          <CreateForm />
+        </div>
+      ) : null}
+    </PageShell>
   );
 }

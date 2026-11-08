@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from app.auth import SESSION_COOKIE
-from app.models import Deck, ShareLink
+from app.core.auth import SESSION_COOKIE
+from app.planner.models import Deck, ShareLink
 from tests.friend_support import (  # noqa: F401  (client is a fixture)
     add_alt,
     add_card,

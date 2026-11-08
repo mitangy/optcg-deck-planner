@@ -1,0 +1,146 @@
+/* —— Menu: hamburger button + left drawer (fixed, portalled to <body>, so the header never moves) —— */
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-right: auto;
+}
+
+/* Same 44px hit target as the Back button beside it. */
+.nav-menu-btn {
+  width: 44px;
+  height: 44px;
+}
+
+/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left and back out on close.
+   The Dialog's `transition` keeps both mounted until these CSS transitions end and sets data-closed / data-enter / data-leave;
+   with no transition (reduced motion) it unmounts at once. */
+.nav-drawer-root {
+  z-index: var(--z-nav-drawer);
+  display: block;
+  padding: 0;
+  /* background: the dialog's own --ui-backdrop (abyss at 72%). */
+  transition: opacity 180ms ease-out;
+}
+
+.nav-drawer-root[data-closed] {
+  opacity: 0;
+}
+
+.nav-drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(280px, 85vw);
+  max-width: none;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-right: 1px solid var(--line-strong);
+  background:
+    linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
+    var(--arena-panel);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  transition: transform 200ms ease-out;
+}
+
+.nav-drawer[data-closed] {
+  transform: translateX(-100%);
+}
+
+/* The padding sits on the nav, so its box is the drawer's full width. */
+.nav-drawer-nav {
+  padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.nav-sep {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-10);
+  border: 1px solid transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background: var(--arena-raised);
+}
+
+.nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.nav-link[aria-current="page"] {
+  background: rgb(var(--chrome-rgb) / 0.12);
+  border-color: var(--line-strong);
+  color: var(--chrome-bright);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-drawer-root,
+  .nav-drawer {
+    transition: none;
+  }
+}
+
+:root[data-motion="reduce"] .nav-drawer-root,
+:root[data-motion="reduce"] .nav-drawer {
+  transition: none;
+}
+
+/* —— Top bounties link to the full leaderboard —— */
+
+.bounties-title-link,
+.bounties-see-all {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bounties-title-link:hover,
+.bounties-see-all:hover {
+  text-decoration: underline;
+}
+
+.bounties-see-all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.25rem;
+  flex: 0 0 auto;
+  color: var(--chrome);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bounties-title-link:focus-visible,
+.bounties-see-all:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--radius-4);
+}
+
