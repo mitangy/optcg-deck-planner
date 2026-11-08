@@ -236,8 +236,10 @@ export function GroupBuyDetailPage() {
   const contribution = useMutation({
     mutationFn: (body: ContributionUpdate) => api.updateGroupBuyContribution(groupId, body),
     onSuccess: (d) => {
+      // No success banner: it would push the whole page down under the checkbox you just
+      // clicked (#1177). The ticked box and the updated list are the feedback.
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
-      setMsg("Updated your contribution.");
+      setMsg(null);
     },
     onError: (e: Error) => setMsg(e.message),
   });
