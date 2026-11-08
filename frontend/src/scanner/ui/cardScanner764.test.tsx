@@ -8,7 +8,7 @@ import { CardScanner } from "./CardScanner";
 const h = vi.hoisted(() => {
   const s = {
     models: Promise.resolve() as Promise<void>,
-    matchAll: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
+    matchAll: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
     ready: { kind: "ready", candidates: [], totalBytes: 0 },
     whenModelsReady: () => s.models,
   };

@@ -9,10 +9,10 @@ import { CardScanner } from "./CardScanner";
 const h = vi.hoisted(() => ({
   calls: [] as string[],
   me: { id: 1, email: "a@b.c", name: "A", share_scans: true } as Record<string, unknown> | null,
-  addOwned: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  upload: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  prefs: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
-  del: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
+  addOwned: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
+  upload: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
+  prefs: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
+  del: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
   mine: 0,
 }));
 
@@ -61,7 +61,7 @@ beforeEach(() => {
     h.calls.push("upload");
     return { saved: 1 };
   });
-  h.prefs = vi.fn(async (body: object) => (h.me = { ...h.me, ...body }));
+  h.prefs = vi.fn(async (body: unknown) => (h.me = { ...h.me, ...(body as object) }));
   h.del = vi.fn(async () => ({ deleted: 3 }));
 });
 afterEach(() => {
