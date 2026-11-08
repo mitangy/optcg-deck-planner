@@ -132,7 +132,14 @@ def put_group_buy_contribution(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return group_buy.update_contribution(db, user, group_id, body.deck_ids)
+    return group_buy.update_contribution(
+        db,
+        user,
+        group_id,
+        body.deck_ids,
+        include_singles=body.include_singles,
+        include_extra_copies=body.include_extra_copies,
+    )
 
 
 @router.post("/group-buys/{group_id}/lock", response_model=GroupBuyDetail)
