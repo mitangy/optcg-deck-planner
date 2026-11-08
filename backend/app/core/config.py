@@ -55,9 +55,9 @@ class Settings(BaseSettings):
     # How many players are approved at once when they ask (an owner can change it; the setting wins).
     analyst_free_spots: int = 50
     # Who may change the model Log Pose runs on (comma-separated emails); everyone with the chat sees the choice.
-    analyst_model_admin_emails: str = "gamefreakmichaeltang@gmail.com"
+    analyst_model_admin_emails: str = "optcgduel@gmail.com"
     # The one admin account (#667): made admin on startup; any other admin row is demoted.
-    admin_email: str = "gamefreakmichaeltang@gmail.com"
+    admin_email: str = "optcgduel@gmail.com"
     # Vercel /api rewrite sends this in X-Optcg-Proxy-Secret; unset keeps trusting X-Forwarded-For.
     proxy_shared_secret: str = ""
     # Admin page Hosting tab: read-only tokens, each tab card shows "not connected" while unset.
