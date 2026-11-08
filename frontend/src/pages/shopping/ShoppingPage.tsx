@@ -674,7 +674,7 @@ export function ShoppingPage() {
       {altOwnedErr && <p className="error">{altOwnedErr}</p>}
       {collectorUndo ? (
         <UndoToast
-          message={`Removed ${collectorUndo.label} collector copy`}
+          message={`Removed extra ${collectorUndo.label}`}
           onAction={undoCollectorRemove}
           onDismiss={dismissCollectorUndo}
         />
