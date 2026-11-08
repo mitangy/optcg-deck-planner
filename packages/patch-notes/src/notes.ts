@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
-  { date: "2026-11-08", app: "duel", pr: 0, title: "Bots redirect attacks properly", text: "When a bot pays to change an attack's target, such as with the Marshall.D.Teach Leader, it now moves the attack to one of its Characters instead of keeping it on the Leader." },
+  { date: "2026-11-08", app: "duel", pr: 1170, title: "Bots redirect attacks properly", text: "When a bot pays to change an attack's target, such as with the Marshall.D.Teach Leader, it now moves the attack to one of its Characters instead of keeping it on the Leader." },
   { date: "2026-11-08", app: "planner", pr: 1164, title: "Price alert Edit works with Price history open", text: "Under an enlarged card, Edit on your price alert now opens the alert editor even when Price history is open, and opening one closes the other." },
   { date: "2026-11-08", app: "duel", pr: 1063, title: "A server hiccup no longer signs you out", text: "A brief server hiccup no longer signs you out of the duel app or puts you in the queue as a guest." },
   { date: "2026-11-08", app: "both", pr: 1063, title: "No blank page after an update", text: "After an update, opening a page you hadn't visited yet reloads the app instead of showing a blank page." },
