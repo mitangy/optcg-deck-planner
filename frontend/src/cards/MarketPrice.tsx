@@ -94,6 +94,53 @@ export type BaseArt = {
   product_id?: number | null;
 };
 
+/**
+ * "+ Extra copy" on an art the deck's own copies already use (#1165): asks before saving, so a second
+ * copy is never added by a slip. The panel floats in a portal under the button, so nothing moves.
+ */
+function ExtraCopyConfirm({ name, disabled, onConfirm }: { name: string; disabled: boolean; onConfirm: () => void }) {
+  return (
+    <Popover as="div" className="alt-extra-pop">
+      {({ close }: { close: () => void }) => (
+        <>
+          <PopoverButton
+            type="button"
+            className="alt-collector-btn"
+            aria-label={`Want an extra ${name} on top of your decks`}
+            title="Want one more copy of this art, on top of what your decks need"
+            disabled={disabled}
+          >
+            + Extra copy
+          </PopoverButton>
+          <PopoverPanel
+            anchor={{ to: "bottom", gap: 6, padding: 8 }}
+            role="dialog"
+            aria-label={`Add an extra ${name}?`}
+            className="alt-extra-confirm"
+          >
+            <p className="alt-extra-confirm-text">Your deck copy is already this art. Add an extra one on top?</p>
+            <div className="alt-extra-confirm-actions">
+              <button
+                type="button"
+                className="alt-extra-confirm-yes"
+                onClick={() => {
+                  close();
+                  onConfirm();
+                }}
+              >
+                Add extra copy
+              </button>
+              <button type="button" className="alt-extra-confirm-no" onClick={() => close()}>
+                Cancel
+              </button>
+            </div>
+          </PopoverPanel>
+        </>
+      )}
+    </Popover>
+  );
+}
+
 export function AltStepper({
   caption,
   verb,
@@ -180,7 +227,7 @@ export function AltArtsRow({
   onWantChange?: (productId: number, qty: number) => void;
   /**
    * Planner pages (#906): tag every alt tile whose copies the user picked to buy
-   * with a read-only "Buy ×N" label. Picking happens in the buy-split popover.
+   * with a read-only "Buying ×N" label. Picking happens in the buy-split popover.
    */
   showBuyPicks?: boolean;
   busyProductId?: number | null;
@@ -195,7 +242,7 @@ export function AltArtsRow({
   onShow?: (productId: number) => void;
   /** Extra content on its own full-width row at the bottom of every tile (0 = the Base tile), e.g. who wants it. */
   tileExtra?: (productId: number) => ReactNode;
-  /** Planner pages (#1035): turns each alt tile's read-only "★ Collector" label into a toggle. */
+  /** Planner pages (#1035): turns each alt tile's read-only "★ Extra copy" label into a toggle (#1165). */
   onCollectorChange?: (productId: number, qty: number) => void;
   collectorBusyProductId?: number | null;
 }) {
@@ -281,8 +328,8 @@ export function AltArtsRow({
                 </span>
               ) : null}
               {showBuyPicks && wanted > 0 ? (
-                <span className="alt-want-label" title="Copies of this art you buy (set from the price)">
-                  Buy ×{wanted}
+                <span className="alt-want-label" title="Copies on your list that you buy as this art">
+                  Buying ×{wanted}
                 </span>
               ) : null}
               {alt.tcgplayer_url ? (
@@ -300,29 +347,35 @@ export function AltArtsRow({
                     type="button"
                     className="alt-collector-btn is-on"
                     aria-pressed={true}
-                    aria-label={`Remove ${alt.name} collector copy`}
-                    title="Remove this collector copy"
+                    aria-label={`Remove extra ${alt.name}`}
+                    title="Remove the extra copy"
                     disabled={collectorBusyProductId === alt.product_id}
                     onClick={() => onCollectorChange(alt.product_id, 0)}
                   >
-                    ★ Collector{(alt.collector ?? 0) > 1 ? ` ×${alt.collector}` : ""}
+                    ★ Extra copy{(alt.collector ?? 0) > 1 ? ` ×${alt.collector}` : ""}
                   </button>
+                ) : wanted > 0 ? (
+                  <ExtraCopyConfirm
+                    name={alt.name}
+                    disabled={collectorBusyProductId === alt.product_id}
+                    onConfirm={() => onCollectorChange(alt.product_id, 1)}
+                  />
                 ) : (
                   <button
                     type="button"
                     className="alt-collector-btn"
                     aria-pressed={false}
-                    aria-label={`Want ${alt.name} as a collector copy`}
-                    title="Want this art as a collector copy, on top of your decks"
+                    aria-label={`Want an extra ${alt.name} on top of your decks`}
+                    title="Want one more copy of this art, on top of what your decks need"
                     disabled={collectorBusyProductId === alt.product_id}
                     onClick={() => onCollectorChange(alt.product_id, 1)}
                   >
-                    ☆ Collect
+                    + Extra copy
                   </button>
                 )
               ) : (alt.collector ?? 0) > 0 ? (
-                <span className="alt-collector" title="You want this art as a collector copy, on top of your decks">
-                  ★ Collector
+                <span className="alt-collector" title="You want one more copy of this art, on top of your decks">
+                  ★ Extra copy
                 </span>
               ) : null}
               {showControl(alt.product_id, alt.name)}

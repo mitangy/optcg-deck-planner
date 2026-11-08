@@ -78,7 +78,7 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
   await shot(page, "after-pick", testInfo);
 
   // The alt's tile says how many are bought, read-only.
-  const tile = page.locator(".alt-want-label:visible", { hasText: "Buy ×1" });
+  const tile = page.locator(".alt-want-label:visible", { hasText: "Buying ×1" });
   await expect(tile).toHaveCount(1);
   await expect(tile).not.toHaveRole("button");
 
@@ -138,7 +138,7 @@ test("Deck page: the still-needed price opens the split and saves the deck want 
   expect(planner.requests).toContain(`PUT /decks/1/cards/${IZO}/printings/${ALT}`);
   expect(planner.altWants.get(`${IZO}:${ALT}`)).toBe(1);
   await page.keyboard.press("Escape");
-  await expect(page.locator(`[data-card-id="${IZO}"]:visible .alt-want-label`, { hasText: "Buy ×1" })).toHaveCount(1);
+  await expect(page.locator(`[data-card-id="${IZO}"]:visible .alt-want-label`, { hasText: "Buying ×1" })).toHaveCount(1);
   await shot(page, "deck-after", testInfo);
   if (testInfo.project.name === "desktop-1200") {
     await page.setViewportSize({ width: 1440, height: 900 });

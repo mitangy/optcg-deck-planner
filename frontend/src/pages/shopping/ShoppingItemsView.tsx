@@ -618,6 +618,7 @@ export function ShoppingItemsView({
                       <div className="collector-card-text">
                         <div className="collector-label">{line.label}</div>
                         <CollectorChip />
+                        <div className="collector-card-sub">{collectorOnTopOf(item.used_in) || "On top of your decks"}</div>
                         <div className="collector-card-sub">
                           {collectorHaveText(line)} · {money(line.market_price)}
                         </div>

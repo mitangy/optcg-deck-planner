@@ -2,17 +2,17 @@ import { useEffect } from "react";
 import type { CollectorLine } from "../../api";
 import { COLLECTOR_MAX } from "./collectorLines";
 
-/** "★ Collector": the star never stands alone, so the word always comes with it (#1031). */
+/** "★ Extra copy": the star never stands alone, so the words always come with it (#1031, renamed #1165). */
 export function CollectorChip({ className = "" }: { className?: string }) {
-  return <span className={`collector-chip${className ? ` ${className}` : ""}`}>★ Collector</span>;
+  return <span className={`collector-chip${className ? ` ${className}` : ""}`}>★ Extra copy</span>;
 }
 
-/** The deck page's small "★ +1 collector" chip on a card's line. */
+/** The deck page's small "★ +1 extra" chip on a card's line. */
 export function CollectorDeckChip({ count }: { count?: number }) {
   if (!count || count <= 0) return null;
   return (
-    <span className="collector-chip collector-chip-sm" title="Collector copies you want on top of this deck's cards">
-      ★ +{count} collector
+    <span className="collector-chip collector-chip-sm" title="Extra copies you want on top of this deck's cards">
+      ★ +{count} extra
     </span>
   );
 }
