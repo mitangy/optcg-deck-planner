@@ -3,7 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { createAnalyticsBeforeSend, startUpdateChecks } from "@optcg/ui/appShell";
+import { createAnalyticsBeforeSend, reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { watchAccountSync } from "./account/accountSync";
 import { App } from "./App";
@@ -34,6 +34,8 @@ captureFirstTouch();
 watchAccountSync();
 // Lobby and Settings say when a newer deploy is live than this bundle.
 startUpdateChecks();
+// A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1052).
+reloadOnStaleChunk();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

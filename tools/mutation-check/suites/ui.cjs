@@ -7,6 +7,9 @@ module.exports = {
   cwd: "packages/ui",
   runner: "vitest",
   mutations: [
+    // stale lazy-route chunk after a deploy (#1074)
+    { id: "stale-chunk-no-reload", file: "packages/ui/src/appShell/reloadOnStaleChunk.ts", from: "    window.location.reload();", to: "", kills: ["a vite:preloadError reloads the page once and keeps the error from surfacing (#1074)", "reloads again once the guard window has passed (#1074)"] },
+    { id: "stale-chunk-reload-loops", file: "packages/ui/src/appShell/reloadOnStaleChunk.ts", from: "      if (last && now - last < GUARD_MS) return;\n", to: "", kills: ["a second vite:preloadError within the guard window does not reload again (#1074)"] },
     // size rewrite
     { id: "card-image-not-rewritten", file: img, from: "  return `${match[1]}${SIZE_SUFFIX[size]}${match[2]}`;", to: "  return trimmed;", kills: ["rewrites TCGCSV _200w thumbs", "converts already-sized CDN URLs"] },
     { id: "art-no-local-mirror", file: img, from: "  if (isTcgplayerCdnUrl(failed)) {\n    return altPreviewArtPath(failed) ?? previewArtPath(defId) ?? localCardArtPath(defId);\n  }\n", to: "", kills: ["tries the local mirror once after the CDN fails, then gives up for the text fallback (#262)"] },
