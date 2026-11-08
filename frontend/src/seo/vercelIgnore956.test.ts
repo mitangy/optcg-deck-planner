@@ -75,6 +75,7 @@ describe("every workspace package an app bundles triggers its build (#1101)", ()
     if (!d.isDirectory()) continue;
     dirByName.set(manifest(`packages/${d.name}`).name as string, `packages/${d.name}`);
   }
+  for (const appDir of ["game-server", "analyst"]) dirByName.set(manifest(appDir).name as string, appDir);
 
   /** The directories of the @optcg/* packages `appDir` depends on, directly or transitively. */
   function workspaceDeps(appDir: string): string[] {
@@ -126,5 +127,28 @@ describe("every workspace package an app bundles triggers its build (#1101)", ()
     expect(deps).toContain("packages/analyst-contract"); // guards against the walk silently finding nothing
     const skipped = deps.filter((dep) => exitCode(args, `${dep}/src/changed.ts`) !== 1);
     expect(skipped).toEqual([]);
+  });
+
+  // A Render service rebuilds only when a file matching its buildFilter changes, so every workspace package it runs
+  // must be listed there, including the ones it reaches through @optcg/rules (#1080).
+  it("a change in any package a Render service runs matches its buildFilter (#1080)", () => {
+    const yaml = readFileSync(join(repoRoot, "render.yaml"), "utf8");
+    const blocks = yaml.split(/^ {2}- type: /m).slice(1);
+    const checked: string[] = [];
+    for (const block of blocks) {
+      const name = /^ {4}name: (\S+)/m.exec(block)?.[1] ?? "?";
+      const workspace = /^ {4}startCommand: .*-w (@optcg\/\S+)/m.exec(block)?.[1];
+      if (!workspace) continue; // not an npm workspace service (the Python API)
+      const appDir = dirByName.get(workspace);
+      expect(appDir, `${name} runs ${workspace}`).toBeDefined();
+      const filter = /^ {4}buildFilter:\n {6}paths:\n((?: {8}- .+\n?)+)/m.exec(block)?.[1] ?? "";
+      const globs = filter.split("\n").map((l) => l.replace(/^ +- /, "").trim()).filter(Boolean);
+      const matches = (glob: string, file: string) =>
+        glob.endsWith("/**") ? file.startsWith(glob.slice(0, -2)) : file === glob;
+      const unmatched = workspaceDeps(appDir!).filter((dep) => !globs.some((g) => matches(g, `${dep}/src/changed.ts`)));
+      expect(unmatched, `${name} buildFilter misses`).toEqual([]);
+      checked.push(name);
+    }
+    expect(checked.sort()).toEqual(["optcg-analyst", "optcg-game-server"]);
   });
 });
