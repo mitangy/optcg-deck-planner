@@ -208,6 +208,13 @@ def _apply_duel_to_planner(db: Session, user_id: int, deck: Deck, body: dict) ->
     if not leader or not _known_leader(db, leader):
         return
     db.flush()
+    if not _planner_mirrorable(db, deck):
+        # The duel copy cannot hold this planner deck (say 65 main cards after the oversize
+        # confirm), so its stale list must not overwrite the planner's cards. Name only.
+        name = str(body.get("name") or "").strip()
+        if name:
+            deck.name = name[:200]
+        return
     rows = list(db.scalars(select(DeckCard).where(DeckCard.deck_id == deck.id)).all())
     wanted = _duel_main(body)
     wanted[leader] += 1
@@ -317,12 +324,15 @@ def _finish_link(row: DuelSavedDeck, body: dict, deck: Deck) -> None:
 # --- planner -> duel --------------------------------------------------------
 
 
+def _planner_mirrorable(db: Session, deck: Deck) -> bool:
+    """Whether the duel copy can hold this planner deck: it has a leader and fits the main deck cap."""
+    return bool(deck.leader_card_id) and len(_expand(_planner_main(db, deck))) <= MAX_DUEL_CARDS
+
+
 def _duel_body_from_planner(db: Session, deck: Deck, old: dict | None) -> dict | None:
-    if not deck.leader_card_id:
+    if not _planner_mirrorable(db, deck):
         return None
     cards = _expand(_planner_main(db, deck))
-    if len(cards) > MAX_DUEL_CARDS:
-        return None
     body = {k: v for k, v in (old or {}).items() if k != "editedLocally"}
     body.update(
         name=deck.name, leaderId=deck.leader_card_id, cards=cards, plannerDeckId=deck.id

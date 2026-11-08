@@ -11,9 +11,14 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
+  { date: "2026-11-08", app: "duel", pr: 1063, title: "A server hiccup no longer signs you out", text: "A brief server hiccup no longer signs you out of the duel app or puts you in the queue as a guest." },
+  { date: "2026-11-08", app: "both", pr: 1063, title: "No blank page after an update", text: "After an update, opening a page you hadn't visited yet reloads the app instead of showing a blank page." },
   { date: "2026-11-08", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
   { date: "2026-11-08", app: "both", pr: 1157, title: "A new Nami alt art", text: "The Heroines Battle Vol.2 printing of Nami (EB03-006) is now available as an alt art." },
   // 2026-11-07
+  { date: "2026-11-07", app: "planner", pr: 1063, title: "Collector copies stay out of friends' spares", text: "Collector copies no longer show up as spares for friends to trade for." },
+  { date: "2026-11-07", app: "duel", pr: 1063, title: "Tournament games keep their result", text: "Tournaments: tapping Play again during your game takes you back to it instead of losing its result." },
+  { date: "2026-11-07", app: "both", pr: 1063, title: "Decks no longer vanish after syncing", text: "A new deck that matches one you already have is no longer deleted, and an oversized planner deck keeps its cards when you edit it in Duel." },
   { date: "2026-11-07", app: "planner", pr: 1036, title: "Matching buttons under an enlarged card", text: "The buttons under an enlarged card (Card page, Add to shopping list, Price alert and Price history) are now all the same width." },
   { date: "2026-11-07", app: "planner", pr: 1035, title: "Mark a collector copy right on the alt art", text: "You can now tap Collect on any alt art tile in your decks, Master Shopping and Collection to want it as a collector copy on top of your decks, and tap the gold Collector button to remove it. It is the same collector copy everywhere, so a change on one page shows on the others. The price popover on a deck page offers Want a collector copy too as well." },
   { date: "2026-11-07", app: "duel", pr: 1141, title: "No false refused-move error on Pass block", text: "On phones, tapping Pass block right as an attack comes in no longer shows a \"refused move\" error." },

@@ -24,6 +24,7 @@ MAX_COMBAT_LOG_CHARS = 400_000
 MAX_DECK_ENTRIES = 80
 ME_PLACEHOLDER = "Me#1"
 OPP_PLACEHOLDER = "Opp#2"
+MAX_SCRUB_OPP_NAMES = 8  # a real log names two players; more PLY names are junk and each costs a pass
 
 _ZW = re.compile("[​‌‍﻿]")
 _DECK_ENTRY = re.compile(r"^\d{1,2}x[A-Za-z0-9]{2,6}-\d{2,4}[A-Za-z0-9_]{0,4}$")
@@ -40,16 +41,20 @@ def scrub_names(log: str, my_name: str, opp_name: str | None) -> str:
     (the sim puts one before the "#"), so a name matches however it was typed."""
     text = _ZW.sub("", log)
     me = _norm(my_name)
-    opps = {_norm(opp_name)} if opp_name else set()
+    opps: dict[str, None] = {}  # ordered, distinct
+    if opp_name and _norm(opp_name):
+        opps[_norm(opp_name)] = None
     for m in _PLY.finditer(text):  # the PLY lines name the opponent even when the record does not
         n = _norm(m.group(2))
-        if n and n != me:
-            opps.add(n)
-    swaps = [(me, ME_PLACEHOLDER)] + [(o, OPP_PLACEHOLDER) for o in opps if o and o != me]
-    for name, placeholder in sorted(swaps, key=lambda s: -len(s[0])):
-        if name:
-            text = text.replace(name, placeholder)
-    return text
+        if n and n != me and len(opps) < MAX_SCRUB_OPP_NAMES:
+            opps[n] = None
+    swaps = {me: ME_PLACEHOLDER} if me else {}
+    swaps.update({o: OPP_PLACEHOLDER for o in opps if o != me})
+    if not swaps:
+        return text
+    # One pass over the log, longest names first so a name containing another is not cut short.
+    names = sorted(swaps, key=len, reverse=True)
+    return re.sub("|".join(re.escape(n) for n in names), lambda m: swaps[m.group(0)], text)
 
 
 def _deck(value: object) -> list[str] | None:

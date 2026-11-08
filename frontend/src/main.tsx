@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { startUpdateChecks } from "@optcg/ui/appShell";
+import { reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./app/analytics";
 import App from "./app/App";
@@ -22,6 +22,8 @@ import { qk } from "./cache/queryKeys";
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
 startUpdateChecks();
+// A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1074).
+reloadOnStaleChunk();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -5,6 +5,7 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    {"id": "auth1119-5xx-is-signed-out", "file": "duel-web/src/net/api.ts", "from": "  if (!res.ok) throw new ApiError(res.status, `Auth check failed (${res.status})`);\n", "to": "  if (!res.ok) return null;\n", "kills": ["a 502 on re-check keeps a signed-in player signed in (#1119)", "a 502 on first load is not cached: the next ensureAuth asks again (#1119)"], "args": "src/auth/sessionHttp"},
     {"id": "art1002-label-reads-deck-only", "file": "duel-web/src/decks/artPrefs.ts", "from": "const id = deck.artPrefs?.[defId] ?? getArtPrefs()[defId];", "to": "const id = deck.artPrefs?.[defId];", "kills": ["the Artwork label follows an alt picked in a game when the deck has no pref (#1002)"]},
     {"id": "art1002-standard-deletes-pref", "file": "duel-web/src/decks/artPrefs.ts", "from": "if (!altId && getArtPrefs()[defId]) {", "to": "if (false) {", "kills": ["choosing Standard in a deck beats a global alt for the label and the image (#1002)"]},
     {"id": "norest985-table-drops-cannot-be-rested", "edits": [{"file": "duel-web/src/board/panels/statusIcons.ts", "from": "  [\"cannot be rested\", NO_REST],\n", "to": ""}, {"file": "duel-web/src/board/panels/statusIcons.ts", "from": "  [\"can't be rested\", NO_REST],\n", "to": ""}], "kills": ["shows a red no-rest icon for Cannot be rested"], "args": "src/board/panels/statusIcons"},

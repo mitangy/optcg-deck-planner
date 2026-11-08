@@ -138,6 +138,7 @@ services:
       paths:
         - game-server/**
         - packages/rules/**
+        - packages/card-core/**
         - packages/duel-protocol/**
         - package.json
         - package-lock.json
@@ -179,6 +180,8 @@ services:
         - packages/deck-analytics/**
         - packages/card-core/**
         - packages/analyst-contract/**
+        - packages/price-timing/**
+        - packages/ui/**
         - packages/rules/**
         - package.json
         - package-lock.json

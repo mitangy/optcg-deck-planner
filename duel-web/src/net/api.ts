@@ -261,7 +261,10 @@ export function hotseatGuestId(userKey: string, suffix: "a" | "b"): string {
 
 export async function fetchAuthMe(): Promise<AuthUser | null> {
   const res = await fetch(`${getApiBaseUrl()}/auth/me`, { credentials: "include" });
-  if (!res.ok) return null;
+  // 401/403 is a real "not signed in". Any other failure (a 502 during a cold start) is not an answer: throw so the
+  // session store treats it as a failed check instead of caching it as signed out.
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) throw new ApiError(res.status, `Auth check failed (${res.status})`);
   const body = (await res.json()) as AuthUser | null;
   return body;
 }

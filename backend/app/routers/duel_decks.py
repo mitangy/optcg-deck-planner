@@ -50,7 +50,9 @@ def _out(row: DuelSavedDeck) -> DuelDeckOut:
     )
 
 
-def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelSavedDeck:
+def _upsert(
+    db: Session, user_id: int, deck_id: str, body: DuelDeckPut, merge_duplicates: bool = False
+) -> DuelSavedDeck:
     data = json.dumps(body.deck.model_dump(exclude_none=True), separators=(",", ":"), sort_keys=True)
     if len(data) > store.MAX_DECK_CHARS:
         raise HTTPException(status_code=413, detail="Deck is too large")
@@ -58,7 +60,13 @@ def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelS
     if row is not None and row.updated_at_ms > body.updatedAt:
         return row  # the stored copy is newer: the client adopts it
     is_new = row is None or row.deleted
-    survivor = deck_link.find_duplicate_survivor(db, user_id, deck_id, body.deck.model_dump()) if is_new else None
+    # Only the first-sign-in bulk upload merges look-alikes; a single-deck save is a new deck the
+    # player made on purpose (a second blank deck, a pasted copy).
+    survivor = (
+        deck_link.find_duplicate_survivor(db, user_id, deck_id, body.deck.model_dump())
+        if is_new and merge_duplicates
+        else None
+    )
     if survivor is not None:
         # Same deck as one already synced: keep one copy. The client adopts the tombstone and
         # switches to the survivor, so the planner never gets a second deck.
@@ -113,7 +121,7 @@ def put_decks(
     """First-sign-in upload: the same last-writer-wins rule per deck."""
     rows = []
     for item in body.decks:
-        rows.append(_upsert(db, user.id, _check_id(item.id), item))
+        rows.append(_upsert(db, user.id, _check_id(item.id), item, merge_duplicates=True))
     db.commit()
     return DuelDecksOut(decks=[_out(r) for r in rows])
 
