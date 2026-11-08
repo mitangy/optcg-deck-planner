@@ -7,7 +7,7 @@ import type { CatalogCardResult, ShoppingItem } from "../../api";
 import { CardScanner } from "./CardScanner";
 
 const h = vi.hoisted(() => ({
-  matchAll: undefined as unknown as ReturnType<typeof import("vitest").vi.fn>,
+  matchAll: undefined as unknown as import("vitest").Mock<(...args: unknown[]) => unknown>,
 }));
 
 vi.mock("../runtime/scanLog", async (orig) => ({ ...(await orig<typeof import("../runtime/scanLog")>()), scanLog: () => {} }));
