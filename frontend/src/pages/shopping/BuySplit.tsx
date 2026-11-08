@@ -34,7 +34,7 @@ export function buySplitCaption(card: Pick<BuySplitCard, "still_need" | "market_
 
 /**
  * The action line under the amount (#1166): says the price is a control and what it does.
- * "Choose arts" with no picks, "Arts: 1 alt + 1 base" once picked, "★ Extra copy" when nothing
+ * "Choose arts" with no picks, "1 alt + 1 base" once picked, "★ Extra copy" when nothing
  * is left to buy and the popover only offers the collector picker.
  */
 export function buySplitActionLabel(
@@ -43,7 +43,7 @@ export function buySplitActionLabel(
 ): string {
   if (collectorOnly) return "★ Extra copy";
   const caption = buySplitCaption(card);
-  const label = caption ? `Arts: ${caption}` : "Choose arts";
+  const label = caption ?? "Choose arts";
   // Collector copies still to buy are in the price too (#1167), so the line says so.
   const collector = collectorStillToBuy(card.alt_arts);
   return collector > 0 ? `${label} + ${collector} ★` : label;

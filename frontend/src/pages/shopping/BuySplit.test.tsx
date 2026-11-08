@@ -106,16 +106,16 @@ describe("BuySplitEditor (#906)", () => {
 describe("BuySplit action line (#1166)", () => {
   it("the label says Choose arts with no picks and lists the picks once there are some (#1166)", () => {
     expect(buySplitActionLabel(card(2, [alt(1, 10, 0)]))).toBe("Choose arts");
-    expect(buySplitActionLabel(card(2, [alt(1, 10, 1)]))).toBe("Arts: 1 alt + 1 base");
-    expect(buySplitActionLabel(card(2, [alt(1, 10, 2)]))).toBe("Arts: 2 alt");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1)]))).toBe("1 alt + 1 base");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 2)]))).toBe("2 alt");
   });
 
   it("the label counts collector copies still to buy, since the price includes them (#1167)", () => {
     const withCollector = { ...alt(2, 30), collector: 1, owned: 0 };
-    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), withCollector]))).toBe("Arts: 1 alt + 1 base + 1 ★");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), withCollector]))).toBe("1 alt + 1 base + 1 ★");
     expect(buySplitActionLabel(card(2, [alt(1, 10, 0), withCollector]))).toBe("Choose arts + 1 ★");
     const ownedCollector = { ...alt(2, 30), collector: 1, owned: 1 };
-    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), ownedCollector]))).toBe("Arts: 1 alt + 1 base");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), ownedCollector]))).toBe("1 alt + 1 base");
   });
 
   it("the label is the collector copy when nothing is left to buy (#1166)", () => {
@@ -129,7 +129,7 @@ describe("BuySplit action line (#1166)", () => {
     expect(btn.querySelector("svg.buy-split-icon")?.getAttribute("aria-hidden")).toBe("true");
     expect(btn.title).toBe("Choose which arts to buy for Izo");
     const picked = mount(<BuySplit card={card(2, [alt(1, 10, 1)])} amount="$11.00" onPick={() => {}} />);
-    expect(picked.querySelector("button .buy-split-action")?.textContent).toBe("Arts: 1 alt + 1 base");
+    expect(picked.querySelector("button .buy-split-action")?.textContent).toBe("1 alt + 1 base");
   });
 
   it("with nothing left to buy the trigger offers a collector copy (#1166)", () => {

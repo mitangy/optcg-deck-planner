@@ -249,9 +249,9 @@
   margin-top: 0.25rem;
 }
 
-/* In the desktop table the amount's box is as wide as its action line ("Arts: 1 alt + 1 base"), so a pick never widens the column. */
+/* In the desktop table the amount's box is as wide as its action line ("1 alt + 1 base + 1 ★"), so a pick never widens the column. */
 .desktop-table .buy-split-box {
-  min-width: 8.6rem;
+  min-width: 7.4rem;
 }
 
 @media (max-width: 800px) {
