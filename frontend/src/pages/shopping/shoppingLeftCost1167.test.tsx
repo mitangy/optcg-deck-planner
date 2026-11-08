@@ -119,6 +119,6 @@ describe("Master Shopping price left counts collector copies (#1167)", () => {
     const covered = view([item({ card_id: "EB01-003", still_need: 0, remaining_cost: 0 })]);
     const btn = covered.querySelector("button[data-buy-split]")!;
     expect(btn.querySelector(".buy-split-amount")?.textContent).toContain("$30.00");
-    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Collector copy");
+    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Extra copy");
   });
 });

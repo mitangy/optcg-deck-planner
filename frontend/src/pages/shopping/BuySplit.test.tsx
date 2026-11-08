@@ -119,7 +119,7 @@ describe("BuySplit action line (#1166)", () => {
   });
 
   it("the label is the collector copy when nothing is left to buy (#1166)", () => {
-    expect(buySplitActionLabel(card(0, [alt(1, 10, 0)]))).toBe("★ Collector copy");
+    expect(buySplitActionLabel(card(0, [alt(1, 10, 0)]))).toBe("★ Extra copy");
   });
 
   it("the trigger shows the action line and names what it does (#1166)", () => {
@@ -135,8 +135,8 @@ describe("BuySplit action line (#1166)", () => {
   it("with nothing left to buy the trigger offers a collector copy (#1166)", () => {
     const host = mount(<BuySplit card={card(0, [alt(1, 10)])} amount="$0.00" onPick={() => {}} onCollectorPick={() => {}} />);
     const btn = host.querySelector("button")!;
-    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Collector copy");
-    expect(btn.title).toBe("Add a collector copy of Izo");
+    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Extra copy");
+    expect(btn.title).toBe("Add an extra copy of Izo");
   });
 });
 
