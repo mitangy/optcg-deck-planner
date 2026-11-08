@@ -31,6 +31,7 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"hard-choice-tries-only-default","file":"packages/rules/src/bot/search.ts","from":"  const pick = (ids: string[]): Intent =>","to":"  if (r.type === \"select\") return uniq(base, legal.slice(0, 1));\n  const pick = (ids: string[]): Intent =>","kills":["Hard redirects Teach's attack to Vasco Shot so his [On K.O.] rests the attacker still to come (#1171)"]},
     {"id":"bot-redirect-keeps-current-target","file":"packages/rules/src/bot/choices.ts","from":"const others = eligible.filter((o) => o.instanceId !== cur);","to":"const others = eligible;","kills":["bot moves an attack on a Character off that Character, even when it is the one that survives (#1169)"]},
     {"id":"bot-redirect-ignores-survival","file":"packages/rules/src/bot/choices.ts","from":"return cheapest(holds) ?? cheapest(chars, koLossValue)","to":"return cheapest(chars, koLossValue)","kills":["bot prefers a redirect target that survives the attack (#1169)"]},
     {"id":"bot-redirect-pays-for-nothing","file":"packages/rules/src/bot/choices.ts","from":" && !view.you.characters.length) {\n      const decline","to":" && false) {\n      const decline","kills":["bot declines a redirect cost when nothing else could be the target (#1169)"]},

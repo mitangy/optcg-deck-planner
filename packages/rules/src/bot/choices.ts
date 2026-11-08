@@ -24,6 +24,11 @@ function koLossValue(view: BotView, o: ChoiceOption): number {
   return onBoard?.mine && onBoard.card.id !== view.you.leader.id ? lossValue(view, onBoard.card) : optionValue(view, o);
 }
 
+/** The options of a prompt that can be picked, best first by the bot's own ranking (the search tries the likeliest ones first, #1171). */
+export function rankedEligible(view: BotView, options: ChoiceOption[]): ChoiceOption[] {
+  return options.filter((o) => o.eligible).map((o) => ({ o, v: optionValue(view, o) })).sort((a, b) => b.v - a.v).map((x) => x.o);
+}
+
 function optionName(o: ChoiceOption): string {
   if (!o.defId || o.defId === "HIDDEN") return o.id;
   try { return getCardDef(o.defId).name; } catch { return o.id; }
