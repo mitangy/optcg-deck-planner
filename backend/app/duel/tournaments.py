@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.statuses import TournamentMatchStatus, TournamentPlayerStatus, TournamentStatus
 from app.core.time import utcnow
-from app.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
+from app.duel.models import DuelTournament, DuelTournamentMatch, DuelTournamentPlayer
 
 log = logging.getLogger("duel_tournaments")
 
@@ -171,16 +171,16 @@ def start(db: Session, t: DuelTournament) -> None:
     byes: list[DuelTournamentMatch] = []
     if t.format == "single_elim":
         for slot, (a, b) in enumerate(first_round(t.size, ids)):
-            m = add(1, slot, a, b, "ready" if a and b else "waiting")
+            m = add(1, slot, a, b, TournamentMatchStatus.READY if a and b else TournamentMatchStatus.WAITING)
             if (a is None) != (b is None):
                 byes.append(m)
         for r in range(2, rounds_for(t.size) + 1):
             for slot in range(t.size // 2**r):
-                add(r, slot, None, None, "waiting")
+                add(r, slot, None, None, TournamentMatchStatus.WAITING)
     else:
         for r, pairs in enumerate(round_robin_schedule(ids), start=1):
             for slot, (a, b) in enumerate(pairs):
-                add(r, slot, a, b, "ready")
+                add(r, slot, a, b, TournamentMatchStatus.READY)
     db.flush()
     for m in byes:
         decide(db, t, m, m.player_a_id or m.player_b_id, "bye")

@@ -1,10 +1,10 @@
-import { GroupBuysListSkeleton } from "../../Skeleton";
-import { ShipIcon } from "../../ThemeIcons";
+import { GroupBuysListSkeleton } from "../../ui/Skeleton";
+import { ShipIcon } from "../../ui/ThemeIcons";
 import { api, money } from "../../api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 export function GroupBuysPage() {
   const navigate = useNavigate();

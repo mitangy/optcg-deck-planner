@@ -4,7 +4,7 @@
 import { abilitiesFor } from "../cards/abilities.js";
 import type { Ability, Cond, Static } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, Modifier, Seat } from "../types.js";
-import { type Located, fieldCards, locate } from "./state.js";
+import { type Located, fieldCards, locate } from "./zones.js";
 import { ctxFor } from "./evalCtx.js";
 import { selectorMatches } from "./selectors.js";
 import { evalCond } from "./evaluate.js";

@@ -16,7 +16,7 @@ them. Test on a real device before trusting a camera-facing change.
 ## Quick start
 
 ```bash
-scripts/dev-lan.sh
+tools/dev-lan.sh
 ```
 
 This starts both dev servers reachable from a phone on the same Wi-Fi network,
@@ -25,7 +25,7 @@ for any developer on any network without editing a file. Prints the URL to
 open on the phone, e.g. `http://192.168.1.23:5173`.
 
 If auto-detection picks the wrong network interface, pass the IP explicitly:
-`scripts/dev-lan.sh 10.0.0.5` (find it via System Settings → Wi-Fi → Details
+`tools/dev-lan.sh 10.0.0.5` (find it via System Settings → Wi-Fi → Details
 on macOS).
 
 **Never hardcode a LAN IP into `backend/.env` or `frontend/.env`.** Those

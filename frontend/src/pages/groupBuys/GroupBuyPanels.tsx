@@ -1,5 +1,5 @@
 import { GroupBuyDetail, money } from "../../api";
-import { CollapsibleDrawer } from "../../cardListControls";
+import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { type ReactNode } from "react";
 import { MemberSwatch } from "./memberColors";
 import { MemberModeTag } from "./memberParts";

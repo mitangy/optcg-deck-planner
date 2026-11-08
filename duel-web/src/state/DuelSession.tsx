@@ -43,7 +43,7 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import type { BattleLogEntry } from "../board/battleLog";
+import type { BattleLogEntry } from "../board/match/battleLog";
 import { classifyServerError, createMatchStore, SPECTATOR_CAP_MESSAGE, type MatchStore } from "./matchStore";
 import { MatchStoreContext } from "./useMatch";
 

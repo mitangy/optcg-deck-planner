@@ -6,7 +6,8 @@ import pytest
 
 from app.analyst import bots as analyst_bots
 from app.analyst import stats as analyst_stats
-from app.models import BotMatch, DuelMatch, DuelMatchSeat
+from app.analyst.models import BotMatch
+from app.duel.models import DuelMatch, DuelMatchSeat
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
@@ -219,7 +220,7 @@ def test_a_batch_of_several_large_replays_fits_the_request_limit_635(analyst):  
 
 
 def _admin(SessionLocal, name: str = "boss", role: str = "admin") -> int:
-    from app.models import User
+    from app.core.models import User
 
     with SessionLocal() as db:
         u = User(email=f"{name}@x.test", name=name, google_sub=f"sub-{name}", username=name, role=role)
@@ -246,7 +247,7 @@ def test_bot_lessons_need_the_service_secret_and_an_admin_to_own_them_915(analys
     boss = _admin(SessionLocal)
     r = _post_lesson(c)
     assert r.status_code == 200 and r.json()["skipped"] is False
-    from app.models import AnalystLesson
+    from app.analyst.models import AnalystLesson
 
     with SessionLocal() as db:
         row = db.query(AnalystLesson).one()
@@ -257,7 +258,7 @@ def test_a_bot_lesson_already_stored_in_any_status_is_skipped_915(analyst):  # n
     """Rerunning the weekly job adds nothing, and a lesson the admin rejected stays rejected (#915)."""
     c, SessionLocal = analyst
     _admin(SessionLocal)
-    from app.models import AnalystLesson
+    from app.analyst.models import AnalystLesson
 
     assert _post_lesson(c).json()["skipped"] is False
     with SessionLocal() as db:
@@ -287,7 +288,7 @@ def test_sim_stats_carry_only_approved_bot_lessons_for_that_leader_to_every_play
     """Approved bot lessons ride along with the sim stats; drafts, player lessons and other leaders' lessons stay out (#915)."""
     c, SessionLocal = analyst
     boss = _admin(SessionLocal)
-    from app.models import AnalystLesson
+    from app.analyst.models import AnalystLesson
 
     _post_lesson(c)  # Zoro, any opponent
     _post_lesson(c, text="With Zoro against Lucci, holding a counter paid off.", opponent_id=LUCCI)
@@ -322,7 +323,7 @@ def test_lesson_out_names_its_source_and_a_bot_lesson_has_no_match_ids_915(analy
     """The review list tells bot lessons from player ones by source, and bot evidence never shows up as match ids (#915)."""
     c, SessionLocal = analyst
     me = c.post("/auth/dev-login").json()
-    from app.models import User
+    from app.core.models import User
 
     with SessionLocal() as db:
         db.get(User, me["id"]).role = "admin"
@@ -334,27 +335,9 @@ def test_lesson_out_names_its_source_and_a_bot_lesson_has_no_match_ids_915(analy
     assert sorted((l["source"], l["match_ids"]) for l in got) == [("bots", []), ("player", [])]
 
 
-def test_startup_adds_the_lesson_source_column_and_old_lessons_stay_player_lessons_915(monkeypatch):
-    """An existing analyst_lessons table gets `source`, and its rows read back as player lessons (#915)."""
-    from sqlalchemy import text
-
-    from app.core import db as app_db
-    from tests.db_support import make_bare_engine
-
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE analyst_lessons (id INTEGER PRIMARY KEY, text TEXT NOT NULL)"))
-        conn.execute(text("INSERT INTO analyst_lessons (id, text) VALUES (1, 'old lesson')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_analyst_lesson_source()
-    app_db._ensure_analyst_lesson_source()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT source FROM analyst_lessons")).all() == [("player",)]
-
-
 def _admin_with_link(c, SessionLocal) -> dict:
     me = c.post("/auth/dev-login").json()
-    from app.models import User
+    from app.core.models import User
 
     with SessionLocal() as db:
         db.get(User, me["id"]).role = "admin"

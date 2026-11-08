@@ -24,7 +24,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.statuses import FeedbackStatus
-from app.models import Feedback
+from app.core.time import as_utc
+from app.admin.models import Feedback
 
 log = logging.getLogger("uvicorn.error")
 
@@ -43,9 +44,7 @@ USER_MESSAGE_TYPES = (0, 19)
 
 def snowflake_from_datetime(when: datetime) -> int:
     """The smallest Discord id created at `when`."""
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
-    return (int(when.timestamp() * 1000) - DISCORD_EPOCH_MS) << 22
+    return (int(as_utc(when).timestamp() * 1000) - DISCORD_EPOCH_MS) << 22
 
 
 class RateLimited(Exception):

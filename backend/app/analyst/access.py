@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.statuses import AccessStatus
-from app.models import AnalystAccess, AnalystSetting, User
+from app.analyst.models import AnalystAccess, AnalystSetting
+from app.core.models import User
 from app.roles import is_admin
 
 # Drafts a player or the admin's bots may leave waiting for review before new ones are refused.

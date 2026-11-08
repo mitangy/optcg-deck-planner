@@ -3,7 +3,7 @@
  */
 import type { Cost, Selector } from "../effects/types.js";
 import type { MatchState } from "../types.js";
-import { activeDon, donOnField, otherSeat } from "./state.js";
+import { activeDon, donOnField, otherSeat } from "./zones.js";
 import type { EvalCtx } from "./evalCtx.js";
 import { locateCard } from "./statics.js";
 import { hasRestriction } from "./stats.js";

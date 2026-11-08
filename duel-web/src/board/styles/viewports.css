@@ -1,0 +1,316 @@
+/* —— Large desktop (1080p / 1440p monitors): hand-dock captions scale with
+   the (viewport-sized) dock cards —— */
+
+@media (min-width: 1500px) and (min-height: 800px) {
+  .hand-dock .card-tile .card-caption .name {
+    font-size: clamp(0.72rem, 0.55vw, 0.95rem);
+  }
+
+  .hand-dock .card-tile .card-caption .meta {
+    font-size: clamp(0.62rem, 0.45vw, 0.8rem);
+  }
+}
+
+/* —— Narrow desktop windows (1280 down to 150% zoom on a laptop): the logo and
+   room name give way so the status chips never wrap onto a second line —— */
+
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) and (max-width: 1099px) {
+  .arena .hud-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .arena .hud-bar .hud-brand {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) and (max-width: 1019px) {
+  .arena .hud-actions .match-id {
+    display: none;
+  }
+}
+
+/* —— Phones: compact chrome so the mats get the height —— */
+
+@media (max-width: 720px) {
+  /* One-row HUD: status on the left, Leave on the right. */
+  .arena .hud-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "status actions";
+    gap: var(--space-2);
+    --hud-py: 0.3rem;
+    --hud-px: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .arena .hud-brand,
+  .arena .hud-actions .match-id {
+    display: none;
+  }
+
+  .arena .hud-status {
+    font-size: 0.66rem;
+    gap: 0.2rem 0.35rem;
+  }
+
+  .arena .hud-turn-chip {
+    margin-left: 0;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.58rem;
+  }
+
+  .arena .hud-actions .leave-btn,
+  .arena .hud-actions .hud-pass-btn {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.68rem;
+    min-height: 0;
+  }
+
+  .arena .playmat {
+    --mat-gap: 6px;
+    padding: 4px 4px 6px;
+  }
+
+  /* Battle log collapses to a small pill beside the opponent-hand hint
+     instead of floating over the top of the opponent mat. */
+  .arena .arena-body {
+    position: relative;
+  }
+
+  .arena .opp-hand-hint {
+    align-self: flex-start;
+    justify-content: flex-start;
+    padding-left: 6px;
+  }
+
+  .arena .battle-log {
+    top: 4px;
+    right: 6px;
+    width: auto;
+    max-width: calc(100% - 12px);
+    border-radius: var(--radius-pill);
+  }
+
+  .arena .battle-log:not(.collapsed) {
+    width: min(300px, calc(100% - 12px));
+    max-height: min(55dvh, 420px);
+    border-radius: var(--radius-10);
+  }
+
+  .arena .battle-log-toggle {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.62rem;
+  }
+
+  .arena .hand-rail {
+    padding: 0.3rem 0.5rem 0.3rem;
+  }
+
+  .arena .hand-rail-head {
+    margin-bottom: 0;
+  }
+
+  .arena .hand-rail-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.65rem;
+  }
+
+  .arena .hand-row-inner {
+    padding: 0.85rem 0.1rem 0.35rem;
+    gap: 0.4rem;
+  }
+
+  .arena .hand-row-inner .card-tile.full {
+    width: 72px;
+    height: 101px;
+  }
+
+  .arena .intent-bar {
+    padding: 0.35rem 0.5rem max(0.4rem, var(--safe-b));
+  }
+
+  /* "Actions" heading is redundant next to the buttons on a phone. */
+  .arena .intent-bar:not(.intent-bar-mulligan) h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Small phones: the hint row and the Battle log pill share one line, and up to
+   eight backs ran into the pill. Fan the backs so the row stays short. */
+@media (max-width: 360px) {
+  .arena .opp-hand-hint {
+    gap: 0.35rem;
+  }
+
+  .arena .opp-hand-hint .card-back + .card-back {
+    margin-left: -0.3rem;
+  }
+}
+
+/* —— Portrait phones / tablets: 6-column mats that fill the width —— */
+
+/* Two stacked 12:7 mats are width-bound in portrait, so drop the empty 7th
+   column (deck + trash tuck under the last character column; cost area spans
+   4 columns and overlaps DON!! as needed). Cards are ~25% larger at 440px and
+   the mat grows taller than 12:7 to use the spare height. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .arena .side-field {
+    --mat-h: min(
+      calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
+      calc(100cqw * 0.74)
+    );
+    width: min(100cqw, calc(var(--mat-h) * 1.55));
+    height: var(--mat-h);
+    border-radius: var(--radius-10);
+  }
+
+  .arena .side-grid {
+    --g: 1cqw;
+    --c: min(
+      calc((100cqw - 2.8cqw - 5 * 1cqw) / 6),
+      calc((100cqh - 2.8cqw - 2 * 1cqw) / 4.05)
+    );
+    padding: 1.4cqw;
+    grid-template-columns: repeat(6, var(--c));
+    grid-template-areas:
+      "life characters characters characters characters characters"
+      "life . . leader stage deck"
+      "dondeck cost cost cost cost trash";
+  }
+
+  .arena .side-opp .side-grid {
+    grid-template-areas:
+      "trash cost cost cost cost dondeck"
+      "deck stage leader . . life"
+      "characters characters characters characters characters life";
+  }
+
+  /* No spare corner beside the character row, and the stage is boxed in by
+     the leader and a pile, so it keeps the compact sideways scale. */
+  .arena .side-grid {
+    --char-span: 5;
+  }
+
+  .arena .side-field .zone-stage {
+    --rest-k: 0.714;
+    --rest-shift: 0px;
+  }
+
+  .arena .side-field .don-strip {
+    --don-w: calc(var(--c) * 0.64);
+    padding: calc(var(--c) * 0.04) calc(var(--c) * 0.06);
+  }
+}
+
+/* —— Landscape phones: rail layout with height-bound mats —— */
+
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
+  .arena .hud-bar {
+    --hud-py: 0.25rem;
+    --hud-px: 0.6rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .arena .hud-brand {
+    font-size: 0.72rem;
+  }
+
+  .arena .hud-status {
+    font-size: 0.68rem;
+  }
+
+  .arena .hud-actions .leave-btn,
+  .arena .hud-actions .hud-pass-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.68rem;
+    min-height: 0;
+  }
+
+  .arena .playmat {
+    --mat-gap: 4px;
+    --hint-h: 1rem;
+    --midline-h: 1.2rem;
+    padding: 3px 6px;
+  }
+
+  .arena .opp-hand-hint .card-back {
+    width: 10px;
+    height: 14px;
+  }
+
+  .arena .opp-hand-faces {
+    --face-w: 10px;
+  }
+
+  /* Mats may run wider than 12:7 so the (height-bound) cards stay as big as
+     the short viewport allows. */
+  .arena .side-field {
+    --mat-h: calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2);
+    width: min(100cqw, calc(var(--mat-h) * 1.9));
+    height: var(--mat-h);
+    border-radius: var(--radius-8);
+  }
+
+  .arena .side-grid {
+    --g: 2cqh;
+    --c: min(
+      calc((100cqw - 4cqw - 6 * 2cqh) / 7),
+      calc((100cqh - 6cqh - 2 * 2cqh) / 3.9)
+    );
+    padding: 3cqh 2cqw;
+  }
+
+  .arena .side-field .don-strip {
+    --don-w: calc(var(--c) * 0.54);
+    padding: calc(var(--c) * 0.03) calc(var(--c) * 0.06);
+  }
+
+  .arena .side-field .don-strip-label {
+    margin-bottom: 0;
+    line-height: 1.1;
+  }
+
+  /* Rows are only ~1.1–1.4 cards tall here and the captions hit their font
+     floor: drop them (counts stay; titles/aria still name the pile) so piles
+     never spill into the neighbouring row. */
+  .arena .side-field .zone-pile-label {
+    display: none;
+  }
+
+  .arena .side-field .zone-deck .zone-pile-stack,
+  .arena .side-field .zone-trash .zone-pile-stack {
+    width: calc(var(--c) * 0.7);
+    height: calc(var(--c) * 0.96);
+  }
+
+  .arena .side-field .zone-don-deck .zone-pile-stack {
+    width: calc(var(--c) * 0.54);
+    height: calc(var(--c) * 0.72);
+  }
+
+  .arena.arena-wide .board-col .intent-bar {
+    padding: 0.35rem 0.5rem 0.4rem;
+  }
+}
+
+/* Phones: the opponent-hand hint is left-aligned; clear the Chat pill that
+   floats in the same corner during online matches. */
+@media (max-width: 720px) {
+  .arena .arena-body:has(.chat-panel) .opp-hand-hint {
+    padding-left: 104px;
+  }
+
+  /* The backs read as the opponent's hand on their own (container keeps its
+     aria-label); dropping the text keeps 8 backs clear of the log pill. */
+  .arena .arena-body:has(.chat-panel) .opp-hand-label {
+    display: none;
+  }
+}
+

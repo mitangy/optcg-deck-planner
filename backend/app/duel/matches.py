@@ -14,16 +14,10 @@ from sqlalchemy.orm import Session
 from app.core import redis_client
 from app.duel import live as duel_live
 from app.core.time import as_utc
-from app.models import (
-    AnalystMessage,
-    AnalystThread,
-    DuelMatch,
-    DuelMatchLog,
-    DuelMatchProgress,
-    DuelMatchSeatLog,
-    User,
-)
-from app.schemas import DuelMatchHistoryEntry
+from app.analyst.models import AnalystMessage, AnalystThread
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchProgress, DuelMatchSeatLog
+from app.duel.schemas import DuelMatchHistoryEntry
 from app.usernames import duel_display_name
 
 

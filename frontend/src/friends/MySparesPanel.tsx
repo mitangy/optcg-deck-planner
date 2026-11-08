@@ -3,7 +3,7 @@ import { money } from "../api";
 import { friendsApi, type MySpareItem } from "./friendsApi";
 import { CardRow, Empty, LoadError, QtyStepper } from "./ui";
 import { useSharing } from "./SharingCard";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** Cards you own beyond what your decks and Shopping list need. Keep holds some back from trades. */
 export function MySparesPanel() {

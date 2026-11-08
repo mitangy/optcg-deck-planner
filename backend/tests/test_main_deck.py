@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.models import CatalogCard, Deck
+from app.planner.models import CatalogCard, Deck
 from app.planner.decks import deck_summary, delete_deck, get_deck_detail, list_decks, set_deck_as_main
 from tests.conftest import add_deck_with_cards, make_user
 
@@ -322,7 +322,7 @@ def test_rename_deck_refuses_blank_name_526(db):
 def test_deck_rename_body_rejects_blank_and_strips_526():
     from pydantic import ValidationError
 
-    from app.schemas import DeckRename
+    from app.planner.schemas import DeckRename
 
     assert DeckRename(name="  Hi ").name == "Hi"
     with pytest.raises(ValidationError):

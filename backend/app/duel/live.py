@@ -26,7 +26,8 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from app.core.time import as_utc
-from app.models import DuelMatchProgress, DuelPresence
+from app.duel.models import DuelMatchProgress
+from app.social.models import DuelPresence
 
 # Snapshots land every ~15 s; readers also skip entries older than friends.PRESENCE_TTL.
 PRESENCE_KEY_TTL_S = 60

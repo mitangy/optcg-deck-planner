@@ -7,7 +7,9 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.planner import decks as deck_svc
-from app.models import Deck, TradeKeep, User
+from app.core.models import User
+from app.planner.models import Deck
+from app.social.models import TradeKeep
 from tests.friend_support import (  # noqa: F401  (client is a fixture)
     add_alt,
     add_card,

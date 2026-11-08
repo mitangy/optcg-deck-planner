@@ -17,8 +17,8 @@ import {
   type HotseatResumeBlob,
 } from "../net/matchResume";
 import type { Seat } from "../net/protocol";
-import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
-import { hotseatControlSeat } from "../board/hotseatControlSeat";
+import { applyHotseatAutoPass } from "../board/match/hotseatAutoPass";
+import { hotseatControlSeat } from "../board/match/hotseatControlSeat";
 import { createMatchStore, type MatchStore } from "./matchStore";
 
 export type HotseatNavState = {

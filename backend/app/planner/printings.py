@@ -7,12 +7,13 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import (
+from app.core.errors import Invalid
+from app.planner.models import (
+    CardDisplayChoice,
     CatalogPrinting,
+    CollectorWant,
     Deck,
     DeckCardPrinting,
-    CardDisplayChoice,
-    CollectorWant,
     ShoppingExtraPrinting,
 )
 
@@ -171,7 +172,7 @@ def _assert_special_printing(db: Session, card_id: str, product_id: int) -> None
         )
     )
     if printing is None:
-        raise ValueError("Unknown alt printing for this card")
+        raise Invalid("Unknown alt printing for this card")
 
 
 def _write_deck_printing_qty(
@@ -195,7 +196,7 @@ def _write_deck_printing_qty(
     others_sum = sum(r.qty for r in others)
     if others_sum + qty > needed:
         if strict:
-            raise ValueError(
+            raise Invalid(
                 f"Alt art wants cannot exceed Need ({needed}): "
                 f"{others_sum} other + {qty} would be {others_sum + qty}"
             )

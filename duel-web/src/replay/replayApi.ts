@@ -1,5 +1,5 @@
 /** Duel-web ↔ FastAPI: the recording of one of your games, for the replay viewer. Kept apart from historyApi. */
-import type { MatchReplay } from "@optcg/rules/replayTimeline";
+import type { MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import { ApiError, apiCall } from "../api/http";
 
 export type ReplayPayload = {

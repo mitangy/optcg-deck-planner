@@ -6,18 +6,18 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
-import { analyticsBeforeSend } from "./analytics";
-import App from "./App";
-import { readMetaSeed, releasePrerenderedRoot } from "./prerendered";
+import { analyticsBeforeSend } from "./app/analytics";
+import App from "./app/App";
+import { readMetaSeed, releasePrerenderedRoot } from "./app/prerendered";
 import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import "@optcg/site-legal/siteLegal.css";
 import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
-import "./logPose.css";
+import "./pages/decks/logPose.css";
 import "./friends/friends.css";
-import { qk } from "./queryKeys";
+import { qk } from "./cache/queryKeys";
 
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();

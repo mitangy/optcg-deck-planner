@@ -1,6 +1,6 @@
 """Rank real user crops against the reference images with one or more embedder ONNX files (#852).
 
-Preprocessing matches src/cardEmbed.ts embedderInput: RGB, area-resample the whole
+Preprocessing matches src/scanner/match/cardEmbed.ts embedderInput: RGB, area-resample the whole
 image to 160x224, /255, ImageNet mean/std, NCHW. Rank refs by cosine; a crop counts
 as correct at rank k when any reference with its card_id is in the top k.
 

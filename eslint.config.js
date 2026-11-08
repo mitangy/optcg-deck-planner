@@ -46,7 +46,6 @@ module.exports = tseslint.config(
       "trailer/**",
       "backend/**",
       "tools/**",
-      "scripts/**",
       "docs/**",
     ],
   },

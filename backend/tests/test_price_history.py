@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.planner import catalog_sync, price_history
-from app.models import CatalogCard, CatalogGroup, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogGroup, CatalogPrinting
 from tests.friend_support import client  # noqa: F401 - fixture
 from tests.test_catalog_sync import _group_urls, _install_fake_tcgcsv, _luffy_product, _prices
 

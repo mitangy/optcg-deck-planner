@@ -3,7 +3,7 @@
  */
 import type { ChoiceOption } from "../../types.js";
 import { evalValue, lifeFaceGroups, playerRestricted } from "../queries.js";
-import { otherSeat, putCard, takeCard } from "../state.js";
+import { otherSeat, putCard, takeCard } from "../zones.js";
 import { moveToZone, takeLifeToHand } from "../zoneActions.js";
 import { promptPrefix, pushChoice } from "../vm.js";
 import { type OpTable, seatOf } from "./shared.js";

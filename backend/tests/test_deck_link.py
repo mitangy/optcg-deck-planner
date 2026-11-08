@@ -6,18 +6,19 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, select, text
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from app.core import db as app_db
 from app.planner import deck_link
 from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import app
-from app.models import CatalogCard, Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
+from app.core.models import User
+from app.duel.models import DuelSavedDeck
+from app.planner.models import CatalogCard, Deck, DeckCard, DeckCardPrinting
 from app.duel import decks as duel_decks
-from tests.db_support import make_bare_engine, make_test_engine
+from tests.db_support import make_test_engine
 
 LEADER = "OP01-001"
 OTHER_LEADER = "OP02-001"
@@ -360,19 +361,6 @@ def test_a_full_duel_list_leaves_new_planner_decks_unmirrored_1017(client, monke
     _new_planner(c, "Two", _full("OP01-017"))
     assert len([r for r in _duel_rows(S, uid) if not r.deleted]) == 1
     assert len(_planner_decks(S, uid)) == 2
-
-
-def test_startup_adds_the_planner_link_column_to_existing_duel_decks_1017(monkeypatch: pytest.MonkeyPatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE duel_saved_decks (id INTEGER PRIMARY KEY, user_id INTEGER, deck_id VARCHAR(64))"))
-        conn.execute(text("INSERT INTO duel_saved_decks (id, user_id, deck_id) VALUES (1, 1, 'd1')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_duel_saved_deck_planner_link()
-    app_db._ensure_duel_saved_deck_planner_link()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT planner_deck_id FROM duel_saved_decks")).all() == [(None,)]
-    assert "ix_duel_saved_decks_planner_deck_id" in {i["name"] for i in inspect(engine).get_indexes("duel_saved_decks")}
 
 
 def test_a_second_duel_copy_of_a_linked_planner_deck_gets_its_own_planner_deck_1017(client):

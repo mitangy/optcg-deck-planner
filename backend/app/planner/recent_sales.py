@@ -7,7 +7,8 @@ from typing import Any
 
 import httpx
 
-from app.schemas import RecentSale
+from app.core.errors import Invalid
+from app.planner.schemas import RecentSale
 
 TCGPLAYER_SALES_URL = "https://mpapi.tcgplayer.com/v2/product/{product_id}/latestsales"
 CACHE_TTL_S = 30 * 60
@@ -57,7 +58,7 @@ def is_cached(product_id: int) -> bool:
 def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
     """Return up to `limit` most recent marketplace sales for a TCGPlayer product."""
     if product_id <= 0:
-        raise ValueError("Invalid product id")
+        raise Invalid("Invalid product id")
     limit = max(1, min(limit, 10))
 
     now = time.time()

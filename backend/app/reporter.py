@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.duel.tokens import verify_game_token
-from app.models import User
+from app.core.models import User
 
 
 def identify_reporter(

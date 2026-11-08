@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.analyst.access import is_chat_owner
 from app.core.config import Settings
-from app.models import AnalystAccess, AnalystUsage, User
+from app.analyst.models import AnalystAccess, AnalystUsage
+from app.core.models import User
 
 # What an owner's "Add $5" grants for the rest of the month.
 TOPUP_USD = 5.0

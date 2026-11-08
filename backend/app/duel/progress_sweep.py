@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 from app.core import redis_client
 from app.duel import live as duel_live
 from app.duel.matches import has_result, lock_match
-from app.models import DuelMatchProgress, User
+from app.core.models import User
+from app.duel.models import DuelMatchProgress
 from app.analyst.tournament_sync import sync_loop
 
 log = logging.getLogger("uvicorn.error")

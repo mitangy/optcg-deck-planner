@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, CardView, DeckDetail } from "../../api";
-import { buildOptcgSimExport, downloadTextFile, optcgSimFilename } from "../../optcgsimExport";
-import { duelPlayUrl } from "../../duelLink";
+import { buildOptcgSimExport, downloadTextFile, optcgSimFilename } from "../shopping/optcgsimExport";
+import { duelPlayUrl } from "../../app/duelLink";
 import {
   hintAsk,
   useLogPoseAsk,
@@ -11,8 +11,8 @@ import {
   useLogPosePage,
   type DeckEditor,
 } from "@optcg/analyst-client";
-import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "../../logPose";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
+import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "./logPose";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
   CardSearchInput,
   CollapsibleFilters,
@@ -24,30 +24,30 @@ import {
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
-} from "../../cardListControls";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
+} from "../../ui/cardListControls";
+import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { useMediaQuery } from "@optcg/ui/hooks";
-import { DOCK_QUERY, DeckStatsDock } from "../../DeckStats";
+import { DOCK_QUERY, DeckStatsDock } from "./DeckStats";
 import { type DeckHint } from "@optcg/deck-analytics";
 import { useDeckHints } from "@optcg/deck-analytics/ui";
 import { MenuItem } from "@optcg/ui/popups";
-import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../HeadPopover";
-import { ReplaceDeckListDialog } from "../../ReplaceDeckListDialog";
+import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../ui/HeadPopover";
+import { ReplaceDeckListDialog } from "./ReplaceDeckListDialog";
 import { HideFromFriendsItem } from "../../friends/HideFromFriends";
-import { CardArtImg } from "../../CardThumb";
+import { CardArtImg } from "../../ui/CardThumb";
 import { useCardEdits } from "../../cache/useCardEdits";
-import { DeckDetailSkeleton } from "../../Skeleton";
+import { DeckDetailSkeleton } from "../../ui/Skeleton";
 import { invalidateAltWantViews } from "../../cache/invalidate";
 import { setDeckCardNeeded, MAIN_DECK_LIMIT, DON_DECK_LIMIT } from "./deckEditing";
-import { isDonCardType } from "../../donCards";
+import { isDonCardType } from "../../cards/donCards";
 import { DeckSharePanel, DeckExportPanel } from "../SharePanels";
 import { DeckEditorPanel } from "./DeckEditorPanel";
 import { DeckProgressSummary } from "./DeckProgressSummary";
 import { CardTable } from "./CardTable";
 import { AvailableDonSection } from "./AvailableDonSection";
 import { COLSORT_DECK_KEY, DECK_ONLY_NEED_KEY } from "../../storage/keys";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 function filterCards(
   cards: CardView[],

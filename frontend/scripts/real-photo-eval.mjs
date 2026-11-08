@@ -13,12 +13,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
-import { decodeRecord } from "../src/descriptorCache.ts";
-import { buildCandidates } from "../src/cardScanMatch.ts";
-import { rectifyToImageData } from "../src/cardRectify.ts";
-import { getCv } from "../src/cardMatch.ts";
+import { decodeRecord } from "../src/scanner/match/descriptorCache.ts";
+import { buildCandidates } from "../src/scanner/match/cardScanMatch.ts";
+import { rectifyToImageData } from "../src/scanner/geometry/cardRectify.ts";
+import { getCv } from "../src/scanner/match/cardMatch.ts";
 import { loadMatchAssets, matchRectified } from "./eval-shared.mjs";
-import { classifyMatch } from "../src/cardScanMulti.ts";
+import { classifyMatch } from "../src/scanner/match/cardScanMulti.ts";
 
 const DESC = process.env.DESC || ".scan-build/full-desc";
 const DIR = ".scan-build/real-photos";

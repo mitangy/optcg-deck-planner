@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.planner.catalog_sync import refresh_special_flags
 from app.planner.domain import is_special_printing
-from app.models import CatalogCard, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogPrinting
 from app.planner.catalog_repo import alt_arts_map, primary_product_ids
 
 

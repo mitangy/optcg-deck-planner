@@ -51,7 +51,7 @@ Code: `backend/app/planner/deck_link.py`.
   users load the planner deck; guests (or a failed fetch) get a copy from the
   `#list` hash.
 - **Play in Duel.** Planner deck page button builds that link
-  (`frontend/src/duelLink.ts`, `VITE_DUEL_URL`, default `https://optcgduel.app`).
+  (`frontend/src/app/duelLink.ts`, `VITE_DUEL_URL`, default `https://optcgduel.app`).
 - **Cross-app nav.** Planner top bar "Play Duel" pill; duel lobby header
   "Deck planner" icon (`VITE_PLANNER_URL`, default
   `https://optcg-deck-planner.app`).

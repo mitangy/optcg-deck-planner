@@ -19,7 +19,7 @@ import { googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
-import { colorFill } from "../board/PreviewBadges";
+import { colorFill } from "../board/preview/PreviewBadges";
 import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
 import {
   DECK_SORTS,

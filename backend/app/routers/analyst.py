@@ -22,10 +22,12 @@ from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
 from app.core.config import Settings, get_settings
 from app.core.statuses import LessonStatus
 from app.core.db import get_db
-from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
+from app.analyst.models import AnalystLesson, AnalystPrefs, AnalystToken
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchLog, SimGame
+from app.planner.models import Deck
 from app.duel.matches import match_history
-from app.schemas import (
-    CARD_ID_PATTERN,
+from app.analyst.schemas import (
     AnalystDeckOut,
     AnalystDecksOut,
     AnalystLessonIn,
@@ -36,6 +38,9 @@ from app.schemas import (
     AnalystSharing,
     AnalystTokenCreated,
     AnalystTokenStatus,
+)
+from app.core.schemas import CARD_ID_PATTERN
+from app.duel.schemas import (
     DuelMatchHistoryOut,
     SimGameDetailOut,
     SimGameOut,

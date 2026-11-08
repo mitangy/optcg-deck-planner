@@ -13,7 +13,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.planner.domain import is_don_product, is_special_printing, synthetic_don_card_id
-from app.models import CatalogCard, CatalogGroup, CatalogMeta, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogGroup, CatalogMeta, CatalogPrinting
 
 CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"

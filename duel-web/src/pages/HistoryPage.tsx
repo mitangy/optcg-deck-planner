@@ -7,7 +7,7 @@ import { useArtFallback } from "../cards/useArtFallback";
 import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
-import { useClickCopy } from "../board/clickCopy";
+import { useClickCopy } from "../board/input/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { errorMessage } from "../lib/errors";
 import { useAsyncResource } from "../lib/useAsyncResource";

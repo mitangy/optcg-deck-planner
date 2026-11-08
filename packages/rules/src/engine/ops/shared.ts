@@ -8,7 +8,7 @@ import { candidates } from "../queries.js";
 import { findReplacement, pushReplacementFrame, removalBlocked } from "../replacement.js";
 import { locateDon } from "../donLocation.js";
 import type { Sim } from "../sim.js";
-import { type Located, isOnField, locate, otherSeat } from "../state.js";
+import { type Located, isOnField, locate, otherSeat } from "../zones.js";
 import { type ExecResult, frameCtx } from "../vm.js";
 import { B, REPL_PREFIX, V, getBinding, recordAffected, replKey, setBinding } from "../../effects/bindings.js";
 

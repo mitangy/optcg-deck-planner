@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.analyst.stats import MIN_GAMES, _record
-from app.models import Tournament, TournamentDeck, TournamentGame
+from app.analyst.models import Tournament, TournamentDeck, TournamentGame
 
 SOURCE = "Limitless TCG tournaments"
 # A leader needs this many decisive games before it can be ranked by win rate.

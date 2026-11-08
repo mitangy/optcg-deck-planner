@@ -9,21 +9,15 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import (
-    Deck,
-    ShareLink,
-    User,
-)
+from app.core.errors import Invalid, NotFound
+from app.core.models import User
+from app.planner.models import Deck, ShareLink
 from app.planner.catalog_repo import (
     alt_arts_map,
     alt_owned_map,
     owned_map,
 )
-from app.schemas import (
-    PublicShoppingResponse,
-    ShareInfo,
-    ShoppingItem,
-)
+from app.planner.schemas import PublicShoppingResponse, ShareInfo, ShoppingItem
 from app.planner.decks import (
     clone_deck,
     get_deck_detail,
@@ -76,14 +70,14 @@ def create_or_update_share(
 ) -> ShareInfo:
     kind = (kind or "shopping").strip().lower()
     if kind not in {"shopping", "deck"}:
-        raise ValueError("kind must be shopping or deck")
+        raise Invalid("kind must be shopping or deck")
 
     if kind == "deck":
         if deck_id is None:
-            raise ValueError("deck_id is required for deck shares")
+            raise Invalid("deck_id is required for deck shares")
         deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
         if deck is None:
-            raise LookupError("Deck not found")
+            raise NotFound("Deck not found")
         existing = db.scalar(
             select(ShareLink).where(
                 ShareLink.user_id == user.id,
@@ -142,7 +136,7 @@ def revoke_share(db: Session, user: User, token: str) -> None:
         select(ShareLink).where(ShareLink.token == token, ShareLink.user_id == user.id)
     )
     if link is None:
-        raise LookupError("Share link not found")
+        raise NotFound("Share link not found")
     if link.revoked_at is None:
         link.revoked_at = datetime.now(timezone.utc)
         db.commit()
@@ -164,7 +158,7 @@ def _active_share_link(db: Session, token: str) -> ShareLink:
         select(ShareLink).where(ShareLink.token == token, ShareLink.revoked_at.is_(None))
     )
     if link is None:
-        raise LookupError("Share link not found")
+        raise NotFound("Share link not found")
     return link
 
 
@@ -174,7 +168,7 @@ def public_share_view(
     link = _active_share_link(db, token)
     owner = db.get(User, link.user_id)
     if owner is None:
-        raise LookupError("Share link not found")
+        raise NotFound("Share link not found")
     # Duel username when set (#903), else the account name as before.
     owner_name = owner.username or (owner.name or owner.email.split("@")[0] or "Collector").strip()
     viewer_signed_in = viewer is not None
@@ -182,7 +176,7 @@ def public_share_view(
 
     if link.kind == "deck":
         if link.deck_id is None:
-            raise LookupError("Share link not found")
+            raise NotFound("Share link not found")
         # The owner's deck gives the card list and catalog info; owned counts
         # come from whoever opened the link (#741).
         detail = get_deck_detail(db, owner, link.deck_id)
@@ -272,13 +266,13 @@ def copy_shared_deck(db: Session, viewer: User, token: str) -> Deck:
     """Copy the deck behind a public deck share link into the viewer's decks (#741)."""
     link = _active_share_link(db, token)
     if link.kind != "deck":
-        raise ValueError("Only shared decks can be copied")
+        raise Invalid("Only shared decks can be copied")
     deck = db.scalar(
         select(Deck)
         .where(Deck.id == link.deck_id, Deck.user_id == link.user_id)
         .options(selectinload(Deck.cards))
     )
     if deck is None:
-        raise LookupError("Share link not found")
+        raise NotFound("Share link not found")
     name = f"{deck.name} (copy)" if deck.user_id == viewer.id else deck.name
     return clone_deck(db, viewer, deck, name)

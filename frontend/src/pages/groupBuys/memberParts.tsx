@@ -1,6 +1,6 @@
-import { AltArtsRow, MarketPrice } from "../../MarketPrice";
+import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
 import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
-import { mySelectedArtsTotal } from "../../groupBuyArt";
+import { mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
 /** Member's shopping "Copies needed" mode; hidden once quantities are frozen. */

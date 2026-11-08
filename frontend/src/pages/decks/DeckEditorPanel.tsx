@@ -4,14 +4,14 @@ import { api, CatalogCardResult, DeckDetail, money } from "../../api";
 import {
   CardSearchInput,
   CollapsibleDrawer,
-} from "../../cardListControls";
-import { invalidateOwnedViews } from "../../ownedCollection";
+} from "../../ui/cardListControls";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { deckDelta, type DeckStatsCard } from "@optcg/deck-analytics";
 import { useStatsAtlas } from "@optcg/deck-analytics/ui";
 import { Select } from "@optcg/ui/popups";
-import { CardThumb } from "../../CardThumb";
-import { InlineSkeleton } from "../../Skeleton";
-import { isDonCardType } from "../../donCards";
+import { CardThumb } from "../../ui/CardThumb";
+import { InlineSkeleton } from "../../ui/Skeleton";
+import { isDonCardType } from "../../cards/donCards";
 import {
   COLOR_OPTIONS,
   CARD_TYPE_OPTIONS,
@@ -20,7 +20,7 @@ import {
 } from "../collection/CatalogAddDrawer";
 import { DON_DECK_LIMIT, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditing";
 import { DECK_EDITOR_COLOR_KEY, DECK_EDITOR_TYPE_KEY, DECK_SEARCH_OPEN_KEY } from "../../storage/keys";
-import { useCatalogSearch } from "../../useCatalogSearch";
+import { useCatalogSearch } from "../../hooks/useCatalogSearch";
 
 /** Main-deck rows (leader included, DON!! excluded) in the shape the stats and hints code reads. */
 function toStatsCards(cards: DeckDetail["cards"]): DeckStatsCard[] {

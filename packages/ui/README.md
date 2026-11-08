@@ -25,7 +25,7 @@ dependency of the package and a dependency of the apps that use it.
 
 `src/cardArt/previewArt.json` (card ids) and `previewArtAlts.json` (alt-printing
 product ids) are the manifests of the preview files. They are maintained by
-`python3 scripts/sync_preview_art.py`; do not edit them by hand.
+`python3 backend/scripts/sync_preview_art.py`; do not edit them by hand.
 
 ## appShell
 
@@ -46,7 +46,7 @@ product ids) are the manifests of the preview files. They are maintained by
 `import { ... } from "@optcg/ui/seo"`. Not UI components: head and pre-render helpers for both SPAs.
 
 - `usePageMeta(meta)` / `applyPageMeta(meta)` / `canonicalUrl(origin, path)`: set the title, description, canonical link, `noindex` and share image of the current page.
-- `applyHead(template, head)`, `injectRoot(template, rootHtml, data?)`, `escapeHtml`, `jsonForScript`: build the pre-rendered HTML that `scripts/seo/prerender-plugin.mjs` writes for each route.
+- `applyHead(template, head)`, `injectRoot(template, rootHtml, data?)`, `escapeHtml`, `jsonForScript`: build the pre-rendered HTML that `tools/seo/prerender-plugin.mjs` writes for each route.
 
 ## firstTouch
 

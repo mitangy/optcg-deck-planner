@@ -19,7 +19,7 @@ import httpx
 import pytest
 
 from app.planner import catalog_sync, recent_sales
-from app.models import CatalogCard, CatalogPrinting
+from app.planner.models import CatalogCard, CatalogPrinting
 
 
 @pytest.fixture(autouse=True)

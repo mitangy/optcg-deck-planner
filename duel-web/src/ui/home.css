@@ -1,0 +1,520 @@
+/* —— Home —— */
+
+.home {
+  flex: 1;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 5vh, 3rem) 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.25rem;
+}
+
+/* Deck, Play and the modes; the side column (you, friends, bounties) follows on narrow screens. */
+.home-primary,
+.home-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.home-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.home-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.home-brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2rem, 9vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--chrome-bright);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 32px rgb(var(--chrome-rgb) / 0.18);
+}
+
+/* Phones: the logo sits in front of the title. Hidden once the top bar carries it. */
+.home-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+}
+
+.home-brand-mark {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+
+@media (min-width: 480px) {
+  .home-brand-mark {
+    display: none;
+  }
+}
+
+/* Rope-and-knot divider under the wordmark. */
+.home-rule {
+  position: relative;
+  width: min(200px, 60%);
+  height: 1px;
+  margin-top: 0.6rem;
+  background: linear-gradient(90deg, transparent, var(--chrome), transparent);
+}
+
+.home-rule span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid var(--chrome);
+  background: var(--arena-deep);
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+/* Play names the mode it repeats; the sub-line is hidden from the accessible name (aria-describedby carries it). */
+.home-actions .btn-play {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-height: 72px;
+  padding-block: 0.6rem;
+  line-height: 1.1;
+}
+
+.btn-play-sub {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+.mode-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* One mode is Play's own: the other four, two by two. */
+.mode-tiles-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* No mode used yet: all five, three over two. */
+.mode-tiles-5 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.mode-tiles-5 .mode-tile {
+  grid-column: span 2;
+}
+
+.mode-tiles-5 .mode-tile:nth-child(n + 4) {
+  grid-column: span 3;
+}
+
+.mode-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: rgb(var(--panel-rgb) / 0.6);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.mode-tile:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
+}
+
+.mode-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.mode-tile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mode-tile-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.mode-tile-blurb {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Phones: titles only. */
+@media (max-width: 479px) {
+  .mode-tile {
+    min-height: 44px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .mode-tile-blurb {
+    display: none;
+  }
+}
+
+.deck-switcher {
+  position: relative;
+}
+
+/* The deck is the hero: the leader card large and slightly tilted, glowing in its first colour. */
+.home-deck {
+  --leader-w: 96px;
+  --glow: 210 165 77;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+  width: 100%;
+  padding: 0.9rem 0.9rem 0.9rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  background-color: rgb(var(--panel-rgb) / 0.6);
+  background-image: radial-gradient(
+    calc(var(--leader-w) * 1.5) calc(var(--leader-w) * 1.6) at calc(var(--leader-w) / 2 + 0.8rem) 50%,
+    rgb(var(--glow) / 0.2),
+    transparent 70%
+  );
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.home-deck:hover,
+.home-deck.open {
+  border-color: var(--line-strong);
+  background-color: var(--arena-panel);
+}
+
+.home-deck:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Headless UI focuses the trigger from script after a click, which Chrome counts as keyboard focus;
+   its own data-focus is set for the keyboard only. */
+.home-deck[data-headlessui-state]:focus-visible:not([data-focus]) {
+  box-shadow: none;
+}
+
+.home-deck-art,
+.deck-menu-art {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 53px;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--line-strong);
+  object-fit: cover;
+  object-position: center top;
+  background: var(--arena-mid);
+}
+
+/* The box is sized by width and the card's ratio, so late art never moves anything. */
+.home-deck .home-deck-art {
+  align-self: center;
+  width: var(--leader-w);
+  height: auto;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--radius-6);
+  transform: rotate(-3deg);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.45),
+    0 0 26px rgb(var(--glow) / 0.5);
+}
+
+[data-mode="light"] .home-deck .home-deck-art {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.25),
+    0 0 20px rgb(var(--glow) / 0.45);
+}
+
+.home-deck-text,
+.deck-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.home-deck-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.home-deck-name,
+.deck-menu-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Incomplete" tag on decks under 50 cards (deck list, practice picker, deck menu). */
+.deck-incomplete-badge {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.55);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--chrome-rgb) / 0.14);
+  color: var(--chrome-bright);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.deck-menu-sub,
+.home-deck-leader {
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-deck .home-deck-name {
+  font-size: 1.15rem;
+}
+
+/* Name block between equal gaps above and below; Change deck and Edit deck share the bottom row. */
+.home-deck-label {
+  margin-top: auto;
+}
+
+.home-deck .home-deck-leader {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+/* Reserved to the same height as the Edit link, which sits over this row's right end. */
+.home-deck-change {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  margin-top: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.home-deck-chevron {
+  display: inline-block;
+  margin-left: 0.3rem;
+  color: var(--chrome-bright);
+  transition: transform 140ms ease;
+}
+
+.home-deck-edit {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-8);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.home-deck-edit:hover {
+  color: var(--chrome-bright);
+  background: rgb(var(--chrome-rgb) / 0.1);
+}
+
+.home-deck-edit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.home-deck.open .home-deck-chevron {
+  transform: rotate(180deg);
+}
+
+/* A Headless UI Listbox floating under the trigger in a portal — opening never moves the page. */
+.deck-menu {
+  width: var(--button-width);
+  z-index: var(--z-menu);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-12);
+  background: var(--arena-panel);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  /* Opacity only: a transform animation would fight the floating position. */
+  animation: deck-menu-in 140ms ease-out;
+}
+
+@keyframes deck-menu-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.deck-menu-list {
+  min-height: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  max-height: min(50dvh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.deck-menu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-9);
+}
+
+.deck-menu-row:hover,
+.deck-menu-row.active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Headless UI keeps focus on the list and marks the active row (arrow keys and the pointer alike). */
+.deck-menu-row[data-focus] {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.deck-menu-foot .btn {
+  text-align: center;
+}
+
+.deck-menu-foot [data-focus] {
+  border-color: var(--chrome-bright);
+}
+
+.deck-menu-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem;
+  border: none;
+  border-radius: var(--radius-9);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-menu-pick:focus-visible,
+.deck-menu-edit:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.deck-menu-art {
+  width: 32px;
+  height: 45px;
+}
+
+.deck-menu-name {
+  font-size: 0.88rem;
+}
+
+.deck-menu-check {
+  flex: 0 0 1rem;
+  color: var(--chrome-bright);
+  font-weight: 700;
+  text-align: center;
+}
+
+.deck-menu-edit {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 0.7rem;
+  margin-right: 0.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deck-menu-edit:hover {
+  color: var(--chrome-bright);
+  border-color: var(--line);
+}
+
+.deck-menu-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0.5rem;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.12);
+}
+

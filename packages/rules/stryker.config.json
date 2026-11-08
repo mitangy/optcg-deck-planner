@@ -11,6 +11,7 @@
     "!src/tools/**",
     "!src/sim/**",
     "!src/testing/**",
+    "!src/engine/snapshot.ts",
     "!src/**/generated/**",
     "!src/**/*.generated.ts"
   ],

@@ -30,8 +30,10 @@ from app.social.schemas import (
     TradeKeepIn,
     TradeKeepOut,
 )
-from app.models import Deck, TradeKeep, User, UserSharing
-from app.schemas import DeckDetail
+from app.core.models import User
+from app.planner.models import Deck
+from app.social.models import TradeKeep, UserSharing
+from app.planner.schemas import DeckDetail
 
 router = APIRouter(prefix="/friends", tags=["friend-views"])
 me_router = APIRouter(prefix="/me", tags=["friend-views"])
@@ -240,10 +242,7 @@ def copy_friend_deck(
 ) -> DeckDetail:
     owner, _ = fv.require_friend_view(db, user, friend_id, "decks")
     deck = _visible_deck(db, owner.id, deck_id)
-    try:
-        new = deck_svc.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    new = deck_svc.clone_deck(db, user, deck, f"{deck.name} ({owner.username})")
     return deck_svc.get_deck_detail(db, user, new.id)
 
 

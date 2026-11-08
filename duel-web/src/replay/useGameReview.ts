@@ -3,7 +3,7 @@
  * progress and the grades so far arrive as they are made. A finished review is kept per match (reviewCache.ts).
  */
 import { useEffect, useState } from "react";
-import { REGISTRY_HASH, RULES_VERSION, type MatchReplay } from "@optcg/rules/replayTimeline";
+import { REGISTRY_HASH, RULES_VERSION, type MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import { readCachedReview, reviewCacheKey, writeCachedReview } from "./reviewCache";
 import type { ReviewMessage, ReviewRequest } from "./reviewProtocol";
 import type { GameReview } from "./reviewModel";

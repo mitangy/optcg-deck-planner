@@ -1,0 +1,476 @@
+/* —— Board refresh: DON!! scale, leader scale, table felt, actions ——
+   Kept at the end so it layers over the base arena rules above. */
+
+.side-field {
+  border-color: var(--line);
+  border-radius: var(--radius-14);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--sea-rgb) / 0.12), transparent 60%),
+    linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.025), transparent 40%),
+    var(--arena-mid);
+}
+
+.side-field.mirrored {
+  background:
+    radial-gradient(120% 90% at 50% 100%, rgba(120, 60, 40, 0.1), transparent 60%),
+    linear-gradient(0deg, rgb(var(--chrome-bright-rgb) / 0.02), transparent 40%),
+    #0f1c26;
+}
+
+.zone-caption,
+.don-strip-label {
+  color: var(--chrome);
+  opacity: 0.8;
+}
+
+.zone-slot {
+  border-color: rgb(var(--chrome-rgb) / 0.2);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* DON!! chips scale with the viewport (roughly a third of a character card on
+   desktop) instead of the old fixed 28px thumbnails. */
+.don-strip {
+  --don-w: clamp(30px, 4.6vw, 70px);
+  border-color: var(--line);
+  border-radius: var(--radius-10);
+  padding: 0.4rem 0.55rem 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.don-strip-rail {
+  /* Clear space between separate DON!! piles (#381); never overlapped. */
+  --don-pile-gap: calc(var(--don-w) * 0.5);
+  container-type: inline-size;
+  flex-wrap: nowrap;
+  gap: 0;
+  min-height: calc(var(--don-w) * 1.4 + 4px);
+  padding: 2px 0;
+}
+
+.don-chip,
+.don-chip.rested {
+  width: var(--don-w);
+  height: calc(var(--don-w) * 1.4);
+  border-radius: calc(var(--don-w) * 0.07);
+  border-color: rgb(var(--chrome-bright-rgb) / 0.55);
+}
+
+.don-chip.rested {
+  margin: 0 calc(var(--don-w) * 0.2);
+  border-color: rgb(var(--muted-rgb) / 0.45);
+}
+
+/* Overlap instead of shrinking when the rail runs out of room: spread evenly
+   up to a 6px gap. The overlap is unbounded on purpose so the row always ends
+   exactly at the rail edge — 10 rested (rotated, ~1.4 wide) DON!! used to spill
+   into the trash pile when the overlap was capped at 60% of a chip. */
+.don-chip-btn + .don-chip-btn {
+  margin-left: min(
+    calc(
+      (100cqw - var(--don-units, 1) * var(--don-w) - var(--don-gaps, 0) * var(--don-pile-gap)) /
+        max(var(--don-count, 1) - var(--don-piles, 1), 1)
+    ),
+    6px
+  );
+}
+
+/* Separate DON!! piles (#381): a fixed gap between piles; the overlap above
+   only applies between chips inside one pile (the first chip of a pile has no
+   chip sibling before it), and the gaps are taken off the room it shares out. */
+.don-pile {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.don-pile + .don-pile {
+  margin-left: var(--don-pile-gap);
+}
+
+.don-chip-btn {
+  position: relative;
+  transition: transform 140ms ease;
+}
+
+.don-chip-btn.is-draggable:hover,
+.don-chip-btn.is-selected {
+  z-index: var(--z-raise-1);
+  transform: translateY(-4px);
+}
+
+.don-strip-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-bar {
+  background:
+    linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.1), transparent 70%),
+    var(--arena-panel);
+}
+
+.hud-brand,
+.hand-rail-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hand-rail {
+  background:
+    linear-gradient(0deg, rgb(var(--chrome-rgb) / 0.07), transparent 55%),
+    var(--arena-panel);
+}
+
+.intent-bar {
+  background: rgb(var(--deep-rgb) / 0.92);
+}
+
+/* Actions read as calm secondary buttons; End turn is the gold primary. */
+.intent-btn {
+  background: var(--arena-raised);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-8);
+  transition: border-color 140ms ease, background-color 140ms ease, filter 140ms ease;
+}
+
+.intent-btn:not(:disabled):hover {
+  background: #244056;
+  border-color: var(--chrome);
+}
+
+.intent-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.intent-btn-end {
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
+}
+
+.intent-btn-end:not(:disabled):hover {
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  filter: brightness(1.06);
+}
+
+.leave-btn,
+.hud-pass-btn,
+.hand-rail-btn {
+  border-radius: var(--radius-8);
+}
+
+/* Deck editor: Import and Add cards start folded behind their headings. */
+details.deck-collapsible {
+  display: block;
+}
+
+.deck-collapsible-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.deck-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.deck-collapsible-summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.deck-collapsible[open] > .deck-collapsible-summary::before {
+  transform: rotate(45deg);
+}
+
+.deck-collapsible-summary:hover .lobby-section-title {
+  color: var(--ink);
+}
+
+details.deck-import-panel.deck-collapsible {
+  padding: 0.4rem 0;
+}
+
+details.deck-config-section.deck-collapsible {
+  padding-top: 0.4rem;
+}
+
+.deck-collapsible-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.45rem;
+  min-width: 0;
+}
+
+.deck-search.deck-collapsible-body {
+  gap: var(--space-3);
+}
+
+/* Decks page: the status line under the header and the section holding the deck cards. */
+.deck-sync-note {
+  margin: 0;
+  min-height: 1.3em;
+  overflow-wrap: anywhere;
+}
+
+/* The signed-in note wraps to two lines on a phone: reserve them so the decks below do not jump. */
+@media (max-width: 640px) {
+  .deck-sync-note {
+    min-height: 2.6em;
+  }
+}
+
+.deck-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.deck-card-slot {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr;
+  border-radius: var(--radius-8);
+}
+
+.deck-card-slot > .deck-list-row {
+  min-height: 0;
+}
+
+/*
+ * Decks page + deck editor on desktop (DESKTOP_DECKS_QUERY in useMediaQuery.ts).
+ * Below 1024px the wrappers are `display: contents`, so phones get the same
+ * single column as before.
+ */
+.deck-editor-layout,
+.deck-editor-side,
+.deck-editor-main {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  /* A flex item with auto margins shrinks to its content; fill up to the cap instead. */
+  .deck-config-wide {
+    width: 100%;
+    max-width: 1480px;
+  }
+
+  .deck-list-page {
+    max-width: 1240px;
+  }
+
+  /* Deck on the left, card search in a sticky column on the right. */
+  .deck-editor-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+    gap: 1.5rem;
+    align-items: start;
+    min-width: 0;
+  }
+
+  .deck-editor-main {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .deck-editor-side {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--sticky-head-h, 0px) + 1rem);
+    max-height: calc(100dvh - var(--sticky-head-h, 0px) - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+    padding: 0 0.85rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-10);
+    background: var(--arena-deep);
+  }
+
+  /* The panel frames the column, so its first divider would double the border. */
+  .deck-editor-side > :first-child {
+    border-top: none;
+  }
+
+  /* Search box stays in view while the results scroll under it. */
+  .deck-editor-side .deck-search-query {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-raise-1);
+    padding: 0.35rem 0 0.45rem;
+    background: var(--arena-deep);
+  }
+
+  /* One scroll for the whole column instead of a list scrolling inside it. */
+  .deck-editor-side .deck-search-results {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .deck-editor-side .deck-filter-row {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
+
+/* Wide windows: the leader gets its own column so it does not take a whole row. */
+@media (min-width: 1440px) {
+  .deck-editor-main {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
+  }
+
+  .deck-editor-leader .deck-stack-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Deck stats in the deck editor (packages/deck-analytics panels). The shared CSS reads its own
+ * --da-* tokens; map them onto the duel theme here so every crew theme follows. The ones the
+ * panels can take straight from the global palette are mapped at :root (the hint popover is
+ * portalled out of .duel-deck-stats), the rest on the wrapper.
+ */
+:root {
+  --da-ink: var(--ink);
+  --da-muted: var(--muted);
+  --da-line: var(--line);
+  --da-line-strong: var(--line-strong);
+  --da-warn: var(--warn);
+  --da-danger: var(--danger);
+  --da-font-body: var(--font-body);
+  --da-font-display: var(--font-display);
+}
+
+.duel-deck-stats {
+  --da-label: var(--muted);
+  --da-card: var(--arena-panel);
+  --da-card-sunk: var(--arena-mid);
+  --da-bg-deep: var(--arena-deep);
+  --da-accent: var(--sea);
+  --da-gold: var(--chrome);
+  --da-gold-bright: var(--chrome-bright);
+  --da-gold-soft: rgb(var(--chrome-rgb) / 0.18);
+  --da-gold-ink: var(--chrome-bright);
+  --da-violet-ink: #9a7fd0;
+  --da-warn-ink: color-mix(in srgb, var(--warn) 65%, var(--ink));
+  --da-shadow-lift: 0 12px 32px rgb(var(--abyss-rgb) / 0.6);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.deck-stats-badge {
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--warn);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.deck-stats-badge.is-empty {
+  visibility: hidden;
+}
+
+/* Host primitives the shared panels expect (planner class names). */
+.duel-deck-stats .muted {
+  color: var(--muted);
+}
+
+.duel-deck-stats .error {
+  color: #ef9a9a;
+}
+
+.duel-deck-stats .card-id {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.duel-deck-stats .btn.secondary {
+  min-height: 36px;
+  padding: 0.45rem 0.9rem;
+  background: var(--arena-raised);
+  border-color: var(--line);
+}
+
+.duel-deck-stats .btn.secondary:not(:disabled):hover {
+  border-color: var(--line-strong);
+}
+
+.duel-deck-stats .ui-select-button {
+  min-height: 40px;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  color: var(--ink);
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.duel-deck-stats .layout-toggle {
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--arena-deep);
+}
+
+.duel-deck-stats .layout-toggle button {
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.duel-deck-stats .layout-toggle button.active {
+  background: var(--arena-raised);
+  color: var(--chrome-bright);
+}
+
+.duel-deck-stats input[type="checkbox"] {
+  accent-color: var(--chrome);
+}
+
+/* The side column is ~370px: two tiles per row, and the tray sits flush with the panel. */
+.duel-deck-stats .ds-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.duel-deck-stats .dh-tray {
+  margin-bottom: 0.25rem;
+}
+

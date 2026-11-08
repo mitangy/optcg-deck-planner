@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any
+from app.core.errors import Invalid
 
 DECK_LINE_RE = re.compile(
     r"^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$"
@@ -64,6 +65,14 @@ class ParsedCard:
     needed: int
 
 
+def _qty(digits: str) -> int:
+    # A pasted run of thousands of digits makes int() raise; that stays a 400 with Python's message.
+    try:
+        return int(digits)
+    except ValueError as exc:
+        raise Invalid(str(exc)) from exc
+
+
 def parse_decklist(text: str) -> list[ParsedCard]:
     """Parse OPTCGSim deck code / clipboard text into card counts.
 
@@ -76,7 +85,7 @@ def parse_decklist(text: str) -> list[ParsedCard]:
     cards: dict[str, int] = {}
     raw = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not raw:
-        raise ValueError("No cards found in decklist")
+        raise Invalid("No cards found in decklist")
 
     lines = [ln.strip() for ln in raw.split("\n")]
     # If paste is one long line of many cards, also split on common separators
@@ -107,25 +116,25 @@ def parse_decklist(text: str) -> list[ParsedCard]:
             # Support "OP01-001 4" / "OP01-001 x4" when qty wasn't written first.
             trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None
             if trailing:
-                qty = int(trailing.group(1) or trailing.group(2))
+                qty = _qty(trailing.group(1) or trailing.group(2))
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
             # One entry (optional card name) vs multiple codes on one line
             if not rest or not DECK_TOKEN_RE.search(rest):
-                qty = int(leading_qty or "1")
+                qty = _qty(leading_qty or "1")
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
         # Fall back: find all qty+id tokens in the line
         found = list(DECK_TOKEN_RE.finditer(line))
         if not found:
-            raise ValueError(f"Line {line_no}: unrecognized format: {line!r}")
+            raise Invalid(f"Line {line_no}: unrecognized format: {line!r}")
         for token in found:
-            qty = int(token.group(1) or "1")
+            qty = _qty(token.group(1) or "1")
             card_id = token.group(2).upper()
             cards[card_id] = cards.get(card_id, 0) + qty
 
     if not cards:
-        raise ValueError("No cards found in decklist")
+        raise Invalid("No cards found in decklist")
     return [ParsedCard(card_id=cid, needed=qty) for cid, qty in cards.items()]
 
 
@@ -136,7 +145,7 @@ ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "data" / "alt_a
 def alt_art_product_ids() -> frozenset[int]:
     """TCGPlayer productIds duel-web verified as distinct alt art (#762).
 
-    Written by `scripts/sync_alt_arts.py`; covers promo printings whose name has
+    Written by `backend/scripts/sync_alt_arts.py`; covers promo printings whose name has
     no marker. A missing or unreadable file means no extra ids.
     """
     try:

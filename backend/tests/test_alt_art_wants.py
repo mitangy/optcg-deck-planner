@@ -151,7 +151,7 @@ def test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908(db):
 
 def test_set_user_card_printing_syncs_across_decks(db):
     from app.planner.owned import set_user_card_printing
-    from app.models import DeckCardPrinting
+    from app.planner.models import DeckCardPrinting
     from sqlalchemy import select
 
     user = make_user(db, email="e@t.com", name="E", sub="e")
@@ -186,7 +186,7 @@ def test_set_user_card_printing_syncs_across_decks(db):
 
 
 def _alt_rows(db, card_id):
-    from app.models import DeckCardPrinting
+    from app.planner.models import DeckCardPrinting
     from sqlalchemy import select
 
     return {

@@ -2,13 +2,13 @@
 import { abilitiesFor, REGISTRY_HASH } from "../cards/abilities.js";
 import { ensureDefsForPlayers, getCardDef, normalizeCardDefId } from "../cards/definitions.js";
 import { createSeededRng, type Rng } from "../rng.js";
-import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "../state/snapshot.js";
+import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "./snapshot.js";
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PendingChoice, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
 import { beginTurn, applyTriggerOrder, declareAttack, declareBlock, endTurn, resolveLifeTrigger, settle } from "./procedure.js";
 import { attackTargetAllowed, cannotAttackMatching, canPayCosts, costOf, counterOf, ctxFor, filterMatches, hasKeyword, hasRestriction, isNegated, playCostOf, playerRestricted, powerOf, restrictionValue, withQueryCache } from "./queries.js";
 import { abilityGateOpen, defaultAnswer, dispatchEvent, finishPlay, newBatch, resolveEffectChoice, startAbility, type Sim } from "./runtime.js";
-import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./state.js";
+import { activeDon, alloc, fieldCards, locate, makeCard, makeDon, otherSeat, putCard, takeCard } from "./zones.js";
 import { CB } from "../effects/bindings.js";
 
 function fail(state: MatchState, code: string, message: string): ApplyResult {

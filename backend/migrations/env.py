@@ -12,10 +12,11 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app.core.config import get_settings
-from app.models import Base
+from app.all_models import Base  # imports every domain models module, so autogenerate sees every table
 
 config = context.config
-if config.config_file_name is not None:
+# Startup passes configure_logger=False: fileConfig would replace the app's logging.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata

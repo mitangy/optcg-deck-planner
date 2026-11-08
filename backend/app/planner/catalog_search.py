@@ -11,19 +11,12 @@ from app.planner import fuzzy
 from app.planner.domain import (
     parse_cost,
 )
-from app.models import (
-    CatalogCard,
-    CatalogMeta,
-    CatalogPrinting,
-)
+from app.planner.models import CatalogCard, CatalogMeta, CatalogPrinting
 from app.planner.catalog_repo import (
     alt_arts_map,
     alt_owned_map,
 )
-from app.schemas import (
-    CatalogCardResult,
-    PrintingView,
-)
+from app.planner.schemas import CatalogCardResult, PrintingView
 
 
 def card_printings(db: Session, card_id: str) -> list[PrintingView]:

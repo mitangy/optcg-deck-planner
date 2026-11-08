@@ -5,7 +5,7 @@ import { getCardDef } from "../cards/definitions.js";
 import type { LookPick, Placement } from "../effects/types.js";
 import type { ChoiceRequest, MatchState, PendingChoice, ResolutionFrame, Seat } from "../types.js";
 import { costOf, evalValue, playerRestricted, powerOf } from "./queries.js";
-import { isOnField, locate, putCard, takeCard } from "./state.js";
+import { isOnField, locate, putCard, takeCard } from "./zones.js";
 import type { Sim } from "./sim.js";
 import { beginPlay } from "./zoneActions.js";
 import { frameCtx } from "./vm.js";
