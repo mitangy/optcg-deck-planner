@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { useLightboxPanel } from "./lightboxPanel";
 import { Dialog, Popover, PopoverButton, PopoverPanel, Select } from "@optcg/ui/popups";
 import {
   api,
@@ -253,7 +254,7 @@ function AlertPill({
 export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const alertsQ = usePriceAlerts();
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === cardId && a.product_id === productId);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useLightboxPanel("alert");
   const printingsQ = useQuery({
     queryKey: qk.cardPrintings(cardId),
     queryFn: () => api.cardPrintings(cardId),

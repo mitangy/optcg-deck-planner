@@ -432,11 +432,6 @@
   }
 }
 
-/* Only one floating panel at a time. */
-.lightbox-action:has(.lightbox-history-pop) .lightbox-alert-pop {
-  display: none;
-}
-
 .ph {
   display: grid;
   gap: 0.55rem;
