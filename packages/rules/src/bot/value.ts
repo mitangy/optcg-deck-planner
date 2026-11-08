@@ -1,4 +1,5 @@
 /** Card and board valuation shared by the bot's heuristics. Pure; reads only card definitions and the seat's own view. */
+import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import { cardHasUnconditionalKeyword } from "../cards/keywords.js";
 import type { Rng } from "../rng.js";
@@ -22,6 +23,28 @@ export function defValue(defId: string | undefined): number {
 /** A card on the field: its definition value, bumped by live power (buffs, attached DON!!). */
 export function boardValue(card: BoardCard): number {
   return defValue(card.defId) + Math.max(0, card.power - (card.printedPower ?? card.power)) / 2000;
+}
+
+/** What a Character's [On K.O.] pays back, in `defValue` points: about a card's worth of value (#1172). */
+export const ON_KO_VALUE = 2;
+
+/**
+ * `ON_KO_VALUE` when `card` (one of the bot's own Characters) has an [On K.O.] that would fire if it were K.O.'d right now, else 0.
+ * Negated effects, the wrong turn for an [Opponent's Turn]/[Your Turn] gate and a missing [DON!! xN] stop it. Other conditions
+ * (a Leader type, a hand size) are not checked: they are assumed to hold. Trashing does not trigger [On K.O.], so only K.O.s use this (#1172).
+ */
+export function onKoValue(view: BotView, card: BoardCard): number {
+  if (card.statusLabels.includes("Effects negated")) return 0;
+  const myTurn = view.activeSeat === view.seat;
+  const fires = abilitiesFor(card.defId).some((a) => a.trigger === "on_ko"
+    && card.attachedDonCount >= (a.don ?? 0)
+    && !a.conditions?.some((c) => (c.c === "opponent_turn" && myTurn) || (c.c === "your_turn" && !myTurn)));
+  return fires ? ON_KO_VALUE : 0;
+}
+
+/** What it costs the bot to have its own Character K.O.'d: its board value less what its [On K.O.] gives back (#1172). */
+export function lossValue(view: BotView, card: BoardCard): number {
+  return boardValue(card) - onKoValue(view, card);
 }
 
 export function isBlocker(card: BoardCard): boolean {

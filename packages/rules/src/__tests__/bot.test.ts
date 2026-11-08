@@ -6,6 +6,7 @@ import { createSeededRng } from "../rng.js";
 import { playBotGame, runSelfPlay } from "../sim/selfPlay.js";
 import { randomDeck } from "../sim/fuzz.js";
 import { buildTestDeck } from "../cards/definitions.js";
+import { onKoValue } from "../bot/value.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent } from "../types.js";
 
@@ -220,6 +221,76 @@ describe("bot redirects an attack with a Leader's [On Your Opponent's Attack] ef
     h.attack(h.state.players[0].leader, "leader");
     expect(h.choice?.request?.type).toBe("confirm");
     expect(bot(h, 1)).toEqual({ type: "resolve_pending_choice", accept: false });
+  });
+});
+
+describe("bots count a Character's [On K.O.] when choosing which one to lose (#1172)", () => {
+  /** Seat 0 (the bot) plays EB05-048, whose cost K.O.s one of its {Baroque Works} Characters; returns the card it gives up. */
+  function koCostPick(field: string[]) {
+    const h = new Harness({ leaders: [L, L] });
+    const cards = h.field(0, ...field);
+    h.hand(0, "EB05-048");
+    h.don(0, 3);
+    h.play(0, "EB05-048");
+    if (h.choice!.request?.type !== "select") h.accept();
+    const r = h.choice!.request!;
+    if (r.type !== "select") throw new Error("expected a select");
+    const answer = bot(h, 0) as Extract<Intent, { type: "resolve_pending_choice" }>;
+    const chosen = r.options.find((o) => o.id === answer.selectedOptionIds![0])!;
+    return { chosen, cards, h, answer, prompt: h.choice!.prompt };
+  }
+
+  it("bot gives up the Character with [On K.O.] when a cost K.O.s one of its own, over an equal one without (#1172)", () => {
+    // Both are worth 5 (cost 3, 4000); OP01-080 draws a card when K.O.'d and sits second so option order cannot pick it by accident.
+    const { chosen, cards, h, answer, prompt } = koCostPick(["OP01-084", "OP01-080"]);
+    expect(prompt).toMatch(/\bto K\.O\./);
+    expect(chosen.instanceId).toBe(cards[1]!.id);
+    expect(applyIntent(h.state, answer, { seat: 0 }).ok).toBe(true);
+  });
+
+  it("bot keeps the plain Character over a dearer one whose [On K.O.] pays it back when it must give one up (#1172)", () => {
+    // Taking OP01-080 (5) minus its bonus (2) = 3 beats OP01-085 (3.5, [On Play] only); by board value alone OP01-085 would go.
+    const { chosen, cards } = koCostPick(["OP01-085", "OP01-080"]);
+    expect(chosen.instanceId).toBe(cards[1]!.id);
+  });
+
+  it("an [Opponent's Turn] [On K.O.] counts for the bot on the opponent's turn only (#1172)", () => {
+    const h = new Harness({ leaders: [L, L] });
+    const [c] = h.field(1, "OP16-103");
+    const value = () => onKoValue(h.view(1), h.view(1).you.characters.find((x) => x.id === c!.id)!);
+    h.state.activeSeat = 0;
+    expect(value()).toBeGreaterThan(0);
+    h.state.activeSeat = 1;
+    expect(value()).toBe(0);
+  });
+
+  it("a Character whose effects are negated gets no [On K.O.] bonus (#1172)", () => {
+    const h = new Harness({ leaders: [L, L] });
+    const [c] = h.field(0, "OP01-080");
+    const card = h.view(0).you.characters.find((x) => x.id === c!.id)!;
+    expect(onKoValue(h.view(0), card)).toBeGreaterThan(0);
+    expect(onKoValue(h.view(0), { ...card, statusLabels: [...card.statusLabels, "Effects negated"] })).toBe(0);
+  });
+
+  it("a [DON!! x2] [On K.O.] counts only with 2 DON!! attached (#1172)", () => {
+    const h = new Harness({ leaders: [L, L] });
+    const [c] = h.field(0, "OP14-051");
+    const card = h.view(0).you.characters.find((x) => x.id === c!.id)!;
+    expect(onKoValue(h.view(0), { ...card, attachedDonCount: 1 })).toBe(0);
+    expect(onKoValue(h.view(0), { ...card, attachedDonCount: 2 })).toBeGreaterThan(0);
+  });
+
+  it("bot redirects an attack to the Character with [On K.O.] rather than a cheaper one that loses the same way (#1172)", () => {
+    // Seat 0's 5000 Leader beats both; Usopp-style OP16-102 (2.3) is dearer than OP09-095 (1.5) but pays back when K.O.'d.
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    const cards = h.field(1, "OP09-095", "OP16-102");
+    h.hand(1, "ST01-014");
+    h.attack(h.state.players[0].leader, "leader");
+    h.accept(1).forced();
+    const r = h.choice!.request!;
+    if (r.type !== "select") throw new Error("expected a select");
+    const answer = bot(h, 1) as Extract<Intent, { type: "resolve_pending_choice" }>;
+    expect(r.options.find((o) => o.id === answer.selectedOptionIds![0])!.instanceId).toBe(cards[1]!.id);
   });
 });
 

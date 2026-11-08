@@ -8,7 +8,7 @@ import type { ChoiceOption, ChoiceRequest, Intent, PendingChoice } from "../type
 import type { Rng } from "../rng.js";
 import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotLevel, BotView } from "./types.js";
-import { boardValue, defValue, findBoardCard } from "./value.js";
+import { boardValue, defValue, findBoardCard, lossValue } from "./value.js";
 
 type Look = Extract<ChoiceRequest, { type: "look" }>;
 type Purpose = "hurt" | "gain" | "cost";
@@ -17,6 +17,17 @@ function optionValue(view: BotView, o: ChoiceOption): number {
   const onBoard = o.instanceId ? findBoardCard(view, o.instanceId) : null;
   if (onBoard) return boardValue(onBoard.card);
   return defValue(o.defId);
+}
+
+/** Like `optionValue`, but for a card the bot is about to lose to a K.O.: an own Character's [On K.O.] counts as a plus (#1172). */
+function koLossValue(view: BotView, o: ChoiceOption): number {
+  const onBoard = o.instanceId ? findBoardCard(view, o.instanceId) : null;
+  return onBoard?.mine && onBoard.card.id !== view.you.leader.id ? lossValue(view, onBoard.card) : optionValue(view, o);
+}
+
+/** The options of a prompt that can be picked, best first by the bot's own ranking (the search tries the likeliest ones first, #1171). */
+export function rankedEligible(view: BotView, options: ChoiceOption[]): ChoiceOption[] {
+  return options.filter((o) => o.eligible).map((o) => ({ o, v: optionValue(view, o) })).sort((a, b) => b.v - a.v).map((x) => x.o);
 }
 
 function optionName(o: ChoiceOption): string {
@@ -73,9 +84,10 @@ function redirectTarget(view: BotView, eligible: ChoiceOption[]): ChoiceOption |
   const attacker = findBoardCard(view, view.battle!.attackerId)?.card;
   const others = eligible.filter((o) => o.instanceId !== cur);
   const chars = others.filter((o) => o.zone === "character");
-  const cheapest = (os: ChoiceOption[]) => [...os].sort((a, b) => optionValue(view, a) - optionValue(view, b))[0];
+  const cheapest = (os: ChoiceOption[], value = optionValue) => [...os].sort((a, b) => value(view, a) - value(view, b))[0];
   const holds = chars.filter((o) => attacker && (findBoardCard(view, o.instanceId ?? "")?.card.power ?? 0) >= attacker.power);
-  return cheapest(holds) ?? cheapest(chars) ?? cheapest(others) ?? null;
+  // One that loses the battle is K.O.'d, so its [On K.O.] pays back (#1172).
+  return cheapest(holds) ?? cheapest(chars, koLossValue) ?? cheapest(others) ?? null;
 }
 
 function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceRequest, { type: "select" }>): Intent | null {
@@ -87,7 +99,9 @@ function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceReq
   if (eligible.length < r.min) return null;
   if (!eligible.length) return { type: "resolve_pending_choice", accept: true, selectedOptionIds: [] };
   const kind = purpose(view, choice, eligible[0]!);
-  const scored = eligible.map((o) => ({ o, v: optionValue(view, o) }));
+  // The pick of a "K.O." (an effect's choice or a cost) is lost to a K.O., so an own Character's [On K.O.] makes it cheaper to give up (#1172).
+  const value = kind === "cost" && /\bto K\.O\./.test(choice.prompt) ? koLossValue : optionValue;
+  const scored = eligible.map((o) => ({ o, v: value(view, o) }));
   // Hurt and gain take the best cards, a cost gives up the cheapest ones. Stable on ties (option order).
   scored.sort((a, b) => (kind === "cost" ? a.v - b.v : b.v - a.v));
   const want = kind === "cost" ? r.min : r.max;
