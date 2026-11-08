@@ -81,5 +81,5 @@ test("Deck page: the card shows a +N collector chip and the alt tile a Collector
   await planner.open("/decks/1");
   await expect(page.locator(".collector-chip-sm:visible").first()).toHaveText("★ +1 collector");
   // The gold-stamped tile carries the word with the star, never the star alone.
-  await expect(page.locator(".alt-collector:visible").first()).toHaveText("★ Collector");
+  await expect(page.getByRole("button", { name: "Remove Izo (Gold-stamped) collector copy" }).locator("visible=true").first()).toHaveText("★ Collector");
 });

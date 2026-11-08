@@ -15,7 +15,7 @@ from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.models import LoginTicket, User
 from app.core.time import as_utc
-from app.roles import is_banned
+from app.roles import Role, is_banned
 
 SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
@@ -182,6 +182,9 @@ def resolve_google_user(
         user = db.scalar(select(User).where(User.email == email))
     if user is None:
         user = User(email=email, name=name, google_sub=sub)
+        # The admin may sign in for the first time after startup already ran sync_admin_role.
+        if email.strip().lower() == get_settings().admin_email.strip().lower():
+            user.role = Role.ADMIN
         db.add(user)
     else:
         if user.google_sub and user.google_sub != sub:

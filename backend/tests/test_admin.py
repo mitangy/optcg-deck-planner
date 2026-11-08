@@ -50,7 +50,7 @@ from app.social.models import DuelLobbySeen, DuelPresence, Friendship
 from app.roles import can_ban, can_delete, can_set_role
 from tests.test_duel import client  # noqa: F401  (fixture)
 
-ADMIN_EMAIL = "gamefreakmichaeltang@gmail.com"
+ADMIN_EMAIL = "optcgduel@gmail.com"
 SERVICE = {"X-Analyst-Service": "svc-secret"}
 NOW = datetime.now(timezone.utc)
 
@@ -1093,13 +1093,13 @@ def test_a_traffic_provider_error_never_carries_the_token_and_is_not_cached_1020
 def test_startup_makes_only_the_admin_email_admin_667(startup_engine):
     app_db.init_db()
     with startup_engine.begin() as conn:
-        for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test", "other@x.test"]):
+        for i, email in enumerate(["OptcgDuel@gmail.com", "someone@x.test", "other@x.test"]):
             conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (:i, :e, 'n', :s)"), {"i": i + 1, "e": email, "s": f"s{i}"})
         conn.execute(text("UPDATE users SET role = 'admin' WHERE email = 'someone@x.test'"))
     app_db.init_db()
     with startup_engine.connect() as conn:
         roles = dict(conn.execute(text("SELECT lower(email), role FROM users")).all())
-    assert roles == {"gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user", "other@x.test": "user"}
+    assert roles == {"optcgduel@gmail.com": "admin", "someone@x.test": "user", "other@x.test": "user"}
 
 
 def _replay_fixtures(S, p0: int, p1: int) -> None:

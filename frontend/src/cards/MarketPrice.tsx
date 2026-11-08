@@ -166,6 +166,8 @@ export function AltArtsRow({
   shownProductId = null,
   onShow,
   tileExtra,
+  onCollectorChange,
+  collectorBusyProductId = null,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -193,6 +195,9 @@ export function AltArtsRow({
   onShow?: (productId: number) => void;
   /** Extra content on its own full-width row at the bottom of every tile (0 = the Base tile), e.g. who wants it. */
   tileExtra?: (productId: number) => ReactNode;
+  /** Planner pages (#1035): turns each alt tile's read-only "★ Collector" label into a toggle. */
+  onCollectorChange?: (productId: number, qty: number) => void;
+  collectorBusyProductId?: number | null;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
@@ -216,7 +221,7 @@ export function AltArtsRow({
     ) : null;
 
   return (
-    <div className="alt-arts">
+    <div className={onCollectorChange ? "alt-arts alt-arts-collect" : "alt-arts"}>
       {base && (
         <div className="alt-art alt-art-base">
           <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} productId={0} />
@@ -289,7 +294,33 @@ export function AltArtsRow({
                   Alt
                 </span>
               )}
-              {(alt.collector ?? 0) > 0 ? (
+              {onCollectorChange ? (
+                (alt.collector ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    className="alt-collector-btn is-on"
+                    aria-pressed={true}
+                    aria-label={`Remove ${alt.name} collector copy`}
+                    title="Remove this collector copy"
+                    disabled={collectorBusyProductId === alt.product_id}
+                    onClick={() => onCollectorChange(alt.product_id, 0)}
+                  >
+                    ★ Collector{(alt.collector ?? 0) > 1 ? ` ×${alt.collector}` : ""}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="alt-collector-btn"
+                    aria-pressed={false}
+                    aria-label={`Want ${alt.name} as a collector copy`}
+                    title="Want this art as a collector copy, on top of your decks"
+                    disabled={collectorBusyProductId === alt.product_id}
+                    onClick={() => onCollectorChange(alt.product_id, 1)}
+                  >
+                    ☆ Collect
+                  </button>
+                )
+              ) : (alt.collector ?? 0) > 0 ? (
                 <span className="alt-collector" title="You want this art as a collector copy, on top of your decks">
                   ★ Collector
                 </span>

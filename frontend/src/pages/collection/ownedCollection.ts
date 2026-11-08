@@ -106,6 +106,27 @@ export function patchOwnedCollectionAlt(
   };
 }
 
+/** Set one alt's collector want (#1035) on a card in the cached collection. Other cards and alts are untouched. */
+export function patchOwnedCollectionCollector(
+  old: OwnedCollectionResponse,
+  cardId: string,
+  productId: number,
+  qty: number,
+): OwnedCollectionResponse {
+  const id = cardId.toUpperCase();
+  return {
+    ...old,
+    items: old.items.map((item) =>
+      item.card_id.toUpperCase() === id
+        ? {
+            ...item,
+            alt_arts: (item.alt_arts ?? []).map((a) => (a.product_id === productId ? { ...a, collector: qty } : a)),
+          }
+        : item,
+    ),
+  };
+}
+
 /** Patch the chosen art (null = automatic, 0 = base) onto a card in the cached collection. */
 export function patchOwnedCollectionDisplayArt(
   old: OwnedCollectionResponse,
