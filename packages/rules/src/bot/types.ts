@@ -2,6 +2,7 @@ import type { getPlayerView } from "../engine.js";
 import type { Rng } from "../rng.js";
 import type { Intent } from "../types.js";
 import type { PriorChoice } from "./determinize.js";
+import type { ValueModel } from "./valueModel.js";
 
 export type BotView = ReturnType<typeof getPlayerView>;
 export type BotLevel = "easy" | "normal" | "hard";
@@ -20,6 +21,8 @@ export interface BotOptions {
   horizonTurns?: 1 | 2;
   /** Hard only (#635): what a rollout's end position is scored with. "learned" = log odds from the fitted value model, "hand" = the hand-tuned `evaluate` (#631). */
   evalMode?: "learned" | "hand";
+  /** Hard only: the learned value model behind winProb / evalMode "learned" (default: the committed valueWeights.json). For experiments with other fits. */
+  valueWeights?: ValueModel;
   /** Hard only (#635): what the bot assumes about the opponent's hidden cards. A DeckPrior (default: the bundled meta lists), or "true" for the legacy exact hidden multiset. */
   prior?: PriorChoice;
   /** Hard only (#635): how the opponent plays in rollouts. "normal" = the normal policy, "greedy" = normal's candidates scored one move ahead with the learned model. */
