@@ -110,6 +110,14 @@ describe("BuySplit action line (#1166)", () => {
     expect(buySplitActionLabel(card(2, [alt(1, 10, 2)]))).toBe("Arts: 2 alt");
   });
 
+  it("the label counts collector copies still to buy, since the price includes them (#1167)", () => {
+    const withCollector = { ...alt(2, 30), collector: 1, owned: 0 };
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), withCollector]))).toBe("Arts: 1 alt + 1 base + 1 ★");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 0), withCollector]))).toBe("Choose arts + 1 ★");
+    const ownedCollector = { ...alt(2, 30), collector: 1, owned: 1 };
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1), ownedCollector]))).toBe("Arts: 1 alt + 1 base");
+  });
+
   it("the label is the collector copy when nothing is left to buy (#1166)", () => {
     expect(buySplitActionLabel(card(0, [alt(1, 10, 0)]))).toBe("★ Collector copy");
   });

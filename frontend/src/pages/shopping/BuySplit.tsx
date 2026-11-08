@@ -43,7 +43,15 @@ export function buySplitActionLabel(
 ): string {
   if (collectorOnly) return "★ Collector copy";
   const caption = buySplitCaption(card);
-  return caption ? `Arts: ${caption}` : "Choose arts";
+  const label = caption ? `Arts: ${caption}` : "Choose arts";
+  // Collector copies still to buy are in the price too (#1167), so the line says so.
+  const collector = collectorStillToBuy(card.alt_arts);
+  return collector > 0 ? `${label} + ${collector} ★` : label;
+}
+
+/** Collector copies (#1031) still to buy across a card's alt arts: wanted minus owned. */
+export function collectorStillToBuy(alts: Pick<PrintingView, "owned" | "collector">[] | null | undefined): number {
+  return (alts ?? []).reduce((n, a) => n + Math.max(0, (a.collector ?? 0) - (a.owned ?? 0)), 0);
 }
 
 /** Two fanned cards: the "pick which printing" glyph beside the action line. */
