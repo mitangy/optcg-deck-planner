@@ -8,7 +8,7 @@ import {
   collectorStillTotal,
   refreshCollectorHave,
 } from "../pages/collection/collectorLines";
-import { patchOwnedCollection, patchOwnedCollectionAlt } from "../pages/collection/ownedCollection";
+import { patchOwnedCollection, patchOwnedCollectionAlt, patchOwnedCollectionCollector } from "../pages/collection/ownedCollection";
 import { qk } from "./queryKeys";
 
 function sumAltOwned(alts: { owned?: number }[]): number {
@@ -129,7 +129,7 @@ export function applyAltBuyOptimistic(
   );
 }
 
-/** Sets one collector want in the cached shopping lists and deck pages (#1031). */
+/** Sets one collector want in the cached shopping lists, deck pages and Collection (#1031, #1035). */
 export function applyCollectorOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -151,6 +151,9 @@ export function applyCollectorOptimistic(
           }),
         }
       : old,
+  );
+  qc.setQueriesData<OwnedCollectionResponse>({ queryKey: qk.owned.all() }, (old) =>
+    old ? patchOwnedCollectionCollector(old, id, productId, qty) : old,
   );
 }
 

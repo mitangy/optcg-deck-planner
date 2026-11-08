@@ -155,6 +155,9 @@ export function ShoppingPage() {
     setError: setAltOwnedErr,
     changeAltOwned: changeShoppingAltOwned,
     changeAltBuy: changeShoppingAltBuy,
+    changeCollector,
+    collectorBusyKey,
+    collectorBusyProductId,
     changeDisplayArt: changeShoppingDisplayArt,
     busyProductId: altOwnedBusyProductId,
   } = useCardEdits({
@@ -168,24 +171,8 @@ export function ShoppingPage() {
   const sortingByDeck = effectiveSorts.includes("deck");
 
 
-  const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
   const [collectorUndo, setCollectorUndo] = useState<{ cardId: string; productId: number; qty: number; label: string } | null>(null);
   const dismissCollectorUndo = useCallback(() => setCollectorUndo(null), []);
-
-  const changeCollector = async (cardId: string, productId: number, qty: number) => {
-    setAltOwnedErr(null);
-    setCollectorBusyKey(busyKeyFor(cardId, productId));
-    applyCollectorOptimistic(qc, cardId, productId, qty);
-    try {
-      const res = await api.setCollectorWant(cardId, productId, qty);
-      applyCollectorOptimistic(qc, cardId, productId, res.qty);
-    } catch (e) {
-      setAltOwnedErr((e as Error).message);
-    } finally {
-      invalidateCollectorViews(qc);
-      setCollectorBusyKey(null);
-    }
-  };
 
   const removeCollector = async (cardId: string, line: CollectorLine) => {
     setCollectorUndo({ cardId, productId: line.product_id, qty: line.want, label: line.label });
@@ -224,6 +211,12 @@ export function ShoppingPage() {
       showBuyPicks={item.still_need > 0}
       shownProductId={shownProductId(item)}
       onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
+      onCollectorChange={(productId, qty) => {
+        const line = (item.collector_wants ?? []).find((l) => l.product_id === productId);
+        if (qty === 0 && line) void removeCollector(item.card_id, line);
+        else void changeCollector(item.card_id, productId, qty);
+      }}
+      collectorBusyProductId={collectorBusyProductId(item.card_id)}
       busyProductId={altOwnedBusyProductId(item.card_id)}
     />
   );

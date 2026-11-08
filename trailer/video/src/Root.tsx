@@ -7,6 +7,9 @@ import {LAYOUT_16x9, LAYOUT_4x5, LAYOUT_9x16} from './layout';
 import {SCENES, TOTAL_SECONDS} from './scenes.config';
 import {BEAT, FPS} from './theme';
 import {TrailerComp} from './Trailer';
+import {MOTION_9x16, MOTION_16x9} from './motion/layout';
+import {MotionPiece} from './motion/MotionPiece';
+import {MOTION_TOTAL} from './motion/timing';
 
 // Cuts should land on the 120 BPM grid (0.5s) so a licensed 120 BPM track lines up.
 for (const s of [...SCENES, ...AD15.scenes, ...AD30.scenes]) {
@@ -21,6 +24,9 @@ const Ad15x9: React.FC = () => <TrailerComp layout={LAYOUT_9x16} edit={AD15} />;
 const Ad15x4: React.FC = () => <TrailerComp layout={LAYOUT_4x5} edit={AD15} />;
 const Ad30x9: React.FC = () => <TrailerComp layout={LAYOUT_9x16} edit={AD30} />;
 const Ad30x4: React.FC = () => <TrailerComp layout={LAYOUT_4x5} edit={AD30} />;
+
+const Motion16x9: React.FC = () => <MotionPiece layout={MOTION_16x9} />;
+const Motion9x16: React.FC = () => <MotionPiece layout={MOTION_9x16} />;
 
 export const Root: React.FC = () => (
   <>
@@ -41,5 +47,7 @@ export const Root: React.FC = () => (
     <Composition id="Ad30-9x16" component={Ad30x9} durationInFrames={AD30.total * FPS} fps={FPS} width={1080} height={1920} />
     <Composition id="Ad30-4x5" component={Ad30x4} durationInFrames={AD30.total * FPS} fps={FPS} width={1080} height={1350} />
     <Composition id="Trailer9x16" component={Trailer9x16} durationInFrames={TOTAL_SECONDS * FPS} fps={FPS} width={1080} height={1920} />
+    <Composition id="Motion16x9" component={Motion16x9} durationInFrames={MOTION_TOTAL} fps={FPS} width={1920} height={1080} />
+    <Composition id="Motion9x16" component={Motion9x16} durationInFrames={MOTION_TOTAL} fps={FPS} width={1080} height={1920} />
   </>
 );
