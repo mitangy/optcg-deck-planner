@@ -14,6 +14,9 @@ class GroupBuyCreate(BaseModel):
 
 class GroupBuyContributionUpdate(BaseModel):
     deck_ids: list[int] | None = None
+    # None = leave the member's current setting unchanged (older clients send only deck_ids).
+    include_singles: bool | None = None
+    include_extra_copies: bool | None = None
 
 
 class GroupBuyQtyUpdate(BaseModel):
@@ -41,6 +44,9 @@ class GroupBuyMemberOut(BaseModel):
     display_name: str
     role: str
     deck_ids: list[int] | None = None
+    # Contribution settings (#1177); only meaningful while the group is open.
+    include_singles: bool = True
+    include_extra_copies: bool = False
     # Member's shopping "Copies needed" mode (True = separate per leader).
     # None once quantities are frozen, since the live setting no longer applies.
     sum_across_leaders: bool | None = None
