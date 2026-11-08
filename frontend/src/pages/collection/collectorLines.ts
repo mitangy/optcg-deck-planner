@@ -40,6 +40,17 @@ export function collectorCostTotal(items: { collector_wants?: CollectorLine[] | 
   return items.reduce((n, i) => n + (i.collector_wants ?? []).reduce((m, l) => m + (l.remaining_cost ?? 0), 0), 0);
 }
 
+/**
+ * What is left to spend on one card on Master Shopping (#1167): the decks' remaining cost plus the cost of its
+ * collector copies still to buy. Null only when the deck part is unpriced while copies are still needed.
+ */
+export function shoppingLeftCost(
+  item: Pick<ShoppingItem, "still_need" | "remaining_cost"> & { collector_wants?: CollectorLine[] | null },
+): number | null {
+  if (item.remaining_cost == null && item.still_need > 0) return null;
+  return Math.round(((item.remaining_cost ?? 0) + collectorCostTotal([item])) * 100) / 100;
+}
+
 /** Copies of an alt art that count toward decks: owned minus the ones held back as collector copies. */
 export function deckOwnedOfAlt(alt: Pick<PrintingView, "owned" | "collector">): number {
   const owned = alt.owned ?? 0;

@@ -7,6 +7,7 @@ import {
   collectorHaveText,
   collectorOnTopOf,
   collectorSelectKey,
+  shoppingLeftCost,
   visibleCollectorLines,
 } from "../collection/collectorLines";
 import { type CardLayout } from "../../ui/CardLayout";
@@ -79,7 +80,7 @@ export function shoppingColumnValue(item: ShoppingItem, key: string) {
     case "market":
       return shownMarket(item).price;
     case "remaining":
-      return item.remaining_cost;
+      return shoppingLeftCost(item);
     case "cost":
       return costSortValue(item.cost);
     case "used":
@@ -204,7 +205,7 @@ export function ShoppingItemsView({
   const buySplit = (item: ShoppingItem, prefix = "") => (
     <BuySplit
       card={item}
-      amount={money(item.remaining_cost)}
+      amount={money(shoppingLeftCost(item))}
       prefix={prefix}
       onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
       busyProductId={busyProductFor(buyBusyKey, item.card_id)}

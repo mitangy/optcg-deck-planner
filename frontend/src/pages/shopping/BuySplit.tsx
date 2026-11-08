@@ -32,6 +32,38 @@ export function buySplitCaption(card: Pick<BuySplitCard, "still_need" | "market_
   return `${altCopies} alt${baseCopies > 0 ? ` + ${baseCopies} base` : ""}`;
 }
 
+/**
+ * The action line under the amount (#1166): says the price is a control and what it does.
+ * "Choose arts" with no picks, "1 alt + 1 base" once picked, "★ Extra copy" when nothing
+ * is left to buy and the popover only offers the collector picker.
+ */
+export function buySplitActionLabel(
+  card: Pick<BuySplitCard, "still_need" | "market_price" | "alt_arts">,
+  collectorOnly = card.still_need <= 0,
+): string {
+  if (collectorOnly) return "★ Extra copy";
+  const caption = buySplitCaption(card);
+  const label = caption ?? "Choose arts";
+  // Collector copies still to buy are in the price too (#1167), so the line says so.
+  const collector = collectorStillToBuy(card.alt_arts);
+  return collector > 0 ? `${label} + ${collector} ★` : label;
+}
+
+/** Collector copies (#1031) still to buy across a card's alt arts: wanted minus owned. */
+export function collectorStillToBuy(alts: Pick<PrintingView, "owned" | "collector">[] | null | undefined): number {
+  return (alts ?? []).reduce((n, a) => n + Math.max(0, (a.collector ?? 0) - (a.owned ?? 0)), 0);
+}
+
+/** Two fanned cards: the "pick which printing" glyph beside the action line. */
+function ArtsIcon() {
+  return (
+    <svg className="buy-split-icon" viewBox="0 0 16 16" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <rect x="1.75" y="3.5" width="7.5" height="10.5" rx="1.4" transform="rotate(-12 5.5 8.75)" />
+      <rect x="6.75" y="2" width="7.5" height="10.5" rx="1.4" fill="var(--card)" transform="rotate(8 10.5 7.25)" />
+    </svg>
+  );
+}
+
 /** Copies left for the standard art once the alt picks come out of what is still needed. */
 export function baseCopiesLeft(card: Pick<BuySplitCard, "still_need" | "alt_arts">): number {
   const picked = (card.alt_arts ?? []).reduce((n, a) => n + altBuyCopies(a), 0);
@@ -252,7 +284,8 @@ export function BuySplit({
       </span>
     ) : null;
   }
-  const caption = buySplitCaption(card);
+  const collectorOnly = card.still_need <= 0;
+  const action = buySplitActionLabel(card, collectorOnly);
   return (
     // The panel renders in a portal but React events still bubble to the row, which selects on tap.
     <span className="buy-split" onClick={stopBubble} onKeyDown={stopBubble}>
@@ -260,7 +293,7 @@ export function BuySplit({
         <PopoverButton
           type="button"
           className="buy-split-box buy-split-btn"
-          title={`Choose which art to buy for ${card.name}`}
+          title={collectorOnly ? `Add an extra copy of ${card.name}` : `Choose which arts to buy for ${card.name}`}
           data-buy-split={card.card_id}
         >
           <span className="buy-split-amount">
@@ -271,7 +304,10 @@ export function BuySplit({
               ▾
             </span>
           </span>
-          {caption ? <span className="buy-split-caption">{caption}</span> : null}
+          <span className="buy-split-action">
+            {collectorOnly ? null : <ArtsIcon />}
+            <span className="buy-split-action-text">{action}</span>
+          </span>
         </PopoverButton>
         {/* Phone sheet: dim the page behind it. In a portal so no table cell or card can trap it under the list. */}
         {phone

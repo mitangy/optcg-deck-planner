@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
+  { date: "2026-11-08", app: "planner", pr: 1167, title: "The price beside a card says what it does", text: "The price beside a card now has a button look and says \"Choose arts\" (or which arts you picked, plus any extra copies), so it's clear you can tap it to pick which alt arts to buy. Extra copies you still need to buy now count in that card's price left too." },
   { date: "2026-11-08", app: "duel", pr: 1170, title: "Bots redirect attacks properly", text: "When a bot pays to change an attack's target, such as with the Marshall.D.Teach Leader, it now moves the attack to one of its Characters instead of keeping it on the Leader." },
   { date: "2026-11-08", app: "planner", pr: 1165, title: "Collector is now Extra copy", text: "Collector copies are now called Extra copy, so it is clear they add a copy on top of what your decks need. On alt art tiles Buy ×N now reads Buying ×N. Picking an extra copy of the art your deck copy already uses asks first. Adding an alt art from Master Shopping's Add cards now buys that copy as the alt art." },
   { date: "2026-11-08", app: "planner", pr: 1164, title: "Price alert Edit works with Price history open", text: "Under an enlarged card, Edit on your price alert now opens the alert editor even when Price history is open, and opening one closes the other." },
