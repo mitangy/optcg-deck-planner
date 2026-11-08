@@ -747,7 +747,9 @@ export function adaptValue(adapter: SourceAdapter | undefined, tool: string, val
     // The API refuses a tool result that mixes search results with plain text, so the notes become one source of their own.
     const note = notes.length ? searchResult(`note:${tool}`, "Lookup notes", notes) : null;
     return [...results.slice(0, MAX_RESULTS), ...(note ? [note] : [])];
-  } catch {
+  } catch (err) {
+    // The model still gets the plain text, so nothing changes for the player; the log says which adapter broke.
+    console.warn(JSON.stringify({ event: "citation_adapter_error", tool, message: err instanceof Error ? err.message : String(err) }));
     return null;
   }
 }

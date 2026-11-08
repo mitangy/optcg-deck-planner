@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CatalogCardResult } from "../../api";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
+import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "./ownedCollection";
 import { OwnedInput } from "../OwnedInputs";
 import { useFullShoppingById } from "../shopping/lightboxActions";
 import { CatalogAddDrawer } from "./CatalogAddDrawer";
 import { COLLECTION_ADD_OPEN_KEY } from "../../storage/keys";
+import { qk } from "../../cache/queryKeys";
 
 /** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
 export function CollectionOwnedControl({
@@ -51,7 +52,7 @@ export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResul
     mutationFn: (qty: number) => api.setAltOwned(card.card_id, productId, qty),
     onSuccess: () => {
       invalidateOwnedViews(qc);
-      void qc.invalidateQueries({ queryKey: ["catalog-search"] });
+      void qc.invalidateQueries({ queryKey: qk.catalogSearch.all() });
       onSaved();
     },
   });

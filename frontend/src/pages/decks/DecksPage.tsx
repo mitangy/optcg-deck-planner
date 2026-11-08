@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, DeckSummary } from "../../api";
-import { savedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { CompassIcon } from "../../ThemeIcons";
-import { CardArtImg } from "../../CardThumb";
-import { DecksListSkeleton } from "../../Skeleton";
+import { savedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { CompassIcon } from "../../ui/ThemeIcons";
+import { CardArtImg } from "../../ui/CardThumb";
+import { DecksListSkeleton } from "../../ui/Skeleton";
+import { qk } from "../../cache/queryKeys";
 
 type DeckLeaderGroup = {
   key: string;
@@ -79,14 +80,14 @@ function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: nu
 export function DecksPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const { data, isLoading, error } = useQuery({ queryKey: qk.decks(), queryFn: api.decks });
   const needsLeaderArtFallback = useMemo(
     () => (data ?? []).some((d) => Boolean(d.leader_card_id) && !d.leader_image_url),
     [data],
   );
   // Prod API may lag behind the SPA (Render deploy). Fall back to shopping catalog art.
   const leaderArtQ = useQuery({
-    queryKey: ["shopping", "leader-art-fallback"],
+    queryKey: qk.shopping.leaderArtFallback(),
     queryFn: () => api.shopping(),
     enabled: needsLeaderArtFallback,
     staleTime: 60_000,
@@ -106,20 +107,20 @@ export function DecksPage() {
   const del = useMutation({
     mutationFn: api.deleteDeck,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
       invalidateOwnedViews(qc);
     },
   });
   const setMain = useMutation({
     mutationFn: api.setDeckAsMain,
     onSuccess: (detail) => {
-      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
       // Cached with the unfiltered response only when Include decks is not narrowed.
-      if (!savedShoppingDeckIds(qc.getQueryData<DeckSummary[]>(["decks"])?.map((d) => d.id) ?? [])) {
-        qc.setQueryData(["deck", detail.id], detail);
+      if (!savedShoppingDeckIds(qc.getQueryData<DeckSummary[]>(qk.decks())?.map((d) => d.id) ?? [])) {
+        qc.setQueryData(qk.deck.byId(detail.id), detail);
       }
       // Other same-leader decks change which cards are Additional.
-      void qc.invalidateQueries({ queryKey: ["deck"] });
+      void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });
 

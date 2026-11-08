@@ -3,8 +3,8 @@ export type ToolResult = {
   content: { type: "text"; text: string }[];
   isError?: boolean;
   /**
-   * The value behind a JSON answer (`content` is its JSON text). Citation adapters and the chat's `onProposal`-style
-   * callbacks read this, so nothing parses the text back. Never sent over MCP: see `toMcpResult`.
+   * The value behind a JSON answer (`content` is its JSON text). Citation adapters and the chat's client-action handlers
+   * read this, so nothing parses the text back. Never sent over MCP: see `toMcpResult`.
    */
   value?: unknown;
 };

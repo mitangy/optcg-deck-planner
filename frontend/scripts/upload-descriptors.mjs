@@ -19,7 +19,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { put } from "@vercel/blob";
-import { descriptorChunkFiles } from "../src/descriptorCache.ts";
+import { descriptorChunkFiles } from "../src/scanner/match/descriptorCache.ts";
 
 /** Everything lives under one prefix so a stale bundle can be identified. */
 const PREFIX = "scan-data";

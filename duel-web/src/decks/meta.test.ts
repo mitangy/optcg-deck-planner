@@ -7,7 +7,6 @@ import {
   formatDeckRow,
   groupByCost,
   metaDeckName,
-  ordinal,
   playMetaDeck,
   type MetaDeck,
 } from "./meta";
@@ -30,28 +29,6 @@ beforeEach(() => {
       return memory.size;
     },
   };
-});
-
-describe("meta deck names (#443)", () => {
-  it("ordinals use th for 11 to 13 and st/nd/rd otherwise (#443)", () => {
-    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinal)).toEqual([
-      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "111th",
-    ]);
-  });
-
-  it("names a deck with leader, ordinal placing and event (#443)", () => {
-    expect(metaDeckName("Silvers Rayleigh", "OP12-001", "Weekly Cup", 1)).toBe("Silvers Rayleigh – 1st Weekly Cup");
-  });
-
-  it("omits the placing when there is none and falls back to the leader id (#443)", () => {
-    expect(metaDeckName("", "OP12-001", "Weekly Cup", null)).toBe("OP12-001 – Weekly Cup");
-  });
-
-  it("trims long names to the planner's name limit (#443)", () => {
-    const name = metaDeckName("Leader", "OP12-001", "E".repeat(500), 2);
-    expect(name).toHaveLength(200);
-    expect(name.startsWith("Leader – 2nd EEE")).toBe(true);
-  });
 });
 
 describe("meta deck rows (#443)", () => {
@@ -114,7 +91,7 @@ describe("Play this deck online (#914)", () => {
     const saved = getSavedDeck(result.deckId)!;
     expect(saved.leaderId).toBe("OP17-039");
     expect(deckSignature(saved.leaderId, saved.cards)).toBe(deckSignature("OP17-039", addMetaDeckCards(chosen)));
-    expect(saved.name).toBe(metaDeckName(fixture.name, "OP17-039", chosen.event, chosen.placing));
+    expect(saved.name).toBe(metaDeckName(fixture.name, "OP17-039", chosen));
   });
 
   it("playing the same list twice reuses the saved copy and selects it again (#914)", () => {

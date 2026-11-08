@@ -1,6 +1,6 @@
 /** Card-number helpers shared by every app and package. No dependencies (rules cannot import `ui`, and duel-web's main bundle cannot import rules). */
 
-/** Cards in a legal main deck (the Leader and DON!! are separate). Python mirror: `backend/app/deck_link.py` `COMPLETE_MAIN`. */
+/** Cards in a legal main deck (the Leader and DON!! are separate). Python mirror: `backend/app/planner/deck_link.py` `COMPLETE_MAIN`. */
 export const MAIN_DECK_SIZE = 50;
 
 /** A whole printed card number such as `OP01-001`, `ST01-014` or `P-001` (after `normalizeCardId`). */

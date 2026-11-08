@@ -1,21 +1,22 @@
-import { GroupBuysListSkeleton } from "../../Skeleton";
-import { ShipIcon } from "../../ThemeIcons";
+import { GroupBuysListSkeleton } from "../../ui/Skeleton";
+import { ShipIcon } from "../../ui/ThemeIcons";
 import { api, money } from "../../api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { qk } from "../../cache/queryKeys";
 
 export function GroupBuysPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const listQ = useQuery({ queryKey: ["group-buys"], queryFn: api.groupBuys });
+  const listQ = useQuery({ queryKey: qk.groupBuys(), queryFn: api.groupBuys });
   const [title, setTitle] = useState("Group buy");
   const [msg, setMsg] = useState<string | null>(null);
 
   const create = useMutation({
     mutationFn: () => api.createGroupBuy({ title: title.trim() || "Group buy" }),
     onSuccess: async (detail) => {
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       navigate(`/group-buys/${detail.id}`);
     },
     onError: (e: Error) => setMsg(e.message),

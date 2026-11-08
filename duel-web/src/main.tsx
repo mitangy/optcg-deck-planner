@@ -3,12 +3,12 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { createAnalyticsBeforeSend, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
-import { analyticsBeforeSend } from "./analytics";
-import { startAccountSync } from "./account/accountSync";
+import { watchAccountSync } from "./account/accountSync";
 import { App } from "./App";
-import { startUpdateChecks } from "./appVersion";
 import { DuelSessionProvider } from "./state/DuelSession";
+import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "./themes.css";
 import "./ui.css";
@@ -25,10 +25,13 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 
+// Only origin + path reach analytics: auth tokens sit in the hash and invite codes in `?join=`.
+const analyticsBeforeSend = createAnalyticsBeforeSend();
+
 // Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
 // Signed-in players get their settings and playmat / card back from the account.
-void startAccountSync();
+watchAccountSync();
 // Lobby and Settings say when a newer deploy is live than this bundle.
 startUpdateChecks();
 

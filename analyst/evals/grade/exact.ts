@@ -3,7 +3,7 @@
  * percentage. The verdict itself is read out of the answer by the judge (see judge.ts).
  */
 import type { Catalog } from "../../src/catalog";
-import type { Gold, Verdict } from "../types";
+import type { Gold, Verdict } from "../qa/types";
 import { closePercent, extractFacts } from "./extract";
 
 const ODDS_TOL = 0.05;

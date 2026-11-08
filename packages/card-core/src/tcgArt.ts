@@ -1,6 +1,6 @@
 /**
  * TCGPlayer CDN art helpers. The card-number -> product-id map is `tcgProducts.json`, the one
- * copy (read by rules, duel-web and `scripts/sync_alt_arts.py` / `sync_preview_art.py`).
+ * copy (read by rules, duel-web and `backend/scripts/sync_alt_arts.py` / `sync_preview_art.py`).
  * Prefer `_400w` in atlas URLs; clients may rewrite to `_in_1000x1000` for inspect.
  */
 import productsJson from "./tcgProducts.json" with { type: "json" };

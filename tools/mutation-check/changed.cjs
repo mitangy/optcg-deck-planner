@@ -120,9 +120,10 @@ const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
  * Seconds for one full run of a suite, observed in CI (#737). A mutation without
  * `args` re-runs the whole suite: duel-web about 45 s (1424 tests; run 40169242767
  * took 3.8 min for 4), analyst about 74 s (588 tests; the #729 run took 21 min per
- * part for 24). Every part also pays one baseline full run.
+ * part for 24). Every part also pays one baseline full run. Rules and frontend were
+ * re-measured in #1147: rules about 50 s (51 in 45 min), frontend about 17 s (158 in 45 min).
  */
-const SECONDS_PER_MUTATION = { rules: 22, "game-server": 25, "duel-web": 45, frontend: 10, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "card-core": 3, "deck-analytics": 3, "price-timing": 3, "patch-notes": 3, ui: 3, "site-legal": 3, "duel-protocol": 3 };
+const SECONDS_PER_MUTATION = { rules: 50, "game-server": 25, "duel-web": 45, frontend: 17, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "card-core": 3, "api-client": 3, "analyst-contract": 3, "deck-analytics": 3, "price-timing": 3, "patch-notes": 3, ui: 3, "site-legal": 3, "duel-protocol": 3 };
 const DEFAULT_SECONDS = 5;
 /** A mutation with `args` runs one test file: about 5-7 s (#729: 11 narrow duel-web mutations took about 1 min per part). */
 const NARROW_SECONDS = 6;
@@ -130,12 +131,20 @@ const NARROW_SECONDS = 6;
 const NARROW_SECONDS_BY_SUITE = { analyst: 16 };
 const MAX_PARTS = 8;
 const TARGET_PART_SECONDS = 150;
+/**
+ * Past MAX_PARTS, a part that would still run longer than this gets split again (up to
+ * HARD_MAX_PARTS), so a big file move stays inside the parts job's 45-minute timeout.
+ * #1147: 10 suites took all 8 parts and a 414-id frontend part timed out; 4.3b re-runs
+ * 1160 duel-web mutations (about 14 runner-hours).
+ */
+const MAX_PART_SECONDS = 25 * 60;
+const HARD_MAX_PARTS = 48;
 
 /**
  * Split changed ids into parts for parallel runners. An id with `args` costs
  * NARROW_SECONDS, any other the suite's full-run weight; every part also pays
  * one baseline full run. Greedily gives the costliest suite another part while
- * the cap allows, and fills each part longest id first onto the lightest part.
+ * the cap allows (or, past the cap, while a part would exceed MAX_PART_SECONDS), and fills each part longest id first onto the lightest part.
  */
 function planMatrix(suites) {
   const plan = suites.map(({ name, ids, narrow }) => {
@@ -155,9 +164,10 @@ function planMatrix(suites) {
   };
   const cost = (s) => s.w + Math.max(...split(s, s.parts).map((b) => b.load));
   for (;;) {
-    if (plan.reduce((n, s) => n + s.parts, 0) >= MAX_PARTS) break;
+    const total = plan.reduce((n, s) => n + s.parts, 0);
     const next = plan.filter((s) => s.parts < s.ids.length).sort((a, b) => cost(b) - cost(a))[0];
     if (!next || cost(next) <= TARGET_PART_SECONDS) break;
+    if (total >= MAX_PARTS && (cost(next) <= MAX_PART_SECONDS || total >= HARD_MAX_PARTS)) break;
     next.parts += 1;
   }
   const out = [];

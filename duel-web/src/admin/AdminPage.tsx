@@ -1,8 +1,7 @@
+import { PageShell } from "../layout/PageShell";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./admin.css";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "../pages/BackLink";
 import {
   type AdminBots,
   type AdminHosting,
@@ -128,43 +127,35 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="page adm-page">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">Admin</h1>
-          <span className="adm-role">{who.me.role}</span>
-        </header>
+    <PageShell pageClass="adm-page" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Admin" headerExtra={<span className="adm-role">{who.me.role}</span>}>
 
-        <TabGroup
-          selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
-          onChange={(i) => setTab(tabs[i]!.id)}
-        >
-          <div className="adm-tabbar">
-            <TabList className="adm-tabs" aria-label="Admin sections">
-              {tabs.map((t) => (
-                <Tab key={t.id} className="adm-tab">
-                  {t.label}
-                </Tab>
-              ))}
-            </TabList>
-            {tabData ? (
-              <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
-                Refresh
-              </button>
-            ) : null}
-          </div>
-
-          <TabPanels>
+      <TabGroup
+        selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
+        onChange={(i) => setTab(tabs[i]!.id)}
+      >
+        <div className="adm-tabbar">
+          <TabList className="adm-tabs" aria-label="Admin sections">
             {tabs.map((t) => (
-              <TabPanel key={t.id} className="adm-body">
-                {t.id === current ? body() : null}
-              </TabPanel>
+              <Tab key={t.id} className="adm-tab">
+                {t.label}
+              </Tab>
             ))}
-          </TabPanels>
-        </TabGroup>
-      </div>
-    </div>
+          </TabList>
+          {tabData ? (
+            <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
+              Refresh
+            </button>
+          ) : null}
+        </div>
+
+        <TabPanels>
+          {tabs.map((t) => (
+            <TabPanel key={t.id} className="adm-body">
+              {t.id === current ? body() : null}
+            </TabPanel>
+          ))}
+        </TabPanels>
+      </TabGroup>
+    </PageShell>
   );
 }

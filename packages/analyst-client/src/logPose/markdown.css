@@ -1,0 +1,115 @@
+/* ——— Markdown inside answers ——— */
+
+.lp-md {
+  min-width: 0;
+}
+
+.lp-md > :first-child {
+  margin-top: 0;
+}
+
+.lp-md > :last-child {
+  margin-bottom: 0;
+}
+
+.lp-md p,
+.lp-md ul,
+.lp-md ol,
+.lp-md pre,
+.lp-md .lp-md-table {
+  margin: 0 0 0.6em;
+}
+
+.lp-md ul,
+.lp-md ol {
+  padding-left: 1.3em;
+}
+
+.lp-md li + li {
+  margin-top: 0.2em;
+}
+
+.lp-md .lp-md-h {
+  font-weight: 700;
+  margin-top: 0.8em;
+}
+
+.lp-md .lp-md-h1 {
+  font-size: 1.08em;
+}
+
+.lp-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.05em 0.3em;
+  border-radius: var(--radius-4);
+  background: color-mix(in srgb, var(--lp-ink-d) 8%, transparent);
+}
+
+.lp-md-pre {
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius-8);
+  background: color-mix(in srgb, var(--lp-ink-d) 7%, transparent);
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.lp-md-pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+.lp-md a {
+  color: var(--lp-accent-d);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lp-md hr {
+  border: 0;
+  border-top: 1px solid var(--lp-line-d);
+  margin: 0.8em 0;
+}
+
+.lp-md-table {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--lp-line-d);
+  border-radius: var(--radius-8);
+}
+
+.lp-md-table:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+}
+
+.lp-md-table table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.86em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-md-table th,
+.lp-md-table td {
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+.lp-md-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.lp-md-table th {
+  /* Host apps may style table headers as small caps labels; answers keep plain headers. */
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: inherit;
+  color: inherit;
+  font-weight: 650;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--lp-ink-d) 5%, transparent);
+}

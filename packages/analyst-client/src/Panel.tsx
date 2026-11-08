@@ -20,7 +20,8 @@ import { ModelPicker } from "./ModelPicker";
 import type { ChatSession } from "./session";
 import { canStartNewChat, scopeLabel, type LogPoseScope } from "./scopes";
 import type { Chat } from "./useChat";
-import { DRAWER_QUERY, SHORT_QUERY, useMedia } from "./useMedia";
+import { DRAWER_QUERY, SHORT_QUERY } from "./mediaQueries";
+import { useMediaQuery } from "@optcg/ui/hooks";
 import type { LogPoseGame, LogPosePage, OwnClaude } from "./types";
 
 type Request = LogPoseAsk & { nonce: number };
@@ -100,9 +101,9 @@ export function LogPosePanel({
   const [view, setView] = useState<"chat" | "requests" | "usage">("chat");
   const blocked = chatOn && credit?.refusal ? credit : null;
   const showChat = chatOn && view === "chat";
-  const phone = !useMedia(DRAWER_QUERY);
+  const phone = !useMediaQuery(DRAWER_QUERY);
   // A short window (a phone on its side) has no room for a second header row: the chat's name moves into the header.
-  const short = useMedia(SHORT_QUERY);
+  const short = useMediaQuery(SHORT_QUERY);
   const [draft, setDraft] = useState("");
   /** Context for the next message only: the hint a Why? was about. */
   const [extra, setExtra] = useState<LogPoseAsk["context"] | null>(null);

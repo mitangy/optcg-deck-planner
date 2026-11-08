@@ -9,10 +9,11 @@ from typing import Annotated, Any, Callable
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
-from app import meta_decks
-from app.db import get_db
-from app.rate_limit import RateLimiter, client_ip
-from app.schemas import CARD_ID_PATTERN
+from app.planner import meta_decks
+from app.core.db import get_db
+from app.core.rate_limit import RateLimiter, client_ip
+from app.core.schemas import CARD_ID_PATTERN
+from app.planner.schemas import MetaCardDetail, MetaDecks, MetaLeaders
 
 router = APIRouter(prefix="/meta", tags=["meta"])
 
@@ -49,7 +50,7 @@ def _guard(request: Request, response: Response) -> None:
     response.headers["Cache-Control"] = f"public, max-age={CACHE_TTL_S}"
 
 
-@router.get("/leaders")
+@router.get("/leaders", response_model=MetaLeaders)
 def get_meta_leaders(
     request: Request,
     response: Response,
@@ -61,7 +62,7 @@ def get_meta_leaders(
     return _cached(("leaders", days, min_players), lambda: meta_decks.meta_leaders(db, days, min_players))
 
 
-@router.get("/decks")
+@router.get("/decks", response_model=MetaDecks)
 def get_meta_decks(
     request: Request,
     response: Response,
@@ -79,7 +80,7 @@ def get_meta_decks(
     )
 
 
-@router.get("/cards/{card_id}")
+@router.get("/cards/{card_id}", response_model=MetaCardDetail)
 def get_meta_card(
     request: Request,
     response: Response,

@@ -1,18 +1,18 @@
-import { Topbar } from "../Topbar";
+import { Topbar } from "./Topbar";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { api, User } from "../api";
-import { DUEL_URL } from "../duelLink";
-import { DiscordLink } from "../DiscordLink";
-import { CornerNotices } from "../UpdateNotice";
-import { meQueryKey } from "../auth/useMe";
-import { BuildTag } from "../BuildTag";
-import { ThemeToggle } from "../ThemeToggle";
-import { NotificationsBell } from "../PriceAlerts";
+import { DUEL_URL } from "./duelLink";
+import { DiscordLink } from "./DiscordLink";
+import { CornerNotices } from "./UpdateNotice";
+import { BuildTag } from "@optcg/ui/appShell";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { NotificationsBell } from "../prices/PriceAlerts";
 import { FriendsNavLink } from "../friends/FriendsNavLink";
-import { CardLightboxActionContext } from "../CardThumb";
+import { CardLightboxActionContext } from "../ui/CardThumb";
 import { renderLightboxActions } from "../pages/shopping/lightboxActions";
+import { qk } from "../cache/queryKeys";
 
 export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const qc = useQueryClient();
@@ -20,7 +20,7 @@ export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: meQueryKey });
+      await qc.invalidateQueries({ queryKey: qk.me() });
       navigate("/login");
     },
   });

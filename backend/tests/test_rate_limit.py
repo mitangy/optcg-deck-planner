@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import get_settings
-from app.rate_limit import RateLimiter
+from app.core.config import get_settings
+from app.core.rate_limit import RateLimiter
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +47,7 @@ def test_named_limiter_counts_in_process_when_redis_is_down_389(monkeypatch):
     from redis.backoff import NoBackoff
     from redis.retry import Retry
 
-    from app import redis_client
+    from app.core import redis_client
 
     down = redis.Redis(host="127.0.0.1", port=1, socket_connect_timeout=0.2, retry=Retry(NoBackoff(), 0))
     monkeypatch.setattr(redis_client, "_override", down)
@@ -69,7 +69,7 @@ class _Request:
 
 
 def test_forwarded_for_is_ignored_without_the_proxy_secret_323(monkeypatch):
-    from app.rate_limit import client_ip
+    from app.core.rate_limit import client_ip
 
     monkeypatch.setenv("PROXY_SHARED_SECRET", "s3cret-from-vercel")
     spoofed = {"X-Forwarded-For": "203.0.113.7", "CF-Connecting-IP": "198.51.100.9"}
@@ -79,7 +79,7 @@ def test_forwarded_for_is_ignored_without_the_proxy_secret_323(monkeypatch):
 
 
 def test_forwarded_for_is_trusted_with_the_proxy_secret_323(monkeypatch):
-    from app.rate_limit import client_ip
+    from app.core.rate_limit import client_ip
 
     monkeypatch.setenv("PROXY_SHARED_SECRET", "s3cret-from-vercel")
     via_vercel = {
@@ -91,7 +91,7 @@ def test_forwarded_for_is_trusted_with_the_proxy_secret_323(monkeypatch):
 
 
 def test_forwarded_for_is_trusted_until_a_proxy_secret_is_configured_323(monkeypatch):
-    from app.rate_limit import client_ip
+    from app.core.rate_limit import client_ip
 
     monkeypatch.delenv("PROXY_SHARED_SECRET", raising=False)
     assert client_ip(_Request({"X-Forwarded-For": "203.0.113.7", "CF-Connecting-IP": "76.76.21.21"})) == "203.0.113.7"

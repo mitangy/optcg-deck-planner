@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { money } from "../api";
-import { CardArtImg } from "../CardThumb";
+import { CardArtImg } from "../ui/CardThumb";
 import { FriendCollection } from "./FriendCollection";
 import { FriendSpares } from "./FriendSpares";
 import { TradeTray } from "./TradeTray";
@@ -10,6 +10,7 @@ import { friendsApi, type FriendProfile } from "./friendsApi";
 import { counterPrefill, type TrayLine } from "./tradeLogic";
 import { Empty, LoadError, Tabs } from "./ui";
 import { useFriend } from "./useFriend";
+import { qk } from "../cache/queryKeys";
 
 type FriendTab = "decks" | "collection" | "spares";
 
@@ -30,14 +31,14 @@ export function FriendPage() {
   const { username } = useParams();
   const { friend, isLoading: listLoading, error: listError } = useFriend(username);
   const profile = useQuery({
-    queryKey: ["friend", friend?.user_id, "profile"],
+    queryKey: qk.friend.profile(friend?.user_id),
     queryFn: () => friendsApi.profile(friend!.user_id),
     enabled: Boolean(friend),
     retry: false,
   });
   const [params, setParams] = useSearchParams();
   const counterId = Number(params.get("counter")) || null;
-  const trades = useQuery({ queryKey: ["trades"], queryFn: friendsApi.trades, enabled: counterId != null });
+  const trades = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades, enabled: counterId != null });
 
   // The offer tray lives here so it survives switching tabs.
   const [lines, setLines] = useState<TrayLine[]>([]);
@@ -128,7 +129,7 @@ export function FriendPage() {
 }
 
 function FriendDecks({ friendId, username }: { friendId: number; username: string }) {
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["friend", friendId, "decks"], queryFn: () => friendsApi.decks(friendId) });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friend.decks(friendId), queryFn: () => friendsApi.decks(friendId) });
   if (isLoading) return <p className="muted">Loading…</p>;
   if (error) return <LoadError error={error} onRetry={() => void refetch()} />;
   if (data!.length === 0) return <Empty title="No decks to show">{username} hasn't shared any decks yet.</Empty>;

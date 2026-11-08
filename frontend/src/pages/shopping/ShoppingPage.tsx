@@ -2,12 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, CollectorLine, money, needBreakdownLabel, ShoppingItem, User } from "../../api";
-import { blankMassEntryUrl, buildMassEntryExport } from "../../tcgplayerMassEntry";
-import { shoppingShownPrice } from "../../deckCost";
-import { UndoToast } from "../../CollectorLine";
-import { collectorSelectKey, itemNeedsCopies } from "../../collectorLines";
-import { meQueryKey, useMe } from "../../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
+import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
+import { shoppingShownPrice } from "./deckCost";
+import { UndoToast } from "../collection/CollectorLine";
+import { collectorSelectKey, itemNeedsCopies } from "../collection/collectorLines";
+import { useMe } from "../../auth/useMe";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
   CardSearchInput,
   CollapsibleFilters,
@@ -19,17 +19,17 @@ import {
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
-} from "../../cardListControls";
-import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { CardScanner } from "../../lazyPages";
-import { useImageDrop } from "../../useImageDrop";
-import { baseTileFor, shownProductId } from "../../altArt";
+} from "../../ui/cardListControls";
+import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "./shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { CardScanner } from "../../app/lazyPages";
+import { useImageDrop } from "../../hooks/useImageDrop";
+import { baseTileFor, shownProductId } from "../../cards/altArt";
 import { useCardEdits } from "../../cache/useCardEdits";
 import { busyKeyFor } from "../../cache/busyKey";
-import { AltArtsRow } from "../../MarketPrice";
-import { ShoppingListSkeleton } from "../../Skeleton";
-import { useNarrowLayout } from "../../useNarrowLayout";
+import { AltArtsRow } from "../../cards/MarketPrice";
+import { ShoppingListSkeleton } from "../../ui/Skeleton";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 import { useFullShoppingById, ShoppingScanHitAction } from "./lightboxActions";
 import { invalidateAltWantViews, invalidateCollectorViews } from "../../cache/invalidate";
 import {
@@ -39,7 +39,7 @@ import {
 } from "../../cache/optimistic";
 import { type CollectorControls, ShoppingItemsView } from "./ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
-import { isDonCard } from "../../donCards";
+import { isDonCard } from "../../cards/donCards";
 import { ShoppingStatStrip } from "./shoppingStats";
 import { ShoppingSharePanel } from "../SharePanels";
 import { ShoppingAddPanel } from "./ShoppingAddPanel";
@@ -51,6 +51,7 @@ import {
   SHOW_SHOPPING_DONS_KEY,
 } from "../../storage/keys";
 import { jsonSetCodec, usePersistedState } from "../../storage/persisted";
+import { qk } from "../../cache/queryKeys";
 
 const isString = (x: unknown): x is string => typeof x === "string";
 const selectedCardsCodec = jsonSetCodec(isString);
@@ -59,7 +60,7 @@ export function ShoppingPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const isNarrow = useNarrowLayout();
-  const decksQ = useQuery({ queryKey: ["decks"], queryFn: api.decks });
+  const decksQ = useQuery({ queryKey: qk.decks(), queryFn: api.decks });
   const allDeckIds = useMemo(() => (decksQ.data ?? []).map((d) => d.id), [decksQ.data]);
   const [selectedDeckIds, setSelectedDeckIds] = useState<number[] | null>(null);
   const [filterReady, setFilterReady] = useState(false);
@@ -88,7 +89,7 @@ export function ShoppingPage() {
 
   const [includeExtras, setIncludeExtras] = usePersistedOpen(SHOPPING_EXTRAS_KEY, true);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["shopping", shoppingKey, includeExtras],
+    queryKey: qk.shopping.list(shoppingKey, includeExtras),
     queryFn: () =>
       api.shopping(shoppingKey.length ? shoppingKey : undefined, { extras: includeExtras }),
     // Runs with zero decks too: cards added directly make a list on their own.
@@ -105,7 +106,7 @@ export function ShoppingPage() {
     onSuccess: () => invalidateOwnedViews(qc),
   });
   const shareQ = useQuery({
-    queryKey: ["share", "shopping"],
+    queryKey: qk.share.shopping(),
     queryFn: api.getShoppingShare,
     enabled: filterReady,
   });
@@ -114,17 +115,17 @@ export function ShoppingPage() {
   const setSumAcrossLeaders = useMutation({
     mutationFn: (value: boolean) => api.updatePreferences({ sum_across_leaders: value }),
     onMutate: (value) => {
-      const prev = qc.getQueryData<User | null>(meQueryKey);
-      qc.setQueryData<User | null>(meQueryKey, (old) =>
+      const prev = qc.getQueryData<User | null>(qk.me());
+      qc.setQueryData<User | null>(qk.me(), (old) =>
         old ? { ...old, sum_across_leaders: value } : old,
       );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(meQueryKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(qk.me(), ctx.prev);
     },
     onSettled: () => {
-      void qc.invalidateQueries({ queryKey: meQueryKey });
+      void qc.invalidateQueries({ queryKey: qk.me() });
       invalidateAltWantViews(qc);
     },
   });
@@ -447,7 +448,7 @@ export function ShoppingPage() {
         include_extras: includeExtras,
       }),
     onSuccess: async (info) => {
-      await qc.invalidateQueries({ queryKey: ["share", "shopping"] });
+      await qc.invalidateQueries({ queryKey: qk.share.shopping() });
       const url = `${window.location.origin}${info.path}`;
       try {
         await navigator.clipboard.writeText(url);
@@ -462,7 +463,7 @@ export function ShoppingPage() {
   const revokeShare = useMutation({
     mutationFn: (token: string) => api.revokeShare(token),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["share", "shopping"] });
+      await qc.invalidateQueries({ queryKey: qk.share.shopping() });
       setShareMsg("Public link turned off");
     },
     onError: (e: Error) => setShareMsg(e.message),
@@ -475,7 +476,7 @@ export function ShoppingPage() {
         deck_ids: activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds,
       }),
     onSuccess: async (detail) => {
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       navigate(`/group-buys/${detail.id}`);
     },
     onError: (e: Error) => setExportMsg(e.message),

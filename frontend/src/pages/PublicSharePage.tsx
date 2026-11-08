@@ -1,27 +1,28 @@
-import { DiscordLink } from "../DiscordLink";
-import { Topbar } from "../Topbar";
+import { DiscordLink } from "../app/DiscordLink";
+import { Topbar } from "../app/Topbar";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, money } from "../api";
-import { DUEL_URL } from "../duelLink";
-import { UpdateNotice } from "../UpdateNotice";
+import { DUEL_URL } from "../app/duelLink";
+import { UpdateNotice } from "../app/UpdateNotice";
 import { useMe } from "../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../CardLayout";
-import { CardSearchInput, compareCardOrder, matchesCardSearch, usePersistedOpen } from "../cardListControls";
-import { BuildTag } from "../BuildTag";
-import { DeckStatsDock } from "../DeckStats";
-import { ThemeToggle } from "../ThemeToggle";
-import { CardThumb } from "../CardThumb";
-import { GridCard, MobileCard } from "../PlannerCard";
-import { MarketPrice } from "../MarketPrice";
-import { StillNeededCell, stillNeededText, totalOwned } from "../OwnedCells";
-import { SortableTh, sortByColumn, useColumnSort } from "../columnSort";
-import { ShoppingListSkeleton } from "../Skeleton";
-import { isDonCardType } from "../donCards";
+import { CardLayoutToggle, useCardLayout } from "../ui/CardLayout";
+import { CardSearchInput, compareCardOrder, matchesCardSearch, usePersistedOpen } from "../ui/cardListControls";
+import { BuildTag } from "@optcg/ui/appShell";
+import { DeckStatsDock } from "./decks/DeckStats";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { CardThumb } from "../ui/CardThumb";
+import { GridCard, MobileCard } from "../ui/PlannerCard";
+import { MarketPrice } from "../cards/MarketPrice";
+import { StillNeededCell, stillNeededText, totalOwned } from "./collection/OwnedCells";
+import { SortableTh, sortByColumn, useColumnSort } from "../ui/columnSort";
+import { ShoppingListSkeleton } from "../ui/Skeleton";
+import { isDonCardType } from "../cards/donCards";
 import { shoppingColumnValue, sharedUsedIn } from "./shopping/ShoppingItemsView";
 import { formatShoppingListStats } from "./shopping/shoppingStats";
 import { COLSORT_SHARE_KEY, SHARE_ONLY_NEED_KEY } from "../storage/keys";
+import { qk } from "../cache/queryKeys";
 
 export function PublicSharePage() {
   const { token = "" } = useParams();
@@ -34,7 +35,7 @@ export function PublicSharePage() {
   const navigate = useNavigate();
   // Owned counts on a deck link come from whoever is viewing, so the viewer is part of the key.
   const { data, isLoading, error } = useQuery({
-    queryKey: ["public-share", token, me?.id ?? null],
+    queryKey: qk.share.public(token, me?.id ?? null),
     queryFn: () => api.publicShare(token),
     enabled: Boolean(token) && !meQ.isLoading,
   });
@@ -42,8 +43,8 @@ export function PublicSharePage() {
   const copyDeck = useMutation({
     mutationFn: () => api.copySharedDeck(token),
     onSuccess: (created) => {
-      void qc.invalidateQueries({ queryKey: ["decks"] });
-      void qc.invalidateQueries({ queryKey: ["shopping"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
+      void qc.invalidateQueries({ queryKey: qk.shopping.all() });
       navigate(`/decks/${created.id}`);
     },
   });

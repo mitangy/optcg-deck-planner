@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnalystError, errorText, fetchThread, stampChoice, stampPlan, streamAnalyst, type ChatContext, type DonePayload, type ThreadMessage } from "./client";
-import type { RefusalCode } from "./credit";
+import { isRefusalCode, type RefusalCode } from "@optcg/analyst-contract";
 import { placeAt, type Citation } from "./citations";
 import { fromHistory, liveAnswer, type Msg } from "./chatMessages";
 import { isEmptyAnswer } from "./proposals";
@@ -14,8 +14,6 @@ export const NOT_SENT: GameAskResult = { sent: false, plan: false, choice: false
 
 /** How an answer changes the player's credit: its done event carries the new figures; a refusal switches the input for a notice. */
 export type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode) => void; refresh: () => void };
-
-const isLimit = (code: string | undefined): code is RefusalCode => code === "credit" || code === "daily" || code === "monthly";
 
 export function useChat(
   apiBase: string,
@@ -203,7 +201,7 @@ export function useChat(
             onError: (e) => {
               out.error = true;
               // A limit shows as a notice in place of the input, not as an error line.
-              if (isLimit(e.code)) {
+              if (isRefusalCode(e.code)) {
                 credit.refuse(e.code);
                 credit.refresh();
               } else setError(errorText(e));
@@ -214,7 +212,7 @@ export function useChat(
       } catch (e) {
         out.error = !ctrl.signal.aborted;
         if (ctrl.signal.aborted) patchLast((m) => ({ ...m, stopped: true }));
-        else if (e instanceof AnalystError && isLimit(e.code)) {
+        else if (e instanceof AnalystError && isRefusalCode(e.code)) {
           credit.refuse(e.code);
           credit.refresh();
         } else setError(e instanceof AnalystError ? errorText(e) : errorText({}));

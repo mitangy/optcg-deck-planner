@@ -2,16 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api, ShoppingItem } from "../../api";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { nextExtraTarget, totalOwnedCopies } from "../../shoppingExtras";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { LightboxPriceAlertControl } from "../../PriceAlerts";
-import { LightboxPriceHistoryControl } from "../../PriceHistory";
+import { useSavedShoppingDeckIds } from "./shoppingDeckFilter";
+import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { LightboxPriceAlertControl } from "../../prices/PriceAlerts";
+import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
+import { qk } from "../../cache/queryKeys";
 
 /** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
 function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {
   const q = useQuery({
-    queryKey: deckIds ? ["shopping", "all", deckIds] : ["shopping", "all"],
+    queryKey: qk.shopping.full(deckIds),
     queryFn: () => api.shopping(deckIds),
   });
   const byId = useMemo(() => new Map((q.data?.items ?? []).map((i) => [i.card_id, i])), [q.data]);
@@ -53,7 +54,7 @@ export function ShoppingExtraControl({
     // Stay pending until the list refetches, so a quick second press never steps from stale counts.
     onSuccess: async () => {
       invalidateOwnedViews(qc);
-      await qc.refetchQueries({ queryKey: ["shopping"], type: "active" });
+      await qc.refetchQueries({ queryKey: qk.shopping.all(), type: "active" });
     },
   });
   const step = (delta: 1 | -1) =>
@@ -107,7 +108,7 @@ export function ShoppingExtraControl({
 /** Owned copies and the shopping row for a card, matching how the backend computes still_need (#626). */
 export function useShoppingCardState(deckIds?: number[]) {
   const { byId: shoppingById, loaded: shoppingLoaded } = useFullShoppingState(deckIds);
-  const ownedQ = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection() });
+  const ownedQ = useQuery({ queryKey: qk.owned.all(), queryFn: () => api.ownedCollection() });
   const ownedById = useMemo(
     () => new Map((ownedQ.data?.items ?? []).map((i) => [i.card_id, totalOwnedCopies(i)])),
     [ownedQ.data],

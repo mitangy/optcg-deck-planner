@@ -1,0 +1,189 @@
+/* —— User page (#988) —— */
+
+.adm-userpage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.adm-userpage > .panel {
+  min-width: 0;
+}
+
+.adm-uhero-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.adm-uhero-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adm-uhero-name .panel-title {
+  margin: 0;
+}
+
+.adm-uhero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.adm-uhero .adm-banned {
+  margin: 0 0 0.75rem;
+  color: var(--crimson-bright);
+  font-size: 0.82rem;
+}
+
+.adm-uhero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: 0.85rem;
+}
+
+.adm-uhero-actions .adm-urole {
+  width: 9rem;
+}
+
+.adm-uhero-actions .adm-uact {
+  flex: 0 1 16rem;
+}
+
+.adm-modes th:first-child,
+.adm-modes td:first-child {
+  text-align: left;
+}
+
+.adm-modes td:first-child small {
+  margin-left: 0.3rem;
+}
+
+.adm-ums {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-um {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1.6fr) minmax(0, 1fr) 3.5rem 5rem 4rem;
+  gap: var(--space-3);
+  align-items: center;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.adm-um > span {
+  min-width: 0;
+}
+
+.adm-um-when,
+.adm-um-leaders {
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-um small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.adm-um-leaders b,
+.adm-um-leaders small,
+.adm-um-opp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-um-result.won {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.adm-um-result.lost {
+  color: var(--crimson-bright);
+  font-weight: 700;
+}
+
+.adm-um-turns,
+.adm-um-replay {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-um-replay {
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .adm-um {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "leaders result"
+      "opp turns"
+      "when replay";
+    row-gap: 0.15rem;
+    padding: 0.6rem 0.25rem;
+  }
+
+  .adm-um-leaders { grid-area: leaders; }
+  .adm-um-result { grid-area: result; text-align: right; }
+  .adm-um-opp { grid-area: opp; font-size: 0.78rem; }
+  .adm-um-turns { grid-area: turns; text-align: right; font-size: 0.78rem; }
+  .adm-um-when { grid-area: when; flex-direction: row; gap: var(--space-2); font-size: 0.75rem; color: var(--muted); }
+  .adm-um-replay { grid-area: replay; min-height: 0; }
+
+  .adm-uhero-actions .adm-urole,
+  .adm-uhero-actions .adm-uact {
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  .adm-uhero-actions .adm-uact .btn {
+    min-height: 44px;
+  }
+}
+
+.adm-uhero-email {
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.adm-userpage .page-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .adm-userpage .page-title {
+    font-size: 1.3rem;
+    flex: 1 1 8rem;
+  }
+
+  .adm-userpage .adm-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adm-modes th,
+  .adm-modes td {
+    padding-inline: 0.3rem;
+  }
+
+  .adm-modes td small {
+    display: none;
+  }
+}

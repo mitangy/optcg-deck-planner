@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
-import { RAYLEIGH_OK } from "../cases";
+import { RAYLEIGH_OK } from "../qa/cases";
 import { checkEdits } from "./edits";
 
 const catalog = loadCatalog();

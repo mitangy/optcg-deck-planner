@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, CardView, DeckDetail } from "../../api";
-import { buildOptcgSimExport, downloadTextFile, optcgSimFilename } from "../../optcgsimExport";
-import { duelPlayUrl } from "../../duelLink";
+import { buildOptcgSimExport, downloadTextFile, optcgSimFilename } from "../shopping/optcgsimExport";
+import { duelPlayUrl } from "../../app/duelLink";
 import {
   hintAsk,
   useLogPoseAsk,
@@ -11,8 +11,8 @@ import {
   useLogPosePage,
   type DeckEditor,
 } from "@optcg/analyst-client";
-import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "../../logPose";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
+import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "./logPose";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
   CardSearchInput,
   CollapsibleFilters,
@@ -24,28 +24,30 @@ import {
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
-} from "../../cardListControls";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
-import { DOCK_QUERY, DeckStatsDock, useMediaQuery } from "../../DeckStats";
+} from "../../ui/cardListControls";
+import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "../collection/ownedCollection";
+import { useMediaQuery } from "@optcg/ui/hooks";
+import { DOCK_QUERY, DeckStatsDock } from "./DeckStats";
 import { type DeckHint } from "@optcg/deck-analytics";
 import { useDeckHints } from "@optcg/deck-analytics/ui";
 import { MenuItem } from "@optcg/ui/popups";
-import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../HeadPopover";
-import { ReplaceDeckListDialog } from "../../ReplaceDeckListDialog";
+import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../ui/HeadPopover";
+import { ReplaceDeckListDialog } from "./ReplaceDeckListDialog";
 import { HideFromFriendsItem } from "../../friends/HideFromFriends";
-import { CardArtImg } from "../../CardThumb";
+import { CardArtImg } from "../../ui/CardThumb";
 import { useCardEdits } from "../../cache/useCardEdits";
-import { DeckDetailSkeleton } from "../../Skeleton";
+import { DeckDetailSkeleton } from "../../ui/Skeleton";
 import { invalidateAltWantViews } from "../../cache/invalidate";
 import { setDeckCardNeeded, MAIN_DECK_LIMIT, DON_DECK_LIMIT } from "./deckEditing";
-import { isDonCardType } from "../../donCards";
+import { isDonCardType } from "../../cards/donCards";
 import { DeckSharePanel, DeckExportPanel } from "../SharePanels";
 import { DeckEditorPanel } from "./DeckEditorPanel";
 import { DeckProgressSummary } from "./DeckProgressSummary";
 import { CardTable } from "./CardTable";
 import { AvailableDonSection } from "./AvailableDonSection";
 import { COLSORT_DECK_KEY, DECK_ONLY_NEED_KEY } from "../../storage/keys";
+import { qk } from "../../cache/queryKeys";
 
 function filterCards(
   cards: CardView[],
@@ -81,7 +83,7 @@ export function DeckDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const savedDeckIds = useSavedShoppingDeckIds();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: savedDeckIds ? ["deck", deckId, savedDeckIds] : ["deck", deckId],
+    queryKey: qk.deck.detail(deckId, savedDeckIds),
     queryFn: () => api.deck(deckId, savedDeckIds),
     enabled: Number.isFinite(deckId),
   });
@@ -175,13 +177,13 @@ export function DeckDetailPage() {
 
   const applyDeckUpdate = (detail: DeckDetail) => {
     // The response counts every deck's claims; with Include decks narrowed, refetch the filtered view.
-    if (savedDeckIds) void qc.invalidateQueries({ queryKey: ["deck", deckId] });
-    else qc.setQueryData(["deck", deckId], detail);
+    if (savedDeckIds) void qc.invalidateQueries({ queryKey: qk.deck.byId(deckId) });
+    else qc.setQueryData(qk.deck.byId(deckId), detail);
     invalidateAltWantViews(qc);
   };
 
   // Log Pose's Apply card: what is owned (for the chips) and how this page saves a suggested change.
-  const { data: ownedData } = useQuery({ queryKey: ["owned"], queryFn: () => api.ownedCollection(), staleTime: 300_000 });
+  const { data: ownedData } = useQuery({ queryKey: qk.owned.all(), queryFn: () => api.ownedCollection(), staleTime: 300_000 });
   const logPoseEditor = useMemo<DeckEditor | null>(() => {
     if (!data || !logPoseDeck) return null;
     const ownedById = new Map((ownedData?.items ?? []).map((i) => [i.card_id.toUpperCase(), i.owned]));
@@ -195,7 +197,7 @@ export function DeckDetailPage() {
           if (detail) applyDeckUpdate(detail);
         } catch (e) {
           // A rollback may have run: show the deck as the server has it.
-          void qc.invalidateQueries({ queryKey: ["deck", deckId] });
+          void qc.invalidateQueries({ queryKey: qk.deck.byId(deckId) });
           throw e;
         }
       },
@@ -248,9 +250,9 @@ export function DeckDetailPage() {
     onSuccess: (detail) => {
       applyDeckUpdate(detail);
       setRenaming(false);
-      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
       // Same-leader decks list this one by name under "Compared to Main".
-      void qc.invalidateQueries({ queryKey: ["deck"] });
+      void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });
   const submitRename = () => {
@@ -271,8 +273,8 @@ export function DeckDetailPage() {
     mutationFn: () => api.setDeckAsMain(deckId),
     onSuccess: (detail) => {
       applyDeckUpdate(detail);
-      void qc.invalidateQueries({ queryKey: ["decks"] });
-      void qc.invalidateQueries({ queryKey: ["deck"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
+      void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });
 

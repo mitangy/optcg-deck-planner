@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.config import Settings
-from app.game_tokens import verify_game_token
-from app.models import User
+from app.core.config import Settings
+from app.duel.tokens import verify_game_token
+from app.core.models import User
 
 
 def identify_reporter(

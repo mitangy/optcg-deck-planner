@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { money } from "../api";
-import { CardThumb } from "../CardThumb";
-import { invalidateOwnedViews } from "../ownedCollection";
+import { CardThumb } from "../ui/CardThumb";
+import { invalidateOwnedViews } from "../pages/collection/ownedCollection";
 import { friendsApi, type Trade, type TradeLine, type TradeStatus } from "./friendsApi";
 import { otherUsername, tradeSides } from "./tradeLogic";
 import { dateLabel, Empty, LoadError } from "./ui";
+import { qk } from "../cache/queryKeys";
 
 const STATUS_LABEL: Record<TradeStatus, string> = {
   pending: "Waiting",
@@ -18,7 +19,7 @@ const STATUS_LABEL: Record<TradeStatus, string> = {
 };
 
 export function TradesPanel() {
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["trades"], queryFn: friendsApi.trades });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades });
   if (isLoading) return <p className="muted">Loading…</p>;
   if (error) return <LoadError error={error} onRetry={() => void refetch()} />;
   const { incoming, outgoing, active, history } = data!;
@@ -90,8 +91,8 @@ function TradeCard({ trade }: { trade: Trade }) {
   const other = otherUsername(trade);
   const { iGive, iGet, iGiveValue, iGetValue } = tradeSides(trade);
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ["trades"] });
-    void qc.invalidateQueries({ queryKey: ["trades-summary"] });
+    void qc.invalidateQueries({ queryKey: qk.trades() });
+    void qc.invalidateQueries({ queryKey: qk.tradesSummary() });
   };
   const run = useMutation({
     mutationFn: (fn: (id: number) => Promise<Trade>) => fn(trade.id),
@@ -102,7 +103,7 @@ function TradeCard({ trade }: { trade: Trade }) {
     onSuccess: () => {
       refresh();
       invalidateOwnedViews(qc);
-      void qc.invalidateQueries({ queryKey: ["decks"] });
+      void qc.invalidateQueries({ queryKey: qk.decks() });
     },
   });
   const busy = run.isPending || applyChange.isPending;

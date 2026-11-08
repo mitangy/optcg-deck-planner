@@ -1,13 +1,13 @@
-import { BuildTag } from "../../BuildTag";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
-import { AuthLoadingSkeleton, GroupBuyDetailSkeleton } from "../../Skeleton";
-import { ThemeToggle } from "../../ThemeToggle";
-import { Topbar } from "../../Topbar";
+import { BuildTag } from "@optcg/ui/appShell";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { AuthLoadingSkeleton, GroupBuyDetailSkeleton } from "../../ui/Skeleton";
+import { ThemeToggle } from "../../ui/ThemeToggle";
+import { Topbar } from "../../app/Topbar";
 import { api, GroupBuyDetail } from "../../api";
 import { useMe } from "../../auth/useMe";
-import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, type SortKey } from "../../cardListControls";
-import { rememberLoginNext } from "../../loginNext";
-import { useNarrowLayout } from "../../useNarrowLayout";
+import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, type SortKey } from "../../ui/cardListControls";
+import { rememberLoginNext } from "../../auth/loginNext";
+import { useNarrowLayout } from "../../hooks/useNarrowLayout";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -16,6 +16,7 @@ import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrder
 import { readOnlyAltRow } from "./memberParts";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_PUBLIC_KEY } from "../../storage/keys";
+import { qk } from "../../cache/queryKeys";
 
 /** /group-buy/view/:token is the older read-only link; it now shows the invite page (#880). */
 export function PublicGroupBuyPage() {
@@ -29,12 +30,12 @@ export function GroupBuyJoinPage() {
   const navigate = useNavigate();
   const meQ = useMe();
   const previewQ = useQuery({
-    queryKey: ["group-buy-invite", token],
+    queryKey: qk.groupBuy.invite(token),
     queryFn: () => api.groupBuyInvitePreview(token),
     enabled: Boolean(token),
   });
   const detailQ = useQuery({
-    queryKey: ["public-group-buy", token],
+    queryKey: qk.groupBuy.publicView(token),
     queryFn: () => api.publicGroupBuy(token),
     enabled: Boolean(token),
   });

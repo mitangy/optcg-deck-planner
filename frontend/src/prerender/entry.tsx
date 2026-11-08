@@ -1,5 +1,5 @@
 /**
- * Build-time pre-render entry (#914). scripts/seo/prerender-plugin.mjs bundles this for Node after
+ * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
  * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
  *
  * Pre-rendered: the logged-out landing page at `/`, the public `/meta` browser and the legal pages.
@@ -12,12 +12,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, StaticRouter } from "react-router-dom";
 import { LEGAL_PATHS, SiteFooter, type LegalKind } from "@optcg/site-legal";
 import { applyHead, injectRoot, type PrerenderHead } from "@optcg/ui/seo";
-import { PlannerLandingPage } from "../LandingPage";
-import { LegalPage } from "../LegalPage";
-import { META_SEED_ID } from "../prerendered";
-import { PublicMetaScreen } from "../PublicMetaScreen";
+import { PlannerLandingPage } from "../pages/LandingPage";
+import { LegalPage } from "../pages/LegalPage";
+import { META_SEED_ID } from "../app/prerendered";
+import { PublicMetaScreen } from "../meta/PublicMetaScreen";
 import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
 import type { MetaLeadersResponse } from "../api";
+import { qk } from "../cache/queryKeys";
 
 export type PrerenderedFile = { file: string; content: string };
 
@@ -48,7 +49,7 @@ function headFor(path: string): PrerenderHead {
 
 function renderPage(path: string, page: ReactNode, leaders: MetaLeadersResponse | null): string {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  if (leaders) queryClient.setQueryData(["meta", "leaders", META_DAYS], leaders);
+  if (leaders) queryClient.setQueryData(qk.meta.leaders(META_DAYS), leaders);
   return renderToString(
     <QueryClientProvider client={queryClient}>
       <StaticRouter location={path}>

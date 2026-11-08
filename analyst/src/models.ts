@@ -2,14 +2,15 @@
  * The models Log Pose runs on and what they cost: the default, the allow-list the planner's model setting picks
  * from, and the price table. The evals price their runs with `costUsd` from here too.
  */
+import { CHAT_MODEL_IDS, MODELS } from "@optcg/analyst-contract";
 import type { Usage } from "./types";
 
-/** Every model id Log Pose uses, here and nowhere else (the evals' judge and extractor models come from here too). */
-export const MODELS = { sonnet: "claude-sonnet-5-5", opus: "claude-opus-5-5", haiku: "claude-haiku-5-5", haiku45: "claude-haiku-4-5" } as const;
+/** Every model id Log Pose uses lives in the contract package (the evals' judge and extractor models come from here too). */
+export { MODELS };
 
 export const CHAT_MODEL = process.env.ANALYST_CHAT_MODEL || MODELS.sonnet;
 /** The models the planner may pick for Log Pose (its model setting); anything else falls back to CHAT_MODEL. */
-export const CHAT_MODELS: string[] = [MODELS.sonnet, MODELS.opus, MODELS.haiku, MODELS.haiku45];
+export const CHAT_MODELS: string[] = [...CHAT_MODEL_IDS];
 /** Haiku 4.5 rejects output_config.effort; every other offered model takes it. */
 const NO_EFFORT_MODELS: string[] = [MODELS.haiku45];
 /** The request's `output_config` for a model: the effort, unless the model does not support one. */

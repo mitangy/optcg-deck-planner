@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { PrintingView, ShoppingItem, ShoppingResponse } from "../api";
 import { applyAltOwnedOptimistic, applyOwnedOptimistic, applyWantOptimistic } from "./optimistic";
+import { qk } from "./queryKeys";
 
 const item = (card_id: string, over: Partial<ShoppingItem> = {}): ShoppingItem => ({
   card_id,
@@ -40,13 +41,13 @@ function listed(items: ShoppingItem[]) {
   const qc = new QueryClient();
   const stillNeeded = items.reduce((n, i) => n + i.still_need, 0);
   const remaining = items.reduce((n, i) => n + (i.remaining_cost ?? 0), 0);
-  qc.setQueryData<ShoppingResponse>(["shopping", [1]], {
+  qc.setQueryData<ShoppingResponse>(qk.shopping.list([1], true), {
     items,
     cards_still_needed: stillNeeded,
     remaining_market: remaining,
     unique_cards: items.length,
   });
-  const read = () => qc.getQueryData<ShoppingResponse>(["shopping", [1]])!;
+  const read = () => qc.getQueryData<ShoppingResponse>(qk.shopping.list([1], true))!;
   return { qc, read };
 }
 

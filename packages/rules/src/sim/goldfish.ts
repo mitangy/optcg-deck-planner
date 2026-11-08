@@ -13,7 +13,7 @@ import { getCardDef, hasCardDef } from "../cards/definitions.js";
 import { abilitySupportForCard, type AbilitySupport } from "../cards/effectCatalog.js";
 import { applyIntent, createMatch, hasKeyword, listLegalIntents, playCostOf, powerOf } from "../engine.js";
 import { addModifier } from "../engine/modifiers.js";
-import { activeDon } from "../engine/state.js";
+import { activeDon } from "../engine/zones.js";
 import { createSeededRng, type Rng } from "../rng.js";
 import type { GameEvent, Intent, MatchState, PendingChoice, PlayerState } from "../types.js";
 import { actingSeat, randomDeck } from "./fuzz.js";

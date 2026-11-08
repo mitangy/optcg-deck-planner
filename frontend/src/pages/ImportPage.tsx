@@ -2,9 +2,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { DUEL_URL } from "../duelLink";
-import { useLogPoseDraft } from "../logPose";
+import { DUEL_URL } from "../app/duelLink";
+import { useLogPoseDraft } from "./decks/logPose";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
+import { qk } from "../cache/queryKeys";
 
 export function ImportPage() {
   const navigate = useNavigate();
@@ -22,11 +23,11 @@ export function ImportPage() {
   const create = useMutation({
     mutationFn: () => api.createDeck(name.trim(), decklist),
     onSuccess: async (deck) => {
-      await qc.invalidateQueries({ queryKey: ["decks"] });
-      await qc.invalidateQueries({ queryKey: ["shopping"] });
+      await qc.invalidateQueries({ queryKey: qk.decks() });
+      await qc.invalidateQueries({ queryKey: qk.shopping.all() });
       // New imports are auto-added to open group-buy contributions.
-      await qc.invalidateQueries({ queryKey: ["group-buys"] });
-      await qc.invalidateQueries({ queryKey: ["group-buy"] });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      await qc.invalidateQueries({ queryKey: qk.groupBuy.all() });
       navigate(`/decks/${deck.id}`);
     },
     onError: (e: Error) => setErr(e.message),

@@ -8,13 +8,13 @@ vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeIt
 vi.mock("@colyseus/sdk", () => ({ Client: class {} }));
 
 const { PROTOCOL_VERSION, parseView, parseWelcome } = await import("./protocol");
-const { intentLabel } = await import("../board/intentLabel");
+const { intentLabel } = await import("../board/prompts/intentLabel");
 const { DuelClient } = await import("./duelClient");
-const { ChoicePrompt } = await import("../board/ChoicePrompt");
-const { EffectOrderPrompt } = await import("../board/EffectOrderPrompt");
-const { arrangementAnswer, initialArrangement, setSide } = await import("../board/deckOrder");
-const { floatLookAnswer } = await import("../board/floatOrder");
-const { splitPrimaryIntent } = await import("../board/primaryIntent");
+const { ChoicePrompt } = await import("../board/prompts/ChoicePrompt");
+const { EffectOrderPrompt } = await import("../board/prompts/EffectOrderPrompt");
+const { arrangementAnswer, initialArrangement, setSide } = await import("../board/zones/deckOrder");
+const { floatLookAnswer } = await import("../board/prompts/floatOrder");
+const { splitPrimaryIntent } = await import("../board/prompts/primaryIntent");
 import type { ChoiceRequestView, Intent, PendingChoiceView, PlayerView } from "./protocol";
 
 // Golden fixtures generated from the engine (packages/rules/protocol-fixtures);

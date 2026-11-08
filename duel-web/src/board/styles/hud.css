@@ -1,0 +1,126 @@
+/* —— HUD: room id, undo, concede (all beside Leave) —— */
+
+.room-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.room-copy-btn {
+  flex: none;
+  min-width: 3.6rem;
+  min-height: 28px;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-6);
+  background: var(--arena-mid);
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.room-watch-btn {
+  min-width: 5.4rem;
+}
+
+.room-copy-btn:hover {
+  border-color: var(--chrome);
+}
+
+.hud-undo-btn,
+.hud-concede-btn {
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+  border-radius: var(--radius-8);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hud-undo-btn {
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+  color: var(--chrome-bright);
+}
+
+.hud-undo-btn:not(:disabled):hover,
+.hud-undo-btn.armed {
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.16);
+}
+
+.hud-undo-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hud-concede-btn {
+  border: 1px solid rgba(210, 74, 63, 0.6);
+  background: rgba(178, 55, 47, 0.18);
+  color: #ffd9d4;
+}
+
+.hud-concede-btn:hover,
+.hud-concede-btn.armed {
+  border-color: #c06060;
+  background: var(--danger);
+  color: #fff;
+}
+
+.hud-undo-btn:focus-visible,
+.hud-concede-btn:focus-visible,
+.room-copy-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* Opponent asked to undo: small dialog under the HUD. */
+.undo-request {
+  position: fixed;
+  top: 4.25rem;
+  left: 50%;
+  z-index: var(--z-topbar);
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 2rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-12);
+  background: rgb(var(--deep-rgb) / 0.97);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.undo-request p {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.undo-request-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.undo-request-actions .btn {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  /* Room id lives on the waiting screen; keep the phone HUD to buttons. */
+  .arena .hud-actions .room-chip {
+    display: none;
+  }
+
+  .arena .hud-actions .hud-undo-btn,
+  .arena .hud-actions .hud-concede-btn {
+    min-height: 0;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.66rem;
+  }
+}
+

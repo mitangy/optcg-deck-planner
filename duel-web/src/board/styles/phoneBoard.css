@@ -1,0 +1,402 @@
+/* —— Portrait phones: opponent piles become a count row —— */
+
+.opp-counts {
+  display: none;
+}
+
+@media (max-width: 899px) and (orientation: portrait) {
+  /* Same width as your mat (the base portrait rule), so when the height binds (mulligan
+     explainer, 320px screens) both mats shrink together and stay centred on one axis. */
+  .arena .side-opp.side-counts .side-grid,
+  .arena .side-you.side-counts .side-grid {
+    --g: 1.6cqw;
+    --c: min(
+      calc((100cqw - 2.8cqw - 4 * 1.6cqw) / 5),
+      calc((100cqh - 8px - 32px - 2 * 3px) / 2.8)
+    );
+    padding: 4px 1.4cqw;
+    row-gap: 3px;
+    grid-template-columns: repeat(5, var(--c));
+    grid-template-rows: 32px calc(var(--c) * 1.4) calc(var(--c) * 1.4);
+    grid-template-areas:
+      "counts counts counts counts counts"
+      "stage leader cost cost cost"
+      "characters characters characters characters characters";
+  }
+
+  /* Leader sits between the stage and the cost area: no room to turn at
+     full size. */
+  .arena .side-opp.side-counts .zone-leader,
+  .arena .side-you.side-counts .zone-leader {
+    --rest-k: 0.714;
+    --rest-shift: 0px;
+  }
+
+  /* Spans the whole mat edge (not just the card grid) so the chips have room. */
+  .arena .side-counts .opp-counts {
+    position: absolute;
+    top: 4px;
+    left: 1.4cqw;
+    right: 1.4cqw;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
+    height: 32px;
+  }
+
+  .arena .side-counts .opp-counts .mat-order {
+    position: static;
+    flex: none;
+    padding: 0.1em 0.5em;
+    font-size: 0.6rem;
+    box-shadow: none;
+  }
+
+  .arena .side-counts .count-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 32px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-8);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    /* A narrower mat (a spectator's far strip takes height) must not wrap "0 / 5". */
+    white-space: nowrap;
+  }
+
+  .arena .side-counts .count-chip.openable {
+    cursor: pointer;
+    border-color: var(--line-strong);
+  }
+
+  .arena .side-counts .count-chip.openable:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+
+  .arena .side-counts .count-icon {
+    flex: none;
+    color: var(--muted);
+  }
+
+  .arena .side-counts .count-chip-life .count-icon {
+    color: #e0685c;
+  }
+
+  .arena .side-counts .count-chip-extra {
+    font-size: 0.6rem;
+    color: var(--chrome-bright);
+  }
+
+  .arena .side-counts .zone-cost {
+    min-width: 0;
+  }
+
+  /* When the height binds the mat (a tall control bar under it) the row is narrower than four icon+number chips: every
+     piece shrinks together, and below that the icons go (the chips keep their names for screen readers). */
+  .arena .side-counts .opp-counts {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 215px) {
+    .count-chip {
+      padding: 0 2px;
+      gap: 2px;
+      font-size: 0.72rem;
+    }
+
+    .count-icon {
+      width: 10px;
+      height: 10px;
+    }
+
+    .mat-order {
+      padding: 0.1em 0.35em;
+      font-size: 0.52rem;
+    }
+  }
+
+  @container (max-width: 150px) {
+    .count-icon {
+      display: none;
+    }
+  }
+}
+
+/* —— Landscape phones: icon rail | board | slim action column, hand under the board —— */
+
+@media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
+  .arena.arena-lp {
+    --lp-rail-w: calc(44px + var(--safe-l));
+    --left-w: var(--lp-rail-w);
+    --rail-w: clamp(150px, 20vw, 190px);
+    --dock-cw: clamp(46px, 11.5vh, 58px);
+    --dock-head: 28px;
+    /* Tucked hand: just its handle. The board stops above it. */
+    --dock-peek: calc(var(--dock-head) + var(--safe-b));
+  }
+
+  .arena.arena-lp .playmat {
+    --mat-gap: 3px;
+    --midline-h: 0.95rem;
+    padding: 2px 6px var(--dock-peek);
+  }
+
+  /* No top bar in landscape: only the notch inset sits above the columns. */
+  .arena.arena-lp .arena-body {
+    padding-top: var(--safe-t);
+  }
+
+  .lp-rail .hud-menu-btn {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    border-radius: var(--radius-10);
+  }
+
+  .lp-actions {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .lp-actions .hud-undo-btn,
+  .lp-actions .hud-pass-btn {
+    flex: 1 1 0;
+    min-height: 40px;
+    padding: 0 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  /* Height-bound cards: spend the spare width on wider mats and looser columns. */
+  .arena.arena-lp .side-field {
+    width: min(100cqw, calc(var(--mat-h) * 2.3));
+  }
+
+  .arena.arena-lp .side-grid {
+    --g: 1.5cqh;
+    --c: min(
+      calc((100cqw - 5cqw - 6 * 1.5cqh) / 7),
+      calc((100cqh - 4cqh - 2 * 1.5cqh) / 3.9)
+    );
+    justify-content: space-between;
+    padding: 2cqh 2.5cqw;
+  }
+
+  /* Left icon rail */
+  .lp-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-height: 0;
+    padding: 6px 0 6px var(--safe-l);
+    border-right: 1px solid var(--line);
+    background: rgb(var(--deep-rgb) / 0.55);
+  }
+
+  .lp-rail-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-10);
+    background: var(--arena-raised);
+    color: var(--chrome-bright);
+    cursor: pointer;
+  }
+
+  .lp-rail-btn.active {
+    border-color: var(--chrome);
+    background: rgb(var(--chrome-rgb) / 0.2);
+  }
+
+  .lp-rail-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus);
+  }
+
+  .lp-rail-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    padding: 0 3px;
+    border-radius: var(--radius-pill);
+    background: var(--arena-deep);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-size: 0.55rem;
+    font-weight: 800;
+    line-height: 14px;
+    text-align: center;
+  }
+
+  /* Overlay panels: fixed beside the rail, so the board never shifts. */
+  .lp-overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay-scrim);
+  }
+
+  .lp-overlay {
+    position: fixed;
+    z-index: var(--z-hud);
+    top: var(--safe-t);
+    bottom: 0;
+    left: var(--lp-rail-w);
+    width: min(300px, 46vw);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-bottom: var(--safe-b);
+    border: 1px solid var(--line-strong);
+    border-left: none;
+    border-bottom: none;
+    border-radius: 0 12px 0 0;
+    background: rgb(var(--deep-rgb) / 0.98);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  }
+
+  .arena .lp-overlay .battle-log,
+  .arena .lp-overlay .battle-log:not(.collapsed),
+  .arena .lp-overlay .chat-panel,
+  .arena .lp-overlay .chat-panel.collapsed {
+    position: static;
+    flex: 1 1 0;
+    min-height: 0;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* Right column: opponent hand count, whose turn, then the actions. */
+  .arena.arena-lp .arena-rail {
+    padding-right: var(--safe-r);
+  }
+
+  .opp-hand-compact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
+  }
+
+  .opp-hand-compact .card-back,
+  .opp-hand-compact .card-tile.opp-compact-face {
+    width: 15px;
+    height: 21px;
+    flex: none;
+  }
+
+  .turn-compact-clocks {
+    display: flex;
+    gap: 0.3rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .arena.arena-lp .turn-panel {
+    padding: 0.35rem 0.5rem;
+    gap: var(--space-1);
+  }
+
+  .arena.arena-lp .turn-banner-title {
+    font-size: min(0.9rem, 11cqi);
+  }
+
+  .arena.arena-lp .arena-rail .intent-bar {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    justify-content: flex-end;
+    padding: 0.35rem 0.5rem max(0.5rem, var(--safe-b));
+  }
+
+  .arena.arena-lp .arena-rail .intent-layout {
+    min-height: 0;
+    justify-content: flex-end;
+  }
+
+  .arena.arena-lp .arena-rail .intent-layout .intent-row {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* The hand sits under the board column only, never over the actions. */
+  .arena.arena-lp .hand-dock {
+    left: var(--lp-rail-w);
+    right: var(--rail-w);
+    width: auto;
+    max-width: none;
+    padding: 0 0.5rem calc(0.6rem + var(--safe-b));
+    border: 1px solid var(--line-strong);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(calc(var(--dock-card-h) + 0.6rem));
+    transition: transform 200ms ease 140ms;
+  }
+
+  .arena.arena-lp .hand-dock.is-open,
+  .arena.arena-lp .hand-dock:focus-within {
+    width: auto;
+    transform: none;
+  }
+
+  .arena.arena-lp .hand-dock.is-dragging,
+  .arena.arena-lp .hand-dock.is-dragging:hover {
+    width: auto;
+    transform: translateY(calc(var(--dock-card-h) + 0.6rem));
+  }
+
+  .arena.arena-lp .hand-dock.is-hidden,
+  .arena.arena-lp .hand-dock.is-hidden:hover,
+  .arena.arena-lp .hand-dock.is-hidden:focus-within {
+    width: auto;
+    transform: translateY(calc(var(--dock-card-h) + 0.6rem));
+  }
+}
+
+@media (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
+  (hover: hover) and (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
+  (hover: hover) and (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
+  .arena.arena-lp .hand-dock:hover {
+    width: auto;
+    transform: none;
+  }
+}
+

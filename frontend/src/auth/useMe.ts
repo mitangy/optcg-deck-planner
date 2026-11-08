@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
-import { setSignedInHint } from "../prerendered";
-
-/** The one React Query key for the session. Every read, patch and invalidation of it goes through this. */
-export const meQueryKey = ["me"] as const;
+import { setSignedInHint } from "../app/prerendered";
+import { qk } from "../cache/queryKeys";
 
 /**
  * The session query. Every reader must use this hook: the signed-in hint (#914) is written by its queryFn, so a
@@ -11,7 +9,7 @@ export const meQueryKey = ["me"] as const;
  */
 export function useMe() {
   return useQuery({
-    queryKey: meQueryKey,
+    queryKey: qk.me(),
     queryFn: async () => {
       const user = await api.me();
       setSignedInHint(user != null);

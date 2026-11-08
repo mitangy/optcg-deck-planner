@@ -1,0 +1,106 @@
+/* —— Verdict + eval table —— */
+
+.adm-verdict-compared {
+  border-color: var(--line-strong);
+}
+
+.adm-verdict-text {
+  font-size: 1rem;
+}
+
+.adm-groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.4rem 1rem;
+  font-size: 0.82rem;
+}
+
+.adm-groups li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.adm-groups b.up {
+  color: var(--ok);
+}
+
+.adm-groups b.down {
+  color: var(--crimson-bright);
+}
+
+.adm-table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.adm-table th {
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.adm-table td {
+  padding: 0.55rem 0.6rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.adm-table .num,
+.adm-uhead .num,
+.adm-urow .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-table td.num small {
+  display: block;
+}
+
+.adm-run {
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  white-space: normal;
+  max-width: 24rem;
+}
+
+.adm-run-notes {
+  max-width: 22rem;
+}
+
+.adm-suite-summary {
+  margin: 0.2rem 0 0.4rem;
+  min-height: 1.4em;
+  font-size: 0.9rem;
+}
+
+/* Better / worse is told by the word and arrow as well as the colour. */
+.adm-change {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.adm-change-better {
+  color: var(--ok);
+}
+
+.adm-change-worse {
+  color: var(--crimson-bright);
+}

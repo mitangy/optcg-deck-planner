@@ -3,7 +3,7 @@ import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import { listLegalIntents } from "./intents.js";
 import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, playerRestricted, powerOf, withQueryCache } from "./queries.js";
-import { activeDon, otherSeat } from "./state.js";
+import { activeDon, otherSeat } from "./zones.js";
 
 const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush", rush_character: "Rush: Character", double_attack: "Double Attack", banish: "Banish", unblockable: "Unblockable" };
 

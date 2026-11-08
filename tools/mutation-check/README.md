@@ -41,8 +41,8 @@ does not fail on them; update their `from` when convenient. The logic lives in
 Moving or reformatting code makes anchors stale. Fix them in this order:
 
 ```bash
-git mv backend/app/config.py backend/app/core/config.py   # 1. move the files (a folder works too)
-node tools/mutation-check/move.cjs backend/app/config.py backend/app/core/config.py   # 2. rewrite suite references
+git mv backend/app/reporter.py backend/app/duel/reporter.py   # 1. move the files (a folder works too)
+node tools/mutation-check/move.cjs backend/app/reporter.py backend/app/duel/reporter.py   # 2. rewrite suite references
 node tools/mutation-check/run.cjs --check-anchors                  # 3. which anchors are still stale or loose?
 node tools/mutation-check/run.cjs --locate-stale [suite]           # 4. where did the stale ones go?
 # 5. fix what is left by hand (edit `file`/`from`), then re-run step 3
@@ -71,23 +71,25 @@ node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove t
 | `rules` | `packages/rules/src/__tests__` | vitest |
 | `duel-web` | `duel-web/src` | vitest |
 | `mobile` | `mobile/src` | vitest |
-| `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
+| `importer` | `backend/scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
 | `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
 | `card-core` | `packages/card-core/src` | vitest |
+| `api-client` | `packages/api-client/src` | vitest |
+| `analyst-contract` | `packages/analyst-contract/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |
 | `price-timing` | `packages/price-timing/src` | vitest |
-| `price-backfill` | `scripts/test_backfill_price_history.py` | unittest |
+| `price-backfill` | `backend/scripts/test_backfill_price_history.py` | unittest |
 | `site-legal` | `packages/site-legal/src` | vitest |
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
 | `duel-protocol` | `packages/duel-protocol/src` | vitest |
-| `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
-| `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
-| `alt-arts` | `scripts/test_sync_alt_arts.py` | unittest |
+| `cosmetics` | `backend/scripts/test_cosmetics_product_ids.py` | unittest |
+| `preview-art` | `backend/scripts/test_sync_preview_art.py` | unittest |
+| `alt-arts` | `backend/scripts/test_sync_alt_arts.py` | unittest |
 | `ci` | `tools/ci/*.test.cjs` (the PR path filter) | `node --test` (a mutation's `args` narrows the files) |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
 | `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |

@@ -1,5 +1,5 @@
 import { CollectorLine, money } from "../../api";
-import { collectorStatNote, collectorStillTotal, itemNeedsCopies } from "../../collectorLines";
+import { collectorStatNote, collectorStillTotal, itemNeedsCopies } from "../collection/collectorLines";
 
 type ShoppingStatsData = {
   unique_cards?: number;

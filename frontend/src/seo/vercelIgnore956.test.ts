@@ -24,8 +24,8 @@ describe("vercel ignoreCommand (#956)", () => {
 
 // Both apps import packages/card-core, but listing it would push the planner's ignoreCommand past 256 characters,
 // so the script itself always watches it (like the root lockfile).
-describe("scripts/vercel-ignore-build.sh watches packages/card-core for every app (#956)", () => {
-  const script = join(dirname(fileURLToPath(import.meta.url)), "../../../scripts/vercel-ignore-build.sh");
+describe("tools/vercel-ignore-build.sh watches packages/card-core for every app (#956)", () => {
+  const script = join(dirname(fileURLToPath(import.meta.url)), "../../../tools/vercel-ignore-build.sh");
 
   /** Commits `file` twice in a scratch repo and returns the script's exit code for `frontend` (1 = build, 0 = skip). */
   function exitCodeAfterChange(file: string): number {
@@ -51,5 +51,13 @@ describe("scripts/vercel-ignore-build.sh watches packages/card-core for every ap
   it("builds when a card-core file changes and skips when only an unrelated path changes (#956)", () => {
     expect(exitCodeAfterChange("packages/card-core/src/cardId.ts")).toBe(1);
     expect(exitCodeAfterChange("backend/app/main.py")).toBe(0);
+  });
+
+  it("builds when the shared vite version-file plugin changes (refactor 2.3)", () => {
+    expect(exitCodeAfterChange("tools/vite/versionFile.mjs")).toBe(1);
+  });
+
+  it("builds when the shared HTTP client changes (refactor 2.1b)", () => {
+    expect(exitCodeAfterChange("packages/api-client/src/request.ts")).toBe(1);
   });
 });

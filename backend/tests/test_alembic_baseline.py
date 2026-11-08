@@ -1,11 +1,12 @@
-"""The Alembic baseline (backend/migrations) builds the same schema as init_db.
+"""The Alembic migrations (backend/migrations) build the schema the models declare.
 
-Production is built by ``init_db`` (create_all plus the ad-hoc ``_ensure_*``
-ALTER helpers) and will be marked with ``alembic stamp`` at cutover, so the
-baseline must describe exactly what init_db produces. Each test builds one
-database with ``init_db`` and one with ``alembic upgrade head``, reflects both
+Startup runs ``alembic upgrade head`` (app.core.migrate), so a fresh database is
+exactly what the migrations make; the models (``Base.metadata.create_all``, what
+every other test builds) must describe the same schema. Each test builds one
+database with ``create_all`` and one with ``alembic upgrade head``, reflects both
 with the SQLAlchemy inspector and compares tables, columns (type, nullability,
 server default), primary keys, indexes, unique constraints and foreign keys.
+A model change without a migration fails here.
 Runs on SQLite by default and on Postgres under TEST_DATABASE_URL.
 """
 
@@ -14,13 +15,12 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
-import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, inspect, text
 from sqlalchemy import exc as sa_exc
 
-from app import db as app_db
+from app.all_models import Base
 from tests.db_support import make_bare_engine
 
 _BACKEND = Path(__file__).resolve().parents[1]
@@ -92,11 +92,9 @@ def _describe_tables(engine: Engine) -> dict[str, dict]:
     return schema
 
 
-def _schema_from_init_db(monkeypatch: pytest.MonkeyPatch) -> dict[str, dict]:
+def _schema_from_models() -> dict[str, dict]:
     engine = make_bare_engine()
-    # init_db and its _ensure_* helpers use the module-level engine.
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db.init_db()
+    Base.metadata.create_all(bind=engine)
     schema = _describe(engine)
     engine.dispose()
     return schema
@@ -113,9 +111,9 @@ def _schema_from_alembic() -> dict[str, dict]:
     return schema
 
 
-def test_alembic_baseline_builds_the_schema_init_db_builds(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_alembic_head_builds_the_schema_the_models_declare() -> None:
     # Built one after the other: on Postgres both use the same (wiped) database.
-    expected = _schema_from_init_db(monkeypatch)
+    expected = _schema_from_models()
     actual = _schema_from_alembic()
 
     assert sorted(actual) == sorted(expected)

@@ -12,6 +12,8 @@
     "test": "npm test --workspaces --if-present",
     "test:rules": "npm run test -w @optcg/rules",
     "test:card-core": "npm run test -w @optcg/card-core",
+    "test:api-client": "npm run test -w @optcg/api-client",
+    "test:analyst-contract": "npm run test -w @optcg/analyst-contract",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:price-timing": "npm run test -w @optcg/price-timing",
     "test:patch-notes": "npm run test -w @optcg/patch-notes",
@@ -36,6 +38,7 @@
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
+    "openapi-typescript": "7.13.0",
     "typescript-eslint": "^8.72.1"
   }
 }
