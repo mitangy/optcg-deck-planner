@@ -31,6 +31,9 @@ module.exports = {
   cwd: "packages/rules",
   runner: "vitest",
   mutations: [
+    {"id":"bot-redirect-keeps-current-target","file":"packages/rules/src/bot/choices.ts","from":"const others = eligible.filter((o) => o.instanceId !== cur);","to":"const others = eligible;","kills":["bot moves an attack on a Character off that Character, even when it is the one that survives (#1169)"]},
+    {"id":"bot-redirect-ignores-survival","file":"packages/rules/src/bot/choices.ts","from":"return cheapest(holds) ?? cheapest(chars)","to":"return cheapest(chars)","kills":["bot prefers a redirect target that survives the attack (#1169)"]},
+    {"id":"bot-redirect-pays-for-nothing","file":"packages/rules/src/bot/choices.ts","from":" && !view.you.characters.length) {\n      const decline","to":" && false) {\n      const decline","kills":["bot declines a redirect cost when nothing else could be the target (#1169)"]},
     {"id":"opponent-next-turn-skips-current-turn","file":"packages/rules/src/engine/modifiers.ts","from":"turn: state.activeSeat === seat ? state.turnNumber + 1 : state.turnNumber };","to":"turn: nextTurnOf(state, seat === 0 ? 1 : 0) };","kills":["On K.O. cannot-attack ends with the opponent's current turn (#1012)"]},
     {"id":"negated-on-ko-activates","file":"packages/rules/src/engine/zoneActions.ts","from":"  if (!negated) queueWindow(state, \"on_ko\"","to":"  if (true) queueWindow(state, \"on_ko\"","kills":["negated Nami's [On K.O.] does not activate when she is K.O.'d (#1001)"]},
     {"id":"negated-self-ko-fires","file":"packages/rules/src/engine/zoneActions.ts","from":"for (const ability of negated ? [] : abilitiesFor(entry.defId)) {","to":"for (const ability of abilitiesFor(entry.defId)) {","kills":["negated Lim's \"when this Character is K.O.'d\" effect does not fire (#1001)"]},
