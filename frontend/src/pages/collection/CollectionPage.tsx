@@ -128,6 +128,8 @@ export function CollectionPage() {
       shownProductId={shownProductId(item)}
       onShow={(productId) => void altArt.changeDisplayArt(item.card_id, productId)}
       busyProductId={altArt.busyProductId(item.card_id)}
+      onCollectorChange={(productId, qty) => void altArt.changeCollector(item.card_id, productId, qty)}
+      collectorBusyProductId={altArt.collectorBusyProductId(item.card_id)}
     />
   );
 

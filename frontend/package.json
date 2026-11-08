@@ -28,7 +28,7 @@
     "@techstark/opencv-js": "^5.0.0-release.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "onnxruntime-web": "1.30.0",
+    "onnxruntime-web": "1.31.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0"
@@ -43,7 +43,7 @@
     "jpeg-js": "^0.4.4",
     "jsdom": "^26.1.0",
     "pngjs": "^7.0.0",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.15",
     "typescript": "~5.7.2",
     "vite": "^7.3.6",
     "vitest": "^5.1.0"

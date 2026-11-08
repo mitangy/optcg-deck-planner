@@ -1,7 +1,7 @@
 /**
  * `npm run eval:grade -w @optcg/analyst -- out/<variant>`: Miko grades the D answers (rep 0) by hand so the
- * rubric judge can be calibrated against him. Per answer: y/n per rubric item (blank = does not apply), an overall
- * 1-5 and a note. Lines are appended to evals/qa/human-grades.jsonl, which keeps the answer text only when it repeats
+ * rubric judge can be calibrated against him. Per answer: y/n per rubric item (blank = does not apply), an optional overall
+ * 1-5 (blank = null) and a note. Lines are appended to evals/qa/human-grades.jsonl, which keeps the answer text only when it repeats
  * fewer than 12 consecutive words of official text; otherwise just its hash.
  */
 import { execSync } from "node:child_process";
@@ -11,12 +11,11 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { rubricItems } from "../grade/judge";
 import { shareable } from "../grade/overlap";
+import type { HumanGrade } from "./human-grades";
 import { CASES } from "./cases";
 import { summarizeTurn } from "../shared/trace";
 import type { Message } from "../../src/chat";
 import type { Rubric } from "./types";
-
-type HumanGrade = { case: string; run: string; git_sha: string; answer_sha256: string; answer?: string; items: Record<string, 0 | 1 | null>; overall: number; note: string; grader: "miko"; graded_at: string };
 
 const dir = resolve(process.argv[2] ?? "");
 if (!process.argv[2] || !existsSync(join(dir, "traces"))) {
@@ -52,11 +51,13 @@ for (const c of CASES.filter((x) => x.group === "D")) {
       if (Number(judge.pass) === items[id]) t2.agree++;
     }
   }
-  const overall = Number(await rl.question("overall 1-5: "));
+  const overallAnswer = (await rl.question("overall 1-5 [blank to skip]: ")).trim();
+  const overall = overallAnswer === "" ? null : Number(overallAnswer);
   const note = (await rl.question("note: ")).trim();
   const row = results.find((r) => r.case === c.id && r.rep === 0);
   const line: HumanGrade = {
     case: c.id,
+    rep: 0,
     run,
     git_sha: gitSha,
     answer_sha256: row?.answer_sha256 ?? "",

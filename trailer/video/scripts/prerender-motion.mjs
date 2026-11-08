@@ -1,0 +1,126 @@
+#!/usr/bin/env node
+// Copies the stills / card art / phone frames the motion piece uses into public/motion/ (gitignored).
+// Sources: MOTION_STILLS (default ../clips/stills, else /mnt/project-files/trailer/clips/stills),
+//          MOTION_CLIPS (default ../clips, else /mnt/project-files/trailer/clips),
+//          MOTION_CARDS (default ../../duel-web/public/cards),
+//          MOTION_MUSIC / MOTION_MUSIC_START / MOTION_MUSIC_BPM (music track, see below).
+import {spawnSync} from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {makeMotionSfx, sfxSourceHash} from './make-motion-sfx.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '..');
+const pick = (env, ...c) => [process.env[env], ...c].filter(Boolean).find((p) => fs.existsSync(p));
+const stills = pick('MOTION_STILLS', path.resolve(root, '../clips/stills'), '/mnt/project-files/trailer/clips/stills');
+const clips = pick('MOTION_CLIPS', path.resolve(root, '../clips'), '/mnt/project-files/trailer/clips');
+const cards = pick('MOTION_CARDS', path.resolve(root, '../../duel-web/public/cards'));
+const dst = path.join(root, 'public/motion');
+fs.rmSync(dst, {recursive: true, force: true});
+fs.mkdirSync(dst, {recursive: true});
+
+let n = 0;
+const copy = (dir, name, out = name) => {
+  if (!dir || !fs.existsSync(path.join(dir, name))) return console.warn(`motion prerender: missing ${name}`);
+  fs.copyFileSync(path.join(dir, name), path.join(dst, out));
+  n++;
+};
+for (const s of ['01-landing', '02-turn', '03-themes', '04-custom-art', '05-layout', '06-friends', '07-spectate', '08-ranked', '09-logpose', '10-planner', '11-phone']) copy(stills, `${s}.png`);
+copy(cards, 'DON.jpg');
+
+// Card art: clean TCGplayer CDN images (the local duel-web/public/cards files carry a SAMPLE watermark).
+// Cached in public/motion/cards/<id>.jpg across runs; anything under 20 KB is the "Image coming soon" placeholder.
+const CARD_PIDS = {
+  'ST01-001': 288228, 'ST01-002': 288229, 'ST01-004': 288232, 'ST01-006': 288235, 'ST01-008': 288237,
+  'ST01-009': 288238, 'ST01-010': 288239, 'ST01-011': 288240, 'ST01-012': 288241, 'ST01-013': 288242,
+  'ST02-001': 288249, 'ST02-002': 288254, 'ST02-006': 288261, 'ST02-007': 288262,
+};
+const cacheDir = process.env.MOTION_CARD_CACHE ?? path.resolve(root, '.motion-card-cache');
+fs.mkdirSync(cacheDir, {recursive: true});
+fs.mkdirSync(path.join(dst, 'cards'), {recursive: true});
+const bad = [];
+for (const [id, pid] of Object.entries(CARD_PIDS)) {
+  const cached = path.join(cacheDir, `${id}.jpg`);
+  if (!fs.existsSync(cached) || fs.statSync(cached).size < 20000) {
+    const r = spawnSync('curl', ['-sSfL', '-m', '60', '-o', cached, `https://tcgplayer-cdn.tcgplayer.com/product/${pid}_400w.jpg`], {encoding: 'utf8'});
+    if (r.status !== 0) { bad.push(`${id}: download failed ${r.stderr.trim()}`); continue; }
+  }
+  const size = fs.statSync(cached).size;
+  if (size < 20000) { bad.push(`${id} (product ${pid}): ${size} bytes, looks like the "Image coming soon" placeholder`); fs.rmSync(cached); continue; }
+  fs.copyFileSync(cached, path.join(dst, 'cards', `${id}.jpg`));
+  n++;
+}
+if (bad.length) { console.error(`motion prerender: card art problems:\n  ${bad.join('\n  ')}`); process.exit(1); }
+
+// phone frames: one clean portrait frame, one landscape frame
+const frame = (clip, t, out) => {
+  const src = clips && path.join(clips, clip);
+  if (!src || !fs.existsSync(src)) return console.warn(`motion prerender: missing ${clip}`);
+  const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-ss', String(t), '-i', src, '-frames:v', '1', path.join(dst, out)]);
+  if (r.status === 0) n++; else console.warn(`motion prerender: ffmpeg failed for ${clip}`);
+};
+frame('12-phone-portrait.mp4', process.env.MOTION_PORTRAIT_T ?? 0.5, 'phone-portrait.png');
+frame('13-phone-landscape.mp4', process.env.MOTION_LANDSCAPE_T ?? 4, 'phone-landscape.png');
+console.log(`motion prerender: ${n} file(s) -> public/motion`);
+
+// Ocean waves + seagulls ambience bed. Source: BigSoundBank "Sea waves and seagulls" (57.6 s),
+// https://bigsoundbank.com/UPLOAD/mp3/0267.mp3 — CC0 / public-domain-equivalent, no attribution required.
+// Cached in the same cache dir as the card art; public/motion/ is wiped each run, so copy it back in.
+const oceanCached = path.join(cacheDir, 'ocean.mp3');
+if (!fs.existsSync(oceanCached) || fs.statSync(oceanCached).size < 100000) {
+  const r = spawnSync('curl', ['-sSfL', '-m', '60', '-o', oceanCached, 'https://bigsoundbank.com/UPLOAD/mp3/0267.mp3'], {encoding: 'utf8'});
+  if (r.status !== 0) { console.warn(`motion prerender: ocean.mp3 download failed ${r.stderr.trim()}`); fs.rmSync(oceanCached, {force: true}); }
+}
+if (fs.existsSync(oceanCached)) fs.copyFileSync(oceanCached, path.join(dst, 'ocean.mp3'));
+const hasOcean = fs.existsSync(path.join(dst, 'ocean.mp3'));
+
+// Music: "Tributary" by Lish Grooves, from the YouTube Audio Library (licensed, chosen by the project owner).
+// The audio is NEVER committed (CI rejects media): the source stays outside the repo, the prepared clip lives in
+// public/motion/ (gitignored) and is cached in the card cache dir keyed on source + params.
+// Prep: take 29.23 s from MOTION_MUSIC_START (a beat, 6 beats before the full groove re-enters), time-stretch with
+// rubberband from MOTION_MUSIC_BPM to exactly 120 BPM (pitch unchanged) so beat k lands at k*0.5 s and the re-entry
+// hits at 3.0 s = frame 90 (Storm scene), then loudnorm to -14 LUFS (two-pass). Written as 48 kHz stereo WAV
+// (no MP3 encoder delay to shift the beat grid).
+const musicSrc = pick('MOTION_MUSIC', '/mnt/user-data/uploads/hearth/e728063e-04d7-4ae7-b290-834a89aa50cd/e728063e-04d7-4ae7-b290-834a89aa50cd.mp3', path.resolve(root, '../motion-music-src.mp3'));
+const musicStart = Number(process.env.MOTION_MUSIC_START ?? 164.37);
+const musicBpm = Number(process.env.MOTION_MUSIC_BPM ?? 129.2);
+let hasMotionMusic = false;
+if (musicSrc) {
+  const st = fs.statSync(musicSrc);
+  const key = crypto.createHash('sha1').update(JSON.stringify([path.resolve(musicSrc), st.size, st.mtimeMs, musicStart, musicBpm, 'v1'])).digest('hex').slice(0, 12);
+  const cachedMusic = path.join(cacheDir, `music-${key}.wav`);
+  if (!fs.existsSync(cachedMusic)) {
+    const tempo = 120 / musicBpm;
+    const pre = `atrim=start=${musicStart}:end=${musicStart + 29.23},asetpts=PTS-STARTPTS,rubberband=tempo=${tempo.toFixed(6)}`;
+    const LN = 'I=-14:TP=-1.5:LRA=11';
+    const m = spawnSync('ffmpeg', ['-hide_banner', '-i', musicSrc, '-af', `${pre},loudnorm=${LN}:print_format=json`, '-f', 'null', '-'], {encoding: 'utf8'});
+    let norm = `loudnorm=${LN}`;
+    const j = m.stderr?.match(/\{[^{}]*"input_i"[^{}]*\}/s);
+    if (j) {
+      const d = JSON.parse(j[0]);
+      norm = `loudnorm=${LN}:measured_I=${d.input_i}:measured_TP=${d.input_tp}:measured_LRA=${d.input_lra}:measured_thresh=${d.input_thresh}:offset=${d.target_offset}:linear=true`;
+    }
+    const r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', musicSrc, '-af', `${pre},${norm},aresample=48000`, '-ac', '2', '-c:a', 'pcm_s16le', cachedMusic], {encoding: 'utf8'});
+    if (r.status !== 0) { console.warn(`motion prerender: music prep failed ${r.stderr.trim()}`); fs.rmSync(cachedMusic, {force: true}); }
+  }
+  if (fs.existsSync(cachedMusic)) { fs.copyFileSync(cachedMusic, path.join(dst, 'music.wav')); hasMotionMusic = true; }
+} else console.log('motion prerender: no music source found, skipping (set MOTION_MUSIC)');
+
+// Sound effects: synthesized by make-motion-sfx.mjs (WebAudio in Playwright's Chromium, no downloads). Rendered into the
+// card cache dir keyed on the generator's source hash and copied into public/motion/sfx/ (public/motion/ is wiped each run).
+let hasMotionSfx = false;
+try {
+  const sfxCache = path.join(cacheDir, `sfx-${sfxSourceHash()}`);
+  if (!fs.existsSync(path.join(sfxCache, '.hash'))) { fs.rmSync(sfxCache, {recursive: true, force: true}); await makeMotionSfx(sfxCache); }
+  fs.cpSync(sfxCache, path.join(dst, 'sfx'), {recursive: true});
+  hasMotionSfx = true;
+} catch (e) { console.warn(`motion prerender: sfx generation failed (${e.message}), rendering without sound effects`); }
+
+// src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3, ocean, motion music and sfx.
+const gen = path.join(root, 'src/generated.json');
+const hasMusic = fs.existsSync(path.join(root, 'public/music.mp3'));
+let cur = {clips: {}};
+try { cur = JSON.parse(fs.readFileSync(gen, 'utf8')); } catch { /* absent */ }
+fs.writeFileSync(gen, JSON.stringify({...cur, hasMusic, hasOcean, hasMotionMusic, hasMotionSfx}, null, 2) + '\n');
