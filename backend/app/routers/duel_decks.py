@@ -12,28 +12,20 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import deck_link
-from app.auth import get_current_user
-from app.db import get_db
-from app.models import DuelSavedDeck, User
-from app.schemas import (
-    DuelDeckBody,
-    DuelDeckBulkPut,
-    DuelDeckOut,
-    DuelDecksOut,
-    DuelDeckPut,
-)
+from app.planner import deck_link
+from app.core.auth import get_current_user
+from app.core.db import get_db
+from app.duel import decks as store
+from app.core.models import User
+from app.duel.models import DuelSavedDeck
+from app.duel.schemas import DuelDeckBody, DuelDeckBulkPut, DuelDeckOut, DuelDeckPut, DuelDecksOut
 
 router = APIRouter(prefix="/duel/decks", tags=["duel"])
 
 DECK_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-MAX_DECKS = 200
-MAX_DECK_CHARS = 16 * 1024
-# Live decks plus tombstones; keeps delete-spam from growing a user's rows forever.
-MAX_ROWS = 1000
 
 
 def _check_id(deck_id: str) -> str:
@@ -58,39 +50,11 @@ def _out(row: DuelSavedDeck) -> DuelDeckOut:
     )
 
 
-def _row(db: Session, user_id: int, deck_id: str) -> DuelSavedDeck | None:
-    return db.scalar(
-        select(DuelSavedDeck).where(
-            DuelSavedDeck.user_id == user_id, DuelSavedDeck.deck_id == deck_id
-        )
-    )
-
-
-def _live_count(db: Session, user_id: int) -> int:
-    return (
-        db.scalar(
-            select(func.count())
-            .select_from(DuelSavedDeck)
-            .where(DuelSavedDeck.user_id == user_id, DuelSavedDeck.deleted.is_(False))
-        )
-        or 0
-    )
-
-
-def _row_count(db: Session, user_id: int) -> int:
-    return (
-        db.scalar(
-            select(func.count()).select_from(DuelSavedDeck).where(DuelSavedDeck.user_id == user_id)
-        )
-        or 0
-    )
-
-
 def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelSavedDeck:
     data = json.dumps(body.deck.model_dump(exclude_none=True), separators=(",", ":"), sort_keys=True)
-    if len(data) > MAX_DECK_CHARS:
+    if len(data) > store.MAX_DECK_CHARS:
         raise HTTPException(status_code=413, detail="Deck is too large")
-    row = _row(db, user_id, deck_id)
+    row = store.find_row(db, user_id, deck_id)
     if row is not None and row.updated_at_ms > body.updatedAt:
         return row  # the stored copy is newer: the client adopts it
     is_new = row is None or row.deleted
@@ -99,7 +63,7 @@ def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelS
         # Same deck as one already synced: keep one copy. The client adopts the tombstone and
         # switches to the survivor, so the planner never gets a second deck.
         if row is None:
-            if _row_count(db, user_id) >= MAX_ROWS:
+            if store.row_count(db, user_id) >= store.MAX_ROWS:
                 raise HTTPException(status_code=413, detail="Too many saved decks")
             row = DuelSavedDeck(user_id=user_id, deck_id=deck_id)
             db.add(row)
@@ -111,10 +75,10 @@ def _upsert(db: Session, user_id: int, deck_id: str, body: DuelDeckPut) -> DuelS
         db.flush()
         row.merged_into = survivor.deck_id  # type: ignore[attr-defined]  # response only, not stored
         return row
-    if (row is None or row.deleted) and _live_count(db, user_id) >= MAX_DECKS:
-        raise HTTPException(status_code=413, detail=f"You can save up to {MAX_DECKS} decks")
+    if (row is None or row.deleted) and store.live_count(db, user_id) >= store.MAX_DECKS:
+        raise HTTPException(status_code=413, detail=f"You can save up to {store.MAX_DECKS} decks")
     if row is None:
-        if _row_count(db, user_id) >= MAX_ROWS:
+        if store.row_count(db, user_id) >= store.MAX_ROWS:
             raise HTTPException(status_code=413, detail="Too many saved decks")
         row = DuelSavedDeck(user_id=user_id, deck_id=deck_id)
         db.add(row)
@@ -174,9 +138,9 @@ def delete_deck(
     updated_at: Annotated[int, Query(alias="updatedAt", ge=0)],
 ) -> DuelDeckOut:
     _check_id(deck_id)
-    row = _row(db, user.id, deck_id)
+    row = store.find_row(db, user.id, deck_id)
     if row is None:
-        if _row_count(db, user.id) >= MAX_ROWS:
+        if store.row_count(db, user.id) >= store.MAX_ROWS:
             raise HTTPException(status_code=413, detail="Too many saved decks")
         row = DuelSavedDeck(user_id=user.id, deck_id=deck_id)
         db.add(row)

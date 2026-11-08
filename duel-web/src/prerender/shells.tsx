@@ -1,6 +1,5 @@
+import { PageShell } from "../layout/PageShell";
 import { Link } from "react-router-dom";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "../pages/BackLink";
 import { formatPercent } from "../decks/meta";
 import { leaderPath } from "../leaders/slug";
 import type { MetaSnapshot } from "../leaders/snapshot";
@@ -72,23 +71,16 @@ export function HomeShell({ snapshot }: { snapshot: MetaSnapshot }) {
 
 export function LeaderboardShell() {
   return (
-    <div className="app-shell prerender-shell">
-      <div className="page page-narrow">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">Leaderboard</h1>
-        </header>
-        <section className="leaderboard" aria-label="Leaderboard">
-          <p className="panel-copy leaderboard-note">
-            The top players on the OPTCG Duel ranked ladder and their Bounties. Win ranked matches to raise your Bounty and climb. Playing is free, with no download.
-          </p>
-          <p className="panel-copy leaderboard-note">
-            <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link> · <Link to="/optcg-sim-online">OPTCG sim online</Link> ·{" "}
-            <Link to="/play-optcg-on-phone">Play on your phone</Link> · <Link to="/leaders">Top leaders</Link>
-          </p>
-        </section>
-      </div>
-    </div>
+    <PageShell shellClass="prerender-shell" pageClass="page-narrow" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Leaderboard">
+      <section className="leaderboard" aria-label="Leaderboard">
+        <p className="panel-copy leaderboard-note">
+          The top players on the OPTCG Duel ranked ladder and their Bounties. Win ranked matches to raise your Bounty and climb. Playing is free, with no download.
+        </p>
+        <p className="panel-copy leaderboard-note">
+          <Link to="/play-one-piece-tcg-online">How to play OPTCG online</Link> · <Link to="/optcg-sim-online">OPTCG sim online</Link> ·{" "}
+          <Link to="/play-optcg-on-phone">Play on your phone</Link> · <Link to="/leaders">Top leaders</Link>
+        </p>
+      </section>
+    </PageShell>
   );
 }

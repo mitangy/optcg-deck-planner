@@ -1,0 +1,355 @@
+/* —— Playmat —— */
+
+.playmat {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 0.65rem 0.75rem 0.35rem;
+}
+
+.playmat-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.opp-hand-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  justify-content: center;
+  min-height: 2rem;
+}
+
+.opp-hand-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.opp-hand-backs {
+  display: flex;
+  gap: 0.2rem;
+  align-items: flex-end;
+}
+
+/* Face-up far hand (spectators): back-sized tiles that overlap once the row
+   runs out of room, so a big hand never widens the strip. */
+.opp-hand-faces {
+  --face-w: 22px;
+  /* A definite width: the overlap margin below is a % of this box, which collapsed to 0 when it sized to its own cards. */
+  width: calc(var(--n) * (var(--face-w) + 0.2rem));
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 0;
+}
+
+.opp-hand-faces .card-tile.opp-hand-face,
+.opp-hand-faces .card-back.opp-hand-face {
+  flex: 0 0 auto;
+  width: var(--face-w);
+  height: calc(var(--face-w) * 1.38);
+  border-width: 1px;
+  border-radius: var(--radius-2);
+}
+
+.opp-hand-faces .opp-hand-face + .opp-hand-face {
+  margin-left: min(0.2rem, calc((100% - var(--n) * var(--face-w)) / max(var(--n) - 1, 1)));
+}
+
+.card-back {
+  width: 22px;
+  height: 30px;
+  border-radius: var(--radius-3);
+  border: 1px solid var(--chrome-dim);
+  background:
+    linear-gradient(135deg, #1a2838 25%, #243447 25% 50%, #1a2838 50% 75%, #243447 75%),
+    #1a2838;
+  background-size: 8px 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.hand-back {
+  width: 64px;
+  height: 90px;
+  flex-shrink: 0;
+}
+
+.opp-hand-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 0.35em;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--chrome-dim);
+  background: rgb(var(--deep-rgb) / 0.75);
+  color: var(--chrome-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-field {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    var(--arena-mid);
+  padding: 0.55rem 0.6rem 0.65rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  /* Taps on slots and piles must not drop a blinking text caret or start a selection. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.side-field.mirrored {
+  background:
+    linear-gradient(0deg, rgba(255, 255, 255, 0.03), transparent 40%),
+    #101820;
+}
+
+.side-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "life characters stage"
+    "leader characters deck"
+    "dondeck cost trash";
+  gap: 0.45rem 0.55rem;
+  align-items: start;
+}
+
+.zone-life {
+  grid-area: life;
+}
+.zone-characters {
+  grid-area: characters;
+  min-width: 0;
+}
+.zone-deck {
+  grid-area: deck;
+}
+.zone-leader {
+  grid-area: leader;
+}
+.zone-stage {
+  grid-area: stage;
+}
+.zone-don-deck {
+  grid-area: dondeck;
+}
+.zone-cost {
+  grid-area: cost;
+  min-width: 0;
+}
+.zone-trash {
+  grid-area: trash;
+}
+
+.zone-caption {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chrome-dim);
+  margin-bottom: 0.25rem;
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-end;
+}
+
+.characters-row {
+  min-height: 92px;
+}
+
+.zone-slot {
+  width: 56px;
+  height: 78px;
+  border-radius: var(--radius-6);
+  border: 1px dashed rgb(var(--chrome-rgb) / 0.25);
+  background: rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+}
+
+.zone-slot.empty,
+.zone-slot.stage-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.zone-pile {
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.zone-pile-stack {
+  position: relative;
+  width: 42px;
+  height: 56px;
+}
+
+.zone-pile-face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--chrome-dim);
+  background: #1b2736;
+  transform: translate(0, 0);
+}
+
+.zone-pile-face.mid {
+  transform: translate(2px, -2px);
+  opacity: 0.85;
+}
+
+.zone-pile-face.top {
+  transform: translate(4px, -4px);
+  background:
+    linear-gradient(145deg, #243447, #15202c);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Life: vertical fan (one face per life, capped at 5) — not the diagonal stack. */
+.zone-pile-life .zone-pile-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 36px;
+  height: auto;
+  min-height: 56px;
+}
+
+.zone-pile-life .zone-pile-face {
+  position: relative;
+  inset: auto;
+  width: 36px;
+  height: 42px;
+  flex-shrink: 0;
+  margin-top: -30px;
+  transform: none;
+  background: linear-gradient(145deg, #3a2030, #1a1018);
+  border-color: #a35d6a;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.zone-pile-life .zone-pile-face:first-child {
+  margin-top: 0;
+}
+
+/* Fans up (#499): the last face (top of Life) sits at the top, still in front. */
+.zone-pile-life .zone-pile-stack.is-fan-up {
+  flex-direction: column-reverse;
+}
+
+.zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+  margin-top: 0;
+  margin-bottom: -30px;
+}
+
+.zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+  margin-bottom: 0;
+}
+
+.zone-pile-life .zone-pile-stack:empty::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 50px;
+  border-radius: var(--radius-4);
+  border: 1px dashed rgba(163, 93, 106, 0.35);
+  background: rgba(26, 16, 24, 0.45);
+}
+
+.zone-pile-don .zone-pile-face.top {
+  background: linear-gradient(145deg, #2a3a20, #141c10);
+  border-color: #7a9a4a;
+}
+
+.zone-pile-trash .zone-pile-face.top {
+  background: linear-gradient(145deg, #2a2a2a, #141414);
+}
+
+/* Card backs on face-down cards (deck, life, hidden hands, DON!! deck).
+   Official Bandai backs by default; `--card-back-art` is overridden on your own
+   side-field when a custom back is uploaded. The gradient layer underneath keeps
+   a styled back visible if the image fails to load. */
+:root {
+  --card-back-art: url("/cards/card-back.webp");
+  --don-back-art: url("/cards/don-back.webp");
+}
+
+.card-back,
+.zone-pile-deck .zone-pile-face,
+.zone-pile-life .zone-pile-face {
+  background-color: #1a2838;
+  background-image: var(--card-back-art), linear-gradient(145deg, #243447, #15202c);
+  background-size: cover, auto;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* A face-up Life card shows its art in the fan instead of the card back. */
+.zone-pile-life .zone-pile-face.is-face-up {
+  background-image: var(--life-face-art), linear-gradient(145deg, #243447, #15202c);
+  border-color: rgb(var(--chrome-bright-rgb, 255 255 255) / 0.75);
+}
+
+.zone-pile-don .zone-pile-face,
+.zone-pile-don .zone-pile-face.top {
+  background-color: #e9ece8;
+  background-image: var(--don-back-art), linear-gradient(145deg, #f2f4f1, #cfd8d3);
+  background-size: cover, auto;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: #2f7f6f;
+}
+
+.card-back-settings {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.card-back-settings-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-back-preview {
+  width: 112px;
+  aspect-ratio: 63 / 88;
+  flex-shrink: 0;
+  border-radius: var(--radius-7);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background-color: #1a2838;
+  background-size: cover;
+  background-position: center;
+}
+
+@media (max-width: 420px) {
+  .card-back-preview {
+    width: 84px;
+  }
+}
+

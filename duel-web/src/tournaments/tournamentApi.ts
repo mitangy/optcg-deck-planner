@@ -1,6 +1,5 @@
 /** Duel-web ↔ FastAPI tournaments (single elimination and round robin among friends). */
-import { getApiBaseUrl } from "../config";
-import { ApiError } from "../net/api";
+import { apiCall } from "../api/http";
 import type { TimerPreset } from "../home/timerPreset";
 
 export type TournamentFormat = "single_elim" | "round_robin";
@@ -74,24 +73,7 @@ export type PlayResult = {
   server_url?: string | null;
 };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: init.body ? { "Content-Type": "application/json" } : undefined,
-  });
-  if (!res.ok) {
-    let detail = `${fallback} (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return (res.status === 204 ? undefined : await res.json()) as T;
-}
+export const call = apiCall;
 
 const post = <T>(path: string, body?: unknown, fallback?: string) =>
   call<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }, fallback);

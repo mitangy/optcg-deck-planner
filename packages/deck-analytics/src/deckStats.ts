@@ -4,6 +4,8 @@
  * `packages/rules` (`npm run export-planner-stats` -> packages/deck-analytics/deckStats.json).
  */
 
+import { normalizeCardId } from "@optcg/card-core";
+
 export type StatsCardType = "character" | "event" | "stage" | "leader";
 
 export type StatsSearch = { look: number; filter: Record<string, unknown> };
@@ -98,11 +100,6 @@ export type DeckStats = {
 export const COST_CURVE_MAX = 10;
 export const OPENING_HAND = 5;
 
-/** Planner ids are base ids; alt-art / parallel suffixes (`_p1`, `_r1`) map to the base card. */
-export function normalizeStatsCardId(id: string): string {
-  return id.trim().toUpperCase().replace(/_(?:P\d+|R\d+)$/, "");
-}
-
 function bump(map: Map<string, number>, key: string, by: number): void {
   map.set(key, (map.get(key) ?? 0) + by);
 }
@@ -170,7 +167,7 @@ export function computeDeckStats(
   const copiesById = new Map<string, number>();
   for (const c of cards) {
     if (!(c.copies > 0)) continue;
-    bump(copiesById, normalizeStatsCardId(c.id), c.copies);
+    bump(copiesById, normalizeCardId(c.id), c.copies);
   }
 
   const costCurve: CostBucket[] = Array.from({ length: COST_CURVE_MAX + 1 }, (_, cost) => ({ cost, character: 0, event: 0, stage: 0, total: 0 }));
@@ -187,7 +184,7 @@ export function computeDeckStats(
   let unknown = 0;
   let triggers = 0;
 
-  const leaderKey = leaderId ? normalizeStatsCardId(leaderId) : null;
+  const leaderKey = leaderId ? normalizeCardId(leaderId) : null;
   const leader = leaderKey ? atlas[leaderKey] : undefined;
   const ruleIds = new Map<string, Set<string>>();
   const offColorIds: string[] = [];

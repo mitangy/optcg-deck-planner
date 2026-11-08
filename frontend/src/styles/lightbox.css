@@ -1,0 +1,230 @@
+/* A floating panel (hint, menu) portals into the lightbox: its wrapper must not become a second grid row that shifts the art. */
+.lightbox > div:has(> .ui-popover-panel) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Headless UI panel around the art: no box of its own (the Close button positions against .lightbox). */
+.lightbox-panel {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  max-height: calc(100dvh - 4rem);
+}
+
+/* With an action row below, leave room for it so the panel never outgrows the screen. */
+.lightbox-panel:has(.lightbox-action) .lightbox-img {
+  max-height: calc(100dvh - 17.5rem);
+}
+
+.lightbox-img {
+  width: auto;
+  height: auto;
+  max-width: min(640px, calc(100vw - 1.5rem));
+  max-height: calc(100dvh - 4.5rem);
+  object-fit: contain;
+  border-radius: var(--radius-16);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  background: #111;
+}
+
+/* Shopping action under the enlarged card: same footprint for Add and the stepper, so nothing shifts. */
+.lightbox-action {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  max-width: calc(100vw - 1.5rem);
+  box-sizing: border-box;
+  border-radius: var(--radius-14);
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  /* One width for Card page, shopping, alert and history (#1034). */
+  --lightbox-control-width: 17rem;
+}
+
+.lightbox-action > .lightbox-card-link,
+.lightbox-action > .shopping-extra-control,
+.lightbox-action > .lightbox-alert,
+.lightbox-action > .lightbox-history {
+  box-sizing: border-box;
+  width: var(--lightbox-control-width);
+  max-width: 100%;
+}
+
+.lightbox-action > .lightbox-card-link {
+  text-align: center;
+  justify-content: center;
+}
+
+.lightbox-action-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.lightbox-action .shopping-extra-control {
+  justify-content: center;
+  /* Width comes from --lightbox-control-width above, so Add and the stepper share one footprint. */
+  min-height: 2.5rem;
+}
+
+/* Button and stepper are both 2.5rem tall, so swapping them moves nothing. */
+.lightbox-action .shopping-extra-control .btn,
+.scan-hit-owned .shopping-extra-control .btn {
+  height: 2.5rem;
+  width: 100%;
+  margin: 0;
+  padding-block: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-hit-owned .shopping-extra-control {
+  width: 14rem;
+  max-width: 100%;
+  min-height: 2.5rem;
+  justify-content: flex-end;
+}
+
+/* Where Log Pose renders while the card is open (#968): no box of its own; the panel is fixed to the screen. */
+.lightbox-chat-layer {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* Beside the card on desktop the chat takes its side of the screen: the card and its Close button move over. */
+html[data-lp-layer="right"] .lightbox {
+  padding-right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox {
+  padding-left: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="right"] .lightbox-close {
+  right: calc(var(--lp-layer-w, 420px) + 1rem);
+}
+
+html[data-lp-layer="left"] .lightbox-close {
+  left: calc(var(--lp-layer-w, 420px) + 1rem);
+  right: auto;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0.55rem 1rem;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deck-filter {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-16);
+}
+
+.deck-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: 0.65rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.deck-filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+}
+
+.deck-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.alt-arts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  max-width: 320px;
+}
+
+.alt-art {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.35rem;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+}
+
+.alt-art .thumb {
+  width: 64px;
+  height: 90px;
+}
+
+.alt-meta {
+  display: grid;
+  gap: 0.05rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.alt-want-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  margin-top: 0.1rem;
+}
+
+.alt-want-caption {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.alt-want-wrap {
+  margin-top: 0;
+}
+
+.alt-want-wrap .owned-btn {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.85rem;
+}
+
+.alt-want-qty {
+  min-width: 1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}

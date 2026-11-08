@@ -5,12 +5,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests.db_support import make_test_engine
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
-from app.models import User
-from app.routers import duel_decks
+from app.core.models import User
+from app.duel import decks as duel_decks
 
 
 @pytest.fixture()

@@ -1,17 +1,18 @@
 import type { CardView } from "../net/protocol";
+import { stubCard } from "./fixtures/stubCard";
 import { FriendInvites } from "../friends/FriendsPanel";
 import type { FriendInvite } from "../friends/friendsApi";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
-import { RoomInvite } from "./RoomShare";
-import { SideField } from "./SideField";
+import { RoomInvite } from "./match/RoomShare";
+import { SideField } from "./zones/SideField";
 import {
   LANDSCAPE_PHONE_QUERY,
   PORTRAIT_MAT_QUERY,
   useMediaQuery,
   WIDE_BOARD_QUERY,
-} from "./useMediaQuery";
+} from "./layout/useMediaQuery";
 
 /** What the board shows before the match's first view arrives. */
 export type BoardWaiting = {
@@ -40,7 +41,7 @@ type Props = {
 };
 
 function leaderCard(id: string, defId: string | null | undefined): CardView {
-  return { id, defId: defId ?? "" };
+  return stubCard({ id, defId: defId ?? "" });
 }
 
 /** Empty board sides: 50-card decks, 10 DON!!, nothing in play yet. */

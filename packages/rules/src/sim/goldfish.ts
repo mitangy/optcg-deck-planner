@@ -13,7 +13,7 @@ import { getCardDef, hasCardDef } from "../cards/definitions.js";
 import { abilitySupportForCard, type AbilitySupport } from "../cards/effectCatalog.js";
 import { applyIntent, createMatch, hasKeyword, listLegalIntents, playCostOf, powerOf } from "../engine.js";
 import { addModifier } from "../engine/modifiers.js";
-import { activeDon } from "../engine/state.js";
+import { activeDon } from "../engine/zones.js";
 import { createSeededRng, type Rng } from "../rng.js";
 import type { GameEvent, Intent, MatchState, PendingChoice, PlayerState } from "../types.js";
 import { actingSeat, randomDeck } from "./fuzz.js";
@@ -191,7 +191,7 @@ interface Cursor { state: MatchState; events: GameEvent[] }
 function apply(cur: Cursor, ctx: Ctx, intent: Intent, seat: 0 | 1): boolean {
   ctx.intents += 1;
   if (ctx.intents > ctx.max) throw new GoldfishError("stuck");
-  const r = applyIntent(cur.state, intent, { seat, rng: ctx.rng });
+  const r = applyIntent(cur.state, intent, { seat });
   if (!r.ok) return false;
   cur.state = r.state;
   cur.events.push(...r.events);

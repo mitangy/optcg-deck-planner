@@ -15,22 +15,45 @@ from pydantic import AfterValidator, BaseModel, Field, model_validator
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from app import admin_hosting, admin_traffic
-from app.analyst_credit import month_start, spent_since
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import (
+from app.admin import hosting as admin_hosting
+from app.admin import traffic as admin_traffic
+from app.admin.overview import build_overview, bucket_by_day, is_guest, last_days
+from app.admin.schemas import (
+    AdminBots,
+    AdminDayMatches,
+    AdminFeedback,
+    AdminMe,
+    AdminOverview,
+    AdminReports,
+    AdminUser,
+    AdminUserDetail,
+    AdminUsers,
+    EvalRun,
+    FeedbackExport,
+    HostingOut,
+    ReportRow,
+    TrafficOut,
+    UploadRestored,
+    UploadRow,
+    UploadsPage,
+)
+from app.core.statuses import FriendshipStatus, ReportStatus
+from app.core.time import as_utc_or_none
+from app.analyst.credit import month_start, spent_since
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.analyst.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystFeedback,
     AnalystThread,
     AnalystUsage,
-    Base,
     BotMatch,
-    Deck,
+)
+from app.all_models import Base
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
-    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchSeat,
@@ -38,38 +61,21 @@ from app.models import (
     DuelSavedDeck,
     DuelSoloGame,
     DuelUserSettings,
-    Friendship,
-    Owned,
     PlayerReport,
     PlayerWarning,
-    User,
 )
-from app.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
+from app.planner.models import Deck, Owned
+from app.social.models import DuelLobbySeen, Friendship
+from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
-from app.roles import ASSIGNABLE_ROLES, can_ban, can_delete, can_set_role, is_admin, is_staff
-from app.routers.analyst import require_service
-from app.routers.friends import ONLINE_TTL, live_presence
+from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin
+from app.core.security import Admin, Staff, require_service
+from app.social.presence import ONLINE_TTL, live_presence
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 DB = Annotated[Session, Depends(get_db)]
-GUEST_SUFFIX = "@localhost"
 
-
-def require_staff(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if not is_staff(user):
-        raise HTTPException(status_code=403, detail="Staff only")
-    return user
-
-
-def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if not is_admin(user):
-        raise HTTPException(status_code=403, detail="Admin only")
-    return user
-
-
-Staff = Annotated[User, Depends(require_staff)]
-Admin = Annotated[User, Depends(require_admin)]
 
 # The windows the admin charts offer (#691); anything else is a 422.
 RANGE_DAYS = (7, 14, 30, 90)
@@ -83,44 +89,16 @@ def _range_days(v: int) -> int:
 
 RangeDays = Annotated[int, AfterValidator(_range_days)]
 MATCHES_DAY_LIMIT = 200
-TOP_LEADERS_LIMIT = 25
-
-
-def _utc(dt: datetime | None) -> datetime | None:
-    """SQLite hands back naive datetimes; they are UTC."""
-    if dt is None:
-        return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _iso(dt: datetime | None) -> str | None:
-    dt = _utc(dt)
+    dt = as_utc_or_none(dt)
     return dt.isoformat() if dt else None
-
-
-def _days(now: datetime, n: int) -> list[date]:
-    """The last n UTC days, oldest first, ending today."""
-    today = now.date()
-    return [today - timedelta(days=i) for i in range(n - 1, -1, -1)]
-
-
-def _bucket(stamps: list[datetime | None], days: list[date]) -> dict[date, int]:
-    """Count timestamps per UTC day in Python, so it behaves the same on SQLite and Postgres."""
-    counts = {d: 0 for d in days}
-    for t in stamps:
-        t = _utc(t)
-        if t is not None and t.date() in counts:
-            counts[t.date()] += 1
-    return counts
-
-
-def _is_guest():
-    return User.email.like(f"%{GUEST_SUFFIX}")
 
 
 # ---------------------------------------------------------------- who am I
 
-@router.get("/me")
+@router.get("/me", response_model=AdminMe)
 def admin_me(user: Staff) -> dict:
     admin = is_admin(user)
     return {"role": user.role, "can": {"analytics": admin, "set_roles": admin, "ban": True, "delete": admin}}
@@ -128,109 +106,12 @@ def admin_me(user: Staff) -> dict:
 
 # ---------------------------------------------------------------- players
 
-@router.get("/overview")
+@router.get("/overview", response_model=AdminOverview)
 def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
-    now = datetime.now(timezone.utc)
-    d1, d7, d30 = now - timedelta(days=1), now - timedelta(days=7), now - timedelta(days=30)
-    guest = _is_guest()
-
-    def users(*where) -> int:
-        return int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
-
-    total = users()
-    guests = users(guest)
-    accounts = {
-        "total": total,
-        "real": total - guests,
-        "guests": guests,
-        "staff": users(User.role.in_(("admin", "moderator"))),
-        "banned": users(User.banned_at.is_not(None)),
-        "new_7d": users(User.created_at >= d7),
-        "new_30d": users(User.created_at >= d30),
-    }
-
-    window = _days(now, days)
-    window_start = datetime.combine(window[0], datetime.min.time(), tzinfo=timezone.utc)
-    signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start)).all()
-    real_by_day = _bucket([c for c, g in signups if not g], window)
-    guest_by_day = _bucket([c for c, g in signups if g], window)
-
-    def active(since: datetime, real_only: bool = False) -> int:
-        ids: set[int] = set()
-        seats = select(DuelMatchSeat.user_id).where(DuelMatchSeat.created_at >= since).distinct()
-        ids.update(db.scalars(seats))
-        for col in (DuelMatch.seat0_user_id, DuelMatch.seat1_user_id):
-            ids.update(db.scalars(select(col).where(DuelMatch.created_at >= since).distinct()))
-        if real_only and ids:
-            ids = set(db.scalars(select(User.id).where(User.id.in_(ids), ~guest)))
-        return len(ids)
-
-    active_out = {
-        "d1": active(d1),
-        "d7": active(d7),
-        "d30": active(d30),
-        "real_d7": active(d7, True),
-        "real_d30": active(d30, True),
-    }
-
-    matches30 = db.execute(select(DuelMatch.created_at, DuelMatch.ranked).where(DuelMatch.created_at >= window_start)).all()
-    ranked_by_day = _bucket([t for t, r in matches30 if r], window)
-    casual_by_day = _bucket([t for t, r in matches30 if not r], window)
-    avg_turns = db.scalar(select(func.avg(DuelMatch.turns)).where(DuelMatch.created_at >= d30, DuelMatch.turns.is_not(None)))
-    matches = {
-        "total": int(db.scalar(select(func.count()).select_from(DuelMatch)) or 0),
-        "last_7d": int(db.scalar(select(func.count()).select_from(DuelMatch).where(DuelMatch.created_at >= d7)) or 0),
-        "ranked_7d": int(
-            db.scalar(select(func.count()).select_from(DuelMatch).where(DuelMatch.created_at >= d7, DuelMatch.ranked.is_(True))) or 0
-        ),
-        "avg_turns_30d": round(float(avg_turns), 1) if avg_turns is not None else None,
-    }
-
-    games = func.count()
-    wins = func.sum(case((DuelMatchSeat.won.is_(True), 1), else_=0))
-
-    def top_leaders(since: datetime) -> list[dict]:
-        rows = db.execute(
-            select(DuelMatchSeat.leader_id, games, wins)
-            .where(DuelMatchSeat.created_at >= since)
-            .group_by(DuelMatchSeat.leader_id)
-            .order_by(games.desc(), DuelMatchSeat.leader_id)
-            .limit(TOP_LEADERS_LIMIT)
-        ).all()
-        return [{"leader_id": lid, "games": int(g), "wins": int(w or 0)} for lid, g, w in rows]
-
-    leaders_window = top_leaders(window_start)
-    # Kept under its old name for older clients: always the last 30 days, whatever the window.
-    leaders_30d = leaders_window if days == 30 else top_leaders(d30)
-
-    month = month_start(now)
-    return {
-        "generated_at": now.isoformat(),
-        "days": days,
-        "accounts": accounts,
-        "signups_by_day": [{"day": d.isoformat(), "real": real_by_day[d], "guests": guest_by_day[d]} for d in window],
-        "active": active_out,
-        "matches_by_day": [{"day": d.isoformat(), "ranked": ranked_by_day[d], "casual": casual_by_day[d]} for d in window],
-        "matches": matches,
-        "top_leaders": leaders_window,
-        "top_leaders_30d": leaders_30d,
-        "planner": {
-            "decks": int(db.scalar(select(func.count()).select_from(Deck)) or 0),
-            "users_with_decks": int(db.scalar(select(func.count(func.distinct(Deck.user_id)))) or 0),
-        },
-        "log_pose": {
-            "questions_month": int(
-                db.scalar(select(func.count()).select_from(AnalystUsage).where(AnalystUsage.kind == "chat", AnalystUsage.created_at >= month)) or 0
-            ),
-            "spend_month_usd": round(spent_since(db, month), 4),
-            "users_with_access": int(
-                db.scalar(select(func.count()).select_from(AnalystAccess).where(AnalystAccess.status == "approved")) or 0
-            ),
-        },
-    }
+    return build_overview(db, days)
 
 
-@router.get("/matches")
+@router.get("/matches", response_model=AdminDayMatches)
 def matches_on_day(_: Admin, db: DB, day: Annotated[date, Query()]) -> dict:
     """Every duel finished on one UTC day (oldest first, at most 200), for the drill-down under the matches chart (#691).
 
@@ -300,7 +181,7 @@ def _eval_out(run: AnalystEvalRun) -> dict:
     }
 
 
-@router.get("/bots")
+@router.get("/bots", response_model=AdminBots)
 def bots(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 14) -> dict:
     now = datetime.now(timezone.utc)
     rows = db.execute(
@@ -310,9 +191,9 @@ def bots(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 14) -> dict:
     finished = [r for r in rows if r.winner is not None]
     turns = [r.turns for r in finished if r.turns is not None]
     seated = [r for r in finished if r.first_seat is not None]
-    window = _days(now, days)
-    games_by_day = _bucket([r.created_at for r in rows], window)
-    finished_by_day = _bucket([r.created_at for r in finished], window)
+    window = last_days(now, days)
+    games_by_day = bucket_by_day([r.created_at for r in rows], window)
+    finished_by_day = bucket_by_day([r.created_at for r in finished], window)
     evals = db.scalars(select(AnalystEvalRun).order_by(AnalystEvalRun.run_at, AnalystEvalRun.id)).all()
     return {
         "bot_games": {
@@ -338,7 +219,7 @@ class EvalGroupIn(BaseModel):
     total: int = Field(ge=0, le=10_000)
 
 
-# The evals that post here (analyst/evals/post.ts); each gets its own trend on the admin page (#679).
+# The evals that post here (analyst/evals/shared/post.ts); each gets its own trend on the admin page (#679).
 EvalSuite = Literal["main", "review_facts", "puzzles", "deck_advice"]
 
 
@@ -369,7 +250,7 @@ class EvalRunIn(BaseModel):
         return self
 
 
-@router.post("/evals", status_code=201)
+@router.post("/evals", status_code=201, response_model=EvalRun)
 def record_eval(
     body: EvalRunIn,
     db: DB,
@@ -381,7 +262,7 @@ def record_eval(
     if body.correct is not None and body.total is not None and body.correct > body.total:
         raise HTTPException(status_code=422, detail="correct cannot exceed total")
     run = AnalystEvalRun(
-        run_at=_utc(body.run_at) or datetime.now(timezone.utc),
+        run_at=as_utc_or_none(body.run_at) or datetime.now(timezone.utc),
         suite=body.suite,
         label=body.label,
         model=body.model,
@@ -424,7 +305,7 @@ def _feedback_out(f: AnalystFeedback, name: str | None) -> dict:
     }
 
 
-@router.get("/feedback")
+@router.get("/feedback", response_model=AdminFeedback)
 def list_feedback(
     _: Admin,
     db: DB,
@@ -447,7 +328,7 @@ def list_feedback(
     return {"days": FEEDBACK_DAYS, "counts": counts, "items": [_feedback_out(f, duel_display_name(u)) for f, u in rows]}
 
 
-@router.get("/feedback/export")
+@router.get("/feedback/export", response_model=FeedbackExport)
 def feedback_export(
     db: DB,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -470,12 +351,12 @@ def feedback_export(
 
 # ---------------------------------------------------------------- hosting
 
-@router.get("/hosting")
+@router.get("/hosting", response_model=HostingOut)
 def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refresh: int = 0) -> dict:
     return admin_hosting.hosting(settings, refresh=bool(refresh))
 
 
-@router.get("/traffic")
+@router.get("/traffic", response_model=TrafficOut)
 def traffic(_: Admin, settings: Annotated[Settings, Depends(get_settings)], days: Annotated[RangeDays, Query()] = 30, refresh: int = 0) -> dict:
     """Vercel Web Analytics and Render metrics (#1020), read with the owner's tokens and cached for ten minutes."""
     return admin_traffic.traffic(settings, days, refresh=bool(refresh))
@@ -523,7 +404,7 @@ def _friend_pair_on(me, other):
     """Join condition: ``me`` and ``other`` (user id columns) are an accepted Friendship pair."""
     low = case((me < other, me), else_=other)
     high = case((me < other, other), else_=me)
-    return and_(Friendship.status == "accepted", Friendship.user_low_id == low, Friendship.user_high_id == high)
+    return and_(Friendship.status == FriendshipStatus.ACCEPTED, Friendship.user_low_id == low, Friendship.user_high_id == high)
 
 
 def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
@@ -579,7 +460,7 @@ def _like_escape(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-@router.get("/users")
+@router.get("/users", response_model=AdminUsers, response_model_exclude_unset=True)
 def list_users(
     _: Staff,
     db: DB,
@@ -590,7 +471,7 @@ def list_users(
 ) -> dict:
     where = []
     if not include_guests:
-        where.append(~_is_guest())
+        where.append(~is_guest())
     q = q.strip().lower()
     if q:
         pat = f"%{_like_escape(q)}%"
@@ -602,7 +483,7 @@ def list_users(
             )
         )
     total = int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
-    staff_first = case((User.role.in_(("admin", "moderator")), 0), else_=1)
+    staff_first = case((User.role.in_(STAFF_ROLES), 0), else_=1)
     page = db.scalars(select(User).where(*where).order_by(staff_first, User.created_at.desc(), User.id.desc()).limit(limit).offset(offset)).all()
     stats: dict[int, tuple[int, datetime | None]] = {}
     ids = [u.id for u in page]
@@ -644,7 +525,7 @@ def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
     if opp_ids:
         for low, high in db.execute(
             select(Friendship.user_low_id, Friendship.user_high_id).where(
-                Friendship.status == "accepted",
+                Friendship.status == FriendshipStatus.ACCEPTED,
                 or_(
                     and_(Friendship.user_low_id == user_id, Friendship.user_high_id.in_(opp_ids)),
                     and_(Friendship.user_high_id == user_id, Friendship.user_low_id.in_(opp_ids)),
@@ -657,7 +538,7 @@ def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
     for seat, opp_uid, opp_leader, reason in duel:
         mode = "ranked" if seat.ranked else ("friends" if opp_uid in friends else "private")
         has_opp = opp_uid is not None and opp_uid != user_id
-        items.append((_utc(seat.created_at), {
+        items.append((as_utc_or_none(seat.created_at), {
             "id": seat.match_id, "created_at": _iso(seat.created_at), "mode": mode,
             "leader_id": seat.leader_id, "opponent_leader_id": opp_leader,
             "opponent": {"id": opp_uid, "name": names.get(opp_uid, "Player")} if has_opp else None,
@@ -665,7 +546,7 @@ def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
             "replay": seat.match_id in replays,
         }))
     for g in solo:
-        items.append((_utc(g.created_at), {
+        items.append((as_utc_or_none(g.created_at), {
             "id": g.game_id, "created_at": _iso(g.created_at), "mode": g.mode,
             "leader_id": g.leader_id, "opponent_leader_id": g.opponent_leader_id, "opponent": None,
             "bot_level": g.bot_level, "won": g.won, "turns": g.turns, "reason": g.reason, "replay": False,
@@ -700,7 +581,7 @@ def _count(db: Session, column, *where) -> int:
     return int(db.scalar(select(func.count()).select_from(column.class_).where(*where)) or 0)
 
 
-@router.get("/users/{user_id}")
+@router.get("/users/{user_id}", response_model=AdminUserDetail, response_model_exclude_unset=True)
 def user_detail(user_id: int, _: Staff, db: DB) -> dict:
     """Everything staff may want to know about one account (#988)."""
     u = _target(db, user_id)
@@ -716,12 +597,12 @@ def user_detail(user_id: int, _: Staff, db: DB) -> dict:
         select(func.max(AnalystUsage.created_at)).where(AnalystUsage.user_id == user_id, AnalystUsage.outcome == "ok")
     )
     stamps = {"lobby": lobby, "match": last_match_at, "solo": solo_at, "log_pose": pose_at}
-    seen = [_utc(t) for t in stamps.values() if t is not None]
+    seen = [as_utc_or_none(t) for t in stamps.values() if t is not None]
 
     presence = [p for p in live_presence(db, [user_id], now).get(user_id, []) if p.phase != "finished"]
     players = [p for p in presence if p.role == "player"]
     here = (players or presence or [None])[0]
-    online_now = bool(presence) or (lobby is not None and now - _utc(lobby) <= ONLINE_TTL)
+    online_now = bool(presence) or (lobby is not None and now - as_utc_or_none(lobby) <= ONLINE_TTL)
 
     rating = db.get(DuelRating, user_id)
     first_solo = db.scalar(select(func.min(DuelSoloGame.created_at)))
@@ -759,8 +640,8 @@ def user_detail(user_id: int, _: Staff, db: DB) -> dict:
             "saved_decks": _count(db, DuelSavedDeck.id, DuelSavedDeck.user_id == user_id, DuelSavedDeck.deleted.is_(False)),
             "uploads": _count(db, DuelCosmetic.id, DuelCosmetic.user_id == user_id),
             "uploads_taken_down": _count(db, DuelCosmetic.id, DuelCosmetic.user_id == user_id, DuelCosmetic.taken_down_at.is_not(None)),
-            "friends": _count(db, Friendship.id, friend_pair, Friendship.status == "accepted"),
-            "friend_requests_pending": _count(db, Friendship.id, friend_pair, Friendship.status == "pending", Friendship.requester_id != user_id),
+            "friends": _count(db, Friendship.id, friend_pair, Friendship.status == FriendshipStatus.ACCEPTED),
+            "friend_requests_pending": _count(db, Friendship.id, friend_pair, Friendship.status == FriendshipStatus.PENDING, Friendship.requester_id != user_id),
         },
         "log_pose": {
             "access": access,
@@ -773,7 +654,7 @@ def user_detail(user_id: int, _: Staff, db: DB) -> dict:
         },
         "moderation": {
             "reports_against": _count(db, PlayerReport.id, PlayerReport.reported_id == user_id),
-            "reports_open": _count(db, PlayerReport.id, PlayerReport.reported_id == user_id, PlayerReport.status == "open"),
+            "reports_open": _count(db, PlayerReport.id, PlayerReport.reported_id == user_id, PlayerReport.status == ReportStatus.OPEN),
             "reports_filed": _count(db, PlayerReport.id, PlayerReport.reporter_id == user_id),
             "warnings": _count(db, PlayerWarning.id, PlayerWarning.user_id == user_id),
             "banned_by": {"id": banned_by.id, "name": duel_display_name(banned_by)} if banned_by else None,
@@ -792,7 +673,7 @@ class RoleIn(BaseModel):
     role: str = Field(max_length=32)
 
 
-@router.put("/users/{user_id}/role")
+@router.put("/users/{user_id}/role", response_model=AdminUser, response_model_exclude_unset=True)
 def set_role(user_id: int, body: RoleIn, actor: Admin, db: DB) -> dict:
     if body.role not in ASSIGNABLE_ROLES:
         raise HTTPException(status_code=400, detail="Role must be user or moderator")
@@ -810,7 +691,7 @@ class BanIn(BaseModel):
     reason: str | None = Field(default=None, max_length=200)
 
 
-@router.post("/users/{user_id}/ban")
+@router.post("/users/{user_id}/ban", response_model=AdminUser, response_model_exclude_unset=True)
 def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     target = _target(db, user_id)
     _apply_ban(db, actor, target, (body.reason if body else None) or "")
@@ -832,7 +713,7 @@ def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
     db.refresh(target)
 
 
-@router.post("/users/{user_id}/unban")
+@router.post("/users/{user_id}/unban", response_model=AdminUser, response_model_exclude_unset=True)
 def unban_user(user_id: int, actor: Staff, db: DB) -> dict:
     target = _target(db, user_id)
     refusal = can_ban(actor, target)
@@ -898,7 +779,7 @@ def _report_rows(db: Session, reports: list[PlayerReport]) -> list[dict]:
     opens = dict(
         db.execute(
             select(PlayerReport.reported_id, func.count())
-            .where(PlayerReport.reported_id.in_(reported_ids), PlayerReport.status == "open")
+            .where(PlayerReport.reported_id.in_(reported_ids), PlayerReport.status == ReportStatus.OPEN)
             .group_by(PlayerReport.reported_id)
         ).all()
     )
@@ -969,7 +850,7 @@ def _open_report(db: Session, report_id: int) -> PlayerReport:
     report = db.get(PlayerReport, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
-    if report.status != "open":
+    if report.status != ReportStatus.OPEN:
         raise HTTPException(status_code=409, detail="This report was already handled")
     return report
 
@@ -982,7 +863,7 @@ def _close_report(report: PlayerReport, actor: User, status: str, action: str, n
     report.handled_at = datetime.now(timezone.utc)
 
 
-@router.get("/reports")
+@router.get("/reports", response_model=AdminReports)
 def list_reports(
     _: Staff,
     db: DB,
@@ -990,8 +871,8 @@ def list_reports(
     limit: Annotated[int, Query(ge=1, le=200)] = 200,
 ) -> dict:
     query = select(PlayerReport)
-    if status == "open":
-        query = query.where(PlayerReport.status == "open")
+    if status == ReportStatus.OPEN:
+        query = query.where(PlayerReport.status == ReportStatus.OPEN)
     reports = db.scalars(query.order_by(PlayerReport.id.desc()).limit(limit)).all()
     return {"reports": _report_rows(db, list(reports))}
 
@@ -1008,15 +889,15 @@ def report_image(report_id: int, _: Staff, db: DB) -> Response:
     )
 
 
-@router.post("/reports/{report_id}/dismiss")
+@router.post("/reports/{report_id}/dismiss", response_model=ReportRow)
 def dismiss_report(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
     report = _open_report(db, report_id)
-    _close_report(report, actor, "dismissed", "", body.note if body else None)
+    _close_report(report, actor, ReportStatus.DISMISSED, "", body.note if body else None)
     db.commit()
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/remove-image")
+@router.post("/reports/{report_id}/remove-image", response_model=ReportRow)
 def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNoteIn | None = None) -> dict:
     report = _open_report(db, report_id)
     note = body.note if body else None
@@ -1032,22 +913,22 @@ def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNote
     if cosmetic is None:
         raise HTTPException(status_code=409, detail="There is no image to remove")
     take_down_cosmetic(db, cosmetic, actor.id, note or f"Report #{report.id}")
-    _close_report(report, actor, "actioned", "image_removed", note)
+    _close_report(report, actor, ReportStatus.ACTIONED, "image_removed", note)
     # Everyone else who reported the same image is answered by the same removal.
     siblings = db.scalars(
         select(PlayerReport).where(
             PlayerReport.id != report.id,
-            PlayerReport.status == "open",
+            PlayerReport.status == ReportStatus.OPEN,
             PlayerReport.cosmetic_id == cosmetic.id,
         )
     ).all()
     for other in siblings:
-        _close_report(other, actor, "actioned", "image_removed", note)
+        _close_report(other, actor, ReportStatus.ACTIONED, "image_removed", note)
     db.commit()
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/warn")
+@router.post("/reports/{report_id}/warn", response_model=ReportRow)
 def warn_reported_player(report_id: int, body: ReportWarnIn, actor: Staff, db: DB) -> dict:
     report = _open_report(db, report_id)
     target = _target(db, report.reported_id)
@@ -1057,18 +938,18 @@ def warn_reported_player(report_id: int, body: ReportWarnIn, actor: Staff, db: D
     db.add(
         PlayerWarning(user_id=target.id, report_id=report.id, message=body.message.strip(), issued_by=actor.id)
     )
-    _close_report(report, actor, "actioned", "warned", body.message)
+    _close_report(report, actor, ReportStatus.ACTIONED, "warned", body.message)
     db.commit()
     return _report_row(db, report)
 
 
-@router.post("/reports/{report_id}/ban")
+@router.post("/reports/{report_id}/ban", response_model=ReportRow)
 def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> dict:
     report = _open_report(db, report_id)
     target = _target(db, report.reported_id)
     reason = (body.reason if body else None) or ""
     _apply_ban(db, actor, target, reason)
-    _close_report(report, actor, "actioned", "banned", reason)
+    _close_report(report, actor, ReportStatus.ACTIONED, "banned", reason)
     db.commit()
     return _report_row(db, report)
 
@@ -1127,7 +1008,7 @@ def _cosmetic_rows(db: Session, rows: list) -> list[dict]:
     return out
 
 
-@router.get("/cosmetics")
+@router.get("/cosmetics", response_model=UploadsPage)
 def list_cosmetics(
     _: Staff,
     db: DB,
@@ -1178,7 +1059,7 @@ def cosmetic_image(cosmetic_id: int, _: Staff, db: DB) -> Response:
     )
 
 
-@router.post("/cosmetics/{cosmetic_id}/take-down")
+@router.post("/cosmetics/{cosmetic_id}/take-down", response_model=UploadRow)
 def take_down_uploaded_cosmetic(cosmetic_id: int, body: TakeDownIn, actor: Staff, db: DB) -> dict:
     """Remove an upload nobody reported (a copyright notice, say). Soft: the bytes stay as evidence."""
     cosmetic = db.get(DuelCosmetic, cosmetic_id)
@@ -1192,7 +1073,7 @@ def take_down_uploaded_cosmetic(cosmetic_id: int, body: TakeDownIn, actor: Staff
     return _cosmetic_rows(db, [cosmetic])[0]
 
 
-@router.post("/cosmetics/{cosmetic_id}/restore")
+@router.post("/cosmetics/{cosmetic_id}/restore", response_model=UploadRestored)
 def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
     """Undo an image takedown. The owner has to choose it as active again."""
     cosmetic = db.get(DuelCosmetic, cosmetic_id)

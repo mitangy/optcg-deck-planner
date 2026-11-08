@@ -9,7 +9,10 @@ name: Game server blue/green deploy
 #   vars.GS_HEALTH_URLS_<COLOUR>          each process's base URL, space separated
 #   vars.GS_POOL_URL_<COLOUR>             the URL clients get for that pool
 #   vars.API_URL                          backend base URL
-#   secrets.CATALOG_SYNC_TOKEN            admin token for the pool pointer
+#   secrets.OPS_ADMIN_TOKEN               admin token for the pool pointer (must match Render
+#                                         OPS_ADMIN_TOKEN). Until it exists the job falls back to
+#                                         secrets.CATALOG_SYNC_TOKEN, which the API accepts for the
+#                                         pool only while OPS_ADMIN_TOKEN is unset on Render.
 
 on:
   workflow_dispatch:
@@ -42,11 +45,15 @@ jobs:
       HEALTH_URLS: ${{ inputs.colour == 'blue' && vars.GS_HEALTH_URLS_BLUE || vars.GS_HEALTH_URLS_GREEN }}
       POOL_URL: ${{ inputs.colour == 'blue' && vars.GS_POOL_URL_BLUE || vars.GS_POOL_URL_GREEN }}
       API_URL: ${{ vars.API_URL }}
-      ADMIN_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
+      # Both are passed through env (never interpolated into the script); the shell picks
+      # OPS_ADMIN_TOKEN when present, else the catalog token (transition, remove later).
+      OPS_ADMIN_TOKEN: ${{ secrets.OPS_ADMIN_TOKEN }}
+      CATALOG_SYNC_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
       COMMIT: ${{ github.sha }}
     steps:
       - name: Check configuration
         run: |
+          ADMIN_TOKEN="${OPS_ADMIN_TOKEN:-$CATALOG_SYNC_TOKEN}"
           for v in HOOKS HEALTH_URLS POOL_URL API_URL ADMIN_TOKEN; do
             if [ -z "${!v}" ]; then echo "::error::$v is not configured for the $COLOUR pool"; exit 1; fi
           done
@@ -82,7 +89,8 @@ jobs:
 
       - name: Point new games at the ${{ inputs.colour }} pool
         run: |
+          ADMIN_TOKEN="${OPS_ADMIN_TOKEN:-$CATALOG_SYNC_TOKEN}"
           curl -fsS -X PUT "$API_URL/duel/admin/game-server-pool" \
-            -H "Content-Type: application/json" -H "X-Catalog-Token: $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" -H "X-Ops-Token: $ADMIN_TOKEN" \
             --data "$(jq -n --arg url "$POOL_URL" '{url: $url}')"
           echo "New games now start on $POOL_URL. Running games finish on the old pool."

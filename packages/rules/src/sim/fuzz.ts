@@ -85,7 +85,7 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
   const b = randomDeck(rng, focus);
   const deckIds = [...new Set([a.leaderId, b.leaderId, ...a.deck, ...b.deck])];
   let state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [a, b] });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
   const baseline = cardCounts(state);
   let intents = 0;
   try {
@@ -103,10 +103,10 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
         pick = end && rng.next() < 0.15 ? end : legal[rng.nextInt(legal.length)]!;
       }
       if (intents % SNAPSHOT_EVERY === 0 || (front && intents % 7 === 0)) assertSnapshotContinues(state, pick, seat);
-      let r = applyIntent(state, pick, { seat, rng });
+      let r = applyIntent(state, pick, { seat });
       if (!r.ok && front) {
         // A random answer may legitimately violate a constraint (e.g. total cost); fall back to the default.
-        r = applyIntent(state, legal[0]!, { seat, rng });
+        r = applyIntent(state, legal[0]!, { seat });
       }
       if (!r.ok) throw new Error(`Rejected legal intent ${JSON.stringify(pick)}: ${r.error?.message} (pending=${JSON.stringify(front?.prompt)})`);
       state = r.state;
@@ -145,7 +145,7 @@ function fuzzGameTracked(seed: number, focus: string[], activated: Set<string>):
   const a = randomDeck(rng, focus);
   const b = randomDeck(rng, focus.slice().reverse());
   let state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [a, b] });
-  state = skipMulligans(state, rng);
+  state = skipMulligans(state);
   let intents = 0;
   try {
     while (intents < 1500 && state.winner === null) {
@@ -156,8 +156,8 @@ function fuzzGameTracked(seed: number, focus: string[], activated: Set<string>):
       // Prefer playing and activating so focused cards resolve.
       const eager = legal.filter((i) => i.type === "play_card" || i.type === "activate_ability" || i.type === "declare_attack" || i.type === "counter_event");
       const pick = front && front.seat === seat && rng.next() < 0.85 ? randomAnswer(rng, front) : eager.length && rng.next() < 0.8 ? eager[rng.nextInt(eager.length)]! : legal[rng.nextInt(legal.length)]!;
-      let r = applyIntent(state, pick, { seat, rng });
-      if (!r.ok && front) r = applyIntent(state, legal[0]!, { seat, rng });
+      let r = applyIntent(state, pick, { seat });
+      if (!r.ok && front) r = applyIntent(state, legal[0]!, { seat });
       if (!r.ok) throw new Error(`Rejected legal intent ${JSON.stringify(pick)}: ${r.error?.message}`);
       for (const e of r.events) if (e.type === "ability_activated") activated.add(e.abilityId);
       state = r.state;

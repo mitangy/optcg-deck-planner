@@ -1,27 +1,27 @@
 from __future__ import annotations
 
-import sys
+import atexit
+import os
+import shutil
+import tempfile
 
 import fakeredis
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from app import redis_client
-from app.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned, User
-from app.rate_limit import RateLimiter
-from tests.db_support import make_test_engine
+# app.core.db builds its module-level engine from DATABASE_URL at import time, and every
+# `with TestClient(app)` runs the real lifespan (init_db, backfills) against it. Point it at
+# a throwaway file before anything imports app.core.db, or the suite writes backend/optcg.db.
+_APP_DB_DIR = tempfile.mkdtemp(prefix="optcg-test-app-db-")
+atexit.register(shutil.rmtree, _APP_DB_DIR, ignore_errors=True)
+os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.core.db"
 
-
-@pytest.fixture(autouse=True)
-def _fresh_rate_limits() -> None:
-    # Rate limiters live at module level, so calls from earlier tests in the same
-    # process count against later ones (running the suite twice in one process
-    # hit 429s on /duel/dev-token).
-    for name, module in list(sys.modules.items()):
-        if name == "app" or name.startswith("app."):
-            for value in list(vars(module).values()):
-                if isinstance(value, RateLimiter):
-                    value._hits.clear()
+from app.core import redis_client  # noqa: E402
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Deck, DeckCard, Owned
+from app.core.rate_limit import RateLimiter
+from app.core import db as app_db  # noqa: E402
+from tests.db_support import make_bare_engine, make_test_engine
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +45,7 @@ def _fresh_rate_limits():
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_index():
     # The catalog search index is cached per process; each test builds its own catalog.
-    from app.services import _FUZZY_INDEX
+    from app.planner.catalog_search import _FUZZY_INDEX
 
     _FUZZY_INDEX.clear()
     yield
@@ -157,3 +157,12 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> None:
     else:
         row.qty = qty
     db.commit()
+
+
+@pytest.fixture()
+def startup_engine(monkeypatch: pytest.MonkeyPatch):
+    """An empty database that init_db (app.core.db) runs against, as at a fresh deploy."""
+    engine = make_bare_engine()
+    monkeypatch.setattr(app_db, "engine", engine)
+    yield engine
+    engine.dispose()

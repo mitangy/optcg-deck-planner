@@ -9,7 +9,7 @@ session cookie (see ADR-016 in `DECISIONS.md`).
 Signed-in players have one set of decks: a duel saved deck (`duel_saved_decks`)
 and a planner deck (`decks`) are linked by `duel_saved_decks.planner_deck_id`
 (mirrored in the row's `data.plannerDeckId`) and each side writes the other.
-Code: `backend/app/deck_link.py`.
+Code: `backend/app/planner/deck_link.py`.
 
 - **Duel -> planner.** An accepted duel deck write (`PUT /duel/decks`, single or
   bulk) creates the planner deck, or replaces the linked one's name, leader and
@@ -51,7 +51,7 @@ Code: `backend/app/deck_link.py`.
   users load the planner deck; guests (or a failed fetch) get a copy from the
   `#list` hash.
 - **Play in Duel.** Planner deck page button builds that link
-  (`frontend/src/duelLink.ts`, `VITE_DUEL_URL`, default `https://optcgduel.app`).
+  (`frontend/src/app/duelLink.ts`, `VITE_DUEL_URL`, default `https://optcgduel.app`).
 - **Cross-app nav.** Planner top bar "Play Duel" pill; duel lobby header
   "Deck planner" icon (`VITE_PLANNER_URL`, default
   `https://optcg-deck-planner.app`).

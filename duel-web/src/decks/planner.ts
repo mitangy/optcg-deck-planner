@@ -3,9 +3,9 @@
  * ways, #1017); this file carries what the server cannot: the planner's shown art, and deep links.
  */
 import { lookupCard } from "../cards/atlas";
+import { loadCardData } from "../cards/cardData";
 import { productIdFromImageUrl } from "../cards/productId";
-import { getApiBaseUrl } from "../config";
-import { ApiError, fetchWithTimeout } from "../net/api";
+import { apiCall, withTimeoutWording } from "../api/http";
 import { resolveDeckAltId } from "./artPrefs";
 import {
   applyPlannerArt,
@@ -39,22 +39,11 @@ export type PlannerDeckDetail = {
 const DEFAULT_TIMEOUT_MS = 15000;
 
 async function plannerJson<T>(path: string, init: RequestInit, timeoutMs: number): Promise<T> {
-  const res = await fetchWithTimeout(
-    `${getApiBaseUrl()}${path}`,
-    { ...init, credentials: "include" },
-    timeoutMs,
-  );
-  if (!res.ok) {
-    let detail = `Planner request failed (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
+  try {
+    return await apiCall<T>(path, { ...init, timeoutMs }, "Planner request failed");
+  } catch (e) {
+    throw withTimeoutWording(e, timeoutMs);
   }
-  return (await res.json()) as T;
 }
 
 export function fetchPlannerDeck(id: number, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<PlannerDeckDetail> {
@@ -139,7 +128,10 @@ export async function refreshLinkedDeck(
 ): Promise<SavedDeck> {
   if (!deck.plannerDeckId) return deck;
   try {
-    return applyPlannerArt(deck.id, plannerDeckArt(await fetchDeck(deck.plannerDeckId, timeoutMs))) ?? deck;
+    const detail = await fetchDeck(deck.plannerDeckId, timeoutMs);
+    // Alt art ids come from the card data, which loads on its own (B-02).
+    await loadCardData();
+    return applyPlannerArt(deck.id, plannerDeckArt(detail)) ?? deck;
   } catch {
     return deck;
   }
@@ -170,7 +162,6 @@ export function setPlannerDisplayArt(
     `/owned/${encodeURIComponent(cardId)}/display`,
     {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product_id: productId }),
     },
     timeoutMs,
@@ -233,6 +224,7 @@ export async function applyPlannerDeepLink(
   fetchDeck: (id: number) => Promise<PlannerDeckDetail> = fetchPlannerDeck,
 ): Promise<ImportIntoDeckResult> {
   let planErr: string | null = null;
+  await loadCardData();
   if (signedIn && link.plannerId !== null) {
     try {
       return importPlannerDeckDetail(await fetchDeck(link.plannerId));

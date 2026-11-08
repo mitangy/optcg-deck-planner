@@ -6,7 +6,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { playBotGame } from "../../../packages/rules/src/sim/selfPlay";
-import { seatLog } from "../../../packages/rules/src/seatLog";
+import { seatLog } from "../../../packages/rules/src/replay/seatLog";
 import { STRAW_HATS, WANO } from "../lib/data";
 import { ASSET_DIR } from "../lib/env";
 

@@ -2,9 +2,9 @@
  * Draw and searcher odds (pure, no React). Hypergeometric maths plus the OPTCG turn
  * model; card data comes from the same atlas as `deckStats.ts`.
  */
-import { normalizeStatsCardId, OPENING_HAND, type DeckStatsCard, type StatsAtlas, type StatsAtlasCard } from "./deckStats";
+import { normalizeCardId } from "@optcg/card-core";
+import { OPENING_HAND, type DeckStatsCard, type StatsAtlas, type StatsAtlasCard } from "./deckStats";
 
-export const DEFAULT_DECK_SIZE = 50;
 export const ODDS_TURNS = 6;
 
 /** Largest deck the odds maths will build its table for (a real deck is 50). */
@@ -105,7 +105,7 @@ export function deckEntries(cards: readonly DeckStatsCard[], atlas: StatsAtlas):
   const copies = new Map<string, number>();
   for (const c of cards) {
     if (!(c.copies > 0)) continue;
-    const id = normalizeStatsCardId(c.id);
+    const id = normalizeCardId(c.id);
     copies.set(id, (copies.get(id) ?? 0) + c.copies);
   }
   const out: DeckEntry[] = [];

@@ -2,6 +2,8 @@
  * Runtime validation for DSL ability data (generated JSON and manual overrides).
  * Unknown fields, unknown variants and malformed values are rejected with paths.
  */
+import type { Cond, Cost, Effect, Static, Target } from "./types.js";
+
 type V = (value: unknown, path: string, errors: string[]) => void;
 
 const fail = (path: string, expected: string, errors: string[]) => { errors.push(`${path}: expected ${expected}`); };
@@ -26,11 +28,11 @@ function obj(required: Record<string, V>, optional: Record<string, V> = {}): V {
     }
   };
 }
-function tagged(key: string, variants: Record<string, V>): V {
+function tagged<K extends string>(key: string, variants: Record<K, V>): V {
   return (v, p, e) => {
     const tag = v && typeof v === "object" ? (v as Record<string, unknown>)[key] : undefined;
     if (typeof tag !== "string" || !Object.hasOwn(variants, tag)) { e.push(`${p}.${key}: unknown variant ${String(tag)}`); return; }
-    variants[tag]!(v, p, e);
+    (variants as Record<string, V>)[tag]!(v, p, e);
   };
 }
 const variant = (key: string, tag: string, required: Record<string, V> = {}, optional: Record<string, V> = {}) => obj({ [key]: oneOf(tag), ...required }, optional);
@@ -91,7 +93,7 @@ const target: V = tagged("ref", {
   choose: variant("ref", "choose", { selector, min: int(0), max: int(0) }, { chooser: rel, bind: str, distinctNames: bool, totalCostAtMost: value, totalPowerAtMost: value }),
   battle: variant("ref", "battle", { role: oneOf("attacker", "defender", "opponent_battler", "own_battler") }),
   event_card: variant("ref", "event_card"),
-});
+} satisfies Record<Target["ref"], V>);
 
 const cond: V = tagged("c", {
   leader_name: variant("c", "leader_name", { names: strings }),
@@ -122,7 +124,7 @@ const cond: V = tagged("c", {
   battle_opponent: variant("c", "battle_opponent", { filter }),
   self_flag: variant("c", "self_flag", { flag: str }),
   this_turn: variant("c", "this_turn", { what: oneOf("event_activated", "character_koed", "hand_trashed"), player: rel }, { filter }),
-});
+} satisfies Record<Cond["c"], V>);
 
 const cost: V = tagged("k", {
   rest_don: variant("k", "rest_don", { count: int(1) }),
@@ -156,7 +158,7 @@ const cost: V = tagged("k", {
   return_don_any: variant("k", "return_don_any"),
   unattach_don: variant("k", "unattach_don", { count: int(1) }),
   either: variant("k", "either", { options: arr(arr(lazy(() => cost), 1), 2), labels: arr(str, 2) }),
-});
+} satisfies Record<Cost["k"], V>);
 
 const lookPick = obj({ min: int(0), max: int(0), dest: oneOf("hand", "life_top", "life_bottom", "play", "play_rested", "trash", "deck_top", "deck_bottom") }, { filter, faceUp: bool, bind: str, totalCostAtMost: value, distinctNames: bool });
 const placement = oneOf("deck_bottom", "deck_top", "trash", "top_or_bottom", "hand", "shuffle");
@@ -220,7 +222,7 @@ const effect: V = tagged("do", {
   reveal: variant("do", "reveal", { target }),
   nothing: variant("do", "nothing"),
   script: variant("do", "script", { scriptId: str, version: int(1) }, { params: (v, p, e) => { if (!v || typeof v !== "object" || Array.isArray(v)) fail(p, "object", e); } }),
-});
+} satisfies Record<Effect["do"], V>);
 
 const staticTarget: V = (v, p, e) => { if (v === "self") return; obj({ all: selector })(v, p, e); };
 const statik: V = tagged("s", {
@@ -236,7 +238,7 @@ const statik: V = tagged("s", {
   name_alias: variant("s", "name_alias", { names: strings }),
   deck_rule: variant("s", "deck_rule", { rule: str }),
   life_face: variant("s", "life_face", { faceUp: bool }),
-});
+} satisfies Record<Static["s"], V>);
 
 const gatedStatic: V = (v, p, e) => {
   if (v && typeof v === "object" && !Array.isArray(v) && "when" in (v as Record<string, unknown>)) {

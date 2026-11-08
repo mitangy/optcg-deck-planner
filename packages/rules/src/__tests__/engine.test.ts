@@ -1,23 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { applyIntent, assertInvariants, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
-import { createSeededRng } from "../rng.js";
 import { compileStandalone } from "../effects/compile.js";
 import { projectGameEvents } from "../engine/views.js";
-import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../state/snapshot.js";
+import { deserializeMatch, serializeMatch, IncompatibleSnapshotError } from "../engine/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, MatchState, Seat } from "../types.js";
 
 function fresh(seed = 1) {
-  const rng = createSeededRng(seed);
   const deck = buildTestDeck(20);
   let state = createMatch({ seed, firstSeat: 0, players: [{ leaderId: DEFAULT_LEADER_ID, deck: [...deck] }, { leaderId: DEFAULT_LEADER_ID, deck: [...deck] }] });
-  state = skipMulligans(state, rng);
-  return { state, rng };
+  state = skipMulligans(state);
+  return { state };
 }
 
-function act(state: MatchState, seat: Seat, intent: Intent, rng: ReturnType<typeof createSeededRng>): MatchState {
-  const r = applyIntent(state, intent, { seat, rng });
+function act(state: MatchState, seat: Seat, intent: Intent): MatchState {
+  const r = applyIntent(state, intent, { seat });
   expect(r.ok, r.error?.message).toBe(true);
   assertInvariants(r.state);
   return r.state;
@@ -31,19 +29,18 @@ describe("Imu start-of-game Stage", () => {
 
   for (const pick of [MARY_GEOISE, EMPTY_THRONE]) {
     it(`Imu player chooses which Stage to play at the start of the game: ${pick} (#284)`, () => {
-      const rng = createSeededRng(7);
       let state = imuMatch([MARY_GEOISE, MARY_GEOISE, EMPTY_THRONE, EMPTY_THRONE]);
       const choice = state.pendingChoices[0]!;
       expect(choice.seat).toBe(0);
       expect(choice.request?.type === "select" && choice.request.options.map((o) => o.defId).sort()).toEqual([MARY_GEOISE, EMPTY_THRONE].sort());
       expect(state.players[0].stage).toBeNull();
-      expect(applyIntent(state, { type: "mulligan", doMulligan: false }, { seat: 1, rng }).ok).toBe(false);
+      expect(applyIntent(state, { type: "mulligan", doMulligan: false }, { seat: 1 }).ok).toBe(false);
       const option = choice.request?.type === "select" ? choice.request.options.find((o) => o.defId === pick)! : null;
-      state = act(state, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [option!.id] }, rng);
+      state = act(state, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [option!.id] });
       expect(state.players[0].stage?.defId).toBe(pick);
       expect(state.players[0].hand).toHaveLength(5);
       expect([...state.players[0].deck, ...state.players[0].hand.map((c) => c.defId)].filter((id) => id === pick)).toHaveLength(1);
-      state = skipMulligans(state, rng);
+      state = skipMulligans(state);
       expect(state.phase).toBe("main");
     });
   }
@@ -67,13 +64,12 @@ describe("match setup and mulligan", () => {
   });
 
   it("offers keep/mulligan and redraws five", () => {
-    const rng = createSeededRng(12);
     let state = createMatch({ seed: 12, firstSeat: 0, players: [{ leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }] });
     expect(listLegalIntents(state, 0)).toEqual([{ type: "mulligan", doMulligan: false }, { type: "mulligan", doMulligan: true }]);
-    state = act(state, 0, { type: "mulligan", doMulligan: true }, rng);
+    state = act(state, 0, { type: "mulligan", doMulligan: true });
     expect(state.players[0].hand.length).toBe(5);
     expect(state.phase).toBe("mulligan");
-    state = act(state, 1, { type: "mulligan", doMulligan: false }, rng);
+    state = act(state, 1, { type: "mulligan", doMulligan: false });
     expect(state.phase).toBe("main");
   });
 });
@@ -87,8 +83,8 @@ describe("turn structure", () => {
   });
 
   it("second player gets 2 DON!!, draws, and cannot attack on their first turn", () => {
-    let { state, rng } = fresh(7);
-    state = act(state, 0, { type: "end_turn" }, rng);
+    let { state } = fresh(7);
+    state = act(state, 0, { type: "end_turn" });
     expect(state.activeSeat).toBe(1);
     expect(state.players[1].costArea.length).toBe(2);
     expect(state.players[1].hand.length).toBe(6);
@@ -339,8 +335,8 @@ describe("snapshots", () => {
     const restored = deserializeMatch(serializeMatch(h.state));
     const choice = h.choice!;
     const answer: Intent = { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] };
-    const direct = applyIntent(h.state, answer, { seat: 0, rng: h.rng });
-    const resumed = applyIntent(restored, answer, { seat: 0, rng: h.rng });
+    const direct = applyIntent(h.state, answer, { seat: 0 });
+    const resumed = applyIntent(restored, answer, { seat: 0 });
     expect(choice.request?.type).toBe("look");
     expect(direct.ok).toBe(true);
     expect(resumed.state).toEqual(direct.state);

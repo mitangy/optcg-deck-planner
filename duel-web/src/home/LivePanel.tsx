@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePolling } from "../lib/usePolling";
 import { fetchLive, type LiveCounts } from "../net/api";
 import { liveSummary } from "./live";
 
@@ -7,23 +8,20 @@ export const LIVE_REFRESH_MS = 60_000;
 /** Fetches /duel/live on mount and every minute while the tab is visible (and when it becomes visible again). */
 export function useLiveCounts(): LiveCounts | null {
   const [counts, setCounts] = useState<LiveCounts | null>(null);
+  const live = useRef(true);
   useEffect(() => {
-    let live = true;
-    const load = () => {
-      if (document.visibilityState !== "visible") return;
-      fetchLive()
-        .then((c) => live && setCounts(c))
-        .catch(() => undefined);
-    };
-    load();
-    const timer = window.setInterval(load, LIVE_REFRESH_MS);
-    document.addEventListener("visibilitychange", load);
+    live.current = true;
     return () => {
-      live = false;
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", load);
+      live.current = false;
     };
   }, []);
+  // A hidden tab neither fetches on mount nor on the timer.
+  usePolling(() => {
+    if (document.visibilityState !== "visible") return;
+    fetchLive()
+      .then((c) => live.current && setCounts(c))
+      .catch(() => undefined);
+  }, LIVE_REFRESH_MS);
   return counts;
 }
 

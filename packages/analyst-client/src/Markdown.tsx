@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { MARK_RE, splitMarks } from "./citations";
-import { parseMarkdown, type Block, type Inline } from "./markdown";
+import { parseMarkdown, type Block, type Inline } from "./markdownParser";
 
 /** Draws the citation marker with this index (see placeMarkers). */
 type RenderMark = (index: number) => ReactNode;

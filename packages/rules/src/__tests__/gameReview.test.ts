@@ -31,9 +31,9 @@ vi.mock("../bot/analysis.js", async () => {
   };
 });
 
-import { createGameReviewer, reviewGame } from "../gameReview.js";
+import { createGameReviewer, reviewGame } from "../review/gameReview.js";
 import { getPlayerView } from "../engine.js";
-import { MATCH_REPLAY_SCHEMA, replayApply, replayStart, type MatchReplay } from "../matchReplay.js";
+import { MATCH_REPLAY_SCHEMA, replayApply, replayStart, type MatchReplay } from "../replay/matchReplay.js";
 import { expandDeck, loadFixture } from "../testing/replay.js";
 
 let currentReplay: MatchReplay;

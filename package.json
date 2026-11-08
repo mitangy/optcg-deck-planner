@@ -4,25 +4,41 @@
   "workspaces": [
     "packages/*",
     "game-server",
-    "analyst"
+    "analyst",
+    "frontend",
+    "duel-web"
   ],
   "scripts": {
-    "test": "npm run test -w @optcg/rules && npm run test -w @optcg/deck-analytics && npm run test -w @optcg/price-timing && npm run test -w @optcg/patch-notes && npm run test -w @optcg/ui && npm run test -w @optcg/site-legal && npm run test -w @optcg/analyst-client && npm run test -w @optcg/game-server && npm run test -w @optcg/analyst",
+    "test": "npm test --workspaces --if-present",
     "test:rules": "npm run test -w @optcg/rules",
+    "test:card-core": "npm run test -w @optcg/card-core",
+    "test:api-client": "npm run test -w @optcg/api-client",
+    "test:analyst-contract": "npm run test -w @optcg/analyst-contract",
     "test:deck-analytics": "npm run test -w @optcg/deck-analytics",
     "test:price-timing": "npm run test -w @optcg/price-timing",
     "test:patch-notes": "npm run test -w @optcg/patch-notes",
     "test:ui": "npm run test -w @optcg/ui",
     "test:site-legal": "npm run test -w @optcg/site-legal",
     "test:analyst-client": "npm run test -w @optcg/analyst-client",
+    "test:duel-protocol": "npm run test -w @optcg/duel-protocol",
     "test:game-server": "npm run test -w @optcg/game-server",
     "start:game-server": "npm run start -w @optcg/game-server",
     "dev:game-server": "npm run dev -w @optcg/game-server",
     "test:mutation": "node tools/mutation-check/run.cjs",
     "test:analyst": "npm run test -w @optcg/analyst",
-    "start:analyst": "npm run start -w @optcg/analyst"
+    "start:analyst": "npm run start -w @optcg/analyst",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint ."
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "openapi-typescript": "7.13.0",
+    "typescript-eslint": "^8.72.1"
   }
 }

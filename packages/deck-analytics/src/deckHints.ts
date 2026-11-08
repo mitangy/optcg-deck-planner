@@ -2,12 +2,13 @@
  * Build hints for the deck editor (pure, no React). Rule breaks are soft warnings: nothing
  * here ever blocks an add or remove. Thresholds live in HINT_THRESHOLDS so they are easy to tune.
  */
-import { computeDeckStats, normalizeStatsCardId, type DeckStats, type DeckStatsCard, type StatsAtlas } from "./deckStats";
+import { MAIN_DECK_SIZE, normalizeCardId } from "@optcg/card-core";
+import { computeDeckStats, type DeckStats, type DeckStatsCard, type StatsAtlas } from "./deckStats";
 import { deckEntries, searcherOdds } from "./drawOdds";
 
 export const HINT_THRESHOLDS = {
   /** Main deck size, leader and DON!! excluded. */
-  deckSize: 50,
+  deckSize: MAIN_DECK_SIZE,
   maxCopies: 4,
   /** Shape and synergy hints stay quiet until this many counted cards are in the deck. */
   minCardsForAdvice: 40,
@@ -47,11 +48,11 @@ function ruleText(rule: string, leaderName: string): string {
 
 /** Copies per normalized card number, leader and leader-typed cards excluded, unknown ids included. */
 function mainCopies(cards: readonly DeckStatsCard[], atlas: StatsAtlas, leaderId?: string | null): Map<string, number> {
-  const leaderKey = leaderId ? normalizeStatsCardId(leaderId) : null;
+  const leaderKey = leaderId ? normalizeCardId(leaderId) : null;
   const out = new Map<string, number>();
   for (const c of cards) {
     if (!(c.copies > 0)) continue;
-    const id = normalizeStatsCardId(c.id);
+    const id = normalizeCardId(c.id);
     if (id === leaderKey || atlas[id]?.t === "leader") continue;
     out.set(id, (out.get(id) ?? 0) + c.copies);
   }
@@ -71,7 +72,7 @@ export function computeDeckHints(
   const hints: DeckHint[] = [];
   const copies = mainCopies(deckCards, atlas, leaderId);
   const count = [...copies.values()].reduce((s, n) => s + n, 0);
-  const leader = leaderId ? atlas[normalizeStatsCardId(leaderId)] : undefined;
+  const leader = leaderId ? atlas[normalizeCardId(leaderId)] : undefined;
   const leaderName = leader?.n ?? "The leader";
 
   // Rule
@@ -217,7 +218,7 @@ export function deckDelta(
   if (appeared) parts.push(`New hint: ${appeared.title}`);
   else if (cleared) parts.push(`Cleared: ${cleared.title}`);
 
-  const card = atlas[normalizeStatsCardId(cardId)];
+  const card = atlas[normalizeCardId(cardId)];
   if (card && card.t !== "leader") {
     const bucket = Math.min(Math.max(card.cost ?? 0, 0), a.costCurve.length - 1);
     const x = a.costCurve[bucket]!.total;

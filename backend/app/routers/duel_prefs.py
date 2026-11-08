@@ -7,8 +7,6 @@ can switch back to an older image; guests keep using browser storage only.
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import hmac
 import json
 from typing import Annotated
@@ -17,12 +15,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import DuelCosmetic, DuelUserSettings, User
-from app.rate_limit import RateLimiter, client_ip
-from app.schemas import (
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.duel.cosmetics import active_attr, public_path, public_sig, sniff_mime
+from app.core.db import get_db
+from app.core.models import User
+from app.duel.models import DuelCosmetic, DuelUserSettings
+from app.core.rate_limit import RateLimiter, client_ip
+from app.duel.schemas import (
     DuelCosmeticActiveIn,
     DuelCosmeticActiveOut,
     DuelCosmeticOut,
@@ -46,24 +46,11 @@ MAX_SETTINGS_CHARS = 4096
 # Per-device connection fields never leave the browser (the join secret is a secret).
 DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKey"})
 
-# Length of a public link's signature (urlsafe base64 of HMAC-SHA256): 192 bits.
-PUBLIC_SIG_CHARS = 32
 
 _upload_rate = RateLimiter(max_calls=20, period_s=60, name="duel_prefs_upload_rate")
 # The image is cached for a year, so a viewer loads it once; this is generous
 # enough for a venue behind one address and still stops a scraper hammering the database.
 _public_image_rate = RateLimiter(max_calls=600, period_s=60, name="duel_prefs_public_image_rate")
-
-
-def _sniff_mime(data: bytes) -> str | None:
-    """Image type from the file's own bytes; the request's Content-Type is ignored."""
-    if data[:3] == b"\xff\xd8\xff":
-        return "image/jpeg"
-    if data[:8] == b"\x89PNG\r\n\x1a\n":
-        return "image/png"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
 
 
 def _prefs(db: Session, user_id: int) -> DuelUserSettings:
@@ -73,10 +60,6 @@ def _prefs(db: Session, user_id: int) -> DuelUserSettings:
         db.add(row)
         db.flush()
     return row
-
-
-def _active_attr(kind: str) -> str:
-    return "active_playmat_id" if kind == "playmat" else "active_card_back_id"
 
 
 def _check_kind(kind: str) -> str:
@@ -183,7 +166,7 @@ async def upload_cosmetic(
         if len(buf) > limit:
             raise HTTPException(status_code=413, detail="Image is too large")
     data = bytes(buf)
-    mime = _sniff_mime(data)
+    mime = sniff_mime(data)
     if mime is None:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG or WebP image")
     stored = db.scalar(select(func.coalesce(func.sum(DuelCosmetic.size), 0))) or 0
@@ -195,10 +178,10 @@ async def upload_cosmetic(
     db.flush()
     prefs = _prefs(db, user.id)
     if activate:
-        setattr(prefs, _active_attr(kind), row.id)
+        setattr(prefs, active_attr(kind), row.id)
 
     # Keep the newest MAX_PER_KIND; never drop the image in use.
-    active_id = getattr(prefs, _active_attr(kind))
+    active_id = getattr(prefs, active_attr(kind))
     ids = db.scalars(
         select(DuelCosmetic.id)
         .where(
@@ -227,7 +210,7 @@ def set_active_cosmetic(
         row = _own_cosmetic(db, user, body.id)
         if row.kind != kind:
             raise HTTPException(status_code=422, detail="That image is a different kind")
-    setattr(_prefs(db, user.id), _active_attr(kind), body.id)
+    setattr(_prefs(db, user.id), active_attr(kind), body.id)
     db.commit()
     return _cosmetics_out(db, user.id)
 
@@ -240,24 +223,12 @@ def delete_cosmetic(
 ) -> DuelCosmeticsOut:
     row = _own_cosmetic(db, user, cosmetic_id)
     prefs = _prefs(db, user.id)
-    attr = _active_attr(row.kind)
+    attr = active_attr(row.kind)
     if getattr(prefs, attr) == row.id:
         setattr(prefs, attr, None)
     db.delete(row)
     db.commit()
     return _cosmetics_out(db, user.id)
-
-
-def public_sig(cosmetic_id: int, settings: Settings) -> str:
-    """Unguessable token that makes one image public: HMAC-SHA256 of ``cosmetic:{id}``, 192 bits."""
-    secret = (settings.cosmetic_url_secret or settings.session_secret).encode()
-    digest = hmac.new(secret, f"cosmetic:{cosmetic_id}".encode(), hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(digest).decode().rstrip("=")[:PUBLIC_SIG_CHARS]
-
-
-def public_path(cosmetic_id: int, settings: Settings) -> str:
-    """Link (relative to the API base) anyone holding it can load without a session."""
-    return f"/duel/cosmetics/{cosmetic_id}/public/{public_sig(cosmetic_id, settings)}"
 
 
 @router.get("/cosmetics/{cosmetic_id}/public/{sig}")

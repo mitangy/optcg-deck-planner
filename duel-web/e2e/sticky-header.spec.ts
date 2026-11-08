@@ -26,7 +26,7 @@ async function open(page: Page, path: string): Promise<void> {
 /** The sticky bar around the menu button (the header, or just its nav row on phones), measured now. */
 const stuckBar = (page: Page) =>
   page.getByRole("button", { name: "Menu" }).evaluate((btn) => {
-    for (let el = btn.parentElement; el; el = el.parentElement) {
+    for (let el = btn.parentElement; el; el = el!.parentElement) {
       if (getComputedStyle(el).position !== "sticky") continue;
       const r = el.getBoundingClientRect();
       // The bar paints through a ::before so it can run past the column; its width is what spans the window.

@@ -2,13 +2,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ort from "onnxruntime-web";
-import { decodeRecord } from "../src/descriptorCache.ts";
-import { buildCandidates } from "../src/cardScanMatch.ts";
-import { attachEmbeddings } from "../src/cardEmbedCache.ts";
-import { createEmbedder, setScanEmbedder } from "../src/cardEmbed.ts";
-import { DEFAULT_WALK } from "../src/cardScanMatch.ts";
-import { queryTuning } from "../src/cardMatch.ts";
-export { matchRectified } from "../src/cardScanMatch.ts";
+import { decodeRecord } from "../src/scanner/match/descriptorCache.ts";
+import { buildCandidates } from "../src/scanner/match/cardScanMatch.ts";
+import { attachEmbeddings } from "../src/scanner/match/cardEmbedCache.ts";
+import { createEmbedder, setScanEmbedder } from "../src/scanner/match/cardEmbed.ts";
+import { DEFAULT_WALK } from "../src/scanner/match/cardScanMatch.ts";
+import { queryTuning } from "../src/scanner/match/cardMatch.ts";
+export { matchRectified } from "../src/scanner/match/cardScanMatch.ts";
 
 // Experiment knobs, so one script can compare settings: CLAHE=<clip|0> QFEAT=<n> WALK_MIN=<n> WALK_MS=<ms>
 if (process.env.CLAHE !== undefined) queryTuning.claheClip = Number(process.env.CLAHE);
