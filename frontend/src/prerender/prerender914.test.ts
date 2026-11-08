@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRequest } from "../../../scripts/seo/vercel-routes.mjs";
+import { resolveRequest } from "../../../tools/seo/vercel-routes.mjs";
 import vercel from "../../../vercel.json";
 import type { MetaLeadersResponse } from "../api";
 import { fetchLeaders, fileForPath, prerender } from "./entry";

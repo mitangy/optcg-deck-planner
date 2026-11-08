@@ -1,0 +1,45 @@
+/* —— Tiles —— */
+
+.adm-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.adm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--arena-panel);
+}
+
+.adm-tiles-inner .adm-tile {
+  background: var(--arena-mid);
+}
+
+.adm-tile-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adm-tile-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.adm-tile-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}

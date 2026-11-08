@@ -1,0 +1,36 @@
+/* Log Pose chat (packages/analyst-client) in the planner's chart-room palette; the tokens
+   flip with light / dark on their own. Layers: compass above the sticky top bar (20) and the
+   Stats pill (30); panel above popovers (80) but below the stats sheet (60 is phone-only and
+   covered by the full-screen sheet anyway), the scan dialog (90), the drop hint (95) and the
+   lightbox (1000). */
+.logpose {
+  --lp-surface: var(--ui-panel-bg);
+  --lp-surface-2: var(--card-sunk);
+  --lp-ink: var(--ui-ink);
+  --lp-muted: var(--ui-muted);
+  --lp-line: var(--ui-line-soft);
+  --lp-accent: var(--ui-primary);
+  --lp-on-accent: var(--ui-on-primary);
+  --lp-user-bg: var(--gold-soft);
+  --lp-user-ink: var(--ink);
+  --lp-needle: var(--ui-danger);
+  --lp-danger: var(--ui-danger);
+  --lp-field: var(--ui-field-bg);
+  --lp-focus: var(--ui-accent);
+  --lp-shadow: var(--shadow-lift);
+  --lp-font: var(--ui-font);
+  --lp-font-display: var(--ui-font-display);
+  --lp-z-compass: var(--z-hud-bar);
+  --lp-z-panel: var(--z-lp-panel);
+}
+
+.lp-compass.logpose {
+  color: var(--accent);
+}
+
+/* Phones: room under the footer's last line so the compass never covers it at the bottom of a page. */
+@media (max-width: 899.98px) {
+  body:has(.lp-compass) .site-footer {
+    padding-bottom: calc(52px + max(16px, env(safe-area-inset-bottom, 0px)));
+  }
+}

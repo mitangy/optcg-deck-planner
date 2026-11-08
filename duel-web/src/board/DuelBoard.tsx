@@ -1,58 +1,26 @@
-import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { movePile, type DonPiles } from "./donPiles";
-import type {
-  ChatLine,
-  Intent,
-  MatchOverMessage,
-  PlayerView,
-  Seat,
-  SeatPlayers,
-  SeatSkin,
-  RematchAction,
-  RematchState,
-  TimerMessage,
-  UndoAction,
-  UndoRequestOptions,
-  UndoState,
-} from "../net/protocol";
-import { UndoControl } from "./UndoControl";
-import { undoForceable, undoRequestText } from "./undoMenu";
-import { BattleLogPanel } from "./BattleLogPanel";
-import { CardPreviewPanel } from "./CardPreviewPanel";
-import { CardPreviewPopup } from "./CardPreviewPopup";
-import { RecentPlaysStrip } from "./RecentPlaysStrip";
-import { MatchViewerSeatContext } from "./artOwnership";
-import { PromptSlotContext } from "./promptSlot";
-import { ChatPanel } from "./ChatPanel";
-import type { BattleLogEntry } from "./battleLog";
-import { AttackWarning, type AttackWarn } from "./AttackWarning";
-import { cantAttackReason } from "./attackBlock";
-import { useAttackAttempt } from "./useAttackAttempt";
-import { RevealOverlay, useOpponentReveals } from "./RevealOverlay";
-import { CardSpotlightLayer, useCardSpotlights } from "./CardSpotlight";
-import { describeMatchResult } from "./matchResult";
-import { CardTile } from "./CardTile";
-import {
-  canDragDon,
-  canDragAttacker,
-  canDragCounter,
-  canDragHandCard,
-  canDropPlayOnField,
-  findDropTargetAtPoint,
-  giveDonTargetIdsForAll,
-  playCardTrashTargetIds,
-  playNeedsReplace,
-  isReplacePlay,
-  resolveDropIntents,
-  type DragPayload,
-} from "./dragIntents";
-import { AttackIndicator, DragAttackArrow } from "./AttackIndicator";
-import { BoardMotion } from "./BoardMotion";
-import { describeBattle } from "./battleBanner";
-import { battleEndpoints } from "./battleArc";
-import { followUpCounter } from "./counterSkipBlock";
-import { canOfferFullscreen, readInstallEnv } from "../installPrompt";
-import { useScreenWakeLock } from "./wakeLock";
+import { cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import type { ChatLine, Intent, MatchOverMessage, PlayerView, Seat, SeatPlayers, SeatSkin, TimerMessage } from "../net/protocol";
+import { BattleLogPanel } from "./panels/BattleLogPanel";
+import { CardPreviewPanel } from "./preview/CardPreviewPanel";
+import { CardPreviewPopup } from "./preview/CardPreviewPopup";
+import { RecentPlaysStrip } from "./panels/RecentPlaysStrip";
+import { MatchViewerSeatContext } from "./zones/artOwnership";
+import { PromptSlotContext } from "./prompts/promptSlot";
+import { ChatPanel } from "./panels/ChatPanel";
+import type { BattleLogEntry } from "./match/battleLog";
+import { AttackWarning, type AttackWarn } from "./combat/AttackWarning";
+import { cantAttackReason } from "./combat/attackBlock";
+import { useAttackAttempt } from "./combat/useAttackAttempt";
+import { RevealOverlay } from "./motion/RevealOverlay";
+import { CardSpotlightLayer } from "./preview/CardSpotlight";
+import { describeMatchResult } from "./match/matchResult";
+import { CardTile } from "./zones/CardTile";
+import { canDragAttacker, canDragCounter, canDragHandCard, canDropPlayOnField, findDropTargetAtPoint, playCardTrashTargetIds, playNeedsReplace, isReplacePlay, resolveDropIntents, type DragPayload } from "./combat/dragIntents";
+import { AttackIndicator, DragAttackArrow } from "./combat/AttackIndicator";
+import { BoardMotion } from "./motion/BoardMotion";
+import { describeBattle } from "./combat/battleBanner";
+import { battleEndpoints } from "./combat/battleArc";
+import { useScreenWakeLock } from "./layout/wakeLock";
 import {
   CardActionPopover,
   DonAttachConfirm,
@@ -60,128 +28,91 @@ import {
   type CardActionButton,
   type GhostPayload,
 } from "./BoardOverlays";
-import {
-  blockIntentFor,
-  cardActionText,
-  counterIntentForCard,
-  counterIntentForHand,
-  counterPrimaryLabel,
-  soleCardButton,
-  splitCardActions,
-} from "./cardActions";
-import {
-  attachTargetIds,
-  beginAttach,
-  donIdsForTarget,
-  donQuickAttach,
-  nextDonSelection,
-  pruneDonSelection,
-  quickAttachCounts,
-  quickAttachLabel,
-  resolveAttachIntents,
-  type PendingAttach,
-} from "./donSelection";
-import { ChoicePrompt } from "./ChoicePrompt";
-import { HandConfirmPrompt } from "./HandConfirmPrompt";
-import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./handPrompt";
-import { isHandPick } from "./fieldTargets";
-import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
-import { SpectatorFarHand } from "./SpectatorFarHand";
-import { HandLabel } from "./HandLabel";
-import { useHandOrderSync } from "./handOrderSync";
-import { EffectOrderPrompt } from "./EffectOrderPrompt";
-import { canFloat, FloatingPrompt } from "./FloatingPrompt";
-import { IntentBar } from "./IntentBar";
-import { useSideDockPlacement } from "./sideDockPlacement";
-import { PrimaryDock } from "./PrimaryDock";
-import { waitingOnOpponent } from "./waitingOnOpponent";
-import { DefendTray } from "./DefendTray";
-import { useHudHeight } from "./useHudHeight";
-import { deriveDefend } from "./defendModel";
-import { clockFraction, resolveStagedCounters } from "./defendTrayModel";
-import { ReplacePrompt } from "./ReplacePrompt";
+import { blockIntentFor, cardActionText, counterIntentForCard, counterIntentForHand, soleCardButton, splitCardActions } from "./input/cardActions";
+import { beginAttach, donIdsForTarget, quickAttachCounts } from "./don/donSelection";
+import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./hand/handPrompt";
+import { isHandPick } from "./prompts/fieldTargets";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./hand/handLayout";
+import { SpectatorFarHand } from "./hand/SpectatorFarHand";
+import { HandLabel } from "./hand/HandLabel";
+import { IntentBar } from "./prompts/IntentBar";
+import { useSideDockPlacement } from "./panels/sideDockPlacement";
+import { PrimaryDock } from "./prompts/PrimaryDock";
+import { waitingOnOpponent } from "./match/waitingOnOpponent";
+import { DefendTray } from "./combat/DefendTray";
+import { useHudHeight } from "./layout/useHudHeight";
+import { clockFraction } from "./combat/defendTrayModel";
 import {
   attackTargetIdsForAttacker,
   findAttackIntent,
   filterIntentsForSelection,
   hasBoardActions,
-} from "./intentFilter";
-import { dockIntents, splitPrimaryIntent } from "./primaryIntent";
-import { SideField } from "./SideField";
-import { DonArtContext, donArtUrl } from "./donArt";
+} from "./prompts/intentFilter";
+import { dockIntents, splitPrimaryIntent } from "./prompts/primaryIntent";
+import { SideField } from "./zones/SideField";
+import { DonArtContext, donArtUrl } from "./don/donArt";
 import { lookupCard } from "../cards/atlas";
-import { sortHandIndices } from "./handSort";
-import { moveToSlot, reconcileHandOrder } from "./handOrder";
-import { useHandReorder } from "./useHandReorder";
-import { useHandShuffle } from "./useHandShuffle";
-import { DEMO_MATCH_ID, isWatchTab, tabMuteCopy, useTabMute } from "./tabMute";
-import { useHandLift } from "./useHandLift";
 import { cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
-import { sideSkins } from "./seatSkins";
-import { resolveHandLayout, updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, columnOf, mergeIntoColumn, parsePanelLayout, placeLogPose, serializePanelLayout, splitMergedLayout, type PanelColumn, type PanelId } from "./panelLayout";
-import { panelSizesForMode, panelSizesPatch } from "./panelSizes";
-import { usePanelResize } from "./usePanelResize";
-import { SidePanel, usePanelDrag } from "./SidePanels";
-import { FAN_SNAP_PX, fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./handFanPos";
-import { fanCornerFor } from "./fanCorner";
-import { CornerFit } from "./CornerFit";
-import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
-import { useFanFit } from "./useFanFit";
-import { useFanMove } from "./useFanMove";
-import { endTurnWarning, responseStopPass, scheduleAutoPass } from "./gameplayPrefs";
-import { Dialog, DialogTitle } from "@optcg/ui/popups";
-import { GameplaySettingsSheet } from "./GameplaySettings";
-import { HotkeyHelpSheet } from "./HotkeyHelp";
-import { actionKeyTags, stepHandSelection } from "./hotkeys";
-import { useBoardHotkeys, useConfirmButtonKey } from "./useBoardHotkeys";
-import { audioUnlocked, unlockAudio, useTurnAlert } from "./turnAlert";
-import { incomingAttackKey, useIncomingAttackCue } from "./attackCue";
-import { gameSfxMuted, useGameSfx } from "./sfx";
-import { useSoundCues } from "./soundCues";
-import { buzz } from "./haptics";
-import {
-  markRotateHintSeen,
-  releaseOrientationLock,
-  rotateHintSeen,
-  shouldShowRotateHint,
-  syncOrientationLock,
-} from "./orientation";
-import { RotateHint } from "./RotateHint";
-import { handCardOutOfReach, needsDonHint } from "./handAffordance";
-import { phaseLabel } from "./phaseLabel";
-import { firstSeatLine } from "./firstSeatLine";
-import { playerLabel, seatLabel, seatName, winnerHeadline } from "./playerNames";
-import { ConfirmButton } from "./ConfirmButton";
-import type { RematchDeckOption } from "../decks/rematchDecks";
-import { RematchPanel, type RematchDecks } from "./RematchPanel";
-import { RoomChip } from "./RoomShare";
+import { sideSkins } from "./layout/seatSkins";
+import { updateSettings, useDuelSettings } from "../settings";
+import { PANEL_LABELS, collapsedColumns, type PanelColumn, type PanelId } from "./panels/panelLayout";
+import { SidePanel } from "./panels/SidePanels";
+import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./hand/handFanPos";
+import { fanCornerFor } from "./hand/fanCorner";
+import { type LoadMatchRecord } from "./match/MatchOverFacts";
+import { useFanFit } from "./hand/useFanFit";
+import { useFanMove } from "./hand/useFanMove";
+import { endTurnWarning } from "./settings/gameplayPrefs";
+import { GameplaySettingsSheet } from "./settings/GameplaySettings";
+import { HotkeyHelpSheet } from "./input/HotkeyHelp";
+import { actionKeyTags, stepHandSelection } from "./input/hotkeys";
+import { useBoardHotkeys, useConfirmButtonKey } from "./input/useBoardHotkeys";
+import { buzz } from "./audio/haptics";
+import { RotateHint } from "./layout/RotateHint";
+import { handCardOutOfReach, needsDonHint } from "./hand/handAffordance";
+import { firstSeatLine } from "./match/firstSeatLine";
+import { playerLabel, seatLabel, seatName } from "./match/playerNames";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
-import { fanPoseStyle, handDrawer } from "./handFanGeometry";
-import { HandFan } from "./HandFan";
-import { farHandWithReveals, revealedIdSet } from "./handReveal";
-import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel, type SeatClocks } from "./TurnStatusPanel";
-import { TurnSplash, type SplashMessage } from "./TurnSplash";
-import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "./cardPreview";
-import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
-import { useMediaQuery, WIDE_BOARD_QUERY, COMPACT_HUD_QUERY, PORTRAIT_MAT_QUERY, LANDSCAPE_PHONE_QUERY, RAIL_HAND_QUERY, TILT_BOARD_QUERY } from "./useMediaQuery";
-import { MatchMenu } from "./MatchMenu";
-import type { ArtToggle } from "./HideArtItems";
-import { LandscapeRail, LandscapeOverlay, type LandscapePanel } from "./LandscapeRail";
-import { useMatchBrief } from "./MatchBrief";
-import { fitDock, useLogPose, useLogPoseDock, useLogPoseDockHost } from "@optcg/analyst-client";
-import { useLogPoseCopilot } from "./LogPoseCopilot";
-import { LogPoseMatchButton } from "./LogPoseMatchButton";
-import { matchLogPoseEntry } from "./matchBriefModel";
+import { fanPoseStyle, handDrawer } from "./hand/handFanGeometry";
+import { farHandWithReveals, revealedIdSet } from "./hand/handReveal";
+import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel } from "./panels/TurnStatusPanel";
+import { TurnSplash, type SplashMessage } from "./motion/TurnSplash";
+import { MatchMenu } from "./match/MatchMenu";
+import type { ArtToggle } from "./prompts/HideArtItems";
+import { LandscapeRail, LandscapeOverlay } from "./layout/LandscapeRail";
+import { useMatchBrief } from "./match/MatchBrief";
+import { useLogPose } from "@optcg/analyst-client";
+import { useLogPoseCopilot } from "./copilot/LogPoseCopilot";
+import { LogPoseMatchButton } from "./copilot/LogPoseMatchButton";
+import { matchLogPoseEntry } from "./match/matchBriefModel";
 import type { BriefTicketWire } from "../net/protocol";
-import { matchMenuItems } from "./matchMenuItems";
+import { handIndexOf } from "./prompts/intentFields";
+import { matchMenuItems } from "./match/matchMenuItems";
 import { openFeedback } from "../feedbackDialog";
 import { openReport } from "../reports/reportDialog";
 import { matchReportTarget } from "../reports/reportTargets";
-import { isPromptHidden, promptOpenFor } from "./promptHide";
-import { promptShortLine } from "./promptLine";
-import { HideablePrompt, promptSourceName } from "./HideablePrompt";
+import { promptOpenFor } from "./prompts/promptHide";
+import { promptShortLine } from "./prompts/promptLine";
+import { BoardHud, HudUndoPass } from "./hud/BoardHud";
+import { MatchResultView, type BoardRematch } from "./match/MatchResultView";
+import { HandDockLayer } from "./hand/HandDockLayer";
+import { PendingChoicePrompt } from "./prompts/PendingChoicePrompt";
+import { SpectatorFanLayer } from "./hand/SpectatorFanLayer";
+import { UndoRequestBanner } from "./match/UndoRequestBanner";
+import { deriveUndoUi, type BoardUndo } from "./match/undoHud";
+import { useBoardAudio } from "./audio/useBoardAudio";
+import { useBoardLayout } from "./layout/useBoardLayout";
+import { useBoardPanels } from "./panels/useBoardPanels";
+import { useDefendFlow } from "./combat/useDefendFlow";
+import { EMPTY_IDS, useDonSelection } from "./don/useDonSelection";
+import { useFanState } from "./hand/useFanState";
+import { useFullscreen } from "./layout/useFullscreen";
+import { useHandArrangement } from "./hand/useHandArrangement";
+import { formatCountdown, seatClockLabels, useClockNow } from "./match/useMatchClocks";
+import { useOppPlayPreview } from "./motion/useOppPlayPreview";
+import { useOrientationHint } from "./layout/useOrientationHint";
+import { usePromptState } from "./prompts/usePromptState";
 
 type Props = {
   view: PlayerView | null;
@@ -213,26 +144,14 @@ type Props = {
    * Turn undo (private rooms / practice). `autoAccept` = the other seat is
    * also this player (practice), so no request / answer UI is shown.
    */
-  undo?: {
-    state: UndoState | null;
-    onAction: (action: UndoAction, opts?: UndoRequestOptions) => void;
-    autoAccept?: boolean;
-    /** Open the choice menu on mount (demo screenshots). */
-    defaultOpen?: boolean;
-  };
+  undo?: BoardUndo;
   /**
    * Online ranked / casual matches: loads the saved match (History's entry) so the
    * match-over card can show the rating change and link the match log.
    */
   loadMatchRecord?: LoadMatchRecord;
   /** Rematch vote on the match-over screen (unranked rooms). */
-  rematch?: {
-    state: RematchState | null;
-    onAction: (action: RematchAction, decks?: RematchDecks) => void;
-    autoAccept?: boolean;
-    /** Saved decks to switch to for the next game. */
-    deckOptions?: readonly RematchDeckOption[];
-  };
+  rematch?: BoardRematch;
   /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
   /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
@@ -264,50 +183,11 @@ type Props = {
   onClearError: () => void;
 };
 
-const EMPTY_IDS = new Set<string>();
-/** The match result is not dismissed by Escape or an outside click; its buttons leave it. */
-const noop = () => {};
-
 /** Your own Leader / Character / Stage by instance id (what the card popover anchors to). */
 function findOwnCard(view: PlayerView, id: string): { id: string; defId: string } | null {
   if (view.you.leader.id === id) return view.you.leader;
   if (view.you.stage?.id === id) return view.you.stage;
   return view.you.characters.find((c) => c.id === id) ?? null;
-}
-
-function formatCountdown(endsAt: number | null | undefined, now: number): string | null {
-  if (endsAt == null) return null;
-  const sec = Math.max(0, Math.ceil((endsAt - now) / 1000));
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
-}
-
-/** Chess-clock readouts for both seats, or null when that mode is off. */
-function seatClockLabels(
-  timer: TimerMessage | null,
-  now: number,
-  youSeat: Seat,
-  oppSeat: Seat,
-): SeatClocks | null {
-  if (!timer?.seatSeconds || !timer.seatRemainingMs) return null;
-  const msFor = (seat: Seat) =>
-    timer.clockSeat === seat && timer.clockEndsAt != null
-      ? Math.max(0, timer.clockEndsAt - now)
-      : Math.max(0, timer.seatRemainingMs![seat]);
-  const fmt = (ms: number) => {
-    const sec = Math.ceil(ms / 1000);
-    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-  };
-  const you = msFor(youSeat);
-  const opp = msFor(oppSeat);
-  return {
-    you: fmt(you),
-    opp: fmt(opp),
-    youLow: you < 60_000,
-    oppLow: opp < 60_000,
-    running: timer.clockSeat === youSeat ? "you" : timer.clockSeat === oppSeat ? "opp" : null,
-  };
 }
 
 export function DuelBoard({
@@ -343,19 +223,25 @@ export function DuelBoard({
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
-  /** Id of the choice whose pop-up the player tucked away to look at the hand/board. */
-  const [hiddenChoiceId, setHiddenChoiceId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
   /** Card last used from the hand and where it sat, for a Yes/No it asks next. */
   const [handUse, setHandUse] = useState<HandUse | null>(null);
+  /** Set once useDefendFlow exists below; a hand-sent answer marks the defend step answered (#1140). */
+  const noteAnsweredRef = useRef<((intent: Intent) => void) | null>(null);
   function onSendIntent(intent: Intent) {
+    noteAnsweredRef.current?.(intent);
     // Blocking after all: a skip-block Counter must not follow onto the Blocker.
     if (intent.type === "declare_block") setQueuedCounter(null);
-    if (view && typeof intent.handIndex === "number") {
+    if (view && handIndexOf(intent) !== undefined) {
       setHandUse(handUseFromIntent(intent, view.you.hand, measureHandCard));
     }
     sendIntent(intent);
   }
+  /** Sending, or opening a prompt, drops the hand filter and the board selection. */
+  const clearSelection = () => {
+    setHandFilter(null);
+    setSelectedBoardId(null);
+  };
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
   /** Wide layout: hand dock pinned open (click / tap on its handle). */
@@ -368,7 +254,18 @@ export function DuelBoard({
       if (!next.delete(seat)) next.add(seat);
       return next;
     });
-  const [handPinned, setHandPinned] = useState(prefs.keepHandOpen);
+  const spectating = spectator || Boolean(view?.spectator);
+  const isReplay = replay != null;
+  const {
+    pinned: handPinned,
+    setPinned: setHandPinned,
+    floatTucked,
+    setFloatTucked,
+    tuckUnderPointer,
+    setTuckUnderPointer,
+    hoverUp: fanHoverUp,
+    setHoverUp: setFanHoverUp,
+  } = useFanState(prefs.keepHandOpen);
   /**
    * Keep hand open: the player tucked the hand fully away (H or its Hide
    * button). For this visit only, not saved: a reload brings the hand back.
@@ -377,35 +274,15 @@ export function DuelBoard({
   /** An effect asks me to pick cards from my hand: they are tapped in the hand, so it stays in view. */
   const handPick = !spectator && !view?.spectator && isHandPick(view?.pendingChoices?.[0], seat ?? view?.seat ?? null);
   const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
-  const wide = useMediaQuery(WIDE_BOARD_QUERY);
-  const compactHud = useMediaQuery(COMPACT_HUD_QUERY);
+  const { wide, compactHud, portraitMat, simpleOwnBoard, lp, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
   const rootRef = useRef<HTMLDivElement | null>(null);
   useHudHeight(rootRef, wide, view != null);
-  const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
-  const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_QUERY);
-  /** "Simple board on phones": your own mat gets the count row and bigger cards the opponent's has (portrait only). */
-  const simpleOwnBoard = prefs.compactOwnBoard && portraitMat;
-  /** Landscape phone: icon rail + overlays on the left, slim action column on the right. */
-  const lp = wide && landscapePhone;
-  // Log Pose docked to a side: its panel renders into a host that is a movable panel of that side column, only while it is open.
-  // Narrow windows and landscape phones have no side columns, so there it floats.
-  const logPoseDock = useLogPoseDock();
-  const [logPoseHostL, setLogPoseHostL] = useState<HTMLElement | null>(null);
-  const [logPoseHostR, setLogPoseHostR] = useState<HTMLElement | null>(null);
-  /** Desktop with one combined side column (the `sideColumns` setting): its side, else null (two columns). */
-  const singleSide: PanelColumn | null = wide && !lp && prefs.sideColumns !== "both" ? prefs.sideColumns : null;
-  const logPoseSides = useMemo(() => ({ left: singleSide !== "right", right: singleSide !== "left" }), [singleSide]);
-  useLogPoseDockHost(wide && !lp, logPoseHostL, logPoseHostR, logPoseSides);
-  // The same fit the panel uses (fitDock), so the host the board renders is the one the panel looks for (#554).
-  const logPoseSide = wide && !lp && logPoseDock.open ? fitDock(logPoseDock.dock, logPoseSides) : null;
+  const arenaBodyRef = useRef<HTMLDivElement | null>(null);
+  const playmatRef = useRef<HTMLDivElement | null>(null);
+  const { singleSide, logPoseSide, setLogPoseHostL, setLogPoseHostR, panelLayout, panelDrag, panelResize, lpPanel, setLpPanel } =
+    useBoardPanels({ prefs, wide, lp, dragPayload, arenaBodyRef });
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
-  /** Tall desktop, Grid layout: the hand is an always-open grid side panel (no dock). */
-  const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
-  /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
-  const resolvedHandLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
-  /** A replay's controls take the right rail's free space, so its hand is the fan, never the rail's grid. */
-  const handLayout = replay && resolvedHandLayout === "grid" ? "fan" : resolvedHandLayout;
   /**
    * Spectators of unranked rooms see both hands face up: fanned on desktop,
    * compact grids on phones. Their Hand setting (saved, untouched) only
@@ -424,7 +301,7 @@ export function DuelBoard({
   const fanRef = useRef<HTMLDivElement | null>(null);
   const farRef = useRef<HTMLDivElement | null>(null);
   const boardCentreX = () => {
-    const r = document.querySelector(".arena .playmat")?.getBoundingClientRect();
+    const r = playmatRef.current?.getBoundingClientRect();
     return r ? r.left + r.width / 2 : window.innerWidth / 2;
   };
   // The one near fan is the player's hand, or a spectator's near hand (a spot of its own).
@@ -446,7 +323,7 @@ export function DuelBoard({
     (next) => updateSettings({ spectatorFarFanPos: serializeFanPos(next) }),
     boardCentreX,
     (centreX, bottom, height, vp) => {
-      const mat = document.querySelector(".arena .playmat")?.getBoundingClientRect();
+      const mat = playmatRef.current?.getBoundingClientRect();
       return farFanPosForDrop(centreX, bottom, height, vp, mat?.top ?? 0);
     },
     { bodySelector: ".hand-fan-cards", anchorGrip: true },
@@ -456,131 +333,41 @@ export function DuelBoard({
   const shownFarPos = specFans === "desktop" ? (farMove.livePos ?? specFarPos) : null;
   /** Off the bottom edge: fully shown unless tucked to its handle ("Let the hand tuck away"). */
   const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
-  const [floatTucked, setFloatTucked] = useState(false);
-  /**
-   * Just tucked by its own button or H: the pointer is usually still on the
-   * hand, so hover must not raise it again until the pointer has left it.
-   */
-  const [tuckUnderPointer, setTuckUnderPointer] = useState(false);
-  /**
-   * The pointer is on the fan's cards (not its handle row): a tucked fan rises
-   * on this and stays up until the pointer leaves the whole fan, so moving
-   * from the cards to the buttons doesn't drop it under the cursor (#780).
-   */
-  const [fanHoverUp, setFanHoverUp] = useState(false);
   /** Raised by the player (pin), as the hand button shows it. */
   const handUp = fanFloating ? !floatTucked : handPinned;
   // A spectator's far fan: the same states as the near one, of its own.
-  const [farPinned, setFarPinned] = useState(false);
-  const [farFloatTucked, setFarFloatTucked] = useState(false);
-  const [farTuckUnderPointer, setFarTuckUnderPointer] = useState(false);
-  const [farHoverUp, setFarHoverUp] = useState(false);
+  const {
+    pinned: farPinned,
+    setPinned: setFarPinned,
+    floatTucked: farFloatTucked,
+    setFloatTucked: setFarFloatTucked,
+    tuckUnderPointer: farTuckUnderPointer,
+    setTuckUnderPointer: setFarTuckUnderPointer,
+    hoverUp: farHoverUp,
+    setHoverUp: setFarHoverUp,
+  } = useFanState(false);
   const farUp = shownFarPos ? !farFloatTucked : farPinned;
   /** Default spot of the far fan: the board keeps a strip free along its top for the tucked cards. */
   const farTop = shownFarPos == null;
   /** Default spot: the board keeps a strip free under it for the tucked cards. */
   const fanCenter = fanHand && shownFanPos == null;
-  /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
-  const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
-  const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
   // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling (spectators: a grid row). */
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
-  /** Desktop: which column each side panel sits in (dragged by its grip, saved in settings). */
-  // One combined column folds the other column's panels in for display only; the saved layout keeps its split.
-  // A docked Log Pose takes its slot in the column it is docked to (its saved place there, else the top).
-  const savedPanelLayout = useMemo(() => placeLogPose(parsePanelLayout(prefs.panelLayout), logPoseSide), [prefs.panelLayout, logPoseSide]);
-  const panelLayout = useMemo(
-    () => (singleSide ? mergeIntoColumn(savedPanelLayout, singleSide) : savedPanelLayout),
-    [savedPanelLayout, singleSide],
-  );
-  const arenaBodyRef = useRef<HTMLDivElement | null>(null);
-  const playmatRef = useRef<HTMLDivElement | null>(null);
-  const panelDrag = usePanelDrag(
-    arenaBodyRef,
-    panelLayout,
-    // A reorder in the one column is split back into the two saved columns (same counts), so Both still has two.
-    (next) => {
-      updateSettings({
-        panelLayout: serializePanelLayout(singleSide ? splitMergedLayout(next, savedPanelLayout, singleSide, logPoseSide === singleSide ? "logpose" : undefined) : next),
-      });
-      // Log Pose dragged to the other column (both shown): the dock side follows, so the two agree.
-      if (!singleSide && logPoseSide) {
-        const col = columnOf(next, "logpose");
-        if (col !== logPoseSide) logPoseDock.setDock(col);
-      }
-    },
-    {
-      id: "oppHand",
-      spot: prefs.oppHandSpot || null,
-      onChange: (spot) => updateSettings({ oppHandSpot: spot ?? "" }),
-    },
-  );
-  // Bigger playing area keeps its own column widths (heights are shared), so its narrow columns stay narrow.
-  const panelSizes = useMemo(
-    () => panelSizesForMode(prefs.bigBoard, prefs.panelSizes, prefs.panelSizesBig),
-    [prefs.bigBoard, prefs.panelSizes, prefs.panelSizesBig],
-  );
-  const panelResize = usePanelResize(
-    arenaBodyRef,
-    panelSizes,
-    (next) => updateSettings(panelSizesPatch(prefs.bigBoard, next, prefs.panelSizes)),
-  );
-  const [lpPanel, setLpPanel] = useState<LandscapePanel | null>(null);
-  // Starting a drag (or leaving landscape) must never leave an overlay over the board.
-  useEffect(() => {
-    if (dragPayload || !lp) setLpPanel(null);
-  }, [dragPayload, lp]);
-  const [handSorted, setHandSorted] = useState(prefs.sortHandByCost);
-  /** Your own hand order (instance ids) from dragging cards around while unsorted. */
-  const [handOrderIds, setHandOrderIds] = useState<readonly string[]>([]);
-  /** The hand's display order right now, for a reorder dropped mid-render. */
-  const handShownIdsRef = useRef<readonly string[]>([]);
-  const captureHandShuffle = useHandShuffle(handShownIdsRef, { sound: prefs.turnSound });
-  const onHandReorder = useCallback(
-    (cardId: string, slot: number, x: number, y: number) => {
-      captureHandShuffle("drop", { cardId, x, y });
-      setHandOrderIds(moveToSlot(handShownIdsRef.current, cardId, slot));
-    },
-    [captureHandShuffle],
-  );
-  // A floating fan steps aside once a dragged card leaves it (board drops under it).
-  const handReorder = useHandReorder(onHandReorder, { oneWayOut: fanFloating });
-  /** Hand card (instance id) being dragged: it lifts out of the hand and follows the pointer. */
-  const [liftedHandId, setLiftedHandId] = useState<string | null>(null);
-  useHandLift(liftedHandId);
-  function toggleHandSort() {
-    captureHandShuffle("sort");
-    setHandSorted((v) => !v);
-  }
+  const {
+    handSorted,
+    setHandSorted,
+    toggleHandSort,
+    handDisplayIndices,
+    handReorder,
+    liftedHandId,
+    setLiftedHandId,
+  } = useHandArrangement({ prefs, view, spectating, fanFloating, onHandOrder });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const fullscreenOffered = useMemo(() => canOfferFullscreen(readInstallEnv()), []);
-  const [isFullscreen, setIsFullscreen] = useState(
-    () => typeof document !== "undefined" && document.fullscreenElement != null,
-  );
-  useEffect(() => {
-    const sync = () => setIsFullscreen(document.fullscreenElement != null);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-  function toggleFullscreen() {
-    const request =
-      document.fullscreenElement != null
-        ? document.exitFullscreen()
-        : document.documentElement.requestFullscreen();
-    // Denied (no user gesture, policy): stay windowed.
-    request.catch(() => {});
-  }
-  const [selectedDonIds, setSelectedDonIds] = useState<Set<string>>(new Set());
-  // Separate DON!! piles in your cost area (#381): visual only, reset each turn.
-  const [donPiles, setDonPiles] = useState<DonPiles>({});
-  /** Click-to-attach: DON!! selected + target tapped, awaiting confirm. */
-  const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
-  /** Hand card (instance id) waiting on "which Character do you replace?". */
-  const [replaceCardId, setReplaceCardId] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const { fullscreenOffered, isFullscreen, toggleFullscreen } = useFullscreen();
+  const now = useClockNow(timer, opponentAwayUntil);
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
   const cardBackUrl = useCardBackUrl();
@@ -591,16 +378,7 @@ export function DuelBoard({
   useEffect(() => {
     setHandPinned(prefs.keepHandOpen);
     setHandHidden(false);
-  }, [prefs.keepHandOpen]);
-  useEffect(() => setHandSorted(prefs.sortHandByCost), [prefs.sortHandByCost]);
-
-  useEffect(() => {
-    if (!timer?.turnEndsAt && !timer?.matchEndsAt && !timer?.clockEndsAt && !opponentAwayUntil) {
-      return;
-    }
-    const id = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(id);
-  }, [timer?.turnEndsAt, timer?.matchEndsAt, timer?.clockEndsAt, opponentAwayUntil]);
+  }, [prefs.keepHandOpen, setHandPinned]);
 
   // Trackpad / mouse wheel → horizontal hand scroll when the row overflows.
   useEffect(() => {
@@ -616,31 +394,7 @@ export function DuelBoard({
     return () => el.removeEventListener("wheel", onWheel);
   }, [handCollapsed, wide, railHand, view?.you.hand.length]);
 
-  // Desktop: the big preview follows the opponent's latest play, so one you
-  // looked away from is still readable. Hovering a card wins for a moment.
-  const previewOppSeat: 0 | 1 = (seat ?? view?.seat ?? 0) === 0 ? 1 : 0;
-  const oppPlay = wide && !lp ? latestOpponentPlay(battleLog, previewOppSeat) : null;
-  const oppPlayId = oppPlay?.entryId ?? null;
-  const seenOppPlayId = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    const prev = seenOppPlayId.current;
-    seenOppPlayId.current = oppPlayId;
-    if (!oppPlay || oppPlayId === prev) return;
-    const auto = {
-      defId: oppPlay.defId,
-      ownerSeat: previewOppSeat,
-      caption: opponentPlayCaption(oppPlay),
-    };
-    if (prev === undefined) {
-      // First mount: only fill an empty panel.
-      if (!getPreviewCard()) setAutoPreviewCard(auto);
-      return;
-    }
-    // A log replaced wholesale (resync / undo) is not a new play.
-    if (prev !== null && !battleLog.some((e) => e.id === prev)) return;
-    if (shouldAutoPreview(Date.now(), getLastHoverAt())) setAutoPreviewCard(auto);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [oppPlayId]);
+  const previewOppSeat = useOppPlayPreview({ battleLog, seat, view, wide, lp });
 
   const over = matchOver != null || view?.winner != null;
   // The strip shows the short question; the full server text stays in the tooltip.
@@ -660,13 +414,11 @@ export function DuelBoard({
   useScreenWakeLock(!over);
   /** "View board" on the match-over card: the card steps aside so the final board shows. */
   // A replay opens on the result pill rather than the modal, so the last move can be looked at.
-  const isReplay = replay != null;
   const [resultHidden, setResultHidden] = useState(isReplay);
   useEffect(() => {
     if (!over) setResultHidden(isReplay);
   }, [over, isReplay]);
   const mySeat = seat ?? view?.seat ?? null;
-  const spectating = spectator || Boolean(view?.spectator);
   /**
    * "Buttons beside the board" (#556, #564): on a computer the dock rides in a narrow gutter against the
    * right edge of the two mats, its primary button centred on the line where they meet, so the mats touch
@@ -719,200 +471,59 @@ export function DuelBoard({
     !over &&
     (decidingMulligan || view!.activeSeat === mySeat);
   const intents = view?.legalIntents ?? [];
-  // Track the card, not its hand slot: indexes shift as the hand changes.
-  const replaceHandIndex = replaceCardId
-    ? (view?.you.hand.findIndex((c) => c.id === replaceCardId) ?? -1)
-    : -1;
-  const replaceOpen = replaceHandIndex >= 0 && playNeedsReplace(intents, replaceHandIndex);
-  useEffect(() => {
-    // Drop the prompt once the play stops being legal (turn passed, card left hand…).
-    if (replaceCardId && !replaceOpen) setReplaceCardId(null);
-  }, [replaceCardId, replaceOpen]);
+  const { hiddenChoiceId, setHiddenChoiceId, replaceCardId, setReplaceCardId, replaceHandIndex, replaceOpen, openReplace } =
+    usePromptState({ view, intents, clearSelection });
 
-  function openReplace(handIndex: number) {
-    const card = view?.you.hand[handIndex];
-    if (!card) return;
-    setHandFilter(null);
-    setSelectedBoardId(null);
-    setReplaceCardId(card.id);
-  }
-
-  // Response stops: pass for you when the setting says there is nothing to decide.
-  const stopMode = prefs.responseStops;
-  const counterOutlook =
-    stopMode === "smart" && view && intents.some((i) => i.type === "pass_counter")
-      ? (() => {
-          const d = deriveDefend(view, intents, { counterIds: [], blockerId: null });
-          return d ? { gap: d.gap, values: d.counters.map((c) => c.value) } : undefined;
-        })()
-      : undefined;
-  /**
-   * A Counter dropped (or tapped) in the block step: the block is passed, and
-   * this card is played (`send`) or staged (`stage`) once the counter step is up.
-   */
-  const [queuedCounter, setQueuedCounter] = useState<{
-    cardId: string;
-    mode: "send" | "stage";
-  } | null>(null);
-  const autoPass =
-    stopMode !== "always" &&
-    view &&
-    !spectating &&
-    !isReplay &&
-    !over &&
-    !view.pendingChoices?.length &&
-    queuedCounter == null
-      ? responseStopPass(stopMode, intents, counterOutlook)
-      : null;
-  const autoPassKey =
-    autoPass && view
-      ? `${view.turnNumber}:${autoPass.type}:${JSON.stringify(view.battle ?? null)}`
-      : null;
-  const autoPassRef = useRef<{ intent: typeof autoPass; send: typeof onSendIntent }>({
-    intent: null,
-    send: onSendIntent,
-  });
-  autoPassRef.current = { intent: autoPass, send: onSendIntent };
-  const autoPassSent = useRef<string | null>(null);
-  useEffect(() => {
-    if (!autoPassKey || autoPassSent.current === autoPassKey) return;
-    // A beat so the attack registers; against a person a human-length wait, so
-    // an instant pass does not reveal there was no usable Counter (#369). You can
-    // still answer by hand meanwhile: acting changes the key and cancels this.
-    return scheduleAutoPass(() => {
-      const { intent, send } = autoPassRef.current;
-      if (!intent) return;
-      autoPassSent.current = autoPassKey;
-      send(intent);
-    }, vsHuman);
-  }, [autoPassKey, vsHuman]);
-
-  // Defend tray: while you answer an attack, the block / counter choices live
-  // in one tray (portrait: in place of the hand, landscape phone: right column).
-  const [stagedCounterIds, setStagedCounterIds] = useState<string[]>([]);
-  const [stagedBlockerId, setStagedBlockerId] = useState<string | null>(null);
-  const defend =
-    view && !spectating && !over && !view.pendingChoices?.length && autoPass == null
-      ? deriveDefend(view, intents, { counterIds: stagedCounterIds, blockerId: stagedBlockerId })
-      : null;
-  const trayHere = defend != null && (!wide || lp);
-  // Desktop: the same tray sits in the right rail (one tap plays a counter or
-  // blocks) so each card's value and what you still need are in view; the
-  // dock keeps the Pass block / Pass counter / Resolve button.
-  const railDefend = defend != null && wide && !lp;
-  const defendKey =
-    trayHere && view ? `${view.turnNumber}:${defend.phase}:${JSON.stringify(view.battle ?? null)}` : null;
-  useEffect(() => {
-    // A new attack / step (or the tray closing) starts from a clean slate.
-    setStagedCounterIds([]);
-    setStagedBlockerId(null);
-  }, [defendKey]);
-  // After the step reset above: the block has passed, so play or stage the
-  // queued Counter if the counter step takes it.
-  useEffect(() => {
-    if (!queuedCounter || !view) return;
-    const { settled, intent } = followUpCounter(intents, view.you.hand, queuedCounter.cardId);
-    if (!settled) return;
-    setQueuedCounter(null);
-    if (!intent) return;
-    if (queuedCounter.mode === "send") onSendIntent(intent);
-    else setStagedCounterIds([queuedCounter.cardId]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queuedCounter, intents, view]);
-
-  /** Block step: skip the block, then play (or stage) this Counter in the counter step. */
-  function skipBlockToCounter(cardId: string, mode: "send" | "stage") {
-    const pass = intents.find((i) => i.type === "pass_block");
-    if (!pass) return;
-    setStagedBlockerId(null);
-    setQueuedCounter({ cardId, mode });
-    onSendIntent(pass);
-  }
-
-  // Hotseat hands the device over itself; alerts only matter online.
-  const alertsOn = !spectating && !isReplay && !over && !hotseatPass && autoPass == null;
-  // An attack against you has its own cue, so the generic "your move" alert
-  // stays quiet while you are answering one.
-  const attackKey = alertsOn ? incomingAttackKey(view, spectating) : null;
-  // Per-tab sound (#934): a watch tab goes quiet while another tab has a live match as a player. Demos play no part.
-  const tabMute = useTabMute({
-    playing: Boolean(view) && matchId != null && matchId !== DEMO_MATCH_ID && !spectating && !isReplay && !hotseatPass && !over,
-    watching: isWatchTab({ spectating, isReplay }),
-    autoQuiet: prefs.quietWatchTabs,
-  });
-  const tabMuteText = tabMuteCopy(tabMute);
-  useTurnAlert(alertsOn && intents.length > 0 && attackKey == null, {
-    buzz: prefs.turnAlert,
-    sound: prefs.turnSound,
-  });
-  useIncomingAttackCue(attackKey, { sound: prefs.turnSound });
-  // Same master Sounds toggle: a tick per opponent card use, a thud per Life lost.
-  const reveals = useOpponentReveals(battleLog, previewOppSeat, !spectating && !over);
-  const replayQuiet = replay?.quiet === true;
-  const spotlights = useCardSpotlights(battleLog, prefs.cardSpotlight && !over && !replayQuiet);
-  useSoundCues(view, battleLog, previewOppSeat, {
-    enabled: alertsOn,
-    sound: prefs.turnSound,
+  const {
+    autoPass,
+    defend,
+    trayHere,
+    railDefend,
+    defendPrimary,
+    counterLabel,
+    setStagedCounterIds,
+    setStagedBlockerId,
+    setQueuedCounter,
+    skipBlockToCounter,
+    noteAnswered,
+  } = useDefendFlow({
+    view,
+    intents,
+    stopMode: prefs.responseStops,
     spectating,
+    isReplay,
+    over,
+    vsHuman,
+    wide,
+    lp,
+    onSendIntent,
   });
-  useGameSfx(view, battleLog, {
-    sound: prefs.turnSound,
-    muted: gameSfxMuted({ quiet: Boolean(hotseatPass) || autoPass != null || replayQuiet, spectating, spectatorSound: prefs.spectatorSound }),
+  noteAnsweredRef.current = noteAnswered;
+
+  const { tabMute, tabMuteText, reveals, spotlights, replayQuiet } = useBoardAudio({
+    view,
+    battleLog,
+    prefs,
+    matchId,
     spectating,
+    isReplay,
+    hotseatPass,
+    over,
+    autoPass,
+    intents,
+    previewOppSeat,
+    replay,
   });
 
-  // iOS only plays sound after one started inside a gesture: unlock on the
-  // first touch of the match so a later cue is allowed to play.
-  useEffect(() => {
-    if (!prefs.turnSound) return;
-    const unlock = () => {
-      unlockAudio();
-      if (audioUnlocked()) document.removeEventListener("pointerdown", unlock, true);
-    };
-    document.addEventListener("pointerdown", unlock, true);
-    return () => document.removeEventListener("pointerdown", unlock, true);
-  }, [prefs.turnSound]);
-
-  // Screen orientation setting: lock where the browser allows it, and again
-  // once full screen is entered (Android only allows a lock there).
-  const orientationPref = prefs.screenOrientation;
-  useEffect(() => {
-    void syncOrientationLock(orientationPref);
-  }, [orientationPref, isFullscreen]);
-  useEffect(() => releaseOrientationLock, []);
-
-  // One-time "rotate for bigger cards" toast on a portrait phone.
-  const portraitViewport = useMediaQuery("(orientation: portrait)");
-  const phoneViewport = useMediaQuery("(pointer: coarse) and (max-width: 599px)");
-  const [rotateHintOpen, setRotateHintOpen] = useState(false);
-  const rotateHintDue =
-    view != null &&
-    !over &&
-    // Wait out an attack: the toast would sit over your field mid-response.
-    defend == null &&
-    // The hint lives in the midline strip, so wait for it to be free.
-    midlineText == null &&
-    shouldShowRotateHint({
-      portrait: portraitViewport,
-      phone: phoneViewport,
-      setting: orientationPref,
-      seen: rotateHintSeen(),
-      hotseat: Boolean(hotseatPass),
-    });
-  useEffect(() => {
-    if (rotateHintDue) {
-      markRotateHintSeen();
-      setRotateHintOpen(true);
-    }
-  }, [rotateHintDue]);
-  // Turning the phone (or picking portrait) puts the hint away.
-  const rotateHintShown =
-    rotateHintOpen &&
-    portraitViewport &&
-    orientationPref !== "portrait" &&
-    defend == null &&
-    midlineText == null;
-  const closeRotateHint = useCallback(() => setRotateHintOpen(false), []);
+  const { rotateHintShown, closeRotateHint } = useOrientationHint({
+    orientationPref: prefs.screenOrientation,
+    isFullscreen,
+    boardReady: view != null,
+    over,
+    defendOpen: defend != null,
+    midlineTaken: midlineText != null,
+    hotseat: Boolean(hotseatPass),
+  });
 
   // Small haptic tap when a drag lifts a card / DON!!.
   const dragging = dragPayload != null;
@@ -935,57 +546,31 @@ export function DuelBoard({
     const ends = battleEndpoints(view);
     return ends?.incoming ? ends.targetId : null;
   }, [counterDragEnabled, view]);
-  const costArea = view?.you.costArea ?? [];
-
-  const turnNumber = view?.turnNumber;
-  useEffect(() => {
-    setDonPiles({});
-  }, [turnNumber]);
-
-  function moveDonToPile(donId: string) {
-    const present = costArea.map((t) => t.id);
-    // A chip in the multi-select set moves with the rest of it.
-    const ids = selectedDonIds.has(donId)
-      ? [donId, ...Array.from(selectedDonIds).filter((id) => id !== donId)]
-      : [donId];
-    setDonPiles((prev) => movePile(prev, ids, present));
-  }
-
-  const draggableDonIds = useMemo(() => {
-    if (!dndEnabled) return EMPTY_IDS;
-    const ids = new Set<string>();
-    for (const t of costArea) {
-      if (canDragDon(intents, t.id)) ids.add(t.id);
-    }
-    return ids;
-  }, [dndEnabled, intents, costArea]);
-
-  const giveDonHighlightIds = useMemo(() => {
-    // Intersection across every dragged / selected donId so a drop or tap
-    // always fully succeeds.
-    if (dragPayload?.type === "give_don") {
-      return new Set(giveDonTargetIdsForAll(intents, dragPayload.donIds));
-    }
-    if (!dragPayload && selectedDonIds.size > 0) {
-      return new Set(attachTargetIds(intents, selectedDonIds));
-    }
-    return EMPTY_IDS;
-  }, [dragPayload, intents, selectedDonIds]);
-
-  // Drop stale selections (don rested/used, turn ended, etc.) whenever the
-  // legal set changes, so the highlight/selection UI never lies.
-  useEffect(() => {
-    setSelectedDonIds((prev) => pruneDonSelection(prev, draggableDonIds));
-  }, [draggableDonIds]);
-
-  // A pending confirm is only valid while its whole selection still is.
-  useEffect(() => {
-    if (!pendingAttach) return;
-    const stillLegal =
-      pendingAttach.donIds.every((id) => selectedDonIds.has(id)) &&
-      beginAttach(intents, selectedDonIds, pendingAttach.targetId) != null;
-    if (!stillLegal) setPendingAttach(null);
-  }, [pendingAttach, selectedDonIds, intents]);
+  const {
+    selectedDonIds,
+    setSelectedDonIds,
+    donPiles,
+    setPendingAttach,
+    pendingAttach,
+    draggableDonIds,
+    giveDonHighlightIds,
+    donSelectActive,
+    moveDonToPile,
+    clearDonSelection,
+    confirmAttach,
+    toggleDonSelect,
+    quickCounts,
+    quickAttach,
+  } = useDonSelection({
+    view,
+    intents,
+    dndEnabled,
+    dragPayload,
+    selectedBoardId,
+    replaceOpen,
+    onSendIntent,
+    clearSelection,
+  });
 
   /** Keep hand open: tuck the whole hand away (only its handle stays), or bring it back. */
   function toggleHandHidden() {
@@ -1023,7 +608,7 @@ export function DuelBoard({
     else setFarPinned(!farUp);
     if (farUp) {
       setFarHoverUp(false);
-      setFarTuckUnderPointer(document.querySelector(".hand-fan-top:hover") != null);
+      setFarTuckUnderPointer(farRef.current?.matches(":hover") ?? false);
     }
   }
 
@@ -1060,21 +645,6 @@ export function DuelBoard({
     </button>
   );
 
-  function clearDonSelection() {
-    setSelectedDonIds(new Set());
-    setPendingAttach(null);
-  }
-
-  function confirmAttach(pending: PendingAttach | null = pendingAttach) {
-    const toSend = resolveAttachIntents(intents, pending);
-    clearDonSelection();
-    if (toSend.length === 0) return;
-    setHandFilter(null);
-    setSelectedBoardId(null);
-    // Sequential client-side intents (no batch protocol).
-    for (const intent of toSend) onSendIntent(intent);
-  }
-
   useConfirmButtonKey();
   useBoardHotkeys({
     spectating,
@@ -1109,39 +679,6 @@ export function DuelBoard({
     onToggleTabMute: tabMute.toggle,
   });
 
-  const donSelectActive = selectedDonIds.size > 0 || pendingAttach != null;
-
-  // Click-away cancels the DON!! selection / confirm. Taps on the cost area,
-  // the confirm itself, or a highlighted attach target are handled by their
-  // own click handlers.
-  useEffect(() => {
-    if (!donSelectActive) return;
-    function onPointerDown(e: PointerEvent) {
-      const el = e.target instanceof Element ? e.target : null;
-      if (
-        el?.closest(
-          ".don-strip-you, .don-attach-confirm, [data-dnd-drop^='give_don:'], .card-inspect-backdrop",
-        )
-      ) {
-        return;
-      }
-      clearDonSelection();
-    }
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [donSelectActive]);
-
-  /** Legal DON!! ids in cost-area display order (active first). */
-  const legalDonOrder = useMemo(
-    () => costArea.filter((t) => draggableDonIds.has(t.id)).map((t) => t.id),
-    [costArea, draggableDonIds],
-  );
-
-  function toggleDonSelect(donId: string) {
-    setPendingAttach(null);
-    setSelectedDonIds((prev) => nextDonSelection(prev, donId, legalDonOrder));
-  }
-
   const playFieldHighlight = Boolean(
     dragPayload?.type === "play_card" &&
       (canDropPlayOnField(intents, dragPayload.handIndex) ||
@@ -1167,19 +704,6 @@ export function DuelBoard({
     return ids;
   }, [view, intents]);
 
-  const handDisplayIndices = useMemo(() => {
-    if (!view || spectating) return null;
-    const hand = view.you.hand;
-    if (handSorted) return sortHandIndices(hand, (defId) => lookupCard(defId).cost);
-    const at = new Map(hand.map((c, i) => [c.id, i]));
-    return reconcileHandOrder(
-      handOrderIds,
-      hand.map((c) => c.id),
-    ).map((id) => at.get(id)!);
-  }, [view, spectating, handSorted, handOrderIds]);
-  handShownIdsRef.current = (handDisplayIndices ?? []).map((i) => view?.you.hand[i]?.id ?? "");
-  // Online players tell the room their hand order, so spectators' fans match it.
-  useHandOrderSync(onHandOrder && !spectating && view ? handShownIdsRef.current : null, onHandOrder);
   // Over the hand, a dragged hand card is being reordered: the hand stays up
   // instead of tucking away for a drop on the board.
   const reorderInHand = handReorder.reorder?.inZone === true;
@@ -1204,33 +728,6 @@ export function DuelBoard({
     if (!dndEnabled || !attackerId || !view) return EMPTY_IDS;
     return new Set(attackTargetIdsForAttacker(intents, attackerId, view.opponent.leader.id));
   }, [dndEnabled, attackerId, intents, view]);
-
-  // Quick attach: a selected Leader / Character that can take DON!! gets a
-  // +1 / +2 / All row (the other flows, drag and multi-select, are unchanged).
-  const quickDonIds =
-    dndEnabled &&
-    !dragPayload &&
-    !donSelectActive &&
-    !replaceOpen &&
-    selectedBoardId &&
-    view &&
-    (view.you.leader.id === selectedBoardId ||
-      view.you.characters.some((c) => c.id === selectedBoardId))
-      ? donIdsForTarget(intents, selectedBoardId)
-      : [];
-  const quickCounts = quickAttachCounts(quickDonIds.length);
-
-  function quickAttach(count: number) {
-    if (selectedBoardId) quickAttachTo(selectedBoardId, count);
-  }
-
-  function quickAttachTo(id: string, count: number) {
-    const toSend = donQuickAttach(intents, id, count);
-    setHandFilter(null);
-    setSelectedBoardId(null);
-    // Sequential client-side intents (no batch protocol), like confirmAttach.
-    for (const intent of toSend) onSendIntent(intent);
-  }
 
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
@@ -1284,7 +781,7 @@ export function DuelBoard({
 
   function pressCardAction(intent: Intent) {
     if (isReplacePlay(intent)) {
-      openReplace(intent.handIndex as number);
+      openReplace(intent.handIndex);
       return;
     }
     setHandFilter(null);
@@ -1540,15 +1037,8 @@ export function DuelBoard({
           tone: spectating ? "neutral" : youActive ? "mine" : "theirs",
         };
 
-  const undoState = undo?.state ?? null;
-  const undoPendingMine =
-    undoState?.pending != null && !undo?.autoAccept && undoState.pending.from === boardSeat;
-  const undoPendingTheirs =
-    undoState?.pending != null && !undo?.autoAccept && undoState.pending.from !== boardSeat;
-  // The Undo button opens a menu: the last action (by either seat) or the whole turn (#497, #536).
-  const undoReqText =
-    undoPendingTheirs && undoState?.pending ? undoRequestText(undoState.pending, boardSeat) : null;
-  const undoNothingYet = undoState != null && undoState.targetTurn == null && !undoForceable(undoState);
+  const undoUi = deriveUndoUi(undo, boardSeat);
+  const { undoState, undoPendingTheirs, undoNothingYet } = undoUi;
 
   /** Card showing where a hand card dragged over the hand would land, if it moves. */
   function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
@@ -1689,41 +1179,6 @@ export function DuelBoard({
       );
     });
   }
-
-  function confirmCounters() {
-    if (!defend) return;
-    const toSend = resolveStagedCounters(intents, you.hand, defend.stagedIds);
-    setStagedCounterIds([]);
-    // Sequential client-side intents, highest hand slot first (see resolveStagedCounters).
-    for (const intent of toSend) onSendIntent(intent);
-  }
-
-  function declareStagedBlocker() {
-    const id = defend?.stagedBlockerId;
-    const intent = intents.find((i) => i.type === "declare_block" && i.blockerId === id);
-    setStagedBlockerId(null);
-    if (intent) onSendIntent(intent);
-  }
-
-  const defendPrimary =
-    trayHere && defend
-      ? defend.phase === "block"
-        ? defend.stagedBlockerId
-          ? {
-              label: `Block with ${defend.blockers.find((b) => b.id === defend.stagedBlockerId)?.name ?? "blocker"}`,
-              onPress: declareStagedBlocker,
-            }
-          : { label: "No block" }
-        : defend.stagedIds.length > 0
-          ? {
-              label: counterPrimaryLabel(defend, true),
-              onPress: confirmCounters,
-              warn: counterPrimaryLabel(defend, true) !== "Confirm counter",
-            }
-          : { label: counterPrimaryLabel(defend, true) }
-      : undefined;
-  const counterLabel =
-    !trayHere && defend?.phase === "counter" ? counterPrimaryLabel(defend, false) : undefined;
 
   const defendTray =
     (trayHere || railDefend) && defend ? (
@@ -2106,45 +1561,6 @@ export function DuelBoard({
   }
 
 
-  const hudUndoPass = (
-    <>
-    {undo && undoState?.enabled && !spectating && !over ? (
-      undoPendingMine ? (
-        <button
-          type="button"
-          className="hud-undo-btn hud-icon-btn hud-undo-cancel armed"
-          aria-label="Cancel undo request"
-          title="Waiting for your opponent to accept. Press to cancel."
-          onClick={() => undo.onAction("cancel")}
-        >
-          ↺ Cancel
-        </button>
-      ) : undoPendingTheirs || (compactHud && undoNothingYet) ? null : (
-        <UndoControl
-          className="hud-undo-btn hud-icon-btn"
-          label="↺"
-          ariaLabel="Undo"
-          state={undoState}
-          autoAccept={undo.autoAccept === true}
-          defaultOpen={undo.defaultOpen}
-          onAction={undo.onAction}
-        />
-      )
-    ) : null}
-    {hotseatPass ? (
-      // The phone bar is tight: "→ P2" here, the full wording in its name.
-      <button
-        type="button"
-        className="hud-pass-btn"
-        title={`Hand the device to ${playerLabel(hotseatPass.otherSeat)}`}
-        aria-label={`Switch to ${playerLabel(hotseatPass.otherSeat)}`}
-        onClick={hotseatPass.onPass}
-      >
-        → P{hotseatPass.otherSeat + 1}
-      </button>
-    ) : null}
-    </>
-  );
   const reportProblem = () => openFeedback("Report a problem");
   const reportTargetFor = (source: "match" | "spectate" | "postmatch") =>
     canReport && !isReplay && !hotseatPass
@@ -2155,21 +1571,6 @@ export function DuelBoard({
     const target = reportTargetFor(spectating ? "spectate" : "match");
     if (target) openReport(target);
   };
-  /** Mute this tab: a fixed-size speaker so flipping state never moves its neighbours (#934). */
-  const muteTabBtn = (className: string) => (
-    <button
-      type="button"
-      className={`${className} tab-mute-btn`}
-      aria-label={tabMuteText.label}
-      aria-pressed={tabMute.silenced}
-      title={tabMuteText.title}
-      onClick={tabMute.toggle}
-    >
-      <span className="tab-mute-icon" aria-hidden>
-        {tabMute.silenced ? "🔇" : "🔊"}
-      </span>
-    </button>
-  );
   const matchMenuEl = (placement: "top" | "left" | "anchor") => (
     <MatchMenu
       placement={placement}
@@ -2211,27 +1612,44 @@ export function DuelBoard({
     />
   );
 
+  const hudProps = {
+    view,
+    players,
+    matchId,
+    boardSeat,
+    oppSeat,
+    spectating,
+    isReplay,
+    over,
+    yourTurn,
+    oppActive,
+    mulliganPhase,
+    decidingMulligan,
+    youFirst,
+    orderLabel,
+    turnClock,
+    matchClock,
+    seatClocks,
+    logPoseButton,
+    matchMenu: matchMenuEl,
+    undoUi,
+    undoHidden: undoPendingTheirs || (compactHud && undoNothingYet),
+    hotseatPass,
+    tabMute,
+    tabMuteText,
+    fullscreenOffered,
+    isFullscreen,
+    onToggleFullscreen: toggleFullscreen,
+    onSettings: () => setSettingsOpen(true),
+    onReportProblem: reportProblem,
+    canReportPlayer,
+    onReportPlayer: reportPlayer,
+    onConcede,
+    leaveLabel,
+    onLeave,
+  };
   /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
-  const columnActions = (
-    <div className="col-actions">
-      {logPoseButton}
-      {hudUndoPass}
-      {fullscreenOffered ? (
-        <button
-          type="button"
-          className="hud-undo-btn hud-icon-btn hud-fullscreen-btn"
-          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
-          aria-pressed={isFullscreen}
-          title={isFullscreen ? "Exit full screen" : "Full screen"}
-          onClick={toggleFullscreen}
-        >
-          {isFullscreen ? "⤡" : "⛶"}
-        </button>
-      ) : null}
-      {muteTabBtn("hud-undo-btn hud-icon-btn")}
-      {matchMenuEl("anchor")}
-    </div>
-  );
+  const columnActions = <BoardHud variant="column" {...hudProps} />;
 
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
@@ -2253,251 +1671,13 @@ export function DuelBoard({
       ref={rootRef}
     >
       {previewPopup ? <CardPreviewPopup /> : null}
-      {lp || noTopBar ? null : compactHud ? (
-        <header className="hud-bar hud-compact">
-          <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
-            {mulliganPhase && decidingMulligan ? null : (
-              <>
-                <span className="hud-phase">{phaseLabel(view.phase)}</span>
-                <span className="hud-sep">·</span>
-              </>
-            )}
-            <span className="hud-turn-num">T{view.turnNumber}</span>
-            {mulliganPhase && decidingMulligan ? (
-              <span className="hud-turn-chip">MULLIGAN</span>
-            ) : yourTurn && !isReplay ? (
-              <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
-            ) : oppActive && !spectating && !isReplay ? (
-              <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
-            ) : null}
-            {spectating || isReplay ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
-            {formatCountdown(timer?.turnEndsAt, now) ? (
-              <span className="hud-turn-chip hud-timer" title="Turn clock">
-                {formatCountdown(timer?.turnEndsAt, now)}
-              </span>
-            ) : null}
-            {formatCountdown(timer?.matchEndsAt, now) ? (
-              <span className="hud-turn-chip hud-timer" title="Match clock">
-                Match {formatCountdown(timer?.matchEndsAt, now)}
-              </span>
-            ) : null}
-            {seatClocks ? (
-              <span
-                className="hud-turn-chip hud-timer hud-clock-pair"
-                title={`${spectating ? playerLabel(boardSeat) : "Your"} time ${seatClocks.you} · ${
-                  spectating ? playerLabel(oppSeat) : "Opponent's"
-                } time ${seatClocks.opp}`}
-              >
-                <span
-                  className={`hud-seat-clock${seatClocks.running === "you" ? " running" : ""}${
-                    seatClocks.youLow ? " low" : ""
-                  }`}
-                >
-                  {seatClocks.you}
-                </span>
-                <span className="hud-sep">/</span>
-                <span
-                  className={`hud-seat-clock${seatClocks.running === "opp" ? " running" : ""}${
-                    seatClocks.oppLow ? " low" : ""
-                  }`}
-                >
-                  {seatClocks.opp}
-                </span>
-              </span>
-            ) : null}
-          </div>
-          <div className="hud-actions">
-            {logPoseButton}
-            {hudUndoPass}
-            {matchMenuEl("top")}
-          </div>
-        </header>
-      ) : (
-        <header className="hud-bar">
-          <div className="hud-brand">OPTCG DUEL</div>
-          <div className={`hud-status${yourTurn ? " pulse" : ""}`}>
-            <span className="hud-phase">{phaseLabel(view.phase)}</span>
-            <span className="hud-sep">·</span>
-            <span>Turn {view.turnNumber}</span>
-            <span className="hud-sep">·</span>
-            {players ? (
-              <span
-                className="hud-names"
-                title={`${seatLabel(players, spectating ? 0 : boardSeat)} vs ${seatLabel(
-                  players,
-                  spectating ? 1 : oppSeat,
-                )}`}
-              >
-                <strong className="hud-name hud-name-you">
-                  {spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"}
-                </strong>
-                <span className="hud-sep">vs</span>
-                <span className="hud-name">
-                  {seatLabel(players, spectating ? 1 : oppSeat)}
-                </span>
-              </span>
-            ) : spectating ? (
-              <span>{isReplay ? "Replay" : "Spectating"}</span>
-            ) : null}
-            <span className={`hud-turn-chip hud-order${youFirst ? " first" : ""}`}>
-              {orderLabel}
-            </span>
-            {mulliganPhase && decidingMulligan ? (
-              <span className="hud-turn-chip">MULLIGAN</span>
-            ) : yourTurn && !isReplay ? (
-              <span className="hud-turn-chip hud-turn-mine">YOUR TURN</span>
-            ) : oppActive && !spectating && !isReplay ? (
-              <span className="hud-turn-chip hud-turn-theirs">OPPONENT&apos;S TURN</span>
-            ) : null}
-            {spectating || isReplay ? <span className="hud-turn-chip">{isReplay ? "REPLAY" : "SPECTATOR"}</span> : null}
-            {formatCountdown(timer?.turnEndsAt, now) ? (
-              <span className="hud-turn-chip hud-timer" title="Turn clock">
-                Turn {formatCountdown(timer?.turnEndsAt, now)}
-              </span>
-            ) : null}
-            {formatCountdown(timer?.matchEndsAt, now) ? (
-              <span className="hud-turn-chip hud-timer" title="Match clock">
-                Match {formatCountdown(timer?.matchEndsAt, now)}
-              </span>
-            ) : null}
-            {seatClocks ? (
-              <>
-                <span
-                  className={`hud-turn-chip hud-timer hud-seat-clock${
-                    seatClocks.running === "you" ? " running" : ""
-                  }${seatClocks.youLow ? " low" : ""}`}
-                  title="Your time"
-                >
-                  {spectating ? seatLabel(players, boardSeat) : "You"} {seatClocks.you}
-                </span>
-                <span
-                  className={`hud-turn-chip hud-timer hud-seat-clock${
-                    seatClocks.running === "opp" ? " running" : ""
-                  }${seatClocks.oppLow ? " low" : ""}`}
-                  title="Opponent's time"
-                >
-                  {spectating ? seatLabel(players, oppSeat) : "Opp"} {seatClocks.opp}
-                </span>
-              </>
-            ) : null}
-          </div>
-          <div className="hud-actions">
-            {logPoseButton}
-            {hotseatPass || isReplay ? null : <RoomChip roomId={matchId} />}
-            {undo && undoState?.enabled && !spectating && !over ? (
-              undoPendingMine ? (
-                <button
-                  type="button"
-                  className="hud-undo-btn armed"
-                  title="Waiting for your opponent to accept — click to cancel"
-                  onClick={() => undo.onAction("cancel")}
-                >
-                  Undo asked · Cancel
-                </button>
-              ) : undoPendingTheirs ? null : (
-                <UndoControl
-                  className="hud-undo-btn"
-                  label="↺ Undo"
-                  state={undoState}
-                  autoAccept={undo.autoAccept === true}
-                  defaultOpen={undo.defaultOpen}
-                  onAction={undo.onAction}
-                />
-              )
-            ) : null}
-            {hotseatPass ? (
-              <button
-                type="button"
-                className="hud-pass-btn"
-                title={`Hand the device to ${playerLabel(hotseatPass.otherSeat)}`}
-                onClick={hotseatPass.onPass}
-              >
-                Switch to {playerLabel(hotseatPass.otherSeat)}
-              </button>
-            ) : null}
-            {onConcede && !spectating && !over ? (
-              <ConfirmButton
-                className="hud-concede-btn"
-                label="Concede"
-                confirmLabel="Confirm concede"
-                title="Forfeit this match"
-                onConfirm={onConcede}
-              />
-            ) : null}
-            {muteTabBtn("hud-undo-btn hud-settings-btn")}
-            {fullscreenOffered ? (
-              <button
-                type="button"
-                className="hud-undo-btn hud-settings-btn"
-                aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
-                aria-pressed={isFullscreen}
-                title={isFullscreen ? "Exit full screen" : "Full screen"}
-                onClick={toggleFullscreen}
-              >
-                {isFullscreen ? "⤡" : "⛶"}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="hud-undo-btn hud-settings-btn"
-              aria-label="Gameplay settings"
-              title="Gameplay settings"
-              onClick={() => setSettingsOpen(true)}
-            >
-              ⚙
-            </button>
-            <button
-              type="button"
-              className="hud-undo-btn hud-settings-btn"
-              aria-label="Report a problem"
-              title="Report a problem"
-              onClick={reportProblem}
-            >
-              ⚑
-            </button>
-            {canReportPlayer ? (
-              <button
-                type="button"
-                className="hud-undo-btn hud-settings-btn"
-                aria-label="Report player"
-                title="Report player"
-                onClick={reportPlayer}
-              >
-                ⚠
-              </button>
-            ) : null}
-            <button type="button" className="leave-btn" onClick={onLeave}>
-              {leaveLabel}
-            </button>
-          </div>
-        </header>
-      )}
+      {lp || noTopBar ? null : <BoardHud variant={compactHud ? "compact" : "full"} {...hudProps} />}
 
       {settingsOpen ? <GameplaySettingsSheet onClose={() => setSettingsOpen(false)} spectating={spectating} /> : null}
 
       {helpOpen ? <HotkeyHelpSheet onClose={() => setHelpOpen(false)} /> : null}
 
-      {undoPendingTheirs && undoState?.pending ? (
-        <div className="undo-request" role="alertdialog" aria-label="Undo request">
-          <p>
-            <strong>{seatName(players, undoState.pending.from) ?? "Your opponent"}</strong> wants to{" "}
-            {undoReqText?.what}.
-          </p>
-          {undoReqText?.warning ? (
-            <p className="undo-request-warn" role="note">
-              {undoReqText.warning}
-            </p>
-          ) : null}
-          <div className="undo-request-actions">
-            <button type="button" className="btn btn-primary" onClick={() => undo?.onAction("accept", { id: undoState.pending?.id })}>
-              Allow
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => undo?.onAction("decline")}>
-              Decline
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <UndoRequestBanner ui={undoUi} players={players} />
 
       {awayLeft ? (
         <div className="away-banner" role="status">
@@ -2761,7 +1941,9 @@ export function DuelBoard({
           // Landscape phones keep a fixed right column (no movable panels).
           <div className="arena-rail board-col">
             {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
-              <div className="lp-actions">{hudUndoPass}</div>
+              <div className="lp-actions">
+                <HudUndoPass ui={undoUi} hidden={undoPendingTheirs || (compactHud && undoNothingYet)} spectating={spectating} over={over} hotseatPass={hotseatPass} />
+              </div>
             ) : null}
             {farHand && specFans === "landscape" ? (
               <SpectatorFarHand
@@ -2889,61 +2071,25 @@ export function DuelBoard({
         </LandscapeOverlay>
       ) : null}
 
-      {specFans === "desktop" && (fanMove.livePos != null || farMove.livePos != null)
-        ? (() => {
-            // Where the fan being dragged docks; lit when letting go now would put it back.
-            const near = fanMove.livePos != null;
-            const mat = document.querySelector(".arena .playmat")?.getBoundingClientRect();
-            if (!mat) return null;
-            return (
-              <div
-                className={`spec-dock-target spec-dock-target-${near ? "near" : "far"}${(near ? fanMove.willDock : farMove.willDock) ? " is-active" : ""}`}
-                style={{
-                  left: mat.left,
-                  width: mat.width,
-                  height: FAN_SNAP_PX,
-                  ...(near ? { bottom: 0 } : { top: mat.top }),
-                }}
-                aria-hidden
-              />
-            );
-          })()
-        : null}
-
-      {farHand && specFans === "desktop" ? (
-        // Fixed to the top of the board column, or floating where it was dragged: outside the mat, which would clip it.
-        <HandFan
-          rootRef={farRef}
-          edge="top"
-          spot={shownFarPos ? "float" : "center"}
-          drawer={farUp ? "open" : "tucked"}
-          tucking={farTuckUnderPointer}
-          moving={farMove.livePos != null}
-          hoverUp={farHoverUp}
-          onHoverUp={setFarHoverUp}
-          count={farHand.length}
-          pos={shownFarPos}
-          ariaLabel={`${seatLabel(players, oppSeat)} hand: ${farHand.length} cards`}
-          onClick={dropHandClickFocus}
-          onLeave={() => setFarTuckUnderPointer(false)}
-          head={
-            <>
-              {specGrip("far")}
-              {specHandToggle("far", farHand.length)}
-            </>
-          }
-        >
-          {farHand.map((c, i) => (
-            <CardTile
-              key={c.id}
-              defId={c.defId}
-              ownerSeat={oppSeat}
-              inspectOnClick
-              style={fanPoseStyle(i, farHand.length)}
-            />
-          ))}
-        </HandFan>
-      ) : null}
+      <SpectatorFanLayer
+        specFans={specFans}
+        fanMove={fanMove}
+        farMove={farMove}
+        playmatRef={playmatRef}
+        farHand={farHand}
+        farRef={farRef}
+        shownFarPos={shownFarPos}
+        farUp={farUp}
+        farTuckUnderPointer={farTuckUnderPointer}
+        farHoverUp={farHoverUp}
+        setFarHoverUp={setFarHoverUp}
+        setFarTuckUnderPointer={setFarTuckUnderPointer}
+        players={players}
+        oppSeat={oppSeat}
+        dropHandClickFocus={dropHandClickFocus}
+        specGrip={specGrip}
+        specHandToggle={specHandToggle}
+      />
 
       {(["left", "right"] as const).map((col) =>
         prefs.layoutGrips && cutColumns[col] ? (
@@ -2955,225 +2101,66 @@ export function DuelBoard({
         ) : null,
       )}
 
-      {fanHand ? (
-        <>
-        <HandFan
-          rootRef={fanRef}
-          cardsRef={handRowRef}
-          spot={fanCorner ? "corner" : shownFanPos == null ? "center" : fanFloating ? "float" : "docked"}
-          drawer={drawer}
-          tucking={tuckUnderPointer}
-          moving={fanMove.livePos != null}
-          dragging={handTucked}
-          hoverUp={fanHoverUp}
-          onHoverUp={setFanHoverUp}
-          count={handCount}
-          cornerCut={fanCorner?.cut}
-          pos={shownFanPos}
-          ariaLabel={`${specFans ? `${seatLabel(players, boardSeat)} hand` : "Your hand"}: ${handCount} cards`}
-          inert={handHidden && specFans == null}
-          onClick={dropHandClickFocus}
-          onLeave={() => setTuckUnderPointer(false)}
-          head={
-            specFans ? (
-              <>
-                {specGrip("near")}
-                {specHandToggle("near", handCount)}
-              </>
-            ) : (
-              <>
-                {prefs.layoutGrips ? (
-                  <button
-                    type="button"
-                    className="hand-fan-grip"
-                    aria-label="Move your hand (drag, or arrow keys)"
-                    title="Drag to move your hand anywhere"
-                    {...fanMove.gripProps}
-                  >
-                    <span aria-hidden />
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="hand-fan-toggle"
-                  aria-expanded={handOpen}
-                  title={
-                    handHidden
-                      ? "Show your hand (H)"
-                      : handUp
-                        ? prefs.keepHandOpen
-                          ? "Let the hand tuck away"
-                          : "Let the hand tuck away (H)"
-                        : "Keep the hand up (H)"
-                  }
-                  onClick={() => {
-                    if (handHidden) {
-                      setHandHidden(false);
-                      setHandPinned(true);
-                      return;
-                    }
-                    toggleHandUp();
-                  }}
-                >
-                  <span className="hand-fan-title">{spectating ? "Seat hand" : "Hand"}</span>
-                  <span className="hand-rail-count">{handCount}</span>
-                  <span className="hand-dock-caret" aria-hidden>
-                    {handOpen ? "▾" : "▴"}
-                  </span>
-                </button>
-                {!spectating ? sortHandBtn : null}
-                {hideHandBtn}
-              </>
-            )
-          }
-        >
-          {renderHandCards(true)}
-        </HandFan>
-        {/* After the fan, so its ref is set when the corner measures. */}
-        {fanCorner ? <CornerFit fanRef={fanRef} column={fanCorner.column} /> : null}
-        </>
-      ) : wide && !railHand ? (
-        <div
-          className={`hand-dock${drawerClass}${handTucked ? " is-dragging" : ""}`}
-          style={
-            {
-              "--n": Math.max(handCount, 1),
-              "--n1": Math.max(handCount - 1, 1),
-            } as CSSProperties
-          }
-          aria-label={`Your hand: ${handCount} cards`}
-          onClick={dropHandClickFocus}
-          onPointerLeave={() => setTuckUnderPointer(false)}
-        >
-          <div className="hand-dock-head">
-            <button
-              type="button"
-              className="hand-dock-toggle"
-              aria-expanded={handOpen}
-              title={handHidden ? "Show your hand (H)" : handUp ? "Let the hand tuck away" : "Keep the hand open"}
-              onClick={() => {
-                if (handHidden) {
-                  setHandHidden(false);
-                  setHandPinned(true);
-                  return;
-                }
-                toggleHandUp();
-              }}
-            >
-              <span>{spectating ? "Seat hand" : "Hand"}</span>
-              <span className="hand-rail-count">{handCount}</span>
-              <span className="hand-dock-caret" aria-hidden>
-                {handOpen ? "▾" : "▴"}
-              </span>
-            </button>
-            {!spectating ? (
-              sortHandBtn
-            ) : null}
-            {hideHandBtn}
-          </div>
-          <div className="hand-dock-cards" ref={handRowRef} inert={handHidden || undefined}>
-            {renderHandCards()}
-          </div>
-        </div>
-      ) : null}
+      <HandDockLayer
+        fanHand={fanHand}
+        fanRef={fanRef}
+        handRowRef={handRowRef}
+        fanCorner={fanCorner}
+        shownFanPos={shownFanPos}
+        fanFloating={fanFloating}
+        fanMove={fanMove}
+        drawer={drawer}
+        drawerClass={drawerClass}
+        handOpen={handOpen}
+        handUp={handUp}
+        handHidden={handHidden}
+        handTucked={handTucked}
+        tuckUnderPointer={tuckUnderPointer}
+        setTuckUnderPointer={setTuckUnderPointer}
+        fanHoverUp={fanHoverUp}
+        setFanHoverUp={setFanHoverUp}
+        handCount={handCount}
+        specFans={specFans}
+        players={players}
+        boardSeat={boardSeat}
+        spectating={spectating}
+        prefs={prefs}
+        wide={wide}
+        railHand={railHand}
+        setHandHidden={setHandHidden}
+        setHandPinned={setHandPinned}
+        toggleHandUp={toggleHandUp}
+        dropHandClickFocus={dropHandClickFocus}
+        specGrip={specGrip}
+        specHandToggle={specHandToggle}
+        sortHandBtn={sortHandBtn}
+        hideHandBtn={hideHandBtn}
+        renderHandCards={renderHandCards}
+      />
 
-      {!spectating && mySeat != null && replaceOpen && !view.pendingChoices?.length ? (
-        <ReplacePrompt
-          key={replaceCardId ?? ""}
-          view={view}
-          intents={intents}
-          handIndex={replaceHandIndex}
-          mySeat={mySeat}
-          onCancel={() => setReplaceCardId(null)}
-          onSend={(intent) => {
-            setReplaceCardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : handConfirm && mySeat != null && view.pendingChoices?.[0] ? (
-        <HandConfirmPrompt
-          key={view.pendingChoices[0].id}
-          choice={view.pendingChoices[0]}
-          anchor={handConfirm}
-          mySeat={mySeat}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : floatingPrompts &&
-        !spectating &&
-        mySeat != null &&
-        view.pendingChoices?.[0] &&
-        view.pendingChoices[0].seat === mySeat &&
-        canFloat(view.pendingChoices[0]) ? (
-        <FloatingPrompt
-          key={view.pendingChoices[0].id}
-          choice={view.pendingChoices[0]}
-          mySeat={mySeat}
-          onSend={(intent) => {
-            setHandFilter(null);
-            setSelectedBoardId(null);
-            onSendIntent(intent);
-          }}
-        />
-      ) : !spectating &&
-      view.pendingChoices?.[0]?.kind === "order_effects" &&
-      view.pendingChoices[0].seat === mySeat ? (
-        <HideablePrompt
-          name="Order effects"
-          dodge={promptBattle}
-          dockable={wide && !lp}
-          hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
-          onShow={() => setHiddenChoiceId(null)}
-        >
-          <EffectOrderPrompt
-            key={view.pendingChoices[0].id}
-            choice={view.pendingChoices[0]}
-            onHide={() => setHiddenChoiceId(view.pendingChoices?.[0]?.id ?? null)}
-            onSend={(intent) => {
-              setHandFilter(null);
-              setSelectedBoardId(null);
-              onSendIntent(intent);
-            }}
-          />
-        </HideablePrompt>
-      ) : !spectating &&
-        mySeat != null &&
-        view.pendingChoices?.[0] &&
-        view.pendingChoices[0].kind !== "order_effects" &&
-        view.pendingChoices[0].seat === mySeat ? (
-        <HideablePrompt
-          name={promptSourceName(view.pendingChoices[0])}
-          dodge={promptBattle}
-          dockable={wide && !lp}
-          hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
-          onShow={() => setHiddenChoiceId(null)}
-        >
-          <ChoicePrompt
-            key={view.pendingChoices[0].id}
-            choice={view.pendingChoices[0]}
-            mySeat={mySeat}
-            view={view}
-            hidden={isPromptHidden(hiddenChoiceId, view.pendingChoices[0].id)}
-            onHide={() => setHiddenChoiceId(view.pendingChoices?.[0]?.id ?? null)}
-            onSend={(intent) => {
-              setHandFilter(null);
-              setSelectedBoardId(null);
-              onSendIntent(intent);
-            }}
-          />
-        </HideablePrompt>
-      ) : hotseatPass &&
-        view.pendingChoices?.[0] &&
-        view.pendingChoices[0].seat !== mySeat ? (
-        <div className="ability-prompt ability-prompt-waiting" role="status">
-          <h3>Waiting for opponent</h3>
-          <p>{view.pendingChoices[0].prompt}</p>
-          <p className="meta">They are resolving an effect choice.</p>
-        </div>
-      ) : null}
+      <PendingChoicePrompt
+        view={view}
+        intents={intents}
+        spectating={spectating}
+        mySeat={mySeat}
+        hotseatPass={Boolean(hotseatPass)}
+        floatingPrompts={floatingPrompts}
+        replaceOpen={replaceOpen}
+        replaceCardId={replaceCardId}
+        replaceHandIndex={replaceHandIndex}
+        setReplaceCardId={setReplaceCardId}
+        handConfirm={handConfirm}
+        hiddenChoiceId={hiddenChoiceId}
+        setHiddenChoiceId={setHiddenChoiceId}
+        promptBattle={promptBattle}
+        wide={wide}
+        lp={lp}
+        onSendIntent={onSendIntent}
+        onSendClearing={(intent) => {
+          clearSelection();
+          onSendIntent(intent);
+        }}
+      />
 
       {replay && wide && !lp ? <div className="replay-dock">{replay.controls}</div> : null}
 
@@ -3232,74 +2219,26 @@ export function DuelBoard({
         />
       ) : null}
 
-      {over && resultHidden && !(replay && !(wide && !lp)) ? (
-        <div
-          className={`match-result-pill match-result-${result.outcome}${wide && !lp ? " match-result-pill-rail" : ""}`}
-          role="status"
-        >
-          <span>
-            Match over · {result.headline}
-          </span>
-          <button type="button" className="btn btn-secondary" onClick={() => setResultHidden(false)}>
-            Show result
-          </button>
-        </div>
-      ) : null}
-
-      {over && !resultHidden ? (
-        // Blocking: Escape and an outside click do nothing; "View board" tucks the result away.
-        <Dialog
-          open
-          onClose={noop}
-          className="modal-backdrop"
-          panelClassName={`modal-card match-result match-result-${result.outcome}`}
-        >
-          <p className="match-result-kicker">Match over</p>
-          <DialogTitle as="h2">
-            {(() => {
-              // Spectators / hotseat: name the winning player instead of "Seat N".
-              const winner = (matchOver?.winner ?? view.winner) as Seat | null;
-              return (spectating || isReplay) && players && (winner === 0 || winner === 1)
-                ? winnerHeadline(players, winner, null, true)
-                : result.headline;
-            })()}
-          </DialogTitle>
-          <p className="match-result-detail">{result.detail}</p>
-          <MatchOverFactsList
-            matchId={matchId}
-            turnNumber={view.turnNumber}
-            loadRecord={spectating ? undefined : loadMatchRecord}
-          />
-          <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
-            View board
-          </button>
-          {rematch && !spectating ? (
-            <RematchPanel
-              state={rematch.state}
-              mySeat={boardSeat}
-              players={players}
-              autoAccept={rematch.autoAccept}
-              deckOptions={rematch.deckOptions}
-              onAction={rematch.onAction}
-            />
-          ) : null}
-          {!spectating && canReportPlayer ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm match-result-report"
-              onClick={() => {
-                const target = reportTargetFor("postmatch");
-                if (target) openReport(target);
-              }}
-            >
-              Report player
-            </button>
-          ) : null}
-          <button type="button" className="leave-btn" onClick={onLeave}>
-            Return home
-          </button>
-        </Dialog>
-      ) : null}
+      <MatchResultView
+        over={over}
+        resultHidden={resultHidden}
+        setResultHidden={setResultHidden}
+        result={result}
+        isReplay={isReplay}
+        wide={wide}
+        lp={lp}
+        matchOver={matchOver}
+        view={view}
+        spectating={spectating}
+        players={players}
+        matchId={matchId}
+        loadMatchRecord={loadMatchRecord}
+        rematch={rematch}
+        boardSeat={boardSeat}
+        canReportPlayer={canReportPlayer}
+        reportTargetFor={reportTargetFor}
+        onLeave={onLeave}
+      />
     </div>
     </DonArtContext.Provider>
     </PromptSlotContext.Provider>

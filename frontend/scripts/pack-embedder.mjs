@@ -8,7 +8,7 @@
  *   embeddings-<hash>.bin       int8 embedding per printing (cardEmbed.encodeEmbeddings)
  *   card-embedder.json          pointer the client downloads first
  *
- * Reference preprocessing is `embedderInput` from src/cardEmbed.ts, the same
+ * Reference preprocessing is `embedderInput` from src/scanner/match/cardEmbed.ts, the same
  * function the browser runs on the query, so the two sides cannot drift. The
  * model is trained by scripts/train-embedder and is not committed.
  */
@@ -17,7 +17,7 @@ import { copyFileSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSyn
 import { join } from "node:path";
 import jpeg from "jpeg-js";
 import * as ort from "onnxruntime-web";
-import { EMBED_H, EMBED_W, embedderInput, encodeEmbeddings, quantizeEmbedding } from "../src/cardEmbed.ts";
+import { EMBED_H, EMBED_W, embedderInput, encodeEmbeddings, quantizeEmbedding } from "../src/scanner/match/cardEmbed.ts";
 
 const [refsDir, modelPath, outDir] = process.argv.slice(2);
 if (!refsDir || !modelPath || !outDir) {

@@ -1,5 +1,6 @@
 /** Duel-web ↔ FastAPI helpers (tokens + light auth). */
 import { readFirstTouch } from "@optcg/ui/firstTouch";
+import { ApiError, apiError } from "../api/http";
 import { getApiBaseUrl } from "../config";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { rememberAssignedGameServer } from "./gameServer";
@@ -30,27 +31,8 @@ export type AuthUser = {
   role?: "user" | "moderator" | "admin";
 };
 
-/** API error with HTTP status (409 = taken, 422 = invalid) and a friendly detail. */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export async function apiError(res: Response, fallback: string): Promise<ApiError> {
-  let detail = fallback;
-  try {
-    const body = (await res.json()) as { detail?: unknown };
-    if (typeof body.detail === "string" && body.detail) detail = body.detail;
-  } catch {
-    /* non-JSON body */
-  }
-  return new ApiError(res.status, detail);
-}
+// ApiError / apiError live in api/http.ts (the shared client); re-exported so existing imports keep working.
+export { ApiError, apiError };
 
 /** PATCH /auth/me/username — returns the updated user. */
 export async function updateUsername(username: string): Promise<AuthUser> {

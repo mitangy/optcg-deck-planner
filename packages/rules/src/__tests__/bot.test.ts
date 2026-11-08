@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chooseBotIntent, type BotLevel } from "../bot/index.js";
 import { applyIntent, createMatch, getPlayerView } from "../engine.js";
-import { replayMatch } from "../matchReplay.js";
+import { replayMatch } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { playBotGame, runSelfPlay } from "../sim/selfPlay.js";
 import { randomDeck } from "../sim/fuzz.js";
@@ -170,7 +170,7 @@ describe("bot main phase (#631)", () => {
     if (request.type !== "select") throw new Error("expected a select");
     const blockerOption = request.options.find((o) => o.defId === WEAK_BLOCKER)!;
     expect(answer.selectedOptionIds).toEqual([blockerOption.id]);
-    expect(applyIntent(h.state, answer, { seat: 0, rng: createSeededRng(1) }).ok).toBe(true);
+    expect(applyIntent(h.state, answer, { seat: 0 }).ok).toBe(true);
   });
 });
 

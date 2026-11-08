@@ -1,8 +1,8 @@
 {
   "framework": "vite",
-  "installCommand": "npm install",
+  "installCommand": "cd .. && npm ci",
   "buildCommand": "npx vite build",
-  "ignoreCommand": "bash ../scripts/vercel-ignore-build.sh duel-web packages/deck-analytics packages/site-legal packages/patch-notes packages/ui packages/rules packages/analyst-client scripts/seo scripts/vercel-ignore-build.sh",
+  "ignoreCommand": "bash ../tools/vercel-ignore-build.sh duel-web packages/deck-analytics packages/site-legal packages/patch-notes packages/ui packages/rules packages/duel-protocol packages/analyst-client tools/seo tools/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
       "**": false,

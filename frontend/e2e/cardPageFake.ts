@@ -1,5 +1,6 @@
 /** A fake card page API (#953): /meta/cards/:id and per-art price history, registered over the planner fixture's routes. */
 import type { Page } from "@playwright/test";
+import type { CardPageResponse, PriceHistoryResponse } from "../src/api";
 import { chaseCardHistory } from "./fixtures";
 
 const CDN = (id: number) => `https://tcgplayer-cdn.tcgplayer.com/product/${id}_200w.jpg`;
@@ -21,7 +22,7 @@ const finish = (id: number, placing: number | null, event: string, players: numb
   copies,
 });
 
-const characterPage = (days: number) => ({
+const characterPage = (days: number): CardPageResponse => ({
   card: {
     card_id: ZORO,
     name: "Roronoa Zoro",
@@ -75,10 +76,10 @@ const leaderPage = (days: number) => {
 };
 
 /** Shifts and scales the chase-card history so each art charts a different price. */
-function history(productId: number) {
+function history(productId: number): PriceHistoryResponse {
   const scale = productId === 5002 ? 0.7 : productId === 5003 ? 4.5 : 0.2;
   const current = productId === 5002 ? 64.99 : productId === 5003 ? 410 : 18.5;
-  const points = chaseCardHistory(120).map(([d, v]) => [d, Math.round(v * scale * 100) / 100]);
+  const points = chaseCardHistory(120).map(([d, v]): [string, number] => [d, Math.round(v * scale * 100) / 100]);
   const name = productId === 5002 ? "Roronoa Zoro (Alternate Art)" : productId === 5003 ? "Roronoa Zoro (025) (Manga)" : "Roronoa Zoro";
   return { card_id: ZORO, product_id: productId || 5001, name, group_name: "Romance Dawn", released: "2025-09-16", current, points };
 }

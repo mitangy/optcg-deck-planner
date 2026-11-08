@@ -1,6 +1,6 @@
 {
   "synthetic": true,
-  "note": "Invented tournament responses in the backend's shape (backend/app/tournament_stats.py), keyed by leader and opponent ('' for the meta overview). Not real events.",
+  "note": "Invented tournament responses in the backend's shape (backend/app/analyst/tournament_stats.py), keyed by leader and opponent ('' for the meta overview). Not real events.",
   "responses": {
     "": {
       "days": 30,

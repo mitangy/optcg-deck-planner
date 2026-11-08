@@ -1,8 +1,7 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FAN_DISCLAIMER } from "@optcg/site-legal";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "./BackLink";
 import "./playOnline.css";
 
 /** Plain-language answers, also published as FAQPage structured data so they can show in search results. */
@@ -64,88 +63,82 @@ const FEATURES: readonly { title: string; body: string }[] = [
 export function PlayOnlinePage() {
   useFaqJsonLd();
   return (
-    <div className="app-shell">
-      <div className="page play-online">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-        </header>
+    <PageShell pageClass="play-online" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}>
 
-        <section className="play-online-hero">
-          <h1 className="page-title play-online-title">Play OPTCG online, free in your browser</h1>
-          <p className="play-online-notice" role="note">
-            <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
-          </p>
-          <p className="play-online-lede">
-            OPTCG Duel is a free, unofficial simulator for the One Piece Trading Card Game. There is no download and no sign-up
-            to start. It works on desktop and on your phone, and the rules engine runs the game for you, from attacks and
-            blocks to card effects.
-          </p>
-          <div className="play-online-cta">
-            <Link to="/" className="btn btn-primary btn-lg">
-              Play now
-            </Link>
-            <Link to="/decks/meta" className="btn btn-secondary btn-lg">
-              Browse meta decks
-            </Link>
-            <Link to="/leaders" className="btn btn-secondary btn-lg">
-              Top leaders
-            </Link>
-          </div>
-          <p className="play-online-lede">
-            More: <Link to="/optcg-sim-online">OPTCG sim online</Link> and <Link to="/play-optcg-on-phone">play on your phone</Link>.
-          </p>
-        </section>
-
-        <section className="panel" aria-labelledby="po-start">
-          <h2 className="panel-title" id="po-start">
-            How to start
-          </h2>
-          <ol className="play-online-steps">
-            {STEPS.map((s) => (
-              <li key={s.title}>
-                <b>{s.title}</b>
-                <span>{s.body}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="panel" aria-labelledby="po-features">
-          <h2 className="panel-title" id="po-features">
-            What you can do
-          </h2>
-          <ul className="play-online-features">
-            {FEATURES.map((f) => (
-              <li key={f.title}>
-                <b>{f.title}</b>
-                <span>{f.body}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="panel" aria-labelledby="po-faq">
-          <h2 className="panel-title" id="po-faq">
-            Questions
-          </h2>
-          <dl className="play-online-faq">
-            {PLAY_ONLINE_FAQ.map((item) => (
-              <div key={item.q}>
-                <dt>{item.q}</dt>
-                <dd>{item.a}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <div className="play-online-cta play-online-cta-end">
+      <section className="play-online-hero">
+        <h1 className="page-title play-online-title">Play OPTCG online, free in your browser</h1>
+        <p className="play-online-notice" role="note">
+          <b>Unofficial fan-made One Piece TCG simulator.</b> Not affiliated with or endorsed by Bandai.
+        </p>
+        <p className="play-online-lede">
+          OPTCG Duel is a free, unofficial simulator for the One Piece Trading Card Game. There is no download and no sign-up
+          to start. It works on desktop and on your phone, and the rules engine runs the game for you, from attacks and
+          blocks to card effects.
+        </p>
+        <div className="play-online-cta">
           <Link to="/" className="btn btn-primary btn-lg">
             Play now
           </Link>
+          <Link to="/decks/meta" className="btn btn-secondary btn-lg">
+            Browse meta decks
+          </Link>
+          <Link to="/leaders" className="btn btn-secondary btn-lg">
+            Top leaders
+          </Link>
         </div>
+        <p className="play-online-lede">
+          More: <Link to="/optcg-sim-online">OPTCG sim online</Link> and <Link to="/play-optcg-on-phone">play on your phone</Link>.
+        </p>
+      </section>
+
+      <section className="panel" aria-labelledby="po-start">
+        <h2 className="panel-title" id="po-start">
+          How to start
+        </h2>
+        <ol className="play-online-steps">
+          {STEPS.map((s) => (
+            <li key={s.title}>
+              <b>{s.title}</b>
+              <span>{s.body}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="panel" aria-labelledby="po-features">
+        <h2 className="panel-title" id="po-features">
+          What you can do
+        </h2>
+        <ul className="play-online-features">
+          {FEATURES.map((f) => (
+            <li key={f.title}>
+              <b>{f.title}</b>
+              <span>{f.body}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="panel" aria-labelledby="po-faq">
+        <h2 className="panel-title" id="po-faq">
+          Questions
+        </h2>
+        <dl className="play-online-faq">
+          {PLAY_ONLINE_FAQ.map((item) => (
+            <div key={item.q}>
+              <dt>{item.q}</dt>
+              <dd>{item.a}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <div className="play-online-cta play-online-cta-end">
+        <Link to="/" className="btn btn-primary btn-lg">
+          Play now
+        </Link>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

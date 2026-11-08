@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app import events as ev
-from app.models import DuelEvent, DuelMatch, EventDraw, EventEntry, User
+from app.duel import events as ev
+from app.duel.models import DuelEvent, DuelMatch, EventDraw, EventEntry
 from tests.test_admin import ADMIN_EMAIL, login, mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
@@ -37,7 +37,7 @@ def _seeded_event(request):
 @pytest.fixture()
 def clock(monkeypatch: pytest.MonkeyPatch):
     state = {"now": MID}
-    monkeypatch.setattr(ev, "now_utc", lambda: state["now"])
+    monkeypatch.setattr(ev, "utcnow", lambda: state["now"])
     return state
 
 
@@ -358,7 +358,7 @@ def test_the_seed_is_committed_only_once_and_only_before_the_start_794(api, cloc
     pub = c.get("/duel/events/current").json()["event"]
     assert pub["seed_hash"] == h and pub["seed"] is None
     with S() as db:
-        from app.models import EventDraw
+        from app.duel.models import EventDraw
 
         seed = db.query(EventDraw).one().seed
     assert ev.seed_hash(seed) == h
@@ -880,7 +880,7 @@ def test_a_drawn_event_cannot_be_deleted_1019(api, clock):
 
 
 def test_the_default_event_is_seeded_once_and_not_resurrected_after_delete_1019(monkeypatch):
-    from app import db as app_db
+    from app.core import db as app_db
     from tests.db_support import make_bare_engine
 
     engine = make_bare_engine()

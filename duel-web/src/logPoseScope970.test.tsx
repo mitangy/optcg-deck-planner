@@ -36,8 +36,8 @@ vi.mock("@optcg/analyst-client", async (orig) => {
 });
 vi.mock("./history/historyApi", async (orig) => ({ ...(await orig<typeof import("./history/historyApi")>()), fetchMatchDetail: vi.fn(), fetchMatchHistory: vi.fn() }));
 
-import { useLogPoseCopilot } from "./board/LogPoseCopilot";
-import { useMatchBrief } from "./board/MatchBrief";
+import { useLogPoseCopilot } from "./board/copilot/LogPoseCopilot";
+import { useMatchBrief } from "./board/match/MatchBrief";
 import { saveDeck } from "./decks/storage";
 import { fetchMatchDetail, fetchMatchHistory, type MatchHistoryEntry } from "./history/historyApi";
 import { liveMatchScope, matchLogScope, deckEditorScope } from "./logPoseScopes";

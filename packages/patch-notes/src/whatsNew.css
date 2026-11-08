@@ -48,7 +48,7 @@
 .wn-tag {
   padding: 0.05rem 0.45rem;
   border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -59,6 +59,11 @@
 .wn-text {
   margin: 0.15rem 0 0;
   color: color-mix(in srgb, currentColor 82%, transparent);
+}
+
+/* Holds the list's place while the notes chunk downloads, so the footer does not jump up and back down. */
+.wn-loading {
+  min-height: 60dvh;
 }
 
 .wn-empty {
@@ -72,7 +77,7 @@
 .wn-card {
   position: fixed;
   /* Above the Log Pose compass (70), below its panel (90) and dialogs (2000). */
-  z-index: 80;
+  z-index: var(--z-popover);
   right: max(1rem, env(safe-area-inset-right, 0px));
   /* Clear of the Log Pose compass (52px, bottom-right). */
   bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
@@ -83,7 +88,7 @@
   overscroll-behavior: contain;
   padding: 0.85rem 1rem 0.9rem;
   border: 1px solid var(--wn-line, rgb(128 128 128 / 0.4));
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--wn-bg, Canvas);
   color: var(--wn-ink, CanvasText);
   box-shadow: 0 14px 40px rgb(0 0 0 / 0.35);
@@ -101,7 +106,7 @@
 .wn-card-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -154,7 +159,7 @@
   min-height: 44px;
   padding: 0.4rem 1rem;
   border: 1px solid var(--wn-accent, currentColor);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--wn-accent, transparent);
   color: var(--wn-on-accent, inherit);
   font: inherit;

@@ -28,7 +28,7 @@ import cvModule from "@techstark/opencv-js";
 // Imported, not reimplemented: the client sorts candidates by comparing its
 // own hash to these, so both sides must use the same algorithm. Run via tsx
 // so this .mjs can import the TypeScript source directly.
-import { computeOrderHash } from "../src/cardOrder.ts";
+import { computeOrderHash } from "../src/scanner/geometry/cardOrder.ts";
 
 const N_FEATURES = 250;
 

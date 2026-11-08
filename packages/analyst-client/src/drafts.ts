@@ -2,7 +2,8 @@
  * New decks Log Pose builds (#726): reading a draft from the wire, the deck list the apps' create pages are filled with,
  * and the once-only auto-open memory. React-free.
  */
-import { normalizeCardId, readIds, safeStorage, writeIds } from "./proposals";
+import { normalizeCardId } from "@optcg/card-core";
+import { readIds, safeStorage, writeIds } from "./proposals";
 
 export type DraftCard = { id: string; name: string; copies: number };
 

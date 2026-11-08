@@ -1,0 +1,184 @@
+/* Shared UI primitives: buttons, app chrome, panels, fields, home + Play sheet.
+   Tokens live in styles.css :root. Loaded after styles.css. */
+
+/* —— Buttons —— */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  min-height: 44px;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    filter 140ms ease;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Straw-hat gold — the one "go" colour across the app. */
+.btn-primary {
+  color: var(--on-chrome);
+  background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border-color: rgb(var(--btn-edge-rgb) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.45),
+    0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.btn-primary:not(:disabled):hover {
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.5),
+    0 6px 18px rgb(var(--chrome-rgb) / 0.22);
+}
+
+.btn-secondary {
+  background: var(--arena-raised);
+  border-color: var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.btn-secondary:not(:disabled):hover {
+  border-color: var(--line-strong);
+  background: #223b4e;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-danger {
+  background: linear-gradient(180deg, #c2443a, var(--danger));
+  border-color: rgba(255, 180, 170, 0.3);
+  color: #fff6f2;
+}
+
+.btn-danger:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: var(--radius-8);
+}
+
+.btn-lg {
+  min-height: 52px;
+  padding: 0.85rem 1.4rem;
+  font-size: 1rem;
+}
+
+.btn.choice-mode {
+  justify-content: flex-start;
+}
+
+/* Hero call to action on the home screen. */
+.btn-play {
+  min-height: 64px;
+  padding: 0.9rem 2rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  color: var(--on-chrome);
+  background:
+    radial-gradient(120% 140% at 50% -20%, rgb(var(--btn-shine-rgb) / 0.55), transparent 55%),
+    linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
+  border: 1px solid rgb(var(--btn-edge-rgb) / 0.55);
+  border-radius: var(--radius-14);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.5),
+    inset 0 -2px 0 rgb(var(--btn-shade-rgb) / 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.35),
+    0 0 0 4px rgb(var(--chrome-rgb) / 0.08);
+}
+
+.btn-play:not(:disabled):hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.55),
+    inset 0 -2px 0 rgb(var(--btn-shade-rgb) / 0.35),
+    0 14px 34px rgba(0, 0, 0, 0.4),
+    0 0 0 5px rgb(var(--chrome-rgb) / 0.14);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: var(--radius-10);
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--arena-raised);
+}
+
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn-spacer {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+

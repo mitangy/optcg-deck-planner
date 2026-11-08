@@ -17,7 +17,7 @@
 .leader-hero-art {
   width: 100%;
   aspect-ratio: 5 / 7;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   border: 1px solid var(--line);
   object-fit: cover;
   background: var(--arena-mid);
@@ -57,7 +57,7 @@
   gap: 0.35rem;
   padding: 0.1rem 0.55rem 0.1rem 0.4rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: capitalize;
@@ -68,7 +68,7 @@
   content: "";
   width: 0.65rem;
   height: 0.65rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--leader-dot, var(--muted));
   border: 1px solid var(--muted);
 }
@@ -84,7 +84,7 @@
   margin: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .leader-stat {
@@ -168,7 +168,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .leaders-grid > li {

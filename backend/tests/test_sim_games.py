@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models import SimGame
+from app.duel.models import SimGame
 from tests.test_analyst import _me_and_token, analyst  # noqa: F401  (fixture)
 from tests.test_analyst_access import _as, _player
 from tests.test_duel import client  # noqa: F401  (fixture)
@@ -156,7 +156,7 @@ def test_import_needs_a_signed_in_player_1030(analyst):
 def test_scrubbing_a_log_with_thousands_of_distinct_player_names_stays_fast_and_scrubs_the_real_two_1033():
     import time
 
-    from app.sim_games import MAX_COMBAT_LOG_CHARS, scrub_names
+    from app.duel.sim_games import MAX_COMBAT_LOG_CHARS, scrub_names
 
     filler = "".join(f"RZ1|PLY|{i}|n{i}|\n" for i in range(3, 19_000))
     log = f"RZ1|PLY|1|{ME}|OP17-039\nRZ1|PLY|2|{OPP}|OP09-062\n[{ME}] Chose to go First\n[{OPP}] Mulligan\n" + filler

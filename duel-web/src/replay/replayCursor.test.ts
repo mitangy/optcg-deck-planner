@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReplayTimeline, timelineStateAt, type MatchReplay } from "@optcg/rules/replayTimeline";
+import { buildReplayTimeline, timelineStateAt, type MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import fixture from "../../e2e/data/replay-purple-red.json";
 import { createReplayCursor, nextTurnStep, prevTurnStep, turnAtStep } from "./replayCursor";
 

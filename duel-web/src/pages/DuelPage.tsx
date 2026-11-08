@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
-import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
+import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
 import { BountyAmount } from "../Bounty";
 import { useFriends } from "../friends/FriendsPanel";
 import { pollsInvitesWhileWaiting, type FriendInvite } from "../friends/friendsApi";

@@ -57,7 +57,7 @@ describe("Report player dialog (#810)", () => {
     // The reason alone is not enough for an image report.
     expect(submitBtn().disabled).toBe(true);
     // Their card back is the default, so it cannot be picked; their playmat can.
-    expect(byText("Card back").disabled).toBe(true);
+    expect((byText("Card back") as HTMLButtonElement).disabled).toBe(true);
     await click(byText("Playmat"));
     expect(submitBtn().disabled).toBe(false);
   });

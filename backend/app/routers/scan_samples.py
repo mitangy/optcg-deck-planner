@@ -23,11 +23,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import ScanSample, User
-from app.schemas import CARD_ID_PATTERN
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.core.models import User
+from app.planner.models import ScanSample
+from app.planner.schemas import ScanSamplesCount, ScanSamplesDeleted, ScanSamplesExport, ScanSamplesSaved
+from app.core.schemas import CARD_ID_PATTERN
 
 router = APIRouter(prefix="/scan-samples", tags=["scan-samples"])
 
@@ -91,7 +93,7 @@ def _prune(db: Session) -> None:
         db.execute(delete(ScanSample).where(ScanSample.id.in_(drop)))
 
 
-@router.post("")
+@router.post("", response_model=ScanSamplesSaved)
 def post_scan_samples(
     body: ScanSamplesIn,
     user: Annotated[User, Depends(get_current_user)],
@@ -138,7 +140,7 @@ def post_scan_samples(
     return {"saved": len(prepared)}
 
 
-@router.get("/mine")
+@router.get("/mine", response_model=ScanSamplesCount)
 def get_my_scan_samples(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -149,7 +151,7 @@ def get_my_scan_samples(
     return {"count": count or 0}
 
 
-@router.delete("/mine")
+@router.delete("/mine", response_model=ScanSamplesDeleted)
 def delete_my_scan_samples(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -159,7 +161,7 @@ def delete_my_scan_samples(
     return {"deleted": result.rowcount or 0}
 
 
-@router.get("/export")
+@router.get("/export", response_model=ScanSamplesExport)
 def export_scan_samples(
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],

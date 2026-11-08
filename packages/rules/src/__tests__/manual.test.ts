@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
-import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
+import { deserializeMatch, serializeMatch } from "../engine/snapshot.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import { basePowerOf, costOf, keywordsOf, powerOf } from "../engine/queries.js";
 

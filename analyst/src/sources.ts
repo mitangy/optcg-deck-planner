@@ -91,14 +91,14 @@ function cardFacts(c: Rec): Fact[] {
 
 const cardResult = (c: Rec) => searchResult(`card:${c.id}`, `${c.name} (${c.id})`, cardFacts(c));
 
-function searchCardsAdapter(v: Rec): ToolContent[] {
+export function searchCardsAdapter(v: Rec): ToolContent[] {
   const out: ToolContent[] = (v.cards ?? []).map(cardResult).filter(Boolean);
   const shown = (v.cards ?? []).length;
   out.push({ type: "text", text: `Showing ${shown} of ${v.total} matching cards (from offset ${v.offset}).${joined(v.notes) ? ` ${joined(v.notes)}` : ""}` });
   return out;
 }
 
-function getCardsAdapter(v: Rec): ToolContent[] {
+export function getCardsAdapter(v: Rec): ToolContent[] {
   const cards: Rec[] = v.cards ?? [];
   const out: ToolContent[] = cards.map(cardResult).filter(Boolean) as ToolContent[];
   const abilities = Object.fromEntries(cards.filter((c) => c.abilities).map((c) => [c.id, c.abilities]));
@@ -109,7 +109,7 @@ function getCardsAdapter(v: Rec): ToolContent[] {
 
 // ——— rules and rulings ———
 
-function rulesAdapter(v: Rec): ToolContent[] {
+export function rulesAdapter(v: Rec): ToolContent[] {
   const out: ToolContent[] = [];
   for (const s of v.sections ?? []) {
     out.push(
@@ -142,7 +142,7 @@ function rulesAdapter(v: Rec): ToolContent[] {
   return out.filter(Boolean);
 }
 
-function cardRulingsAdapter(v: Rec): ToolContent[] {
+export function cardRulingsAdapter(v: Rec): ToolContent[] {
   const out: (SearchResultBlock | null)[] = [];
   const text: string[] = [];
   for (const c of v.cards ?? []) {
@@ -188,7 +188,7 @@ function splitFactsFor(split: Rec): Fact[] {
   ];
 }
 
-function statsAdapter(v: Rec): ToolContent[] {
+export function statsAdapter(v: Rec): ToolContent[] {
   const w = v.source ? `Source: ${v.source}, last ${v.days} days${v.ranked_only ? ", ranked games only" : ""}; not tournament results.` : null;
   const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
   const out: (SearchResultBlock | null)[] = [];
@@ -242,7 +242,7 @@ function decklistText(list: unknown): string {
 }
 
 /** Tournament results as sources of their own (tourney:, event:), never stats:, so they stay apart from optcgduel.app numbers. */
-function tournamentAdapter(v: Rec): ToolContent[] {
+export function tournamentAdapter(v: Rec): ToolContent[] {
   const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
   const w = `Source: Limitless TCG tournament results (play.limitlesstcg.com), last ${v.days} days, events with at least ${v.min_players} players; not games from optcgduel.app.`;
   const withTies = (r: Rec) => (typeof r.ties === "number" && r.ties > 0 ? `Ties not counted as games: ${r.ties}.` : null);
@@ -345,7 +345,7 @@ function playbookAdapter(v: Rec): ToolContent[] {
 }
 
 /** The playbook index (no leader): the notes list is plain text beside the general principles. */
-function playbookIndexAdapter(v: Rec): ToolContent[] {
+export function playbookIndexAdapter(v: Rec): ToolContent[] {
   if (v.card || v.mentionedIn || v.sections || v.opponent !== undefined || v.fromLeaderSide !== undefined) return playbookAdapter(v);
   if (!Array.isArray(v.notes) || !v.notes.every((n: unknown) => n && typeof n === "object")) return playbookAdapter(v);
   const index = (v.notes as Rec[]).map((n) => `${n.leader} ${n.name} (${n.status}, ${n.format}${n.stale ? ", stale" : ""})`).join("; ");
@@ -355,7 +355,7 @@ function playbookIndexAdapter(v: Rec): ToolContent[] {
 
 // ——— lessons ———
 
-function lessonsAdapter(v: Rec): ToolContent[] {
+export function lessonsAdapter(v: Rec): ToolContent[] {
   const lessons: Rec[] = v.lessons ?? [];
   const out = lessons.map((l) =>
     searchResult(`lesson:${l.id}`, `${String(l.text).slice(0, 70)} (${l.status})`, [
@@ -428,11 +428,11 @@ function notesBlock(game: Rec): ToolContent[] {
   return notes.length ? [{ type: "text", text: notes.join(" ") }] : [];
 }
 
-function reviewAdapter(v: Rec): ToolContent[] {
+export function reviewAdapter(v: Rec): ToolContent[] {
   return [...gameResults("match", String(v.matchId), v), ...notesBlock(v)];
 }
 
-function replayAdapter(v: Rec): ToolContent[] {
+export function replayAdapter(v: Rec): ToolContent[] {
   if (typeof v.kind === "string" && String(v.gameId).startsWith("b_")) {
     const results = gameResults("botgame", String(v.gameId), v);
     const header = `Game ${v.gameId}${v.date ? ` on ${v.date}` : ""}: a ${v.kind} on optcgduel.app's engine, simulated between bots, not a game between people.`;
@@ -445,7 +445,7 @@ function replayAdapter(v: Rec): ToolContent[] {
   return [...results, ...notesBlock(v)];
 }
 
-function searchMatchesAdapter(v: Rec): ToolContent[] {
+export function searchMatchesAdapter(v: Rec): ToolContent[] {
   const side = (s: Rec, label: string) =>
     `Side ${label}: ${s.leader_name ?? s.leader} (${s.leader}), ${s.won === null || s.won === undefined ? "no result" : s.won ? "won" : "lost"}${s.went_first === true ? ", went first" : s.went_first === false ? ", went second" : ""}${s.rating_band ? `, rating ${s.rating_band}` : ""}.`;
   const out = ((v.games ?? []) as Rec[]).map((g) => {
@@ -475,7 +475,7 @@ function searchMatchesAdapter(v: Rec): ToolContent[] {
 // ——— bot simulation stats ———
 
 /** Bot-simulation stats as sources of their own (botsim:), never stats: or tourney:, so they stay apart from people's and tournament numbers. */
-function simStatsAdapter(v: Rec): ToolContent[] {
+export function simStatsAdapter(v: Rec): ToolContent[] {
   const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
   const levels = v.levels ? String(v.levels).split("/").map((l) => l.charAt(0).toUpperCase() + l.slice(1)).join(" vs ") : "mixed levels";
   const w = `Source: bot self-play on optcgduel.app's engine (${levels}), last ${v.days} days: simulated games between bots, not games between people and not tournament results.`;
@@ -529,7 +529,7 @@ function simStatsAdapter(v: Rec): ToolContent[] {
 
 // ——— position analysis ———
 
-function positionAdapter(v: Rec): ToolContent[] {
+export function positionAdapter(v: Rec): ToolContent[] {
   if (typeof v.sourceId !== "string" || !Array.isArray(v.options)) return [];
   const g: Rec = v.game ?? {};
   const who = g.seat === "you" ? "you" : g.seat;
@@ -558,7 +558,7 @@ export function deckSourceId(leaderId: string | undefined, cards: { id: string; 
   return `deck:${shortHash(body)}`;
 }
 
-function analyzeDeckAdapter(v: Rec): ToolContent[] {
+export function analyzeDeckAdapter(v: Rec): ToolContent[] {
   const d = v.deck ?? {};
   const s = v.stats ?? {};
   const bans: Rec[] = v.banList?.problems ?? [];
@@ -583,7 +583,7 @@ function analyzeDeckAdapter(v: Rec): ToolContent[] {
 }
 
 /** A suggested deck edit as one source: the app shows it as an Apply card, so the model is told nothing has changed. */
-function proposalAdapter(v: Rec): ToolContent[] {
+export function proposalAdapter(v: Rec): ToolContent[] {
   const lines: Rec[] = Array.isArray(v.lines) ? v.lines : [];
   const legality: Rec = v.legality ?? {};
   const problems: string[] = Array.isArray(legality.problems) ? legality.problems : [];
@@ -605,7 +605,7 @@ function proposalAdapter(v: Rec): ToolContent[] {
 }
 
 /** A new deck Log Pose built as one source: the app opens its create-deck page with the list filled in. */
-function newDeckAdapter(v: Rec): ToolContent[] {
+export function newDeckAdapter(v: Rec): ToolContent[] {
   const cards: Rec[] = Array.isArray(v.cards) ? v.cards : [];
   const legality: Rec = v.legality ?? {};
   const facts: Fact[] = [
@@ -619,7 +619,7 @@ function newDeckAdapter(v: Rec): ToolContent[] {
   return result ? [result] : [];
 }
 
-function oddsAdapter(v: Rec): ToolContent[] {
+export function oddsAdapter(v: Rec): ToolContent[] {
   if (!Array.isArray(v.byTurn)) return [];
   const order = v.goingFirst ? "going first" : "going second";
   const shape = `d${v.deckSize}h${v.hits}x${v.atLeast}${v.goingFirst ? "f" : "s"}${v.mulligan ? "m" : ""}`;
@@ -648,7 +648,7 @@ function simSupportFacts(v: Rec): Fact[] {
   ];
 }
 
-function simulateAdapter(v: Rec): ToolContent[] {
+export function simulateAdapter(v: Rec): ToolContent[] {
   const st = v.setup;
   if (typeof v.sourceId !== "string" || !st || !Array.isArray(v.lethal?.byTurn)) return [];
   const id: string = v.sourceId;
@@ -706,7 +706,7 @@ function simulateAdapter(v: Rec): ToolContent[] {
 const usd = (x: unknown) => (typeof x === "number" ? `$${x.toFixed(2)}` : "?");
 const signed = (x: unknown) => (typeof x === "number" ? `${x > 0 ? "+" : ""}${x}%` : null);
 
-function priceHistoryAdapter(v: Rec): ToolContent[] {
+export function priceHistoryAdapter(v: Rec): ToolContent[] {
   if (typeof v.card_id !== "string" || typeof v.art_name !== "string") return [];
   const id = `price:${v.card_id}${v.product_id ? `#${v.product_id}` : ""}`;
   const t: Rec = v.buy_timing ?? {};
@@ -728,41 +728,15 @@ function priceHistoryAdapter(v: Rec): ToolContent[] {
   return result ? [result] : [];
 }
 
-const ADAPTERS: Record<string, (v: Rec) => ToolContent[]> = {
-  search_cards: searchCardsAdapter,
-  get_cards: getCardsAdapter,
-  rules_lookup: rulesAdapter,
-  card_rulings: cardRulingsAdapter,
-  matchup_stats: statsAdapter,
-  tournament_stats: tournamentAdapter,
-  price_history: priceHistoryAdapter,
-  playbook: playbookIndexAdapter,
-  my_lessons: lessonsAdapter,
-  review_match: reviewAdapter,
-  replay_match: replayAdapter,
-  search_matches: searchMatchesAdapter,
-  sim_stats: simStatsAdapter,
-  analyze_position: positionAdapter,
-  analyze_deck: analyzeDeckAdapter,
-  draw_odds: oddsAdapter,
-  propose_deck_edit: proposalAdapter,
-  propose_new_deck: newDeckAdapter,
-  simulate: simulateAdapter,
-};
+/** Turns one tool's answer value into citable content (see `adaptValue`). */
+export type SourceAdapter = (v: Rec) => ToolContent[];
 
 /**
- * One tool's plain answer as tool_result content with citable search results, or null to keep the plain
- * text (no adapter, not JSON, or nothing citable in it).
+ * One tool's answer value as tool_result content with citable search results, or null to keep the plain
+ * text (no adapter, not an object, or nothing citable in it). `tool` only names the note source.
  */
-export function adaptToolResult(tool: string, text: string): ToolContent[] | null {
-  const adapter = ADAPTERS[tool];
+export function adaptValue(adapter: SourceAdapter | undefined, tool: string, value: unknown): ToolContent[] | null {
   if (!adapter) return null;
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return null;
-  }
   if (!value || typeof value !== "object") return null;
   try {
     const blocks = adapter(value as Rec);
@@ -773,7 +747,9 @@ export function adaptToolResult(tool: string, text: string): ToolContent[] | nul
     // The API refuses a tool result that mixes search results with plain text, so the notes become one source of their own.
     const note = notes.length ? searchResult(`note:${tool}`, "Lookup notes", notes) : null;
     return [...results.slice(0, MAX_RESULTS), ...(note ? [note] : [])];
-  } catch {
+  } catch (err) {
+    // The model still gets the plain text, so nothing changes for the player; the log says which adapter broke.
+    console.warn(JSON.stringify({ event: "citation_adapter_error", tool, message: err instanceof Error ? err.message : String(err) }));
     return null;
   }
 }

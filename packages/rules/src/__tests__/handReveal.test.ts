@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getPlayerView, getSpectatorView } from "../engine.js";
-import { takeCard } from "../engine/state.js";
+import { takeCard } from "../engine/zones.js";
 import { Harness, FILLER } from "../testing/harness.js";
 import type { CardInstance } from "../types.js";
 

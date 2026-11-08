@@ -6,13 +6,13 @@ import pytest
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from fastapi.testclient import TestClient
 
-from app.auth import (
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     OAUTH_RETURN_COOKIE,
     create_oauth_state,
     new_oauth_nonce,
 )
-from app.config import get_settings
+from app.core.config import get_settings
 from app.main import app
 
 PLANNER_API = "https://planner.example/api"

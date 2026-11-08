@@ -1,0 +1,138 @@
+/* —— Hand dock (bottom-right, peeks until hovered) —— */
+
+.hand-dock {
+  --dock-gap: 0.5rem;
+  --dock-card-h: calc(var(--dock-cw) * 1.4);
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  /* Above the board / rail, below prompts (45), HUD (40) and modals. */
+  z-index: var(--z-hand);
+  width: var(--rail-w);
+  max-width: calc(100vw - var(--left-w) - 1rem);
+  display: flex;
+  flex-direction: column;
+  padding: 0 calc(0.6rem + var(--safe-r)) calc(0.6rem + var(--safe-b)) 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-right: none;
+  border-bottom: none;
+  border-radius: 14px 0 0 0;
+  background: linear-gradient(180deg, rgb(var(--raised-rgb) / 0.97), rgb(var(--deep-rgb) / 0.98));
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+  /* Tucked: only the handle and the top of each card show. The short delay
+     keeps it from snapping shut when the pointer grazes the edge. */
+  transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
+  transition:
+    transform 200ms ease 140ms,
+    width 200ms ease 140ms;
+}
+
+.hand-dock.is-open,
+.hand-dock:has(:focus-visible) {
+  width: max(var(--rail-w), calc(var(--n) * (var(--dock-cw) + var(--dock-gap)) + 1.2rem + var(--safe-r)));
+  transform: none;
+  transition-delay: 0s;
+}
+
+@media (hover: hover) {
+  .hand-dock:hover {
+    width: max(var(--rail-w), calc(var(--n) * (var(--dock-cw) + var(--dock-gap)) + 1.2rem + var(--safe-r)));
+    transform: none;
+    transition-delay: 0s;
+  }
+}
+
+/* Dragging a card out: tuck the dock so the whole board is a drop target. */
+.hand-dock.is-dragging,
+.hand-dock.is-dragging:hover {
+  width: var(--rail-w);
+  transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
+}
+
+/* Just tucked by its own button or H, pointer still on it: stay tucked until
+   the pointer leaves once, or the click looks like it did nothing. */
+@media (hover: hover) {
+  .hand-dock.is-tucking:hover:not(:has(:focus-visible)) {
+    width: var(--rail-w);
+    transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
+  }
+}
+
+/* Hidden (Keep hand open + H / Hide): only the handle shows (after the
+   hover / focus-visible rules, so they don't raise it). */
+.hand-dock.is-hidden {
+  width: var(--rail-w);
+  transform: translateY(calc(100% - var(--dock-head) - var(--safe-b)));
+  transition-delay: 0s;
+}
+
+.hand-dock-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--dock-head);
+  min-width: 0;
+}
+
+.hand-dock-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: var(--dock-head);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hand-dock-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--radius-6);
+}
+
+.hand-dock-caret {
+  margin-left: auto;
+  color: var(--chrome);
+}
+
+.hand-dock-cards {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: var(--dock-card-h);
+  min-width: 0;
+}
+
+.hand-dock .hand-dock-cards > * {
+  flex: 0 0 auto;
+  width: var(--dock-cw);
+  height: var(--dock-card-h);
+  margin-block: 0;
+  transition: transform 140ms ease;
+}
+
+/* Overlap cards when they don't fit (always true when tucked). */
+.hand-dock .hand-dock-cards > * + * {
+  margin-left: min(var(--dock-gap), calc((100% - var(--n) * var(--dock-cw)) / var(--n1)));
+}
+
+.hand-dock .hand-dock-cards > .card-tile:hover,
+.hand-dock .hand-dock-cards > .card-tile:focus-within {
+  z-index: var(--z-raise-2);
+  transform: translateY(-10px);
+}
+
+.hand-dock .hand-dock-cards > .card-tile.selected {
+  z-index: var(--z-raise-3);
+  transform: translateY(-14px);
+}
+

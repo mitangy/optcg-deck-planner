@@ -1,34 +1,12 @@
-import { useSyncExternalStore } from "react";
+import { createStore } from "../lib/createStore";
 import type { ReportTarget } from "./reportLogic";
 
 /**
  * Which player report is open, if any. Same idea as feedbackDialog.ts: the match menu, the post-match card,
  * the friends list and the history pages open the one dialog <ReportHost> renders at the app root.
  */
-let current: ReportTarget | null = null;
-const listeners = new Set<() => void>();
+const current = createStore<ReportTarget | null>(null);
 
-function emit(): void {
-  listeners.forEach((l) => l());
-}
-
-export function openReport(target: ReportTarget): void {
-  current = target;
-  emit();
-}
-
-export function closeReport(): void {
-  current = null;
-  emit();
-}
-
-export function useReportTarget(): ReportTarget | null {
-  return useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-    () => current,
-    () => null,
-  );
-}
+export const openReport = (target: ReportTarget): void => current.set(target);
+export const closeReport = (): void => current.set(null);
+export const useReportTarget = (): ReportTarget | null => current.use();

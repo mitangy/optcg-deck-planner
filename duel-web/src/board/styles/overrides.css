@@ -1,0 +1,220 @@
+/* —— No top bar (#468) ——
+   Bigger playing area on a computer drops the top bar: the board takes the whole window height. The bar's
+   buttons (Brief, Log Pose, Undo, the ⋯ match menu) ride in one row at the top of the right column (the left one
+   when the right is empty). The row has a fixed height and is in the column's flow, so a button coming or going
+   never moves a panel; it is not a movable panel (no data-panel), so drag and resize leave it alone. */
+.arena.arena-wide .col-actions {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  min-width: 0;
+  height: calc(44px + var(--safe-t));
+  padding: var(--safe-t) 0.25rem 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.35);
+}
+
+/* Buttons give way before they overflow: 36px at ordinary widths, narrower in a column dragged to its minimum, so no
+   icon is ever cut off at the row's edge. */
+.arena.arena-wide .col-actions > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn,
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-btn {
+  box-sizing: border-box;
+  min-height: 36px;
+  min-width: 0;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena.arena-wide .col-actions .hud-icon-btn:not(.hud-undo-cancel) {
+  flex: 0 1 36px;
+  min-width: 20px;
+  padding: 0;
+}
+
+/* Text buttons: the hot-seat switch keeps its whole "→ P2" (the icons give way instead); the armed Cancel, which
+   only shows for a moment, shrinks with an ellipsis rather than overflow. */
+.arena.arena-wide .col-actions .hud-pass-btn,
+.arena.arena-wide .col-actions .hud-undo-cancel {
+  flex: 0 1 auto;
+  padding: 0 0.4rem;
+}
+
+.arena.arena-wide .col-actions .hud-pass-btn {
+  flex: none;
+}
+
+.arena.arena-wide .col-actions .hud-menu-btn {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Brief and Log Pose are icons here (the buttons keep their names): with Undo and the hot-seat switch beside them,
+   their text labels would not fit the narrowest column. */
+.arena.arena-wide .col-actions .hud-brief-btn.hud-brief-text {
+  flex: 0 1 36px;
+  width: 36px;
+  min-width: 20px;
+  padding: 0;
+}
+
+.arena.arena-wide .col-actions .hud-brief-label {
+  display: none;
+}
+
+/* The pop-ups that hang under the old bar sit at the top of the window now. */
+.arena.arena-no-hud .undo-request {
+  top: calc(var(--safe-t) + 0.75rem);
+}
+
+.arena.arena-no-hud .float-layer-peek {
+  padding-top: calc(var(--safe-t) + 0.75rem);
+}
+
+/* An effect revealed this hand card to the opponent (#491): a small pill across the top of the card.
+   Absolutely placed inside the tile, so the card keeps its size and the hand its layout. */
+.hand-revealed-badge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-raise-3);
+  max-width: calc(100% - 4px);
+  padding: 0 0.25rem;
+  border-radius: var(--radius-pill);
+  background: rgba(8, 14, 22, 0.88);
+  border: 1px solid #f3c969;
+  color: #f3c969;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+.card-tile.hand-revealed {
+  outline: 1px solid rgba(243, 201, 105, 0.55);
+  outline-offset: -1px;
+}
+
+/* Revealed cards sit among card backs (#491): paint them above their overlapping neighbours so they stay readable. */
+.opp-hand-corner .opp-corner-face,
+.opp-hand-fan .opp-fan-face,
+.opp-hand-faces .card-tile.opp-hand-face {
+  z-index: var(--z-raise-2);
+}
+
+/* —— Undo choice menu (#536): a fixed overlay in a portal, so opening it never shifts the button or its row —— */
+.hud-undo-btn.is-blocked {
+  opacity: 0.45;
+  cursor: help;
+}
+
+/* A Headless UI Menu list (@optcg/ui/popups), floated under (or, with no room, above) its button in a portal. */
+.undo-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: min(300px, calc(100vw - 16px));
+  max-height: var(--anchor-max-height, calc(100dvh - 16px));
+  overflow-y: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-12);
+  background: rgb(var(--deep-rgb) / 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.undo-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Headless UI keeps focus on the list and marks the active row [data-focus]. */
+.undo-menu-item:hover,
+.undo-menu-item[data-focus],
+.undo-menu-item:focus-visible {
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.16);
+  outline: none;
+}
+
+.undo-menu-label {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.undo-menu-reason {
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: var(--ink-dim, var(--ink));
+  opacity: 0.8;
+}
+
+.undo-menu-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.undo-menu-item.is-disabled:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.undo-menu-item.is-disabled .undo-menu-label {
+  opacity: 0.6;
+}
+
+.undo-menu-item.is-warn {
+  border-color: rgba(230, 160, 60, 0.55);
+  background: rgba(230, 160, 60, 0.12);
+  color: #ffd9a0;
+}
+
+.undo-menu-item.is-warn:hover,
+.undo-menu-item.is-warn[data-focus],
+.undo-menu-item.is-warn:focus-visible {
+  border-color: #e6a03c;
+  background: rgba(230, 160, 60, 0.24);
+}
+
+.undo-menu-note {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.undo-request p.undo-request-warn {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(230, 160, 60, 0.55);
+  border-radius: var(--radius-8);
+  background: rgba(230, 160, 60, 0.12);
+  color: #ffd9a0;
+}

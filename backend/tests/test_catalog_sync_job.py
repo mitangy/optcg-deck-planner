@@ -7,8 +7,8 @@ import pytest
 
 from sqlalchemy import text
 
-from app import catalog_sync
-from app import db as app_db
+from app.planner import catalog_sync
+from app.core import db as app_db
 from tests.db_support import make_bare_engine, requires_postgres
 
 

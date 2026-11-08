@@ -34,7 +34,7 @@ services:
     buildCommand: pip install -r requirements.txt
     # WEB_CONCURRENCY workers (1 by default: Starter has 512 MB). Raise it only
     # with REDIS_URL set, so rate limits, presence and live-game progress are
-    # shared; startup migrations take a Postgres advisory lock (app.db.startup_lock).
+    # shared; startup migrations take a Postgres advisory lock (app.core.db.startup_lock).
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers ${WEB_CONCURRENCY:-1}
     healthCheckPath: /health
     buildFilter:
@@ -48,7 +48,7 @@ services:
       - key: ANALYST_PUBLIC_URL
         sync: false
       # Comma-separated emails that get the in-app Log Pose panel (empty: nobody).
-      # Spend caps default to $1/day per player and $250/month total (analyst_chat_daily_usd / analyst_chat_monthly_usd in backend/app/config.py; keep this note in sync).
+      # Spend caps default to $1/day per player and $250/month total (analyst_chat_daily_usd / analyst_chat_monthly_usd in backend/app/core/config.py; keep this note in sync).
       - key: ANALYST_CHAT_EMAILS
         sync: false
       # Den Den Mushi (#979): files posts from a Discord channel as feedback. Off unless both are set.
@@ -78,6 +78,11 @@ services:
         value: "true"
       - key: CATALOG_SYNC_TOKEN
         generateValue: true
+      # Guards the game-server pool pointer, card reports and feedback triage (kept apart from
+      # CATALOG_SYNC_TOKEN, which the catalog workflows hold). Set the same value as the GitHub
+      # secret OPS_ADMIN_TOKEN. While unset those routes still accept CATALOG_SYNC_TOKEN.
+      - key: OPS_ADMIN_TOKEN
+        sync: false
       # Optional Redis / Key Value (redis://… or rediss://…). Unset: rate limits are
       # per worker and presence / live-game progress stay in Postgres.
       - key: REDIS_URL
@@ -89,7 +94,7 @@ services:
       # Resend: RESEND_API_KEY (secret, sync: false). Or SMTP: SMTP_HOST, SMTP_PORT=587 (STARTTLS),
       # SMTP_USER, SMTP_PASSWORD (secret). EMAIL_FROM="Name <address>" is the sender (default: the SMTP_USER address). Gmail: SMTP_HOST=smtp.gmail.com, SMTP_USER=the Gmail address, SMTP_PASSWORD=an app password.
       # Admin page Hosting tab (#667): read-only tokens, each optional. Unset: that card says
-      # "Not connected". ADMIN_EMAIL defaults to the owner (backend/app/config.py).
+      # "Not connected". ADMIN_EMAIL defaults to the owner (backend/app/core/config.py).
       - key: VERCEL_TOKEN
         sync: false
       - key: VERCEL_TEAM_ID
@@ -110,7 +115,7 @@ services:
         sync: false
       - key: DUEL_CORS_ORIGINS
         value: https://optcgduel.app,https://optcg-duel-web.vercel.app,https://optcg-duel-web-miko21.vercel.app
-      # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/cors.py).
+      # Vercel branch URLs (optcg-duel-web-git-<branch>-miko21.vercel.app): CORS without credentials (see backend/app/core/cors.py).
       # SPAs that proxy /api here and host their own Google callback
       # ({origin}/api/auth/callback, registered in Google Cloud Console).
       - key: OAUTH_CALLBACK_ORIGINS
@@ -126,13 +131,14 @@ services:
     plan: starter
     autoDeploy: true
     healthCheckPath: /health
-    # Install workspaces from repo root so @optcg/rules resolves.
-    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/game-server
+    # Install workspaces from repo root so @optcg/rules and @optcg/duel-protocol resolve.
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/duel-protocol --workspace=@optcg/game-server
     startCommand: npm run start -w @optcg/game-server
     buildFilter:
       paths:
         - game-server/**
         - packages/rules/**
+        - packages/duel-protocol/**
         - package.json
         - package-lock.json
         - render.yaml
@@ -165,12 +171,14 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /health
-    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/deck-analytics --workspace=@optcg/analyst
+    buildCommand: npm ci --workspace=@optcg/rules --workspace=@optcg/deck-analytics --workspace=@optcg/card-core --workspace=@optcg/analyst-contract --workspace=@optcg/analyst
     startCommand: npm run start -w @optcg/analyst
     buildFilter:
       paths:
         - analyst/**
         - packages/deck-analytics/**
+        - packages/card-core/**
+        - packages/analyst-contract/**
         - packages/rules/**
         - package.json
         - package-lock.json

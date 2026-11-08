@@ -1,10 +1,13 @@
 name: CI
 
 # Runs every test suite on pull requests and on main, so a PR shows red before
-# merge instead of after a deploy. Each app has its own lockfile, so each gets
-# its own job and runs in parallel. A job holds everything one app needs after
-# one install (unit tests, build, browser checks), because a runner is cheap to
-# keep busy and expensive to queue for: the repo is capped at 20 concurrent jobs.
+# merge instead of after a deploy. frontend/, duel-web/, packages/*, game-server/
+# and analyst/ are npm workspaces of the root package.json with one root
+# package-lock.json, so every one of those jobs installs with `npm ci` at the
+# root. mobile/ has its own lockfile. Each app still gets its own job and runs in
+# parallel. A job holds everything one app needs after one install (unit tests,
+# build, browser checks), because a runner is cheap to keep busy and expensive to
+# queue for: the repo is capped at 20 concurrent jobs.
 #
 # On pull requests the `changes` job decides which jobs run, from the changed
 # paths (tools/ci/changes.cjs, #739). A path it does not know runs everything.
@@ -42,16 +45,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Find the base the PR merges into
-        run: |
-          if git rev-parse -q --verify HEAD^2 >/dev/null; then
-            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
-          else
-            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
-          fi
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/pr-base
         with:
-          node-version: "22"
+          fallback-sha: ${{ github.event.pull_request.base.sha }}
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          install: "false"
+          cache: "false"
       - name: Classify the changed paths
         id: flags
         run: |
@@ -76,16 +76,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Find the base the PR merges into
-        run: |
-          if git rev-parse -q --verify HEAD^2 >/dev/null; then
-            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
-          else
-            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
-          fi
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/pr-base
         with:
-          node-version: "22"
+          fallback-sha: ${{ github.event.pull_request.base.sha }}
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          install: "false"
+          cache: "false"
       - name: Block screenshots and recordings outside app media folders
         run: |
           set -o pipefail
@@ -121,16 +118,14 @@ jobs:
       REDIS_TEST_URL: redis://127.0.0.1:6379/15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-deps
       - run: npm run typecheck -w @optcg/rules
       - run: npm run typecheck -w @optcg/game-server
+      - run: npm run typecheck -w @optcg/duel-protocol
       - run: npm run typecheck -w @optcg/analyst
-      - run: npm test
+      # The packages, game-server and analyst. (A bare `npm test` also runs the two
+      # apps' unit tests, which have their own jobs.)
+      - run: npm test -w packages -w game-server -w analyst
       - run: npm run eval:validate -w @optcg/analyst
       # The path filter that decides which of these jobs a pull request runs.
       - run: node --test "tools/ci/*.test.cjs"
@@ -159,12 +154,7 @@ jobs:
         working-directory: duel-web
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: duel-web/package-lock.json
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-deps
       - run: npm test
       - run: npm run build
         id: build
@@ -211,24 +201,17 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: |
-            package-lock.json
-            duel-web/package-lock.json
-      - run: npm ci
-      - run: npm ci
-        working-directory: duel-web
+      - uses: ./.github/actions/setup-node-deps
       - run: npx playwright install --with-deps chromium
         working-directory: duel-web
       - name: Run this shard's specs
         working-directory: duel-web
+        env:
+          SHARD: ${{ matrix.shard }}
         run: |
-          FILES="$(node scripts/e2e-shards.mjs ${{ matrix.shard }} 4)"
+          FILES="$(node scripts/e2e-shards.mjs "$SHARD" 4)"
           if [ -z "$FILES" ]; then
-            echo "No specs in shard ${{ matrix.shard }}; skipping."
+            echo "No specs in shard ${SHARD}; skipping."
             exit 0
           fi
           # Unquoted on purpose: one argument per spec file.
@@ -299,12 +282,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - uses: ./.github/actions/setup-node-deps
         id: deps
       - run: npm test
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
@@ -350,12 +328,11 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # mobile/ is not a workspace: its own lockfile, its own install.
+      - uses: ./.github/actions/setup-node-deps
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: mobile/package-lock.json
-      - run: npm ci
+          lockfile: mobile/package-lock.json
+          working-directory: mobile
       - run: npm run typecheck
       - run: npm test
 
@@ -396,13 +373,19 @@ jobs:
         working-directory: backend
         run: |
           pip install -r requirements-dev.txt
+      - uses: ./.github/actions/setup-node-deps
+      - name: Generated API types are current
+        # packages/api-client/src/generated/schema.ts is built from app.openapi() (refactor 2.1c): fails when a
+        # route or response model changed without `node tools/ci/openapi-types.cjs` being run and committed.
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: node tools/ci/openapi-types.cjs --check
       - name: Backend tests
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         working-directory: backend
         run: python -m pytest -q
       - name: Script tests (importer, cosmetics, preview art, alt arts, price backfill)
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
-        working-directory: scripts
+        working-directory: backend/scripts
         run: python -m unittest test_bandai_metadata test_cosmetics_product_ids test_sync_preview_art test_sync_alt_arts test_backfill_price_history
       - name: Backend tests (Postgres)
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
@@ -426,20 +409,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Find the base the PR merges into
-        # The checkout is the PR's test merge commit, whose first parent is the
-        # base branch as GitHub merged it. pull_request.base.sha can be older
-        # than that (it isn't updated when the base moves), and diffing against
-        # it re-runs every mutation main gained since.
-        run: |
-          if git rev-parse -q --verify HEAD^2 >/dev/null; then
-            echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
-          else
-            echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
-          fi
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/pr-base
         with:
-          node-version: "22"
+          fallback-sha: ${{ github.event.pull_request.base.sha }}
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          install: "false"
+          cache: "false"
       - name: Check mutation anchors
         # Every mutation anchor must still match exactly once (no tests run, no
         # installs). Here rather than only in rules-and-game-server, which a
@@ -485,20 +461,14 @@ jobs:
       REDIS_TEST_URL: redis://127.0.0.1:6379/15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup-node-deps
         with:
-          node-version: "22"
+          install: "false"
+          cache: "false"
       - name: Install root workspace deps
-        if: contains(fromJSON('["rules","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server"]'), matrix.suite)
+        # frontend and duel-web are workspaces too: one root install serves them.
+        if: contains(fromJSON('["rules","card-core","api-client","analyst-contract","deck-analytics","price-timing","patch-notes","ui","site-legal","analyst-client","analyst","game-server","duel-protocol","frontend","duel-web"]'), matrix.suite)
         run: npm ci
-      - name: Install duel-web deps
-        if: matrix.suite == 'duel-web'
-        run: npm ci
-        working-directory: duel-web
-      - name: Install frontend deps
-        if: matrix.suite == 'frontend'
-        run: npm ci
-        working-directory: frontend
       - name: Install mobile deps
         if: matrix.suite == 'mobile'
         run: npm ci

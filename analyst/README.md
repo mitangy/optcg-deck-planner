@@ -76,6 +76,8 @@ Spend is limited three ways, all set on the planner API (optcg-api): each approv
 
 Needs `ANTHROPIC_API_KEY` here, plus `ANALYST_PUBLIC_URL`, `ANALYST_CHAT_EMAILS` and the shared `ANALYST_SERVICE_SECRET` on `optcg-api`. Without the key, `/chat` answers 503 and the connector works as before.
 
+Code layout: `src/index.ts` reads the environment (`config.ts`) and listens; `src/app.ts` is the Express app (MCP links, CORS, the SSE routes). The three endpoints are `chatTurn.ts`, `review.ts` and `brief.ts`, sharing `rounds.ts` (the tool loop), `budget.ts` (admission, caps, usage rows), `citations.ts`, `schemas.ts`, `models.ts` (model ids and prices) and `anthropic.ts` (the SDK adapter); `chat.ts` only re-exports them. Prompts live in `src/prompts/` and `prompts/system.ts` assembles each mode's system blocks. Every tool has one entry in `toolMeta.ts` (status line and citation adapter), and a tool's answer carries its value (`toolResult.ts`) so nothing parses JSON back.
+
 ## Add it to Claude
 
 1. Deploy the `optcg-analyst` service from `render.yaml` (Blueprint sync).
@@ -106,7 +108,7 @@ Card data comes from `packages/rules/src/cards/cardData.json`, `packages/rules/s
 
 ## Evals
 
-`analyst/evals/` is the Log Pose eval set (#403): 50 cases run through the real chat loop (`runChat`) against a fake in-memory planner API.
+`analyst/evals/qa/` is the Log Pose eval set (#403): 50 cases run through the real chat loop (`runChat`) against a fake in-memory planner API. The folder layout and the flags every runner shares are in [`evals/README.md`](evals/README.md).
 
 - **A, rulings (15):** answered from the official FAQ. Gold is looked up from Bandai's FAQ by card id and question hash.
 - **B, engine-verified interactions (12):** gold comes from `@optcg/rules` scenarios.
@@ -132,11 +134,11 @@ npm run eval:compare -- evals/out/<variant>
 
 `--planner live` needs `PLANNER_API_URL` and `ANALYST_SERVICE_SECRET`. The paid run is manual; run it after a change to the prompt, tools or model, never in CI. Output goes to `evals/out/` (git-ignored).
 
-Bandai's FAQ text never goes in `cases.ts`, `baseline.json` or `human-grades.jsonl`. Cases hold only the card id and a question hash.
+Bandai's FAQ text never goes in `qa/cases.ts`, `qa/baseline.json` or `qa/human-grades.jsonl`. Cases hold only the card id and a question hash.
 
 ### Review facts eval (#675)
 
-`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/chat.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
+`evals/review-facts/` measures how often a post-game review states something about the game that is false. Bot self-play games go through the exact production review request (`reviewRequest` in `src/review.ts`, shared with `reviewTurn`), an LLM extracts the concrete game-event claims from each review, and each claim is checked against facts read from the engine replay (plays, attacks, blocks, counters, K.O.s, Life hits, Triggers, Life totals, who went first, mulligans, the result).
 
 ```bash
 npm run eval:review-facts -- --model-api scripted --n 3   # free dry run: scripted review and extractor
@@ -155,7 +157,7 @@ Per answer:
 
 - **Edits:** read from the Apply card proposal (the last one of the turn); an answer with no proposal falls back to its `+N / -N` lines. The edited deck is checked with `analyzeDeck` (and the ban list when it loads): 50 cards, 4 copies, colors, leader rules.
 - **Sabotage recall and precision:** recall is the share of planted copies the edits remove; precision is the share of removed copies that were planted.
-- **Bot simulation** (compute only, no API cost): the deck the player had, the edited deck and, for sabotaged cases, the original meta deck (the ceiling) each play G games against every other meta deck. Normal vs Normal by default (`--levels`). Seeds, seats and first player are the same for every version of a deck against the same opponent. The win rate change (edited minus original) comes with a 95% two-proportion interval (Newcombe, built from Wilson intervals; `diffOfProportions` in `evals/stats.ts`). Games against different opponents are not independent, so the interval is optimistic. Identical decks are simulated once (a meta deck is the ceiling of its sabotaged copy). Games run in worker threads (`--sim-threads`, default cores minus 1, at most 4, 0 = in this process); every game is a pure function of its seed, so the totals do not depend on the thread count.
+- **Bot simulation** (compute only, no API cost): the deck the player had, the edited deck and, for sabotaged cases, the original meta deck (the ceiling) each play G games against every other meta deck. Normal vs Normal by default (`--levels`). Seeds, seats and first player are the same for every version of a deck against the same opponent. The win rate change (edited minus original) comes with a 95% two-proportion interval (Newcombe, built from Wilson intervals; `diffOfProportions` in `evals/qa/stats.ts`). Games against different opponents are not independent, so the interval is optimistic. Identical decks are simulated once (a meta deck is the ceiling of its sabotaged copy). Games run in worker threads (`--sim-threads`, default cores minus 1, at most 4, 0 = in this process); every game is a pure function of its seed, so the totals do not depend on the thread count.
 
 ```bash
 npm run eval:deck-advice -- --model-api scripted --n 3 --sim-games 4    # free dry run: a fake model proposes plausible edits; simulation still runs
@@ -188,10 +190,10 @@ Flags: `--n` (per type, default 25), `--seed`, `--types power,playable,defend,le
 
 ### Posting a run to the admin page (#679)
 
-Every eval's `--post` goes through `evals/post.ts`, so each suite gets its own trend line on the admin page:
+Every eval's `--post` goes through `evals/shared/post.ts`, so each suite gets its own trend line on the admin page:
 
 ```ts
-import { postEvalRun } from "../post"; // from analyst/evals/<suite>/run.ts
+import { postEvalRun } from "../shared/post"; // from analyst/evals/<suite>/run.ts
 const res = await postEvalRun({
   suite: "puzzles",            // main | review_facts | puzzles | deck_advice (anything else is a 422)
   label: variant, model,       // shown in the history table

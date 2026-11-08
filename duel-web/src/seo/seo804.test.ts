@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { APP_ROUTES } from "../routes";
 import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "./routeMetaTable";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
@@ -52,10 +53,10 @@ function status(routes: VercelRoute[], path: string): number | null {
 
 describe("duel vercel.json routes (#804)", () => {
   const routes = (JSON.parse(read("../../vercel.json")) as { routes: VercelRoute[] }).routes;
-  const appPaths = [...read("../App.tsx").matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]).filter((p) => p !== "*");
+  const appPaths = APP_ROUTES.map((r) => r.path).filter((p) => p !== "*");
   const sample = (p: string) => p.replace(/:\w+/g, "a-b_1");
 
-  it("finds the app's routes in App.tsx (#804)", () => {
+  it("finds the app's routes in the route table (#804)", () => {
     expect(appPaths).toContain("/play-one-piece-tcg-online");
     expect(appPaths.length).toBeGreaterThan(15);
   });
@@ -63,6 +64,20 @@ describe("duel vercel.json routes (#804)", () => {
   it.each(appPaths)("%s answers 200 with the app (#804)", (p) => {
     expect(status(routes, sample(p))).toBe(200);
     if (p !== "/") expect(status(routes, `${sample(p)}/`)).toBe(200);
+  });
+
+  it("every page rule in vercel.json is a route of the app, so a removed route leaves no stale rule behind (refactor 3.4b)", () => {
+    // Not pages: the asset 404, the `/index.html` alias and the final 404 catch-all.
+    const NOT_PAGES = new Set(["/assets/(.*)", "/index\\.html", "/(.*)"]);
+    const pageRules = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1).filter((r) => r.src && !NOT_PAGES.has(r.src));
+    expect(pageRules.length).toBeGreaterThan(15);
+    for (const r of pageRules) {
+      const re = new RegExp(`^${r.src}$`);
+      expect(
+        appPaths.some((p) => re.test(sample(p))),
+        `${r.src} matches no route of the app`,
+      ).toBe(true);
+    }
   });
 
   it("an unknown path answers 404 and still serves the app (#804)", () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
-import { describeEvents } from "../describeEvents.js";
+import { describeEvents } from "../review/describeEvents.js";
 import { listLegalIntents } from "../engine.js";
-import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
+import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 
 const base: MatchReplay = {
   schema: MATCH_REPLAY_SCHEMA,

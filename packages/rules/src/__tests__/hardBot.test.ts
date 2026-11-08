@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { actingSeat, chooseBotIntent, chooseBotIntentFromState, determinize } from "../bot/index.js";
 import { assertInvariants, getPlayerView } from "../engine.js";
-import { replayMatch } from "../matchReplay.js";
+import { replayMatch } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { emptyTally, playBotGame, runSelfPlay, tallyIntent } from "../sim/selfPlay.js";
 import { FILLER, Harness } from "../testing/harness.js";

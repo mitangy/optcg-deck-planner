@@ -1,0 +1,161 @@
+/* —— Whose turn: active mat glow + turn splash —— */
+
+.arena .side-field.is-active-turn {
+  border-color: var(--chrome);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 60px rgba(0, 0, 0, 0.35),
+    0 0 0 2px rgb(var(--chrome-rgb) / 0.8),
+    0 0 26px rgb(var(--chrome-rgb) / 0.4);
+}
+
+.arena .side-opp.is-active-turn {
+  border-color: #7fb6d6;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 0 60px rgba(0, 0, 0, 0.35),
+    0 0 0 2px rgb(var(--sea-bright-rgb) / 0.75),
+    0 0 26px rgb(var(--sea-bright-rgb) / 0.35);
+}
+
+/* Turn-order tag on each mat: bigger and spelled out. */
+.arena .mat-order {
+  padding: 0.15em 0.7em;
+  font-size: clamp(0.58rem, 2cqw, 0.95rem);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.hud-turn-chip.hud-turn-theirs {
+  border-color: rgb(var(--sea-bright-rgb) / 0.6);
+  background: rgb(var(--sea-rgb) / 0.2);
+  color: #d6ecf8;
+}
+
+.turn-splash {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-turn-splash);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.arena.arena-wide .turn-splash {
+  left: calc(var(--left-w) + (100vw - var(--left-w) - var(--rail-w)) / 2);
+}
+
+.turn-splash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.9rem 2.2rem 1rem;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-14);
+  background: rgb(var(--deep-rgb) / 0.92);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  animation: turn-splash var(--splash-ms, 1500ms) ease forwards;
+}
+
+/* Desktop: over the opponent's mat (TurnSplash.tsx), smaller, so it never sits
+   on the End turn dock, the midline or your hand while you mulligan. */
+.turn-splash-anchored .turn-splash-card {
+  padding: 0.5rem 1.5rem 0.6rem;
+  border-width: 1px;
+  border-radius: var(--radius-10);
+  gap: 0.15rem;
+}
+
+.turn-splash-anchored .turn-splash-card strong {
+  font-size: clamp(1.15rem, 2.1vw, 1.9rem);
+}
+
+.turn-splash-anchored .turn-splash-card span {
+  font-size: clamp(0.7rem, 0.9vw, 0.85rem);
+}
+
+.turn-splash-card strong {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.turn-splash-card span {
+  font-size: clamp(0.75rem, 1.2vw, 0.95rem);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.turn-splash-mine .turn-splash-card {
+  border-color: var(--chrome);
+  box-shadow: 0 0 40px rgb(var(--chrome-rgb) / 0.4), 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.turn-splash-mine .turn-splash-card strong {
+  color: var(--chrome-bright);
+}
+
+.turn-splash-theirs .turn-splash-card {
+  border-color: #7fb6d6;
+  box-shadow: 0 0 40px rgb(var(--sea-bright-rgb) / 0.35), 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.turn-splash-theirs .turn-splash-card strong {
+  color: #d6ecf8;
+}
+
+@keyframes turn-splash {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  22% {
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-splash-card {
+    animation-name: turn-splash-fade;
+  }
+
+  .turn-panel-mine .turn-banner,
+  .turn-panel-respond .turn-banner {
+    animation: none;
+  }
+
+  .hand-dock,
+  .hand-dock .hand-dock-cards > *,
+  .hand-fan,
+  .hand-fan-cards,
+  .hand-fan-cards > * {
+    transition: none;
+  }
+}
+
+@keyframes turn-splash-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  80% {
+    opacity: 1;
+  }
+}
+

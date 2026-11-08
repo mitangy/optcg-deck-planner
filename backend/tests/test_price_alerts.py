@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 
 import httpx
 import pytest
 from sqlalchemy import select
 
-from app import catalog_sync, mailer, price_alerts, price_refresh
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.models import CatalogCard, CatalogPrinting, Notification, PriceAlert, User
+from app.planner import catalog_sync, mailer, price_alerts, price_refresh
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogPrinting, Notification, PriceAlert
 from tests.conftest import add_catalog, make_user
 from tests.test_abuse_limits import client  # noqa: F401  (fixture)
 from tests.test_price_refresh import NOW, _client, _group, _product

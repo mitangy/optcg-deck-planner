@@ -5,6 +5,8 @@
  */
 import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import type { User } from "../src/api";
+import type { FriendCollection, FriendDeckSummary, FriendProfile, FriendsState, FriendSpares, Sharing, SparePrinting, TradesSummary } from "../src/friends/friendsApi";
 
 type Card = { card_id: string; name: string; rarity: string; color: string; card_type: string; cost: number | null; product_id: number | null; market_price: number; needed: number };
 const CARDS = JSON.parse(readFileSync(new URL("./fixtures/cards.json", import.meta.url), "utf8")) as Card[];
@@ -31,7 +33,7 @@ export type FriendsFake = {
   kaiSpare: Map<string, number>;
   mySpare: Map<string, number>;
   keep: Map<string, number>;
-  sharing: { decks: string; collection: string; trades_open: boolean; show_values: boolean; prompted: boolean };
+  sharing: Sharing;
   kaiSharesCollection: boolean;
   username: string | null;
 };
@@ -62,10 +64,10 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
     kaiSharesCollection: true,
     username: seed.noUsername ? null : ME.username,
   };
-  const me = () => ({ id: ME.id, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false, username: fake.username });
+  const me = () => ({ id: ME.id, email: "nami@e2e.test", name: "Nami", sum_across_leaders: false, username: fake.username }) satisfies User;
   const nameOf = (id: number) => [ME, KAI, ZORO].find((u) => u.id === id)!.username;
 
-  const spareItem = (card_id: string, spare: number, want: number, printings: unknown[] = []) => {
+  const spareItem = (card_id: string, spare: number, want: number, printings: SparePrinting[] = []) => {
     const c = byId(card_id);
     return { card_id, name: c.name, rarity: c.rarity, color: c.color, card_type: c.card_type, cost: c.cost, image_url: img(c.product_id), market_price: c.market_price, spare, base_owned: spare, want, printings };
   };
@@ -182,9 +184,9 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
           total_copies: fake.kaiSharesCollection ? 9 : null,
           total_value: null,
           spare_cards: kaiSpares().length,
-        });
+        } satisfies FriendProfile);
       if (rest === "decks")
-        return json([{ id: KAI_DECK_ID, name: "Kai's Oden", leader_card_id: "EB01-001", leader_name: "Kouzuki Oden", leader_image_url: img(100), total_cards: 10, main_cards: 10 }]);
+        return json([{ id: KAI_DECK_ID, name: "Kai's Oden", leader_card_id: "EB01-001", leader_name: "Kouzuki Oden", leader_image_url: img(100), total_cards: 10, main_cards: 10 }] satisfies FriendDeckSummary[]);
       if (rest === `decks/${KAI_DECK_ID}`) return json(kaiDeck());
       if (rest === `decks/${KAI_DECK_ID}/copy` && method === "POST") {
         fake.sent.push({ path, body: null });
@@ -199,11 +201,11 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
           unique_cards: 3,
           total_copies: 12,
           total_value: null,
-        });
+        } satisfies FriendCollection);
       if (rest === "spares") {
         const theirs = kaiSpares();
         const mine = [...fake.mySpare.entries()].filter(([, n]) => n > 0).map(([id, n]) => spareItem(id, n, 2));
-        return json({ their_spares: theirs, you_need: theirs.filter((i) => i.want > 0), they_need: mine });
+        return json({ their_spares: theirs, you_need: theirs.filter((i) => i.want > 0), they_need: mine } satisfies FriendSpares);
       }
     }
 
@@ -220,7 +222,7 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
 
     if (path === "/trades/summary") {
       const t = mine();
-      return json({ incoming_pending: t.filter((x) => x.status === "pending" && x.to.id === ME.id).length, active: t.filter((x) => x.status === "accepted" || (x.status === "completed" && !x.applied)).length });
+      return json({ incoming_pending: t.filter((x) => x.status === "pending" && x.to.id === ME.id).length, active: t.filter((x) => x.status === "accepted" || (x.status === "completed" && !x.applied)).length } satisfies TradesSummary);
     }
     if (path === "/trades" && method === "GET") {
       const t = mine();
