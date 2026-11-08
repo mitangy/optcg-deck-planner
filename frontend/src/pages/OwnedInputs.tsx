@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ShoppingItem } from "../api";
-import { OwnedStepper, WantStepper } from "../OwnedCells";
+import { OwnedStepper, WantStepper } from "./collection/OwnedCells";
 import { applyOwnedOptimistic, applyWantOptimistic } from "../cache/optimistic";
 
 export function OwnedInput({

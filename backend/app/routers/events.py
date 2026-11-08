@@ -17,9 +17,11 @@ from sqlalchemy.orm import Session
 
 from app.duel import events as ev
 from app.core.time import as_utc_or_none
-from app.auth import get_current_user, get_optional_user
-from app.db import get_db
-from app.models import DuelEvent, EventDraw, EventEntry, User
+from app.core.auth import get_current_user, get_optional_user
+from app.core.db import get_db
+from app.core.models import User
+from app.duel.models import DuelEvent, EventDraw, EventEntry
+from app.duel.schemas import AdminEvent, AdminEventDeleted, AdminEventList, EventEnvelope, EventJoined
 from app.roles import is_staff
 from app.core.security import Admin
 from app.usernames import duel_display_name
@@ -83,7 +85,7 @@ def _can_join(event: ev.Event, user: User | None, now: datetime) -> tuple[bool, 
 
 # ---------------------------------------------------------------- public
 
-@router.get("/current")
+@router.get("/current", response_model=EventEnvelope)
 def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
     """The lobby banner's event: live or upcoming, or one that ended in the last week."""
     now = ev.utcnow()
@@ -93,7 +95,7 @@ def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) ->
     return {"event": _public_event(db, user, event, now)}
 
 
-@router.get("/{event_id}")
+@router.get("/{event_id}", response_model=EventEnvelope)
 def by_id(event_id: str, db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
     """One event by id at any time, so the rules page keeps the seed and eligible ids through the
     draw and the reply window long after the banner stops advertising it (#795)."""
@@ -150,7 +152,7 @@ class JoinIn(BaseModel):
     rules_version: str = ""
 
 
-@router.post("/{event_id}/join")
+@router.post("/{event_id}/join", response_model=EventJoined)
 def join(event_id: str, body: JoinIn, db: DB, user: Annotated[User, Depends(get_current_user)]) -> dict:
     event = _event_or_404(db, event_id)
     ok, reason = _can_join(event, user, ev.utcnow())
@@ -240,7 +242,7 @@ def _admin_state(db: Session, event: ev.Event) -> dict:
     return state
 
 
-@admin_router.get("")
+@admin_router.get("", response_model=AdminEventList)
 def admin_list_events(_: Admin, db: DB) -> dict:
     """Every event, newest start first, for the admin picker (#1019)."""
     now = ev.utcnow()
@@ -263,7 +265,7 @@ def admin_list_events(_: Admin, db: DB) -> dict:
     }
 
 
-@admin_router.get("/latest")
+@admin_router.get("/latest", response_model=AdminEvent)
 def admin_latest_event(_: Admin, db: DB) -> dict:
     """The newest event whatever the date, so the admin tab can still draw and forfeit weeks after the end (#795)."""
     event = ev.latest_event(db)
@@ -272,7 +274,7 @@ def admin_latest_event(_: Admin, db: DB) -> dict:
     return _admin_state(db, event)
 
 
-@admin_router.get("/{event_id}")
+@admin_router.get("/{event_id}", response_model=AdminEvent)
 def admin_event(event_id: str, _: Admin, db: DB) -> dict:
     return _admin_state(db, _event_or_404(db, event_id))
 
@@ -376,7 +378,7 @@ def _slug(db: Session, title: str, starts_at: datetime) -> str:
     return slug
 
 
-@admin_router.post("")
+@admin_router.post("", response_model=AdminEvent)
 def admin_create_event(body: EventIn, _: Admin, db: DB) -> dict:
     v = _clean(body.model_dump())
     row = DuelEvent(id=_slug(db, v["title"], v["starts_at"]), rules_version=_new_rules_version(""), **v)
@@ -385,7 +387,7 @@ def admin_create_event(body: EventIn, _: Admin, db: DB) -> dict:
     return _admin_state(db, ev.event_from_row(row))
 
 
-@admin_router.patch("/{event_id}")
+@admin_router.patch("/{event_id}", response_model=AdminEvent)
 def admin_update_event(event_id: str, body: EventPatch, _: Admin, db: DB) -> dict:
     row = db.get(DuelEvent, event_id)
     if row is None:
@@ -413,7 +415,7 @@ def admin_update_event(event_id: str, body: EventPatch, _: Admin, db: DB) -> dic
     return _admin_state(db, ev.event_from_row(row))
 
 
-@admin_router.delete("/{event_id}")
+@admin_router.delete("/{event_id}", response_model=AdminEventDeleted)
 def admin_delete_event(event_id: str, _: Admin, db: DB) -> dict:
     row = db.get(DuelEvent, event_id)
     if row is None:
@@ -454,7 +456,7 @@ def admin_event_csv(event_id: str, _: Admin, db: DB) -> Response:
     )
 
 
-@admin_router.post("/{event_id}/commit")
+@admin_router.post("/{event_id}/commit", response_model=AdminEvent)
 def admin_commit(event_id: str, admin: Admin, db: DB) -> dict:
     event = _event_or_404(db, event_id)
     _require_draw_event(event)
@@ -468,7 +470,7 @@ def admin_commit(event_id: str, admin: Admin, db: DB) -> dict:
     return _admin_state(db, event)
 
 
-@admin_router.post("/{event_id}/draw")
+@admin_router.post("/{event_id}/draw", response_model=AdminEvent)
 def admin_draw(event_id: str, admin: Admin, db: DB) -> dict:
     event = _event_or_404(db, event_id)
     _require_draw_event(event)
@@ -491,7 +493,7 @@ class ForfeitIn(BaseModel):
     user_id: int
 
 
-@admin_router.post("/{event_id}/forfeit")
+@admin_router.post("/{event_id}/forfeit", response_model=AdminEvent)
 def admin_forfeit(event_id: str, body: ForfeitIn, _: Admin, db: DB) -> dict:
     event = _event_or_404(db, event_id)
     draw = _draw(db, event.id)

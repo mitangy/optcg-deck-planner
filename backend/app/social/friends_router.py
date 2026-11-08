@@ -11,13 +11,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.statuses import FriendshipStatus
-from app.auth import get_current_user
-from app.config import Settings, get_settings
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
 from app.core.time import as_utc, utcnow
-from app.db import get_db
-from app.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship, User
-from app.rate_limit import RateLimiter
-from app.schemas import (
+from app.core.db import get_db
+from app.core.models import User
+from app.social.models import DuelInvite, DuelLobbySeen, DuelPresence, Friendship
+from app.core.rate_limit import RateLimiter
+from app.social.schemas import (
     DuelInviteOut,
     FriendInviteIn,
     FriendOut,

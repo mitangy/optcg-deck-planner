@@ -11,21 +11,23 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, R
 from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.analyst_stats import matchup_stats
-from app.tournament_stats import tournament_stats
-from app.tournament_sync import sync_status
+from app.analyst.stats import matchup_stats
+from app.analyst.tournament_stats import tournament_stats
+from app.analyst.tournament_sync import sync_status
 from app.analyst import access
 from app.analyst.auth import analyst_user, hash_token
 from app.core.security import require_service
-from app.auth import get_current_user
+from app.core.auth import get_current_user
 from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.core.statuses import LessonStatus
-from app.db import get_db
-from app.models import AnalystLesson, AnalystPrefs, AnalystToken, Deck, DuelMatch, DuelMatchLog, SimGame, User
+from app.core.db import get_db
+from app.analyst.models import AnalystLesson, AnalystPrefs, AnalystToken
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchLog, SimGame
+from app.planner.models import Deck
 from app.duel.matches import match_history
-from app.schemas import (
-    CARD_ID_PATTERN,
+from app.analyst.schemas import (
     AnalystDeckOut,
     AnalystDecksOut,
     AnalystLessonIn,
@@ -36,6 +38,9 @@ from app.schemas import (
     AnalystSharing,
     AnalystTokenCreated,
     AnalystTokenStatus,
+)
+from app.core.schemas import CARD_ID_PATTERN
+from app.duel.schemas import (
     DuelMatchHistoryOut,
     SimGameDetailOut,
     SimGameOut,

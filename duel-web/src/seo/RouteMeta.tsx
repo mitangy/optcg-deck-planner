@@ -8,7 +8,7 @@ import { routeMetaFor, SITE_ORIGIN } from "./routeMetaTable";
  *
  * It only runs when the path changes, never on later renders, so the "Your move"
  * mark the turn alert puts in front of the title while a match tab is hidden
- * (board/turnAlert.ts) is not overwritten.
+ * (board/audio/turnAlert.ts) is not overwritten.
  */
 export function RouteMeta() {
   const { pathname } = useLocation();

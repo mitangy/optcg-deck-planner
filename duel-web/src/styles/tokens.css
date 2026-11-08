@@ -1,0 +1,131 @@
+/* Palette tokens. The default theme ("Night Sea") lives here; crew themes in
+   themes.css override the same tokens under [data-theme]. The *-rgb triples
+   feed translucent tints: rgb(var(--chrome-rgb) / 0.24). */
+/* Game surfaces that stay dark in light mode (see themes.css). */
+:root,
+[data-theme="nightSea"],
+.playmat,
+.turn-splash {
+  /* Night-sea base + parchment ink + straw-hat gold. Crimson is reserved for
+     danger / attack cues so it never competes with primary actions. */
+  --arena-deep: #0b1720;
+  --arena-mid: #11212d;
+  --arena-panel: #172a38;
+  --arena-raised: #1d3344;
+  --chrome: #d2a54d;
+  --chrome-bright: #f0dca8;
+  --chrome-dim: #8c7342;
+  --ink: #f1e9d6;
+  --muted: #95a4ad;
+  --ok: #3f8a5f;
+  --danger: #b2372f;
+  --crimson-bright: #d24a3f;
+  --warn: #c9822f;
+  --sea: #2f6f86;
+  --deep-rgb: 11 23 32;
+  --abyss-rgb: 5 11 16;
+  --mid-rgb: 17 33 45;
+  --panel-rgb: 23 42 56;
+  --raised-rgb: 29 51 68;
+  --mat-rgb: 14 34 48;
+  --chrome-rgb: 210 165 77;
+  --chrome-bright-rgb: 240 220 168;
+  --sea-rgb: 47 111 134;
+  --sea-bright-rgb: 127 182 214;
+  --muted-rgb: 149 164 173;
+  --foe-glow-rgb: 120 64 44;
+  /* Primary ("go") buttons: gradient, the ink on them, and their bevel. */
+  --btn-top: #e6bd62;
+  --btn-bottom: #c7963d;
+  --on-chrome: #1d1406;
+  --btn-edge-rgb: 255 236 190;
+  --btn-shine-rgb: 255 250 230;
+  --btn-shade-rgb: 90 60 10;
+  /* Default playmat felt: yours, then the opponent's. */
+  --mat-top: #12303d;
+  --mat-bottom: #0e2230;
+  --mat-foe-top: #1a2530;
+  --mat-foe-bottom: #121c25;
+  /* Page glows: cool light from above, warm lantern low-right. */
+  --glow-top: #1f4a5c55;
+  --glow-low: #4a321444;
+  --radius: 10px;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --font-num: "Chakra Petch", ui-monospace, sans-serif;
+  /* Notch / home-indicator insets (viewport-fit=cover in index.html). 0 on
+     desktop and non-notched phones. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  color-scheme: dark;
+}
+
+/* Tokens built from the palette, declared again on every themed element so a
+   theme preview chip ([data-theme] on a span) resolves them from its own
+   palette rather than inheriting the page's. */
+:root,
+[data-theme],
+.playmat,
+.turn-splash {
+  --line: rgb(var(--chrome-rgb) / 0.24);
+  --line-strong: rgb(var(--chrome-rgb) / 0.5);
+  --focus: 0 0 0 2px var(--arena-deep), 0 0 0 4px var(--chrome-bright);
+  --vignette: radial-gradient(ellipse at center, transparent 40%, rgb(var(--abyss-rgb) / 0.73) 100%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--arena-deep);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+html {
+  /* Text grows with the window (16px on phones, ~18px at 1440, 20px at 1920,
+     22px at 2560) times the Text size setting (--text-scale, set from settings). */
+  --text-scale: 1;
+  font-size: calc(clamp(16px, 12.8px + 0.36vw, 22px) * var(--root-scale));
+  /* Phones are tight: the setting counts for only 60% of its step there, and
+     card badges (which use the full --text-scale) carry the rest. */
+  --root-scale: var(--text-scale);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: clip;
+  --wave-src: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 12c15 0 15-8 30-8s15 8 30 8 15-8 30-8 15 8 30 8' fill='none' stroke='%23d2a54d' stroke-opacity='0.035' stroke-width='1.2'/%3E%3C/svg%3E");
+  --wave-layer: var(--wave-src);
+  /* Moonlit sea: cool glow from above, faint warm lantern low-right, and a
+     barely-there wave line texture. */
+  background:
+    radial-gradient(1000px 560px at 50% -12%, var(--glow-top), transparent 62%),
+    radial-gradient(640px 380px at 100% 100%, var(--glow-low), transparent 60%),
+    var(--wave-layer),
+    var(--arena-deep);
+}
+
+@media (max-width: 600px), (max-height: 499px) {
+  html {
+    --root-scale: calc(1 + (var(--text-scale) - 1) * 0.6);
+  }
+}
+
+body,
+#root {
+  overflow-x: clip;
+}
+
+body,
+#root {
+  background: transparent;
+}
+

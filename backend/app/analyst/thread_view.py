@@ -6,7 +6,7 @@ no router imports another (refactor D-02).
 
 from __future__ import annotations
 
-from app.schemas import AnalystCitation, AnalystDeckDraft, AnalystDeckEdit, AnalystDisplayMessage
+from app.analyst.schemas import AnalystCitation, AnalystDeckDraft, AnalystDeckEdit, AnalystDisplayMessage
 
 
 # The analyst puts page/deck context in a user text block starting with this; the panel hides it.

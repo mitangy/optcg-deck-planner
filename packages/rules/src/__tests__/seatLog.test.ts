@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildTestDeck, DEFAULT_LEADER_ID, getCardDef } from "../cards/definitions.js";
 import { applyIntent, createMatch, listLegalIntents, projectGameEvents, skipMulligans } from "../engine.js";
-import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
-import { seatLog } from "../seatLog.js";
+import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/matchReplay.js";
+import { seatLog } from "../replay/seatLog.js";
 import type { GameEvent, MatchState, Seat } from "../types.js";
 
 /** Play cards and attack whenever possible until a Life card goes to a hand. */

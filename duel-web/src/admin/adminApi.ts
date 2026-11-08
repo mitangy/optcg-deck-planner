@@ -1,109 +1,42 @@
+import type { components } from "@optcg/api-client";
 import { apiCall, apiError } from "../api/http";
 import { getApiBaseUrl } from "../config";
 
-export type Role = "user" | "moderator" | "admin";
+// The response shapes are generated from the backend's OpenAPI schema (refactor 2.1c, node tools/ci/openapi-types.cjs):
+// these aliases keep the names callers already use. A type written out below is one the backend does not describe
+// exactly (hosting and traffic are free-form provider blobs there; SignupSource omits absent keys, which OpenAPI
+// cannot say), or a request body.
+type Schemas = components["schemas"];
 
-export type AdminMe = {
-  role: Role;
-  can: { analytics: boolean; set_roles: boolean; ban: boolean; delete: boolean };
-};
+export type Role = Schemas["AdminMe"]["role"];
+
+export type AdminMe = Schemas["AdminMe"];
 
 export type DayCount = { day: string };
-export type SignupDay = DayCount & { real: number; guests: number };
-export type MatchDay = DayCount & { ranked: number; casual: number };
+export type SignupDay = Schemas["SignupDay"];
+export type MatchDay = Schemas["MatchDay"];
 
-export type LeaderCount = { leader_id: string; games: number; wins: number };
+export type LeaderCount = Schemas["LeaderCount"];
 
-export type AdminOverview = {
-  generated_at: string;
-  /** The window of the day charts and `top_leaders`. */
-  days: number;
-  accounts: { total: number; real: number; guests: number; staff: number; banned: number; new_7d: number; new_30d: number };
-  signups_by_day: SignupDay[];
-  active: { d1: number; d7: number; d30: number; real_d7: number; real_d30: number };
-  matches_by_day: MatchDay[];
-  matches: { total: number; last_7d: number; ranked_7d: number; avg_turns_30d: number | null };
-  /** The last `days` days, up to 25. */
-  top_leaders: LeaderCount[];
-  /** Kept for older clients: always the last 30 days. */
-  top_leaders_30d: LeaderCount[];
-  planner: { decks: number; users_with_decks: number };
-  log_pose: { questions_month: number; spend_month_usd: number; users_with_access: number };
-};
+export type AdminOverview = Schemas["AdminOverview"];
 
-export type DayMatchSeat = { user_id: number; name: string | null; leader_id: string | null; won: boolean };
-export type DayMatch = {
-  /** The id the replay page takes: /replay/:id. */
-  id: string;
-  created_at: string | null;
-  ranked: boolean;
-  turns: number | null;
-  winner_seat: number | null;
-  seats: DayMatchSeat[];
-};
-export type AdminDayMatches = { day: string; matches: DayMatch[] };
+export type DayMatchSeat = Schemas["DayMatchSeat"];
+export type DayMatch = Schemas["DayMatch"];
+export type AdminDayMatches = Schemas["AdminDayMatches"];
 
-export type EvalGroups = Record<string, { correct: number; total: number }>;
+export type EvalGroups = Schemas["EvalRun"]["groups"];
 
-export type EvalSuite = "main" | "review_facts" | "puzzles" | "deck_advice";
+export type EvalSuite = Schemas["EvalRun"]["suite"];
 
-export type EvalRun = {
-  /** Which eval. Runs recorded before suites existed are "main". */
-  suite: EvalSuite;
-  run_at: string;
-  label: string;
-  model: string;
-  /** The score, null for a run that only has a headline metric. */
-  correct: number | null;
-  total: number | null;
-  /** The headline when a suite is not a score, e.g. "Wrong claims per review". */
-  metric_name: string | null;
-  metric_value: number | null;
-  lower_is_better: boolean;
-  groups: EvalGroups;
-  spend_usd: number | null;
-  notes: string;
-};
+export type EvalRun = Schemas["EvalRun"];
 
-export type AdminBots = {
-  bot_games: {
-    total: number;
-    finished: number;
-    unfinished: number;
-    first_game_at: string | null;
-    last_game_at: string | null;
-    leaders: number;
-    matchups: number;
-    avg_turns: number | null;
-    first_seat_win_rate: number | null;
-    last_batch_id: string | null;
-    by_day: { day: string; games: number; finished: number }[];
-  };
-  /** The window of `bot_games.by_day`. */
-  days: number;
-  evals: EvalRun[];
-};
+export type AdminBots = Schemas["AdminBots"];
 
-export type FeedbackRating = "up" | "down" | "wrong";
+export type FeedbackRating = Schemas["FeedbackItem"]["rating"];
 
-export type FeedbackItem = {
-  id: number;
-  created_at: string | null;
-  updated_at: string | null;
-  kind: "chat" | "review";
-  rating: FeedbackRating;
-  note: string;
-  answer_excerpt: string;
-  question: string;
-  model: string;
-  user_id: number;
-  user_name: string | null;
-  thread_id: number | null;
-  message_index: number | null;
-  match_id: string | null;
-};
+export type FeedbackItem = Schemas["FeedbackItem"];
 
-export type AdminFeedback = { days: number; counts: Record<FeedbackRating, number>; items: FeedbackItem[] };
+export type AdminFeedback = Schemas["AdminFeedback"];
 
 export type ProviderResult<T> = { configured: false } | { configured: true; error: string } | ({ configured: true; error?: undefined } & T);
 
@@ -166,67 +99,17 @@ export type AdminTraffic = { days: number; vercel: ProviderResult<TrafficVercel>
 
 export type SignupSource = { ref?: string; land?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
-export type AdminUser = {
-  id: number;
-  email: string;
-  name: string;
-  username: string | null;
-  role: Role;
-  created_at: string;
-  banned_at: string | null;
-  ban_reason: string | null;
+export type AdminUser = Omit<Schemas["AdminUser"], "signup_source"> & {
   /** First-touch source captured at sign-up (#905). Null: unknown (account predates tracking); `{}`: direct. */
   signup_source: SignupSource | null;
-  /** Ranked + friends + private games (bot and practice are in `games` only). */
-  matches: number;
-  last_match_at: string | null;
-  /** Games per mode (#988). */
-  games: GameCounts;
 };
 
-export type GameMode = "ranked" | "friends" | "private" | "bot" | "practice";
-export type GameCounts = Record<GameMode, number>;
+export type GameMode = Schemas["AdminUserMatch"]["mode"];
+export type GameCounts = Schemas["GameCounts"];
 
-export type AdminUserDetail = {
-  user: AdminUser;
-  last_seen_at: string | null;
-  last_seen: { lobby: string | null; match: string | null; solo: string | null; log_pose: string | null };
-  online: { now: boolean; room_role: "player" | "spectator" | null; ranked: boolean | null };
-  rating: { rating: number; ranked_games: number } | null;
-  modes: { mode: GameMode; games: number; wins: number }[];
-  /** When the first bot / practice game of any account was saved; null while none has been. */
-  solo_tracked_since: string | null;
-  top_leaders: LeaderCount[];
-  recent_matches: AdminUserMatch[];
-  planner: { decks: number; owned_cards: number; owned_unique: number };
-  duel: { saved_decks: number; uploads: number; uploads_taken_down: number; friends: number; friend_requests_pending: number };
-  log_pose: {
-    access: "pending" | "approved" | "denied" | null;
-    questions_total: number;
-    questions_month: number;
-    spend_total_usd: number;
-    spend_month_usd: number;
-    last_used_at: string | null;
-    threads: number;
-  };
-  moderation: { reports_against: number; reports_open: number; reports_filed: number; warnings: number; banned_by: { id: number; name: string } | null };
-};
+export type AdminUserDetail = Omit<Schemas["AdminUserDetail"], "user"> & { user: AdminUser };
 
-export type AdminUserMatch = {
-  /** Match id (opens /replay/:id when `replay`), or the solo game key. */
-  id: string;
-  created_at: string;
-  mode: GameMode;
-  leader_id: string | null;
-  opponent_leader_id: string | null;
-  /** Null for bot and practice. */
-  opponent: { id: number; name: string } | null;
-  bot_level: string | null;
-  won: boolean | null;
-  turns: number | null;
-  reason: string;
-  replay: boolean;
-};
+export type AdminUserMatch = Schemas["AdminUserMatch"];
 
 export type AdminUsers = { total: number; users: AdminUser[] };
 
@@ -260,22 +143,13 @@ export const unbanUser = (id: number) => call<AdminUser>(`/admin/users/${id}/unb
 export const deleteUser = (id: number) => call<void>(`/admin/users/${id}`, { method: "DELETE" });
 
 /** Advisory cheat-review flags (#809). They never change eligibility. */
-export type EventFlag = "new_account" | "new_opponents" | "isolated_group" | "private_only";
-export type EventParticipant = { user_id: number; name: string; email: string; games: number; opponents: number; eligible: boolean; excluded: "guest" | "banned" | "staff" | null; flags: EventFlag[] };
-export type EventDrawee = { user_id: number; name: string; email: string; forfeited: boolean };
-export type EventDrawState = {
-  seed_hash: string;
-  committed_at: string | null;
-  drawn_at: string | null;
-  /** Null until the draw runs. */
-  seed: string | null;
-  forfeited: number[];
-  ranking: EventDrawee[];
-  winners: EventDrawee[];
-};
-export type EventFormat = "casual" | "single_elim" | "round_robin" | "swiss";
-export type EventPrizeMethod = "draw" | "placement";
-export type EventStatus = "upcoming" | "live" | "ended" | "drawn";
+export type EventFlag = Schemas["EventParticipant"]["flags"][number];
+export type EventParticipant = Schemas["EventParticipant"];
+export type EventDrawee = Schemas["EventDrawee"];
+export type EventDrawState = Schemas["EventDrawState"];
+export type EventFormat = Schemas["AdminEvent"]["format"];
+export type EventPrizeMethod = Schemas["AdminEvent"]["prize_method"];
+export type EventStatus = Schemas["AdminEvent"]["status"];
 /** What an admin sets on an event (#1019). Dates are ISO strings in UTC. */
 export type EventFields = {
   title: string;
@@ -294,25 +168,8 @@ export type EventFields = {
   min_opponents: number;
   min_turns: number;
 };
-export type AdminEventSummary = {
-  id: string;
-  title: string;
-  starts_at: string;
-  ends_at: string;
-  status: EventStatus;
-  format: EventFormat;
-  prize: string;
-  joined: number;
-};
-export type AdminEvent = EventFields & {
-  id: string;
-  status: EventStatus;
-  rules_version: string;
-  winners_count: number;
-  counters: { opted_in: number; games_in_window: number; players_with_game: number; eligible: number; flagged_eligible: number };
-  participants: EventParticipant[];
-  draw: EventDrawState | null;
-};
+export type AdminEventSummary = Schemas["AdminEventSummary"];
+export type AdminEvent = Schemas["AdminEvent"];
 
 /** Every event, newest start first (#1019). */
 export const fetchAdminEvents = () => call<{ events: AdminEventSummary[] }>("/admin/events").then((r) => r.events);
@@ -331,29 +188,9 @@ export const eventCsvUrl = (id: string) => `${getApiBaseUrl()}/admin/events/${en
 
 // ---------------------------------------------------------------- player reports
 
-export type ReportStatus = "open" | "dismissed" | "actioned";
+export type ReportStatus = Schemas["ReportRow"]["status"];
 
-export type ReportRow = {
-  id: number;
-  created_at: string;
-  status: ReportStatus;
-  action: string;
-  staff_note: string;
-  handled_by_name: string | null;
-  handled_at: string | null;
-  reason: "conduct" | "toxic" | "image";
-  image_kind: "playmat" | "cardBack" | null;
-  note: string;
-  match_id: string;
-  source: string;
-  /** The saved match exists, so /replay/:id opens. */
-  match_finished: boolean;
-  has_image: boolean;
-  cosmetic_id: number | null;
-  image_taken_down: boolean;
-  reporter: { id: number; name: string } | null;
-  reported: { id: number; name: string; role: Role; banned: boolean; open_reports: number; total_reports: number; warnings: number };
-};
+export type ReportRow = Schemas["ReportRow"];
 
 export const fetchAdminReports = (status: "open" | "all") =>
   call<{ reports: ReportRow[] }>(`/admin/reports?status=${status}`).then((r) => r.reports);
@@ -376,24 +213,11 @@ export async function fetchReportImageUrl(id: number): Promise<string> {
 // ---------------------------------------------------------------- uploaded images (#812)
 
 export type UploadState = "live" | "taken_down" | "all";
-export type UploadKind = "playmat" | "cardBack";
+export type UploadKind = Schemas["UploadRow"]["kind"];
 
-export type UploadRow = {
-  id: number;
-  kind: UploadKind;
-  mime: string;
-  size: number;
-  created_at: string;
-  /** The owner has it switched on as their playmat / card back. */
-  in_use: boolean;
-  report_count: number;
-  taken_down_at: string | null;
-  taken_down_by_name: string | null;
-  taken_down_reason: string | null;
-  owner: { id: number; name: string; role: Role; banned: boolean };
-};
+export type UploadRow = Schemas["UploadRow"];
 
-export type UploadsPage = { total: number; items: UploadRow[] };
+export type UploadsPage = Schemas["UploadsPage"];
 
 export const fetchAdminUploads = (state: UploadState, kind: UploadKind | null, offset: number, limit: number, beforeId?: number) =>
   call<UploadsPage>(`/admin/cosmetics?state=${state}${kind ? `&kind=${kind}` : ""}&limit=${limit}&offset=${offset}${beforeId === undefined ? "" : `&before_id=${beforeId}`}`);

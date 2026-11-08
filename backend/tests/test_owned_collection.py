@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app import services
+from app.planner import owned as owned_svc
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -14,7 +14,7 @@ def test_collection_value_is_copies_times_market_price_268(db):
     set_owned(db, user, "OP01-002", 2)
     set_owned(db, user, "OP01-003", 1)
 
-    col = services.owned_collection(db, user)
+    col = owned_svc.owned_collection(db, user)
     by_id = {i.card_id: i for i in col.items}
 
     assert by_id["OP01-001"].value == 7.5
@@ -35,7 +35,7 @@ def test_collection_skips_zero_owned_and_lists_decks_268(db):
     set_owned(db, user, "OP01-001", 4)
     set_owned(db, user, "OP01-002", 0)
 
-    col = services.owned_collection(db, user)
+    col = owned_svc.owned_collection(db, user)
 
     assert [i.card_id for i in col.items] == ["OP01-001"]
     assert col.unique_cards == 1

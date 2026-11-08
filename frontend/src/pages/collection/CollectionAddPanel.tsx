@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, CatalogCardResult } from "../../api";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { invalidateOwnedViews } from "../../ownedCollection";
+import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { invalidateOwnedViews } from "./ownedCollection";
 import { OwnedInput } from "../OwnedInputs";
 import { useFullShoppingById } from "../shopping/lightboxActions";
 import { CatalogAddDrawer } from "./CatalogAddDrawer";
 import { COLLECTION_ADD_OPEN_KEY } from "../../storage/keys";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 /** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
 export function CollectionOwnedControl({

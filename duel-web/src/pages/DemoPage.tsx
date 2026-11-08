@@ -16,7 +16,7 @@ import {
   withHakiResolving,
   withHandReveals,
 } from "../board/fixtures/demoViews";
-import { DEMO_MATCH_ID } from "../board/tabMute";
+import { DEMO_MATCH_ID } from "../board/audio/tabMute";
 import { motionDemoSteps } from "./motionDemo";
 import { buildDemoView, demoPickedBy } from "./demo/demoParams";
 

@@ -66,6 +66,20 @@ describe("duel vercel.json routes (#804)", () => {
     if (p !== "/") expect(status(routes, `${sample(p)}/`)).toBe(200);
   });
 
+  it("every page rule in vercel.json is a route of the app, so a removed route leaves no stale rule behind (refactor 3.4b)", () => {
+    // Not pages: the asset 404, the `/index.html` alias and the final 404 catch-all.
+    const NOT_PAGES = new Set(["/assets/(.*)", "/index\\.html", "/(.*)"]);
+    const pageRules = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1).filter((r) => r.src && !NOT_PAGES.has(r.src));
+    expect(pageRules.length).toBeGreaterThan(15);
+    for (const r of pageRules) {
+      const re = new RegExp(`^${r.src}$`);
+      expect(
+        appPaths.some((p) => re.test(sample(p))),
+        `${r.src} matches no route of the app`,
+      ).toBe(true);
+    }
+  });
+
   it("an unknown path answers 404 and still serves the app (#804)", () => {
     expect(status(routes, "/nope-xyz")).toBe(404);
     expect(status(routes, "/history/a/b/c")).toBe(404);

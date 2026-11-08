@@ -1,0 +1,758 @@
+/* Alt tiles in the table's last column (#877): same on Shopping, Collection, deck and group buys.
+   Up to ~5 tiles show, then the column scrolls inside the row instead of stretching it. */
+.data-table td.alt-arts-cell .alt-art .thumb {
+  width: 52px;
+  height: 72px;
+}
+
+/* The page content is capped near 1160px at every viewport, so Master Shopping (the widest table) always
+   needs the compact form once its Alt arts column shows: tighter cells, smaller alt tiles and steppers,
+   and no Cost column (grid and phone cards still show it) (#892). */
+.shopping-table:has(td.alt-arts-cell) :is(th, td) {
+  padding-inline: 0.45rem;
+}
+
+.shopping-table td.alt-arts-cell .alt-art .thumb {
+  width: 44px;
+  height: 62px;
+}
+
+.shopping-table:has(td.alt-arts-cell) .col-cost {
+  display: none;
+}
+
+.shopping-table:has(td.alt-arts-cell) .card-cell {
+  width: 12rem;
+  min-width: 12rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) .owned-btn {
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1.1rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) :is(.owned, .want-qty) {
+  width: 2.3rem;
+}
+
+.shopping-table:has(td.alt-arts-cell) td:not(.alt-arts-cell) .want-qty {
+  height: 2.1rem;
+}
+
+/* Below 1440px the Alt arts column has to share the row with the dock/editor beside the table, so the
+   deck and Collection tables tighten their cells and use smaller tiles; the deck list also drops its
+   Type column (grid and phone cards still show it). */
+@media (max-width: 1439px) {
+  :is(.deck-table, .collection-table):has(td.alt-arts-cell) :is(th, td) {
+    padding-inline: 0.5rem;
+  }
+
+  :is(.deck-table, .collection-table) td.alt-arts-cell .alt-art .thumb {
+    width: 44px;
+    height: 62px;
+  }
+
+  .deck-table:has(td.alt-arts-cell) .col-type {
+    display: none;
+  }
+
+  .deck-table:has(td.alt-arts-cell) .card-cell {
+    width: 12rem;
+    min-width: 12rem;
+  }
+}
+
+.group-buy-detail .table-wrap {
+  /* Prefer fitting the page width over a nested horizontal scrollbar when possible. */
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.grid-card-alts,
+.mobile-card-alts {
+  min-width: 0;
+}
+
+.grid-card-alts .alt-arts,
+.mobile-card-alts .alt-arts {
+  max-width: 100%;
+}
+
+/* Alt tiles fit inside narrow grid cards (2 columns at 375px). */
+/* Height cap (#877): ~5 tiles, then the alt list scrolls inside the card. */
+.grid-card-alts .alt-arts,
+.data-table td.alt-arts-cell .alt-arts,
+.mobile-card-alts .alt-arts {
+  /* Tiles with an Owned stepper are ~116px tall; group buy tiles (no stepper) set --alt-tile-h smaller
+     on their wrapper (.alt-arts-short). */
+  --alt-rows: 5;
+  max-height: calc(var(--alt-rows) * var(--alt-tile-h, 116px) + (var(--alt-rows) - 1) * 0.55rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Keep the scrollbar off the tile controls. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.alt-arts-short {
+  --alt-tile-h: 84px;
+}
+
+/* Who wants this art (#891): member-coloured chips under the tile's price/label, wrapping inside it. */
+.alt-art-wants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  margin-top: 0.1rem;
+}
+
+.alt-art-wants .group-buy-who-chip {
+  font-size: 0.74rem;
+  gap: var(--space-1);
+}
+
+/* One line per chip (#902): the chips get their own row across the whole tile, under the
+   thumbnail; a very long name ends in "…" (full text in the tooltip). */
+.alt-art:has(> .alt-art-wants) {
+  flex-wrap: wrap;
+}
+
+.alt-art > .alt-art-wants {
+  flex: 1 0 100%;
+  margin-top: 0;
+}
+
+.alt-art-wants .group-buy-who-chip {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.alt-art-want-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phone list: tiles sit two (or more) per row, so three rows is already six tiles. */
+.mobile-card-alts .alt-arts {
+  --alt-rows: 3;
+}
+
+.grid-card-alts .alt-art {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.grid-card-alts .alt-art .thumb {
+  width: 48px;
+  height: 67px;
+  flex-shrink: 0;
+}
+
+.group-buy-merged-heading {
+  margin: 0 0 0.65rem;
+}
+
+.group-buy-merged-toolbar {
+  margin-bottom: 1rem;
+}
+
+.group-buy-user-section {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.mobile-card-list > .group-buy-user-section {
+  margin: 0.75rem 0 0.25rem;
+  padding: 0 0.1rem;
+}
+
+.group-buy-user-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  font-weight: 650;
+  font-size: 0.95rem;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+
+.group-buy-user-heading .group-buy-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.data-table tr.group-buy-user-header-row td {
+  padding: 0.7rem 0.85rem 0.45rem;
+  background: var(--bg);
+  font-weight: 650;
+}
+
+.data-table tr.group-buy-user-header-row:first-child td {
+  padding-top: 0.55rem;
+}
+
+.grid-card-owned .group-buy-qty {
+  justify-items: center;
+}
+
+.grid-card-owned .group-buy-qty-meta {
+  align-items: center;
+  text-align: center;
+}
+
+.grid-card-owned .group-buy-exclude-btn {
+  justify-self: center;
+}
+
+.group-buy-contribution-actions {
+  margin-top: 0.75rem;
+}
+
+.group-buy-contribution-actions .btn {
+  width: auto;
+  margin-top: 0;
+}
+
+.group-buy-deck-filter-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+}
+
+.group-buy-qty {
+  /* Column width comes from the −/+ controls only, so the suggestion
+     line cannot widen this block and shove the stepper sideways. */
+  display: inline-grid;
+  grid-template-columns: max-content;
+  gap: 0.35rem;
+  min-width: 0;
+  justify-items: stretch;
+}
+
+.group-buy-exclude-btn.btn {
+  justify-self: start;
+  width: auto;
+  margin: 0;
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: var(--radius-10);
+  white-space: nowrap;
+}
+
+.grid-card.excluded,
+.mobile-card.excluded {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+/* Mute excluded table rows without filter on <tr>/<td> — filters create a
+   stacking context that clips and shifts border-bottom seams. */
+.data-table tr.excluded td {
+  background: var(--card-sunk);
+  opacity: 0.55;
+}
+
+.group-buy-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: var(--radius-pill);
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 21, 0.18);
+}
+
+.group-buy-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.55rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-buy-who-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.group-buy-who-row {
+  margin: 0.3rem 0 0.15rem;
+  min-width: 0;
+}
+
+/* Who-wants rail (#898): one segment per member, full height of the card or table row,
+   each segment outlined so neighbouring colours stay distinct. */
+.group-buy-color-rail {
+  display: flex;
+  flex-direction: column;
+  width: 9px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-raise-1);
+  gap: 2px;
+}
+
+.group-buy-color-rail > span {
+  flex: 1 1 0;
+  min-height: 0.6rem;
+  border: 1px solid #000;
+  border-radius: var(--radius-3);
+}
+
+.grid-card:has(> .group-buy-color-rail),
+.mobile-card:has(> .group-buy-color-rail) {
+  padding-left: 1.05rem;
+}
+
+.grid-card > .group-buy-color-rail,
+.mobile-card > .group-buy-color-rail {
+  border-radius: 15px 0 0 15px;
+}
+
+.gb-user-0 { --gb-user: #0f6a6a; }
+.gb-user-1 { --gb-user: #c65911; }
+.gb-user-2 { --gb-user: #2f6b3a; }
+.gb-user-3 { --gb-user: #355c7d; }
+.gb-user-4 { --gb-user: #9b2c2c; }
+.gb-user-5 { --gb-user: #6b5344; }
+.gb-user-6 { --gb-user: #8a5a12; }
+.gb-user-7 { --gb-user: #3d5a80; }
+
+.grid-card.need.gb-user-0,
+.grid-card.need.gb-user-1,
+.grid-card.need.gb-user-2,
+.grid-card.need.gb-user-3,
+.grid-card.need.gb-user-4,
+.grid-card.need.gb-user-5,
+.grid-card.need.gb-user-6,
+.grid-card.need.gb-user-7,
+.mobile-card.need.gb-user-0,
+.mobile-card.need.gb-user-1,
+.mobile-card.need.gb-user-2,
+.mobile-card.need.gb-user-3,
+.mobile-card.need.gb-user-4,
+.mobile-card.need.gb-user-5,
+.mobile-card.need.gb-user-6,
+.mobile-card.need.gb-user-7 {
+  background: color-mix(in srgb, var(--gb-user) 14%, var(--need));
+}
+
+.data-table tr.gb-user-0 td,
+.data-table tr.gb-user-1 td,
+.data-table tr.gb-user-2 td,
+.data-table tr.gb-user-3 td,
+.data-table tr.gb-user-4 td,
+.data-table tr.gb-user-5 td,
+.data-table tr.gb-user-6 td,
+.data-table tr.gb-user-7 td {
+  background: color-mix(in srgb, var(--gb-user) 10%, var(--card));
+}
+
+.group-buy-qty-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.group-buy-qty-input {
+  width: 3rem;
+  min-height: 2rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.group-buy-qty-meta {
+  /* Ignore intrinsic text width when sizing the grid column. */
+  width: 0;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.group-buy-qty-meta .ghost {
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  min-height: 0;
+}
+
+.group-buy-footnote {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.group-buy-invite-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-10);
+  background: var(--surface);
+}
+
+.group-buy-invite-info {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.group-buy-invite-info h1,
+.group-buy-invite-info p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.group-buy-invite-action {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.group-buy-invite-action .btn {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .group-buy-invite-action {
+    flex: 1 1 100%;
+  }
+
+  .group-buy-invite-action .btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+.page-head-actions .btn.secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .group-buy-toolbar .btn,
+  .page-head-actions .btn.secondary {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+.deck-size-meta {
+  margin: 0.35rem 0 0;
+}
+
+.deck-editor,
+.don-available {
+  margin: 0 0 1rem;
+  min-width: 0;
+}
+
+.deck-editor .filter-drawer,
+.don-available .filter-drawer {
+  margin: 0;
+}
+
+.deck-editor .filter-drawer-body,
+.don-available .filter-drawer-body {
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem 0.75rem;
+}
+
+.deck-editor-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.deck-editor-filters .card-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.deck-editor-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.deck-editor-select {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 6rem;
+}
+
+.deck-editor-select .ui-select-button {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--field-bg);
+  color: var(--ink);
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.5rem;
+}
+
+.deck-editor-status {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.deck-editor-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Stacked flow: let the results use most of the viewport instead of a ~4-row box. */
+.deck-editor .deck-editor-results {
+  max-height: min(34rem, 62svh);
+}
+
+.deck-editor-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  min-width: 0;
+}
+
+.deck-editor-result-main {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.deck-editor-result-main .thumb,
+.deck-editor-result-main .thumb.placeholder {
+  width: 40px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+
+.deck-editor-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.deck-editor-qty {
+  min-width: 1.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.don-heading,
+.additional-heading {
+  margin-top: 1.5rem;
+}
+
+.shopping-don-section {
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
+.shopping-don-section .don-heading {
+  margin-top: 1.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.don-available {
+  margin-top: 1.5rem;
+}
+
+.don-available-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  max-height: min(36rem, 70svh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.don-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--card);
+}
+
+.don-tile .thumb-btn {
+  display: block;
+  width: 100%;
+}
+
+.don-tile .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.don-tile-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.don-tile-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.don-tile-meta {
+  font-size: 0.78rem;
+}
+
+.don-tile-indeck {
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.don-tile-add {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .deck-editor,
+  .don-available {
+    margin-bottom: 0.65rem;
+  }
+
+  .don-available-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .deck-editor .filter-drawer-toggle,
+  .don-available .filter-drawer-toggle {
+    min-height: 2.4rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .deck-editor .filter-drawer-body,
+  .don-available .filter-drawer-body {
+    gap: 0.4rem;
+    padding: 0.45rem 0.65rem 0.65rem;
+  }
+
+  .deck-editor-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+
+  .deck-editor-filters .card-search {
+    flex: 0 0 auto;
+  }
+
+  .deck-editor-filters .card-search-input {
+    min-height: 2.4rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  .deck-editor-filter-row {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .deck-editor-select {
+    flex: 1 1 0;
+  }
+
+  .deck-editor-select .ui-select-button {
+    min-height: 2.35rem;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.92rem;
+  }
+
+  .deck-editor-results {
+    gap: 0.35rem;
+  }
+
+  .deck-editor .deck-editor-results {
+    max-height: min(26rem, 56svh);
+  }
+
+  .deck-editor-result {
+    padding: 0.4rem 0.45rem;
+    gap: 0.4rem;
+  }
+
+  .deck-editor-result-main .thumb,
+  .deck-editor-result-main .thumb.placeholder {
+    width: 36px;
+    height: 50px;
+  }
+
+  .deck-editor-result-actions .btn.secondary {
+    width: auto;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .page-head-actions .btn.primary {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+  }
+}

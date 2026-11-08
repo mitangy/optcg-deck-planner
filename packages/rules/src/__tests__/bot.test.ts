@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chooseBotIntent, type BotLevel } from "../bot/index.js";
 import { applyIntent, createMatch, getPlayerView } from "../engine.js";
-import { replayMatch } from "../matchReplay.js";
+import { replayMatch } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { playBotGame, runSelfPlay } from "../sim/selfPlay.js";
 import { randomDeck } from "../sim/fuzz.js";

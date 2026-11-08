@@ -22,11 +22,12 @@ from sqlalchemy.orm import Session
 
 from app.core.statuses import FriendshipStatus, ReportStatus
 from app.core.time import as_utc
-from app.auth import get_current_user, get_optional_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import DuelCosmetic, DuelMatch, DuelUserSettings, PlayerReport, PlayerWarning, User
-from app.rate_limit import RateLimiter, client_ip
+from app.core.auth import get_current_user, get_optional_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.core.models import User
+from app.duel.models import DuelCosmetic, DuelMatch, DuelUserSettings, PlayerReport, PlayerWarning
+from app.core.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
 from app.roles import is_banned
 from app.duel.matches import latest_progress

@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { money } from "../api";
-import { CardSearchInput, matchesCardSearch } from "../cardListControls";
+import { CardSearchInput, matchesCardSearch } from "../ui/cardListControls";
 import { friendsApi, type FriendDeckCard } from "./friendsApi";
 import { CardRow, Empty, LoadError } from "./ui";
 import { useFriend } from "./useFriend";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** Order: leader first, then by cost, then name. */
 function deckOrder(a: FriendDeckCard, b: FriendDeckCard): number {

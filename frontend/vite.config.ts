@@ -2,7 +2,7 @@
 import { fileURLToPath } from "node:url";
 import { build, defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { prerenderPlugin } from "../scripts/seo/prerender-plugin.mjs";
+import { prerenderPlugin } from "../tools/seo/prerender-plugin.mjs";
 import { resolveGitSha, versionFile } from "../tools/vite/versionFile.mjs";
 
 // Production must use the same-origin `/api` rewrite so the session cookie stays

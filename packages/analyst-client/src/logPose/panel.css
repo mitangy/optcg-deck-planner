@@ -1,0 +1,637 @@
+/* ——— Panel: a full-height sheet on phones, a resizable drawer on desktop and tablets ——— */
+
+.lp-panel {
+  position: fixed;
+  z-index: var(--lp-z-panel, var(--z-lp-panel));
+  display: flex;
+  flex-direction: column;
+  background: var(--lp-surface-d);
+  box-shadow: var(--lp-shadow-d);
+  overflow: hidden;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  /* Phone sheet: bottom-anchored, as tall as --lp-sheet-h (a share of the screen the grab handle sets), up to full height. */
+  left: 0;
+  right: 0;
+  top: calc(var(--lp-vv-top, 0px) + var(--lp-vv-height, 100dvh) - var(--lp-sheet-h, var(--lp-vv-height, 100dvh)));
+  height: var(--lp-sheet-h, var(--lp-vv-height, 100dvh));
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+  border-radius: 14px 14px 0 0;
+  overscroll-behavior: contain;
+}
+
+/* Opening and closing are played from LogPose.tsx (Web Animations): the panel grows out of the compass and
+   shrinks back into it, or a docked one slides from its edge. Nothing plays under reduced motion. While it
+   shrinks it no longer takes clicks. */
+.lp-panel[data-closing] {
+  pointer-events: none;
+}
+
+/* The sheet's grab handle: a 44px-tall hit area around a small bar. */
+.lp-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.lp-grip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  bottom: -8px;
+}
+
+.lp-grip-bar {
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-2);
+  background: var(--lp-line-d);
+}
+
+.lp-grip:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: -2px;
+}
+
+.lp-grip:focus-visible .lp-grip-bar,
+.lp-grip:hover .lp-grip-bar {
+  background: var(--lp-accent-d);
+}
+
+/* Resize handles (floating window only): all four edges and all four corners. */
+.lp-resize {
+  display: none;
+}
+
+@media (min-width: 640px), (pointer: fine) {
+  .lp-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(420px, 100vw);
+    height: 100dvh;
+    border-radius: 0;
+    border-left: 1px solid var(--lp-line-d);
+    padding: 0 env(safe-area-inset-right, 0px) 0 0;
+  }
+
+  /* Once resized or moved it is a window anchored to the bottom-right corner (width, height and the gap to the
+     corner come from inline style): a border and rounded corners all the way round. */
+  .lp-panel[data-sized] {
+    top: auto;
+    border: 1px solid var(--lp-line-d);
+    border-radius: var(--lp-radius-d);
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  /* Docked to a screen edge: a full-height strip, square, with a border on its inner side only. Its width is
+     inline (the remembered docked width); the page makes room for it (html[data-lp-dock], below). */
+  .lp-panel[data-dock] {
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-width: 50vw;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .lp-panel[data-dock="right"] {
+    right: 0;
+    left: auto;
+    border-left: 1px solid var(--lp-line-d);
+  }
+
+  .lp-panel[data-dock="left"] {
+    left: 0;
+    right: auto;
+    padding: 0 0 0 env(safe-area-inset-left, 0px);
+    border-right: 1px solid var(--lp-line-d);
+  }
+
+  /* Docked into the game: an ordinary panel in the board's column, filling the slot its host gives it. */
+  .lp-panel[data-embedded] {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    padding: 0;
+    border: 1px solid var(--line, var(--lp-line-d));
+    border-radius: var(--radius-10);
+    box-shadow: none;
+  }
+
+  /* A narrow board column: the header gives up its icon and tightens, and the title may shorten rather than push
+     the buttons out. */
+  .lp-panel[data-embedded] .lp-head {
+    gap: 4px;
+    padding: 6px 6px 6px 12px;
+    min-height: 48px;
+  }
+
+  .lp-panel[data-embedded] .lp-head-icon {
+    display: none;
+  }
+
+  .lp-panel[data-embedded] .lp-title {
+    font-size: 1rem;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    width: 32px;
+    min-height: 32px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn {
+    padding-inline: 8px;
+  }
+
+  .lp-panel[data-embedded] .lp-head .lp-btn-icon {
+    padding: 0;
+  }
+
+  /* A very narrow column (the board's left one by default): the title gets a row of its own and the composer
+     stacks, instead of squeezing the buttons and the field. */
+  .lp-panel[data-embedded] {
+    container: lp-embed / inline-size;
+  }
+
+  @container lp-embed (max-width: 249px) {
+    .lp-panel[data-embedded] .lp-head {
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+
+    .lp-panel[data-embedded] .lp-title {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-composer {
+      flex-wrap: wrap;
+    }
+
+    .lp-panel[data-embedded] .lp-input {
+      flex: 1 0 100%;
+    }
+
+    .lp-panel[data-embedded] .lp-btn-send {
+      margin-left: auto;
+    }
+  }
+
+  /* The page keeps clear of a docked strip: the room is padding on the body, so sticky bars and content shrink
+     with it and nothing scrolls sideways. */
+  html[data-lp-dock] body {
+    box-sizing: border-box;
+  }
+
+  html[data-lp-dock="right"] body {
+    padding-right: var(--lp-dock-w, 380px);
+  }
+
+  html[data-lp-dock="left"] body {
+    padding-left: var(--lp-dock-w, 380px);
+  }
+
+  /* The translucent area a drag would dock into. */
+  .lp-dock-preview {
+    position: fixed;
+    z-index: calc(var(--lp-z-panel, var(--z-lp-panel)) - 1);
+    pointer-events: none;
+    border: 2px dashed var(--lp-accent-d);
+    border-radius: var(--radius-6);
+    background: color-mix(in srgb, var(--lp-accent-d) 16%, transparent);
+  }
+
+  .lp-resize {
+    display: block;
+    position: absolute;
+    z-index: var(--z-raise-3);
+    touch-action: none;
+    background: transparent;
+  }
+
+  /* Edges and corners sit inside the window's border. Where the header and the composer have buttons they are
+     kept clear of them: the header's buttons start 8px down and end 10px in from the right, the composer's send
+     button ends 12px above the bottom and 12px in from the right, so the strips and corners stay in that padding. */
+  .lp-resize-top {
+    top: 0;
+    left: 16px;
+    right: 16px;
+    height: 8px;
+    cursor: ns-resize;
+  }
+
+  .lp-resize-bottom {
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 8px;
+    cursor: ns-resize;
+  }
+
+  .lp-resize-left {
+    top: 16px;
+    bottom: 12px;
+    left: 0;
+    width: 8px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-right {
+    top: 8px;
+    bottom: 12px;
+    right: 0;
+    width: 6px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-top-left {
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+  }
+
+  .lp-resize-top-right {
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 8px;
+    cursor: nesw-resize;
+  }
+
+  .lp-resize-bottom-left {
+    bottom: 0;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    cursor: nesw-resize;
+  }
+
+  .lp-resize-bottom-right {
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    cursor: nwse-resize;
+  }
+
+  .lp-resize::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    background: var(--lp-accent-d);
+  }
+
+  .lp-resize-top::after {
+    inset: 0 0 auto 0;
+    height: 2px;
+  }
+
+  .lp-resize-bottom::after {
+    inset: auto 0 0 0;
+    height: 2px;
+  }
+
+  .lp-resize-left::after {
+    inset: 0 auto 0 0;
+    width: 2px;
+  }
+
+  .lp-resize-right::after {
+    inset: 0 0 0 auto;
+    width: 2px;
+  }
+
+  .lp-resize-top-left::after,
+  .lp-resize-top-right::after,
+  .lp-resize-bottom-left::after,
+  .lp-resize-bottom-right::after {
+    width: 10px;
+    height: 10px;
+    background: transparent;
+    border: 0 solid var(--lp-accent-d);
+  }
+
+  .lp-resize-top-left::after {
+    inset: 0 auto auto 0;
+    border-top-left-radius: var(--lp-radius-d);
+    border-width: 3px 0 0 3px;
+  }
+
+  .lp-resize-top-right::after {
+    inset: 0 0 auto auto;
+    width: 8px;
+    height: 8px;
+    border-top-right-radius: var(--lp-radius-d);
+    border-width: 3px 3px 0 0;
+  }
+
+  .lp-resize-bottom-left::after {
+    inset: auto auto 0 0;
+    width: 8px;
+    height: 8px;
+    border-bottom-left-radius: var(--lp-radius-d);
+    border-width: 0 0 3px 3px;
+  }
+
+  .lp-resize-bottom-right::after {
+    inset: auto 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-bottom-right-radius: var(--lp-radius-d);
+    border-width: 0 3px 3px 0;
+  }
+
+  .lp-resize:hover::after,
+  .lp-resize:focus-visible::after,
+  .lp-resize:active::after {
+    opacity: 0.8;
+  }
+
+  .lp-resize:focus-visible {
+    outline: none;
+  }
+
+  .lp-panel[data-dock] .lp-resize:not(.lp-resize-dock) {
+    display: none;
+  }
+
+  .lp-resize-dock {
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+  }
+
+  .lp-resize-dock-right {
+    left: 0;
+  }
+
+  .lp-resize-dock-left {
+    right: 0;
+  }
+
+  .lp-resize-dock::after {
+    inset: 0 auto 0 0;
+    width: 2px;
+  }
+
+  .lp-resize-dock-left::after {
+    inset: 0 0 0 auto;
+  }
+
+  .lp-grip {
+    display: none;
+  }
+}
+
+.lp-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px 10px 8px 16px;
+  border-bottom: 1px solid var(--lp-line-d);
+}
+
+/* Desktop: the header is the drag surface for moving the window. */
+.lp-head[data-movable] {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lp-panel[data-moving] .lp-head {
+  cursor: grabbing;
+}
+
+.lp-move {
+  cursor: inherit;
+  touch-action: none;
+}
+
+/* What a page pins above the chat (the matchup brief on a board). */
+.lp-pinned {
+  flex: none;
+}
+
+.lp-head-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: var(--lp-accent-d);
+}
+
+.lp-head-icon svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.lp-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--lp-font-display, inherit);
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--lp-ink-d);
+}
+
+.lp-btn {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-10);
+  border: 1px solid var(--lp-line-d);
+  background: transparent;
+  color: var(--lp-ink-d);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lp-btn:focus-visible,
+.lp-starter:focus-visible,
+.lp-chip-x:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 2px;
+}
+
+.lp-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.lp-btn-quiet:hover {
+  background: var(--lp-surface-2-d);
+}
+
+.lp-btn-icon {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-color: transparent;
+}
+
+.lp-btn-icon:hover {
+  background: var(--lp-surface-2-d);
+}
+
+.lp-btn-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.lp-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lp-note {
+  margin: 0;
+  color: var(--lp-muted-d);
+  font-size: 0.875rem;
+}
+
+.lp-empty {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lp-empty-lead {
+  margin: 0;
+  color: var(--lp-muted-d);
+}
+
+.lp-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lp-starter {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--lp-line-d);
+  background: var(--lp-surface-2-d);
+  color: var(--lp-ink-d);
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+}
+
+.lp-starter:hover:not(:disabled) {
+  border-color: var(--lp-accent-d);
+}
+
+.lp-msg {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-msg-user {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: var(--lp-radius-d) var(--lp-radius-d) 4px var(--lp-radius-d);
+  background: var(--lp-user-bg-d);
+  color: var(--lp-user-ink-d);
+}
+
+.lp-msg-user p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.lp-msg-assistant {
+  align-self: stretch;
+  padding: 10px 12px;
+  border-radius: var(--lp-radius-d) var(--lp-radius-d) var(--lp-radius-d) 4px;
+  background: var(--lp-surface-2-d);
+}
+
+.lp-stopped {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--lp-muted-d);
+}
+
+/* What the board asked for the player while Log Pose plays their turn, and the choices it answered: muted lines, not bubbles (#725). */
+.lp-auto-line {
+  align-self: stretch;
+  margin: 0;
+  padding: 0 4px;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-auto-choice {
+  margin: 6px 0 0;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--lp-muted-d);
+  overflow-wrap: anywhere;
+}
+
+.lp-auto-tag {
+  font-weight: 600;
+  color: var(--lp-ink-d);
+}

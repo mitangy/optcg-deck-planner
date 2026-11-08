@@ -727,7 +727,7 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   color: #f0b45a;
 }
 
-/* "Can't attack" feedback (board/AttackWarning.tsx): red outline on the tile
+/* "Can't attack" feedback (board/combat/AttackWarning.tsx): red outline on the tile
    and a shake of the art inside it; the tile's own transform (rest rotation,
    BoardMotion, tilt) is never touched. */
 .card-tile[data-cant-attack] {
@@ -792,7 +792,7 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   pointer-events: none;
 }
 
-/* Opponent reveals (board/RevealOverlay.tsx): fixed, centred, click-through
+/* Opponent reveals (board/motion/RevealOverlay.tsx): fixed, centred, click-through
    backdrop; only the card takes the dismiss click. */
 .reveal-overlay {
   position: fixed;
@@ -879,7 +879,7 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   }
 }
 
-/* Card spotlight (board/CardSpotlight.tsx): a played or trashed card shown
+/* Card spotlight (board/preview/CardSpotlight.tsx): a played or trashed card shown
    big over its owner's half, then dropped into its spot. Click-through, just
    above the card motion layer and below prompts, the HUD and modals. */
 .card-spotlight-layer {

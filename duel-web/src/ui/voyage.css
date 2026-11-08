@@ -1,0 +1,359 @@
+/* —— Your voyage, Top bounties, how it works —— */
+
+.voyage,
+.bounties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.voyage-card,
+.bounty-list,
+.intro {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: rgb(var(--panel-rgb) / 0.6);
+}
+
+.voyage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+
+.voyage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.voyage-stat + .voyage-stat {
+  border-left: 1px solid var(--line);
+}
+
+.voyage-stat b {
+  min-height: 1.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.4rem;
+  color: var(--ink);
+}
+
+.voyage-stat > span {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Three rows tall whether they are loading, loaded or empty, so the column below never moves. */
+.voyage-games {
+  min-height: calc(3 * 44px);
+}
+
+.voyage-games > .friends-empty {
+  padding: 0.75rem;
+}
+
+.voyage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.voyage-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.voyage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.35rem 0.75rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.voyage-row:hover {
+  background: rgb(var(--chrome-rgb) / 0.08);
+}
+
+.voyage-row:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus);
+}
+
+.voyage-chip {
+  flex: 0 0 auto;
+  min-width: 2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-6);
+  border: 1px solid var(--line-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--muted);
+}
+
+.voyage-row[data-outcome="won"] .voyage-chip {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.voyage-row[data-outcome="lost"] .voyage-chip {
+  border-color: var(--crimson-bright);
+  color: var(--crimson-bright);
+}
+
+.voyage-vs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.voyage-opp,
+.voyage-leader {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voyage-opp {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.voyage-leader {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.voyage-delta {
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  text-align: right;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.bounty-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bounty-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.bounty-row + .bounty-row {
+  border-top: 1px solid var(--line);
+}
+
+.bounty-row.me {
+  background: rgb(var(--chrome-rgb) / 0.1);
+}
+
+.bounty-row.pinned {
+  border-top: 1px dashed var(--line-strong);
+}
+
+.bounty-rank {
+  flex: 0 0 1.4rem;
+  font-weight: 800;
+  color: var(--chrome-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.bounty-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.bounty-row .bounty-amount {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.75rem 0.9rem;
+}
+
+.intro-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+  counter-reset: intro;
+}
+
+.intro-steps li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  column-gap: var(--space-2);
+  counter-increment: intro;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.intro-steps li::before {
+  content: counter(intro);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: var(--radius-round);
+  border: 1px solid var(--line-strong);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--chrome-bright);
+}
+
+.intro-steps b {
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.intro-dismiss {
+  align-self: flex-end;
+  white-space: nowrap;
+}
+
+.topbar-mark {
+  text-decoration: none;
+}
+
+/* The lobby's three icons carry a one-word label so they are not guesswork. */
+.topbar-right .icon-btn:has(.icon-btn-label) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: auto;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 0.3rem;
+}
+
+.icon-btn-label {
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+/* No room for the wordmark next to the account chip and three labelled icons. */
+@media (max-width: 479px) {
+  .brand-word {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* The logo moves into the home hero, next to the title. */
+  .topbar-mark {
+    display: none;
+  }
+}
+
+/* Long deck names end in an ellipsis instead of being cut mid-letter. */
+.deck-picker .ui-select-button,
+.deck-config-switcher .ui-select-button,
+.field .ui-select-button,
+.lobby .ui-select-button {
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/*
+ * Token bridge for the shared packages: --ui-* is the one set this app maps (the :root block
+ * below, following crew themes and light mode); the site-legal (--fb-*) and patch-notes (--wn-*)
+ * families alias it, and so does the Log Pose chat (--lp-*, logPose.css) wherever the values match.
+ */
+
+/* Shared feedback dialog (packages/site-legal). */
+.feedback-backdrop {
+  --fb-bg: var(--ui-panel-bg);
+  --fb-ink: var(--ui-ink);
+  --fb-line: var(--ui-line);
+  --fb-field-bg: var(--ui-field-bg);
+  --fb-accent: var(--ui-primary);
+  --fb-on-accent: var(--ui-on-primary);
+  --fb-danger: var(--ui-danger);
+  font-family: var(--font-body);
+}
+
+/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the arena palette (follows crew themes and light mode). */
+:root {
+  --ui-backdrop: rgb(var(--abyss-rgb) / 0.72);
+  --ui-panel-bg: var(--arena-panel);
+  --ui-ink: var(--ink);
+  --ui-border: 1px solid var(--line-strong);
+  --ui-hover: rgb(var(--chrome-bright-rgb) / 0.14);
+  --ui-muted: var(--muted);
+  --ui-field-bg: var(--arena-mid);
+  --ui-field-border: 1px solid var(--line);
+  --ui-field-radius: 8px;
+  --ui-accent: var(--chrome-bright);
+  --ui-selected: rgb(var(--chrome-bright-rgb) / 0.1);
+  --ui-active: rgb(var(--chrome-bright-rgb) / 0.24);
+  --ui-line: var(--line-strong);
+  --ui-line-soft: var(--line);
+  --ui-primary: var(--chrome);
+  --ui-on-primary: var(--on-chrome);
+  --ui-danger: var(--crimson-bright);
+  --ui-font: var(--font-body);
+  --ui-font-display: var(--font-display);
+}
+
+/* What's new card (packages/patch-notes), through the --ui-* set. */
+.wn-card {
+  --wn-bg: var(--ui-panel-bg);
+  --wn-ink: var(--ui-ink);
+  --wn-line: var(--ui-line);
+  --wn-accent: var(--ui-primary);
+  --wn-on-accent: var(--ui-on-primary);
+  font-family: var(--font-body);
+}
+
+.wn-card-heading {
+  font-family: var(--font-display);
+}
+

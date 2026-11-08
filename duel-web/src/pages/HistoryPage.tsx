@@ -1,5 +1,5 @@
 import { PageShell } from "../layout/PageShell";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { resolveCardImageUrl } from "../decks/artPrefs";
@@ -7,8 +7,10 @@ import { useArtFallback } from "../cards/useArtFallback";
 import { historySummary } from "../history/historySummary";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
-import { useClickCopy } from "../board/clickCopy";
+import { useClickCopy } from "../board/input/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
+import { errorMessage } from "../lib/errors";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import "../history/history.css";
 
 type State =
@@ -42,22 +44,14 @@ function ChatMark() {
 }
 
 export function HistoryPage() {
-  const [state, setState] = useState<State>({ status: "loading" });
+  const res = useAsyncResource(() => fetchMatchHistory(), []);
+  const state = useMemo<State>(() => {
+    if (res.status === "ready") return { status: "ready", matches: res.data };
+    if (res.status === "loading") return { status: "loading" };
+    if (res.error instanceof ApiError && res.error.status === 401) return { status: "signed-out" };
+    return { status: "error", message: errorMessage(res.error, "Could not load your matches") };
+  }, [res]);
   const copy = useClickCopy();
-
-  useEffect(() => {
-    let live = true;
-    fetchMatchHistory()
-      .then((matches) => live && setState({ status: "ready", matches }))
-      .catch((e: unknown) => {
-        if (!live) return;
-        if (e instanceof ApiError && e.status === 401) setState({ status: "signed-out" });
-        else setState({ status: "error", message: e instanceof Error ? e.message : "Could not load your matches" });
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
 
   const summary = useMemo(() => (state.status === "ready" ? historySummary(state.matches) : null), [state]);
   const rows = useMemo(

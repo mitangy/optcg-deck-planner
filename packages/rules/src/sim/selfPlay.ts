@@ -10,9 +10,9 @@ import { REGISTRY_HASH } from "../cards/abilities.js";
 import { actingSeat, chooseBotIntentFromState, type BotLevel, type BotOptions } from "../bot/index.js";
 import { getCardDef } from "../cards/definitions.js";
 import { applyIntent, createMatch, listLegalIntents } from "../engine.js";
-import type { MatchReplay } from "../matchReplay.js";
+import type { MatchReplay } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
-import { RULES_VERSION } from "../state/snapshot.js";
+import { RULES_VERSION } from "../engine/snapshot.js";
 import type { GameEvent, Intent, MatchState, PlayerDeckConfig, Seat } from "../types.js";
 import { randomDeck } from "./fuzz.js";
 

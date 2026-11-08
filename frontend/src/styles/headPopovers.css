@@ -1,0 +1,402 @@
+/* ——— Page-head popovers (Share, More) ——— */
+.head-popover {
+  position: relative;
+  min-width: 0;
+}
+
+.head-popover-btn {
+  gap: 0.4rem;
+}
+
+.head-popover-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+}
+
+.head-popover-chevron {
+  font-size: 0.7rem;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.head-popover.open .head-popover-chevron {
+  transform: rotate(180deg);
+}
+
+.head-popover.open .head-popover-btn {
+  border-color: var(--gold);
+}
+
+.head-popover-panel {
+  position: fixed;
+  z-index: var(--z-drawer);
+  max-height: min(32rem, calc(100svh - 6rem));
+  overflow: auto;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow-lift);
+  text-align: left;
+}
+
+.head-popover-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.head-popover-title .muted {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.head-popover-panel .share-panel {
+  padding-top: 0;
+  gap: 0.6rem;
+}
+
+.head-popover-panel .share-panel-actions .btn.secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+.head-popover-panel .share-panel-note {
+  margin: 0.35rem 0 0;
+}
+
+/* The panel floats in a portal, outside .page-head, so it repeats the .page-head .muted spacing and, below, the phone sizing that used to cascade into it. */
+@media (max-width: 800px) {
+  .head-popover-panel .share-panel-actions .btn,
+  .head-popover-panel .share-panel-actions .ghost {
+    flex: 1 1 auto;
+    text-align: center;
+    min-height: 2.75rem;
+  }
+
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .head-popover-panel .share-panel-actions .btn.secondary {
+    justify-content: center;
+  }
+}
+
+.head-popover-sections {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.head-popover-sections > * + * {
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.head-popover-panel.head-popover-menu {
+  padding: 0.35rem;
+  /* Headless UI keeps focus on the list itself and marks the active row, so no ring around the whole panel. */
+  outline: none;
+}
+
+.head-popover-menu {
+  display: grid;
+}
+
+.head-popover-menu button {
+  display: grid;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-10);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.head-popover-menu button .muted {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.head-popover-menu button:not(:disabled, [data-disabled]):hover,
+.head-popover-menu button[data-focus]:not([data-disabled]),
+.head-popover-menu button:focus-visible {
+  background: var(--card-sunk);
+}
+
+.head-popover-menu button.danger {
+  color: var(--danger);
+}
+
+.head-popover-menu button:disabled,
+.head-popover-menu button[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 800px) {
+  /* Header actions sit in one compact row instead of full-width stacks. */
+  .page-head-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  .page-head-actions > .head-popover {
+    flex: 0 0 auto;
+  }
+
+  .page-head-actions .btn.secondary,
+  .page-head-actions .btn.primary,
+  .page-head-actions .head-popover-btn {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .page-head-actions > .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* Owned progress on Decks-page tiles. */
+.deck-owned-meter {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.deck-owned-meter-text {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.deck-owned-meter-text strong {
+  color: var(--ink);
+}
+
+.deck-owned-meter .deck-progress-bar {
+  margin-top: 0;
+  height: 0.35rem;
+}
+
+.deck-owned-meter.complete .deck-owned-meter-text span:last-child {
+  color: var(--ok-ink);
+  font-weight: 600;
+}
+
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid rgba(226, 180, 88, 0.35);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: rgba(239, 230, 210, 0.85);
+  cursor: pointer;
+}
+
+.theme-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.theme-toggle:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+/* Discord icon link in the top bar: same round pill as the theme toggle. */
+.discord-nav-link {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid rgba(226, 180, 88, 0.35);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: rgba(239, 230, 210, 0.85);
+  text-decoration: none;
+}
+
+.discord-nav-link svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.discord-nav-link:hover {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+/* Phones: the top bar (Play Duel, bell, theme, Log out) has no room for another control without cropping the
+   wordmark, so the Discord link lives in the page footer there. */
+@media (max-width: 480px) {
+  .topbar .discord-nav-link {
+    display: none;
+  }
+}
+
+/* Smallest phones: the wordmark alone identifies the app, leaving room for
+   the theme toggle + Log out (they overlapped the title at 320px). */
+@media (max-width: 380px) {
+  .topbar .brand a span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  /* Tighter header pills, and the wordmark scales down to whatever room is left
+     instead of being cropped (it lost "ECE" at 320px). */
+  .topbar .user {
+    gap: 0.35rem;
+  }
+
+  .topbar .user .duel-nav-link,
+  .topbar .user button.ghost,
+  .topbar .user .btn {
+    padding: 0.3rem 0.55rem;
+  }
+
+  .topbar .brand a {
+    align-items: center;
+  }
+}
+
+/* Public share page: "Sign in" sits in the top bar as a small pill like Log out,
+   not a full-size button that crowds out the logo on phones. */
+@media (max-width: 800px) {
+  .topbar .user .btn {
+    width: auto;
+    margin-top: 0;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.88rem;
+  }
+}
+
+/* "Play in Duel" link in deck page head: never wraps inside the pill. */
+.page-head-actions .duel-play-btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.page-head-actions .duel-play-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .page-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .page-head-actions .duel-play-btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* Deck analytics panel styles live in packages/deck-analytics/src/ui/deckAnalytics.css. */
+
+/* Build hints (deck editor): host chrome around the shared tray, delta chip. */
+.need-cell {
+  white-space: nowrap;
+}
+
+.filter-drawer-badge {
+  flex: 0 0 auto;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--warn);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.filter-drawer-badge-held {
+  visibility: hidden;
+}
+
+.filter-drawer > .dh-tray,
+.stats-dock-scroll > .dh-tray {
+  padding: 0 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.filter-drawer > .dh-tray .dh-chips.dh-expanded,
+.stats-dock-scroll > .dh-tray .dh-chips.dh-expanded {
+  left: 0.75rem;
+}
+
+.deck-editor {
+  position: relative;
+}
+
+/* Transient "what moved" chip: floats over the Add cards header (right of its label), takes no space. */
+.dh-delta-slot {
+  position: absolute;
+  z-index: var(--z-raise-6);
+  top: 0.45rem;
+  left: 0.75rem;
+  right: 2.4rem;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.dh-delta {
+  max-width: 100%;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--info-line);
+  border-radius: var(--radius-pill);
+  background: var(--info-bg);
+  color: var(--info-ink);
+  box-shadow: var(--shadow);
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: dh-delta-life 4.5s ease forwards;
+}
+
+@keyframes dh-delta-life {
+  0% { opacity: 0; transform: translateY(-4px); }
+  8%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dh-delta { animation-name: dh-delta-fade; }
+  @keyframes dh-delta-fade {
+    0%, 85% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}

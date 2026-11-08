@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from app.deck_link import COMPLETE_MAIN
-from app.domain import parse_decklist
+from app.planner.deck_link import COMPLETE_MAIN
+from app.planner.domain import parse_decklist
 
 FIXTURE = Path(__file__).resolve().parents[2] / "packages" / "card-core" / "fixtures" / "decklists.json"
 GOLDEN = json.loads(FIXTURE.read_text("utf-8"))

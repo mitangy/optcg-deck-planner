@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { listAtlasIds, lookupCard } from "../cards/atlas";
-import { intentLabel } from "../board/intentLabel";
+import { intentLabel } from "../board/prompts/intentLabel";
 import {
   PROTOCOL_VERSION,
   assertNoOpponentHand,

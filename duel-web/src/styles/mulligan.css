@@ -1,0 +1,136 @@
+/* —— Mulligan —— */
+.mulligan-banner {
+  margin: 0.5rem 0.75rem 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
+  border-radius: var(--radius-8);
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.mulligan-banner strong {
+  color: var(--chrome-bright);
+}
+
+/* Small phones: the explainer would squeeze the board to a thumbnail. The
+   turn-order splash, the "Going 1st" badge and the Mulligan / Keep buttons
+   already say it, so it is left out there. */
+@media (max-width: 359px) {
+  .mulligan-banner-explainer {
+    display: none;
+  }
+}
+
+.intent-bar-mulligan h2 {
+  color: var(--chrome-bright);
+}
+
+/* Keep is the main choice (theme button); Mulligan is the quieter outline
+   button on a solid fill so the board never shows through it in the dock (#461). */
+.intent-btn-mulligan {
+  background: var(--arena-raised) !important;
+  color: var(--chrome-bright) !important;
+  border-color: var(--chrome) !important;
+}
+
+/* Discoverability: board cards with contextual actions available */
+.card-tile.has-actions {
+  box-shadow: 0 0 0 2px rgb(var(--chrome-rgb) / 0.55);
+}
+
+/* Attack-ready glow (#412): your Leader / Characters that can attack now.
+   A thin, still ring (box-shadow only, so nothing moves) on a dark edge that
+   separates it from the art; later than .has-actions so it wins. Green by
+   default, light gold on Green cards where green would vanish (#449). */
+.card-tile.attack-ready {
+  --attack-ring: 74 222 128;
+  border-color: rgba(6, 10, 16, 0.92);
+  box-shadow:
+    0 0 0 2px rgb(var(--attack-ring)),
+    0 0 7px 2px rgb(var(--attack-ring) / 0.35);
+}
+.card-tile.attack-ready.attack-ready-light {
+  --attack-ring: 255 232 150;
+}
+
+
+/* —— Hand collapse —— */
+.hand-rail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hand-rail-head .hand-rail-title {
+  flex: 1;
+}
+.hand-rail-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+.hand-rail-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: var(--radius-6);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  min-height: 28px;
+}
+.hand-rail-btn:hover {
+  color: var(--ink);
+  border-color: var(--chrome);
+}
+.hand-rail-btn.active {
+  color: var(--ink);
+  border-color: var(--gold);
+  background: rgb(var(--chrome-rgb) / 0.12);
+}
+/* Hide / Show are the same width, so the Sort button beside them doesn't slide. */
+.hand-collapse-btn {
+  min-width: 4rem;
+  text-align: center;
+}
+/* The "Hand N" title row is a Hide / Show target. Its hit area grows by padding
+   cancelled with a negative margin, so the head is exactly as tall as before. */
+.hand-rail-toggle {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: -0.4rem 0;
+  padding: 0.4rem 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-6);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.hand-rail-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.hand-rail-toggle .hand-rail-title {
+  flex: 0 0 auto;
+}
+.hand-rail.collapsed {
+  padding-bottom: 0.35rem;
+}
+.hand-rail.collapsed .hand-row {
+  display: none;
+}
+

@@ -8,7 +8,7 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import DuelSavedDeck
+from app.duel.models import DuelSavedDeck
 
 MAX_DECKS = 200
 MAX_DECK_CHARS = 16 * 1024

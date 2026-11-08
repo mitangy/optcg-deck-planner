@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from tests.db_support import make_bare_engine, make_test_engine, using_postgres
-from app.config import get_settings
-from app.db import _ensure_user_username, get_db
+from tests.db_support import make_test_engine
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.duel.tokens import verify_game_token
 from app.main import app
-from app.models import DuelRating, User
+from app.core.models import User
+from app.duel.models import DuelRating
 from app.routers import auth as auth_router
 from app.usernames import (
     UsernameError,
@@ -149,53 +149,6 @@ def test_db_enforces_case_insensitive_uniqueness(db):
         ]
     )
     db.commit()
-
-
-_PK = "SERIAL" if using_postgres() else "INTEGER"
-
-
-def test_migration_adds_column_and_index_to_legacy_users_table():
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                f"CREATE TABLE users (id {_PK} PRIMARY KEY, email VARCHAR(320), "
-                "name VARCHAR(255), google_sub VARCHAR(255))"
-            )
-        )
-        conn.execute(
-            text("INSERT INTO users (email, name, google_sub) VALUES ('old@x.com', 'Old', 'o')")
-        )
-    _ensure_user_username(engine)
-    _ensure_user_username(engine)  # idempotent
-    cols = {c["name"] for c in inspect(engine).get_columns("users")}
-    assert "username" in cols
-    with engine.begin() as conn:
-        # Expression indexes aren't reflected by SQLAlchemy; read the catalog.
-        idx = conn.execute(
-            text(
-                "SELECT indexname FROM pg_indexes WHERE tablename = 'users'"
-                if engine.dialect.name == "postgresql"
-                else "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='users'"
-            )
-        ).scalars().all()
-        assert "ix_users_username_lower" in idx
-        assert conn.execute(text("SELECT username FROM users")).scalar() is None
-        conn.execute(text("UPDATE users SET username = 'Robin'"))
-        conn.execute(
-            text(
-                "INSERT INTO users (email, name, google_sub, username) "
-                "VALUES ('n@x.com', 'N', 'n', NULL)"
-            )
-        )
-    with pytest.raises(IntegrityError):
-        with engine.begin() as conn:
-            conn.execute(
-                text(
-                    "INSERT INTO users (email, name, google_sub, username) "
-                    "VALUES ('r@x.com', 'R', 'r', 'ROBIN')"
-                )
-            )
 
 
 # --- endpoints ----------------------------------------------------------------

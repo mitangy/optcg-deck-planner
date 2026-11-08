@@ -12,18 +12,19 @@ from sqlalchemy.orm import Session
 
 from app.core.statuses import AccessStatus
 from app.core.time import as_utc
-from app.analyst_credit import TOPUP_USD, credit_for, month_key, month_start, spent_since
+from app.analyst.credit import TOPUP_USD, credit_for, month_key, month_start, spent_since
 from app.analyst.access import FREE_SPOTS_KEY, free_spots, is_chat_owner, requests_open, spots_used
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import AnalystAccess, AnalystSetting, User
-from app.rate_limit import RateLimiter, client_ip
-from app.schemas import (
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.analyst.models import AnalystAccess, AnalystSetting
+from app.core.models import User
+from app.core.rate_limit import RateLimiter, client_ip
+from app.analyst.schemas import (
     AnalystAccessDecisionIn,
     AnalystAccessList,
-    AnalystAccessRequested,
     AnalystAccessRequestIn,
+    AnalystAccessRequested,
     AnalystAccessRow,
     AnalystFreeSpots,
     AnalystFreeSpotsIn,
@@ -119,7 +120,7 @@ def request_access(
             )
         )
         db.commit()
-        return AnalystAccessRequested(access="approved" if free else "pending")
+        return AnalystAccessRequested(access=AccessStatus.APPROVED if free else AccessStatus.PENDING)
     elif row.status == AccessStatus.PENDING:
         raise HTTPException(status_code=409, detail="Your request is already waiting")
     else:
@@ -130,7 +131,7 @@ def request_access(
         row.decided_at = None
         row.created_at = now
     db.commit()
-    return AnalystAccessRequested(access="pending")
+    return AnalystAccessRequested(access=AccessStatus.PENDING)
 
 
 @router.get("/requests", response_model=AnalystAccessList)

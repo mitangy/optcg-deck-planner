@@ -9,7 +9,7 @@ import json
 import time
 from typing import Any
 
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 
 GAME_TOKEN_TTL_SECONDS = 60 * 15  # 15 minutes
 

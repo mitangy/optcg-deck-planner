@@ -62,7 +62,7 @@ def _imported(name: str, tree: ast.Module) -> set[str]:
 def test_walker_finds_the_router_modules_refactor_3_9b():
     routers = _router_modules(_modules())
     assert {"app.routers.api", "app.routers.duel", "app.social.friends_router"} <= routers
-    assert "app.services" not in routers and "app.main" not in routers
+    assert "app.planner.decks" not in routers and "app.main" not in routers
 
 
 def test_a_router_module_never_imports_another_router_module_refactor_3_9b():

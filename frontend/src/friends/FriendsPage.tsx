@@ -9,7 +9,7 @@ import { MySparesPanel } from "./MySparesPanel";
 import { friendsApi } from "./friendsApi";
 import { Empty, LoadError, Tabs } from "./ui";
 import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 type FriendsTab = "friends" | "trades" | "spares";
 const TABS: FriendsTab[] = ["friends", "trades", "spares"];

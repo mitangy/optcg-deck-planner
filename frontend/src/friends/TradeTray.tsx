@@ -2,12 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { money } from "../api";
-import { CardThumb } from "../CardThumb";
+import { CardThumb } from "../ui/CardThumb";
 import { friendsApi } from "./friendsApi";
 import { lineCap, setLineQty, toLinesIn, trayTotals, type TrayLine } from "./tradeLogic";
 import { QtyStepper } from "./ui";
 import { useFriendSpares } from "./useFriendSpares";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 type TrayProps = {
   friendId: number;

@@ -1,0 +1,36 @@
+/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the planner palette. */
+:root {
+  --ui-backdrop: rgba(16, 36, 45, 0.82);
+  --ui-panel-bg: var(--card);
+  --ui-ink: var(--ink);
+  --ui-border: 1px solid var(--line-strong);
+  --ui-hover: var(--field-bg);
+  --ui-muted: var(--muted);
+  --ui-field-bg: var(--field-bg);
+  --ui-field-border: 1px solid var(--line);
+  --ui-field-radius: 10px;
+  --ui-accent: var(--gold);
+  --ui-selected: var(--card-sunk);
+  --ui-active: var(--gold-soft);
+  --ui-line: var(--line-strong);
+  --ui-line-soft: var(--line);
+  --ui-primary: var(--primary-bg, var(--accent));
+  --ui-on-primary: var(--primary-ink);
+  --ui-danger: var(--danger);
+  --ui-font: var(--font-body);
+  --ui-font-display: var(--font-display);
+}
+
+/* What's new card (packages/patch-notes), through the --ui-* set. */
+.wn-card {
+  --wn-bg: var(--ui-panel-bg);
+  --wn-ink: var(--ui-ink);
+  --wn-line: var(--ui-line);
+  --wn-accent: var(--ui-primary);
+  --wn-on-accent: var(--ui-on-primary);
+  font-family: var(--font-body);
+}
+
+.wn-card-heading {
+  font-family: var(--font-display);
+}

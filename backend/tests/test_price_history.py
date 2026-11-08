@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from app import catalog_sync, price_history
-from app.models import CatalogCard, CatalogGroup, CatalogPrinting
+from app.planner import catalog_sync, price_history
+from app.planner.models import CatalogCard, CatalogGroup, CatalogPrinting
 from tests.friend_support import client  # noqa: F401 - fixture
 from tests.test_catalog_sync import _group_urls, _install_fake_tcgcsv, _luffy_product, _prices
 
@@ -145,7 +145,7 @@ def test_import_keeps_only_catalog_products_946(client):
 def test_hourly_refresh_records_catalog_products_and_the_latest_price_of_the_day_wins_946(db):
     from datetime import datetime, timezone
 
-    from app import price_refresh
+    from app.planner import price_refresh
 
     db.add(_printing("OP01-001", 11, "Luffy", 3.0))
     db.commit()

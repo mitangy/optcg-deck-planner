@@ -4,10 +4,10 @@
  * come from the build (VITE_GAME_SERVER_URL / VITE_DEV_JOIN_SECRET).
  */
 import { useSyncExternalStore } from "react";
-import { asDonArtId } from "./board/donArt";
-import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panelLayout";
-import { clampPopupSize } from "./board/popupSize";
-import { PROMPT_DOCKS, type PromptDock } from "./board/promptDock";
+import { asDonArtId } from "./board/don/donArt";
+import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panels/panelLayout";
+import { clampPopupSize } from "./board/preview/popupSize";
+import { PROMPT_DOCKS, type PromptDock } from "./board/prompts/promptDock";
 import { COLOR_MODES, DEFAULT_THEME, THEME_IDS, type ColorMode, type ThemeId } from "./theme";
 
 /** When "End turn" asks for a second tap. */

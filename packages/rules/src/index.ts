@@ -2,7 +2,7 @@ export { createSeededRng, type Rng, type RngState } from "./rng.js";
 export { EFFECT_SCHEMA_VERSION } from "./effects/types.js";
 export type { Ability, CardAbilities, Effect, Cond, Cost, Static, Trigger, SupportStatus } from "./effects/types.js";
 export { ABILITY_REGISTRY, REGISTRY_HASH, abilitiesFor, abilityById, cardAbilities, buildAbilityRegistry, RegistryValidationError } from "./cards/abilities.js";
-export { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION, serializeMatch, deserializeMatch, validateMatchContract, IncompatibleSnapshotError } from "./state/snapshot.js";
+export { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION, serializeMatch, deserializeMatch, validateMatchContract, IncompatibleSnapshotError } from "./engine/snapshot.js";
 export {
   getCardDef,
   listCardDefs,
@@ -39,10 +39,10 @@ export {
   isNegated,
 } from "./engine.js";
 export { parseIntent, type ParseIntentResult, type ParseIntentErrorCode } from "./engine/parseIntent.js";
-export { describeEvents } from "./describeEvents.js";
-export { revealReason, revealsHiddenInfo } from "./revealsHiddenInfo.js";
-export { reseedMatch } from "./reseed.js";
-export { MATCH_REPLAY_SCHEMA, replayMatch, replayStart, replayApply, type MatchReplay, type ReplayStep } from "./matchReplay.js";
+export { describeEvents } from "./review/describeEvents.js";
+export { revealReason, revealsHiddenInfo } from "./replay/revealsHiddenInfo.js";
+export { reseedMatch } from "./replay/reseed.js";
+export { MATCH_REPLAY_SCHEMA, replayMatch, replayStart, replayApply, type MatchReplay, type ReplayStep } from "./replay/matchReplay.js";
 export {
   createTimelineBuilder,
   buildReplayTimeline,
@@ -52,8 +52,8 @@ export {
   DEFAULT_CHECKPOINT_EVERY,
   type ReplayTimeline,
   type TimelineStep,
-} from "./replayTimeline.js";
-export { SEAT_LOG_SCHEMA, seatLog, type SeatLog, type SeatLogTurn } from "./seatLog.js";
+} from "./replay/replayTimeline.js";
+export { SEAT_LOG_SCHEMA, seatLog, type SeatLog, type SeatLogTurn } from "./replay/seatLog.js";
 export { BOT_LEVELS, chooseBotIntent, chooseBotIntentFromState, botTurnMemory, seedBotTurnMemory, noteBotPick, type BotTurnMemory, buildDeckPrior, DEFAULT_DECK_PRIOR, extractFeatures, evaluateLearned, describeIntent, ANALYSIS_DEFAULTS, VALUE_WEIGHTS, type DeckPrior, determinize, evaluate, EVAL_WEIGHTS, actingSeat, HARD_DEFAULTS, rankOptions, winProbability, type AnalysisOptions, type PositionOption, type BotLevel, type BotOptions, type BotView, type HardTrace } from "./bot/index.js";
 export type {
   Seat,

@@ -1,0 +1,148 @@
+/* ——— Compass launcher ——— */
+
+.lp-compass {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: var(--lp-z-compass, var(--z-hud-bar));
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--lp-line-d);
+  border-radius: var(--radius-round);
+  background: var(--lp-surface-d);
+  color: var(--lp-accent-d);
+  box-shadow: var(--lp-shadow-d);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lp-compass:hover {
+  transform: translateY(-1px);
+}
+
+.lp-compass:focus-visible {
+  outline: 2px solid var(--lp-focus-d);
+  outline-offset: 3px;
+}
+
+.lp-compass-svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+  overflow: visible;
+}
+
+.lp-compass-bezel {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+.lp-compass-face {
+  fill: color-mix(in srgb, currentColor 8%, transparent);
+  stroke: none;
+}
+
+.lp-compass-ticks path {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.lp-needle {
+  transform-box: view-box;
+  transform-origin: 24px 24px;
+}
+
+.lp-needle-n {
+  fill: var(--lp-needle-d);
+}
+
+.lp-needle-s {
+  fill: currentColor;
+  opacity: 0.55;
+}
+
+.lp-compass-pin {
+  fill: var(--lp-surface-d);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.lp-compass[data-working] .lp-needle {
+  animation: lp-needle-swing 1.6s ease-in-out infinite;
+}
+
+@keyframes lp-needle-swing {
+  0% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-38deg);
+  }
+  45% {
+    transform: rotate(28deg);
+  }
+  65% {
+    transform: rotate(-14deg);
+  }
+  82% {
+    transform: rotate(7deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes lp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.lp-compass-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-round);
+  background: var(--lp-needle-d);
+  border: 2px solid var(--lp-surface-d);
+}
+
+/* Pending access requests (owners): a count, not the unread dot. */
+.lp-compass-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--lp-needle-d);
+  border: 2px solid var(--lp-surface-d);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.lp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

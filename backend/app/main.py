@@ -5,10 +5,12 @@ import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from app.body_limit import BodySizeLimitMiddleware
-from app.config import get_settings
-from app.cors import TieredCORSMiddleware
-from app.db import init_db, startup_lock
+from app.core.body_limit import BodySizeLimitMiddleware
+from app.core.config import get_settings
+from app.core.cors import TieredCORSMiddleware
+from app.core.errors import register as register_domain_errors
+from app.core.db import init_db, startup_lock
+from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
 from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, reports, scan_samples
 
@@ -21,10 +23,10 @@ async def lifespan(_app: FastAPI):
     with startup_lock():
         init_db()
         # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
-        from app.catalog_sync import refresh_special_flags
-        from app.db import SessionLocal
+        from app.planner.catalog_sync import refresh_special_flags
+        from app.core.db import SessionLocal
 
-        from app.analyst_stats import backfill_seats
+        from app.analyst.stats import backfill_seats
 
         db = SessionLocal()
         try:
@@ -32,9 +34,10 @@ async def lifespan(_app: FastAPI):
             backfill_seats(db)
         finally:
             db.close()
-    from app.tournament_sync import start_background
+    from app.analyst.tournament_sync import start_background
 
-    from app import discord_feedback, price_refresh
+    from app.planner import price_refresh
+    from app.admin import discord_feedback
     from app.duel import progress_sweep
 
     sync_task = start_background(settings)
@@ -70,6 +73,7 @@ app = FastAPI(
     redoc_url=_redoc,
     openapi_url=_openapi,
 )
+register_domain_errors(app)
 
 _cors_origins = [settings.frontend_origin.rstrip("/")]
 _cors_origins.extend(settings.duel_cors_origin_list)
@@ -103,6 +107,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(api.router)
+app.include_router(group_buy_router.router)
 app.include_router(duel.router)
 app.include_router(friends_router.router)
 app.include_router(duel_tournaments.router)

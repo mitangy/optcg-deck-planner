@@ -1,0 +1,41 @@
+/*
+ * Log Pose chat: compass launcher + panel. Every colour and layer comes from a --lp-* custom
+ * property with a neutral default; each app sets them on `.logpose` from its own tokens.
+ *
+ *   --lp-surface        panel background          --lp-surface-2   assistant bubble / chips
+ *   --lp-ink            text                      --lp-muted       secondary text
+ *   --lp-line           borders                   --lp-accent      compass ring, Send button
+ *   --lp-on-accent      text on --lp-accent       --lp-user-bg     user bubble
+ *   --lp-user-ink       user bubble text          --lp-danger      errors
+ *   --lp-needle         compass north needle      --lp-field       textarea background
+ *   --lp-shadow         panel / compass shadow    --lp-focus       focus outline colour
+ *   --lp-font, --lp-font-display                  --lp-radius      bubble radius
+ *   --lp-z-compass      launcher layer            --lp-z-panel     panel layer
+ */
+
+.logpose {
+  --lp-surface-d: var(--lp-surface, #ffffff);
+  --lp-surface-2-d: var(--lp-surface-2, #f2f4f6);
+  --lp-ink-d: var(--lp-ink, #17252e);
+  --lp-muted-d: var(--lp-muted, #5b666c);
+  --lp-line-d: var(--lp-line, #d9dee2);
+  --lp-accent-d: var(--lp-accent, #1d5566);
+  --lp-on-accent-d: var(--lp-on-accent, #ffffff);
+  --lp-user-bg-d: var(--lp-user-bg, var(--lp-accent-d));
+  --lp-user-ink-d: var(--lp-user-ink, var(--lp-on-accent-d));
+  --lp-danger-d: var(--lp-danger, #a8322a);
+  --lp-needle-d: var(--lp-needle, #c4402f);
+  --lp-field-d: var(--lp-field, var(--lp-surface-d));
+  --lp-shadow-d: var(--lp-shadow, 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.18));
+  --lp-focus-d: var(--lp-focus, var(--lp-accent-d));
+  --lp-radius-d: var(--lp-radius, 14px);
+  font-family: var(--lp-font, inherit);
+  color: var(--lp-ink-d);
+  box-sizing: border-box;
+}
+
+.logpose *,
+.logpose *::before,
+.logpose *::after {
+  box-sizing: border-box;
+}

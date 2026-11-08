@@ -7,65 +7,56 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Qu
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_optional_user
-from app.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
+from app.core.auth import get_current_user, get_optional_user
+from app.planner.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.core.security import CatalogToken
-from app.db import get_db
-from app.models import CatalogCard, CatalogMeta, CatalogPrinting, User
-from app.rate_limit import RateLimiter, client_ip
-from app.recent_sales import fetch_recent_sales, is_cached
-from app.schemas import (
-    UserOut,
-    UserPreferencesUpdate,
-    CatalogCardResult,
-    CatalogStatus,
+from app.core.db import get_db
+from app.core.models import User
+from app.planner.models import CatalogCard, CatalogMeta, CatalogPrinting
+from app.core.rate_limit import RateLimiter, client_ip
+from app.planner.recent_sales import fetch_recent_sales, is_cached
+from app.core.schemas import UserOut, UserPreferencesUpdate
+from app.planner.schemas import (
     CardPrintingResult,
     CardPrintingUpdate,
+    CatalogCardResult,
+    CatalogStatus,
+    CollectorWantResult,
+    CollectorWantUpdate,
     DeckCardPrintingUpdate,
     DeckCardUpsert,
     DeckCreate,
-    DeckListReplace,
-    DeckRename,
     DeckDetail,
+    DeckListReplace,
     DeckOwnedResetResult,
+    DeckRename,
     DeckSummary,
-    GroupBuyContributionUpdate,
-    GroupBuyCreate,
-    GroupBuyDetail,
-    GroupBuyExport,
-    GroupBuyInvitePreview,
-    GroupBuyOrderUpdate,
-    GroupBuyPublicUpdate,
-    GroupBuyTitleUpdate,
-    GroupBuyQtyUpdate,
-    GroupBuyReceiptApplyRequest,
-    GroupBuyReceiptMatchReport,
-    GroupBuyReceiptMatchRequest,
-    GroupBuySummary,
-    OwnedCollectionResponse,
     DisplayArtResult,
     DisplayArtUpdate,
-    CollectorWantResult,
-    CollectorWantUpdate,
-    OwnedPrintingResult,
-    OwnedPrintingUpdate,
     OwnedAddRequest,
     OwnedAddResponse,
     OwnedAddResult,
+    OwnedCollectionResponse,
+    OwnedPrintingResult,
+    OwnedPrintingUpdate,
     OwnedUpdate,
-    ShoppingExtraUpdate,
-    PrintingView,
-    PublicShoppingResponse,
     PriceHistoryImport,
     PriceHistoryImportResult,
     PriceHistoryResponse,
+    PrintingView,
+    PublicShoppingResponse,
     RecentSalesResponse,
     ShareCreate,
     ShareInfo,
+    ShoppingExtraUpdate,
     ShoppingResponse,
 )
-from app import deck_link, group_buy, price_history, services
-from app.services import DeckOversizeError
+from app.planner import deck_link, price_history
+from app.planner import catalog_search as search_svc
+from app.planner import decks as deck_svc
+from app.planner import owned as owned_svc
+from app.planner import share as share_svc
+from app.planner import shopping as shopping_svc
 
 router = APIRouter(tags=["api"])
 
@@ -82,7 +73,7 @@ def get_decks(
     db: Annotated[Session, Depends(get_db)],
 ):
     deck_link.reconcile_user(db, user)
-    return services.list_decks(db, user)
+    return deck_svc.list_decks(db, user)
 
 
 @router.post("/decks", response_model=DeckSummary)
@@ -91,12 +82,8 @@ def post_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        deck = services.create_deck(db, user, body.name, body.decklist)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    summaries = {d.id: d for d in services.list_decks(db, user)}
-    return summaries[deck.id]
+    deck = deck_svc.create_deck(db, user, body.name, body.decklist)
+    return deck_svc.deck_summary(db, user, deck)
 
 
 @router.delete("/decks/{deck_id}")
@@ -105,10 +92,7 @@ def remove_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        services.delete_deck(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    deck_svc.delete_deck(db, user, deck_id)
     return {"ok": True}
 
 
@@ -119,14 +103,9 @@ def rename_deck(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return services.update_deck(
-            db, user, deck_id, body.name, body.hidden_from_friends
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.update_deck(
+        db, user, deck_id, body.name, body.hidden_from_friends
+    )
 
 
 @router.post("/decks/{deck_id}/set-main", response_model=DeckDetail)
@@ -136,12 +115,7 @@ def set_deck_main(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Mark this deck as Main for its leader; variants compare Additional Cards against it."""
-    try:
-        return services.set_deck_as_main(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.set_deck_as_main(db, user, deck_id)
 
 
 @router.get("/decks/{deck_id}", response_model=DeckDetail)
@@ -152,10 +126,7 @@ def get_deck(
     deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     """Optional deck_ids limits which other decks claim owned copies first (Separate per leader)."""
-    try:
-        return services.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return deck_svc.get_deck_detail(db, user, deck_id, deck_ids=deck_ids)
 
 
 @router.put("/decks/{deck_id}/decklist", response_model=DeckDetail)
@@ -165,12 +136,7 @@ def put_deck_decklist(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return services.replace_deck_list(db, user, deck_id, body.decklist)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.replace_deck_list(db, user, deck_id, body.decklist)
 
 
 @router.put("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
@@ -181,30 +147,14 @@ def put_deck_card(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return services.upsert_deck_card(
-            db,
-            user,
-            deck_id,
-            card_id,
-            body.needed,
-            confirm_oversize=body.confirm_oversize,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except DeckOversizeError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "deck_oversize",
-                "message": str(exc),
-                "current": exc.current,
-                "projected": exc.projected,
-                "limit": exc.limit,
-            },
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.upsert_deck_card(
+        db,
+        user,
+        deck_id,
+        card_id,
+        body.needed,
+        confirm_oversize=body.confirm_oversize,
+    )
 
 
 @router.delete("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
@@ -214,14 +164,9 @@ def delete_deck_card(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return services.upsert_deck_card(
-            db, user, deck_id, card_id, 0, confirm_oversize=True
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.upsert_deck_card(
+        db, user, deck_id, card_id, 0, confirm_oversize=True
+    )
 
 
 @router.put(
@@ -237,14 +182,9 @@ def put_deck_card_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many copies of an alt printing are wanted in this deck (≤ Need)."""
-    try:
-        return services.set_deck_card_printing(
-            db, user, deck_id, card_id, product_id, body.qty
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return deck_svc.set_deck_card_printing(
+        db, user, deck_id, card_id, product_id, body.qty
+    )
 
 
 @router.put(
@@ -259,19 +199,14 @@ def put_card_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set alt-art want across decks that include the card (shopping / group-buy sync)."""
-    try:
-        qty, decks_updated = services.set_user_card_printing(
-            db,
-            user,
-            card_id,
-            product_id,
-            body.qty,
-            deck_ids=body.deck_ids,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty, decks_updated = owned_svc.set_user_card_printing(
+        db,
+        user,
+        card_id,
+        product_id,
+        body.qty,
+        deck_ids=body.deck_ids,
+    )
     return CardPrintingResult(
         card_id=card_id.upper(),
         product_id=product_id,
@@ -287,10 +222,7 @@ def reset_deck_owned(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Zero Owned counts for every card that appears in this deck."""
-    try:
-        reset_count, detail = services.reset_deck_owned(db, user, deck_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    reset_count, detail = owned_svc.reset_deck_owned(db, user, deck_id)
     return DeckOwnedResetResult(deck_id=deck_id, reset_count=reset_count, deck=detail)
 
 
@@ -306,7 +238,7 @@ def get_shopping(
     Cards added directly (no deck) are included whatever deck_ids selects;
     pass extras=false to leave them out.
     """
-    return services.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
+    return shopping_svc.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
 
 
 @router.put("/shopping/extras/{card_id}")
@@ -317,10 +249,7 @@ def put_shopping_extra(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set the target copies to own for a card added straight to Master Shopping."""
-    try:
-        qty = services.set_shopping_extra(db, user, card_id, body.qty)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    qty = shopping_svc.set_shopping_extra(db, user, card_id, body.qty)
     return {"card_id": card_id.upper().strip(), "qty": qty}
 
 
@@ -347,7 +276,7 @@ def get_owned(
     deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     """Cards the user owns, with estimated market value. deck_ids filters the Buying counts."""
-    return services.owned_collection(db, user, deck_ids=deck_ids)
+    return owned_svc.owned_collection(db, user, deck_ids=deck_ids)
 
 
 @router.post("/owned/add", response_model=OwnedAddResponse)
@@ -357,10 +286,7 @@ def post_owned_add(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Add copies to several cards at once (the Collection photo scan)."""
-    try:
-        rows = services.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    rows = owned_svc.add_owned(db, user, [(i.card_id, i.add) for i in body.items])
     return OwnedAddResponse(items=[OwnedAddResult(card_id=c, owned=n) for c, n in rows])
 
 
@@ -371,7 +297,7 @@ def put_owned(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    qty = services.set_owned(db, user, card_id, body.qty)
+    qty = owned_svc.set_owned(db, user, card_id, body.qty)
     return {"card_id": card_id.upper(), "qty": qty}
 
 
@@ -387,10 +313,7 @@ def put_owned_printing(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many copies of an alt printing the user owns."""
-    try:
-        qty = services.set_alt_owned(db, user, card_id, product_id, body.qty)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty = owned_svc.set_alt_owned(db, user, card_id, product_id, body.qty)
     return OwnedPrintingResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
@@ -406,10 +329,7 @@ def put_collector_want(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set how many collector copies of an alt printing the user wants (0 removes)."""
-    try:
-        qty = services.set_collector_want(db, user, card_id, product_id, body.qty)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    qty = owned_svc.set_collector_want(db, user, card_id, product_id, body.qty)
     return CollectorWantResult(card_id=card_id.upper().strip(), product_id=product_id, qty=qty)
 
 
@@ -421,10 +341,7 @@ def put_display_art(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Choose which art the card shows (null = automatic, 0 = base art)."""
-    try:
-        product_id = services.set_display_art(db, user, card_id, body.product_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    product_id = owned_svc.set_display_art(db, user, card_id, body.product_id)
     return DisplayArtResult(card_id=card_id.upper().strip(), product_id=product_id)
 
 
@@ -433,7 +350,7 @@ def get_shopping_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return services.get_active_shopping_share(db, user)
+    return share_svc.get_active_shopping_share(db, user)
 
 
 @router.post("/share", response_model=ShareInfo)
@@ -442,19 +359,14 @@ def post_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        return services.create_or_update_share(
-            db,
-            user,
-            body.kind,
-            deck_id=body.deck_id,
-            deck_ids=body.deck_ids,
-            include_extras=body.include_extras,
-        )
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return share_svc.create_or_update_share(
+        db,
+        user,
+        body.kind,
+        deck_id=body.deck_id,
+        deck_ids=body.deck_ids,
+        include_extras=body.include_extras,
+    )
 
 
 @router.delete("/share/{token}")
@@ -463,10 +375,7 @@ def delete_share(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    try:
-        services.revoke_share(db, user, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    share_svc.revoke_share(db, user, token)
     return {"ok": True}
 
 
@@ -480,10 +389,7 @@ def get_public_share(
 
     A deck share shows owned counts from the viewer's collection when signed in (#741).
     """
-    try:
-        return services.public_share_view(db, token, viewer)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return share_svc.public_share_view(db, token, viewer)
 
 
 @router.post("/public/share/{token}/copy", response_model=DeckDetail)
@@ -493,367 +399,8 @@ def post_copy_shared_deck(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Copy a shared deck into the signed-in viewer's decks (#741)."""
-    try:
-        new = services.copy_shared_deck(db, user, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return services.get_deck_detail(db, user, new.id)
-
-
-@router.get("/group-buys", response_model=list[GroupBuySummary])
-def get_group_buys(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return group_buy.list_group_buys(db, user)
-
-
-@router.post("/group-buys", response_model=GroupBuyDetail)
-def post_group_buy(
-    body: GroupBuyCreate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return group_buy.create_group_buy(db, user, body.title, deck_ids=body.deck_ids)
-
-
-@router.get("/group-buys/{group_id}", response_model=GroupBuyDetail)
-def get_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.get_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.delete("/group-buys/{group_id}")
-def delete_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        group_buy.delete_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    return {"ok": True}
-
-
-@router.post("/group-buys/{group_id}/leave")
-def leave_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        group_buy.leave_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"ok": True}
-
-
-@router.post("/group-buys/join/{token}", response_model=GroupBuyDetail)
-def join_group_buy(
-    token: str,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.join_group_buy(db, user, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.get("/public/group-buys/{token}", response_model=GroupBuyInvitePreview)
-def public_group_buy_invite(
-    token: str,
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.invite_preview(db, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@router.get("/public/group-buys/{token}/view", response_model=GroupBuyDetail)
-def public_group_buy_view(
-    token: str,
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Unauthenticated read-only group buy for anyone with the invite token."""
-    try:
-        return group_buy.public_group_buy_view(db, token)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.put("/group-buys/{group_id}/public", response_model=GroupBuyDetail)
-def put_group_buy_public(
-    group_id: int,
-    body: GroupBuyPublicUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.set_public(db, user, group_id, body.is_public)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.put("/group-buys/{group_id}/title", response_model=GroupBuyDetail)
-def put_group_buy_title(
-    group_id: int,
-    body: GroupBuyTitleUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.set_title(db, user, group_id, body.title)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.put("/group-buys/{group_id}/contribution", response_model=GroupBuyDetail)
-def put_group_buy_contribution(
-    group_id: int,
-    body: GroupBuyContributionUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.update_contribution(db, user, group_id, body.deck_ids)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/lock", response_model=GroupBuyDetail)
-def lock_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.lock_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/unlock", response_model=GroupBuyDetail)
-def unlock_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.unlock_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/order", response_model=GroupBuyDetail)
-def mark_group_buy_ordered(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    body: GroupBuyOrderUpdate = GroupBuyOrderUpdate(),
-):
-    """Mark ordered: record checkout handoff after lock (does not update Owned)."""
-    try:
-        return group_buy.mark_ordered(db, user, group_id, body)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.patch("/group-buys/{group_id}/order", response_model=GroupBuyDetail)
-def patch_group_buy_order(
-    group_id: int,
-    body: GroupBuyOrderUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Update order notes, shipping cost, and shipping split (host)."""
-    try:
-        return group_buy.update_order(db, user, group_id, body)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/complete", response_model=GroupBuyDetail)
-def complete_group_buy(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Mark purchased without a receipt is blocked (use POST .../receipt/apply)."""
-    try:
-        return group_buy.complete_group_buy(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post(
-    "/group-buys/{group_id}/receipt/match",
-    response_model=GroupBuyReceiptMatchReport,
-)
-def match_group_buy_receipt(
-    group_id: int,
-    body: GroupBuyReceiptMatchRequest,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Parse a TCGPlayer receipt and compare line items to this group buy.
-
-    Hosts also persist the paste so Mark purchased still works after a refresh.
-    """
-    try:
-        report = group_buy.build_receipt_match_report(db, user, group_id, body.receipt_text)
-        try:
-            group_buy.save_receipt_text(db, user, group_id, body.receipt_text)
-        except PermissionError:
-            # Members may match for preview; only the host saves.
-            pass
-        return report
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/receipt/apply", response_model=GroupBuyDetail)
-def apply_group_buy_receipt(
-    group_id: int,
-    body: GroupBuyReceiptApplyRequest,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Stage matched receipt copies onto Owned (partial OK); complete when pool is empty."""
-    try:
-        return group_buy.apply_receipt_to_group_buy(db, user, group_id, body)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/receipt/undo", response_model=GroupBuyDetail)
-def undo_group_buy_receipt_apply(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Undo the latest Mark purchased — restore snapshot, Owned, and status."""
-    try:
-        return group_buy.undo_last_receipt_apply(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.put("/group-buys/{group_id}/quantities/{card_id}", response_model=GroupBuyDetail)
-def put_group_buy_qty(
-    group_id: int,
-    card_id: str,
-    body: GroupBuyQtyUpdate,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.set_member_qty(db, user, group_id, card_id, body.qty)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.delete("/group-buys/{group_id}/quantities/{card_id}", response_model=GroupBuyDetail)
-def delete_group_buy_qty(
-    group_id: int,
-    card_id: str,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.clear_member_qty(db, user, group_id, card_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.post("/group-buys/{group_id}/quantities/sync", response_model=GroupBuyDetail)
-def sync_group_buy_quantities(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.sync_member_quantities(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-
-@router.get("/group-buys/{group_id}/export/tcgplayer", response_model=GroupBuyExport)
-def export_group_buy_tcgplayer(
-    group_id: int,
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    try:
-        return group_buy.export_tcgplayer(db, user, group_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    new = share_svc.copy_shared_deck(db, user, token)
+    return deck_svc.get_deck_detail(db, user, new.id)
 
 
 @router.get("/catalog/status", response_model=CatalogStatus)
@@ -886,7 +433,7 @@ def catalog_cards(
 
     With alts=true, alt-art printings are returned as their own rows.
     """
-    return services.search_catalog(
+    return search_svc.search_catalog(
         db, q=q, color=color, card_type=card_type, limit=limit, alts=alts, user_id=user.id
     )
 
@@ -899,7 +446,7 @@ def catalog_card_printings(
 ):
     """All printings of a card number, so a scan can price the exact treatment."""
     _ = user
-    return services.card_printings(db, card_id)
+    return search_svc.card_printings(db, card_id)
 
 
 @router.get("/catalog/sales/{product_id}", response_model=RecentSalesResponse)

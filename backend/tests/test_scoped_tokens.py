@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app.config import get_settings
-from app.db import get_db
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
 from tests.db_support import make_test_engine
 
@@ -105,7 +105,7 @@ def test_ops_routes_fall_back_to_the_catalog_token_while_ops_token_is_unset(fall
 def test_unset_ops_token_logs_the_fallback_warning_once(monkeypatch: pytest.MonkeyPatch, caplog):
     monkeypatch.delenv("OPS_ADMIN_TOKEN", raising=False)
     get_settings.cache_clear()
-    with caplog.at_level(logging.WARNING, logger="app.config"):
+    with caplog.at_level(logging.WARNING, logger="app.core.config"):
         get_settings()
         get_settings()
     get_settings.cache_clear()

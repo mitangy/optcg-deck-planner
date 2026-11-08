@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, money, OwnedCard } from "../../api";
-import { CardLayoutToggle, useCardLayout } from "../../CardLayout";
+import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
   CardSearchInput,
   COLOR_ORDER,
@@ -16,22 +16,22 @@ import {
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
-} from "../../cardListControls";
+} from "../../ui/cardListControls";
 import {
   CollectionFilterMenu,
   CollectionStatCards,
   ColorFilterChips,
   TypeFilterChips,
-} from "../../CollectionToolbar";
-import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "../../collectionView";
-import { useSavedShoppingDeckIds } from "../../shoppingDeckFilter";
-import { collectionTotals, holdsCopies, invalidateOwnedViews } from "../../ownedCollection";
-import { CardScanner } from "../../lazyPages";
-import { useImageDrop } from "../../useImageDrop";
-import { baseTileFor, shownProductId } from "../../altArt";
-import { AltArtsRow } from "../../MarketPrice";
-import { ShoppingListSkeleton } from "../../Skeleton";
-import { isDonCard } from "../../donCards";
+} from "../../ui/CollectionToolbar";
+import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
+import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { collectionTotals, holdsCopies, invalidateOwnedViews } from "./ownedCollection";
+import { CardScanner } from "../../app/lazyPages";
+import { useImageDrop } from "../../hooks/useImageDrop";
+import { baseTileFor, shownProductId } from "../../cards/altArt";
+import { AltArtsRow } from "../../cards/MarketPrice";
+import { ShoppingListSkeleton } from "../../ui/Skeleton";
+import { isDonCard } from "../../cards/donCards";
 import { OwnedInput } from "../OwnedInputs";
 import {
   COLLECTION_COLORS_KEY,
@@ -44,7 +44,7 @@ import {
 import { jsonArrayCodec, usePersistedState } from "../../storage/persisted";
 import { CollectionAddPanel, CollectionOwnedControl } from "./CollectionAddPanel";
 import { CollectionItemsView } from "./CollectionItemsView";
-import { qk } from "../../queryKeys";
+import { qk } from "../../cache/queryKeys";
 
 const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
 const collectionColorsCodec = jsonArrayCodec(isColor);

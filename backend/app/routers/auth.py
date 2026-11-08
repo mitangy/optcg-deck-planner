@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth import (
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     OAUTH_RETURN_COOKIE,
     OAUTH_STATE_MAX_AGE_SECONDS,
@@ -29,12 +29,13 @@ from app.auth import (
     resolve_google_user,
     verify_oauth_state,
 )
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import User
-from app.rate_limit import RateLimiter
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.core.models import User
+from app.core.time import as_utc
+from app.core.rate_limit import RateLimiter
 from app.roles import is_banned
-from app.schemas import UsernameSuggestionOut, UsernameUpdate, UserOut
+from app.core.schemas import UserOut, UsernameSuggestionOut, UsernameUpdate
 from app.usernames import (
     UsernameError,
     suggest_username,
@@ -323,9 +324,7 @@ def _record_signup_source(db: Session, user: User, source: SignupSource | None) 
     """
     if user.signup_source is not None or user.created_at is None:
         return
-    created = user.created_at
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=timezone.utc)
+    created = as_utc(user.created_at)
     if datetime.now(timezone.utc) - created > _NEW_ACCOUNT_WINDOW:
         return
     user.signup_source = source.compact_json() if source is not None else "{}"

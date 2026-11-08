@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, agoText, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -270,16 +270,6 @@ describe("user detail helpers (#988)", () => {
     expect(resultOf({ mode: "bot", won: null })).toBe("—");
     expect(resultOf({ mode: "bot", won: true })).toBe("Won");
     expect(resultOf({ mode: "ranked", won: false })).toBe("Lost");
-  });
-
-  it("writes how long ago in minutes, hours and days, and the date after a month (#988)", () => {
-    const now = Date.parse("2026-11-05T12:00:00Z");
-    expect(agoText("2026-11-05T11:59:40Z", now)).toBe("just now");
-    expect(agoText("2026-11-05T11:55:00Z", now)).toBe("5 min ago");
-    expect(agoText("2026-11-05T09:00:00Z", now)).toBe("3 h ago");
-    expect(agoText("2026-11-04T11:00:00Z", now)).toBe("1 day ago");
-    expect(agoText("2026-11-02T11:00:00Z", now)).toBe("3 days ago");
-    expect(agoText("2026-09-01T11:00:00Z", now)).toBe("2026-09-01");
   });
 
   it("says where an online account is, and nothing when offline (#988)", () => {

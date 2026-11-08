@@ -1,0 +1,139 @@
+/* Continuous row rules via inset line (not border-collapse seams).
+   border-bottom on cells fragments around flex history, sticky headers,
+   and narrow columns like the shopping checkbox — this paints evenly. */
+.data-table > :is(thead, tbody) > tr > :is(th, td) {
+  position: relative;
+  border-bottom: none;
+  background-clip: padding-box;
+}
+
+.data-table > :is(thead, tbody) > tr > :is(th, td)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* Non-data tables (e.g. group-buy owes) keep a simple bottom border. */
+table:not(.data-table) th,
+table:not(.data-table) td {
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: var(--card-sunk);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-raise-1);
+}
+
+/* Sortable column headers. The button hugs its label and the arrow hangs in the
+   cell's right padding, so headers keep their pre-sort width and never shift. */
+.th-sort-btn {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  white-space: inherit;
+  cursor: pointer;
+}
+
+.th-sort-btn:hover {
+  color: var(--ink);
+}
+
+.th-sort-btn:focus-visible {
+  outline: none;
+  border-radius: var(--radius-4);
+  box-shadow: var(--focus-ring);
+}
+
+.th-sort-arrow {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  /* 2px gap + 6px icon fits the tightest cell padding (0.5rem in deck edit mode). */
+  margin-left: 2px;
+  line-height: 0;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.th-sort-arrow svg {
+  fill: currentColor;
+}
+
+.th-sort-arrow.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
+tr.need td {
+  background: var(--need);
+}
+
+tr.done td {
+  background: var(--done);
+}
+
+.thumb {
+  width: 108px;
+  height: 151px;
+  object-fit: contain;
+  border-radius: var(--radius-10);
+  background: var(--thumb-bg);
+  display: block;
+}
+
+.thumb.placeholder {
+  border: 1px dashed var(--line);
+  /* Same footprint as real art: a long card name must not squeeze it narrower. */
+  flex-shrink: 0;
+}
+
+.thumb-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: var(--radius-10);
+}
+
+.thumb-btn:hover .thumb,
+.thumb-btn:focus-visible .thumb {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.thumb-btn:focus-visible {
+  outline: none;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 3.25rem 0.75rem 0.75rem;
+  background: rgba(16, 36, 45, 0.82);
+  backdrop-filter: blur(4px);
+}

@@ -4,11 +4,11 @@ import { lookupCard } from "../cards/atlas";
 import { CardArt } from "../cards/CardArt";
 import { resolveCardImageUrl } from "../decks/artPrefs";
 import type { Seat } from "../net/protocol";
-import { fallbackToDefaultDon, useDonArt } from "./donArt";
-import { attachLabel, quickAttachLabel, type PendingAttach } from "./donSelection";
-import { popoverPlacement, type CardActionText, type PopoverSize } from "./cardActions";
-import { usePopupScale } from "./PopupSizeButtons";
-import { useTrackedBoxes } from "./useTrackedBoxes";
+import { fallbackToDefaultDon, useDonArt } from "./don/donArt";
+import { attachLabel, quickAttachLabel, type PendingAttach } from "./don/donSelection";
+import { popoverPlacement, type CardActionText, type PopoverSize } from "./input/cardActions";
+import { usePopupScale } from "./preview/PopupSizeButtons";
+import { useTrackedBoxes } from "./layout/useTrackedBoxes";
 
 const CONFIRM_W = 250;
 const EDGE = 8;

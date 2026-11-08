@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
-import { setSignedInHint } from "../prerendered";
-import { qk } from "../queryKeys";
+import { setSignedInHint } from "../app/prerendered";
+import { qk } from "../cache/queryKeys";
 
 /**
  * The session query. Every reader must use this hook: the signed-in hint (#914) is written by its queryFn, so a

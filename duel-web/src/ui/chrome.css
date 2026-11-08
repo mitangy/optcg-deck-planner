@@ -1,0 +1,117 @@
+/* —— App chrome: full-bleed top bar, constrained inner —— */
+
+.topbar {
+  width: 100%;
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.72);
+  backdrop-filter: blur(6px);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+  /* Bar stays full-bleed under the status bar; the inner row clears it. */
+  padding-top: var(--safe-t);
+}
+
+.topbar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0.6rem max(1rem, var(--safe-r)) 0.6rem max(1rem, var(--safe-l));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.topbar-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-size: 1.45rem;
+  white-space: nowrap;
+}
+
+.topbar-mark:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--radius-8);
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+.brand-word span {
+  color: var(--chrome);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  max-width: 16rem;
+  height: 40px;
+  padding: 0 0.8rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--arena-panel);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.account-chip:hover {
+  border-color: var(--line-strong);
+}
+
+.account-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.account-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.account-dot[data-mode="google"] {
+  background: #6cc08b;
+}
+
+.account-dot[data-mode="dev"] {
+  background: var(--warn);
+}
+
+.account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-rating {
+  font-variant-numeric: tabular-nums;
+  color: var(--chrome-bright);
+  padding-left: 0.45rem;
+  border-left: 1px solid var(--line);
+}
+

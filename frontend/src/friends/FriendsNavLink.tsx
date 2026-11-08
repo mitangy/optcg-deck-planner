@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { friendsApi } from "./friendsApi";
 import { badgeLabel, navBadgeCount } from "./tradeLogic";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** Nav link with a count of offers waiting plus trades in progress. The badge floats over the link's corner, so it never resizes the link. */
 export function FriendsNavLink() {
