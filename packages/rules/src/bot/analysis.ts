@@ -11,9 +11,8 @@ import { describeIntent } from "./labels.js";
 import { peekNormalIntent } from "./policy.js";
 import { candidatesFor, searchCandidates } from "./search.js";
 import type { BotOptions } from "./types.js";
-import { extractFeatures } from "./features.js";
 import { stableJson } from "../review/classify.js";
-import { logitOf, sigmoid } from "./valueModel.js";
+import { learnedLogit, sigmoid } from "./valueModel.js";
 
 export interface PositionOption {
   intent: Intent;
@@ -44,7 +43,7 @@ export const ANALYSIS_DEFAULTS = { budgetMs: 1500, samples: 6 } as const;
 /** Learned chance (0..1) that `seat` wins from `state`, as it stands (no search). Exactly 0 or 1 once the game is over. */
 export function winProbability(state: MatchState, seat: Seat): number {
   if (state.winner !== null) return state.winner === seat ? 1 : 0;
-  return sigmoid(logitOf(extractFeatures(state, seat)));
+  return sigmoid(learnedLogit(state, seat));
 }
 
 /**
