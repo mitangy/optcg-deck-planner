@@ -15,13 +15,14 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.models import AnalystFeedback, AnalystMatchReview, AnalystMessage, AnalystThread, User
-from app.rate_limit import RateLimiter
-from app.routers.analyst import chat_enabled_for, chat_model
-from app.routers.analyst_chat import thread_view
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
+from app.core.db import get_db
+from app.analyst.models import AnalystFeedback, AnalystMatchReview, AnalystMessage, AnalystThread
+from app.core.models import User
+from app.core.rate_limit import RateLimiter
+from app.analyst.access import chat_enabled_for, chat_model
+from app.analyst.thread_view import thread_view
 
 router = APIRouter(prefix="/analyst/feedback", tags=["analyst"])
 

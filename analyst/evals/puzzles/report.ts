@@ -1,6 +1,6 @@
 /** report.md for the rules-puzzle eval (#677). */
-import type { EvalRunPost } from "../post";
-import { wilson } from "../stats";
+import type { EvalRunPost } from "../shared/post";
+import { wilson } from "../qa/stats";
 import type { PuzzleError, PuzzleRow } from "./pipeline";
 import { PUZZLE_TYPES, type Puzzle } from "./types";
 

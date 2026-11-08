@@ -92,7 +92,7 @@
 
 .legal-draft {
   padding: 0.55rem 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
   background: color-mix(in srgb, currentColor 6%, transparent);
   font-weight: 600;
@@ -175,7 +175,7 @@
 .feedback-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  z-index: var(--z-feedback);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,7 +197,7 @@
   overscroll-behavior: contain;
   padding: 1rem 1.1rem 1.1rem;
   border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   background: var(--fb-bg, Canvas);
   color: var(--fb-ink, CanvasText);
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
@@ -218,7 +218,7 @@
   margin-bottom: 0.7rem;
   padding: 0.25rem;
   border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--fb-field-bg, transparent);
 }
 
@@ -227,7 +227,7 @@
   min-height: 40px;
   padding: 0.35rem 0.5rem;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-9);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -249,7 +249,7 @@
   resize: vertical;
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--fb-line, rgb(128 128 128 / 0.4));
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--fb-field-bg, transparent);
   color: inherit;
   /* 16px: iOS Safari zooms the page when a smaller field is focused. */
@@ -294,7 +294,7 @@
   min-height: 44px;
   padding: 0.5rem 1rem;
   border: 1px solid var(--fb-line, rgb(128 128 128 / 0.5));
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: transparent;
   color: inherit;
   font: inherit;

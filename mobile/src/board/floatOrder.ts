@@ -3,7 +3,7 @@ import type { ChoiceRequestView } from "../net/protocol";
 /**
  * Pure helpers for the floating-card prompts (`FloatingPrompt.tsx`): cards laid
  * out left → right over the board, tapped to pick and dragged to reorder.
- * Mirrors duel-web/src/board/floatOrder.ts.
+ * Mirrors duel-web/src/board/prompts/floatOrder.ts.
  */
 
 /** `list` with `id` moved to `index` (clamped); unchanged when `id` is absent. */

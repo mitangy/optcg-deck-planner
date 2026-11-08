@@ -9,7 +9,7 @@ import altManifest from "./previewArtAlts.json";
  *
  * `previewArt.json` (sorted card ids that have a file in that folder) and
  * `previewArtAlts.json` (TCGPlayer product ids of alternate-art printings, whose
- * file is `p<productId>.webp`) are maintained by `python3 scripts/sync_preview_art.py`:
+ * file is `p<productId>.webp`) are maintained by `python3 backend/scripts/sync_preview_art.py`:
  * it adds previews for cards without TCGPlayer art and prunes the ones that now
  * have it.
  *

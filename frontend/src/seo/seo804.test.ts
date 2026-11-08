@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "./routeMeta";
+import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "./routeMetaTable";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
@@ -55,7 +55,7 @@ function status(routes: VercelRoute[], path: string): number | null {
 
 describe("planner vercel.json routes (#804)", () => {
   const routes = (JSON.parse(read("../../../vercel.json")) as { routes: VercelRoute[] }).routes;
-  const appPaths = [...read("../App.tsx").matchAll(/<Route\s+path="([^"]+)"/g)]
+  const appPaths = [...read("../app/App.tsx").matchAll(/<Route\s+path="([^"]+)"/g)]
     .map((m) => m[1])
     .filter((p) => p !== "*" && !p.startsWith("/dev/"));
   const sample = (p: string) => p.replace(/:\w+/g, "tok_1");

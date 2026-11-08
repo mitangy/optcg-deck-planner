@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
-import { buildReplayTimeline, getReplayView, projectReplayEvents, timelineStateAt } from "../replayTimeline.js";
+import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/matchReplay.js";
+import { buildReplayTimeline, getReplayView, projectReplayEvents, timelineStateAt } from "../replay/replayTimeline.js";
 import { expandDeck, loadFixture } from "../testing/replay.js";
 import type { MatchState, Seat } from "../types.js";
 

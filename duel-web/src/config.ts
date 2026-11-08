@@ -1,6 +1,6 @@
 /** Runtime config for the duel-web Vite SPA. */
 
-export const PROTOCOL_VERSION = 5 as const;
+export { PROTOCOL_VERSION } from "@optcg/duel-protocol";
 
 /**
  * Rewrite `localhost` / `127.0.0.1` in service URLs to the page hostname when

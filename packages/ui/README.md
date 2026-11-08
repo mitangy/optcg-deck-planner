@@ -1,27 +1,56 @@
 # @optcg/ui
 
-Shared UI code for the planner (`frontend/`) and duel-web. Both apps compile it
-from source through a Vite alias (and a `tsconfig` path), like
-`@optcg/patch-notes`.
+Shared UI code for the planner (`frontend/`) and duel-web. Both apps list it as a
+dependency (npm workspace) and compile it from source: `exports` maps `.` to
+`src/index.ts` and `@optcg/ui/<folder>` (`popups`, `cardArt`, `seo`, `tabs`,
+`firstTouch`, `appShell`, `hooks`, `classNames`, `username`) to that folder's `index.ts`. A new folder with an `index.ts` is
+importable at once.
 
-`@headlessui/react` is a dependency of each app (`frontend/` and `duel-web/`), not
-of this package: Vercel installs only the app's own `node_modules`. Each app lists
-it in `resolve.dedupe` (vite configs and `duel-web/vitest.config.ts`) and maps it in
-`tsconfig` `paths`, so imports from `packages/ui/src` resolve to the app's copy,
-the same way `react` does. Do the same for any new dependency this package gets.
+`react`, `react-dom` and `@headlessui/react` are peer dependencies of this package
+(and dev dependencies for its own tests). Every workspace installs from the one
+root `package-lock.json`, so there is a single copy of each and no `dedupe` or
+`paths` workaround in the apps. A new third-party import here becomes a peer
+dependency of the package and a dependency of the apps that use it.
 
 ## cardArt
 
 `import { ... } from "@optcg/ui"` or `"@optcg/ui/cardArt"`.
 
 - `cardImageUrl(src, size)`: rewrite a TCGplayer CDN url to `_400w` (thumb) or `_in_1000x1000` (large).
-- `cardArtChain(src, cardId, size, origin?)`: the planner's ordered urls to try (resized, original, preview).
+- `cardArtChain(src, cardId, size, origin?)`: the ordered urls to try for a catalog card (resized, original, preview).
+- `useCardArt(src, cardId, size, origin?)` / `CardArtImg`: walk that chain as images fail; a TCGplayer "Image Coming Soon" picture (it loads fine, so `onError` never fires) counts as a failure. The planner passes the duel app's origin for the preview files.
+- `useArtFallback(src, defId)` / `CardArt`: duel-web's tiles, `src` then `artAfterError`, then the text fallback. Both hooks are one walker (`useArtChain`) over a different list.
 - `previewArtPath` / `altPreviewArtPath` / `isPreviewArtPath` / `previewArtUrl`: unofficial preview art for cards TCGplayer has no picture for. Every function that builds a url takes an `origin` (default `""`, a relative `/cards/preview/...` path). The planner passes the duel app's origin because the webp files are hosted by duel-web (`duel-web/public/cards/preview/`).
 - `artAfterError`, `localCardArtPath`, `isLocalCardsUrl`, `isTcgplayerCdnUrl`, `isPlaceholderArt`: duel-web's art fallback chain.
 
 `src/cardArt/previewArt.json` (card ids) and `previewArtAlts.json` (alt-printing
 product ids) are the manifests of the preview files. They are maintained by
-`python3 scripts/sync_preview_art.py`; do not edit them by hand.
+`python3 backend/scripts/sync_preview_art.py`; do not edit them by hand.
+
+## appShell
+
+`import { ... } from "@optcg/ui/appShell"`. What both apps' chrome shares:
+
+- `BuildTag`, `BUILD_SHA`, `BUILD_TIME`, `formatBuildTag`, `formatBuildTime`: the commit baked in by Vite (`VITE_GIT_SHA`, `VITE_BUILD_TIME`; `tools/vite/versionFile.mjs` resolves the sha and emits `/version.json`).
+- `startUpdateChecks`, `checkForUpdate`, `useUpdateStatus`: "am I on the latest app?" against `/version.json`. Dismissing is opt-in: an app with a "Later" button renders from `usePendingUpdate` and calls `dismissUpdate`.
+- `createAnalyticsBeforeSend(tokenRoutes?)` / `redactAnalyticsUrl(url, tokenRoutes?)`: only origin + path reach Vercel Analytics; each app lists the path prefixes that are followed by a secret segment.
+
+## hooks, classNames, username
+
+- `@optcg/ui/hooks`: `useMediaQuery(query)`.
+- `@optcg/ui/classNames`: `cx(...parts)` joins the truthy class names.
+- `@optcg/ui/username`: the username format rules (`USERNAME_MIN`, `USERNAME_MAX`, `usernameFormatError`, `needsUsername`), mirroring `backend/app/usernames.py`.
+
+## seo
+
+`import { ... } from "@optcg/ui/seo"`. Not UI components: head and pre-render helpers for both SPAs.
+
+- `usePageMeta(meta)` / `applyPageMeta(meta)` / `canonicalUrl(origin, path)`: set the title, description, canonical link, `noindex` and share image of the current page.
+- `applyHead(template, head)`, `injectRoot(template, rootHtml, data?)`, `escapeHtml`, `jsonForScript`: build the pre-rendered HTML that `tools/seo/prerender-plugin.mjs` writes for each route.
+
+## firstTouch
+
+`import { ... } from "@optcg/ui/firstTouch"` (#905). `captureFirstTouch()` records where a visitor came from (referrer host, landing path, UTM fields; own sites are ignored) in local storage for 30 days; `readFirstTouch()` returns it. Both apps send it with `POST /auth/claim` and the API keeps it only for brand-new accounts.
 
 ## popups (Headless UI)
 

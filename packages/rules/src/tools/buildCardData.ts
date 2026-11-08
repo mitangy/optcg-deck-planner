@@ -4,7 +4,7 @@
  * Usage (from packages/rules):
  *   npx tsx src/tools/buildCardData.ts <path/to/artifacts/bandai-full>
  *
- * The candidate is produced by `scripts/import_bandai_metadata.py --all-series`.
+ * The candidate is produced by `backend/scripts/import_bandai_metadata.py --all-series`.
  * Base card IDs only (parallel printings `_pN` are art, not gameplay). IDs that
  * exist in the bundled catalog but not in the official English list keep their
  * bundled values and are marked `source: "bundled"` (unverified). Rows imported
@@ -143,7 +143,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const bundled = JSON.parse(readFileSync(resolve("src/cards/catalogMeta.json"), "utf8")) as Record<string, BundledRow>;
   const previous = (JSON.parse(readFileSync(resolve("src/cards/cardData.json"), "utf8")) as CardDataFile).cards;
   const sorted = buildCards(candidate.cards, bundled, previous);
-  const file: CardDataFile = { candidate: latest.candidate, generatedFrom: "scripts/import_bandai_metadata.py --all-series", cards: sorted };
+  const file: CardDataFile = { candidate: latest.candidate, generatedFrom: "backend/scripts/import_bandai_metadata.py --all-series", cards: sorted };
   writeFileSync(resolve("src/cards/cardData.json"), `${JSON.stringify(file)}\n`, "utf8");
   const counts: Record<string, number> = {};
   for (const row of Object.values(sorted)) counts[`${row.source}:${row.type}`] = (counts[`${row.source}:${row.type}`] ?? 0) + 1;

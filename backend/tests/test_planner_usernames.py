@@ -1,6 +1,7 @@
 """Planner shows another user's duel username when they have one (#903)."""
 
-from app import group_buy, services
+from app.planner import share as share_svc
+from app.group_buy import service as group_buy
 from tests.conftest import add_deck_with_cards, make_user
 
 
@@ -28,8 +29,8 @@ def test_group_buy_member_and_host_names_use_duel_username_903(db):
 def test_share_link_owner_name_uses_duel_username_903(db):
     owner = make_user(db, email="o903@example.com", name="Owner Real", sub="sub-o903")
     deck = add_deck_with_cards(db, owner, "A", {"OP01-016": 1})
-    link = services.create_or_update_share(db, owner, "deck", deck.id)
-    assert services.public_share_view(db, link.token).owner_name == "Owner Real"
+    link = share_svc.create_or_update_share(db, owner, "deck", deck.id)
+    assert share_svc.public_share_view(db, link.token).owner_name == "Owner Real"
     owner.username = "ownerduel"
     db.commit()
-    assert services.public_share_view(db, link.token).owner_name == "ownerduel"
+    assert share_svc.public_share_view(db, link.token).owner_name == "ownerduel"

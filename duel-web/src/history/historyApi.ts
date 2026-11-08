@@ -1,6 +1,5 @@
 /** Duel-web ↔ FastAPI: your match history and your personal Log Pose connector link. */
-import { getApiBaseUrl } from "../config";
-import { ApiError } from "../net/api";
+import { apiCall } from "../api/http";
 
 export type MatchHistoryEntry = {
   match_id: string;
@@ -42,20 +41,7 @@ export type MatchDetail = { match: MatchHistoryEntry; log: SeatLogJson | null };
 export type AnalystLinkStatus = { has_token: boolean; created_at: string | null };
 export type AnalystLinkCreated = { token: string; connector_url: string | null };
 
-async function call<T>(path: string, init: RequestInit = {}, fallback = "Request failed"): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, { credentials: "include", ...init });
-  if (!res.ok) {
-    let detail = `${fallback} (${res.status})`;
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string" && body.detail) detail = body.detail;
-    } catch {
-      /* non-JSON body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return (res.status === 204 ? undefined : await res.json()) as T;
-}
+const call = apiCall;
 
 export async function fetchMatchHistory(limit = 50): Promise<MatchHistoryEntry[]> {
   const body = await call<{ matches: MatchHistoryEntry[] }>(`/duel/matches/me?limit=${limit}`, {}, "Could not load your matches");
@@ -102,7 +88,7 @@ export async function fetchAnalystSharing(): Promise<boolean> {
 export async function setAnalystSharing(share: boolean): Promise<boolean> {
   const body = await call<{ share_matches: boolean }>(
     "/analyst/sharing",
-    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ share_matches: share }) },
+    { method: "PUT", body: JSON.stringify({ share_matches: share }) },
     "Could not save your stats setting",
   );
   return body.share_matches;
@@ -116,7 +102,7 @@ export async function fetchAnalystLessons(): Promise<AnalystLesson[]> {
 export function reviewAnalystLesson(id: number, status: AnalystLessonStatus): Promise<AnalystLesson> {
   return call<AnalystLesson>(
     `/analyst/lessons/review/${id}`,
-    { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) },
+    { method: "PATCH", body: JSON.stringify({ status }) },
     "Could not save the lesson",
   );
 }
@@ -131,7 +117,7 @@ export type SimImportResult = { imported: number; skipped_duplicates: number; sk
 export function importSimGames(games: unknown[]): Promise<SimImportResult> {
   return call<SimImportResult>(
     "/analyst/sim-games/import",
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ games }) },
+    { method: "POST", body: JSON.stringify({ games }) },
     "Could not import the games",
   );
 }

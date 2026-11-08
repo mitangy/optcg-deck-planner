@@ -4,8 +4,7 @@
  * with the fuzzer rather than in the engine.
  */
 import { applyIntent } from "../engine.js";
-import { createSeededRng } from "../rng.js";
-import { deserializeMatch, serializeMatch } from "../state/snapshot.js";
+import { deserializeMatch, serializeMatch } from "../engine/snapshot.js";
 import type { Intent, MatchState, PlayerState, Seat } from "../types.js";
 
 /** Cards a seat owns across every zone (Leader included, attached DON!! excluded). */
@@ -53,8 +52,8 @@ export function assertConservation(state: MatchState, baseline: [number, number]
  */
 export function assertSnapshotContinues(state: MatchState, intent: Intent, seat: Seat): void {
   const restored = deserializeMatch(serializeMatch(state));
-  const direct = applyIntent(state, intent, { seat, rng: createSeededRng(0) });
-  const resumed = applyIntent(restored, intent, { seat, rng: createSeededRng(0) });
+  const direct = applyIntent(state, intent, { seat });
+  const resumed = applyIntent(restored, intent, { seat });
   if (direct.ok !== resumed.ok) throw new Error(`snapshot resume diverged: ok ${direct.ok} vs ${resumed.ok} for ${JSON.stringify(intent)}`);
   if (JSON.stringify(direct.state) !== JSON.stringify(resumed.state)) throw new Error(`snapshot resume diverged: state differs after ${JSON.stringify(intent)}`);
   if (JSON.stringify(direct.events) !== JSON.stringify(resumed.events)) throw new Error(`snapshot resume diverged: events differ after ${JSON.stringify(intent)}`);

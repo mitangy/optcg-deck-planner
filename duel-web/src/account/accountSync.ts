@@ -1,5 +1,6 @@
 /** Starts / stops syncing settings, cosmetics and saved decks with the signed-in account. */
-import { fetchAuthMe, type AuthUser } from "../net/api";
+import { ensureAuth, getAuth, subscribeAuth } from "../auth/session";
+import type { AuthUser } from "../net/api";
 import { pushLinkedDeckArt } from "../decks/planner";
 import { stopCosmeticsSync, syncCosmetics } from "./cosmeticsSync";
 import { clearAccountDecks, flushDeckSync, stopDeckSync, syncDecks } from "./deckSync";
@@ -46,9 +47,9 @@ export function resyncOnReturn(
   };
 }
 
-/** Call on app start and after sign-in; a no-op for guests or an already-synced user. */
+/** Syncs for `user` (default: whoever the auth store says is signed in); a no-op for guests or an already-synced user. */
 export async function startAccountSync(user?: AuthUser | null): Promise<void> {
-  const me = user === undefined ? await fetchAuthMe().catch(() => null) : user;
+  const me = user === undefined ? await ensureAuth() : user;
   if (!me || me.id === syncedUserId) return;
   syncedUserId = me.id;
   stopReturnSync?.();
@@ -58,6 +59,20 @@ export async function startAccountSync(user?: AuthUser | null): Promise<void> {
     syncCosmetics().catch(() => undefined),
     syncDecksAndArt(me.id).catch(() => undefined),
   ]);
+}
+
+/**
+ * Call once on app start: asks the auth store who is signed in (the one `/auth/me` request of a page load) and
+ * starts syncing for that account now and for any account the store gets later (a sign-in landing).
+ * Returns a function that stops watching.
+ */
+export function watchAccountSync(): () => void {
+  const off = subscribeAuth(() => {
+    const { status, user } = getAuth();
+    if (status === "ready" && user) void startAccountSync(user);
+  });
+  void startAccountSync();
+  return off;
 }
 
 /** `clearDecks` on an explicit sign-out: the account's decks leave this browser. */

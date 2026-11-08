@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LEGAL_CONTACT_EMAIL } from "@optcg/site-legal";
 import { type DuelEvent, fetchEventById } from "../events/eventApi";
 import { eventStyleLabel, usesDraw } from "../events/eventLogic";
-import { NavMenu } from "../nav/NavMenu";
+import { PageShell } from "../layout/PageShell";
+import { useAsyncResource } from "../lib/useAsyncResource";
 
 function inZone(iso: string, timeZone: string, withDate = true): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -171,38 +172,27 @@ print(sorted(eligible_ids, key=rank))`}</pre>
 /** Official rules of a giveaway event: /events/:eventId/rules (#794). */
 export function EventRulesPage() {
   const { eventId } = useParams();
-  const [state, setState] = useState<{ status: "loading" } | { status: "none" } | { status: "ready"; event: DuelEvent }>({ status: "loading" });
-
-  useEffect(() => {
-    let live = true;
-    // By id, not "current": the banner drops an ended event after a week, but the rules, seed and
-    // eligible ids must stay readable through the draw and the winner's reply window (#795).
-    fetchEventById(eventId ?? "")
-      .then((event) => live && setState(event ? { status: "ready", event } : { status: "none" }))
-      .catch(() => live && setState({ status: "none" }));
-    return () => {
-      live = false;
-    };
-  }, [eventId]);
+  // By id, not "current": the banner drops an ended event after a week, but the rules, seed and
+  // eligible ids must stay readable through the draw and the winner's reply window (#795).
+  const res = useAsyncResource(() => fetchEventById(eventId ?? ""), [eventId]);
+  const state = useMemo<{ status: "loading" } | { status: "none" } | { status: "ready"; event: DuelEvent }>(() => {
+    if (res.status === "loading") return { status: "loading" };
+    return res.status === "ready" && res.data ? { status: "ready", event: res.data } : { status: "none" };
+  }, [res]);
 
   return (
-    <div className="app-shell">
-      <div className="page page-narrow legal-page rules-page">
-        <header className="page-header">
-          <NavMenu />
-          <Link to="/" className="btn btn-ghost btn-sm page-back" aria-label="Back to home">
-            ← Home
-          </Link>
-          <h1 className="page-title">Official rules</h1>
-        </header>
-        {state.status === "ready" ? (
-          <RulesBody event={state.event} />
-        ) : (
-          <p className="panel-copy" role="status">
-            {state.status === "loading" ? "Loading…" : "These rules are not available."}
-          </p>
-        )}
-      </div>
-    </div>
+    <PageShell
+      pageClass="page-narrow legal-page rules-page"
+      back={{ to: "/", label: "Home", ariaLabel: "Back to home", variant: "ghost" }}
+      title="Official rules"
+    >
+      {state.status === "ready" ? (
+        <RulesBody event={state.event} />
+      ) : (
+        <p className="panel-copy" role="status">
+          {state.status === "loading" ? "Loading…" : "These rules are not available."}
+        </p>
+      )}
+    </PageShell>
   );
 }

@@ -1,43 +1,8 @@
-import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { build, defineConfig, type Plugin } from "vite";
+import { build, defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { prerenderPlugin } from "../scripts/seo/prerender-plugin.mjs";
-
-/** Short SHA for the build tag in the SPA chrome. */
-function resolveGitSha(): string {
-  const fromEnv =
-    process.env.VITE_GIT_SHA?.trim() ||
-    process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
-    process.env.CF_PAGES_COMMIT_SHA?.trim();
-  if (fromEnv) return fromEnv.slice(0, 7);
-  try {
-    return execSync("git rev-parse --short HEAD", {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return "unknown";
-  }
-}
-
-/**
- * Emits `/version.json` next to the bundle. The running app fetches it
- * uncached to tell whether a newer deploy is live (src/appVersion.ts).
- */
-function versionFile(sha: string, builtAt: string): Plugin {
-  return {
-    name: "duel-version-file",
-    apply: "build",
-    generateBundle() {
-      this.emitFile({
-        type: "asset",
-        fileName: "version.json",
-        source: `${JSON.stringify({ sha, builtAt })}\n`,
-      });
-    },
-  };
-}
+import { prerenderPlugin } from "../tools/seo/prerender-plugin.mjs";
+import { resolveGitSha, versionFile } from "../tools/vite/versionFile.mjs";
 
 export default defineConfig(() => {
   const gitSha = resolveGitSha();
@@ -47,24 +12,13 @@ export default defineConfig(() => {
   return {
     plugins: [
       react(),
-      versionFile(gitSha, builtAt),
+      versionFile("duel-version-file", gitSha, builtAt),
       // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
       prerenderPlugin({ name: "duel", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
     ],
-    resolve: {
-      // Deck stats, odds and build hints plus the legal footer and pages, shared with the planner; see packages/.
-      alias: [
-        { find: /^@optcg\/deck-analytics/, replacement: fileURLToPath(new URL("../packages/deck-analytics/src", import.meta.url)) },
-        { find: /^@optcg\/site-legal/, replacement: fileURLToPath(new URL("../packages/site-legal/src", import.meta.url)) },
-        { find: /^@optcg\/patch-notes/, replacement: fileURLToPath(new URL("../packages/patch-notes/src", import.meta.url)) },
-        { find: /^@optcg\/ui/, replacement: fileURLToPath(new URL("../packages/ui/src", import.meta.url)) },
-        // The rules engine, for the replay viewer only: import "@optcg/rules/replayTimeline" from the lazy replay chunk, never the package index.
-        { find: /^@optcg\/rules/, replacement: fileURLToPath(new URL("../packages/rules/src", import.meta.url)) },
-        { find: /^@optcg\/analyst-client/, replacement: fileURLToPath(new URL("../packages/analyst-client/src", import.meta.url)) },
-      ],
-      // Package sources sit outside this app, so pin React and Headless UI (used by @optcg/ui) to this app's copy.
-      dedupe: ["react", "react-dom", "@headlessui/react"],
-    },
+    // @optcg/* packages resolve through the npm workspace symlinks in node_modules (their "exports" map to src/),
+    // so there is no alias list here. The main bundle never imports @optcg/rules at runtime (types only); only
+    // the lazy replay chunk (src/replay/) imports it, by subpath (@optcg/rules/replay/replayTimeline), never the package index.
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
       "import.meta.env.VITE_BUILD_TIME": JSON.stringify(builtAt),

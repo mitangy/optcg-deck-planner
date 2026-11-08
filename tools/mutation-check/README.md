@@ -27,24 +27,69 @@ runs in PR CI and on every push to main.
 node tools/mutation-check/run.cjs --check-anchors   # all suites, no tests
 ```
 
+An anchor is matched exactly first. If that finds nothing, a whitespace-tolerant
+fallback is tried: one-or-more whitespace in `from` matches one-or-more
+whitespace in the source (a line break plus indentation is one run), and
+leading/trailing whitespace of `from` is ignored. Whitespace is never added or
+dropped next to punctuation, and the fallback must still match exactly once.
+`--check-anchors` lists the anchors that matched only this way ("loose") but
+does not fail on them; update their `from` when convenient. The logic lives in
+`anchors.cjs`.
+
+## Moving code
+
+Moving or reformatting code makes anchors stale. Fix them in this order:
+
+```bash
+git mv backend/app/reporter.py backend/app/duel/reporter.py   # 1. move the files (a folder works too)
+node tools/mutation-check/move.cjs backend/app/reporter.py backend/app/duel/reporter.py   # 2. rewrite suite references
+node tools/mutation-check/run.cjs --check-anchors                  # 3. which anchors are still stale or loose?
+node tools/mutation-check/run.cjs --locate-stale [suite]           # 4. where did the stale ones go?
+# 5. fix what is left by hand (edit `file`/`from`), then re-run step 3
+node tools/mutation-check/run.cjs <suite> --only '^(id1|id2)$'      # 6. prove the moved mutations
+```
+
+- `move.cjs <old> <new>` rewrites the exact repo-relative path in
+  `suites/*.cjs`, and templates that interpolate a path constant
+  (`const src = "duel-web/src"` then `` `${src}/nav/x.ts` ``). It does not
+  understand paths built with `path.join` or string concatenation; step 3
+  catches those. `--dry-run` prints what it would change; `--suites-dir <dir>`
+  points it elsewhere (the tests use that).
+- `--locate-stale [suite]` takes each anchor with no match in its file and
+  searches the tracked files (`git ls-files`) for a unique match, exact text
+  first, then whitespace-tolerant. It prints `suite id: old-file -> new-file`,
+  `not found`, or `ambiguous: N files`, and exits 1 while any stale anchor stays
+  unlocated. The search covers the suite's directory plus the old file's
+  package/app root; `--locate-scope <dir>` replaces that with one directory.
+  The suite files themselves are never searched.
+- The tests for this tooling are `tools/mutation-check/*.test.cjs`
+  (`node --test "tools/mutation-check/*.test.cjs"`); CI runs them next to
+  `tools/ci`, and their mutations live in `suites/ci.cjs`.
+
 | Suite | Tests | Runner |
 |---|---|---|
 | `rules` | `packages/rules/src/__tests__` | vitest |
 | `duel-web` | `duel-web/src` | vitest |
 | `mobile` | `mobile/src` | vitest |
-| `importer` | `scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides `py -3` / `python3`) |
-| `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements.txt` installed) |
+| `importer` | `backend/scripts/test_bandai_metadata.py` | unittest (`PYTHON` overrides the interpreter; default `python3`, `py -3` on Windows) |
+| `backend` | `backend/tests` | pytest (`BACKEND_PYTHON`: a Python with `backend/requirements-dev.txt` installed) |
 | `frontend` | `frontend/src` | vitest |
+| `card-core` | `packages/card-core/src` | vitest |
+| `api-client` | `packages/api-client/src` | vitest |
+| `analyst-contract` | `packages/analyst-contract/src` | vitest |
 | `deck-analytics` | `packages/deck-analytics/src` | vitest |
 | `patch-notes` | `packages/patch-notes/src` | vitest |
 | `ui` | `packages/ui/src` | vitest |
+| `price-timing` | `packages/price-timing/src` | vitest |
+| `price-backfill` | `backend/scripts/test_backfill_price_history.py` | unittest |
 | `site-legal` | `packages/site-legal/src` | vitest |
 | `analyst-client` | `packages/analyst-client/src` | vitest |
 | `analyst` | `analyst/src` | vitest |
 | `game-server` | `game-server/test` | mocha |
-| `cosmetics` | `scripts/test_cosmetics_product_ids.py` | unittest |
-| `preview-art` | `scripts/test_sync_preview_art.py` | unittest |
-| `alt-arts` | `scripts/test_sync_alt_arts.py` | unittest |
+| `duel-protocol` | `packages/duel-protocol/src` | vitest |
+| `cosmetics` | `backend/scripts/test_cosmetics_product_ids.py` | unittest |
+| `preview-art` | `backend/scripts/test_sync_preview_art.py` | unittest |
+| `alt-arts` | `backend/scripts/test_sync_alt_arts.py` | unittest |
 | `ci` | `tools/ci/*.test.cjs` (the PR path filter) | `node --test` (a mutation's `args` narrows the files) |
 | `duel-e2e` | `duel-web/e2e` (starts a game server and Vite) | Playwright; a mutation's `args` narrows the spec and project |
 | `frontend-e2e` | `frontend/e2e` (starts Vite on :5180; the API is faked in the browser) | Playwright; a mutation's `args` narrows the spec and project |
@@ -96,8 +141,9 @@ checks out with `fetch-depth: 0`, finds the PR base SHA, runs `--check-anchors`
 (so a stale anchor fails a PR even when the path filter skips the rules job) and
 runs `--matrix`.
 `mutation-proofs-part` runs one matrix entry per part in parallel, installs only
-what its suite needs (root `npm ci`, the `duel-web`, `frontend` and `mobile`
-installs, or Python plus `backend/requirements.txt` with `BACKEND_PYTHON` set),
+what its suite needs (root `npm ci`, which also serves the `duel-web` and
+`frontend` suites since both are workspaces, the `mobile` install, or Python plus
+`backend/requirements-dev.txt` with `BACKEND_PYTHON` set),
 and runs `run.cjs <suite> --only <only>`. It is skipped when nothing changed.
 `mutation-proofs` waits for both and keeps the original check name. It fails
 unless the plan succeeded and the parts succeeded or were skipped.

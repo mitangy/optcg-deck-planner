@@ -26,6 +26,21 @@ test("protocol fixtures also run the mobile tests that read them (#739)", () => 
   assert.equal(classify(["packages/rules/src/engine/views.ts"]).mobile, false);
 });
 
+test("the golden deck lists also run the backend tests that read them", () => {
+  assert.equal(classify(["packages/card-core/fixtures/decklists.json"]).backend, true);
+  assert.equal(classify(["packages/card-core/src/decklist.ts"]).backend, false);
+});
+
+test("the Log Pose contract values also run the backend tests that read them", () => {
+  assert.equal(classify(["packages/analyst-contract/fixtures/backend-values.json"]).backend, true);
+  assert.equal(classify(["packages/analyst-contract/src/index.ts"]).backend, false);
+});
+
+test("the generated API types also run the backend job that regenerates them (refactor 2.1c)", () => {
+  assert.equal(classify(["packages/api-client/src/generated/schema.ts"]).backend, true);
+  assert.equal(classify(["packages/api-client/src/request.ts"]).backend, false);
+});
+
 test("game-server changes run the rules job and the duel e2e shards (#739)", () => {
   assert.deepEqual(on(["game-server/src/app.config.ts"]), ["duel_e2e", "rules"]);
 });
@@ -36,8 +51,8 @@ test("the ticket vector shared with game-server runs the rules job too (#739)", 
 
 test("analyst, scripts, frontend and mobile each run their own job (#739)", () => {
   assert.deepEqual(on(["analyst/src/chat.ts"]), ["rules"]);
-  assert.deepEqual(on(["scripts/sync_alt_arts.py"]), ["backend"]);
-  assert.deepEqual(on(["frontend/src/App.tsx"]), ["frontend"]);
+  assert.deepEqual(on(["backend/scripts/sync_alt_arts.py"]), ["backend"]);
+  assert.deepEqual(on(["frontend/src/app/App.tsx"]), ["frontend"]);
   assert.deepEqual(on(["mobile/src/config.ts"]), ["mobile"]);
   assert.deepEqual(on(["tools/mutation-check/suites/rules.cjs"]), ["rules"]);
 });
@@ -66,6 +81,26 @@ test("the workflow, root manifests and tools/ci turn every job on (#739)", () =>
   assert.deepEqual(on(["tools/ci/changes.cjs"]), ALL);
 });
 
+test("the Node version file and the composite setup actions turn every job on (refactor 1.4)", () => {
+  assert.deepEqual(on([".nvmrc"]), ALL);
+  assert.deepEqual(on([".github/actions/setup-node-deps/action.yml"]), ALL);
+  assert.deepEqual(on([".github/actions/pr-base/action.yml"]), ALL);
+});
+
+test("root lint and compiler config run the lint and typecheck jobs; ruff.toml only the backend; .editorconfig none (refactor 1.3)", () => {
+  assert.deepEqual(on(["eslint.config.js"]), ALL);
+  assert.deepEqual(on(["tsconfig.base.json"]), ALL);
+  assert.deepEqual(on(["tsconfig.web.json"]), ALL);
+  assert.deepEqual(on(["ruff.toml"]), ["backend"]);
+  assert.deepEqual(on([".editorconfig"]), []);
+});
+
+test("an app manifest feeds the root lock, so every JS job reruns; other app files do not (refactor 1.2)", () => {
+  assert.deepEqual(on(["frontend/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["duel-web/package.json"]), ["duel_e2e", "duel_web", "frontend", "rules"]);
+  assert.deepEqual(on(["frontend/src/app/App.tsx"]), ["frontend"]);
+});
+
 test("other workflows do not trigger the app jobs, and flags union across paths (#739)", () => {
   assert.deepEqual(on([".github/workflows/nightly.yml"]), []);
   assert.deepEqual(on(["mobile/src/a.ts", "backend/app/main.py"]), ["backend", "mobile"]);
@@ -73,4 +108,14 @@ test("other workflows do not trigger the app jobs, and flags union across paths 
 
 test("an empty path list runs everything (#739)", () => {
   assert.deepEqual(on([]), ALL);
+});
+
+test("prerender and vercel-ignore scripts run the apps that import or read them, not the backend (refactor 0.1)", () => {
+  assert.deepEqual(on(["tools/seo/prerender-plugin.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["tools/seo/vercel-routes.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
+  assert.deepEqual(on(["tools/vercel-ignore-build.sh"]), ["duel_e2e", "duel_web", "frontend"]);
+});
+
+test("the shared vite plugins run the apps that import them, not the backend (refactor 2.3)", () => {
+  assert.deepEqual(on(["tools/vite/versionFile.mjs"]), ["duel_e2e", "duel_web", "frontend"]);
 });

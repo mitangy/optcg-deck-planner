@@ -16,7 +16,7 @@ import secrets
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.core.models import User
 
 USERNAME_MIN_LEN = 3
 USERNAME_MAX_LEN = 20

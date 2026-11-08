@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { Seat } from "@optcg/rules";
+import { ProtocolError } from "@optcg/duel-protocol";
 import { requireGameToken } from "./env.js";
 import { verifyGameToken } from "./gameToken.js";
 
@@ -14,7 +15,7 @@ export function checkMatchmakeToken(options: unknown): true {
   const o = options && typeof options === "object" ? (options as Record<string, unknown>) : {};
   const token = typeof o.gameToken === "string" ? o.gameToken.trim() : "";
   if (!token || !verifyGameToken(token)) {
-    throw Object.assign(new Error("gameToken required"), { code: "unauthorized" as const });
+    throw new ProtocolError("gameToken required", "unauthorized");
   }
   return true;
 }

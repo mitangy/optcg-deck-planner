@@ -27,7 +27,7 @@ const summary = (over: Partial<TournamentSummary>): TournamentSummary => ({
 });
 
 async function mount(tournaments: TournamentSummary[], signedIn = true): Promise<HTMLElement> {
-  const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ tournaments }) }));
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ tournaments }), { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
   host = document.createElement("div");
   document.body.append(host);

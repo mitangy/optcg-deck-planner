@@ -1,0 +1,1161 @@
+/* Read-only Owned total (base + alts). Same height as the stepper so rows do not shift. */
+.owned-total {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-height: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.owned-total-num {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.owned-total-split {
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.grid-card-owned .owned-total {
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+/* Still needed: the count, with the deck need as a muted "of N" line. */
+.still-need {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.still-need-num {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.still-need-of {
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--muted);
+}
+
+.need-cell > .still-need-num {
+  margin-right: 0.3rem;
+}
+
+.need-cell > .still-need-of {
+  margin-right: 0.3rem;
+}
+
+.alt-want-label {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.alt-price {
+  font-weight: 700;
+}
+
+.card-id {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.deck-leader-groups {
+  display: grid;
+  gap: 1.75rem;
+  min-width: 0;
+}
+
+.deck-leader-group {
+  min-width: 0;
+}
+
+.deck-leader-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 0.75rem;
+  min-width: 0;
+}
+
+.deck-leader-group-thumb {
+  width: 40px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-8);
+  background: var(--thumb-bg);
+  display: block;
+  border: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.deck-leader-group-thumb.placeholder {
+  display: grid;
+  place-items: center;
+  padding: 0.15rem;
+  text-align: center;
+  background: var(--bg-deep);
+}
+
+.deck-leader-group-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.deck-leader-group-title h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.deck-leader-group-title .muted {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+}
+
+.deck-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-16);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.deck-card:hover,
+.deck-card:focus-visible {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.deck-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card:hover,
+  .deck-card:focus-visible {
+    transform: none;
+  }
+}
+
+.deck-card-main {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.deck-card-leader-art {
+  flex: 0 0 auto;
+}
+
+.deck-card-leader-thumb {
+  width: 72px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius-10);
+  background: var(--thumb-bg);
+  display: block;
+  border: 1px solid var(--line);
+}
+
+.deck-card-leader-thumb.placeholder {
+  display: grid;
+  place-items: center;
+  padding: 0.25rem;
+  text-align: center;
+  background: var(--bg-deep);
+}
+
+.deck-card-leader-fallback {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.deck-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.deck-card h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.2rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.deck-card-body .muted {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+.deck-card-title-row,
+.deck-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.deck-card-title-row h2,
+.deck-detail-title-row h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.deck-card-title-row h2 {
+  margin-bottom: 0.25rem;
+}
+
+/* Tall enough for the rename form, so swapping the title for it moves nothing. */
+.deck-detail-title-row {
+  min-height: 2.75rem;
+}
+
+.deck-rename-trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--muted, inherit);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  cursor: pointer;
+}
+
+.deck-rename-trigger:hover,
+.deck-rename-trigger:focus-visible {
+  color: inherit;
+  border-color: currentColor;
+}
+
+/* The form overlays the title row (which keeps its size, its own content hidden), so renaming shifts nothing. */
+.deck-detail-title-row {
+  position: relative;
+}
+
+.deck-detail-title-row.is-renaming > :not(.deck-rename-form) {
+  visibility: hidden;
+}
+
+.deck-rename-form {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: 30rem;
+  height: 2.75rem;
+  z-index: var(--z-raise-2);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.deck-rename-input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 0.6rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.deck-rename-form .btn.deck-rename-btn {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-height: 40px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.deck-rename-error {
+  margin: 0.3rem 0 0;
+}
+
+.deck-detail-head {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.deck-detail-head-text {
+  min-width: 0;
+}
+
+.deck-detail-head-text p {
+  margin: 0.3rem 0 0;
+}
+
+.deck-detail-head-text .eyebrow {
+  margin: 0 0 0.2rem;
+}
+
+.deck-detail-leader {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 117px;
+  object-fit: cover;
+  border-radius: var(--radius-8);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  background: var(--card);
+}
+
+@media (max-width: 800px) {
+  .deck-detail-leader {
+    width: 64px;
+    height: 89px;
+  }
+}
+
+.deck-main-badge {
+  display: inline-block;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--line));
+  border-radius: var(--radius-6);
+  padding: 0.15rem 0.45rem;
+  line-height: 1.2;
+}
+
+.deck-card.is-main {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--line));
+}
+
+/* Gold pennant along the top edge of the Main deck. */
+.deck-card.is-main::before {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  top: -1px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+}
+
+.deck-card-leader {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--accent-ink);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: auto;
+  padding-top: 0.8rem;
+  justify-content: flex-end;
+}
+
+.import-form {
+  display: grid;
+  /* minmax(0, 1fr): a bare auto track grows to the widest child's min-content (the file input's intrinsic width), pushing the form past a phone's edge. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  max-width: 720px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-18);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+/* Shown when Log Pose filled in the form (#726). */
+.import-form .import-note {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--info-line);
+  border-radius: var(--radius-12);
+  background: var(--info-bg);
+  color: var(--info-ink);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.import-form label {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.import-form input,
+.import-form textarea {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-12);
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+}
+
+.import-form input:focus,
+.import-form textarea:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: var(--gold);
+}
+
+.import-modes {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0.25rem;
+  background: var(--bg-deep);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.import-modes .mode {
+  border: none;
+  background: transparent;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.import-modes .mode.active {
+  background: var(--card);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 2px rgba(23, 37, 46, 0.12);
+}
+
+.paste-block {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.paste-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.paste-actions .btn.secondary {
+  width: auto;
+  margin: 0;
+}
+
+.import-form code {
+  font-size: 0.9em;
+  background: var(--bg-deep);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-4);
+}
+
+.banner,
+.additional-heading {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
+  border-radius: var(--radius-12);
+  padding: 0.75rem 1rem;
+}
+
+.additional-heading {
+  margin-top: 1.5rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Replace-with-deck-list dialog (#1016): sits in the shared Dialog backdrop; scrolls inside on short phones. */
+.replace-deck-backdrop {
+  align-items: center;
+}
+
+.replace-deck-dialog.import-form {
+  width: 100%;
+  max-width: 34rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  gap: var(--space-3);
+}
+
+.replace-deck-dialog .replace-deck-title {
+  margin: 0;
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.replace-deck-dialog p {
+  margin: 0;
+}
+
+/* Reserved height: an error appearing must not shove the buttons. */
+.replace-deck-error {
+  min-height: 1.4em;
+  overflow-wrap: anywhere;
+}
+
+.replace-deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.replace-deck-actions .btn {
+  flex: 1 1 8rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.btn.primary.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn.primary.danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger) 85%, #000);
+  color: #fff;
+}
+
+.deck-editor-replace {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.4rem;
+}
+
+.load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  box-sizing: border-box;
+  min-height: 5.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line));
+  border-radius: var(--radius-12);
+  background: color-mix(in srgb, var(--danger) 8%, var(--card));
+}
+
+.load-error-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.load-error-text strong {
+  color: var(--danger);
+}
+
+.load-error-text p {
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* Fixed width: "Retry" and "Retrying…" must not resize the button. */
+.load-error .load-error-retry {
+  flex: 0 0 auto;
+  width: auto;
+  margin-top: 0;
+  min-width: 8.5rem;
+  min-height: 2.75rem;
+}
+
+.center {
+  text-align: center;
+  padding: 3rem;
+}
+
+.used-in {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+@media (max-width: 800px) {
+  html,
+  #root {
+    /* fixed backgrounds inflate scroll height on some mobile browsers */
+    background-attachment: scroll;
+  }
+
+  .app {
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+  }
+
+  .app-main {
+    padding: 0.75rem 0.75rem 0.35rem;
+    max-width: 100%;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .topbar {
+    margin-bottom: 1.25rem;
+  }
+
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand user"
+      "nav nav";
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    padding: 0.5rem 0.75rem 0.15rem;
+    max-width: none;
+    width: 100%;
+  }
+
+  /* The build SHA collided with the brand at phone widths; it still shows on
+     the sign-in card. */
+  .topbar .build-tag {
+    display: none;
+  }
+
+  .brand {
+    grid-area: brand;
+    min-width: 0;
+  }
+
+  .brand a span {
+    font-size: 1rem;
+  }
+
+  .brand-wordmark {
+    font-size: 1.15rem;
+    line-height: 1.45rem;
+  }
+
+  /* The title wraps onto a clipped second line whenever it doesn't fit beside
+     the header buttons, instead of running underneath them. */
+  .brand a {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    height: 1.45rem;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .brand a span {
+    padding-left: 0.5rem;
+  }
+
+  .topbar nav {
+    grid-area: nav;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    width: 100%;
+    min-width: 0;
+    /* Items keep their normal gap; when they don't fit the row scrolls inside itself. */
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .topbar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .user {
+    grid-area: user;
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    font-size: 0.85rem;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .list-toolbar-row {
+    align-items: stretch;
+  }
+
+  /* Let the search shrink rather than force a wrap. Its 16rem flex-basis is
+     wider than a small phone once gaps and the Scan button are accounted for,
+     and it scales with the user's text size — so at narrow widths, or with
+     large type, Scan was pushed onto a line of its own below the fold. */
+  .list-toolbar-row .card-search {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .layout-toggle {
+    width: 100%;
+  }
+
+  .layout-toggle button {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.5rem;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 0.65rem;
+  }
+
+  .grid-card-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grid-card-select {
+    display: none;
+  }
+
+  .grid-card-media .thumb,
+  .grid-card-media .thumb-btn .thumb {
+    width: 120px;
+    height: 168px;
+  }
+
+  /* Underlined tabs instead of fat pills — saves ~20px of chrome. Tabs size
+     to their label (not equal widths) so five fit on a 320px phone. */
+  .topbar nav a {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.35rem 0.55rem 0.45rem;
+    min-height: 2.5rem;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.88rem;
+    white-space: nowrap;
+  }
+
+  .topbar nav a.active::after,
+  .topbar nav a[aria-current="page"]::after {
+    left: 18%;
+    right: 18%;
+    bottom: 0;
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 100%;
+  }
+
+  .page-head > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filters {
+    width: 100%;
+    gap: 0.35rem 1rem;
+  }
+
+  .filters label {
+    font-size: 0.9rem;
+    min-height: 2.75rem;
+  }
+
+  .page-head .btn,
+  .page-head-actions {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .page-head-actions .btn,
+  .page-head-actions .ghost {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+    min-height: 2.75rem;
+  }
+
+  .buy-bar {
+    max-width: 100%;
+  }
+
+  .buy-bar-actions .btn,
+  .buy-bar-actions .ghost {
+    flex: 1 1 auto;
+    min-width: min(100%, 9.5rem);
+    text-align: center;
+    justify-content: center;
+  }
+
+  .data-table {
+    min-width: 0;
+  }
+
+  /* Keep hidden desktop tables out of layout entirely (some WebViews
+     still reserve space for display:none table descendants otherwise). */
+  .table-wrap.desktop-table,
+  table.desktop-table {
+    display: none !important;
+  }
+
+  .owned-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .deck-card .row-actions {
+    gap: var(--space-3);
+  }
+
+  .deck-card .row-actions button {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .mobile-card-list {
+    display: grid;
+    gap: 0.55rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-card {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-12);
+    padding: 0.55rem;
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-card.need {
+    background: var(--need);
+  }
+
+  .mobile-card.done {
+    background: var(--done);
+    border-color: var(--done-line);
+  }
+
+  .mobile-card-top {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mobile-card-media {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 0 0 auto;
+    width: 96px;
+  }
+
+  .mobile-card .thumb {
+    width: 96px;
+    height: 134px;
+  }
+
+  .mobile-card-media-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    width: 100%;
+    text-align: center;
+    line-height: 1.2;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .mobile-card-cost {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .mobile-card-rarity {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .mobile-card-info {
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-card-price-row {
+    width: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  /* Items wrap as whole units ("Market $0.93" / "TCGPlayer") — a nowrap row
+     here broke mid-word ("Mar ket $0. 93") beside the Owned stepper. */
+  .mobile-card-price-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.1rem 0.5rem;
+  }
+
+  .mobile-card-price-main > * {
+    white-space: nowrap;
+  }
+
+  .mobile-card-price-main > .muted {
+    font-size: 0.8rem;
+  }
+
+  .mobile-card-price-row .market-price-btn {
+    padding-left: 0;
+  }
+
+  .mobile-card-price-row .mobile-card-owned {
+    margin-top: 0;
+    flex: 0 0 auto;
+    align-items: flex-end;
+  }
+
+  /* Master Shopping: Market takes its own line, Owned and Want share the next. */
+  .mobile-card-price-row:has(.mobile-card-want) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.3rem 0.9rem;
+  }
+
+  .mobile-card-price-row:has(.mobile-card-want) .mobile-card-price-main {
+    flex: 1 0 100%;
+  }
+
+  .mobile-card-price-row:has(.mobile-card-want) .mobile-card-owned {
+    align-items: flex-start;
+  }
+
+  .mobile-card-price-row .mobile-card-want .want-cell {
+    align-items: flex-start;
+    max-width: 6.6rem;
+  }
+
+  /* Let the note wrap under the stepper instead of widening it past the row. */
+  .mobile-card-want .want-note {
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 0 0.35rem;
+  }
+
+  /* Slightly tighter stepper when Owned sits beside Market / TCGPlayer */
+  .mobile-card-price-row .mobile-card-owned .owned-total {
+    min-height: 2rem;
+  }
+
+  .mobile-card-price-row .mobile-card-owned .owned-btn {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+
+  .mobile-card-price-row .mobile-card-owned .owned {
+    width: 2rem;
+    padding: 0.25rem 0.08rem;
+    font-size: 0.88rem;
+  }
+
+  .sort-menu {
+    width: 100%;
+  }
+
+  .sort-menu-btn {
+    width: 100%;
+    max-width: none;
+    text-align: left;
+    min-height: 2.75rem;
+  }
+
+  .sort-menu-panel {
+    width: var(--button-width, 100%);
+  }
+
+  .sort-menu-item label {
+    font-size: 0.9rem;
+    min-height: 2.75rem;
+  }
+
+  .mobile-card-name {
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .mobile-card-meta {
+    margin-top: 0.15rem;
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  .mobile-card-owned {
+    margin-top: 0.3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    font-weight: 650;
+    font-size: 0.78rem;
+  }
+
+  .mobile-card-owned-block {
+    width: 100%;
+    align-items: flex-end;
+  }
+
+  .mobile-card-owned > span {
+    flex: 0 0 auto;
+    line-height: 1.1;
+    color: var(--muted);
+  }
+
+  .mobile-card-owned .owned-wrap {
+    gap: 0.2rem;
+  }
+
+  .mobile-card-owned .owned-total {
+    align-items: flex-end;
+    min-height: 2.2rem;
+  }
+
+  .mobile-card-owned .owned-btn {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.05rem;
+  }
+
+  .mobile-card-owned .owned {
+    width: 2.2rem;
+    padding: 0.3rem 0.1rem;
+    font-size: 0.92rem;
+  }
+
+  .mobile-card-owned .want-qty {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 0.92rem;
+  }
+
+  .mobile-card-price-row .mobile-card-want .want-qty {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.88rem;
+  }
+
+  .mobile-card-price-row .mobile-card-want .owned-btn {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
+
+  .mobile-card-owned .group-buy-qty {
+    justify-items: end;
+  }
+
+  .mobile-card-owned .group-buy-qty-meta {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .mobile-card-owned .group-buy-exclude-btn {
+    justify-self: end;
+  }
+
+  .mobile-card-alts {
+    margin-top: 0.3rem;
+  }
+
+  .mobile-used-in {
+    margin: 0.35rem 0 0;
+  }
+
+  .mobile-card .alt-art {
+    padding: 0.2rem 0.3rem;
+  }
+
+  .mobile-card .alt-art .thumb {
+    width: 52px;
+    height: 72px;
+  }
+
+  .btn.primary,
+  .btn.secondary {
+    min-height: 2.75rem;
+  }
+
+  .import-form {
+    padding: 1rem;
+  }
+
+  .import-modes {
+    width: 100%;
+  }
+
+  .import-modes .mode {
+    flex: 1;
+    text-align: center;
+  }
+
+  .lightbox-close {
+    top: max(1rem, env(safe-area-inset-top));
+    right: max(1rem, env(safe-area-inset-right));
+    min-height: 2.75rem;
+    min-width: 4.5rem;
+  }
+}

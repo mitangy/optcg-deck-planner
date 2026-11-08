@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
-import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
+import { useCardDataReady } from "../cards/cardData";
+import { fetchMatchHistory } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import type { RatingMe } from "../net/api";
 import { recordLabel, streak, streakLabel } from "./voyage";
 
@@ -17,19 +18,12 @@ const CHIP: Record<ReturnType<typeof outcomeKey>, string> = { won: "W", lost: "L
  * undefined while loading and null when the rating call failed.
  */
 export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
-  const [games, setGames] = useState<MatchHistoryEntry[] | null | undefined>(undefined);
+  const res = useAsyncResource(() => fetchMatchHistory(HISTORY_LIMIT), []);
+  const games = res.status === "loading" ? undefined : res.status === "error" ? null : res.data;
 
-  useEffect(() => {
-    let live = true;
-    fetchMatchHistory(HISTORY_LIMIT)
-      .then((g) => live && setGames(g))
-      .catch(() => live && setGames(null));
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  const rows = games ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
+  // Opponent leader names come from the card data (its own chunk): hold the rows until it is in.
+  const cardsReady = useCardDataReady();
+  const rows = games && cardsReady ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
   const failed = games === null || me === null;
 
   return (
@@ -55,10 +49,10 @@ export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
             <span>Streak</span>
           </div>
         </div>
-        <div className="voyage-games" aria-busy={games === undefined}>
+        <div className="voyage-games" aria-busy={games === undefined || !cardsReady}>
           {failed ? (
             <p className="friends-empty">Couldn’t load your games right now.</p>
-          ) : games === undefined ? null : rows.length === 0 ? (
+          ) : games === undefined || !cardsReady ? null : rows.length === 0 ? (
             <p className="friends-empty">No games yet. Play Ranked to earn a Bounty.</p>
           ) : (
             <ul className="voyage-list">

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.models import AnalystAccess, User
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.analyst.models import AnalystAccess
+from app.core.models import User
 from tests.test_analyst import analyst  # noqa: F401  (fixture)
 from tests.test_analyst_chat import chat  # noqa: F401  (fixture: DEV@localhost is an owner)
 from tests.test_analyst_stats import SERVICE

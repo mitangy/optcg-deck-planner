@@ -3,7 +3,7 @@ import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import { listLegalIntents } from "./intents.js";
 import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, playerRestricted, powerOf, withQueryCache } from "./queries.js";
-import { activeDon, otherSeat } from "./state.js";
+import { activeDon, otherSeat } from "./zones.js";
 
 const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush", rush_character: "Rush: Character", double_attack: "Double Attack", banish: "Banish", unblockable: "Unblockable" };
 
@@ -170,6 +170,17 @@ function buildPlayerView(state: MatchState, seat: Seat) {
       : null),
   };
 }
+
+/**
+ * What a client receives as `view` on the wire: a player's view, or the spectator variant of it
+ * (`getSpectatorView` adds `spectator`, `cameraSeat` and `you.handCount`). Derived from the builders so the
+ * wire type cannot drift from what the engine emits.
+ */
+export type PlayerView = ReturnType<typeof getPlayerView> & {
+  spectator?: boolean;
+  cameraSeat?: Seat;
+  you: { handCount?: number };
+};
 
 /**
  * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has

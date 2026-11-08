@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from app import services
-from app.models import Deck, TradeKeep, User
+from app.planner import decks as deck_svc
+from app.core.models import User
+from app.planner.models import Deck
+from app.social.models import TradeKeep
 from tests.friend_support import (  # noqa: F401  (client is a fixture)
     add_alt,
     add_card,
@@ -370,7 +372,7 @@ def test_copying_a_friends_deck_respects_the_deck_cap_703(client, monkeypatch):
     deck = make_deck(S, kai, "Red", {"OP01-001": 1})
     make_deck(S, me, "Mine", {"OP01-001": 1})
     share(c, kai, decks="friends")
-    monkeypatch.setattr(services, "MAX_DECKS_PER_USER", 1)
+    monkeypatch.setattr(deck_svc, "MAX_DECKS_PER_USER", 1)
     r = as_user(c, me).post(f"/friends/{kai}/decks/{deck}/copy")
     assert r.status_code == 400
     assert "at most 1 decks" in r.json()["detail"]

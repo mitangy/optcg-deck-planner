@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CardThumb } from "../CardThumb";
+import { CardThumb } from "../ui/CardThumb";
 
 /** One card in a compact row: art, id + name, a meta line, and a controls slot that wraps under the text on narrow screens. */
 export function CardRow({

@@ -1,0 +1,168 @@
+/**
+ * The HTTP layer of the Log Pose service: MCP over Streamable HTTP (stateless), /health, and the in-app chat
+ * routes streamed as server-sent events. `createApp` only builds the Express app (no listening, no env reads),
+ * so tests can serve it on a free port with fake planner and model dependencies; `index.ts` wires the real ones.
+ *
+ * Add `<public URL>/mcp/<ANALYST_CONNECTOR_KEY>` in Claude under Settings > Connectors, or a personal
+ * `<public URL>/mcp/u/<token>` link made in the duel app's Settings.
+ */
+import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { NextFunction, Request, Response } from "express";
+import type { z } from "zod";
+import { keyMatches } from "./auth";
+import { admit, admitToken } from "./budget";
+import type { Catalog } from "./catalog";
+import { runChat } from "./chatTurn";
+import { runBrief } from "./brief";
+import type { Config } from "./config";
+import { originAllowed } from "./cors";
+import { ChatHttpError, UserFacingError } from "./errors";
+import { tokenIsValid, type PlannerApi } from "./matches";
+import { runReview } from "./review";
+import { briefBody, chatBody, reviewBody } from "./schemas";
+import { createServer, type Knowledge, type PersonalContext } from "./server";
+import type { ChatDeps, SseEvent } from "./types";
+
+export type AppDeps = {
+  catalog: Catalog;
+  knowledge: Knowledge;
+  /** The planner API (its service secret and fetch), shared by the MCP links and the chat routes. */
+  api: PlannerApi;
+  /** The in-app chat's dependencies; null (no Claude key or service secret) answers the chat routes with a 503. */
+  chat: ChatDeps | null;
+};
+
+/** How long a personal link checked with the planner is trusted before it is checked again. */
+export const TOKEN_CHECK_MS = 5 * 60_000;
+
+type Run<T> = (deps: ChatDeps, token: string, body: T, emit: (e: SseEvent) => void, signal: AbortSignal) => Promise<void>;
+
+export function createApp(config: Config, deps: AppDeps) {
+  const { catalog, knowledge, api: plannerApi } = deps;
+  const app = createMcpExpressApp({ host: "0.0.0.0" });
+
+  app.get("/health", (_req, res) => {
+    res.json({ ok: true, cards: catalog.cards.size, playbookNotes: knowledge.playbook?.notes.size ?? 0 });
+  });
+
+  /** Personal links checked recently, so each MCP request doesn't wait on the planner API. */
+  const validTokens = new Map<string, number>();
+
+  async function personalContext(token: string): Promise<PersonalContext | null> {
+    const now = Date.now();
+    const checked = validTokens.get(token);
+    if (checked === undefined || now - checked > TOKEN_CHECK_MS) {
+      // Entries nobody asked about again would otherwise stay for the life of the process.
+      for (const [t, at] of validTokens) if (now - at > TOKEN_CHECK_MS) validTokens.delete(t);
+      if (!(await tokenIsValid(plannerApi, token))) return null;
+      validTokens.set(token, Date.now());
+    }
+    return { api: plannerApi, token };
+  }
+
+  async function handleMcp(req: Request, res: Response) {
+    let personal: PersonalContext | undefined;
+    if (req.params.token !== undefined) {
+      const ctx = await personalContext(req.params.token as string).catch(() => undefined);
+      if (ctx === undefined) {
+        res.status(503).json({ error: "Could not check this link with the deck planner. Try again shortly." });
+        return;
+      }
+      if (ctx === null) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      personal = ctx;
+    } else if (!keyMatches(req.params.key as string | undefined, config.connectorKey)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const server = createServer(catalog, undefined, personal, knowledge);
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on("close", () => {
+      void transport.close();
+      void server.close();
+    });
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      console.error(JSON.stringify({ event: "mcp_error", message: err instanceof Error ? err.message : String(err) }));
+      if (!res.headersSent) res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: "Internal server error" }, id: null });
+    }
+  }
+
+  const notAllowed = (_req: Request, res: Response) => {
+    res.status(405).set("Allow", "POST").json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed." }, id: null });
+  };
+
+  // Personal links (/mcp/u/<token>) come from the duel app's Settings and add the player's own games and decks.
+  for (const path of [config.connectorKey ? "/mcp/:key" : "/mcp", "/mcp/u/:token"]) {
+    app.post(path, handleMcp);
+    app.get(path, notAllowed);
+    app.delete(path, notAllowed);
+  }
+
+  // In-app chat panel and post-game analysis (duel app and deck planner), streamed as server-sent events.
+  function chatCors(req: Request, res: Response, next: NextFunction) {
+    const origin = req.headers.origin;
+    if (originAllowed(config.chatOrigins, origin)) {
+      res.set("Access-Control-Allow-Origin", origin!);
+      res.set("Vary", "Origin");
+      res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Max-Age", "600");
+    }
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  }
+
+  function sse<T>(kind: "chat" | "review" | "brief", schema: z.ZodType<T>, run: Run<T>, admitWith: typeof admit = admit) {
+    return async (req: Request, res: Response) => {
+      const chat = deps.chat;
+      if (!chat) {
+        res.status(503).json({ error: "Log Pose chat isn't set up on this server.", code: "server" });
+        return;
+      }
+      const body = schema.safeParse(req.body);
+      if (!body.success) {
+        res.status(400).json({ error: "That request didn't look right.", code: "bad_request" });
+        return;
+      }
+      const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1] ?? null;
+      const abort = new AbortController();
+      res.on("close", () => abort.abort());
+      let streaming = false;
+      try {
+        const token = await admitWith(plannerApi, bearer, kind);
+        res.status(200).set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" });
+        res.flushHeaders();
+        streaming = true;
+        const emit = (e: SseEvent) => {
+          if (!res.writableEnded) res.write(`event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`);
+        };
+        await run(chat, token, body.data, emit, abort.signal);
+      } catch (err) {
+        const httpErr = err instanceof ChatHttpError ? err : null;
+        if (!httpErr) console.error(JSON.stringify({ event: `${kind}_error`, message: err instanceof Error ? err.message : String(err) }));
+        const message = httpErr?.message ?? (err instanceof UserFacingError ? err.message : "Log Pose hit a problem. Try again.");
+        if (!streaming) res.status(httpErr?.status ?? 500).json({ error: message, code: httpErr?.code ?? "server" });
+        else if (!res.writableEnded) res.write(`event: error\ndata: ${JSON.stringify({ message, code: httpErr?.code ?? "server" })}\n\n`);
+      } finally {
+        if (streaming && !res.writableEnded) res.end();
+      }
+    };
+  }
+
+  app.use(["/chat", "/review-match", "/brief"], chatCors);
+  app.post("/chat", sse("chat", chatBody, runChat));
+  app.post("/review-match", sse("review", reviewBody, runReview));
+  // A brief checks the token first and the budget only when it has to write one: a saved brief is free.
+  app.post("/brief", sse("brief", briefBody, runBrief, admitToken));
+
+  return app;
+}

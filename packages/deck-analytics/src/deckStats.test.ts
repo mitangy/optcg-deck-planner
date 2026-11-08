@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeDeckStats, normalizeStatsCardId, type StatsAtlas } from "./deckStats";
+import { computeDeckStats, type StatsAtlas } from "./deckStats";
 
 // Hand-built atlas: every card is chosen so a wrong bucket, divisor or boundary changes the answer.
 const atlas: StatsAtlas = {
@@ -122,7 +122,6 @@ describe("computeDeckStats", () => {
     expect(merged.total).toBe(4);
     expect(merged.costCurve[1]!.total).toBe(3);
     expect(merged.leader?.id).toBe("T-LC");
-    expect(normalizeStatsCardId("OP01-016_p2")).toBe("OP01-016");
   });
 
   it("flags cards that share no color with the Leader but not multicolor cards that share one", () => {

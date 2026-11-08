@@ -1,0 +1,461 @@
+/* Collector copies (#1031): an alt art wanted on top of the decks. Plain card background, a gold elbow
+   joins the line to its card, and the ★ always comes with the word "Collector". */
+.collector-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: fit-content;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-pill);
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.collector-chip-sm {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+}
+
+.grid-card-meta .collector-chip,
+.mobile-card-meta .collector-chip {
+  margin-left: 0.35rem;
+}
+
+.collector-have {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stat-note {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gold-ink);
+}
+
+.collector-qty {
+  min-width: 1.6rem;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.collector-step {
+  gap: 0.2rem;
+}
+
+/* The minus stays put at 1; Remove is the deliberate way out. */
+.collector-remove {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Desktop table row */
+.shopping-table tr.collector-row td {
+  background: var(--card);
+}
+
+.shopping-table tr.collector-row.selected-row td {
+  background: var(--card);
+}
+
+.shopping-table td.collector-cell {
+  position: relative;
+  width: 14rem;
+  min-width: 14rem;
+  padding-left: 2.1rem;
+  vertical-align: middle;
+}
+
+.shopping-table:has(td.alt-arts-cell) td.collector-cell {
+  width: 12rem;
+  min-width: 12rem;
+  padding-left: 2.1rem;
+}
+
+.collector-cell-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.collector-thumb-wrap {
+  flex: none;
+  display: block;
+  width: 2.6rem;
+}
+
+.collector-thumb-wrap .thumb-btn,
+.collector-thumb-wrap .thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+}
+
+.collector-name {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.collector-label {
+  min-width: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* Elbow from the card above: down from the cell's top edge, then across to the thumb. */
+.collector-elbow {
+  position: absolute;
+  left: 1.15rem;
+  top: 0;
+  width: 0.7rem;
+  height: 50%;
+  border-left: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+.collector-row-more .collector-cell::after {
+  content: "";
+  position: absolute;
+  left: 1.15rem;
+  top: 50%;
+  bottom: 0;
+  border-left: 2px solid var(--gold);
+  pointer-events: none;
+}
+
+.shopping-table td.used-in .collector-used-in {
+  gap: 0.15rem 0.4rem;
+}
+
+.collector-used-in .used-in-note {
+  color: var(--muted);
+}
+
+/* Grid view: a small card right after its parent */
+.grid-card-wrap.collector-wrap .grid-card {
+  border-color: var(--gold);
+}
+
+.grid-card.collector-card {
+  background: var(--card);
+}
+
+.grid-card.collector-card .grid-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.4rem;
+}
+
+.grid-card.collector-card .grid-card-meta .collector-chip {
+  margin-left: 0;
+}
+
+.collector-grid-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem 0.5rem;
+}
+
+/* Popover picker */
+.collector-add {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line-strong);
+}
+
+.buy-split-editor > .collector-add:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.collector-add-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.5rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.2rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.collector-star {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.collector-add-text {
+  color: var(--accent-ink, var(--accent));
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.collector-add-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.collector-picker {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.collector-picker-row {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.collector-pick-btn {
+  min-width: 3.5rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-8);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.collector-pick-btn:hover {
+  border-color: var(--gold);
+}
+
+.collector-pick-btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.buy-split-sheet .collector-picker-row {
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+}
+
+.buy-split-sheet .collector-pick-btn {
+  min-height: 2.75rem;
+  min-width: 4.5rem;
+}
+
+.buy-split-sheet .collector-add-toggle {
+  min-height: 2.75rem;
+}
+
+/* Alt tile marker */
+.alt-collector {
+  justify-self: center;
+  text-align: center;
+  color: var(--gold-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Collector toggle on alt tiles (#1035): same footprint pressed or not. It adds a row to each tile, so the scroll box grows with it. */
+.alt-arts.alt-arts-collect {
+  --alt-tile-h: 146px;
+}
+
+.alt-collector-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 5.6rem;
+  min-width: 0;
+  min-height: 1.75rem;
+  padding: 0 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--accent-ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+
+.alt-collector-btn:hover {
+  background: var(--card-sunk);
+  border-color: var(--accent);
+}
+
+.alt-collector-btn.is-on {
+  color: var(--gold-ink);
+  border-color: var(--gold-ink);
+}
+
+.alt-collector-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.alt-collector-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+/* Undo toast: fixed over the page so it never moves anything */
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-nav-drawer);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-10);
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: var(--shadow-lift);
+  font-size: 0.9rem;
+  transform: translateX(-50%);
+}
+
+.undo-toast-action {
+  min-height: 2.75rem;
+  margin: -0.4rem -0.4rem -0.4rem 0;
+  padding: 0 0.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--gold-bright);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  /* Phone list: a nested card, indented, gold outline, one row (art + name + chip left, stepper right). */
+  .mobile-card.collector-card {
+    margin-left: 1.25rem;
+    width: auto;
+    max-width: calc(100% - 1.25rem);
+    border-color: var(--gold);
+    background: var(--card);
+    overflow: visible;
+  }
+
+  .mobile-card.collector-card::before {
+    content: "";
+    position: absolute;
+    left: -0.8rem;
+    top: -0.65rem;
+    width: 0.6rem;
+    height: 1.9rem;
+    border-left: 2px solid var(--gold);
+    border-bottom: 2px solid var(--gold);
+    border-bottom-left-radius: 8px;
+    pointer-events: none;
+  }
+
+  .collector-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .collector-card-main {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .mobile-card.collector-card .collector-thumb-wrap {
+    width: 2.6rem;
+  }
+
+  .mobile-card.collector-card .collector-thumb-wrap .thumb {
+    width: 100%;
+    height: auto;
+  }
+
+  .collector-card-text {
+    display: grid;
+    gap: 0.15rem;
+    justify-items: start;
+    min-width: 0;
+  }
+
+  .collector-card-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.4rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .collector-card-step {
+    flex: none;
+  }
+
+  .collector-step {
+    gap: var(--space-2);
+  }
+
+  /* 36px visible buttons, padded to a 44px hit area; the 0.5rem gap keeps neighbours from overlapping. */
+  .collector-step .owned-btn {
+    position: relative;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .collector-step .owned-btn::after,
+  .collector-remove::after {
+    content: "";
+    position: absolute;
+    inset: -0.25rem;
+  }
+
+  .collector-remove {
+    position: relative;
+  }
+}

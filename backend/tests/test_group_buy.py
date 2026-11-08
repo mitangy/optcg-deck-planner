@@ -4,9 +4,11 @@ import pytest
 
 from sqlalchemy import select
 
-from app import group_buy, services
-from app.models import Deck, GroupBuyLineOverride, Owned
-from app.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
+from app.planner import decks as deck_svc, shopping as shopping_svc, owned as owned_svc
+from app.group_buy import service as group_buy
+from app.group_buy.models import GroupBuyLineOverride
+from app.planner.models import Deck, Owned
+from app.group_buy.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
 
 
@@ -98,9 +100,9 @@ def test_export_allocates_alt_wants_not_whole_line(db, two_players):
     created = group_buy.create_group_buy(db, host, "AA export")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
-    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    host_deck = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
     # Host still-need 3 of OP01-001; want only 1 AA. Friend still-need 3, no AA.
-    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
+    deck_svc.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
 
     export = group_buy.export_tcgplayer(db, host, created.id)
     lines = export.paste_text.splitlines()
@@ -116,7 +118,7 @@ def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
     """A member's sum_across_leaders setting flows into group buy qty, AA split and export."""
     host, friend = two_players
     # Host adds a second-leader deck using 3 more OP01-001.
-    first = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    first = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
     second = add_deck_with_cards(db, host, "Host Deck 2", {"OP01-001": 3})
     db.get(Deck, first.id).leader_card_id = "LEAD-A"
     second.leader_card_id = "LEAD-B"
@@ -126,7 +128,7 @@ def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
     created = group_buy.create_group_buy(db, host, "Sum mode")
     group_buy.join_group_buy(db, friend, created.invite_token)
     # 4 + 3 need − 1 owned = 6 still needed for host.
-    services.set_user_card_printing(db, host, "OP01-001", 1009, 2)
+    owned_svc.set_user_card_printing(db, host, "OP01-001", 1009, 2)
     detail = group_buy.get_group_buy(db, host, created.id)
     line = next(l for l in detail.lines if l.card_id == "OP01-001")
     assert {m.display_name: m.qty for m in line.members} == {"Host": 6, "Friend": 3}
@@ -170,12 +172,12 @@ def test_import_deck_auto_adds_to_open_group_buy_contribution(db, two_players):
     """Importing a deck while a filtered group buy is open appends it to contribution."""
     host, _friend = two_players
     add_catalog(db, "OP01-099", name="New Card", product_id=1099, market=3.0)
-    host_deck = next(d for d in services.list_decks(db, host))
+    host_deck = next(d for d in deck_svc.list_decks(db, host))
     created = group_buy.create_group_buy(db, host, "Auto add", deck_ids=[host_deck.id])
     before_ids = {line.card_id for line in created.lines}
     assert "OP01-099" not in before_ids
 
-    new_deck = services.create_deck(db, host, "Imported", "4 OP01-099")
+    new_deck = deck_svc.create_deck(db, host, "Imported", "4 OP01-099")
     detail = group_buy.get_group_buy(db, host, created.id)
     member = next(m for m in detail.members if m.user_id == host.id)
     assert member.deck_ids is not None
@@ -188,7 +190,7 @@ def test_import_deck_noop_when_contribution_is_all_decks(db, two_players):
     host, _friend = two_players
     add_catalog(db, "OP01-098", name="Other", product_id=1098, market=2.0)
     created = group_buy.create_group_buy(db, host, "All decks", deck_ids=None)
-    services.create_deck(db, host, "Imported All", "2 OP01-098")
+    deck_svc.create_deck(db, host, "Imported All", "2 OP01-098")
     detail = group_buy.get_group_buy(db, host, created.id)
     member = next(m for m in detail.members if m.user_id == host.id)
     assert member.deck_ids is None
@@ -334,8 +336,8 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     assert _owned(db, host.id, "OP01-002") == 2
     assert _owned(db, friend.id, "OP01-002") == 4
 
-    host_shop = services.shopping_list(db, host)
-    friend_shop = services.shopping_list(db, friend)
+    host_shop = shopping_svc.shopping_list(db, host)
+    friend_shop = shopping_svc.shopping_list(db, friend)
     host_by_id = {i.card_id: i.still_need for i in host_shop.items if i.still_need > 0}
     friend_by_id = {i.card_id: i.still_need for i in friend_shop.items if i.still_need > 0}
     # Host still needs 2 more OP01-001 (need 4, owned 2); OP01-002 filled
@@ -467,8 +469,8 @@ def test_group_buy_shows_viewer_alt_wants(db, two_players):
     created = group_buy.create_group_buy(db, host, "Alts")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
-    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
-    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 2)
+    host_deck = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
+    deck_svc.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 2)
 
     host_view = group_buy.get_group_buy(db, host, created.id)
     host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
@@ -481,7 +483,7 @@ def test_group_buy_shows_viewer_alt_wants(db, two_players):
     assert next(a.wanted for a in friend_line.alt_arts if a.product_id == 1009) == 0
 
     # Sync from group-buy style API updates host decks and shows on next fetch
-    services.set_user_card_printing(db, host, "OP01-001", 1009, 1)
+    owned_svc.set_user_card_printing(db, host, "OP01-001", 1009, 1)
     host_view = group_buy.get_group_buy(db, host, created.id)
     host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
     assert next(a.wanted for a in host_line.alt_arts if a.product_id == 1009) == 1
@@ -493,9 +495,9 @@ def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players)
     created = group_buy.create_group_buy(db, host, "AA price")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
-    host_deck = next(d for d in services.list_decks(db, host) if d.name == "Host Deck")
+    host_deck = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
     # Host still-need 3 of OP01-001; want only 1 AA ($9), rest preferred ($2.5).
-    services.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
+    deck_svc.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
 
     detail = group_buy.get_group_buy(db, host, created.id)
     line = next(l for l in detail.lines if l.card_id == "OP01-001")
@@ -560,10 +562,10 @@ def test_group_buy_alt_pick_saves_for_a_master_shopping_card_872(db):
     add_catalog(db, "OP01-002", name="Zoro", product_id=1019, market=8.0, special=True)
     user = make_user(db, email="mshop@example.com", name="Mshop", sub="sub-mshop")
     deck = add_deck_with_cards(db, user, "Deck", {"OP01-001": 1})
-    services.set_shopping_extra(db, user, "OP01-002", 2)
+    shopping_svc.set_shopping_extra(db, user, "OP01-002", 2)
     created = group_buy.create_group_buy(db, user, "Extras", deck_ids=[deck.id])
 
-    shown, _ = services.set_user_card_printing(
+    shown, _ = owned_svc.set_user_card_printing(
         db, user, "OP01-002", 1019, 1, deck_ids=[deck.id]
     )
 
@@ -584,7 +586,7 @@ def _three_players_with_alt_want(db):
     add_deck_with_cards(db, host, "H", {"OP01-001": 2})
     add_deck_with_cards(db, wanter, "W", {"OP01-001": 3})
     add_deck_with_cards(db, viewer, "V", {"OP01-001": 1})
-    services.set_user_card_printing(db, wanter, "OP01-001", 1009, 2)
+    owned_svc.set_user_card_printing(db, wanter, "OP01-001", 1009, 2)
     return host, wanter, viewer
 
 
@@ -611,9 +613,9 @@ def test_group_buy_group_alt_pick_uses_most_copies_then_lowest_id_882(db):
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
 
-    services.set_user_card_printing(db, host, "OP01-001", 1007, 1)
+    owned_svc.set_user_card_printing(db, host, "OP01-001", 1007, 1)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1009  # 2 > 1
-    services.set_user_card_printing(db, host, "OP01-001", 1007, 2)
+    owned_svc.set_user_card_printing(db, host, "OP01-001", 1007, 2)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1007  # tie -> lowest
 
 
@@ -624,12 +626,12 @@ def test_group_buy_viewer_own_art_choice_beats_group_pick_882(db):
     group_buy.join_group_buy(db, viewer, created.invite_token)
 
     # Viewer wants a different alt of their own.
-    services.set_user_card_printing(db, viewer, "OP01-001", 1007, 1)
+    owned_svc.set_user_card_printing(db, viewer, "OP01-001", 1007, 1)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art != 1009
 
     # Viewer explicitly chooses the base art (0).
-    services.set_user_card_printing(db, viewer, "OP01-001", 1007, 0)
-    services.set_display_art(db, viewer, "OP01-001", 0)
+    owned_svc.set_user_card_printing(db, viewer, "OP01-001", 1007, 0)
+    owned_svc.set_display_art(db, viewer, "OP01-001", 0)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 0
 
 
@@ -650,7 +652,7 @@ def test_public_group_buy_follows_members_show_pick_over_wants_893(db):
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
     # Wanter wants 1009 x2, but the host picked 1007 with Show.
-    services.set_display_art(db, host, "OP01-001", 1007)
+    owned_svc.set_display_art(db, host, "OP01-001", 1007)
 
     guest = _line(group_buy.public_group_buy_view(db, created.invite_token))
     assert guest.display_art == 1007
@@ -663,15 +665,15 @@ def test_group_buy_show_picks_count_by_members_then_host_893(db):
     created = group_buy.create_group_buy(db, host, "Art")
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
-    services.set_display_art(db, wanter, "OP01-001", 1009)
-    services.set_display_art(db, host, "OP01-001", 1007)
+    owned_svc.set_display_art(db, wanter, "OP01-001", 1009)
+    owned_svc.set_display_art(db, host, "OP01-001", 1007)
     # One pick each: the host's wins the tie (1007 is also the lower id, so check the reverse too).
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
-    services.set_display_art(db, host, "OP01-001", 1009)
-    services.set_display_art(db, wanter, "OP01-001", 1007)
+    owned_svc.set_display_art(db, host, "OP01-001", 1009)
+    owned_svc.set_display_art(db, wanter, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1009
     # Two members pick 1007: more picks beat the host's.
-    services.set_display_art(db, viewer, "OP01-001", 1007)
+    owned_svc.set_display_art(db, viewer, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
 
 

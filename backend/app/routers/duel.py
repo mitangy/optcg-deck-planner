@@ -3,52 +3,59 @@
 from __future__ import annotations
 
 import hmac
-import hashlib
 import json
 import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import duel_live, duel_tournaments, redis_client
-from app.analyst_stats import seats_for
-from app.auth import get_current_user, get_optional_user
+from app.core import redis_client
+from app.duel import live as duel_live
+from app.duel import tournaments as duel_tournaments
+from app.analyst.stats import seats_for
+from app.core.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.duel_ratings import INITIAL_RATING, apply_elo
-from app.game_tokens import mint_game_token, verify_game_token
-from app.moderation import recent_takedowns
-from app.models import (
+from app.core.config import Settings, get_settings
+from app.core.security import OpsToken
+from app.core.time import as_utc
+from app.core.db import get_db
+from app.duel.ratings import INITIAL_RATING, apply_elo
+from app.duel.tokens import mint_game_token
+from app.duel.moderation import recent_takedowns
+from app.core.models import User
+from app.duel.models import (
     CardReport,
-    AnalystMessage,
-    AnalystThread,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
-    DuelLobbySeen,
     DuelMatchSeatLog,
-    DuelPresence,
     DuelRating,
     DuelSoloGame,
-    User,
 )
-from app.rate_limit import RateLimiter, client_ip
-from app.server_urls import normalize_server_url
-from app.routers.friends import ONLINE_TTL, PRESENCE_TTL, _utc
+from app.social.models import DuelLobbySeen, DuelPresence
+from app.core.rate_limit import RateLimiter, client_ip
+from app.duel.server_urls import GAME_SERVER_KNOWN_KEY, GAME_SERVER_POOL_KEY, game_server_url, normalize_server_url
+from app.duel.matches import (
+    has_result,
+    history_entries,
+    latest_progress,
+    lock_match,
+    match_history,
+    progress_closed,
+    unfinished_entries,
+)
+from app.social.presence import ONLINE_TTL, PRESENCE_TTL
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
-from app.routers.api import _require_catalog_token
-from app.schemas import (
+from app.duel.schemas import (
     CardReportIn,
     CardReportOut,
     CardReportStatusIn,
@@ -56,29 +63,26 @@ from app.schemas import (
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
+    DuelLiveOut,
     DuelMatchDetailOut,
-    DuelMatchHistoryEntry,
     DuelMatchHistoryOut,
     DuelMatchIngest,
+    DuelMatchOut,
     DuelMatchProgressIngest,
     DuelMatchReplayOut,
-    DuelMatchOut,
-    DuelPresenceSnapshot,
-    DuelSoloGameIngest,
-    DuelLiveOut,
     DuelRatingOut,
+    DuelSoloGameIngest,
     DuelTokenOut,
     GameServerPoolIn,
     GameServerPoolOut,
 )
+from app.social.schemas import DuelPresenceSnapshot
 
 router = APIRouter(prefix="/duel", tags=["duel"])
 log = logging.getLogger(__name__)
 
 # A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
-# A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
-PROGRESS_STALE_AFTER = timedelta(hours=24)
 # Takedowns the presence answer repeats, so every game-server process hears about each one.
 TAKEDOWN_RELAY_WINDOW = timedelta(minutes=15)
 
@@ -141,26 +145,6 @@ def _token_out(db: Session, user: User, settings: Settings) -> DuelTokenOut:
     )
 
 
-# Redis key holding the game-server pool new games go to (blue/green switch).
-GAME_SERVER_POOL_KEY = "duel:gs:current"
-# Every address the pointer has named (never expires), so invites to rooms on an older pool still resolve.
-GAME_SERVER_KNOWN_KEY = "duel:gs:known"
-
-
-def game_server_url(settings: Settings) -> str | None:
-    """The pool pointer in Redis, else GAME_SERVER_URL, else None (clients use their build default)."""
-    r = redis_client.get_redis()
-    if r is not None:
-        try:
-            pointer = r.get(GAME_SERVER_POOL_KEY)
-        except redis_client.RedisError:
-            redis_client.report_failure("game-server pool read")
-            pointer = None
-        if pointer:
-            return pointer
-    return settings.game_server_url.strip() or None
-
-
 def _valid_pool_url(raw: str) -> str:
     url = normalize_server_url(raw)
     if url is None:
@@ -168,45 +152,25 @@ def _valid_pool_url(raw: str) -> str:
     return url
 
 
-def known_game_server_urls(settings: Settings) -> set[str]:
-    """Every pool address the API has handed out: the current assignment plus each one the pointer ever named.
-
-    A friend's invite names the pool its room is on, and the recipient's client
-    dials it with a game token, so only addresses from this set are accepted.
-    """
-    urls = {u for u in (game_server_url(settings),) if u}
-    r = redis_client.get_redis()
-    if r is not None:
-        try:
-            urls |= set(r.smembers(GAME_SERVER_KNOWN_KEY))
-        except redis_client.RedisError:
-            redis_client.report_failure("game-server pool read")
-    return urls
-
-
-@router.get("/admin/game-server-pool", response_model=GameServerPoolOut)
+@router.get("/admin/game-server-pool", response_model=GameServerPoolOut, dependencies=[OpsToken])
 def get_game_server_pool(
     settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> GameServerPoolOut:
-    """Where new games go (admin catalog token)."""
-    _require_catalog_token(x_catalog_token, settings)
+    """Where new games go (ops admin token)."""
     r = redis_client.get_redis()
     pool = r.get(GAME_SERVER_POOL_KEY) if r is not None else None
     return GameServerPoolOut(pool_url=pool or None, game_server_url=game_server_url(settings))
 
 
-@router.put("/admin/game-server-pool", response_model=GameServerPoolOut)
+@router.put("/admin/game-server-pool", response_model=GameServerPoolOut, dependencies=[OpsToken])
 def set_game_server_pool(
     body: GameServerPoolIn,
     settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> GameServerPoolOut:
-    """Point new games at another game-server pool, or clear the pointer (admin catalog token).
+    """Point new games at another game-server pool, or clear the pointer (ops admin token).
 
     Games already running stay where they are; only tokens minted afterwards carry the new URL.
     """
-    _require_catalog_token(x_catalog_token, settings)
     r = redis_client.get_redis()
     if r is None:
         raise HTTPException(status_code=503, detail="REDIS_URL is not configured")
@@ -331,7 +295,7 @@ def ingest_match(
     # retries even when a conflicting submission names completely different users.
     # Sorted user locks serialize different matches involving the same players
     # without deadlocking when the players occupy opposite seats.
-    _lock_match(db, body.match_id)
+    lock_match(db, body.match_id)
 
     existing = db.scalar(select(DuelMatch).where(DuelMatch.match_id == body.match_id))
     if existing is not None:
@@ -425,18 +389,6 @@ def ingest_match(
     )
 
 
-def _lock_match(db: Session, match_id: str) -> None:
-    """Serialize every write for one match_id (result and per-turn progress) until commit."""
-    if db.get_bind().dialect.name == "sqlite":
-        db.execute(text("BEGIN IMMEDIATE"))
-    else:
-        lock_id = int.from_bytes(
-            hashlib.sha256(f"duel-match:{match_id}".encode()).digest()[:8],
-            byteorder="big", signed=True,
-        )
-        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_id})
-
-
 def _capped_json(value: dict | None, what: str, match_id: str) -> str | None:
     if value is None:
         return None
@@ -474,8 +426,8 @@ def ingest_match_progress(
             return
         except redis_client.RedisError:
             redis_client.report_failure("progress write")
-    _lock_match(db, match_id)
-    if _has_result(db, match_id):
+    lock_match(db, match_id)
+    if has_result(db, match_id):
         # The result is in; a snapshot that lost the race must not bring the game back.
         db.rollback()
         return
@@ -491,10 +443,6 @@ def ingest_match_progress(
     if r is not None:
         # The durable copy replaces the live one.
         _forget_live_progress(match_id, (body.seat0_user_id, body.seat1_user_id))
-
-
-def _has_result(db: Session, match_id: str) -> bool:
-    return db.scalar(select(DuelMatch.id).where(DuelMatch.match_id == match_id)) is not None
 
 
 def _require_known_seats(db: Session, body: DuelMatchProgressIngest) -> None:
@@ -518,7 +466,7 @@ def _fill_progress(row: DuelMatchProgress, body: DuelMatchProgressIngest, match_
 
 def _progress_to_redis(r, db: Session, body: DuelMatchProgressIngest, match_id: str) -> None:
     """A live snapshot to Redis. No match lock: readers drop snapshots of games that have a result."""
-    if _has_result(db, match_id):
+    if has_result(db, match_id):
         return
     _require_known_seats(db, body)
     db.rollback()  # Done with Postgres; don't hold the read transaction open.
@@ -649,181 +597,6 @@ def my_matches(
     return DuelMatchHistoryOut(matches=match_history(db, user, limit, include_unfinished=True))
 
 
-def match_history(
-    db: Session, user: User, limit: int, include_unfinished: bool = False
-) -> list[DuelMatchHistoryEntry]:
-    """A player's recent duels from their own seat, newest first (also read by the analyst)."""
-    limit = max(1, min(limit, 100))
-    rows = db.scalars(
-        select(DuelMatch)
-        .where(or_(DuelMatch.seat0_user_id == user.id, DuelMatch.seat1_user_id == user.id))
-        .order_by(DuelMatch.created_at.desc(), DuelMatch.id.desc())
-        .limit(limit)
-    ).all()
-    entries = _history_entries(db, user, rows)
-    if not include_unfinished:
-        return entries
-    unfinished = db.scalars(
-        select(DuelMatchProgress)
-        .where(or_(DuelMatchProgress.seat0_user_id == user.id, DuelMatchProgress.seat1_user_id == user.id))
-        .order_by(DuelMatchProgress.updated_at.desc())
-        .limit(limit)
-    ).all()
-    entries += _unfinished_entries(db, user, _with_live_progress(db, user, list(unfinished), limit))
-    entries.sort(key=lambda e: _sort_time(e.created_at), reverse=True)
-    return entries[:limit]
-
-
-def _with_live_progress(
-    db: Session, user: User, stored: list[DuelMatchProgress], limit: int
-) -> list[DuelMatchProgress]:
-    """Postgres's unfinished games plus Redis's live ones (newest copy of each), minus finished ones."""
-    r = redis_client.get_redis()
-    if r is None:
-        return stored
-    try:
-        live = duel_live.user_progress(r, user.id, limit)
-    except redis_client.RedisError:
-        redis_client.report_failure("progress read")
-        return stored
-    if not live:
-        return stored
-    newest: dict[str, DuelMatchProgress] = {}
-    for row in [*stored, *live]:
-        seen = newest.get(row.match_id)
-        if seen is None or _utc(row.updated_at) > _utc(seen.updated_at):
-            newest[row.match_id] = row
-    # A live snapshot can land just after the result (no match lock on the Redis path).
-    finished = set(db.scalars(select(DuelMatch.match_id).where(DuelMatch.match_id.in_(list(newest)))))
-    return [row for match_id, row in newest.items() if match_id not in finished]
-
-
-def _utc(when: datetime) -> datetime:
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
-
-
-def _progress_closed(progress: DuelMatchProgress, now: datetime) -> bool:
-    """Nobody is playing this cut-off game any more: its room said so, or it went quiet for a day."""
-    if progress.closed:
-        return True
-    updated = progress.updated_at
-    if updated is None:
-        return False
-    if updated.tzinfo is None:
-        updated = updated.replace(tzinfo=timezone.utc)
-    return now - updated > PROGRESS_STALE_AFTER
-
-
-def _sort_time(iso: str | None) -> datetime:
-    if not iso:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    when = datetime.fromisoformat(iso)
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
-
-
-def _unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) -> list[DuelMatchHistoryEntry]:
-    """Games with no result: no winner and no Bounty change, dated by their last saved turn."""
-    if not rows:
-        return []
-    opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
-    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
-    now = datetime.now(timezone.utc)
-    with_chat = _chat_match_ids(db, user, [r.match_id for r in rows])
-    entries = []
-    for r in rows:
-        seat = 0 if r.seat0_user_id == user.id else 1
-        opponent = opponents.get(r.seat1_user_id if seat == 0 else r.seat0_user_id)
-        entries.append(
-            DuelMatchHistoryEntry(
-                match_id=r.match_id,
-                created_at=r.updated_at.isoformat() if r.updated_at else None,
-                ranked=r.ranked,
-                your_seat=seat,
-                won=False,
-                reason="unfinished",
-                turns=r.turns,
-                your_leader_id=r.seat0_leader_id if seat == 0 else r.seat1_leader_id,
-                opponent_leader_id=r.seat1_leader_id if seat == 0 else r.seat0_leader_id,
-                opponent_name=duel_display_name(opponent) if opponent else "Player",
-                rating_before=0,
-                rating_after=0,
-                has_replay=r.replay is not None,
-                has_log=(r.seat0_log if seat == 0 else r.seat1_log) is not None,
-                finished=False,
-                replay_ready=r.replay is not None and _progress_closed(r, now),
-                has_chat=r.match_id in with_chat,
-            )
-        )
-    return entries
-
-
-def _chat_match_ids(db: Session, user: User, match_ids: list[str]) -> set[str]:
-    """Which of these games the player has an answered Log Pose chat about (#970)."""
-    scopes = {f"match:{m}": m for m in match_ids}
-    answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
-    found = db.scalars(
-        select(AnalystThread.scope).where(AnalystThread.user_id == user.id, AnalystThread.scope.in_(list(scopes)), answered)
-    ).all()
-    return {scopes[s] for s in found}
-
-
-def _history_entries(db: Session, user: User, rows: list[DuelMatch]) -> list[DuelMatchHistoryEntry]:
-    if not rows:
-        return []
-    ids = [r.match_id for r in rows]
-    opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
-    opponents = {u.id: u for u in db.scalars(select(User).where(User.id.in_(opponent_ids))).all()}
-    with_replay = set(db.scalars(select(DuelMatchLog.match_id).where(DuelMatchLog.match_id.in_(ids))).all())
-    with_log = {
-        (match_id, seat)
-        for match_id, seat in db.execute(
-            select(DuelMatchSeatLog.match_id, DuelMatchSeatLog.seat).where(DuelMatchSeatLog.match_id.in_(ids))
-        ).all()
-    }
-    with_chat = _chat_match_ids(db, user, ids)
-    matches = []
-    for r in rows:
-        seat = 0 if r.seat0_user_id == user.id else 1
-        opponent = opponents.get(r.seat1_user_id if seat == 0 else r.seat0_user_id)
-        matches.append(
-            DuelMatchHistoryEntry(
-                match_id=r.match_id,
-                created_at=r.created_at.isoformat() if r.created_at else None,
-                ranked=r.ranked,
-                your_seat=seat,
-                won=r.winner_seat == seat,
-                reason=r.reason,
-                turns=r.turns,
-                your_leader_id=r.seat0_leader_id if seat == 0 else r.seat1_leader_id,
-                opponent_leader_id=r.seat1_leader_id if seat == 0 else r.seat0_leader_id,
-                opponent_name=duel_display_name(opponent) if opponent else "Player",
-                rating_before=r.seat0_rating_before if seat == 0 else r.seat1_rating_before,
-                rating_after=r.seat0_rating_after if seat == 0 else r.seat1_rating_after,
-                has_replay=r.match_id in with_replay,
-                has_log=(r.match_id, seat) in with_log,
-                replay_ready=r.match_id in with_replay,
-                has_chat=r.match_id in with_chat,
-            )
-        )
-    return matches
-
-
-def _latest_progress(db: Session, match_id: str) -> DuelMatchProgress | None:
-    """The newest snapshot of an unfinished game: Redis's live copy or Postgres's stored one."""
-    stored = db.get(DuelMatchProgress, match_id)
-    r = redis_client.get_redis()
-    if r is None:
-        return stored
-    try:
-        live = duel_live.read_progress(r, match_id)
-    except redis_client.RedisError:
-        redis_client.report_failure("progress read")
-        return stored
-    if live is None or (stored is not None and _utc(stored.updated_at) >= _utc(live.updated_at)):
-        return stored
-    return live
-
-
 @router.get("/matches/me/{match_id}", response_model=DuelMatchDetailOut)
 def my_match(
     match_id: str,
@@ -833,12 +606,12 @@ def my_match(
     """One of the signed-in player's duels with their own turn-by-turn log (never the opponent's)."""
     row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
     if row is None:
-        progress = _latest_progress(db, match_id)
+        progress = latest_progress(db, match_id)
         if progress is None or user.id not in (progress.seat0_user_id, progress.seat1_user_id):
             raise HTTPException(status_code=404, detail="Match not found")
         log_text = progress.seat0_log if progress.seat0_user_id == user.id else progress.seat1_log
         return DuelMatchDetailOut(
-            match=_unfinished_entries(db, user, [progress])[0],
+            match=unfinished_entries(db, user, [progress])[0],
             log=json.loads(log_text) if log_text else None,
         )
     if user.id not in (row.seat0_user_id, row.seat1_user_id):
@@ -846,7 +619,7 @@ def my_match(
     seat = 0 if row.seat0_user_id == user.id else 1
     seat_log = db.get(DuelMatchSeatLog, (match_id, seat))
     return DuelMatchDetailOut(
-        match=_history_entries(db, user, [row])[0],
+        match=history_entries(db, user, [row])[0],
         log=json.loads(seat_log.log) if seat_log else None,
     )
 
@@ -875,11 +648,11 @@ def my_match_replay(
         seat0_id, seat1_id, turns, replay_text, finished = row.seat0_user_id, row.seat1_user_id, row.turns, log_row.replay, True
     else:
         # The newest copy decides: a swept row can be old while the game goes on in Redis.
-        progress = _latest_progress(db=db, match_id=match_id)
+        progress = latest_progress(db=db, match_id=match_id)
         players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
         if progress is None or (user.id not in players and not is_admin(user)):
             raise HTTPException(status_code=404, detail="Match not found")
-        if not _progress_closed(progress, datetime.now(timezone.utc)):
+        if not progress_closed(progress, datetime.now(timezone.utc)):
             raise HTTPException(status_code=409, detail="This game is still being played")
         if progress.replay is None:
             raise HTTPException(status_code=404, detail="No replay was kept for this match")
@@ -982,14 +755,14 @@ def live_counts(db: Annotated[Session, Depends(get_db)]) -> DuelLiveOut:
     online: set[int] = set()
     rooms: set[str] = set()
     for row in db.scalars(select(DuelPresence)):
-        if now - _utc(row.updated_at) > PRESENCE_TTL:
+        if now - as_utc(row.updated_at) > PRESENCE_TTL:
             continue
         if row.phase != "finished":
             online.add(row.user_id)
         if row.role == "player" and row.phase == "playing":
             rooms.add(row.room_id)
     for seen in db.scalars(select(DuelLobbySeen)):
-        if now - _utc(seen.seen_at) <= ONLINE_TTL:
+        if now - as_utc(seen.seen_at) <= ONLINE_TTL:
             online.add(seen.user_id)
     out = DuelLiveOut(online=len(online), matches=len(rooms))
     _live_cache = (tick, out)
@@ -1038,20 +811,17 @@ def create_card_report(
     return _report_out(row, user)
 
 
-@router.get("/card-reports", response_model=list[CardReportOut])
+@router.get("/card-reports", response_model=list[CardReportOut], dependencies=[OpsToken])
 def list_card_reports(
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
     status: str | None = "open",
     card_id: str | None = None,
     limit: int = 200,
 ) -> list[CardReportOut]:
-    """Reports for triage, newest first (guarded by the admin catalog token).
+    """Reports for triage, newest first (guarded by the ops admin token).
 
     Pass ``status=all`` to include fixed and won't-fix reports.
     """
-    _require_catalog_token(x_catalog_token, settings)
     query = select(CardReport, User).outerjoin(User, User.id == CardReport.user_id)
     if status and status != "all":
         query = query.where(CardReport.status == status)
@@ -1063,16 +833,13 @@ def list_card_reports(
     return [_report_out(row, user) for row, user in rows]
 
 
-@router.patch("/card-reports/{report_id}", response_model=CardReportOut)
+@router.patch("/card-reports/{report_id}", response_model=CardReportOut, dependencies=[OpsToken])
 def update_card_report(
     report_id: int,
     body: CardReportStatusIn,
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> CardReportOut:
-    """Mark a report open, fixed or won't-fix (admin catalog token)."""
-    _require_catalog_token(x_catalog_token, settings)
+    """Mark a report open, fixed or won't-fix (ops admin token)."""
     row = db.get(CardReport, report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Report not found")

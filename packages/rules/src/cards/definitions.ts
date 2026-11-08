@@ -5,7 +5,7 @@
  */
 import type { CardDef, CardDefId, CardType } from "../types.js";
 import { cardDataFor, listCardDataIds } from "./cardData.js";
-import { tcgAltsForCard, tcgArtForCard } from "./tcgArt.js";
+import { normalizeCardId, tcgAltsForCard, tcgArtForCard } from "@optcg/card-core";
 import { cardHasUnconditionalKeyword } from "./keywords.js";
 
 /** Local parallel-art mirrors shipped with duel-web (`public/cards`). */
@@ -25,7 +25,8 @@ function altsFor(id: string): CardDef["altArts"] {
   const tcg = tcgAltsForCard(id);
   const byId = new Map<string, { id: string; label: string; imageUrl: string }>();
   for (const alt of LOCAL_ALTS[id] ?? []) byId.set(alt.id, { ...alt, imageUrl: `/cards/${id}_${alt.id}.webp` });
-  for (const alt of tcg) byId.set(alt.id, alt);
+  // The atlas keeps `{ id, label, imageUrl }`; the product id is only for the SPA's own lookups.
+  for (const { id: altId, label, imageUrl } of tcg) byId.set(altId, { id: altId, label, imageUrl });
   return byId.size ? [...byId.values()] : undefined;
 }
 
@@ -70,8 +71,7 @@ export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 
 /** Normalize OPTCG-style ids (trim + uppercase; parallel suffixes map to the base card). */
 export function normalizeCardDefId(id: string): CardDefId {
-  const key = id.trim().toUpperCase();
-  return key.replace(/_(?:P\d+|R\d+)$/, "");
+  return normalizeCardId(id);
 }
 
 export function hasCardDef(id: CardDefId): boolean {

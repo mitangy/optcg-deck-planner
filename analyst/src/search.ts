@@ -2,7 +2,8 @@
  * Structured card search. Every filter is optional; list filters inside one field match
  * any value (colors, types, traits, timings, effects), except `keywords`, which needs all.
  */
-import { normalizeStatsCardId, ruleOffends } from "@optcg/deck-analytics";
+import { normalizeCardId } from "@optcg/card-core";
+import { ruleOffends } from "@optcg/deck-analytics";
 import type { Catalog, CardRow, CardType } from "./catalog";
 
 export type CardFilter = {
@@ -52,7 +53,7 @@ export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
   const notes: string[] = [];
   let leader: CardRow | undefined;
   if (f.legalFor) {
-    leader = catalog.cards.get(normalizeStatsCardId(f.legalFor));
+    leader = catalog.cards.get(normalizeCardId(f.legalFor));
     if (!leader || leader.type !== "leader") notes.push(`${f.legalFor} is not a known leader, so legalFor was ignored.`);
   }
   const leaderRules = leader ? catalog.atlas[leader.id]?.rules ?? [] : [];

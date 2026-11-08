@@ -6,6 +6,7 @@
  * the battle log, which drives the card spotlight).
  */
 import type { PlayerView } from "../net/protocol";
+import { stubCard } from "../board/fixtures/stubCard";
 
 export type MotionDemoStep = { label: string; view: PlayerView; events?: unknown[] };
 
@@ -69,7 +70,7 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
         hand: y.hand.filter((c) => c !== card),
         characters: [
           ...y.characters,
-          { id: card.id, defId: card.defId, power: 5000, printedPower: 5000, summoningSick: true, statusLabels: [] },
+          stubCard({ id: card.id, defId: card.defId, power: 5000, printedPower: 5000, summoningSick: true, statusLabels: [] }),
         ],
       };
     },
@@ -100,7 +101,7 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
       handCount: o.handCount - 1,
       characters: [
         ...o.characters,
-        { id: "demo-opp-play", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] },
+        stubCard({ id: "demo-opp-play", defId: "ST01-006", power: 1000, printedPower: 1000, statusLabels: [] }),
       ],
     }),
     [{ type: "card_played", seat: 1, defId: "ST01-006", instanceId: "demo-opp-play", costPaid: 1 }],

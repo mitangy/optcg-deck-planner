@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.models import TradeOffer
+from app.social.models import TradeOffer
 from tests.friend_support import (  # noqa: F401  (client is a fixture)
     add_alt,
     add_card,
