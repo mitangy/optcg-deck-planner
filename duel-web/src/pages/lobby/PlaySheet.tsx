@@ -153,11 +153,7 @@ export function PlaySheet({
                 decks={decks}
                 value={botDeckId}
                 onChange={setBotDeckId}
-                mirror={{ label: "Same as your deck", deck: yourRandom ? null : selectedDeck }}
-                random={{
-                  label: "Random deck",
-                  hint: "Picked from your complete decks when the game starts, and different from yours when it can be.",
-                }}
+                botMeta
               />
               <p className="field-hint">
                 A casual game against the computer: not ranked, no timer, and not saved to your match history.

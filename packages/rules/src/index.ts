@@ -1,4 +1,5 @@
 export { createSeededRng, type Rng, type RngState } from "./rng.js";
+export { BOT_META_DECKS, BOT_META_DECK_COUNT, type BotMetaDeck } from "./botMetaDecks.js";
 export { EFFECT_SCHEMA_VERSION } from "./effects/types.js";
 export type { Ability, CardAbilities, Effect, Cond, Cost, Static, Trigger, SupportStatus } from "./effects/types.js";
 export { ABILITY_REGISTRY, REGISTRY_HASH, abilitiesFor, abilityById, cardAbilities, buildAbilityRegistry, RegistryValidationError } from "./cards/abilities.js";

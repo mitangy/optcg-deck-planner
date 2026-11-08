@@ -27,9 +27,9 @@ async function openBotSetup(page: Page, seed: number) {
 
 test("Play vs Bot: the bot answers the opening hand and takes its turn (#631)", async ({ page, duel }, info) => {
   await openBotSetup(page, 7);
-  // Normal is the default level, and the bot copies your deck unless you pick another.
+  // Normal is the default level, and the bot draws a random meta deck unless you pick another (#1180).
   await expect(page.getByRole("radio", { name: "Normal" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByLabel("Bot's deck")).toContainText("Same as your deck");
+  await expect(page.getByLabel("Bot's deck")).toContainText("Random meta deck");
   await page.getByRole("button", { name: "Start game" }).click();
 
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
@@ -64,5 +64,23 @@ test("Play vs Bot: Hard sits beside Easy and Normal on one row and names the bot
   await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
   if (info.project.name === "desktop-1280") await expect(page.locator(".board-root")).toContainText("Bot (Hard)");
+  expect(duel.errors).toEqual([]);
+});
+
+test("Play vs Bot: the Bot's deck picker offers the 10 meta decks and your decks, and the server accepts a meta deck (#1180)", async ({ page, duel }, info) => {
+  await openBotSetup(page, 7);
+  await page.getByLabel("Bot's deck").click();
+  const options = page.getByRole("option");
+  // Random meta deck, 10 meta decks, then the "Your decks" header and your saved decks; no mirror option.
+  await expect(options.first()).toContainText("Random meta deck");
+  await expect(options.nth(11)).toContainText("Your decks");
+  await expect(options.nth(12)).toBeVisible();
+  await expect(page.getByRole("option", { name: /E2E You/ })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: /Same as your deck/ })).toHaveCount(0);
+  await page.getByRole("option", { name: /Kaido/ }).click();
+  await expect(page.getByLabel("Bot's deck")).toContainText("Kaido");
+  await page.getByRole("button", { name: "Start game" }).click();
+  await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
+  if (info.project.name === "desktop-1280") await expect(page.locator(".board-root")).toContainText("Bot (Normal)");
   expect(duel.errors).toEqual([]);
 });
