@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import get_args
 
 from app.analyst.access import CHAT_MODELS
-from app.schemas import ANALYST_SCOPE_PATTERN, AnalystChatBudget, AnalystUsageIn
+from app.analyst.schemas import ANALYST_SCOPE_PATTERN, AnalystChatBudget, AnalystUsageIn
 
 FIXTURE = Path(__file__).resolve().parents[2] / "packages" / "analyst-contract" / "fixtures" / "backend-values.json"
 CONTRACT = json.loads(FIXTURE.read_text("utf-8"))

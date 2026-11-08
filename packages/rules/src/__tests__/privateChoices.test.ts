@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyIntent, createMatch, getPlayerView, getSpectatorView, listLegalIntents, skipMulligans } from "../engine.js";
-import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
+import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 import { projectGameEvents } from "../engine/views.js";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { FILLER, Harness } from "../testing/harness.js";

@@ -1,0 +1,238 @@
+/* —— Play sheet (fixed overlay: never shifts the home layout) —— */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, var(--safe-t)) max(1rem, var(--safe-r)) max(1rem, var(--safe-b))
+    max(1rem, var(--safe-l));
+  background: rgb(var(--abyss-rgb) / 0.72);
+  backdrop-filter: blur(3px);
+  animation: fade-in 140ms ease-out;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88dvh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0.9rem 1rem 1.1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-18);
+  background:
+    linear-gradient(180deg, rgb(var(--chrome-bright-rgb) / 0.05), transparent 35%),
+    var(--arena-panel);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: sheet-in 180ms ease-out;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sheet-title {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--chrome-bright);
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.sheet-confirm {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+  min-height: 128px;
+  padding: 0.9rem 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  background:
+    linear-gradient(160deg, rgb(var(--sea-rgb) / 0.16), transparent 60%),
+    var(--arena-mid);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+/* An odd last card fills its row instead of leaving a hole. */
+.mode-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.mode-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.mode-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.mode-glyph {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-round);
+  border: 1px solid var(--line-strong);
+  color: var(--chrome-bright);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-variant-emoji: text;
+  margin-bottom: 0.25rem;
+}
+
+.mode-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.mode-blurb {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: var(--radius-10);
+  border: 1px solid var(--line);
+  background: var(--arena-mid);
+}
+
+.segmented button {
+  min-height: 38px;
+  border: none;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--arena-raised);
+  color: var(--chrome-bright);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.segmented button:focus-visible:not([role="tab"]),
+.segmented button[role="tab"][data-focus] {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.deck-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.deck-picker .ui-select-button {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-picker-art {
+  width: 36px;
+  height: 50px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--line-strong);
+  object-fit: cover;
+  object-position: center top;
+  background: var(--arena-mid);
+}
+
+.deck-picker-art-random {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+@media (max-width: 480px) {
+  /* Bottom sheet on phones. */
+  .sheet-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .sheet {
+    max-width: none;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: max(1.1rem, var(--safe-b));
+  }
+
+  .mode-card {
+    min-height: 116px;
+    padding: 0.75rem;
+  }
+
+  .topbar-inner {
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet-backdrop {
+    animation: none;
+  }
+}
+

@@ -78,7 +78,7 @@ jobs:
             "src/engine/evalCtx.ts,src/engine/statics.ts,src/engine/stats.ts,src/engine/selectors.ts,src/engine/evaluate.ts,src/engine/costs.ts,src/effects/bindings.ts"
             "src/engine/intents.ts,src/engine/views.ts,src/engine/modifiers.ts,src/engine/perspective.ts"
             "src/effects/validate.ts,src/effects/compile.ts"
-            "src/engine/procedure.ts,src/engine/state.ts"
+            "src/engine/procedure.ts,src/engine/zones.ts"
           )
           echo "Stryker shard ${SHARD}: ${SHARDS[$SHARD]}"
           echo "index=${SHARD}" >> "$GITHUB_OUTPUT"

@@ -2,7 +2,7 @@
  * Ops that change game flow rather than a zone or modifier: win, extra turn, invoke, redirect the attack, no-op.
  */
 import { abilitiesFor } from "../../cards/abilities.js";
-import { alloc } from "../state.js";
+import { alloc } from "../zones.js";
 import type { OpTable } from "./shared.js";
 
 export const flowOps: OpTable<"nothing" | "win" | "extra_turn" | "invoke" | "redirect_attack"> = {

@@ -8,7 +8,7 @@ import type { LookPick, Placement } from "../effects/types.js";
 import type { BindingValue, ChoiceOption, ChoiceRequest, MatchState, PendingChoice, ResolutionFrame, Seat } from "../types.js";
 import { forOpponent } from "./perspective.js";
 import { type EvalCtx, canPayCost, canPayCosts, candidates, costDependsOnHiddenInfo, evalCond, evalValue, filterMatches, playerRestricted, selectorReadsHiddenZone } from "./queries.js";
-import { type Located, alloc, isOnField, locate, otherSeat, putCard, takeCard } from "./state.js";
+import { type Located, alloc, isOnField, locate, otherSeat, putCard, takeCard } from "./zones.js";
 import { type Sim, nameOf } from "./sim.js";
 import { newBatch, releaseDeclinedOncePerTurn } from "./triggers.js";
 import { finishPlay } from "./zoneActions.js";

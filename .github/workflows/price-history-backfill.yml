@@ -34,4 +34,4 @@ jobs:
         run: |
           set -euo pipefail
           END="${END:-$(date -u -d yesterday +%F)}"
-          python3 scripts/backfill_price_history.py --start "$START" --end "$END" --step-days "${STEP_DAYS:-1}"
+          python3 backend/scripts/backfill_price_history.py --start "$START" --end "$END" --step-days "${STEP_DAYS:-1}"

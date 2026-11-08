@@ -15,13 +15,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
-from app.config import Settings, get_settings
+from app.core.auth import get_current_user
+from app.core.config import Settings, get_settings
 from app.duel.cosmetics import active_attr, public_path, public_sig, sniff_mime
-from app.db import get_db
-from app.models import DuelCosmetic, DuelUserSettings, User
-from app.rate_limit import RateLimiter, client_ip
-from app.schemas import (
+from app.core.db import get_db
+from app.core.models import User
+from app.duel.models import DuelCosmetic, DuelUserSettings
+from app.core.rate_limit import RateLimiter, client_ip
+from app.duel.schemas import (
     DuelCosmeticActiveIn,
     DuelCosmeticActiveOut,
     DuelCosmeticOut,

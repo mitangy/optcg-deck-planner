@@ -1,5 +1,6 @@
 /** How one finished duel reads in the match history list. */
 import type { MatchHistoryEntry } from "./historyApi";
+import { historyAgo } from "../lib/relativeTime";
 
 const REASONS: Record<string, string> = {
   concede: "conceded",
@@ -59,7 +60,7 @@ export function matchRow(
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,
-    when: m.created_at ? relativeTime(new Date(m.created_at), now) : null,
+    when: m.created_at ? historyAgo(new Date(m.created_at), now) : null,
     replay: m.replay_ready === true,
     hasChat: m.has_chat === true,
   };
@@ -67,15 +68,4 @@ export function matchRow(
 
 function capitalize(s: string): string {
   return s ? s[0]!.toUpperCase() + s.slice(1) : s;
-}
-
-function relativeTime(then: Date, now: Date): string {
-  const mins = Math.round((now.getTime() - then.getTime()) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return then.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

@@ -1,22 +1,20 @@
 import { PageShell } from "../layout/PageShell";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
 import { UsernameSettings } from "../auth/UsernameSettings";
-import {
-  chooseCosmetic,
-  saveCosmetic,
-  useAccountCosmetics,
-} from "../account/cosmeticsSync";
+import { useAccountCosmetics } from "../account/cosmeticsSync";
 import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { clearAuth, useAuthUser } from "../auth/session";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { DonArtPicker } from "./DonArtPicker";
+import { SettingToggle } from "./SettingToggle";
+import { CosmeticActions, useCosmeticSlot } from "../cosmetics/CosmeticActions";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
 import { googleLoginUrl, logoutSession } from "../net/api";
 import { PLAYMAT_ASPECT, usePlaymatUrl } from "../playmat";
-import { GameplaySettingsFields } from "../board/GameplaySettings";
+import { GameplaySettingsFields } from "../board/settings/GameplaySettings";
 import {
   devKeyAllowed,
   updateSettings,
@@ -36,17 +34,25 @@ const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
   { value: "system", label: "Auto" },
 ];
 
+/** The jump bar under the title, in page order. */
+const JUMP_LINKS: { id: string; label: string; signedInOnly?: boolean }[] = [
+  { id: "account", label: "Account" },
+  { id: "gameplay", label: "Gameplay" },
+  { id: "appearance", label: "Appearance" },
+  { id: "deck-editor", label: "Deck editor" },
+  { id: "log-pose", label: "Log Pose", signedInOnly: true },
+  { id: "about", label: "About" },
+];
+
 export function SettingsPage() {
   const { setRating } = useDuelSession();
   const settings = useDuelSettings();
   const authUser = useAuthUser();
   const showDevKey = devKeyAllowed();
   const playmatUrl = usePlaymatUrl();
-  const [matBusy, setMatBusy] = useState(false);
-  const [matError, setMatError] = useState<string | null>(null);
+  const mat = useCosmeticSlot("playmat");
   const cardBackUrl = useCardBackUrl();
-  const [backBusy, setBackBusy] = useState(false);
-  const [backError, setBackError] = useState<string | null>(null);
+  const back = useCosmeticSlot("cardBack");
   const { signedIn } = useAccountCosmetics();
   const savedWhere = signedIn
     ? "Saved to your account, so it follows you to every device."
@@ -56,32 +62,6 @@ export function SettingsPage() {
     kind: "playmat" | "cardBack";
     file: File;
   } | null>(null);
-
-  async function onPlaymatFile(file: File | undefined) {
-    if (!file) return;
-    setMatBusy(true);
-    setMatError(null);
-    try {
-      await saveCosmetic("playmat", file);
-    } catch (e) {
-      setMatError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setMatBusy(false);
-    }
-  }
-
-  async function onCardBackFile(file: File | undefined) {
-    if (!file) return;
-    setBackBusy(true);
-    setBackError(null);
-    try {
-      await saveCosmetic("cardBack", file);
-    } catch (e) {
-      setBackError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setBackBusy(false);
-    }
-  }
 
   function update(patch: Partial<DuelSettings>) {
     updateSettings(patch);
@@ -100,8 +80,7 @@ export function SettingsPage() {
         const kind = editing.kind;
         setEditing(null);
         const file = new File([blob], "edited.png", { type: blob.type });
-        if (kind === "playmat") void onPlaymatFile(file);
-        else void onCardBackFile(file);
+        void (kind === "playmat" ? mat : back).upload(file);
       }}
     />
   ) : null;
@@ -109,12 +88,11 @@ export function SettingsPage() {
   return (
     <PageShell pageClass="page-narrow page-settings" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Settings" outside={editor}>
       <nav className="settings-jump" aria-label="Jump to a section">
-        <a href="#account">Account</a>
-        <a href="#gameplay">Gameplay</a>
-        <a href="#appearance">Appearance</a>
-        <a href="#deck-editor">Deck editor</a>
-        {authUser ? <a href="#log-pose">Log Pose</a> : null}
-        <a href="#about">About</a>
+        {JUMP_LINKS.filter((l) => !l.signedInOnly || authUser).map((l) => (
+          <a key={l.id} href={`#${l.id}`}>
+            {l.label}
+          </a>
+        ))}
       </nav>
 
       {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
@@ -275,38 +253,13 @@ export function SettingsPage() {
             {savedWhere}
           </p>
           <div className="btn-row">
-            <label className={`btn btn-secondary${matBusy ? " is-busy" : ""}`}>
-              <input
-                type="file"
-                accept="image/*"
-                className="visually-hidden"
-                disabled={matBusy}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setEditing({ kind: "playmat", file: f });
-                  e.target.value = "";
-                }}
-              />
-              {matBusy
-                ? "Processing…"
-                : playmatUrl
-                  ? "Replace image"
-                  : "Upload image"}
-            </label>
-            {playmatUrl ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={matBusy}
-                onClick={() =>
-                  void chooseCosmetic("playmat", null).catch((e: unknown) =>
-                    setMatError(e instanceof Error ? e.message : "Could not switch"),
-                  )
-                }
-              >
-                Use default
-              </button>
-            ) : null}
+            <CosmeticActions
+              hasArt={Boolean(playmatUrl)}
+              busy={mat.busy}
+              resetLabel="Use default"
+              onPick={(file) => setEditing({ kind: "playmat", file })}
+              onReset={mat.reset}
+            />
           </div>
           {playmatUrl ? (
             <div className="field">
@@ -343,7 +296,7 @@ export function SettingsPage() {
             </div>
           ) : null}
           <CosmeticHistory kind="playmat" />
-          {matError ? <p className="error-text">{matError}</p> : null}
+          {mat.error ? <p className="error-text">{mat.error}</p> : null}
         </section>
 
         <section className="panel" id="card-back">
@@ -366,58 +319,24 @@ export function SettingsPage() {
                 {savedWhere}
               </p>
               <div className="btn-row">
-                <label
-                  className={`btn btn-secondary${backBusy ? " is-busy" : ""}`}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="visually-hidden"
-                    disabled={backBusy}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setEditing({ kind: "cardBack", file: f });
-                      e.target.value = "";
-                    }}
-                  />
-                  {backBusy
-                    ? "Processing…"
-                    : cardBackUrl
-                      ? "Replace image"
-                      : "Upload image"}
-                </label>
-                {cardBackUrl ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={backBusy}
-                    onClick={() =>
-                      void chooseCosmetic("cardBack", null).catch((e: unknown) =>
-                        setBackError(e instanceof Error ? e.message : "Could not switch"),
-                      )
-                    }
-                  >
-                    Use official
-                  </button>
-                ) : null}
+                <CosmeticActions
+                  hasArt={Boolean(cardBackUrl)}
+                  busy={back.busy}
+                  resetLabel="Use official"
+                  onPick={(file) => setEditing({ kind: "cardBack", file })}
+                  onReset={back.reset}
+                />
               </div>
-              {backError ? <p className="error-text">{backError}</p> : null}
+              {back.error ? <p className="error-text">{back.error}</p> : null}
             </div>
           </div>
           <CosmeticHistory kind="cardBack" />
-          <div className="gameplay-toggle">
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={settings.showOthersArt}
-                onChange={(e) => update({ showOthersArt: e.target.checked })}
-              />
-              <span>Show other players' playmats and card backs</span>
-            </label>
-            <p className="field-hint">
-              Turn off to always see the standard art for opponents and players you watch. {savedWhere}
-            </p>
-          </div>
+          <SettingToggle
+            checked={settings.showOthersArt}
+            onChange={(showOthersArt) => update({ showOthersArt })}
+            label="Show other players' playmats and card backs"
+            hint={<>Turn off to always see the standard art for opponents and players you watch. {savedWhere}</>}
+          />
         </section>
 
         <section className="panel" id="don-card">
@@ -432,19 +351,12 @@ export function SettingsPage() {
 
       <section className="panel" id="deck-editor">
         <h2 className="panel-title">Deck editor</h2>
-        <div className="gameplay-toggle">
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={settings.deckStats}
-              onChange={(e) => update({ deckStats: e.target.checked })}
-            />
-            <span>Deck stats</span>
-          </label>
-          <p className="field-hint">
-            Cost curve, counters, draw odds and build hints when you edit a deck. {savedWhere}
-          </p>
-        </div>
+        <SettingToggle
+          checked={settings.deckStats}
+          onChange={(deckStats) => update({ deckStats })}
+          label="Deck stats"
+          hint={<>Cost curve, counters, draw odds and build hints when you edit a deck. {savedWhere}</>}
+        />
       </section>
 
       {authUser ? <AnalystLinkPanel /> : null}

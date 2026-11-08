@@ -4,7 +4,7 @@ import { CHAT_INSTRUCTIONS, CHAT_MODEL, type CallModel } from "../../src/chat";
 import { loadPlaybook } from "../../src/playbook";
 import { PROPOSE_TOOL } from "../../src/proposals";
 import { instructionsFor } from "../../src/prompts/connector";
-import { scriptedModel, textReply } from "../scripted";
+import { scriptedModel, textReply } from "../qa/scripted";
 import { buildCases, type AdviceCase } from "./cases";
 import { fixtureDecks } from "./fixture";
 import { evaluateCase, simDeck, type PipelineDeps, type SimConfig } from "./pipeline";

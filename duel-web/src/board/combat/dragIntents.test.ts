@@ -1,0 +1,302 @@
+import { describe, expect, it } from "vitest";
+import type { Intent } from "../../net/protocol";
+import {
+  canDragAttacker,
+  canDragCounter,
+  canDragDon,
+  canDragHandCard,
+  canDropPlayOnField,
+  collapseReplacePlays,
+  giveDonTargetIds,
+  giveDonTargetIdsForAll,
+  matchGiveDon,
+  matchGiveDonMulti,
+  matchPlayCardOnField,
+  matchPlayCardTrash,
+  parseDropAttr,
+  playCardTrashTargetIds,
+  playNeedsReplace,
+  resolveDropIntents,
+} from "./dragIntents";
+import { stubIntent } from "../fixtures/stubCard";
+
+const intents: Intent[] = [
+  { type: "end_turn" },
+  { type: "give_don", donId: "d1", targetId: "leader" },
+  { type: "give_don", donId: "d1", targetId: "c1" },
+  { type: "give_don", donId: "d2", targetId: "leader" },
+  { type: "play_card", handIndex: 0 },
+  { type: "play_card", handIndex: 2, trashCharacterId: "c1" },
+  { type: "play_card", handIndex: 2, trashCharacterId: "c2" },
+  stubIntent({ type: "activate_leader", targetId: "leader" }),
+];
+
+describe("canDragDon / giveDonTargetIds", () => {
+  it("allows drag only when give_don exists for donId", () => {
+    expect(canDragDon(intents, "d1")).toBe(true);
+    expect(canDragDon(intents, "d2")).toBe(true);
+    expect(canDragDon(intents, "d3")).toBe(false);
+    expect(canDragDon(intents, "leader")).toBe(false);
+  });
+
+  it("lists distinct give_don targets for a don", () => {
+    expect(giveDonTargetIds(intents, "d1").sort()).toEqual(["c1", "leader"]);
+    expect(giveDonTargetIds(intents, "d2")).toEqual(["leader"]);
+    expect(giveDonTargetIds(intents, "missing")).toEqual([]);
+  });
+
+  it("matches exact give_don intent", () => {
+    expect(matchGiveDon(intents, "d1", "c1")).toEqual({
+      type: "give_don",
+      donId: "d1",
+      targetId: "c1",
+    });
+    expect(matchGiveDon(intents, "d1", "missing")).toBeNull();
+    expect(matchGiveDon(intents, "d2", "c1")).toBeNull();
+  });
+});
+
+describe("multi-select DON!! drag helpers", () => {
+  it("intersects targets legal for every donId in the set", () => {
+    // d1 -> {leader, c1}, d2 -> {leader}: only "leader" works for both.
+    expect(giveDonTargetIdsForAll(intents, ["d1", "d2"])).toEqual(["leader"]);
+    expect(giveDonTargetIdsForAll(intents, ["d1"]).sort()).toEqual(["c1", "leader"]);
+    expect(giveDonTargetIdsForAll(intents, [])).toEqual([]);
+    expect(giveDonTargetIdsForAll(intents, ["d1", "missing"])).toEqual([]);
+  });
+
+  it("resolves one give_don intent per donId with a legal drop, in order", () => {
+    expect(matchGiveDonMulti(intents, ["d1", "d2"], "leader")).toEqual([
+      { type: "give_don", donId: "d1", targetId: "leader" },
+      { type: "give_don", donId: "d2", targetId: "leader" },
+    ]);
+    // d2 has no legal give_don to c1 — only d1's intent comes back.
+    expect(matchGiveDonMulti(intents, ["d1", "d2"], "c1")).toEqual([
+      { type: "give_don", donId: "d1", targetId: "c1" },
+    ]);
+    expect(matchGiveDonMulti(intents, ["missing"], "leader")).toEqual([]);
+  });
+});
+
+describe("play_card drag / drop matching", () => {
+  it("allows hand drag when play_card exists for index", () => {
+    expect(canDragHandCard(intents, 0)).toBe(true);
+    expect(canDragHandCard(intents, 2)).toBe(true);
+    expect(canDragHandCard(intents, 1)).toBe(false);
+  });
+
+  it("field drop only when play_card has no trashCharacterId", () => {
+    expect(canDropPlayOnField(intents, 0)).toBe(true);
+    expect(canDropPlayOnField(intents, 2)).toBe(false);
+    expect(matchPlayCardOnField(intents, 0)).toEqual({
+      type: "play_card",
+      handIndex: 0,
+    });
+    expect(matchPlayCardOnField(intents, 2)).toBeNull();
+  });
+
+  it("trash targets for full-board play_card", () => {
+    expect(playCardTrashTargetIds(intents, 2).sort()).toEqual(["c1", "c2"]);
+    expect(playCardTrashTargetIds(intents, 0)).toEqual([]);
+    expect(matchPlayCardTrash(intents, 2, "c2")).toEqual({
+      type: "play_card",
+      handIndex: 2,
+      trashCharacterId: "c2",
+    });
+    expect(matchPlayCardTrash(intents, 2, "c9")).toBeNull();
+  });
+});
+
+describe("full-board plays", () => {
+  it("asks which Character to replace only when the board is full", () => {
+    expect(playNeedsReplace(intents, 2)).toBe(true);
+    expect(playNeedsReplace(intents, 0)).toBe(false);
+  });
+
+  it("offers one replace play per hand card", () => {
+    const withAnother: Intent[] = [
+      ...intents,
+      { type: "play_card", handIndex: 3, trashCharacterId: "c1" },
+      { type: "play_card", handIndex: 3, trashCharacterId: "c2" },
+    ];
+    const plays = collapseReplacePlays(withAnother).filter((i) => i.type === "play_card");
+    expect(plays.map((i) => i.handIndex)).toEqual([0, 2, 3]);
+  });
+});
+
+describe("resolveDropIntents", () => {
+  it("resolves a single-don give_don drag onto matching target", () => {
+    expect(
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1"] },
+        { kind: "give_don_target", targetId: "leader" },
+        intents,
+      ),
+    ).toEqual([{ type: "give_don", donId: "d1", targetId: "leader" }]);
+  });
+
+  it("resolves a multi-don give_don drag as sequential intents", () => {
+    expect(
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1", "d2"] },
+        { kind: "give_don_target", targetId: "leader" },
+        intents,
+      ),
+    ).toEqual([
+      { type: "give_don", donId: "d1", targetId: "leader" },
+      { type: "give_don", donId: "d2", targetId: "leader" },
+    ]);
+  });
+
+  it("rejects mismatched drop kinds", () => {
+    expect(
+      resolveDropIntents(
+        { type: "give_don", donIds: ["d1"] },
+        { kind: "play_field" },
+        intents,
+      ),
+    ).toEqual([]);
+    expect(
+      resolveDropIntents(
+        { type: "attack", attackerId: "c1" },
+        { kind: "play_field" },
+        intents,
+        { opponentLeaderId: "ol" },
+      ),
+    ).toEqual([]);
+  });
+
+  it("a playable hand card dropped off any drop zone is played (#552)", () => {
+    const play = [{ type: "play_card", handIndex: 0 }];
+    // An empty spot is not a drop zone at all.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 0 }, null, intents)).toEqual(play);
+    // Nor is another kind of zone.
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 0 },
+        { kind: "attack_target", targetId: "o1" },
+        intents,
+      ),
+    ).toEqual(play);
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 0 },
+        { kind: "give_don_target", targetId: "leader" },
+        intents,
+      ),
+    ).toEqual(play);
+    // A full-board-only card has no plain play to send, and never trashes on its own.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 2 }, null, intents)).toEqual([]);
+    // A card with no legal play at all does nothing.
+    expect(resolveDropIntents({ type: "play_card", handIndex: 1 }, null, intents)).toEqual([]);
+    // Dropped on a Character to trash, it trashes that one, not a plain play.
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 2 },
+        { kind: "play_trash", characterId: "c2" },
+        intents,
+      ),
+    ).toEqual([{ type: "play_card", handIndex: 2, trashCharacterId: "c2" }]);
+    // Counter and attack drags still need their own target.
+    const counterable: Intent[] = [...intents, { type: "counter_from_hand", handIndex: 3 }];
+    expect(resolveDropIntents({ type: "counter", handIndex: 3 }, null, counterable, { defenderId: "c1" })).toEqual([]);
+    expect(resolveDropIntents({ type: "attack", attackerId: "c1" }, null, intents, { opponentLeaderId: "ol" })).toEqual([]);
+  });
+
+  it("resolves play_card field and trash drops", () => {
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 0 },
+        { kind: "play_field" },
+        intents,
+      ),
+    ).toEqual([{ type: "play_card", handIndex: 0 }]);
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 2 },
+        { kind: "play_field" },
+        intents,
+      ),
+    ).toEqual([]);
+    expect(
+      resolveDropIntents(
+        { type: "play_card", handIndex: 2 },
+        { kind: "play_trash", characterId: "c1" },
+        intents,
+      ),
+    ).toEqual([{ type: "play_card", handIndex: 2, trashCharacterId: "c1" }]);
+  });
+});
+
+describe("parseDropAttr", () => {
+  it("parses data-dnd-drop values", () => {
+    expect(parseDropAttr("play_field")).toEqual({ kind: "play_field" });
+    expect(parseDropAttr("give_don:abc")).toEqual({
+      kind: "give_don_target",
+      targetId: "abc",
+    });
+    expect(parseDropAttr("play_trash:c1")).toEqual({
+      kind: "play_trash",
+      characterId: "c1",
+    });
+    expect(parseDropAttr("")).toBeNull();
+    expect(parseDropAttr("nope")).toBeNull();
+  });
+});
+
+describe("attack and counter drags", () => {
+  const battle: Intent[] = [
+    { type: "declare_attack", attackerId: "myLeader", target: { kind: "leader" } },
+    { type: "declare_attack", attackerId: "myLeader", target: { kind: "character", instanceId: "o1" } },
+    // o2 is only a legal target for c1 (e.g. c1 may attack active Characters).
+    { type: "declare_attack", attackerId: "c1", target: { kind: "character", instanceId: "o2" } },
+    { type: "counter_from_hand", handIndex: 1 },
+    { type: "counter_event", handIndex: 3 },
+    { type: "pass_counter" },
+  ];
+  const ctx = { opponentLeaderId: "oppLeader", defenderId: "myChar" };
+
+  it("only lets cards with a legal attack start an attack drag", () => {
+    expect(canDragAttacker(battle, "myLeader")).toBe(true);
+    expect(canDragAttacker(battle, "c2")).toBe(false);
+  });
+
+  it("declares the attack for the dragged attacker on the dropped target", () => {
+    const leaderHit = resolveDropIntents(
+      { type: "attack", attackerId: "myLeader" },
+      parseDropAttr("attack:oppLeader"),
+      battle,
+      ctx,
+    );
+    expect(leaderHit).toEqual([battle[0]]);
+    expect(
+      resolveDropIntents({ type: "attack", attackerId: "c1" }, parseDropAttr("attack:o2"), battle, ctx),
+    ).toEqual([battle[2]]);
+    // o2 is legal for c1 only, so the Leader dropping there does nothing.
+    expect(
+      resolveDropIntents(
+        { type: "attack", attackerId: "myLeader" },
+        parseDropAttr("attack:o2"),
+        battle,
+        ctx,
+      ),
+    ).toEqual([]);
+  });
+
+  it("counters only when dropped on the card taking the hit", () => {
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 1 }, parseDropAttr("counter:myChar"), battle, ctx),
+    ).toEqual([battle[3]]);
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 1 }, parseDropAttr("counter:myLeader"), battle, ctx),
+    ).toEqual([]);
+  });
+
+  it("plays a Counter Event by drag as well as a Counter card", () => {
+    expect(canDragCounter(battle, 3)).toBe(true);
+    expect(canDragCounter(battle, 0)).toBe(false);
+    expect(
+      resolveDropIntents({ type: "counter", handIndex: 3 }, parseDropAttr("counter:myChar"), battle, ctx),
+    ).toEqual([battle[4]]);
+  });
+});

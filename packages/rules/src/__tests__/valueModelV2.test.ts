@@ -5,7 +5,7 @@ import { peekNormalIntent } from "../bot/policy.js";
 import { candidatesFor, searchCandidates } from "../bot/search.js";
 import { learnedLogit, logitOf, logitOfParts, sigmoid, VALUE_WEIGHTS, type MlpModel, type ValueWeights } from "../bot/valueModel.js";
 import { getPlayerView } from "../engine.js";
-import { replayMatch } from "../matchReplay.js";
+import { replayMatch } from "../replay/matchReplay.js";
 import { createSeededRng } from "../rng.js";
 import { buildVocab, CardTable, fitBatched, fitFlags, type Sample } from "../sim/fitValue.js";
 import { playBotGame } from "../sim/selfPlay.js";

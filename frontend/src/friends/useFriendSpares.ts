@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { friendsApi, type SpareItem, type TradeSide } from "./friendsApi";
-import { useSavedShoppingDeckIds } from "../shoppingDeckFilter";
+import { useSavedShoppingDeckIds } from "../pages/shopping/shoppingDeckFilter";
 import type { CardCap, TrayLine } from "./tradeLogic";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, base: item.base_owned, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
 

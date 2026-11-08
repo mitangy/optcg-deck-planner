@@ -6,13 +6,23 @@ can grant it. Moderators may ban and unban plain users and have no delete powers
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Protocol
 
-ROLES = ("user", "moderator", "admin")
+
+class Role(StrEnum):
+    """The stored ``users.role`` values; members equal the plain strings the column and the API use."""
+
+    USER = "user"
+    MODERATOR = "moderator"
+    ADMIN = "admin"
+
+
+ROLES = (Role.USER, Role.MODERATOR, Role.ADMIN)
 # What the admin may hand out through the API.
-ASSIGNABLE_ROLES = ("user", "moderator")
+ASSIGNABLE_ROLES = (Role.USER, Role.MODERATOR)
 # Accounts with moderation powers: ban and unban, answer reports.
-STAFF_ROLES = ("admin", "moderator")
+STAFF_ROLES = (Role.ADMIN, Role.MODERATOR)
 
 
 class _Account(Protocol):
@@ -22,7 +32,7 @@ class _Account(Protocol):
 
 
 def is_admin(u: _Account) -> bool:
-    return u.role == "admin"
+    return u.role == Role.ADMIN
 
 
 def is_staff(u: _Account) -> bool:
@@ -54,7 +64,7 @@ def can_ban(actor: _Account, target: _Account) -> str | None:
         return "You cannot ban yourself"
     if is_admin(target):
         return "The admin cannot be banned"
-    if not is_admin(actor) and target.role != "user":
+    if not is_admin(actor) and target.role != Role.USER:
         return "Moderators can only ban players"
     return None
 

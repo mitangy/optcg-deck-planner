@@ -11,9 +11,10 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app import db as app_db
-from app.auth import SESSION_COOKIE, create_session_token, get_current_user
-from app.models import Base, User
+from app.core import db as app_db
+from app.core.auth import SESSION_COOKIE, create_session_token, get_current_user
+from app.all_models import Base
+from app.core.models import User
 
 
 def test_more_requests_than_threads_and_connections_all_finish_802(tmp_path, monkeypatch):

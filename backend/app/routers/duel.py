@@ -17,32 +17,31 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import redis_client
+from app.core import redis_client
 from app.duel import live as duel_live
 from app.duel import tournaments as duel_tournaments
-from app.analyst_stats import seats_for
-from app.auth import get_current_user, get_optional_user
+from app.analyst.stats import seats_for
+from app.core.auth import get_current_user, get_optional_user
 from app.roles import is_admin, is_banned
-from app.config import Settings, get_settings
+from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
-from app.db import get_db
+from app.core.db import get_db
 from app.duel.ratings import INITIAL_RATING, apply_elo
 from app.duel.tokens import mint_game_token
 from app.duel.moderation import recent_takedowns
-from app.models import (
+from app.core.models import User
+from app.duel.models import (
     CardReport,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
-    DuelLobbySeen,
     DuelMatchSeatLog,
-    DuelPresence,
     DuelRating,
     DuelSoloGame,
-    User,
 )
-from app.rate_limit import RateLimiter, client_ip
+from app.social.models import DuelLobbySeen, DuelPresence
+from app.core.rate_limit import RateLimiter, client_ip
 from app.duel.server_urls import GAME_SERVER_KNOWN_KEY, GAME_SERVER_POOL_KEY, game_server_url, normalize_server_url
 from app.duel.matches import (
     has_result,
@@ -56,7 +55,7 @@ from app.duel.matches import (
 from app.social.presence import ONLINE_TTL, PRESENCE_TTL
 from app.reporter import identify_reporter
 from app.usernames import duel_display_name
-from app.schemas import (
+from app.duel.schemas import (
     CardReportIn,
     CardReportOut,
     CardReportStatusIn,
@@ -64,20 +63,20 @@ from app.schemas import (
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
     DuelLeaderboardOut,
+    DuelLiveOut,
     DuelMatchDetailOut,
     DuelMatchHistoryOut,
     DuelMatchIngest,
+    DuelMatchOut,
     DuelMatchProgressIngest,
     DuelMatchReplayOut,
-    DuelMatchOut,
-    DuelPresenceSnapshot,
-    DuelSoloGameIngest,
-    DuelLiveOut,
     DuelRatingOut,
+    DuelSoloGameIngest,
     DuelTokenOut,
     GameServerPoolIn,
     GameServerPoolOut,
 )
+from app.social.schemas import DuelPresenceSnapshot
 
 router = APIRouter(prefix="/duel", tags=["duel"])
 log = logging.getLogger(__name__)

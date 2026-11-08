@@ -5,14 +5,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests.db_support import make_bare_engine, make_test_engine, requires_postgres
-from app.config import get_settings
-from app.db import get_db
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.duel.ratings import apply_elo
 from app.duel.tokens import mint_game_token, verify_game_token
 from app.main import app
 from datetime import datetime, timedelta, timezone
 
-from app.models import DuelLobbySeen, DuelMatch, DuelPresence, DuelRating, User
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelRating
+from app.social.models import DuelLobbySeen, DuelPresence
 from app.routers import duel as duel_router
 
 
@@ -234,7 +236,7 @@ def _ingest(c, match_id: str, seat0: int, seat1: int, winner: int, **extra):
 
 def test_ingest_keeps_leaders_turns_and_replay_server_side(client):
     """Ingest stores leader ids, turn count and the replay (#244)."""
-    from app.models import DuelMatchLog
+    from app.duel.models import DuelMatchLog
     import json as _json
 
     c, SessionLocal = client
@@ -254,7 +256,7 @@ def test_ingest_keeps_leaders_turns_and_replay_server_side(client):
 
 def test_oversized_replay_is_dropped_but_the_result_still_counts(client, monkeypatch: pytest.MonkeyPatch):
     """An oversized replay is dropped; the result still counts (#244)."""
-    from app.models import DuelMatchLog
+    from app.duel.models import DuelMatchLog
     from app.routers import duel as duel_router
 
     c, SessionLocal = client
@@ -436,7 +438,7 @@ def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPat
 
 def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_redis):
     """With Redis, per-turn snapshots skip Postgres but still read back as the unfinished game."""
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
 
     c, SessionLocal = client
     me = c.post("/auth/dev-login").json()
@@ -456,7 +458,7 @@ def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_r
 
 def test_final_progress_is_durable_in_postgres_with_redis_389(client, fake_redis):
     """A room closing without a result sends closed: true; that snapshot must reach Postgres."""
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
 
     c, SessionLocal = client
     me = c.post("/auth/dev-login").json()
@@ -479,7 +481,7 @@ def test_result_clears_live_progress_in_redis_389(client, fake_redis):
     from datetime import datetime, timezone
 
     from app.duel import live as duel_live
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
 
     c, _ = client
     me = c.post("/auth/dev-login").json()
@@ -597,7 +599,7 @@ def test_a_cut_off_games_recording_opens_only_after_its_room_closed_476(client):
 
 def _age_progress(SessionLocal, match_id: str, hours: float) -> None:
     from datetime import datetime, timedelta, timezone
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
 
     db = SessionLocal()
     try:
@@ -645,7 +647,7 @@ def test_watching_a_replay_needs_sign_in_476(client):
 
 
 def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, SessionLocal = client
@@ -667,7 +669,7 @@ def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: py
 
 
 def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -684,7 +686,7 @@ def test_new_accounts_are_capped_in_total_across_ips_318(client, monkeypatch: py
 
 
 def test_dev_token_new_accounts_share_the_cap_318(client, monkeypatch: pytest.MonkeyPatch):
-    from app.rate_limit import RateLimiter
+    from app.core.rate_limit import RateLimiter
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -812,7 +814,7 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
     from datetime import datetime, timedelta, timezone
 
     from app.duel import live as duel_live
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
     from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
@@ -850,7 +852,7 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
 def test_an_idle_game_swept_to_postgres_keeps_its_replay_locked_651(client, fake_redis):
     from datetime import datetime, timedelta, timezone
 
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
     from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
@@ -880,7 +882,7 @@ def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):
     from datetime import datetime, timedelta, timezone
 
     from app.duel import live as duel_live
-    from app.models import DuelMatchProgress
+    from app.duel.models import DuelMatchProgress
     from app.duel.progress_sweep import sweep_idle_progress
 
     c, SessionLocal = client
@@ -904,7 +906,7 @@ def test_progress_sweep_only_runs_with_redis_682():
     import asyncio
 
     from app.duel import progress_sweep
-    from app.config import Settings
+    from app.core.config import Settings
 
     async def go():
         assert progress_sweep.start_background(Settings(redis_url="")) is None
@@ -919,7 +921,7 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
     """No idle snapshot, no query: a sweep every 10 minutes must not keep Neon awake."""
     from datetime import datetime, timedelta, timezone
 
-    from app import db as app_db
+    from app.core import db as app_db
     from app.duel import live as duel_live
     from app.duel import progress_sweep
 
@@ -944,7 +946,7 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
 def test_only_one_api_worker_sweeps_progress_at_a_time_682(fake_redis, monkeypatch):
     from sqlalchemy import text
 
-    from app import db as app_db
+    from app.core import db as app_db
     from app.duel import live as duel_live
     from app.duel import progress_sweep
     engine = make_bare_engine()
@@ -985,7 +987,7 @@ def test_solo_game_for_an_unknown_user_is_a_400_988(client):
 
 
 def test_solo_game_is_recorded_once_per_game_id_988(client):
-    from app.models import DuelSoloGame
+    from app.duel.models import DuelSoloGame
 
     c, S = client
     uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
@@ -1001,7 +1003,7 @@ def test_solo_game_is_recorded_once_per_game_id_988(client):
 
 
 def test_practice_solo_game_never_records_a_winner_988(client):
-    from app.models import DuelSoloGame
+    from app.duel.models import DuelSoloGame
 
     c, S = client
     uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]

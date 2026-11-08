@@ -1,0 +1,582 @@
+/* —— DON!! card art picker (#440) —— */
+.don-art-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.don-art-head {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.don-art-head-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.don-art-preview {
+  width: 112px;
+  aspect-ratio: 63 / 88;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--radius-7);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background-color: #1a2838;
+}
+
+@media (max-width: 420px) {
+  .don-art-preview {
+    width: 84px;
+  }
+}
+
+/* Fixed height: the page stays the same size however many printings match. */
+.don-art-scroll {
+  height: min(26rem, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  background: rgb(var(--abyss-rgb) / 0.12);
+}
+
+.don-art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.don-art-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.35rem;
+  text-align: left;
+  color: var(--ink);
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+}
+
+.don-art-tile:hover {
+  border-color: var(--chrome-dim);
+}
+
+.don-art-tile:focus-visible {
+  outline: none;
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 3px rgb(var(--chrome-rgb) / 0.25);
+}
+
+/* Selected: a second ring instead of a thicker border, so tiles never shift. */
+.don-art-tile.is-active {
+  border-color: var(--chrome);
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+
+.don-art-tile img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+  border-radius: var(--radius-5);
+  background-color: #1a2838;
+}
+
+.don-art-name,
+.don-art-set {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.don-art-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.don-art-set {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+button.zone-pile {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zone-pile-openable {
+  border-radius: var(--radius-8);
+  outline-offset: 2px;
+}
+
+.zone-pile-openable:hover .zone-pile-face.top,
+.zone-pile-openable:focus-visible .zone-pile-face.top {
+  box-shadow: 0 0 0 2px var(--chrome), 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+.zone-pile-openable:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+}
+
+.zone-pile-empty {
+  opacity: 0.72;
+  cursor: default;
+}
+
+/* Empty deck / DON!! deck / trash: a dashed card-sized slot, no face art. */
+.zone-pile-slot {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-4);
+  border: 1px dashed rgb(var(--chrome-bright-rgb) / 0.24);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.zone-pile-don .zone-pile-slot {
+  border-color: rgba(143, 191, 85, 0.35);
+}
+
+.trash-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-trash-viewer);
+  background: rgb(var(--abyss-rgb) / 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  cursor: pointer;
+}
+
+.trash-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--arena-panel);
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-14);
+  padding: 0.85rem 1rem 1rem;
+  max-width: 920px;
+  width: 100%;
+  max-height: min(88dvh, 860px);
+  min-height: min(42dvh, 320px);
+  overflow: hidden;
+  cursor: default;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.trash-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.trash-viewer-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.trash-viewer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--chrome-bright);
+  line-height: 1.2;
+}
+
+.trash-viewer-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.trash-viewer-done {
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 5.5rem;
+}
+
+/* Sortable trash keeps one height so switching modes never moves the toolbar. */
+.trash-viewer.is-sortable {
+  height: min(88dvh, 860px);
+}
+
+/* Newest | By card: constant width so switching never moves the title or Done. */
+.trash-viewer-sort {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-8);
+  overflow: hidden;
+}
+
+.trash-viewer-sort-btn {
+  min-height: 44px;
+  min-width: 4.4rem;
+  padding: 0 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trash-viewer-sort-btn + .trash-viewer-sort-btn {
+  border-left: 1px solid var(--chrome);
+}
+
+.trash-viewer-sort-btn[aria-pressed="true"] {
+  background: rgb(var(--chrome-bright-rgb) / 0.18);
+  color: var(--chrome-bright);
+}
+
+/* Narrow phones: title + Done stay on row one, the toggle takes its own row. */
+@media (max-width: 480px) {
+  .trash-viewer-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .trash-viewer-sort {
+    order: 3;
+    flex: 1 0 100%;
+  }
+
+  .trash-viewer-sort-btn {
+    flex: 1;
+  }
+}
+
+/* By-card mode: the tile plus a "×N" copy-count badge in its corner. */
+.trash-viewer-cell {
+  position: relative;
+  width: 100%;
+  max-width: 200px;
+  justify-self: center;
+}
+
+.trash-viewer-cell .card-tile.compact {
+  max-width: none;
+}
+
+.trash-viewer-count {
+  position: absolute;
+  left: 0.3rem;
+  top: 0.3rem;
+  z-index: var(--z-raise-3);
+  pointer-events: none;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: rgba(10, 14, 20, 0.9);
+  /* Sits on card art, so light text in every theme (light mode's chrome-bright is dark). */
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.trash-viewer-empty {
+  margin: 0.5rem 0 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.trash-viewer-grid {
+  /* Readable cards: ~3 across on a phone, 5-6 on desktop (not the tiny board tile). */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--trash-card-min), 100%), 1fr));
+  --trash-card-min: 140px;
+  gap: 0.6rem;
+  overflow: auto;
+  min-height: 0;
+  padding: 0.15rem 0.1rem 0.5rem;
+  align-content: start;
+}
+
+.trash-viewer-grid .card-tile.compact {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+  justify-self: center;
+}
+
+/* Big enough to read the printed power, which the small corner badge would only half cover. */
+@media (min-width: 721px) {
+  .trash-viewer-grid .power-badge:not(.counter-badge) {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .trash-viewer {
+    max-height: min(92dvh, 900px);
+  }
+
+  .trash-viewer-grid {
+    --trash-card-min: 92px;
+  }
+}
+
+/* Desktop: a little more air between the readable grid cards above (#287). */
+@media (min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px))) {
+  .trash-viewer-grid {
+    gap: var(--space-3);
+  }
+}
+
+.zone-pile-meta {
+  text-align: center;
+  line-height: 1.15;
+}
+
+.zone-pile-label {
+  display: block;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.zone-pile-count {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--chrome-bright);
+}
+
+.don-strip {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  padding: 0.35rem 0.45rem 0.45rem;
+  background: rgba(0, 0, 0, 0.25);
+  min-width: 0;
+}
+
+.don-strip-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chrome-dim);
+  margin-bottom: 0.3rem;
+}
+
+.don-strip-nums {
+  color: var(--chrome-bright);
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+.don-strip-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  min-height: 28px;
+  align-items: center;
+}
+
+.don-chip {
+  width: 28px;
+  height: 40px;
+  border-radius: var(--radius-3);
+  border: 1px solid #8fbf55;
+  object-fit: cover;
+  object-position: center top;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms ease, filter 160ms ease;
+  flex-shrink: 0;
+  background: #1a2810;
+}
+
+.don-chip.active {
+  transform: rotate(0deg);
+  filter: saturate(1.05) brightness(1.05);
+}
+
+/* Keep the portrait bitmap and rotate the whole chip — swapping width/height
+   alone left upright art cropped inside a landscape frame. */
+.don-chip.rested {
+  width: 28px;
+  height: 40px;
+  border-color: #6a7a55;
+  object-fit: cover;
+  object-position: center top;
+  transform: rotate(90deg);
+  margin: 0 6px;
+  filter: saturate(0.7) brightness(0.75);
+  opacity: 0.92;
+}
+
+.don-chip.don-draggable {
+  cursor: grab;
+}
+
+.don-chip.don-draggable:active,
+.don-chip.don-dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+/* Multi-select: tap a legal chip to add it to the gesture, drag any one of
+   the selected chips to attach the whole set in one drop. */
+.don-chip.don-selected {
+  outline: 2px solid #ffd54f;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.45), 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+.card-tile.card-draggable {
+  cursor: grab;
+}
+
+.card-tile.card-dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.card-tile.drop-highlight {
+  border-color: var(--chrome-bright);
+  box-shadow:
+    0 0 0 2px rgb(var(--chrome-bright-rgb) / 0.45),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Legal attack target for the currently selected attacker — tap to declare the attack. */
+.card-tile.attack-target {
+  border-color: var(--danger);
+  box-shadow:
+    0 0 0 2px rgba(163, 59, 59, 0.55),
+    0 8px 18px rgba(0, 0, 0, 0.45);
+  animation: attack-target-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes attack-target-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(163, 59, 59, 0.55),
+      0 8px 18px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(163, 59, 59, 0.3),
+      0 8px 18px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.zone-characters.drop-highlight-zone,
+.zone-stage.drop-highlight-zone {
+  outline: 2px solid rgb(var(--chrome-bright-rgb) / 0.55);
+  outline-offset: 2px;
+  border-radius: var(--radius-8);
+  background: rgb(var(--chrome-bright-rgb) / 0.06);
+}
+
+.board-root.is-dnd {
+  user-select: none;
+}
+
+.don-chip-btn {
+  display: inline-flex;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  line-height: 0;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.don-chip-btn:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.don-chip-btn.is-draggable {
+  cursor: grab;
+}
+
+.don-chip-btn.is-draggable:active {
+  cursor: grabbing;
+}
+
+.don-chip-btn .don-chip {
+  display: block;
+  pointer-events: none;
+}
+
+
+/* <img> faces must fill the absolute stack slot — intrinsic size would otherwise
+   paint a full-card overlay across the playmat (DON!! is ~400×562). */
+img.zone-pile-face {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center top;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.don-pile-art {
+  border-color: #7a9a4a !important;
+  background: none !important;
+}
+
+.don-empty {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.midline {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* A click or double-click on the strip's prompt text must not select it (#314). */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.prompt {
+  width: 100%;
+  max-width: 640px;
+  background: rgba(20, 36, 48, 0.95);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--ink);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+

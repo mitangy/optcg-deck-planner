@@ -9,22 +9,21 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.duel.tokens import mint_game_token
 from app.main import app
-from app.models import (
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
     DuelMatch,
     DuelMatchProgress,
-    DuelPresence,
     DuelUserSettings,
-    Friendship,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.social.models import DuelPresence, Friendship
 from tests.db_support import make_test_engine
 
 INGEST = {"X-Duel-Ingest-Token": "test-ingest"}
@@ -814,4 +813,6 @@ def test_restoring_a_takedown_from_the_uploads_list_stays_admin_only_812(client)
     assert as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/restore").status_code == 403
     res = as_user(c, admin).post(f"/admin/cosmetics/{item['id']}/restore")
     assert res.status_code == 200 and res.json()["taken_down_at"] is None
+    # The restore answer has always carried these two beyond the list row; the response model must keep them (refactor 2.1c).
+    assert (res.json()["user_id"], res.json()["taken_down"]) == (zoro, False)
     assert [i["id"] for i in as_user(c, mod).get("/admin/cosmetics").json()["items"]] == [item["id"]]

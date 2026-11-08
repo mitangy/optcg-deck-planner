@@ -5,7 +5,7 @@
  * Step convention: the state before intent `m.step` is the position that was judged, so the move is the one that
  * led to replay step `m.step + 1`, and the badge shows while the scrubber is there.
  */
-import type { GameReview, ReviewedMove, TurnSummary } from "@optcg/rules/gameReview";
+import type { GameReview, ReviewedMove, TurnSummary } from "@optcg/rules/review/gameReview";
 import { CLASS_SEVERITY, MOVE_CLASSES, type MoveClass } from "@optcg/rules/review/classify";
 
 export type Seat = 0 | 1;

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from app import redis_client
-from app.config import Settings
+from app.core import redis_client
+from app.core.config import Settings
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1"}
 

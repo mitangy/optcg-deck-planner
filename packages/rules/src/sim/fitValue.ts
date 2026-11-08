@@ -30,7 +30,7 @@ import { join } from "node:path";
 import { evaluate } from "../bot/evaluate.js";
 import { BAG_SLOTS, cardBag, denseFeaturesV2, extractFeatures, FEATURE_NAMES, FEATURE_NAMES_V2 } from "../bot/features.js";
 import { featureSetOf, logitOf, logitOfParts, sigmoid, type FeatureSet, type MlpModel, type ValueModel, type ValueWeights } from "../bot/valueModel.js";
-import { replayMatch, type MatchReplay } from "../matchReplay.js";
+import { replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 import { parseSimExport, samplesFromSimGame, type SimMatchRecord } from "./optcgsim/index.js";
 import type { Seat } from "../types.js";
 

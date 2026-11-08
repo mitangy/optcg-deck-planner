@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadCatalog } from "../../src/catalog";
 import { CHAT_INSTRUCTIONS, CHAT_MODEL, type CallModel, type ModelReply } from "../../src/chat";
-import { scriptedModel, textReply, usage } from "../scripted";
+import { scriptedModel, textReply, usage } from "../qa/scripted";
 import { gradeAnswer, parseAnswer } from "./answer";
 import { askAll, askPuzzle, scriptedReply, type AskDeps, type PuzzleError, type PuzzleRow } from "./pipeline";
 import type { Puzzle } from "./types";

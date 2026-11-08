@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { invalidateOwnedViews } from "../ownedCollection";
-import { qk } from "../queryKeys";
+import { invalidateOwnedViews } from "../pages/collection/ownedCollection";
+import { qk } from "./queryKeys";
 
 export function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: qk.shopping.all() });

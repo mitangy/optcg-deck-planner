@@ -17,11 +17,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import redis_client
+from app.core import redis_client
 from app.duel import live as duel_live
 from app.duel.matches import has_result, lock_match
-from app.models import DuelMatchProgress, User
-from app.tournament_sync import sync_loop
+from app.core.models import User
+from app.duel.models import DuelMatchProgress
+from app.analyst.tournament_sync import sync_loop
 
 log = logging.getLogger("uvicorn.error")
 
@@ -65,7 +66,7 @@ def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_
 
 def run_once() -> int | None:
     """One sweep, or None when Redis is off or another API worker is already sweeping."""
-    from app.db import PROGRESS_SWEEP_LOCK_KEY, SessionLocal, try_advisory_lock
+    from app.core.db import PROGRESS_SWEEP_LOCK_KEY, SessionLocal, try_advisory_lock
 
     r = redis_client.get_redis()
     if r is None:

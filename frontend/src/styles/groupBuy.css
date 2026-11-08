@@ -1,0 +1,540 @@
+/* Group buys */
+.group-buy-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin: 0 0 1.25rem;
+  min-width: 0;
+}
+
+.group-buy-create label {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.group-buy-create input {
+  font-weight: 400;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.group-buy-create .btn {
+  width: auto;
+  margin-top: 0;
+}
+
+.group-buy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.group-buy-card {
+  display: block;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.group-buy-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Friendly empty states (no decks, no group buys). */
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-16);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+}
+
+.empty-state svg {
+  width: 56px;
+  height: 56px;
+  color: var(--gold);
+}
+
+.empty-state h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.2rem;
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 40ch;
+  color: var(--muted);
+}
+
+.empty-state .btn {
+  margin-top: 0.5rem;
+}
+
+.group-buy-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+
+.group-buy-card p {
+  margin: 0.35rem 0 0;
+}
+
+.group-buy-status {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.group-buy-status.status-open {
+  color: var(--ok-ink);
+}
+
+.group-buy-status.status-locked {
+  color: var(--gold-ink);
+}
+
+.group-buy-status.status-ordered {
+  color: var(--violet-ink);
+}
+
+.group-buy-status.status-completed {
+  color: var(--info-ink);
+}
+
+.group-buy-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.6rem;
+  margin: 0 0 1rem;
+  min-width: 0;
+}
+
+.group-buy-toolbar .btn {
+  width: auto;
+  margin-top: 0;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.group-buy-members,
+.group-buy-contribution,
+.group-buy-settlement {
+  margin: 0 0 1.25rem;
+}
+
+.group-buy-members .filter-drawer,
+.group-buy-settlement .filter-drawer {
+  margin: 0;
+}
+
+.group-buy-members .filter-drawer-label,
+.group-buy-settlement .filter-drawer-label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink, inherit);
+}
+
+.group-buy-members .filter-drawer-summary,
+.group-buy-settlement .filter-drawer-summary {
+  font-weight: 700;
+  color: var(--ink, inherit);
+  opacity: 0.9;
+}
+
+.group-buy-receipt-gate {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-head-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.group-buy-receipt-ready,
+.group-buy-receipt-needed,
+.group-buy-receipt-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-4);
+  border: 1px solid transparent;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-buy-receipt-ready {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+}
+
+.group-buy-receipt-needed {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.group-buy-receipt-pending {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.group-buy-receipt-toggle {
+  position: relative;
+  flex-shrink: 0;
+  justify-self: end;
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  text-align: center;
+}
+
+.group-buy-receipt-toggle-stack {
+  display: grid;
+  justify-items: center;
+}
+
+.group-buy-receipt-toggle-label {
+  grid-area: 1 / 1;
+}
+
+.group-buy-receipt-toggle-label[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.group-buy-owes {
+  font-weight: 700;
+  color: var(--ink, inherit);
+}
+
+.group-buy-field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  line-height: 1.3;
+}
+
+.group-buy-members ul {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.member-mode-tag {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--bg-deep);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.member-mode-tag.separate {
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.group-buy-members li,
+.group-buy-member-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.group-buy-order-form {
+  display: grid;
+  gap: 0.65rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  margin: 0.65rem 0 1rem;
+  align-items: end;
+}
+
+.group-buy-order-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.group-buy-order-form input,
+.group-buy-order-form .ui-select-button,
+.group-buy-order-form textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ccc);
+  border-radius: var(--radius-4);
+  padding: 0.4rem 0.5rem;
+  min-height: 2.25rem;
+}
+
+.group-buy-order-notes {
+  grid-column: 1 / -1;
+}
+
+.group-buy-order-form .btn {
+  width: auto;
+  justify-self: start;
+  margin-top: 0;
+}
+
+.group-buy-order-readonly {
+  margin: 0.5rem 0 0.85rem;
+}
+
+.group-buy-receipt {
+  margin: 0 0 1.25rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem 0.75rem;
+  margin-bottom: 0.25rem;
+  align-items: start;
+}
+
+.group-buy-receipt-head h2 {
+  margin: 0;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .group-buy-receipt-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .group-buy-receipt-head-actions {
+    width: auto;
+    min-width: 16rem;
+  }
+}
+
+.group-buy-receipt-form {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.group-buy-receipt-paste textarea {
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: inherit;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ccc);
+  border-radius: var(--radius-4);
+  padding: 0.55rem 0.65rem;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.group-buy-receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.group-buy-receipt-actions .btn {
+  width: auto;
+  margin-top: 0;
+}
+
+.group-buy-receipt-report {
+  margin-top: 0.85rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-summary {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+}
+
+.group-buy-receipt-select-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+
+.group-buy-receipt-show-matched {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: auto;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-empty {
+  margin: 0 0 0.65rem;
+}
+
+.group-buy-receipt-table {
+  margin-top: 0.25rem;
+}
+
+.group-buy-receipt-check {
+  width: 3rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.group-buy-receipt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.group-buy-receipt-card strong {
+  overflow-wrap: anywhere;
+}
+
+.receipt-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-4);
+  border: 1px solid var(--line, #ccc);
+  background: var(--surface, #fff);
+  white-space: nowrap;
+}
+
+.receipt-pill.status-exact {
+  border-color: var(--ok-line);
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+}
+
+.receipt-pill.status-surplus {
+  border-color: var(--info-line);
+  color: var(--info-ink);
+  background: var(--info-bg);
+}
+
+.receipt-pill.status-short,
+.receipt-pill.status-missing {
+  border-color: var(--gold);
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+}
+
+.receipt-pill.status-extra {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  background: var(--card-sunk);
+}
+
+.group-buy-receipt-unmatched {
+  margin-top: 0.85rem;
+}
+
+.group-buy-receipt-unmatched h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.group-buy-receipt-unmatched ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.group-buy-receipt-unmatched li {
+  overflow-wrap: anywhere;
+}
+
+.group-buy-owe-table {
+  margin-top: 0.35rem;
+}
+
+.data-table td.alt-arts-cell {
+  vertical-align: top;
+  min-width: 0;
+  max-width: 12rem;
+  width: 11rem;
+}
+
+.data-table td.alt-arts-cell .alt-arts {
+  max-width: 100%;
+}

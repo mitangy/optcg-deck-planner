@@ -3,7 +3,7 @@
  */
 import { getCardDef } from "../../cards/definitions.js";
 import { evalValue, playerRestricted, powerOf } from "../queries.js";
-import { activeDon, attachDon, placeDonFromDeck, returnDonById, returnDonToDeck } from "../state.js";
+import { activeDon, attachDon, placeDonFromDeck, returnDonById, returnDonToDeck } from "../zones.js";
 import { dispatchEvent } from "../triggers.js";
 import { type OpTable, seatOf } from "./shared.js";
 

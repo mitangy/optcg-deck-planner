@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
-import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../displayArtViews";
+import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../cards/displayArtViews";
 import { busyKeyFor, busyProductFor } from "./busyKey";
 import { invalidateAltOwnedViews, invalidateAltWantViews } from "./invalidate";
 import { applyAltBuyOptimistic, applyAltOwnedOptimistic } from "./optimistic";

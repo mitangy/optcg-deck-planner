@@ -12,7 +12,7 @@ import { addModifier } from "./modifiers.js";
 import {
   abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, resolveGateOpen, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
-import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./state.js";
+import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./zones.js";
 import { B, V } from "../effects/bindings.js";
 
 export function gameOver(sim: Sim, winner: Seat, reason: NonNullable<MatchState["winReason"]>): void {

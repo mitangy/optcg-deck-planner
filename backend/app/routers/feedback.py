@@ -8,14 +8,15 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_optional_user
-from app.config import Settings, get_settings
+from app.core.auth import get_optional_user
+from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
-from app.db import get_db
-from app.models import Feedback, User
-from app.rate_limit import RateLimiter, client_ip
+from app.core.db import get_db
+from app.admin.models import Feedback
+from app.core.models import User
+from app.core.rate_limit import RateLimiter, client_ip
 from app.reporter import identify_reporter
-from app.schemas import FeedbackIn, FeedbackOut, FeedbackStatusIn
+from app.admin.schemas import FeedbackIn, FeedbackOut, FeedbackStatusIn
 from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])

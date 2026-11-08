@@ -1,0 +1,462 @@
+/* —— Intent bar —— */
+
+.intent-bar {
+  border-top: 1px solid var(--line);
+  padding: 0.5rem 0.65rem max(0.65rem, var(--safe-b));
+  background: var(--arena-deep);
+}
+
+.intent-bar h2 {
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.intent-empty {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.intent-row {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-right: 0.75rem;
+}
+
+.intent-btn {
+  background: linear-gradient(180deg, #3f7a54, var(--ok));
+  color: #fff;
+  border: 1px solid #6bc48a55;
+  border-radius: var(--radius-6);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.intent-btn:disabled {
+  opacity: 0.4;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: var(--z-sticky);
+}
+
+.modal-card {
+  background: var(--arena-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--chrome-bright);
+}
+
+.modal-card p {
+  margin: 0;
+  color: #cfd8dc;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.modal-card.match-result {
+  text-align: center;
+  gap: var(--space-2);
+}
+/* A short screen (landscape phone): the card never outgrows it; the rest scrolls inside, and spacing tightens. */
+.modal-card.match-result {
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.modal-card.match-result > * {
+  flex-shrink: 0;
+}
+@media (max-height: 499px) {
+  .modal-card.match-result {
+    gap: 0.3rem;
+    padding-block: 0.7rem;
+  }
+  .modal-card.match-result h2 {
+    font-size: 1.15rem;
+  }
+}
+.modal-card .match-result-kicker {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.match-result-win h2 {
+  color: var(--chrome-bright);
+}
+.match-result-loss h2 {
+  color: var(--crimson-bright);
+}
+.modal-card .match-result-detail {
+  color: var(--ink);
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+/* Turn count and rating change; the rating joins when the saved match lands. */
+.modal-card .match-result-facts {
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 1.2em;
+}
+.match-result-rating {
+  color: var(--ink);
+  font-weight: 700;
+}
+.match-result-log {
+  align-self: center;
+  color: var(--chrome);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+[data-mode="light"] .match-result-log {
+  color: var(--chrome-bright);
+}
+.match-result-review-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 2.5rem;
+}
+.match-result-replay {
+  width: 100%;
+  justify-content: center;
+  text-decoration: none;
+}
+.match-result-board {
+  align-self: stretch;
+}
+.match-result-report {
+  align-self: center;
+}
+
+/* "View board": the result steps aside to a slim pill under the top bar. */
+.match-result-pill {
+  position: fixed;
+  top: 3.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-result-pill);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: calc(100vw - 2rem);
+  padding: 0.35rem 0.5rem 0.35rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--deep-rgb) / 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+/* Desktop: bottom of the right rail, so the board itself stays fully in view. */
+.match-result-pill.match-result-pill-rail {
+  top: auto;
+  bottom: 1rem;
+  left: auto;
+  right: calc(1rem + var(--safe-r, 0px));
+  transform: none;
+}
+.match-result-pill.match-result-loss span {
+  color: var(--crimson-bright);
+}
+.match-result-pill.match-result-win span {
+  color: var(--chrome-bright);
+}
+.match-result-pill span {
+  white-space: nowrap;
+}
+.match-result-pill .btn {
+  min-height: 2rem;
+  padding: 0.2rem 0.8rem;
+  white-space: nowrap;
+}
+
+.loading,
+.arena-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+@keyframes turn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--chrome-bright-rgb) / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(var(--chrome-bright-rgb) / 0);
+  }
+}
+
+@media (max-width: 720px) {
+  .hud-bar {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand actions"
+      "status status";
+    --hud-py: 0.4rem;
+    --hud-px: 0.65rem;
+  }
+
+  .hud-brand {
+    grid-area: brand;
+  }
+
+  .hud-status {
+    grid-area: status;
+    font-size: 0.7rem;
+  }
+
+  .hud-actions {
+    grid-area: actions;
+  }
+
+  .hud-pass-btn {
+    font-size: 0.68rem;
+    padding: 0.35rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  .playmat {
+    padding: 0.4rem 0.5rem 0.25rem;
+  }
+
+  .playmat-inner {
+    gap: 0.4rem;
+  }
+
+  .side-field {
+    padding: 0.4rem 0.45rem 0.5rem;
+  }
+
+  .side-grid {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.3rem;
+  }
+
+  .card-tile.compact {
+    width: 48px;
+    height: 68px;
+  }
+
+  .card-tile.full {
+    width: 70px;
+    height: 98px;
+  }
+
+  .zone-slot {
+    width: 44px;
+    height: 62px;
+  }
+
+  .zone-pile {
+    width: 48px;
+  }
+
+  .zone-pile-stack {
+    width: 34px;
+    height: 46px;
+  }
+
+  .zone-pile-life .zone-pile-stack {
+    width: 28px;
+    min-height: 46px;
+    height: auto;
+  }
+
+  .zone-pile-life .zone-pile-face {
+    width: 28px;
+    height: 34px;
+    margin-top: -24px;
+  }
+
+  .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face {
+    margin-top: 0;
+    margin-bottom: -24px;
+  }
+
+  .zone-pile-life .zone-pile-stack.is-fan-up .zone-pile-face:first-child {
+    margin-bottom: 0;
+  }
+
+  .zone-pile-life .zone-pile-stack:empty::before {
+    width: 28px;
+    height: 40px;
+  }
+
+  /* 5 character slots must stay in a single designed row on mobile — never
+     an accidental flex-wrap spill. Grid columns are `fr` sized so real card
+     tiles and empty dashed slots always share one uniform cell width, and
+     the row always resolves to exactly one line no matter how narrow the
+     side panel gets. Each column has a 52px floor so tiles/badges stay
+     legible; on very narrow viewports the row scrolls horizontally instead
+     of squeezing tiles down to illegible sizes (regression: tiles shrank to
+     ~39px with overflowing power/status badges at ~375px). */
+  .characters-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(52px, 1fr));
+    grid-auto-flow: column;
+    gap: 0.28rem;
+    min-height: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .characters-row .card-tile,
+  .characters-row .zone-slot {
+    width: 100%;
+    height: auto;
+    min-width: 52px;
+    max-width: 70px;
+    margin-inline: auto;
+    aspect-ratio: 5 / 7;
+  }
+
+  .opp-hand-hint {
+    min-height: 1.5rem;
+  }
+
+  .card-back {
+    width: 16px;
+    height: 22px;
+  }
+
+  .hand-rail {
+    padding: 0.35rem 0.55rem 0.4rem;
+  }
+
+  .hand-row-inner {
+    padding-top: 1.1rem;
+  }
+
+  .hand-row-inner .card-tile.full {
+    width: 64px;
+    height: 90px;
+  }
+
+  .battle-log {
+    top: 6.25rem;
+    width: min(260px, 52vw);
+  }
+
+  .intent-bar {
+    padding: 0.4rem 0.55rem max(0.5rem, var(--safe-b));
+  }
+}
+
+@media (min-width: 900px) {
+  .lobby {
+    max-width: 560px;
+    padding-top: 3rem;
+  }
+
+  .playmat {
+    padding: 0.85rem 1.25rem 0.5rem;
+  }
+
+  /* Wider board so the middle character column can dominate (~80%). */
+  .playmat-inner {
+    max-width: min(1480px, 96vw);
+  }
+
+  /* Side columns stay narrow; middle (characters) gets the bulk of the row. */
+  .side-grid {
+    grid-template-columns: minmax(72px, 10%) minmax(0, 1fr) minmax(72px, 10%);
+  }
+
+  /* Modest desktop scale for board tiles / piles (hand overrides below). */
+  .card-tile.full {
+    width: 104px;
+    height: 146px;
+  }
+
+  .card-tile.compact {
+    width: 72px;
+    height: 100px;
+  }
+
+  .zone-slot {
+    width: 64px;
+    height: 90px;
+  }
+
+  .zone-pile {
+    width: 72px;
+  }
+
+  .zone-pile-stack {
+    width: 48px;
+    height: 64px;
+  }
+
+  /* 5 character slots fill the middle column (~80% of board width). */
+  .characters-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.45rem;
+    min-height: 0;
+  }
+
+  .characters-row .card-tile,
+  .characters-row .zone-slot {
+    width: 100%;
+    height: auto;
+    max-width: none;
+    margin-inline: 0;
+    aspect-ratio: 5 / 7;
+  }
+
+  .hand-row-inner {
+    padding: 1.55rem 0.2rem 0.65rem;
+  }
+
+  .hand-row-inner .card-tile.full {
+    width: 118px;
+    height: 164px;
+  }
+
+  /* Clear the taller hand rail when ability prompts float above it. */
+  .ability-prompt {
+    --prompt-base-bottom: 10rem;
+    bottom: var(--prompt-base-bottom);
+  }
+}
+
+

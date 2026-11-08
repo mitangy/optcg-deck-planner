@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models import SimGame
+from app.duel.models import SimGame
 from tests.test_analyst import _me_and_token, analyst  # noqa: F401  (fixture)
 from tests.test_analyst_access import _as, _player
 from tests.test_duel import client  # noqa: F401  (fixture)

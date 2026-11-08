@@ -1,21 +1,21 @@
 import { type ReactNode, Fragment, useMemo } from "react";
 import { CollectorLine, money, needBreakdownLabel, ShoppingItem } from "../../api";
-import { BuySplit } from "../../BuySplit";
-import { CollectorChip, CollectorRemove, CollectorStepper } from "../../CollectorLine";
+import { BuySplit } from "./BuySplit";
+import { CollectorChip, CollectorRemove, CollectorStepper } from "../collection/CollectorLine";
 import {
   canOpenBuyPopover,
   collectorHaveText,
   collectorOnTopOf,
   collectorSelectKey,
   visibleCollectorLines,
-} from "../../collectorLines";
-import { type CardLayout } from "../../CardLayout";
-import { CardThumb } from "../../CardThumb";
-import { GridCard, MobileCard } from "../../PlannerCard";
-import { mainImageUrl, shownMarket, shownProductId } from "../../altArt";
-import { MarketPrice } from "../../MarketPrice";
-import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../../OwnedCells";
-import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../columnSort";
+} from "../collection/collectorLines";
+import { type CardLayout } from "../../ui/CardLayout";
+import { CardThumb } from "../../ui/CardThumb";
+import { GridCard, MobileCard } from "../../ui/PlannerCard";
+import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
+import { MarketPrice } from "../../cards/MarketPrice";
+import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
+import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
 import { COLSORT_SHOPPING_KEY } from "../../storage/keys";

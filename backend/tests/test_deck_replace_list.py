@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.models import CatalogCard, DeckCard, DeckCardPrinting
-from app.services import replace_deck_list
+from app.planner.models import CatalogCard, DeckCard, DeckCardPrinting
+from app.planner.decks import replace_deck_list
 from tests.conftest import add_catalog, add_deck_with_cards, make_user
 from tests.friend_support import as_user, client, make_user as make_http_user  # noqa: F401
 
@@ -124,6 +124,6 @@ def test_replace_deck_list_rejects_over_limit_don_1016(db):
 
 
 def _user(db, uid):
-    from app.models import User
+    from app.core.models import User
 
     return db.get(User, uid)

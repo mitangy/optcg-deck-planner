@@ -11,7 +11,7 @@
  * Regenerate with `npm run export-protocol-fixtures -w @optcg/rules`.
  */
 import { applyIntent, createMatch, getPlayerView, listLegalIntents } from "../engine.js";
-import { RULES_PROTOCOL_VERSION } from "../state/snapshot.js";
+import { RULES_PROTOCOL_VERSION } from "../engine/snapshot.js";
 import type { Intent, MatchState, Seat } from "../types.js";
 import { FILLER, Harness } from "./harness.js";
 

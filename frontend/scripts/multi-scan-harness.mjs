@@ -19,11 +19,11 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
-import { getCv } from "../src/cardMatch.ts";
-import { findCardQuads, quadIoU } from "../src/cardDetect.ts";
-import { matchAllCardsWith } from "../src/cardScanMulti.ts";
+import { getCv } from "../src/scanner/match/cardMatch.ts";
+import { findCardQuads, quadIoU } from "../src/scanner/detect/cardDetect.ts";
+import { matchAllCardsWith } from "../src/scanner/match/cardScanMulti.ts";
 import { loadMatchAssets } from "./eval-shared.mjs";
-import { applyHomography, computeHomography } from "../src/cardRectify.ts";
+import { applyHomography, computeHomography } from "../src/scanner/geometry/cardRectify.ts";
 
 const REFS = process.env.REFS || ".scan-build/refs";
 const DESC = process.env.DESC || ".scan-build/desc";

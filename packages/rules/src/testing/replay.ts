@@ -12,7 +12,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCardDef } from "../cards/definitions.js";
-import { describeEvents } from "../describeEvents.js";
+import { describeEvents } from "../review/describeEvents.js";
 import { applyIntent, createMatch, powerOf, skipMulligans } from "../engine.js";
 import type { CardInstance, Intent, MatchState, Seat } from "../types.js";
 

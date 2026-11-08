@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { PrintingView, ShoppingItem, ShoppingResponse } from "../api";
 import { applyAltOwnedOptimistic, applyOwnedOptimistic, applyWantOptimistic } from "./optimistic";
-import { qk } from "../queryKeys";
+import { qk } from "./queryKeys";
 
 const item = (card_id: string, over: Partial<ShoppingItem> = {}): ShoppingItem => ({
   card_id,

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { friendsApi, type Friend } from "./friendsApi";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** Resolves /friends/:username to a friend from your list. `friend` is null once the list loaded and they are not on it. */
 export function useFriend(username: string | undefined) {

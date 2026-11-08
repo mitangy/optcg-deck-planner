@@ -6,18 +6,19 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect, select, text
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from app import db as app_db
-from app import deck_link
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.planner import deck_link
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
-from app.models import CatalogCard, Deck, DeckCard, DeckCardPrinting, DuelSavedDeck, User
+from app.core.models import User
+from app.duel.models import DuelSavedDeck
+from app.planner.models import CatalogCard, Deck, DeckCard, DeckCardPrinting
 from app.duel import decks as duel_decks
-from tests.db_support import make_bare_engine, make_test_engine
+from tests.db_support import make_test_engine
 
 LEADER = "OP01-001"
 OTHER_LEADER = "OP02-001"
@@ -208,7 +209,7 @@ def test_cloning_a_deck_creates_a_second_linked_duel_deck_1017(client):
     uid = _user(S)
     pid = _new_planner(_as(c, uid), "Blue", _full())
     with S() as db:
-        from app.services import clone_deck
+        from app.planner.decks import clone_deck
 
         user = db.get(User, uid)
         copy = clone_deck(db, user, db.get(Deck, pid), "Blue copy")
@@ -222,7 +223,7 @@ def test_identical_decks_on_both_sides_are_linked_not_duplicated_1017(client):
     uid = _user(S)
     with S() as db:  # a planner deck and a duel deck that predate the link
         user = db.get(User, uid)
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         create_deck(db, user, "Planner name", f"1x{LEADER}\n4x OP01-016\n2x OP01-017")
         db.query(DuelSavedDeck).delete()
@@ -252,7 +253,7 @@ def test_reconcile_creates_each_missing_copy_1017(client):
     c, S = client
     uid = _user(S)
     with S() as db:
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         create_deck(db, db.get(User, uid), "Only planner", _full("OP01-017", OTHER_LEADER))
         create_deck(db, db.get(User, uid), "No leader", "50x OP01-017")
@@ -284,7 +285,7 @@ def test_reconcile_links_a_named_planner_deck_and_prefers_the_edited_side_1017(c
     c, S = client
     uid = _user(S)
     with S() as db:
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         a = create_deck(db, db.get(User, uid), "A planner", f"1x{LEADER}\n4x OP01-016").id
         b = create_deck(db, db.get(User, uid), "B planner", f"1x{LEADER}\n4x OP01-016").id
@@ -339,9 +340,9 @@ def test_deleting_either_side_deletes_the_other_1017(client):
 
 
 def test_a_full_planner_leaves_new_duel_decks_unlinked_1017(client, monkeypatch: pytest.MonkeyPatch):
-    import app.services as services
+    from app.planner import decks as deck_svc
 
-    monkeypatch.setattr(services, "MAX_DECKS_PER_USER", 1)
+    monkeypatch.setattr(deck_svc, "MAX_DECKS_PER_USER", 1)
     c, S = client
     uid = _user(S)
     _put(_as(c, uid), "d1", 1000)
@@ -360,19 +361,6 @@ def test_a_full_duel_list_leaves_new_planner_decks_unmirrored_1017(client, monke
     _new_planner(c, "Two", _full("OP01-017"))
     assert len([r for r in _duel_rows(S, uid) if not r.deleted]) == 1
     assert len(_planner_decks(S, uid)) == 2
-
-
-def test_startup_adds_the_planner_link_column_to_existing_duel_decks_1017(monkeypatch: pytest.MonkeyPatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE duel_saved_decks (id INTEGER PRIMARY KEY, user_id INTEGER, deck_id VARCHAR(64))"))
-        conn.execute(text("INSERT INTO duel_saved_decks (id, user_id, deck_id) VALUES (1, 1, 'd1')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_duel_saved_deck_planner_link()
-    app_db._ensure_duel_saved_deck_planner_link()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT planner_deck_id FROM duel_saved_decks")).all() == [(None,)]
-    assert "ix_duel_saved_decks_planner_deck_id" in {i["name"] for i in inspect(engine).get_indexes("duel_saved_decks")}
 
 
 def test_a_second_duel_copy_of_a_linked_planner_deck_gets_its_own_planner_deck_1017(client):
@@ -417,7 +405,7 @@ def test_the_merge_skips_incomplete_planner_decks_and_does_not_rerun_for_them_10
     c, S = client
     uid = _user(S)
     with S() as db:  # decks that predate the link
-        from app.services import create_deck
+        from app.planner.decks import create_deck
 
         user = db.get(User, uid)
         create_deck(db, user, "Partial", f"1x{LEADER}\n20x OP01-016")

@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { money } from "../api";
-import { CardThumb } from "../CardThumb";
-import { invalidateOwnedViews } from "../ownedCollection";
+import { CardThumb } from "../ui/CardThumb";
+import { invalidateOwnedViews } from "../pages/collection/ownedCollection";
 import { friendsApi, type Trade, type TradeLine, type TradeStatus } from "./friendsApi";
 import { otherUsername, tradeSides } from "./tradeLogic";
 import { dateLabel, Empty, LoadError } from "./ui";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 const STATUS_LABEL: Record<TradeStatus, string> = {
   pending: "Waiting",

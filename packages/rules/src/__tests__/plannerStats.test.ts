@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CardDataRow } from "../cards/cardData.js";
 import type { Ability } from "../effects/types.js";
-import { buildPlannerStats, derivePlannerCard, serializePlannerStats } from "../scripts/plannerStats.js";
+import { buildPlannerStats, derivePlannerCard, serializePlannerStats } from "../cli/plannerStats.js";
 
 const row = (over: Partial<CardDataRow> = {}): CardDataRow => ({
   name: "Test",

@@ -17,6 +17,16 @@ class GroupBuyStatus(StrEnum):
     COMPLETED = "completed"
 
 
+class ReceiptLineStatus(StrEnum):
+    """How a TCGplayer receipt line compares with the group buy's pool (not stored; part of the match report)."""
+
+    MISSING = "missing"
+    EXACT = "exact"
+    SURPLUS = "surplus"
+    SHORT = "short"
+    EXTRA = "extra"
+
+
 class AccessStatus(StrEnum):
     """Log Pose chat access (AnalystAccess)."""
 

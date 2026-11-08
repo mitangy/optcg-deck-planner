@@ -1,6 +1,6 @@
 /**
  * OPTCGSim / planner-style decklist parser.
- * Accepts the same shapes as backend `parse_decklist` (`backend/app/domain.py`); both run the
+ * Accepts the same shapes as backend `parse_decklist` (`backend/app/planner/domain.py`); both run the
  * cases in `fixtures/decklists.json`, so they cannot drift apart.
  */
 

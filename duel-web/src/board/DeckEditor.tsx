@@ -1,8 +1,8 @@
 import { Select, type SelectOption } from "@optcg/ui/popups";
 import { useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
-import { CardInspect } from "./CardInspect";
-import { DESKTOP_DECKS_QUERY } from "./useMediaQuery";
+import { CardInspect } from "./preview/CardInspect";
+import { DESKTOP_DECKS_QUERY } from "./layout/useMediaQuery";
 import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import {
   hasActiveCardSearch,

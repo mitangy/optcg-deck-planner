@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi, type Sharing, type SharingUpdate } from "./friendsApi";
-import { qk } from "../queryKeys";
+import { qk } from "../cache/queryKeys";
 
 /** First visit: a clear ask. After that: the four switches, always visible so nothing expands. */
 export function SharingCard() {
