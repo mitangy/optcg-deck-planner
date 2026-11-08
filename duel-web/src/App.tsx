@@ -13,7 +13,7 @@ import { openFeedback } from "./feedbackDialog";
 import { RouteMeta } from "./seo/RouteMeta";
 import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
-import { applyPopupSize } from "./board/popupSize";
+import { applyPopupSize } from "./board/preview/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
 import { useMediaQuery } from "@optcg/ui/hooks";
 

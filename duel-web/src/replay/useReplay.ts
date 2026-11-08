@@ -15,8 +15,8 @@ import {
   type ReplayTimeline,
 } from "@optcg/rules/replay/replayTimeline";
 import { applyBranchIntent, getLiveReplayViews, hideFarHand, indexBoardCards } from "@optcg/rules/replay/replayBranch";
-import { narrateEvents, type BattleLogEntry } from "../board/battleLog";
-import { hotseatControlSeat } from "../board/hotseatControlSeat";
+import { narrateEvents, type BattleLogEntry } from "../board/match/battleLog";
+import { hotseatControlSeat } from "../board/match/hotseatControlSeat";
 import type { Intent as WireIntent, PlayerView, Seat } from "../net/protocol";
 import type { ReplayPayload } from "./replayApi";
 import { createReplayCursor, nextTurnStep, playDelay, prevTurnStep, turnAtStep, turnStep, type PlaySpeed } from "./replayCursor";

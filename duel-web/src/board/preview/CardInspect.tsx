@@ -1,0 +1,246 @@
+import { resolveCardImageUrl, setDeckArtChoice } from "../../decks/artPrefs";
+import {
+  getArtPrefsTick,
+  setSeatArtPref,
+  subscribeArtPrefs,
+  type Seat,
+} from "../../decks/seatArtPrefs";
+import {
+  setArtPref,
+  type SavedDeck,
+} from "../../decks/storage";
+import { lookupCard } from "../../cards/atlas";
+import { isPlaceholderArt } from "@optcg/ui/cardArt";
+import { useArtFallback } from "../../cards/useArtFallback";
+import {
+  abilitySupportNote,
+  resolveAbilitySupport,
+} from "../../cards/abilitySupport";
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type PointerEvent,
+} from "react";
+import { Dialog } from "@optcg/ui/popups";
+import type { PreviewLive } from "./cardPreview";
+import { LiveCardStatus } from "./LiveCardStatus";
+import { CardReportForm } from "./CardReportForm";
+import { counterValueFor, formatCounter } from "../../cards/counterValue";
+import { artEditSeat, MatchViewerSeatContext } from "../zones/artOwnership";
+
+type Props = {
+  defId: string;
+  open: boolean;
+  onClose: () => void;
+  /** Seat whose cards own this art (display). */
+  ownerSeat?: Seat;
+  /** Seat controlling the UI — alt picks update this seat's prefs. */
+  viewingSeat?: Seat;
+  /**
+   * Saved deck for configure-page inspect: resolves deck-scoped art and
+   * writes alt picks via `setDeckArtChoice` (no duel seats involved).
+   */
+  deck?: SavedDeck;
+  /** Fired after a deck-scoped art pref changes so the parent can refresh. */
+  onDeckArtChange?: () => void;
+  /** In-play power / statuses when inspecting a field card. */
+  live?: PreviewLive;
+};
+
+const SWIPE_DISMISS_PX = 80;
+
+/** Expanded card inspect: sheet UI + ability text + alt-art picker. */
+export function CardInspect({
+  defId,
+  open,
+  onClose,
+  ownerSeat,
+  viewingSeat,
+  deck,
+  onDeckArtChange,
+  live,
+}: Props) {
+  const entry = useMemo(() => lookupCard(defId), [defId]);
+  const matchSeat = useContext(MatchViewerSeatContext);
+  const artTick = useSyncExternalStore(
+    subscribeArtPrefs,
+    getArtPrefsTick,
+    getArtPrefsTick,
+  );
+  const imageUrl = useMemo(() => {
+    void artTick;
+    return (
+      resolveCardImageUrl(defId, {
+        deck: deck ?? null,
+        ownerSeat: ownerSeat ?? viewingSeat,
+        size: "large",
+      }) ?? entry.imageUrl
+    );
+  }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat, deck]);
+
+  const { src: artSrc, fail: failArt } = useArtFallback(imageUrl, defId);
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const swipeDeltaY = useRef(0);
+
+  useEffect(() => {
+    if (!open) {
+      swipeStartY.current = null;
+      swipeDeltaY.current = 0;
+      if (sheetRef.current) sheetRef.current.style.transform = "";
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const alts = entry.altArts ?? [];
+  // Deck-configure inspect can edit deck-scoped art without seats.
+  // In-match: only the card's owner may change its artwork.
+  const prefSeat = artEditSeat({ ownerSeat, viewingSeat, matchSeat });
+  const canEditArt = deck ? true : prefSeat != null;
+
+  function applyAlt(altId: string | null) {
+    if (!canEditArt) return;
+    if (deck) {
+      setDeckArtChoice(deck.id, defId, altId);
+      onDeckArtChange?.();
+      return;
+    }
+    if (prefSeat === 0 || prefSeat === 1) {
+      setSeatArtPref(prefSeat, defId, altId);
+    }
+    setArtPref(defId, altId);
+  }
+
+  function onSheetPointerDown(e: PointerEvent) {
+    const target = e.target as HTMLElement;
+    // Only swipe-dismiss from the grab handle so Done/Close keep working.
+    if (!target.closest(".card-inspect-handle")) return;
+    swipeStartY.current = e.clientY;
+    swipeDeltaY.current = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+
+  function onSheetPointerMove(e: PointerEvent) {
+    if (swipeStartY.current == null) return;
+    const dy = e.clientY - swipeStartY.current;
+    swipeDeltaY.current = dy;
+    if (dy > 0 && sheetRef.current) {
+      sheetRef.current.style.transform = `translateY(${dy}px)`;
+    }
+  }
+
+  function onSheetPointerUp() {
+    if (swipeStartY.current == null) return;
+    const dy = swipeDeltaY.current;
+    swipeStartY.current = null;
+    swipeDeltaY.current = 0;
+    if (sheetRef.current) sheetRef.current.style.transform = "";
+    if (dy >= SWIPE_DISMISS_PX) onClose();
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      className="card-inspect-backdrop"
+      panelClassName="card-inspect"
+      label={`${entry.name} details`}
+      panelRef={sheetRef}
+      panelProps={{
+        onPointerDown: onSheetPointerDown,
+        onPointerMove: onSheetPointerMove,
+        onPointerUp: onSheetPointerUp,
+        onPointerCancel: onSheetPointerUp,
+      }}
+    >
+      <div className="card-inspect-handle" aria-hidden />
+      <div className="card-inspect-toolbar">
+        <h2 className="card-inspect-name">{entry.name}</h2>
+        <button type="button" className="btn btn-primary card-inspect-done" onClick={onClose}>
+          Done
+        </button>
+      </div>
+      <div className="card-inspect-scroll">
+        <div className="card-inspect-art">
+          {artSrc ? (
+            <img
+              src={artSrc}
+              alt={entry.name}
+              className="card-inspect-img"
+              draggable={false}
+              onError={failArt}
+              onLoad={(e) => {
+                if (isPlaceholderArt(artSrc, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) failArt();
+              }}
+            />
+          ) : (
+            <div className="card-inspect-fallback">{entry.id}</div>
+          )}
+        </div>
+        <div className="card-inspect-meta">
+          <p className="card-inspect-id">
+            {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
+            {entry.power != null ? ` · ${entry.power} power` : ""}
+            {(() => {
+              const cv = counterValueFor(entry);
+              return cv ? ` · ${formatCounter(cv)} counter` : "";
+            })()}
+            {entry.life != null ? ` · ${entry.life} life` : ""}
+            {entry.blocker ? " · Blocker" : ""}
+          </p>
+          {live ? (
+            <div className="card-inspect-effect">
+              <div className="card-inspect-effect-label">In play</div>
+              <LiveCardStatus live={live} atlasPower={entry.power} atlasCost={entry.cost} describe />
+            </div>
+          ) : null}
+          <div className="card-inspect-effect">
+            <div className="card-inspect-effect-label">Ability</div>
+            <p>
+              {(() => {
+                const t = entry.effectText?.trim() ?? "";
+                if (!t || t === "—" || t === "-") return "No printed ability.";
+                return t;
+              })()}
+            </p>
+            {(() => {
+              const note = abilitySupportNote(resolveAbilitySupport(entry));
+              if (!note) return null;
+              return <p className="card-inspect-ability-note">{note}</p>;
+            })()}
+          </div>
+          {alts.length > 0 && canEditArt ? (
+            <div className="card-inspect-alts">
+              <div className="card-inspect-effect-label">Artwork</div>
+              <div className="card-inspect-alt-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary card-inspect-alt-btn"
+                  onClick={() => applyAlt(null)}
+                >
+                  Standard
+                </button>
+                {alts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="btn btn-secondary card-inspect-alt-btn"
+                    onClick={() => applyAlt(a.id)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <CardReportForm key={defId} cardId={entry.id} />
+        </div>
+      </div>
+    </Dialog>
+  );
+}

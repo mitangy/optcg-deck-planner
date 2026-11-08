@@ -1,5 +1,5 @@
 import type { Seat, SeatPlayers, SeatSkin } from "../net/protocol";
-import { seatLabel } from "../board/playerNames";
+import { seatLabel } from "../board/match/playerNames";
 import type { ReportPlayer, ReportSource, ReportTarget } from "./reportLogic";
 
 type Skins = readonly [SeatSkin | null, SeatSkin | null] | undefined;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAsyncResource } from "../lib/useAsyncResource";
-import { donArtUrl, fallbackToDefaultDon } from "../board/donArt";
+import { donArtUrl, fallbackToDefaultDon } from "../board/don/donArt";
 
 type DonPrinting = { productId: number; name: string; set: string };
 

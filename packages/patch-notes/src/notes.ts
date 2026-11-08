@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-08
+  { date: "2026-11-08", app: "both", pr: 1157, title: "A new Nami alt art", text: "The Heroines Battle Vol.2 printing of Nami (EB03-006) is now available as an alt art." },
   // 2026-11-07
   { date: "2026-11-07", app: "duel", pr: 1141, title: "No false refused-move error on Pass block", text: "On phones, tapping Pass block right as an attack comes in no longer shows a \"refused move\" error." },
   { date: "2026-11-07", app: "planner", pr: 1103, title: "No more \"Image Coming Soon\" cards", text: "When TCGplayer has no picture for a card yet, the planner now skips TCGplayer's \"Image Coming Soon\" banner and shows the card's preview art when there is one. Meta pages also show a dash for a missing percentage, the same as the Duel app." },
