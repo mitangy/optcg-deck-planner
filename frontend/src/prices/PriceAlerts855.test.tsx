@@ -2,10 +2,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { api, type PriceAlert, type PrintingView } from "../api";
 import { CardLightboxActionContext } from "../ui/CardThumb";
 import { AltArtsRow } from "../cards/MarketPrice";
+import { renderLightboxActions } from "../pages/shopping/lightboxActions";
 import {
   alertStatus,
   artPrice,
@@ -207,5 +209,46 @@ describe("watch dialog from an alt-art search result (#860)", () => {
     const picked = tiles.filter((t) => t.getAttribute("aria-checked") === "true");
     expect(picked.map((t) => t.title)).toEqual(["Shanks (Alternate Art)"]);
     expect(tiles[0].querySelector(".alert-art-price")?.textContent).toBe("$2.50");
+  });
+});
+
+describe("lightbox price alert and price history share one panel (#1163)", () => {
+  const click = async (el: Element | null | undefined) => {
+    await act(async () => {
+      (el as HTMLElement).click();
+      await wait();
+    });
+  };
+  const button = (label: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>(".lightbox-action button")].find((b) => b.textContent?.trim() === label);
+
+  async function mountActions() {
+    vi.spyOn(api, "priceAlerts").mockResolvedValue({ alerts: [alert()], email_enabled: false });
+    vi.spyOn(api, "priceHistory").mockReturnValue(new Promise(() => {}) as never);
+    vi.spyOn(api, "cardPrintings").mockResolvedValue([]);
+    vi.spyOn(api, "shopping").mockResolvedValue({ items: [] } as never);
+    await mount(
+      <MemoryRouter>
+        <div className="lightbox-action">{renderLightboxActions("OP01-001", 0)}</div>
+      </MemoryRouter>,
+    );
+  }
+
+  it("Edit on the alert chip opens the editor and closes Price history (#1163)", async () => {
+    await mountActions();
+    await click(button("Price history"));
+    expect(document.querySelector(".lightbox-history-pop")).not.toBeNull();
+    await click(button("Edit"));
+    expect(document.querySelector(".lightbox-alert-pop")).not.toBeNull();
+    expect(document.querySelector(".lightbox-history-pop")).toBeNull();
+  });
+
+  it("opening Price history closes the open alert editor (#1163)", async () => {
+    await mountActions();
+    await click(button("Edit"));
+    expect(document.querySelector(".lightbox-alert-pop")).not.toBeNull();
+    await click(button("Price history"));
+    expect(document.querySelector(".lightbox-history-pop")).not.toBeNull();
+    expect(document.querySelector(".lightbox-alert-pop")).toBeNull();
   });
 });

@@ -22,6 +22,7 @@ import {
   type PricePoint,
 } from "./priceHistoryModel";
 import { qk } from "../cache/queryKeys";
+import { useLightboxPanel } from "./lightboxPanel";
 
 // Chart geometry in viewBox units; the SVG scales to its box, so the aspect ratio (and height) never changes.
 const W = 360;
@@ -381,7 +382,7 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
 
 /** The lightbox button; the panel floats over the art, so opening it never moves the button. */
 export function LightboxPriceHistoryControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useLightboxPanel("history");
   return (
     <div className="lightbox-history">
       <button type="button" className="btn secondary lightbox-history-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
