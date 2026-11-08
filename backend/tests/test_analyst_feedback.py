@@ -16,7 +16,7 @@ from tests.test_analyst_stats import SERVICE, _users
 from tests.test_duel import client  # noqa: F401  (fixture)
 from tests.test_duel import _ingest
 
-ADMIN_EMAIL = "gamefreakmichaeltang@gmail.com"
+ADMIN_EMAIL = "optcgduel@gmail.com"
 
 
 def _thread(c, h, answers=("Play Zoro on turn 2.", "Keep the Nami.")) -> int:

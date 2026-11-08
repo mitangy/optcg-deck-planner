@@ -240,6 +240,7 @@ module.exports = {
     { id: "rate-limit-shared-bucket", file: "backend/app/core/rate_limit.py", from: "            q = self._hits[key]", to: "            q = self._hits[\"all\"]", kills: ["test_rate_limiter_keys_are_independent"] },
 
     // sessions, OAuth state, login tickets, Google linking
+    { id: "first-google-sign-in-admin-email-not-promoted", file: auth, from: "        if email.strip().lower() == get_settings().admin_email.strip().lower():\n            user.role = Role.ADMIN\n", to: "", kills: ["test_a_first_google_sign_in_with_admin_email_is_admin_straight_away_another_email_is_not_admin_email"], args: "tests/test_google_link.py" },
     { id: "session-version-dropped", file: auth, from: "dumps({\"uid\": user_id, \"sv\": int(session_version)})", to: "dumps({\"uid\": user_id, \"sv\": 0})", kills: ["test_session_token_embeds_version"] },
     { id: "session-legacy-cookie-rejected", file: auth, from: "    sv = data.get(\"sv\", 0)", to: "    sv = data.get(\"sv\")", kills: ["test_missing_sv_defaults_to_zero"] },
     { id: "oauth-nonce-unchecked", file: auth, from: "    return data.get(\"n\") == nonce", to: "    return True", kills: ["test_oauth_state_requires_matching_nonce"] },
