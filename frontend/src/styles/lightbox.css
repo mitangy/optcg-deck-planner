@@ -46,6 +46,22 @@
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
+  /* One width for Card page, shopping, alert and history (#1034). */
+  --lightbox-control-width: 17rem;
+}
+
+.lightbox-action > .lightbox-card-link,
+.lightbox-action > .shopping-extra-control,
+.lightbox-action > .lightbox-alert,
+.lightbox-action > .lightbox-history {
+  box-sizing: border-box;
+  width: var(--lightbox-control-width);
+  max-width: 100%;
+}
+
+.lightbox-action > .lightbox-card-link {
+  text-align: center;
+  justify-content: center;
 }
 
 .lightbox-action-meta {
@@ -56,9 +72,7 @@
 
 .lightbox-action .shopping-extra-control {
   justify-content: center;
-  /* Fixed width that fits "Add to shopping list" in any font, so Add and the stepper share one footprint. */
-  width: 14rem;
-  max-width: 100%;
+  /* Width comes from --lightbox-control-width above, so Add and the stepper share one footprint. */
   min-height: 2.5rem;
 }
 
