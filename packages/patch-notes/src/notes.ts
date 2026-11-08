@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
-  { date: "2026-11-08", app: "planner", pr: 1166, title: "The price beside a card says what it does", text: "The price beside a card now has a button look and says \"Choose arts\" (or which arts you picked), so it's clear you can tap it to pick which alt arts to buy." },
+  { date: "2026-11-08", app: "planner", pr: 1167, title: "The price beside a card says what it does", text: "The price beside a card now has a button look and says \"Choose arts\" (or which arts you picked), so it's clear you can tap it to pick which alt arts to buy." },
   { date: "2026-11-08", app: "duel", pr: 1063, title: "A server hiccup no longer signs you out", text: "A brief server hiccup no longer signs you out of the duel app or puts you in the queue as a guest." },
   { date: "2026-11-08", app: "both", pr: 1063, title: "No blank page after an update", text: "After an update, opening a page you hadn't visited yet reloads the app instead of showing a blank page." },
   { date: "2026-11-08", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
