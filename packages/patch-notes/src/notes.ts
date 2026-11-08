@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
+  { date: "2026-11-08", app: "duel", pr: 1170, title: "Bots redirect attacks properly", text: "When a bot pays to change an attack's target, such as with the Marshall.D.Teach Leader, it now moves the attack to one of its Characters instead of keeping it on the Leader." },
   { date: "2026-11-08", app: "planner", pr: 1165, title: "Collector is now Extra copy", text: "Collector copies are now called Extra copy, so it is clear they add a copy on top of what your decks need. On alt art tiles Buy ×N now reads Buying ×N. Picking an extra copy of the art your deck copy already uses asks first. Adding an alt art from Master Shopping's Add cards now buys that copy as the alt art." },
   { date: "2026-11-08", app: "planner", pr: 1164, title: "Price alert Edit works with Price history open", text: "Under an enlarged card, Edit on your price alert now opens the alert editor even when Price history is open, and opening one closes the other." },
   { date: "2026-11-08", app: "duel", pr: 1063, title: "A server hiccup no longer signs you out", text: "A brief server hiccup no longer signs you out of the duel app or puts you in the queue as a guest." },

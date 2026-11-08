@@ -174,6 +174,55 @@ describe("bot main phase (#631)", () => {
   });
 });
 
+describe("bot redirects an attack with a Leader's [On Your Opponent's Attack] effect (#1169)", () => {
+  /** Seat 0's Leader attacks Teach (seat 1); returns the bot's (seat 1) answer to the redirect select. */
+  function redirectAnswer(field: string[]) {
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    const cards = field.length ? h.field(1, ...field) : [];
+    h.hand(1, "ST01-014");
+    h.attack(h.state.players[0].leader, "leader");
+    h.accept(1).forced();
+    const r = h.choice!.request!;
+    if (r.type !== "select") throw new Error("expected a select");
+    const answer = bot(h, 1) as Extract<Intent, { type: "resolve_pending_choice" }>;
+    const chosen = r.options.find((o) => o.id === answer.selectedOptionIds![0])!;
+    return { chosen, cards, h, answer };
+  }
+
+  it("bot redirects Teach's attack to a Blackbeard Pirates Character, not the Leader already attacked (#1169)", () => {
+    const { chosen, cards, h, answer } = redirectAnswer(["OP09-095"]);
+    expect(chosen.instanceId).toBe(cards[0]!.id);
+    expect(applyIntent(h.state, answer, { seat: 1 }).ok).toBe(true);
+  });
+
+  it("bot prefers a redirect target that survives the attack (#1169)", () => {
+    // Laffitte (1000) would be the cheapest to lose, but the 5000 attacker only trades with the 5000 Character.
+    const { chosen, cards } = redirectAnswer(["OP09-095", "OP09-086"]);
+    expect(chosen.instanceId).toBe(cards[1]!.id);
+  });
+
+  it("bot moves an attack on a Character off that Character, even when it is the one that survives (#1169)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    const [strong, weak] = h.field(1, "OP09-086", "OP09-095");
+    strong!.rested = true;
+    h.hand(1, "ST01-014");
+    h.attack(h.state.players[0].leader, strong!);
+    h.accept(1).forced();
+    const r = h.choice!.request!;
+    if (r.type !== "select") throw new Error("expected a select");
+    const answer = bot(h, 1) as Extract<Intent, { type: "resolve_pending_choice" }>;
+    expect(r.options.find((o) => o.id === answer.selectedOptionIds![0])!.instanceId).toBe(weak!.id);
+  });
+
+  it("bot declines a redirect cost when nothing else could be the target (#1169)", () => {
+    const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
+    h.hand(1, "ST01-014");
+    h.attack(h.state.players[0].leader, "leader");
+    expect(h.choice?.request?.type).toBe("confirm");
+    expect(bot(h, 1)).toEqual({ type: "resolve_pending_choice", accept: false });
+  });
+});
+
 describe("self-play recorder (#631)", () => {
   it("a saved replay re-runs to the same winner and records how it ended (#631)", () => {
     for (const seed of [11, 12, 13]) {
