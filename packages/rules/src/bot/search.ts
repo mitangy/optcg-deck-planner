@@ -19,6 +19,7 @@ import { DEFAULT_DECK_PRIOR } from "./defaultPrior.js";
 import { evaluate } from "./evaluate.js";
 import { evaluateLearned } from "./learnedEval.js";
 import { VALUE_WEIGHTS, type ValueModel } from "./valueModel.js";
+import { rankedEligible } from "./choices.js";
 import { chooseSimMulligan } from "./mulligan.js";
 import { chooseBotIntent, MAX_INTENTS_PER_TURN, memoryFor, peekNormalIntent, recordMainPick, seedTurnMemory } from "./policy.js";
 import type { TurnMemory } from "./main.js";
@@ -51,6 +52,8 @@ export const HARD_DEFAULTS = {
   maxAttacks: 6,
   maxGives: 2,
   maxCounters: 8,
+  /** Extra answers tried on a select / look prompt (every legal target, best-ranked first), not counting normal's pick and the engine's default (#1171). */
+  maxChoiceTargets: 8,
   /** A rollout that has not finished after this many intents is cut where it stands. */
   maxRolloutSteps: 200,
 } as const;
@@ -140,8 +143,30 @@ export function choiceCandidates(view: BotView, base: Intent): Candidate[] {
   if (r.type === "mode") {
     return uniq(base, r.options.filter((o) => o.eligible).map((o): Intent => ({ type: "resolve_pending_choice", accept: true, selectedOptionIds: [o.id] })));
   }
-  // select / order / look: the bot's own answer against the engine's default.
-  return uniq(base, legal.slice(0, 1));
+  const pick = (ids: string[]): Intent => ({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  const extra: Intent[] = [];
+  if (r.type === "select") {
+    // Every legal target alone (an attack redirect, a K.O. or bounce target), the empty pick, and one-swap variants of a bigger pick (#1171).
+    const ranked = rankedEligible(view, r.options);
+    if (r.min <= 1 && 1 <= r.max) extra.push(...ranked.map((o) => pick([o.id])));
+    if (r.min === 0) extra.push(pick([]));
+    const picked = base.type === "resolve_pending_choice" && base.selectedOptionIds && base.selectedOptionIds.length > 1 ? base.selectedOptionIds : null;
+    if (picked) for (const o of ranked) if (!picked.includes(o.id)) for (const out of picked) extra.push(pick(picked.map((id) => (id === out ? o.id : id))));
+  } else if (r.type === "look" && base.type === "resolve_pending_choice" && base.selectedOptionIds) {
+    // A search: each card that fits a group, taken alone, with the bot's order for the rest kept.
+    const order = [...base.selectedOptionIds, ...(base.orderedOptionIds ?? [])];
+    const fits = new Set(r.groups.flatMap((g) => g.eligibleIds));
+    const ranked = rankedEligible(view, r.options).filter((o) => fits.has(o.id));
+    const variant = (ids: string[]): Intent => {
+      const rest = order.filter((id) => !ids.includes(id));
+      return { ...base, selectedOptionIds: ids, orderedOptionIds: rest, ...(base.topOptionIds ? { topOptionIds: base.topOptionIds.length ? rest : [] } : {}) };
+    };
+    if (r.minSelect <= 1 && 1 <= r.maxSelect) extra.push(...ranked.map((o) => variant([o.id])));
+    if (r.minSelect === 0) extra.push(variant([]));
+  }
+  // The bot's own answer, the engine's default, then the extra answers (capped).
+  const have = new Set([base, ...legal.slice(0, 1)].map(keyOf));
+  return uniq(base, [...legal.slice(0, 1), ...uniq(base, extra).filter((i) => !have.has(keyOf(i))).slice(0, HARD_DEFAULTS.maxChoiceTargets)]);
 }
 
 // --- rollout ---------------------------------------------------------------------------------------------------

@@ -203,6 +203,24 @@ describe("hard bot: lines (#631)", () => {
     expect(h.state.players[0].hand[hard.handIndex]!.defId).toBe(CHOPPER);
   });
 
+  it("Hard redirects Teach's attack to Vasco Shot so his [On K.O.] rests the attacker still to come (#1171)", () => {
+    // Seat 0's Leader attacks Teach (seat 1) and an active 8000 Ramba is still to attack. Normal moves the attack to the Character that holds
+    // (Jesus Burgess, 5000); only Vasco Shot (2000) is K.O.'d by it, and his [On K.O.] rests Ramba. The engine's default answer is the Leader.
+    for (const evalMode of ["hand", "learned"] as const) {
+      const h = new Harness({ leaders: [L, "OP16-080"] });
+      const [survivor, vasco] = h.field(1, "OP09-086", "OP16-110");
+      h.field(0, "OP16-016");
+      h.hand(1, "ST01-014");
+      h.attack(h.state.players[0].leader, "leader");
+      h.accept(1).forced();
+      const r = h.choice!.request!;
+      if (r.type !== "select") throw new Error("expected a select");
+      const target = (i: Intent | null) => r.options.find((o) => o.id === (i as Extract<Intent, { type: "resolve_pending_choice" }>).selectedOptionIds![0])!.instanceId;
+      expect(target(chooseBotIntent(getPlayerView(h.state, 1), { level: "normal", rng: rng() }))).toBe(survivor!.id);
+      expect(target(chooseBotIntentFromState(h.state, 1, { ...exact, maxEvals: 40, evalMode, rng: rng() }))).toBe(vasco!.id);
+    }
+  });
+
   it("with no time to search plays exactly what normal plays (#631)", () => {
     let differs = 0;
     let compared = 0;
