@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { PrintingView } from "../../api";
-import { BuySplit, BuySplitEditor, buySplitCaption, type BuySplitCard } from "./BuySplit";
+import { BuySplit, BuySplitEditor, buySplitActionLabel, buySplitCaption, type BuySplitCard } from "./BuySplit";
 
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -100,6 +100,35 @@ describe("BuySplitEditor (#906)", () => {
     expect(buySplitCaption(card(2, [alt(1, 10, 1)]))).toBe("1 alt + 1 base");
     expect(buySplitCaption(card(2, [alt(1, 10, 2)]))).toBe("2 alt");
     expect(buySplitCaption(card(2, [alt(1, 10, 0)]))).toBeNull();
+  });
+});
+
+describe("BuySplit action line (#1166)", () => {
+  it("the label says Choose arts with no picks and lists the picks once there are some (#1166)", () => {
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 0)]))).toBe("Choose arts");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 1)]))).toBe("Arts: 1 alt + 1 base");
+    expect(buySplitActionLabel(card(2, [alt(1, 10, 2)]))).toBe("Arts: 2 alt");
+  });
+
+  it("the label is the collector copy when nothing is left to buy (#1166)", () => {
+    expect(buySplitActionLabel(card(0, [alt(1, 10, 0)]))).toBe("★ Collector copy");
+  });
+
+  it("the trigger shows the action line and names what it does (#1166)", () => {
+    const idle = mount(<BuySplit card={card(2, [alt(1, 10)])} amount="$2.00" prefix="Left " onPick={() => {}} />);
+    const btn = idle.querySelector("button")!;
+    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("Choose arts");
+    expect(btn.querySelector("svg.buy-split-icon")?.getAttribute("aria-hidden")).toBe("true");
+    expect(btn.title).toBe("Choose which arts to buy for Izo");
+    const picked = mount(<BuySplit card={card(2, [alt(1, 10, 1)])} amount="$11.00" onPick={() => {}} />);
+    expect(picked.querySelector("button .buy-split-action")?.textContent).toBe("Arts: 1 alt + 1 base");
+  });
+
+  it("with nothing left to buy the trigger offers a collector copy (#1166)", () => {
+    const host = mount(<BuySplit card={card(0, [alt(1, 10)])} amount="$0.00" onPick={() => {}} onCollectorPick={() => {}} />);
+    const btn = host.querySelector("button")!;
+    expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Collector copy");
+    expect(btn.title).toBe("Add a collector copy of Izo");
   });
 });
 

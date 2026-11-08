@@ -35,9 +35,10 @@
   white-space: nowrap;
 }
 
+/* #1166: reads as a button: gold-tinted edge and fill, plus an action line under the amount. */
 .buy-split-btn {
-  border-color: var(--line);
-  background: var(--card);
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+  background: color-mix(in srgb, var(--gold) 8%, var(--card));
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -47,11 +48,39 @@
   border-color: var(--gold);
 }
 
-.buy-split-caption {
-  font-size: 0.68rem;
+.buy-split-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.buy-split-amount {
+  max-width: 100%;
+}
+
+/* Always one line (a pick never changes the trigger's height); ellipsis if it ever runs out of room. */
+.buy-split-action {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.72rem;
   font-weight: 650;
-  line-height: 1.1;
-  color: var(--muted);
+  line-height: 1.15;
+  color: var(--gold-ink);
+}
+
+.buy-split-icon {
+  flex: none;
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.buy-split-action-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .buy-split-chevron {
@@ -220,9 +249,9 @@
   margin-top: 0.25rem;
 }
 
-/* In the desktop table the amount's box is as wide as its caption ("1 alt + 1 base"), so a pick never widens the column. */
+/* In the desktop table the amount's box is as wide as its action line ("Arts: 1 alt + 1 base"), so a pick never widens the column. */
 .desktop-table .buy-split-box {
-  min-width: 6.4rem;
+  min-width: 8.6rem;
 }
 
 @media (max-width: 800px) {
