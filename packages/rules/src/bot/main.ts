@@ -3,6 +3,7 @@ import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { Intent } from "../types.js";
 import type { Rng } from "../rng.js";
+import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotView } from "./types.js";
 import { boardValue, defValue, findBoardCard, isBlocker, pickBest, type BoardCard } from "./value.js";
 
@@ -44,14 +45,17 @@ function abilityIsCheap(view: BotView, intent: Activate): boolean {
   return (ability.costs ?? []).every((c) => (c.k === "rest_don" && c.count <= 1) || c.k === "rest_self");
 }
 
-function chooseAbility(view: BotView, memory: TurnMemory, rng: Rng): Activate | undefined {
-  const options = view.legalIntents.filter((i): i is Activate => i.type === "activate_ability" && !memory.activated.has(`${i.sourceId}:${i.abilityId}`) && abilityIsCheap(view, i));
+function chooseAbility(view: BotView, memory: TurnMemory, rng: Rng, pb?: LeaderPlaybook): Activate | undefined {
+  // A playbook can veto the Leader's own ability (#1173).
+  const leaderOk = pb?.allowLeaderActivate?.(view) ?? true;
+  const options = view.legalIntents.filter((i): i is Activate => i.type === "activate_ability" && !memory.activated.has(`${i.sourceId}:${i.abilityId}`) && abilityIsCheap(view, i) && (leaderOk || i.sourceId !== view.you.leader.id));
   return pickBest(options, () => 0, rng);
 }
 
 /** Highest-value card that fits in the DON!! on hand; a full board only makes room for a clearly better card. */
-function choosePlay(view: BotView, rng: Rng): Play | undefined {
-  const plays = view.legalIntents.filter((i): i is Play => i.type === "play_card");
+function choosePlay(view: BotView, rng: Rng, reserve = 0): Play | undefined {
+  // `reserve` (a playbook's donReserve): a play that would leave fewer active DON!! than that is skipped.
+  const plays = view.legalIntents.filter((i): i is Play => i.type === "play_card" && (reserve <= 0 || (view.you.hand[i.handIndex]?.playCost ?? getCardDef(view.you.hand[i.handIndex]!.defId).cost) <= view.you.activeDonCount - reserve));
   const weakest = (id?: string) => (id ? view.you.characters.find((c) => c.id === id) : undefined);
   const score = (p: Play): number => {
     const card = view.you.hand[p.handIndex]!;
@@ -78,7 +82,7 @@ function attacksOf(view: BotView): Attack[] {
 }
 
 /** DON!! to attach so some attacker reaches the opposing Leader's power, or a spare DON!! onto the Leader. */
-function chooseGive(view: BotView, rng: Rng): Give | undefined {
+function chooseGive(view: BotView, rng: Rng, donReserve = 0): Give | undefined {
   const gives = view.legalIntents.filter((i): i is Give => i.type === "give_don");
   if (!gives.length) return undefined;
   const attacks = attacksOf(view);
@@ -92,7 +96,7 @@ function chooseGive(view: BotView, rng: Rng): Give | undefined {
   }
   const needs = [...attackers.values()]
     .map((c) => ({ c, need: Math.ceil((oppLeader - c.power) / 1000) }))
-    .filter((x) => x.need > 0 && x.need <= active);
+    .filter((x) => x.need > 0 && x.need <= active - donReserve);
   const to = pickBest(needs, (x) => -x.need * 10 + (x.c.id === view.you.leader.id ? 1 : 0), rng);
   const give = (id: string) => gives.find((g) => g.targetId === id);
   if (to) return give(to.c.id);
@@ -102,7 +106,7 @@ function chooseGive(view: BotView, rng: Rng): Give | undefined {
     const def = getCardDef(c.defId);
     if (def.type === "event" && def.eventTiming === "counter") reserve = reserve === 0 ? def.cost : Math.min(reserve, def.cost);
   }
-  if (active > reserve && attackers.has(view.you.leader.id) && view.you.leader.attachedDonCount < 4) return give(view.you.leader.id);
+  if (active > Math.max(reserve, donReserve) && attackers.has(view.you.leader.id) && view.you.leader.attachedDonCount < 4) return give(view.you.leader.id);
   return undefined;
 }
 
@@ -132,9 +136,15 @@ function chooseAttack(view: BotView, rng: Rng): Attack | undefined {
 }
 
 /** Normal-level main-phase move: always one of `view.legalIntents`. */
-export function chooseNormalMain(view: BotView, rng: Rng, memory: TurnMemory): Intent {
+export function chooseNormalMain(view: BotView, rng: Rng, memory: TurnMemory, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const end = legal.find((i) => i.type === "end_turn") ?? legal[0]!;
   if (memory.count >= MAX_INTENTS_PER_TURN) return end;
-  return choosePlay(view, rng) ?? chooseAbility(view, memory, rng) ?? chooseGive(view, rng) ?? chooseAttack(view, rng) ?? end;
+  const hinted = pb?.main?.(view, memory);
+  if (hinted) {
+    const key = JSON.stringify(hinted);
+    if (legal.some((i) => JSON.stringify(i) === key)) return hinted;
+  }
+  const reserve = pb?.donReserve?.(view) ?? 0;
+  return choosePlay(view, rng, reserve) ?? chooseAbility(view, memory, rng, pb) ?? chooseGive(view, rng, reserve) ?? chooseAttack(view, rng) ?? end;
 }

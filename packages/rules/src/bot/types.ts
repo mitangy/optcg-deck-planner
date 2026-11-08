@@ -2,6 +2,7 @@ import type { getPlayerView } from "../engine.js";
 import type { Rng } from "../rng.js";
 import type { Intent } from "../types.js";
 import type { PriorChoice } from "./determinize.js";
+import type { PlaybookSetting } from "./playbooks/index.js";
 import type { ValueModel } from "./valueModel.js";
 
 export type BotView = ReturnType<typeof getPlayerView>;
@@ -29,6 +30,8 @@ export interface BotOptions {
   opponentModel?: "normal" | "greedy";
   /** Hard only (#635): "sim" compares keep and mulligan on sampled redraws; "rule" is normal's rule (two cheap Characters). */
   mulligan?: "sim" | "rule";
+  /** Leader playbooks (#1173), for normal and hard (rollouts included): true = every registered playbook (default), false = none, a list = only those leader ids. Easy ignores it. */
+  playbooks?: PlaybookSetting;
   /** Hard only: called once for every decision that was really searched (two or more candidates). */
   onTrace?: (trace: HardTrace) => void;
 }

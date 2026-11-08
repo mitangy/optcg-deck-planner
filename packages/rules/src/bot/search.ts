@@ -19,6 +19,7 @@ import { DEFAULT_DECK_PRIOR } from "./defaultPrior.js";
 import { evaluate } from "./evaluate.js";
 import { evaluateLearned } from "./learnedEval.js";
 import { VALUE_WEIGHTS, type ValueModel } from "./valueModel.js";
+import { playbookFor, type PlaybookSetting } from "./playbooks/index.js";
 import { rankedEligible } from "./choices.js";
 import { chooseSimMulligan } from "./mulligan.js";
 import { chooseBotIntent, MAX_INTENTS_PER_TURN, memoryFor, peekNormalIntent, recordMainPick, seedTurnMemory } from "./policy.js";
@@ -177,6 +178,7 @@ interface Knobs {
   opponentModel: "normal" | "greedy";
   margin: number;
   valueWeights: ValueModel;
+  playbooks: PlaybookSetting;
 }
 
 /** The learned score of a position for `seat`, as a win probability (a finished game is exactly 0 or 1). */
@@ -189,9 +191,9 @@ function winProb(state: MatchState, seat: Seat, w: ValueModel): number {
  * The opponent in a rollout when it is modelled as "greedy": normal's main-phase candidates are tried one move ahead and
  * scored with the learned model from the opponent's own side; normal's pick is kept unless another beats it by a margin.
  */
-function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w: ValueModel): Intent | null {
+function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w: ValueModel, playbooks: PlaybookSetting): Intent | null {
   const memory = memoryFor(rng, view);
-  const base = peekNormalIntent(view, rng);
+  const base = peekNormalIntent(view, rng, playbooks);
   if (!base) return null;
   let pick = base;
   if (base.type !== "give_don" && memory.count + 1 < MAX_INTENTS_PER_TURN) {
@@ -215,7 +217,7 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w
 }
 
 /** Play `state` forward until the turn counter reaches `endTurn`, someone wins, or the step cap. I play normal; the opponent plays normal or greedy. */
-function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, memory: TurnMemory | null, opponentModel: "normal" | "greedy", weights: ValueModel = VALUE_WEIGHTS): MatchState {
+function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, memory: TurnMemory | null, opponentModel: "normal" | "greedy", weights: ValueModel = VALUE_WEIGHTS, playbooks: PlaybookSetting = true): MatchState {
   const rngs = [createSeededRng(seed), createSeededRng(seed + 1)] as const;
   let s = state;
   let seeded = memory === null;
@@ -226,7 +228,7 @@ function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, mem
     // The real turn's record (abilities already used, intents so far) carries on into the rollout.
     if (!seeded && actor === me && view.phase === "main" && view.pendingChoices.length === 0) { seedTurnMemory(rngs[me], view, memory!); seeded = true; }
     const greedy = opponentModel === "greedy" && actor !== me && view.phase === "main" && view.pendingChoices.length === 0;
-    const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor], weights) : chooseBotIntent(view, { level: "normal", rng: rngs[actor] });
+    const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor], weights, playbooks) : chooseBotIntent(view, { level: "normal", rng: rngs[actor], playbooks });
     if (!intent) break;
     let r = applyIntent(s, intent, { seat: actor });
     if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor });
@@ -242,7 +244,7 @@ function scoreCandidate(det: MatchState, seat: Seat, cand: Candidate, endTurn: n
   try {
     const applied = applyIntent(det, cand, { seat });
     if (!applied.ok) return null;
-    const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel, knobs.valueWeights);
+    const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel, knobs.valueWeights, knobs.playbooks);
     return knobs.evalMode === "learned"
       ? { score: evaluateLearned(end, seat, det.turnNumber, knobs.valueWeights), prob: winProb(end, seat, knobs.valueWeights) }
       : { score: evaluate(end, seat, det.turnNumber), prob: winProb(end, seat, knobs.valueWeights) };
@@ -276,6 +278,7 @@ function knobsFrom(opts: BotOptions): Knobs {
     opponentModel: opts.opponentModel ?? HARD_DEFAULTS.opponentModel,
     margin: evalMode === "learned" ? HARD_DEFAULTS.marginLearned : HARD_DEFAULTS.margin,
     valueWeights: opts.valueWeights ?? VALUE_WEIGHTS,
+    playbooks: opts.playbooks ?? true,
   };
 }
 
@@ -374,7 +377,7 @@ export function chooseHardIntent(state: MatchState, seat: Seat, opts: BotOptions
   const view = getPlayerView(state, seat);
   if (!view.legalIntents.length) return null;
   const rng: Rng = opts.rng ?? createSeededRng(0x0b07);
-  const base = peekNormalIntent(view, rng);
+  const base = peekNormalIntent(view, rng, opts.playbooks ?? true);
   if (!base) return null;
 
   const inMain = view.pendingChoices.length === 0 && view.phase === "main";
@@ -385,7 +388,7 @@ export function chooseHardIntent(state: MatchState, seat: Seat, opts: BotOptions
   };
 
   if (view.phase === "mulligan" && view.pendingChoices.length === 0 && (opts.mulligan ?? HARD_DEFAULTS.mulligan) === "sim") {
-    return chooseSimMulligan(state, seat, view, rng, base);
+    return chooseSimMulligan(state, seat, view, rng, base, playbookFor(view, opts.playbooks ?? true));
   }
 
   const candidates = candidatesFor(view, base, rng);

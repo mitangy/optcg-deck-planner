@@ -35,7 +35,7 @@ export interface AnalysisOptions {
   /** Legal intents to score even when the bot would not consider them (the game review passes the move that was played). Appended after the bot's candidates. */
   include?: Intent[];
   /** Passed to the search (prior, opponentModel, ...). */
-  search?: Pick<BotOptions, "prior" | "opponentModel" | "horizonTurns" | "maxEvals" | "evalMode">;
+  search?: Pick<BotOptions, "prior" | "opponentModel" | "horizonTurns" | "maxEvals" | "evalMode" | "playbooks">;
 }
 
 export const ANALYSIS_DEFAULTS = { budgetMs: 1500, samples: 6 } as const;
@@ -55,7 +55,7 @@ export function rankOptions(state: MatchState, seat: Seat, opts: AnalysisOptions
   const view = getPlayerView(state, seat);
   if (!view.legalIntents.length) return [];
   const rng = opts.rng ?? createSeededRng(1);
-  const base = peekNormalIntent(view, rng);
+  const base = peekNormalIntent(view, rng, opts.search?.playbooks ?? true);
   if (!base) return [];
   const candidates = candidatesFor(view, base, rng, true);
   for (const extra of opts.include ?? []) {
