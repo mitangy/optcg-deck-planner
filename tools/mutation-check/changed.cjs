@@ -130,15 +130,21 @@ const NARROW_SECONDS = 6;
 /** Narrow runs that cost more than a single test file: analyst `src/` (15 test files, about 16 s, #739). */
 const NARROW_SECONDS_BY_SUITE = { analyst: 16 };
 const MAX_PARTS = 8;
-/** Extra parts the costliest suites may still get when every changed suite already holds one of the MAX_PARTS (#1147: 10 suites left a 414-id frontend part to time out). */
-const MAX_EXTRA_PARTS = 8;
 const TARGET_PART_SECONDS = 150;
+/**
+ * Past MAX_PARTS, a part that would still run longer than this gets split again (up to
+ * HARD_MAX_PARTS), so a big file move stays inside the parts job's 45-minute timeout.
+ * #1147: 10 suites took all 8 parts and a 414-id frontend part timed out; 4.3b re-runs
+ * 1160 duel-web mutations (about 14 runner-hours).
+ */
+const MAX_PART_SECONDS = 25 * 60;
+const HARD_MAX_PARTS = 48;
 
 /**
  * Split changed ids into parts for parallel runners. An id with `args` costs
  * NARROW_SECONDS, any other the suite's full-run weight; every part also pays
  * one baseline full run. Greedily gives the costliest suite another part while
- * the cap allows, and fills each part longest id first onto the lightest part.
+ * the cap allows (or, past the cap, while a part would exceed MAX_PART_SECONDS), and fills each part longest id first onto the lightest part.
  */
 function planMatrix(suites) {
   const plan = suites.map(({ name, ids, narrow }) => {
@@ -158,9 +164,10 @@ function planMatrix(suites) {
   };
   const cost = (s) => s.w + Math.max(...split(s, s.parts).map((b) => b.load));
   for (;;) {
-    if (plan.reduce((n, s) => n + s.parts, 0) >= Math.max(MAX_PARTS, plan.length + MAX_EXTRA_PARTS)) break;
+    const total = plan.reduce((n, s) => n + s.parts, 0);
     const next = plan.filter((s) => s.parts < s.ids.length).sort((a, b) => cost(b) - cost(a))[0];
     if (!next || cost(next) <= TARGET_PART_SECONDS) break;
+    if (total >= MAX_PARTS && (cost(next) <= MAX_PART_SECONDS || total >= HARD_MAX_PARTS)) break;
     next.parts += 1;
   }
   const out = [];
