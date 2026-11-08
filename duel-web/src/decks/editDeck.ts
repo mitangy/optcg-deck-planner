@@ -1,7 +1,8 @@
+import { MAIN_DECK_SIZE } from "@optcg/card-core";
 import { lookupCard, maxCopiesFor } from "../cards/atlas";
 import { getSavedDeck, saveDeck, type SavedDeck } from "./storage";
 
-export const MAX_MAIN_DECK_SIZE = 50;
+export const MAX_MAIN_DECK_SIZE = MAIN_DECK_SIZE;
 
 export type DeckEditResult =
   | { ok: true; deck: SavedDeck }
@@ -137,9 +138,8 @@ export function countCardInDeck(deck: Pick<SavedDeck, "cards">, defId: string): 
 }
 
 /**
- * Save the editor's draft as the deck (#481). Keeps art prefs only for cards still in the deck, and marks a
- * planner-linked deck `editedLocally` so games keep it instead of re-importing the planner's version (a rename
- * counts too). A blank name is refused (#526).
+ * Save the editor's draft as the deck (#481). Keeps art prefs only for cards still in the deck. A blank name is
+ * refused (#526). A planner-linked deck needs nothing more: the account sync carries the edit to the planner.
  */
 export function saveDeckDraft(deckId: string, draft: DeckDraft): DeckEditResult {
   const deck = getSavedDeck(deckId);
@@ -156,7 +156,6 @@ export function saveDeckDraft(deckId: string, draft: DeckDraft): DeckEditResult 
       leaderId: draft.leaderId,
       cards: draft.cards,
       artPrefs,
-      editedLocally: deck.plannerDeckId ? true : undefined,
     }),
   };
 }

@@ -1,0 +1,885 @@
+/* Group buy: total across the arts the viewer picked (#850). Same box as the clickable market price so swapping states never shifts the card. */
+.gb-arts-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.gb-arts-total-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-arts-total-cap {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+}
+/* ——— Price alerts (#855) ——— */
+
+/* Bell in the topbar */
+.bell {
+  position: relative;
+  display: inline-flex;
+}
+
+.bell-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: rgba(239, 230, 210, 0.85);
+  background: transparent;
+  border: 1px solid rgba(226, 180, 88, 0.35);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.bell-btn:hover,
+.bell-btn[data-open] {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+}
+
+/* Absolutely placed so a count appearing never resizes the button. */
+.bell-badge {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--danger);
+  border: 2px solid var(--sea-night);
+  border-radius: var(--radius-pill);
+  box-sizing: content-box;
+}
+
+.bell-panel {
+  padding: 0.7rem 0.8rem 0.8rem;
+}
+
+.bell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: 0.4rem;
+}
+
+.bell-empty {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.bell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bell-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.bell-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border-radius: var(--radius-round);
+  background: transparent;
+}
+
+.bell-item.unread .bell-dot {
+  background: var(--gold);
+}
+
+.bell-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.bell-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.bell-body,
+.bell-time {
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.bell-manage {
+  display: block;
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+/* Shared editor (Watch dialog + lightbox) */
+.alert-form {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.alert-form-now {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.alert-form-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.alert-dir {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+.alert-dir .ui-select-button,
+.alert-money {
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-10);
+  background: var(--field-bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.alert-dir .ui-select-button {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+}
+
+.alert-money {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 0 6.5rem;
+  padding: 0 0.6rem;
+}
+
+.alert-money:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.alert-money input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+.alert-money:has(input[aria-invalid="true"]) {
+  border-color: var(--danger);
+}
+
+.alert-form-checks {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.alert-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.alert-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+}
+
+.alert-form-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.alert-form .btn.primary {
+  margin: 0;
+  min-height: 2.5rem;
+}
+
+.alert-form-msg {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Lightbox: the row is always one button tall; the editor floats over the art, so nothing shifts. */
+.lightbox-alert {
+  position: static;
+  width: 17rem;
+  max-width: 100%;
+}
+
+.lightbox-alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 2.5rem;
+  min-width: 0;
+}
+
+/* A set alert reads as a chip (#1028): tinted by what it is doing, one button tall so nothing shifts. */
+.alert-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  height: 2.5rem;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 0.3rem 0 0.7rem;
+  border: 1px solid var(--info-line);
+  border-left-width: 4px;
+  border-radius: var(--radius-12);
+  color: var(--info-ink);
+  background: var(--info-bg);
+}
+
+.alert-pill.hit {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+}
+
+.alert-pill.met {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+
+.alert-pill.paused {
+  color: var(--muted);
+  background: var(--card-sunk);
+  border-color: var(--line-strong);
+}
+
+.alert-pill-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.alert-pill-text {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.alert-pill-goal,
+.alert-pill-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-pill-goal {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.alert-pill-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.alert-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 2rem;
+  height: 1.9rem;
+  margin: 0;
+  padding: 0 0.55rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert-pill-btn:hover,
+.alert-pill-btn[aria-expanded="true"] {
+  background: var(--card);
+  border-color: var(--line-strong);
+}
+
+.alert-pill-btn.danger {
+  padding: 0;
+  color: var(--danger);
+}
+
+.alert-pill-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.lightbox-alert .lightbox-alert-btn {
+  width: 100%;
+  height: 2.5rem;
+  margin: 0;
+  padding-block: 0;
+}
+
+.lightbox-alert-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  z-index: var(--z-raise-2);
+  width: min(20rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  padding: 0.8rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Price history (#946): the button is one row tall; the panel floats over the art above the action card. */
+.lightbox-history {
+  position: static;
+  width: 17rem;
+  max-width: 100%;
+}
+
+.lightbox-history .lightbox-history-btn {
+  width: 100%;
+  height: 2.5rem;
+  margin: 0;
+  padding-block: 0;
+}
+
+.lightbox-history-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.5rem);
+  transform: translateX(-50%);
+  z-index: var(--z-raise-3);
+  width: min(26rem, calc(100vw - 1.5rem));
+  /* Room for the lightbox controls under it (Card page, Owned stepper, Price alert, Price history). */
+  max-height: calc(100dvh - 23.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  padding: 0.7rem 0.8rem 0.6rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow-lift);
+}
+
+/* A short landscape screen has no room above the button: the panel takes the screen instead (#968). */
+@media (max-height: 520px) {
+  .lightbox-history-pop {
+    position: fixed;
+    top: 0.5rem;
+    bottom: auto;
+    max-height: calc(100dvh - 1rem);
+  }
+}
+
+/* Only one floating panel at a time. */
+.lightbox-action:has(.lightbox-history-pop) .lightbox-alert-pop {
+  display: none;
+}
+
+.ph {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.ph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.ph-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ph-ranges {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-9);
+  overflow: hidden;
+}
+
+.ph-ranges button {
+  min-width: 2.1rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ph-ranges button:first-child {
+  border-left: 0;
+}
+
+.ph-ranges button:hover {
+  color: var(--ink);
+  background: var(--card-sunk);
+}
+
+.ph-ranges button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--primary-ink);
+}
+
+.ph-ranges button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.ph-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+}
+
+.ph-stat {
+  min-width: 0;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--radius-8);
+  background: var(--card-sunk);
+}
+
+.ph-stat dt {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-stat dd {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-stat dd.up {
+  color: var(--ok-ink);
+}
+
+.ph-stat dd.down {
+  color: var(--danger);
+}
+
+.ph-stat .ph-stat-sub {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Chart, loading, empty and error states share one box, so switching between them moves nothing. */
+.ph-body {
+  position: relative;
+  aspect-ratio: 360 / 168;
+  width: 100%;
+  border-radius: var(--radius-10);
+}
+
+.ph-chart {
+  position: absolute;
+  inset: 0;
+}
+
+.ph-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.ph-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.ph-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.ph-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ph-cross {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.ph-dot {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+
+.ph-tip {
+  position: absolute;
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-8);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ph-tip strong {
+  font-size: 0.85rem;
+}
+
+.ph-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-10);
+  background: var(--card-sunk);
+}
+
+.ph-loading .ph-placeholder {
+  animation: ph-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ph-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-loading .ph-placeholder {
+    animation: none;
+  }
+}
+
+/* When to buy (#946): the verdict row keeps its height while loading; its reasons open below it. */
+.ph-buy {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--card-sunk);
+}
+
+.ph-buy-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 1.9rem;
+}
+
+.ph-pill {
+  flex: none;
+  min-width: 4.6rem;
+  box-sizing: border-box;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ph-pill-good,
+.ph-pill-holds {
+  color: var(--ok-ink);
+  background: color-mix(in srgb, var(--ok-ink) 12%, var(--card));
+}
+
+.ph-pill-soon {
+  color: var(--gold-ink);
+  background: color-mix(in srgb, var(--gold) 18%, var(--card));
+}
+
+.ph-pill-wait {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--card));
+}
+
+.ph-pill-unknown,
+.ph-pill-loading {
+  color: var(--muted);
+  background: var(--card);
+}
+
+.ph-buy-headline {
+  min-width: 0;
+  flex: 1 1 auto;
+  /* Wraps to a second line on narrow phones instead of cutting the words off. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.ph-buy-best {
+  min-width: 0;
+  height: 1.1rem;
+  line-height: 1.1rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-buy-est {
+  white-space: nowrap;
+}
+
+/* Narrow phones: the estimate moves to a second line instead of being cut off; the line keeps a fixed two-line height. */
+@media (max-width: 480px) {
+  .ph-buy-best {
+    height: 2.2rem;
+    white-space: normal;
+    text-overflow: clip;
+  }
+}
+
+.ph-buy-best strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ph-buy-ask {
+  flex: none;
+  min-height: 1.9rem;
+  box-sizing: border-box;
+  padding: 0 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-8);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ph-buy-ask:hover {
+  background: var(--card-sunk);
+}
+
+.ph-buy-ask:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ph-buy-why-wrap {
+  flex: none;
+  display: inline-flex;
+}
+
+/* A 22px round "?" inside a 32px button: the extra ring is the hit target for fingers; negative margins keep the row as if it were 22px. */
+.ph-buy-why {
+  flex: none;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  margin: -5px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.ph-buy-why-icon {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-round);
+  background: var(--card);
+}
+
+.ph-buy-why:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ph-buy-why:not(:disabled):hover,
+.ph-buy-why[aria-expanded="true"] {
+  color: var(--ink);
+}
+
+.ph-buy-why:not(:disabled):hover .ph-buy-why-icon,
+.ph-buy-why[aria-expanded="true"] .ph-buy-why-icon {
+  background: var(--card-sunk);
+  border-color: var(--ink);
+}
+
+.ph-buy-why:focus-visible {
+  outline: none;
+}
+
+.ph-buy-why:focus-visible .ph-buy-why-icon {
+  box-shadow: var(--focus-ring);
+}
+
+.ph-why-panel {
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 16px));
+  padding: 0.6rem 0.75rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-10);
+  box-shadow: var(--shadow);
+}
+
+.ph-buy-reasons {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.ph-buy-reasons li + li {
+  margin-top: 0.15rem;
+}
+
+.ph-why-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.ph-buy-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 2rem;
+}
+
+.ph-buy-note {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--muted);
+}

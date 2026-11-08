@@ -1,0 +1,120 @@
+/* Form controls don't inherit type by default — without this every <button>
+   rendered in the UA's 13px Arial next to Plex body text. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+html {
+  background: var(--page-bg);
+  background-attachment: fixed;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  /* svh = visible viewport with browser chrome showing; avoids empty scroll
+     under short pages that 100dvh/lvh leave on mobile Safari. */
+  min-height: 100svh;
+  background: var(--bg-deep);
+  overflow-x: clip;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  min-height: 100svh;
+  overflow-x: clip;
+  background: var(--page-bg);
+  background-attachment: fixed;
+}
+
+/* With the legal footer below a page, the page fills the screen minus the
+   footer, so short pages put it at the bottom edge instead of below the fold. */
+/* Pre-rendered public pages are for visitors; a browser with a signed-in session sees the skeleton instead (#914). */
+html.signed-in-hint #root[data-prerendered] > * {
+  visibility: hidden;
+}
+
+#root:has(> .site-footer) {
+  display: flex;
+  flex-direction: column;
+}
+
+#root:has(> .site-footer) > :not(.site-footer) {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--accent-ink);
+}
+
+/* Headless UI focuses a Popover or Menu button from script after a click, which Chrome counts as keyboard
+   focus; its own data-focus is set for the keyboard only, so a mouse click leaves no ring (as before). */
+button[data-headlessui-state]:focus-visible:not([data-focus]) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  font-optical-sizing: auto;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 1.4rem + 1.4vw, 2.3rem);
+  line-height: 1.1;
+}
+
+::selection {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+
+.app {
+  width: 100%;
+  max-width: 100%;
+  /* Fill the screen on short pages without owning a taller scrollport than
+     the document content (nested 100svh shells were leaving empty scroll). */
+  min-height: 100%;
+  min-height: 100svh;
+  /* Safe-area only — avoid a fixed bottom pad that reads as empty space. */
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  overflow-x: clip;
+}
+
+.app-main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+}
+
+/* Group buy tables need more horizontal room (printing + alt arts columns). */
+.app-main:has(.group-buy-detail) {
+  max-width: min(1600px, 100%);
+}

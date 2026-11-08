@@ -12,7 +12,8 @@ import { addModifier } from "./modifiers.js";
 import {
   abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, resolveGateOpen, runFrames, startAbility, takeLifeToHand, type Sim,
 } from "./runtime.js";
-import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./state.js";
+import { alloc, fieldCards, isOnField, locate, otherSeat, placeDonFromDeck, putCard, takeCard } from "./zones.js";
+import { B, V } from "../effects/bindings.js";
 
 export function gameOver(sim: Sim, winner: Seat, reason: NonNullable<MatchState["winReason"]>): void {
   const { state } = sim;
@@ -92,7 +93,7 @@ function startNextTrigger(sim: Sim): boolean {
   const entry = abilityById(next.abilityId);
   if (!entry) return true;
   if (next.delayIndex != null) {
-    state.resolutionFrames.push({ id: alloc(state, "frame"), seat: next.seat, sourceInstanceId: next.sourceInstanceId, sourceDefId: next.sourceDefId, abilityId: next.abilityId, window: "end_of_turn", operationIndex: 0, bindings: { ...(next.vars ?? {}), _delay: next.delayIndex }, program: "ability" });
+    state.resolutionFrames.push({ id: alloc(state, "frame"), seat: next.seat, sourceInstanceId: next.sourceInstanceId, sourceDefId: next.sourceDefId, abilityId: next.abilityId, window: "end_of_turn", operationIndex: 0, bindings: { ...(next.vars ?? {}), [B.delay]: next.delayIndex }, program: "ability" });
     return true;
   }
   const loc = locate(state, next.sourceInstanceId);
@@ -100,7 +101,7 @@ function startNextTrigger(sim: Sim): boolean {
   if (entry.ability.oncePerTurn && loc?.card?.usedAbilities?.[entry.ability.id] === state.turnNumber) return true;
   // Gates that must hold when the trigger resolves, not when it was queued (an earlier [When Attacking] may change them, #609).
   if (!resolveGateOpen(state, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.eventCardId)) return true;
-  startAbility(sim, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.window, next.eventCardId ? { _event: next.eventCardId } : {});
+  startAbility(sim, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.window, next.eventCardId ? { [B.event]: next.eventCardId } : {});
   return true;
 }
 
@@ -220,7 +221,7 @@ export function declareAttack(sim: Sim, attackerId: string, target: MatchState["
   state.steps.push({ kind: "after_attack_triggers" });
   // "… cannot attack unless your opponent trashes N cards from their hand whenever they attack."
   const tax = restrictionValue(state, seat, attacker, "attack_requires_discard");
-  if (typeof tax === "number" && tax > 0) state.resolutionFrames.push({ id: alloc(state, "frame"), seat, sourceInstanceId: attacker.id, sourceDefId: attacker.defId, abilityId: "__attack_tax", window: "rule", operationIndex: 0, bindings: { _taxCount: tax }, program: "attack_tax" });
+  if (typeof tax === "number" && tax > 0) state.resolutionFrames.push({ id: alloc(state, "frame"), seat, sourceInstanceId: attacker.id, sourceDefId: attacker.defId, abilityId: "__attack_tax", window: "rule", operationIndex: 0, bindings: { [V.taxCount]: tax }, program: "attack_tax" });
 }
 
 export function declareBlock(sim: Sim, blockerId: string): void {

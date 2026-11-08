@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import get_settings
+from app.core.config import get_settings
 
 
 @pytest.fixture()
@@ -101,8 +101,29 @@ def test_postgres_urls_use_the_installed_psycopg2_driver(url):
     # but only psycopg2-binary is installed; the app must name its driver.
     from sqlalchemy import create_engine
 
-    from app.config import Settings
+    from app.core.config import Settings
 
     engine = create_engine(Settings(database_url=url).sqlalchemy_url)
     assert engine.dialect.driver == "psycopg2"
     engine.dispose()
+
+
+def test_production_rejects_ops_token_equal_to_catalog_token(prod_env, monkeypatch):
+    monkeypatch.setenv("OPS_ADMIN_TOKEN", "a-strong-sync-token")
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="OPS_ADMIN_TOKEN"):
+        get_settings()
+
+
+def test_production_rejects_default_ops_token(prod_env, monkeypatch):
+    monkeypatch.setenv("OPS_ADMIN_TOKEN", "dev-sync-token")
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="OPS_ADMIN_TOKEN"):
+        get_settings()
+
+
+def test_production_starts_with_a_distinct_ops_token_or_none(prod_env, monkeypatch):
+    assert get_settings().ops_admin_token == ""
+    monkeypatch.setenv("OPS_ADMIN_TOKEN", "a-different-strong-ops-token")
+    get_settings.cache_clear()
+    assert get_settings().ops_admin_token == "a-different-strong-ops-token"

@@ -14,6 +14,7 @@ import {
 } from "./historyApi";
 import { lessonRows } from "./lessonRow";
 import { MatchBriefSettings } from "./MatchBriefSettings";
+import { SimImportPanel } from "./SimImportPanel";
 
 const cardName = (id: string) => lookupCard(id).name || id;
 const STATUS_LABEL: Record<AnalystLessonStatus, string> = { draft: "Needs review", approved: "Approved", rejected: "Rejected" };
@@ -148,6 +149,7 @@ export function AnalystLinkPanel() {
           match ids. Turn this off and your games are left out of everyone's stats and reviews.
         </p>
       </div>
+      <SimImportPanel />
       <h3 className="analyst-subtitle">Lessons from your games</h3>
       {lessons === null ? (
         <p className="field-hint">Loading…</p>

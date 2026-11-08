@@ -1,14 +1,16 @@
+import { PageShell } from "../layout/PageShell";
 import { useCallback, useEffect, useRef, useState } from "react";
+import "./admin.css";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
-import { NavMenu } from "../nav/NavMenu";
-import { BackLink } from "../pages/BackLink";
 import {
   type AdminBots,
   type AdminHosting,
   type AdminOverview,
+  type AdminTraffic,
   fetchAdminBots,
   fetchAdminHosting,
   fetchAdminOverview,
+  fetchAdminTraffic,
 } from "./adminApi";
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
 import { Gate, useAdminWho } from "./AdminGate";
@@ -16,6 +18,7 @@ import { BotsTab } from "./BotsTab";
 import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
+import { TrafficTab } from "./TrafficTab";
 import { ReportsTab } from "./ReportsTab";
 import { UploadsTab } from "./UploadsTab";
 import { UsersTab } from "./UsersTab";
@@ -68,6 +71,8 @@ export default function AdminPage() {
   const [botsDays, setBotsDays] = useState<RangeDays>(14);
   const overview = useTabData<AdminOverview>(current === "players", () => fetchAdminOverview(overviewDays), overviewDays);
   const bots = useTabData<AdminBots>(current === "bots", () => fetchAdminBots(botsDays), botsDays);
+  const [trafficDays, setTrafficDays] = useState<RangeDays>(30);
+  const traffic = useTabData<AdminTraffic>(current === "traffic", (force) => fetchAdminTraffic(trafficDays, force), trafficDays);
   const hosting = useTabData<AdminHosting>(current === "hosting", fetchAdminHosting);
 
   if (who.status === "loading") {
@@ -89,7 +94,7 @@ export default function AdminPage() {
     );
   }
 
-  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "hosting" ? hosting : null;
+  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : null;
   const refreshing = tabData?.refreshing ?? false;
 
   function body() {
@@ -114,47 +119,43 @@ export default function AdminPage() {
       const d = s.data as AdminBots;
       return <BotsTab data={d} days={botsDays} onDaysChange={setBotsDays} stale={refreshing || d.days !== botsDays} />;
     }
+    if (current === "traffic") {
+      const d = s.data as AdminTraffic;
+      return <TrafficTab data={d} days={trafficDays} onDaysChange={setTrafficDays} stale={refreshing || d.days !== trafficDays} />;
+    }
     return <HostingTab data={s.data as AdminHosting} />;
   }
 
   return (
-    <div className="app-shell">
-      <div className="page adm-page">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/" label="Home" ariaLabel="Back to home" />
-          <h1 className="page-title">Admin</h1>
-          <span className="adm-role">{who.me.role}</span>
-        </header>
+    <PageShell pageClass="adm-page" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Admin" headerExtra={<span className="adm-role">{who.me.role}</span>}>
 
-        <TabGroup
-          selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
-          onChange={(i) => setTab(tabs[i]!.id)}
-        >
-          <div className="adm-tabbar">
-            <TabList className="adm-tabs" aria-label="Admin sections">
-              {tabs.map((t) => (
-                <Tab key={t.id} className="adm-tab">
-                  {t.label}
-                </Tab>
-              ))}
-            </TabList>
-            {tabData ? (
-              <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
-                Refresh
-              </button>
-            ) : null}
-          </div>
-
-          <TabPanels>
+      <TabGroup
+        selectedIndex={Math.max(0, tabs.findIndex((t) => t.id === current))}
+        onChange={(i) => setTab(tabs[i]!.id)}
+      >
+        <div className="adm-tabbar">
+          <TabList className="adm-tabs" aria-label="Admin sections">
             {tabs.map((t) => (
-              <TabPanel key={t.id} className="adm-body">
-                {t.id === current ? body() : null}
-              </TabPanel>
+              <Tab key={t.id} className="adm-tab">
+                {t.label}
+              </Tab>
             ))}
-          </TabPanels>
-        </TabGroup>
-      </div>
-    </div>
+          </TabList>
+          {tabData ? (
+            <button type="button" className="btn btn-secondary btn-sm adm-refresh" onClick={() => tabData.run(true)} disabled={refreshing} aria-busy={refreshing}>
+              Refresh
+            </button>
+          ) : null}
+        </div>
+
+        <TabPanels>
+          {tabs.map((t) => (
+            <TabPanel key={t.id} className="adm-body">
+              {t.id === current ? body() : null}
+            </TabPanel>
+          ))}
+        </TabPanels>
+      </TabGroup>
+    </PageShell>
   );
 }

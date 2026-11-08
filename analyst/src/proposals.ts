@@ -2,7 +2,7 @@
  * Log Pose's deck edit suggestions (#400): the chat-only propose_deck_edit tool checks a change to the deck the
  * player has open and its legality, and writes nothing. The app shows the result as an Apply card.
  */
-import { normalizeStatsCardId } from "@optcg/deck-analytics";
+import { MAIN_DECK_SIZE, normalizeCardId } from "@optcg/card-core";
 import { z } from "zod";
 import { analyzeDeck } from "./analysis";
 import type { Catalog } from "./catalog";
@@ -11,6 +11,8 @@ import type { Edit } from "./editLines";
 import { deckBanCheck } from "./knowledge";
 import type { OfficialLibrary } from "./official/library";
 import type { ToolDef } from "./server";
+import { metaFor } from "./toolMeta";
+import { jsonResult as textOf, refusalResult as refusal } from "./toolResult";
 
 export const PROPOSE_TOOL = "propose_deck_edit";
 
@@ -43,7 +45,6 @@ export const NO_DECK_ERROR =
   "No deck is open in the app (or the player hid it), so there is nothing to apply this to. Write the changes as +N / -N lines instead.";
 export const TOO_MANY_ERROR = "One suggestion per answer, please.";
 const MAX_PROPOSALS_PER_TURN = 4;
-const DECK_SIZE = 50;
 
 type Problem = { key: string; text: string };
 
@@ -67,7 +68,7 @@ export async function problemsOf(catalog: Catalog, library: OfficialLibrary | un
 function introducedProblems(before: Problem[], beforeCount: number, after: Problem[], afterCount: number): string[] {
   const had = new Set(before.map((p) => p.key));
   const added = [...new Set(after.filter((p) => !had.has(p.key)).map((p) => p.text))];
-  if (Math.abs(afterCount - DECK_SIZE) > Math.abs(beforeCount - DECK_SIZE)) added.push(`${afterCount} of ${DECK_SIZE} cards`);
+  if (Math.abs(afterCount - MAIN_DECK_SIZE) > Math.abs(beforeCount - MAIN_DECK_SIZE)) added.push(`${afterCount} of ${MAIN_DECK_SIZE} cards`);
   return added;
 }
 
@@ -78,7 +79,7 @@ export async function proposeDeckEdit(
   input: ProposalInput,
 ): Promise<ProposalResult> {
   if (!deck?.ref || !deck.leaderId) return { ok: false, error: NO_DECK_ERROR };
-  const leaderId = normalizeStatsCardId(deck.leaderId);
+  const leaderId = normalizeCardId(deck.leaderId);
   const beforeDeck = deckFromLines(catalog, deck.cards ?? [], leaderId);
   if (beforeDeck.leaderId !== leaderId) return { ok: false, error: NO_DECK_ERROR };
   const owned = new Map(beforeDeck.cards.map((c) => [c.id, c.copies]));
@@ -86,7 +87,7 @@ export async function proposeDeckEdit(
   const seen = new Set<string>();
   const lines: DeckEditProposal["lines"] = [];
   for (const c of input.changes) {
-    const id = normalizeStatsCardId(c.id);
+    const id = normalizeCardId(c.id);
     const card = catalog.cards.get(id);
     if (/^DON/i.test(id)) return { ok: false, error: `${id} is a DON!! card; DON!! changes aren't supported.` };
     if (!card) return { ok: false, error: `${id} is not a card number in the catalog. Look it up with search_cards.` };
@@ -97,7 +98,7 @@ export async function proposeDeckEdit(
     const before = owned.get(id) ?? 0;
     const after = before + c.delta;
     if (after < 0) return { ok: false, error: `The deck has only ${before} ${before === 1 ? "copy" : "copies"} of ${id} (${card.name}); can't remove ${-c.delta}.` };
-    if (after > DECK_SIZE) return { ok: false, error: `${id} would have ${after} copies; a deck holds ${DECK_SIZE} cards.` };
+    if (after > MAIN_DECK_SIZE) return { ok: false, error: `${id} would have ${after} copies; a deck holds ${MAIN_DECK_SIZE} cards.` };
     lines.push({ id, name: card.name, before, after, reason: c.reason });
   }
 
@@ -146,12 +147,12 @@ export async function checkTextEdits(
   deck: ContextDeck,
   edits: readonly Edit[],
 ): Promise<{ count: number; problems: string[] }> {
-  const leaderId = normalizeStatsCardId(deck.leaderId ?? "");
+  const leaderId = normalizeCardId(deck.leaderId ?? "");
   const beforeDeck = deckFromLines(catalog, deck.cards ?? [], leaderId);
   const next = new Map(beforeDeck.cards.map((c) => [c.id, c.copies]));
   const own: string[] = [];
   for (const e of edits) {
-    const id = normalizeStatsCardId(e.id);
+    const id = normalizeCardId(e.id);
     const card = catalog.cards.get(id);
     if (!card) {
       own.push(`${id} is not a card number`);
@@ -166,19 +167,18 @@ export async function checkTextEdits(
   const was = await problemsOf(catalog, library, beforeDeck);
   const now = await problemsOf(catalog, library, afterDeck);
   const introduced = introducedProblems(was.problems, was.count, now.problems, now.count);
-  const countText = `${now.count} of ${DECK_SIZE} cards`;
-  if (now.count !== DECK_SIZE && !introduced.includes(countText)) introduced.push(countText);
+  const countText = `${now.count} of ${MAIN_DECK_SIZE} cards`;
+  if (now.count !== MAIN_DECK_SIZE && !introduced.includes(countText)) introduced.push(countText);
   return { count: now.count, problems: [...new Set([...own, ...introduced])] };
 }
 
-const textOf = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
-const refusal = (error: string) => ({ isError: true, content: [{ type: "text" as const, text: error }] });
 
 /** The chat's propose_deck_edit tool, bound to the deck the player has open. Made fresh for every turn. */
 export function deckEditTool(catalog: Catalog, knowledge: { library?: OfficialLibrary }, deck: ContextDeck | undefined): ToolDef {
   let made = 0;
   return {
     name: PROPOSE_TOOL,
+    ...metaFor(PROPOSE_TOOL),
     title: "Suggest deck edit",
     description:
       "Suggest changes to the deck open in the app (the deck in the <context> block). By default nothing is changed: the app shows them as a card with Apply and Dismiss. " +

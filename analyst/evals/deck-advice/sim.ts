@@ -9,7 +9,7 @@
  */
 import type { BotLevel, Seat } from "@optcg/rules";
 import { playBotGame } from "@optcg/rules/src/sim/selfPlay";
-import { diffOfProportions, wilson } from "../stats";
+import { diffOfProportions, wilson } from "../qa/stats";
 
 export type SimDeck = { leaderId: string; deck: string[] };
 export type Outcome = "win" | "loss" | "unfinished";

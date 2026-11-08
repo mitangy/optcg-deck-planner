@@ -9,6 +9,8 @@
 fastapi>=0.115.0,<0.142
 uvicorn[standard]>=0.32.0,<0.55
 sqlalchemy>=2.0.36,<2.2
+# Schema migrations (backend/migrations). Not wired into startup yet; see migrations/README.md.
+alembic>=1.16.5,<2
 psycopg2-binary>=2.9.10,<3
 pydantic>=2.10.0,<3
 pydantic-settings>=2.6.0,<3
@@ -18,7 +20,3 @@ itsdangerous>=2.2.0,<3
 python-multipart>=0.0.17,<0.1
 # Optional shared state (rate limits, presence, live-game progress) when REDIS_URL is set.
 redis>=7.0,<8
-# In-memory Redis for the tests; installed with the rest so CI needs no extra step.
-fakeredis>=2.30,<3
-pytest>=8.3.0,<10
-pytest-recording>=0.13.2,<0.14

@@ -26,11 +26,11 @@ export function eventPhase(event: Pick<DuelEvent, "starts_at" | "ends_at" | "sta
 }
 
 /** The line under the title: the countdown while upcoming or live, then what happens next. */
-export function statusLine(event: Pick<DuelEvent, "starts_at" | "ends_at" | "status">, now: number): string {
+export function statusLine(event: Pick<DuelEvent, "starts_at" | "ends_at" | "status"> & Partial<Pick<DuelEvent, "prize_method">>, now: number): string {
   const phase = eventPhase(event, now);
   if (phase === "upcoming") return `Starts in ${formatCountdown(Date.parse(event.starts_at) - now)}`;
   if (phase === "live") return `Live now · ends in ${formatCountdown(Date.parse(event.ends_at) - now)}`;
-  if (phase === "ended") return "Ended · winners drawn soon";
+  if (phase === "ended") return event.prize_method === "placement" ? "Ended" : "Ended · winners drawn soon";
   return "Winners drawn";
 }
 
@@ -83,4 +83,31 @@ export function formatWindow(startsAt: string, endsAt: string, locale?: string, 
   const sameDay = day.format(start) === day.format(end);
   const tail = `${time.format(start)} – ${sameDay ? "" : `${day.format(end)}, `}${time.format(end)}${zone ? ` ${zone}` : ""}`;
   return `${day.format(start)}, ${tail}`;
+}
+
+const FORMAT_NAMES: Record<DuelEvent["format"], string> = {
+  casual: "Casual play",
+  single_elim: "Single elimination",
+  round_robin: "Round robin",
+  swiss: "Swiss",
+};
+
+/** "Single elimination · 8 players · Bo3", "Swiss · Bo1", or just "Casual play". Casual play has no matches to set a length for. */
+export function eventStyleLabel(event: Pick<DuelEvent, "format" | "bracket_size" | "best_of">): string {
+  if (event.format === "casual") return FORMAT_NAMES.casual;
+  const parts: string[] = [FORMAT_NAMES[event.format]];
+  if (event.format === "single_elim" && event.bracket_size) parts.push(`${event.bracket_size} players`);
+  parts.push(`Bo${event.best_of}`);
+  return parts.join(" · ");
+}
+
+/** The banner's prize line: a free giveaway for a draw, top finishers otherwise. An empty prize leaves just the lead-in. */
+export function prizeLine(event: Pick<DuelEvent, "prize" | "prize_method">): string {
+  const lead = event.prize_method === "draw" ? "Free giveaway" : "Prizes for the top finishers";
+  return event.prize ? `${lead} · ${event.prize}` : lead;
+}
+
+/** Whether winners come from the seeded draw (and so have a seed, a hash and eligible ids). */
+export function usesDraw(event: Pick<DuelEvent, "prize_method">): boolean {
+  return event.prize_method === "draw";
 }

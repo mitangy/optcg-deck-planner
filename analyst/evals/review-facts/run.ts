@@ -12,25 +12,22 @@
  *   --model-api anthropic|scripted
  *   --post                   send the run to the admin page as the review_facts suite (needs ANALYST_API_URL + ANALYST_SERVICE_SECRET; not in a dry run)
  */
-import Anthropic from "@anthropic-ai/sdk";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { BotLevel, MatchReplay, Seat } from "@optcg/rules";
 import { runSelfPlay } from "@optcg/rules/src/sim/selfPlay";
 import { parseJsonl } from "../../src/botGames";
 import { loadCatalog } from "../../src/catalog";
 import { anthropicModel, CHAT_MODEL } from "../../src/chat";
-import { scriptedModel, textReply } from "../scripted";
+import { anthropicClient, commonOptions, defaultVariant, metaDecksFile, modelApi, suiteOutDir } from "../shared/cli";
+import { scriptedModel, textReply } from "../qa/scripted";
 import { EXTRACTOR_MODEL, anthropicExtractor, scriptedExtractor } from "./extract";
 import { gameFacts } from "./facts";
 import { evaluateReview, scriptedReview, type ClaimRow, type ReviewRow } from "./pipeline";
-import { postEvalRun } from "../post";
+import { postEvalRun } from "../shared/post";
 import { renderReport, reviewFactsRunPayload } from "./report";
 
-const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
-const META_DECKS = "/mnt/project-files/self-play-bots/meta-decks-2026-10-18.json";
 
 const { values: f } = parseArgs({
   options: {
@@ -40,27 +37,18 @@ const { values: f } = parseArgs({
     decks: { type: "string" },
     games: { type: "string" },
     seat: { type: "string", default: "alternate" },
-    variant: { type: "string" },
+    ...commonOptions({ maxUsd: "5", concurrency: "3", timeoutS: "180" }),
     model: { type: "string" },
     "extractor-model": { type: "string" },
-    "max-usd": { type: "string", default: "5" },
-    concurrency: { type: "string", default: "3" },
-    "model-api": { type: "string", default: "anthropic" },
-    post: { type: "boolean", default: false },
   },
 });
 
-const scripted = f["model-api"] === "scripted";
-if (!scripted && f["model-api"] !== "anthropic") throw new Error("--model-api must be anthropic or scripted");
-if (!scripted && !process.env.ANTHROPIC_API_KEY) {
-  console.error("npm run eval:review-facts spends Anthropic API money and needs ANTHROPIC_API_KEY. For a free dry run use --model-api scripted.");
-  process.exit(2);
-}
+const { scripted } = modelApi(f["model-api"], { script: "eval:review-facts" });
 if (!["alternate", "0", "1", "both"].includes(f.seat!)) throw new Error("--seat must be 0, 1 or both");
 const n = Number(f.n);
 const seed = Number(f.seed);
 const maxUsd = Number(f["max-usd"]);
-const variant = f.variant ?? (scripted ? "dry-run" : "baseline");
+const variant = defaultVariant(f.variant, scripted);
 const model = f.model ?? CHAT_MODEL;
 const extractorModel = f["extractor-model"] ?? EXTRACTOR_MODEL;
 
@@ -77,7 +65,7 @@ if (f.games) {
   source = `${f.games} (${replays.length} games that replay and finished)`;
 } else {
   const [a, b] = f.levels!.split(",") as BotLevel[];
-  const deckFile = f.decks ?? (existsSync(META_DECKS) ? META_DECKS : undefined);
+  const deckFile = metaDecksFile(f.decks);
   const decks = deckFile ? JSON.parse(readFileSync(deckFile, "utf8")) : undefined;
   const made: MatchReplay[] = [];
   runSelfPlay({ games: n + Math.ceil(n / 2) + 5, seed, levels: [a ?? "normal", b ?? a ?? "normal"], decks, onReplay: (r) => made.push(r) });
@@ -87,7 +75,7 @@ if (f.games) {
 if (!replays.length) throw new Error("No finished games to review.");
 
 const catalog = loadCatalog();
-const client = scripted ? null : new Anthropic();
+const client = anthropicClient(scripted);
 const extractor = client ? anthropicExtractor(client as never, extractorModel) : scriptedExtractor;
 
 type Unit = { id: string; replay: MatchReplay; seat: Seat; index: number };
@@ -96,7 +84,7 @@ const units: Unit[] = replays.flatMap((replay, i) => {
   return seats.map((seat) => ({ id: `g${i + 1}-seed${replay.seed}-seat${seat}`, replay, seat, index: i }));
 });
 
-const dir = join(here("../out/review-facts"), variant);
+const dir = join(suiteOutDir("review-facts"), variant);
 mkdirSync(dir, { recursive: true });
 const reviewsFile = join(dir, "reviews.jsonl");
 const claimsFile = join(dir, "claims.jsonl");

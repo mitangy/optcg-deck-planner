@@ -1,0 +1,177 @@
+/* ——— Collection page (owned cards) ——— */
+.collection-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-card.collection-grid-card {
+  background: var(--surface);
+}
+
+/* No select checkbox on Collection cards, so no checkbox column either. */
+.grid-card-wrap.collection-grid-wrap {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.collection-add {
+  margin-bottom: 0.75rem;
+}
+
+/* Add and the Owned stepper share one slot so swapping them moves nothing. */
+.collection-owned-control {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 7.75rem;
+}
+
+.scan-hit-owned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0.35rem 0;
+}
+
+.collection-add .deck-editor-result-actions {
+  margin-left: auto;
+}
+
+.shopping-add {
+  margin-bottom: 0.75rem;
+}
+
+.shopping-add .deck-editor-result-actions {
+  margin-left: auto;
+}
+
+/* Add and the copies-to-buy stepper share one slot so swapping them moves nothing. */
+.shopping-extra-control {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 7.75rem;
+}
+
+.deck-editor-result-meta {
+  font-size: 0.85rem;
+}
+
+/* Inline tag on alt-art search rows; sits on the card-id line so rows keep their height. */
+.alt-art-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+/* Used-in text with a small Remove beside it; the button keeps its size as the text wraps. */
+.used-in-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  min-width: 0;
+}
+
+.used-in-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* One chip per deck the card is in (within the selected deck filter). */
+.used-in-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.used-in-chip {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--card-sunk);
+  color: var(--ink);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-card-used-in {
+  min-width: 0;
+}
+
+button.remove-extra {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  min-width: 2.75rem;
+  padding: 0.15rem 0;
+  font-size: 0.82rem;
+}
+
+.grid-card-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+/*
+ * Token bridge for the shared packages: --ui-* is the one set this app maps (the :root block
+ * below); the site-legal (--fb-*) and patch-notes (--wn-*) families alias it, and so does the
+ * Log Pose chat (--lp-*, logPose.css) wherever the values are the same.
+ */
+
+/* Deck analytics panels (packages/deck-analytics) read their own --da-* tokens: the planner's palette, light and dark. */
+:root {
+  --da-ink: var(--ink);
+  --da-muted: var(--muted);
+  --da-label: var(--label);
+  --da-line: var(--line);
+  --da-line-strong: var(--line-strong);
+  --da-card: var(--card);
+  --da-card-sunk: var(--card-sunk);
+  --da-bg-deep: var(--bg-deep);
+  --da-accent: var(--accent);
+  --da-gold: var(--gold);
+  --da-gold-bright: var(--gold-bright);
+  --da-gold-soft: var(--gold-soft);
+  --da-gold-ink: var(--gold-ink);
+  --da-violet-ink: var(--violet-ink);
+  --da-warn: var(--warn);
+  --da-warn-ink: var(--warn-ink);
+  --da-danger: var(--danger);
+  --da-shadow-lift: var(--shadow-lift);
+  --da-font-body: var(--font-body);
+  --da-font-display: var(--font-display);
+}
+
+/* Shared feedback dialog (packages/site-legal). */
+.feedback-backdrop {
+  --fb-bg: var(--ui-panel-bg);
+  --fb-ink: var(--ui-ink);
+  --fb-line: var(--ui-line);
+  --fb-field-bg: var(--ui-field-bg);
+  --fb-accent: var(--ui-primary);
+  --fb-on-accent: var(--ui-on-primary);
+  --fb-danger: var(--ui-danger);
+}

@@ -4,7 +4,9 @@ import {
   clearLocalDecks,
   ensureDefaultDeck,
   getSavedDeck,
+  getSelectedDeckId,
   listSavedDecks,
+  setSelectedDeckId,
   onLocalDecksChange,
   type LocalDeckChange,
   type SavedDeck,
@@ -109,8 +111,11 @@ function adoptIfNewer(sent: number, theirs: AccountDeck, localTime: number | und
   if (theirs.updatedAt <= sent) return;
   if (localTime !== undefined && localTime > theirs.updatedAt) return;
   const deck = fromAccount(theirs);
-  if (deck) applyRemoteDecks({ upsert: [deck], remove: [] });
-  else applyRemoteDecks({ upsert: [], remove: [theirs.id] });
+  if (deck) return applyRemoteDecks({ upsert: [deck], remove: [] });
+  // The account kept an identical synced deck instead of this one: keep the player on it.
+  const wasSelected = getSelectedDeckId() === theirs.id;
+  applyRemoteDecks({ upsert: [], remove: [theirs.id] });
+  if (wasSelected && theirs.mergedInto) setSelectedDeckId(theirs.mergedInto);
 }
 
 async function pushOne(id: string): Promise<void> {

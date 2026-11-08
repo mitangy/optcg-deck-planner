@@ -1,0 +1,168 @@
+/* ——— Theme: "chart room" ———
+   Low-key One Piece: navigator's parchment, deep-sea ink, straw-hat gold,
+   with Luffy red held back for danger / attention. Shares Fraunces + the
+   night-sea navy with duel-web so the two apps read as one crew. */
+:root {
+  --bg: #f3ecdf;
+  --bg-deep: #e8dcc6;
+  --ink: #17252e;
+  /* ≥ 6:1 on --bg-deep and --card — clears WCAG AA body text. */
+  --muted: #4b565c;
+  /* Small uppercase labels: a notch darker than --muted. */
+  --label: #3f4a50;
+  --card: #fffbf3;
+  --card-sunk: #f8f1e4;
+  --line: #ddd0b8;
+  --line-strong: #c9b793;
+  /* Aliases used by the group-buy screens (were previously undefined). */
+  --surface: var(--card);
+  --surface-2: var(--card-sunk);
+  --border: var(--line);
+  --field-bg: #fffdf8;
+  --thumb-bg: #ffffff;
+  --ok-ink: #2f6b3a;
+  --ok-bg: #eef6ee;
+  --ok-line: #6a9a6a;
+  --info-ink: #2f4f5d;
+  --info-bg: #eef4f6;
+  --info-line: #6a8f9a;
+  --violet-ink: #6b4c9a;
+  --primary-bg: var(--accent);
+  --primary-bg-hover: var(--accent-ink);
+  --primary-ink: #fffaf0;
+  color-scheme: light;
+  /* Primary = deep sea. */
+  --accent: #1d5566;
+  --accent-ink: #123a47;
+  --sea-night: #16303b;
+  --sea-night-deep: #10242d;
+  /* Straw-hat gold — highlights, active states, progress. */
+  --gold: #c4912f;
+  --gold-bright: #e2b458;
+  --gold-soft: #f6e8c6;
+  --gold-ink: #7a5614;
+  --warn: #b85f16;
+  /* --warn as text on tinted warn rows (--warn itself is 3.6:1 there). */
+  --warn-ink: #8f4a0e;
+  --need: var(--card);
+  --done: #e4efe4;
+  --done-line: #b9d3bc;
+  --danger: #a8322a;
+  --shadow: 0 1px 2px rgba(23, 37, 46, 0.05), 0 10px 28px rgba(23, 37, 46, 0.07);
+  --shadow-lift: 0 2px 4px rgba(23, 37, 46, 0.06), 0 16px 36px rgba(23, 37, 46, 0.12);
+  --focus-ring: 0 0 0 2px var(--card), 0 0 0 4px var(--gold);
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  /* Faint compass rose + sea-chart graticule behind everything. */
+  --compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%2316303b' stroke-opacity='.075'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3Cpath d='M100 14l9 77 77 9-77 9-9 77-9-77-77-9 77-9z' fill='%2316303b' fill-opacity='.03'/%3E%3C/svg%3E");
+  --page-bg:
+    var(--compass) right -140px top -120px / 520px 520px no-repeat,
+    repeating-linear-gradient(0deg, rgba(22, 48, 59, 0.028) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(90deg, rgba(22, 48, 59, 0.028) 0 1px, transparent 1px 72px),
+    radial-gradient(ellipse at top left, rgba(226, 180, 88, 0.14), transparent 45%),
+    linear-gradient(180deg, #f6f0e5 0%, var(--bg) 40%, var(--bg-deep) 100%);
+  font-family: var(--font-body);
+  color: var(--ink);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Dark: "night voyage" ———
+   Follows the OS unless the header toggle pins light/dark (data-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1c23;
+    --bg-deep: #0b161c;
+    --ink: #ece3cf;
+    --muted: #a3afb3;
+    --label: #b4bec1;
+    --card: #15252d;
+    --card-sunk: #1a2c35;
+    --line: #2a404b;
+    --line-strong: #3c5763;
+    --accent: #7dbccc;
+    --accent-ink: #a9d6e1;
+    --gold: #d2a54d;
+    --gold-bright: #f0cf7e;
+    --gold-soft: #33290f;
+    --gold-ink: #e9c877;
+    --warn: #e0954a;
+    --warn-ink: #e0954a;
+    --done: #15301f;
+    --done-line: #2b5a3d;
+    --danger: #ec7a6e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.3);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 36px rgba(0, 0, 0, 0.45);
+    --field-bg: #0f1d24;
+    --thumb-bg: #0f1d24;
+    --ok-ink: #86cf9b;
+    --ok-bg: #16301f;
+    --ok-line: #3b7a52;
+    --info-ink: #9cc9d6;
+    --info-bg: #142a33;
+    --info-line: #3f6b79;
+    --violet-ink: #bda3e3;
+    /* Gold primary on the dark sea, as in duel-web. */
+    --primary-bg: var(--gold);
+    --primary-bg-hover: var(--gold-bright);
+    --primary-ink: #1b1405;
+    --compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23d2a54d' stroke-opacity='.08'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3Cpath d='M100 14l9 77 77 9-77 9-9 77-9-77-77-9 77-9z' fill='%23d2a54d' fill-opacity='.03'/%3E%3C/svg%3E");
+    --page-bg:
+      var(--compass) right -140px top -120px / 520px 520px no-repeat,
+      repeating-linear-gradient(0deg, rgba(210, 165, 77, 0.03) 0 1px, transparent 1px 72px),
+      repeating-linear-gradient(90deg, rgba(210, 165, 77, 0.03) 0 1px, transparent 1px 72px),
+      radial-gradient(ellipse at top left, rgba(47, 111, 134, 0.22), transparent 50%),
+      linear-gradient(180deg, #11212a 0%, var(--bg) 40%, var(--bg-deep) 100%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1c23;
+  --bg-deep: #0b161c;
+  --ink: #ece3cf;
+  --muted: #a3afb3;
+  --label: #b4bec1;
+  --card: #15252d;
+  --card-sunk: #1a2c35;
+  --line: #2a404b;
+  --line-strong: #3c5763;
+  --accent: #7dbccc;
+  --accent-ink: #a9d6e1;
+  --gold: #d2a54d;
+  --gold-bright: #f0cf7e;
+  --gold-soft: #33290f;
+  --gold-ink: #e9c877;
+  --warn: #e0954a;
+  --warn-ink: #e0954a;
+  --done: #15301f;
+  --done-line: #2b5a3d;
+  --danger: #ec7a6e;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.3);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 36px rgba(0, 0, 0, 0.45);
+  --field-bg: #0f1d24;
+  --thumb-bg: #0f1d24;
+  --ok-ink: #86cf9b;
+  --ok-bg: #16301f;
+  --ok-line: #3b7a52;
+  --info-ink: #9cc9d6;
+  --info-bg: #142a33;
+  --info-line: #3f6b79;
+  --violet-ink: #bda3e3;
+  /* Gold primary on the dark sea, as in duel-web. */
+  --primary-bg: var(--gold);
+  --primary-bg-hover: var(--gold-bright);
+  --primary-ink: #1b1405;
+  --compass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23d2a54d' stroke-opacity='.08'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3Cpath d='M100 14l9 77 77 9-77 9-9 77-9-77-77-9 77-9z' fill='%23d2a54d' fill-opacity='.03'/%3E%3C/svg%3E");
+  --page-bg:
+    var(--compass) right -140px top -120px / 520px 520px no-repeat,
+    repeating-linear-gradient(0deg, rgba(210, 165, 77, 0.03) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(90deg, rgba(210, 165, 77, 0.03) 0 1px, transparent 1px 72px),
+    radial-gradient(ellipse at top left, rgba(47, 111, 134, 0.22), transparent 50%),
+    linear-gradient(180deg, #11212a 0%, var(--bg) 40%, var(--bg-deep) 100%);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}

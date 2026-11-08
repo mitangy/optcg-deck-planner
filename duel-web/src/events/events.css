@@ -6,7 +6,7 @@
   gap: 0.3rem;
   min-width: 0;
   padding: 0.8rem 0.9rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border: 1px solid var(--line-strong);
   background:
     linear-gradient(90deg, rgb(var(--chrome-rgb) / 0.14), transparent 75%),
@@ -41,6 +41,7 @@
 }
 
 .event-when,
+.event-style,
 .event-prize {
   margin: 0;
   font-size: 0.8rem;
@@ -57,7 +58,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 2.6rem;
   margin-top: 0.2rem;
   min-width: 0;
@@ -107,7 +108,7 @@
 .event-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: var(--z-moved);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -123,7 +124,7 @@
   overflow-y: auto;
   background: var(--arena-panel);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   padding: 1.1rem;
   color: var(--ink);
 }
@@ -173,7 +174,7 @@
 .event-dialog-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .event-dialog-actions .btn {
@@ -198,7 +199,7 @@
 .rules-hash {
   display: block;
   padding: 0.5rem 0.7rem;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   border: 1px solid var(--line);
   background: rgb(var(--panel-rgb) / 0.6);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -209,4 +210,9 @@
 
 .rules-caps {
   font-weight: 700;
+}
+
+/* The admin's description keeps its line breaks. */
+.rules-description {
+  white-space: pre-line;
 }

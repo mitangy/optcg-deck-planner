@@ -1,5 +1,5 @@
 /** Grades the game off the page's thread (#967): the bots' analysis is seconds of work for a whole game. */
-import { createGameReviewer } from "@optcg/rules/gameReview";
+import { createGameReviewer } from "@optcg/rules/review/gameReview";
 import { REVIEW_SLICE, type ReviewMessage, type ReviewRequest } from "./reviewProtocol";
 
 const post = (m: ReviewMessage) => (self as unknown as { postMessage(m: ReviewMessage): void }).postMessage(m);

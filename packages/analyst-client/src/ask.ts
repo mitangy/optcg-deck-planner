@@ -1,9 +1,10 @@
 /** Asking Log Pose a ready-made question from elsewhere in the app (React-free, so it can be tested in node). */
+import { HINT_CARD_ID_MAX, HINT_LIMITS, type HintContext } from "@optcg/analyst-contract";
 import type { ChatContext, DeckContext, GameChatContext } from "./client";
 import type { LogPosePage } from "./LogPose";
 
-/** A build hint, as the deck hints UI shows it. */
-export type HintContext = { id: string; tier: "rule" | "shape" | "synergy"; title: string; detail: string; cardIds?: string[] };
+/** The hint type and its limits live in the contract package; the apps and tests import them from here. */
+export { HINT_LIMITS, type HintContext };
 
 export type LogPoseAsk = {
   /** The question, as the player's message (or the composer text when it isn't sent). */
@@ -14,9 +15,6 @@ export type LogPoseAsk = {
   send?: boolean;
 };
 
-/** Must equal the zod limits of the hint context in analyst/src/chat.ts, or the analyst answers 400. */
-export const HINT_LIMITS = { id: 80, title: 200, detail: 600, cards: 20 };
-const CARD_ID_MAX = 20;
 
 /** The question for a build hint, with the hint cut to what the analyst accepts. */
 export function hintAsk(h: HintContext): LogPoseAsk {
@@ -27,7 +25,7 @@ export function hintAsk(h: HintContext): LogPoseAsk {
     title,
     detail: h.detail.slice(0, HINT_LIMITS.detail),
   };
-  if (h.cardIds?.length) hint.cardIds = h.cardIds.slice(0, HINT_LIMITS.cards).map((c) => c.slice(0, CARD_ID_MAX));
+  if (h.cardIds?.length) hint.cardIds = h.cardIds.slice(0, HINT_LIMITS.cards).map((c) => c.slice(0, HINT_CARD_ID_MAX));
   return { prompt: `Why does my deck show the “${title}” hint, and what would you change?`, context: { hint } };
 }
 

@@ -9,11 +9,21 @@
     "preview": "vite preview",
     "test": "vitest run",
     "layout-check": "node scripts/layout-check.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit && tsc -p e2e"
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.2",
     "@headlessui/react": "^2.2.10",
+    "@optcg/analyst-client": "*",
+    "@optcg/api-client": "*",
+    "@optcg/card-core": "*",
+    "@optcg/deck-analytics": "*",
+    "@optcg/duel-protocol": "*",
+    "@optcg/patch-notes": "*",
+    "@optcg/rules": "*",
+    "@optcg/site-legal": "*",
+    "@optcg/ui": "*",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "react": "^19.0.0",
@@ -24,11 +34,11 @@
     "@playwright/test": "1.56.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^4.7.0",
     "jsdom": "^26.1.0",
     "playwright": "1.56.1",
     "typescript": "~5.7.2",
-    "vite": "^6.0.0",
+    "vite": "^7.3.6",
     "vitest": "^3.2.7"
   }
 }

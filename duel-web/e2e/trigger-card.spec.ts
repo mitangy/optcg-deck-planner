@@ -79,6 +79,8 @@ test("Activate Trigger and Add to hand answer the Life check (#495)", async ({ p
 
 test("No Trigger always declines (#495)", async ({ page }) => {
   await page.goto("/demo?prompt=notrigger");
+  // The board loads on demand, so wait for the Life check before pressing the key.
+  await expect(page.locator(".life-trigger-card")).toBeVisible();
   await page.keyboard.press("y");
   await expect.poll(() => sent(page)).toEqual([{ type: "resolve_pending_choice", accept: false }]);
 });

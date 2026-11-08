@@ -9,7 +9,7 @@
   min-width: 1.05rem;
   height: 1.05rem;
   padding: 0 0.28rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--danger);
   color: #fff;
   font-size: 0.66rem;
@@ -45,7 +45,7 @@
 
 .friends-grid {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
@@ -58,7 +58,7 @@
 
 .friends-col {
   display: grid;
-  gap: 1rem;
+  gap: var(--space-4);
   min-width: 0;
   align-content: start;
 }
@@ -67,7 +67,7 @@
   min-width: 0;
   padding: 1rem;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-16);
   background: var(--card);
   box-shadow: var(--shadow);
 }
@@ -85,7 +85,7 @@
   margin: 0 0 0.75rem;
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--info-line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--info-bg);
   color: var(--info-ink);
 }
@@ -108,11 +108,11 @@
 /* Tabs: equal widths, so a count appearing never resizes the trigger. */
 .friend-tabs {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   max-width: 30rem;
   margin: 0 0 1rem;
   padding: 0.25rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--bg-deep);
 }
 
@@ -126,7 +126,7 @@
   gap: 0.4rem;
   padding: 0.3rem 0.5rem;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-9);
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -143,7 +143,7 @@
 .friend-tab-count {
   min-width: 1.15rem;
   padding: 0 0.3rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--gold-soft);
   color: var(--gold-ink);
   font-size: 0.72rem;
@@ -171,7 +171,7 @@
   min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--field-bg);
   color: var(--ink);
   font: inherit;
@@ -193,7 +193,7 @@
 
 .friend-inline {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -233,7 +233,7 @@
 .sharing-prompt-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .sharing-prompt-actions .btn {
@@ -293,11 +293,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 3rem;
   min-width: 0;
   padding: 0.3rem 0.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
 }
 
 .friend-list-row:hover {
@@ -327,7 +327,7 @@
   place-items: center;
   width: 2.1rem;
   height: 2.1rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background: var(--sea-night);
   color: var(--gold-bright);
   font-weight: 700;
@@ -337,7 +337,7 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .friend-empty {
@@ -361,7 +361,7 @@
   min-width: 0;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-14);
   background: var(--card);
 }
 
@@ -379,7 +379,7 @@
 .friend-card-art .thumb-btn .thumb {
   width: 52px;
   height: 73px;
-  border-radius: 6px;
+  border-radius: var(--radius-6);
 }
 
 .friend-card-info {
@@ -400,7 +400,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -431,7 +431,7 @@
 .keep-control {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .keep-label {
@@ -490,7 +490,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0 0 0.9rem;
   min-width: 0;
 }
@@ -585,7 +585,7 @@
 
 .trade-list {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -613,7 +613,7 @@
 
 .trade-status {
   padding: 0.1rem 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-deep);
   color: var(--muted);
   font-size: 0.78rem;
@@ -634,7 +634,7 @@
 .trade-sides {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 @media (max-width: 640px) {
@@ -647,7 +647,7 @@
 .tray-group h3 {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0 0 0.4rem;
   padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--line);
@@ -662,7 +662,7 @@
 .trade-lines,
 .tray-lines {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -680,7 +680,7 @@
 .tray-line .thumb {
   width: 38px;
   height: 53px;
-  border-radius: 5px;
+  border-radius: var(--radius-5);
 }
 
 .trade-line-text {
@@ -739,7 +739,7 @@ body:has(.trade-tray) {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 45;
+  z-index: var(--z-prompt);
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--line-strong);
@@ -758,7 +758,7 @@ body:has(.trade-tray) {
 
 .trade-tray-panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   max-height: min(62dvh, 30rem);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -768,7 +768,7 @@ body:has(.trade-tray) {
 .tray-groups {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .tray-none {
@@ -782,7 +782,7 @@ body:has(.trade-tray) {
 .trade-tray-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 3.75rem;
 }
 
@@ -793,7 +793,7 @@ body:has(.trade-tray) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: "title chevron" "sums chevron";
-  column-gap: 0.5rem;
+  column-gap: var(--space-2);
   align-items: center;
   padding: 0.2rem 0.5rem;
   border: none;

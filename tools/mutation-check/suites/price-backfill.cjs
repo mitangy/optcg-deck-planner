@@ -1,7 +1,7 @@
-/** Price history backfill script mutations (scripts/test_backfill_price_history.py, unittest) (#950). */
-const F = "scripts/backfill_price_history.py";
+/** Price history backfill script mutations (backend/scripts/test_backfill_price_history.py, unittest) (#950). */
+const F = "backend/scripts/backfill_price_history.py";
 module.exports = {
-  cwd: "scripts",
+  cwd: "backend/scripts",
   runner: "unittest",
   module: "test_backfill_price_history",
   mutations: [

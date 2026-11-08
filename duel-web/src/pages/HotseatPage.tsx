@@ -1,148 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getApiBaseUrl, rewriteLoopbackToPageHost } from "../config";
 import { DuelBoard } from "../board/DuelBoard";
-import { applyHotseatAutoPass } from "../board/hotseatAutoPass";
-import { hotseatControlSeat } from "../board/hotseatControlSeat";
-import {
-  indexViewInstances,
-  narrateEvents,
-  rewindBattleLog,
-  type BattleLogEntry,
-  type InstanceIndex,
-} from "../board/battleLog";
 import {
   initSeatArtPrefsFromStorage,
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import { awaitDuelServicesReady, hotseatGuestId, mintGuestGameToken, mintOwnerToken } from "../net/api";
-import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
+import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
 import { rematchDeckOptions } from "../decks/rematchDecks";
-import { DuelClient } from "../net/duelClient";
-import { gameServerUrlFor, rememberedGameServerUrl } from "../net/gameServer";
-import {
-  clearMatchResume,
-  isResumeWithinGrace,
-  isSeatReservationExpiredError,
-  loadMatchResume,
-  saveMatchResume,
-  seatReservationUserMessage,
-  touchMatchResume,
-  type HotseatResumeBlob,
-} from "../net/matchResume";
-import type {
-  BriefTicketWire,
-  Intent,
-  MatchOverMessage,
-  PlayerView,
-  RematchAction,
-  RematchState,
-  Seat,
-  UndoState,
-} from "../net/protocol";
-
-type HotseatNavState = {
-  serverUrl: string;
-  secret?: string;
-  userKey: string;
-  useToken: boolean;
-  deckWire: { leaderId: string; deck: string[] };
-  deckName: string;
-  /** Opponent deck for vs-self; falls back to `deckWire` when omitted (legacy resume). */
-  enemyDeckWire?: { leaderId: string; deck: string[] };
-  enemyDeckName?: string;
-  /** Optional tokens minted on the lobby (avoids cold-start race on this page). */
-  seatTokens?: [string, string];
-  /** Signed-in account that owns both seats: its token rides on the joins so the match can move devices (#451). */
-  owner?: "session" | "dev";
-  /** Take over both seats of a practice match running on another device (#451). */
-  takeover?: { roomId: string };
-};
-
-type SeatBag = {
-  client: DuelClient;
-  seat: Seat;
-  view: PlayerView | null;
-  matchOver: MatchOverMessage["result"] | null;
-  error: string | null;
-  connected: boolean;
-  battleLog: BattleLogEntry[];
-  undo?: UndoState | null;
-  rematch?: RematchState | null;
-  /** Board instance ids → cards (lazily created) so log lines name attackers. */
-  instances?: InstanceIndex;
-  /** Seat 0's matchup-brief ticket and whether the room is ranked, from its welcome. */
-  brief?: BriefTicketWire | null;
-  ranked?: boolean | null;
-  /** How the current game's turn order was decided (null = coin flip), from seat 0's welcome. */
-  firstSeatPickedBy?: Seat | null;
-};
-
-function navFromResume(blob: HotseatResumeBlob): HotseatNavState {
-  return {
-    serverUrl: blob.serverUrl,
-    secret: blob.secret,
-    userKey: blob.userKey,
-    useToken: blob.useToken,
-    deckWire: blob.deckWire,
-    deckName: blob.deckName,
-    enemyDeckWire: blob.enemyDeckWire,
-    enemyDeckName: blob.enemyDeckName,
-    owner: blob.owner,
-  };
-}
-
-/**
- * Park live hotseat sockets across React StrictMode remounts so we do not
- * soft-disconnect + reclaim (which rotates Colyseus reconnection tokens).
- * A deferred teardown still runs if the page truly leaves hotseat.
- */
-type ParkedHotseat = {
-  bags: [SeatBag, SeatBag];
-  matchId: string;
-  activeSeat: Seat;
-  timer: ReturnType<typeof setTimeout> | null;
-};
-let parkedHotseat: ParkedHotseat | null = null;
-
-function clearParkedTeardown() {
-  if (parkedHotseat?.timer) {
-    clearTimeout(parkedHotseat.timer);
-    parkedHotseat.timer = null;
-  }
-}
-
-function disposeParked(consented: boolean) {
-  clearParkedTeardown();
-  const bags = parkedHotseat?.bags;
-  parkedHotseat = null;
-  if (!bags) return;
-  for (const b of bags) void b.client.disconnect(consented);
-}
-
-function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(
-      () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
-      ms,
-    );
-    p.then(
-      (v) => {
-        window.clearTimeout(timer);
-        resolve(v);
-      },
-      (e) => {
-        window.clearTimeout(timer);
-        reject(e);
-      },
-    );
-  });
-}
+import { loadMatchResume, touchMatchResume } from "../net/matchResume";
+import type { Intent, RematchAction, Seat } from "../net/protocol";
+import { HotseatSession, hasParkedHotseat, type HotseatNavState } from "../state/HotseatSession";
 
 /**
  * One browser, two seats — pass the device between turns.
  * Refresh auto-reconnects both seats from the sessionStorage resume blob.
+ * Boot, sockets, resume and StrictMode parking live in state/HotseatSession.ts; this page renders the seat
+ * whose turn it is from that session's per-seat match stores.
  */
 export function HotseatPage() {
   const navigate = useNavigate();
@@ -161,19 +35,6 @@ export function HotseatPage() {
   );
   const resumeHotseat = resumeOnMount.current;
 
-  const navRef = useRef<HotseatNavState | null>(
-    resumeHotseat ? navFromResume(resumeHotseat) : navFromRoute,
-  );
-  // Fresh lobby navigation (blob cleared before navigate) updates nav once.
-  // Only a new navigation replaces nav: "Play here instead" edits it in place.
-  const routeSeenRef = useRef<HotseatNavState | null>(null);
-  if (navFromRoute && !resumeHotseat && routeSeenRef.current !== navFromRoute) {
-    routeSeenRef.current = navFromRoute;
-    navRef.current = navFromRoute;
-  }
-  const nav = navRef.current;
-
-  const [activeSeat, setActiveSeat] = useState<Seat>(resumeHotseat?.activeSeat ?? 0);
   const [matchId, setMatchId] = useState<string | null>(resumeHotseat?.roomId ?? null);
   const [bootError, setBootError] = useState<string | null>(null);
   /** Bump to remount the boot effect for Retry (fresh match). */
@@ -182,609 +43,33 @@ export function HotseatPage() {
   const [resuming, setResuming] = useState(Boolean(resumeHotseat));
   /** Another device took this practice match over (#451). */
   const [takenOver, setTakenOver] = useState(false);
-  const takenOverRef = useRef(false);
   /** Extra boot phase label (waking servers / minting) for the Starting screen. */
   const [bootPhase, setBootPhase] = useState<string | null>(null);
-  const bags = useRef<[SeatBag | null, SeatBag | null]>([null, null]);
-  const [viewTick, bump] = useState(0);
-  const bootGen = useRef(0);
-  /** When true, skip resume persist + socket park so Leave / Back can exit. */
-  const leavingRef = useRef(false);
-  const activeSeatRef = useRef(activeSeat);
-  activeSeatRef.current = activeSeat;
-  const lastNeededSeatRef = useRef<Seat | null>(null);
-  const manualPassRef = useRef(false);
-  const matchIdRef = useRef(matchId);
-  matchIdRef.current = matchId;
 
-  function persistResume() {
-    // A takeover launch has no deck to resume from; the lobby card brings it back.
-    if (leavingRef.current || !nav || nav.takeover || takenOverRef.current) return;
-    const [b0, b1] = bags.current;
-    const t0 = b0?.client.getReconnectionToken();
-    const t1 = b1?.client.getReconnectionToken();
-    const room = matchIdRef.current ?? b0?.client.roomId;
-    if (!t0 || !t1 || !room) return;
-    saveMatchResume({
-      mode: "hotseat",
-      // The server seat 0 created / rejoined the match on, so a reload goes back to that pool.
-      serverUrl: rewriteLoopbackToPageHost(b0?.client.serverUrl ?? nav.serverUrl),
-      roomId: room,
-      secret: nav.secret,
-      userKey: nav.userKey,
-      useToken: nav.useToken,
-      deckWire: nav.deckWire,
-      deckName: nav.deckName,
-      enemyDeckWire: nav.enemyDeckWire,
-      enemyDeckName: nav.enemyDeckName,
-      owner: nav.owner,
-      seats: [{ reconnectionToken: t0 }, { reconnectionToken: t1 }],
-      activeSeat: activeSeatRef.current,
-      savedAt: Date.now(),
-    });
+  const sessionRef = useRef<HotseatSession | null>(null);
+  if (!sessionRef.current) {
+    sessionRef.current = new HotseatSession(
+      { setMatchId, setResuming, setReady, setBootError, setBootPhase, setTakenOver },
+      { routeNav: navFromRoute, resume: resumeHotseat },
+    );
   }
+  const session = sessionRef.current;
+  // Fresh lobby navigation (blob cleared before navigate) updates nav once.
+  // Only a new navigation replaces nav: "Play here instead" edits it in place.
+  session.noteRouteNav(navFromRoute);
+  const nav = session.nav;
+  // Re-render on any change to either seat's match store (or when the seats are replaced).
+  useSyncExternalStore(session.subscribe, session.getVersion, session.getVersion);
+  // The session moves the device to the seat that has to act before the page renders that seat's view.
+  const activeSeat = session.activeSeat;
 
   useEffect(() => {
-    if (!nav) {
+    if (!session.nav) {
       navigate("/", { replace: true });
       return;
     }
-
-    clearParkedTeardown();
-
-    const gen = ++bootGen.current;
-    let cancelled = false;
-    const clients: DuelClient[] = [];
-
-    const alive = () => !cancelled && gen === bootGen.current;
-
-    function bindBagHandlers(bag: SeatBag) {
-      bag.client.setHandlers({
-        onWelcome: ({ matchId: id, view, ranked, brief, firstSeatPickedBy }) => {
-          // The brief is always from seat 0's side (the player's deck against the practice opponent).
-          if (bag.seat === 0) {
-            bag.firstSeatPickedBy = firstSeatPickedBy;
-            bag.ranked = typeof ranked === "boolean" ? ranked : null;
-            bag.brief = ranked === false ? (brief ?? null) : null;
-          }
-          // Always stash view so StrictMode park/reclaim keeps boards even
-          // when this mount was already cancelled.
-          const rematchStarted = bag.matchOver != null;
-          bag.view = view;
-          bag.connected = true;
-          // A rematch reuses the room: drop the finished game's result + log.
-          if (rematchStarted) {
-            bag.matchOver = null;
-            bag.rematch = null;
-            bag.battleLog = [];
-            bag.instances = new Map();
-          }
-          if (!alive()) return;
-          setMatchId(id);
-          matchIdRef.current = id;
-          bump((n) => n + 1);
-          persistResume();
-        },
-        onView: (view) => {
-          bag.view = view;
-          indexViewInstances(view, (bag.instances ??= new Map()));
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onEvents: (events, step) => {
-          const turn = bag.view?.turnNumber ?? 1;
-          const instances = (bag.instances ??= new Map());
-          indexViewInstances(bag.view, instances);
-          const lines = narrateEvents(events, {
-            youSeat: bag.seat,
-            turnNumber: turn,
-            instances,
-          });
-          if (lines.length) {
-            const stamped = step === undefined ? lines : lines.map((l) => ({ ...l, step }));
-            bag.battleLog = [...bag.battleLog, ...stamped];
-          }
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onMatchOver: (msg) => {
-          bag.matchOver = msg.result;
-          if (!alive()) return;
-          clearMatchResume();
-          bump((n) => n + 1);
-        },
-        onError: (err) => {
-          // Colyseus seat-reservation races are recovered via reconnect/mint —
-          // never pin them on the board banner.
-          if (isSeatReservationExpiredError(err.message)) return;
-          bag.error = `${err.code}: ${err.message}`;
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onStaleIllegalIntent: () => {
-          if (!bag.error?.startsWith("illegal_intent:")) return;
-          bag.error = null;
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onUndoState: (state) => {
-          bag.undo = state;
-          // Both seats are this player: the other seat's client accepts at once.
-          if (state.pending && state.pending.from !== bag.seat) {
-            try {
-              bag.client.sendUndo("accept", { id: state.pending.id });
-            } catch {
-              /* socket gone; the request lapses */
-            }
-          }
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onRematchState: (state) => {
-          bag.rematch = state;
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onUndoApplied: ({ toTurn, toStep, by, action, scope }) => {
-          bag.battleLog = rewindBattleLog(bag.battleLog, toTurn, by, bag.seat, toStep, action?.label, scope === "turn");
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onTakenOver: () => {
-          bag.connected = false;
-          takenOverRef.current = true;
-          clearMatchResume();
-          if (!alive()) return;
-          setTakenOver(true);
-          bump((n) => n + 1);
-        },
-        onDisconnect: () => {
-          bag.connected = false;
-          if (!alive()) return;
-          bump((n) => n + 1);
-        },
-        onReconnectionToken: () => {
-          if (!alive()) return;
-          persistResume();
-        },
-      });
-    }
-
-    async function waitViews(bag0: SeatBag, bag1: SeatBag, ms = 15000) {
-      const deadline = Date.now() + ms;
-      while (Date.now() < deadline && (!bag0.view || !bag1.view)) {
-        if (!alive()) return false;
-        await new Promise((r) => setTimeout(r, 50));
-      }
-      return Boolean(bag0.view && bag1.view);
-    }
-
-    // Reclaim sockets parked by StrictMode remount — avoids token rotation.
-    // Only reclaim healthy (still connected) bags. Stale parked bags with
-    // views but dead sockets used to mark ready and hang; disconnected bags
-    // fall through to a fresh boot instead of waiting out the watchdog.
-    if (parkedHotseat?.matchId && parkedHotseat.bags[0] && parkedHotseat.bags[1]) {
-      const parked = parkedHotseat;
-      parkedHotseat = null;
-      const healthy = parked.bags[0].connected && parked.bags[1].connected;
-      if (!healthy) {
-        for (const bag of parked.bags) void bag.client.disconnect(true);
-      } else {
-        bags.current = parked.bags;
-        setMatchId(parked.matchId);
-        matchIdRef.current = parked.matchId;
-        setActiveSeat(parked.activeSeat);
-        activeSeatRef.current = parked.activeSeat;
-        setResuming(true);
-        for (const bag of parked.bags) {
-          clients.push(bag.client);
-          bindBagHandlers(bag);
-        }
-        void (async () => {
-          if (parked.bags[0].view && parked.bags[1].view) {
-            if (!alive()) return;
-            setResuming(false);
-            setReady(true);
-            return;
-          }
-          const ok = await waitViews(parked.bags[0], parked.bags[1], 8000);
-          if (!alive()) return;
-          if (!ok || !parked.bags[0].connected || !parked.bags[1].connected) {
-            for (const bag of parked.bags) void bag.client.disconnect(true);
-            bags.current = [null, null];
-            clearMatchResume();
-            setResuming(false);
-            setBootError("Hotseat reconnected but lost the board — try again");
-            return;
-          }
-          setResuming(false);
-          setReady(true);
-        })();
-        return () => {
-          cancelled = true;
-          if (leavingRef.current) {
-            matchIdRef.current = null;
-            bags.current = [null, null];
-            disposeParked(true);
-            for (const c of clients) void c.disconnect(true);
-            return;
-          }
-          const [b0, b1] = bags.current;
-          if (b0 && b1 && matchIdRef.current && b0.connected && b1.connected) {
-            parkedHotseat = {
-              bags: [b0, b1],
-              matchId: matchIdRef.current,
-              activeSeat: activeSeatRef.current,
-              timer: setTimeout(() => disposeParked(false), 2000),
-            };
-          } else {
-            for (const c of clients) void c.disconnect(true);
-          }
-        };
-      }
-    }
-
-    function wireBag(client: DuelClient, bag: SeatBag) {
-      void client;
-      bindBagHandlers(bag);
-    }
-
-    /** Move both seats of a live practice match here: same account, a seat each. */
-    async function bootTakeover(roomId: string) {
-      clearMatchResume();
-      takenOverRef.current = false;
-      const gsUrl = rewriteLoopbackToPageHost(nav!.serverUrl);
-      setBootPhase("Moving the match here…");
-      const gameToken = await mintOwnerToken(nav!.owner, nav!.userKey);
-      if (!gameToken) throw new Error("Sign in to move a match to this device.");
-      if (!alive()) return;
-      const made = ([0, 1] as const).map((seat) => {
-        const client = new DuelClient();
-        clients.push(client);
-        const bag: SeatBag = {
-          client,
-          seat,
-          view: null,
-          matchOver: null,
-          error: null,
-          connected: false,
-          battleLog: [],
-        };
-        wireBag(client, bag);
-        return bag;
-      }) as [SeatBag, SeatBag];
-      bags.current = made;
-      for (const bag of made) {
-        await withTimeout(
-          bag.client.connect({
-            serverUrl: gsUrl,
-            gameToken,
-            secret: nav!.secret,
-            roomId,
-            preferredSeat: bag.seat,
-            takeover: true,
-          }),
-          50000,
-          `Hotseat seat ${bag.seat} takeover`,
-        );
-        if (!alive()) return;
-      }
-      setMatchId(roomId);
-      matchIdRef.current = roomId;
-      setBootPhase(null);
-      if (!(await waitViews(made[0], made[1], 10000))) {
-        if (!alive()) return;
-        throw new Error("Moved the match but never received board views");
-      }
-      if (!alive()) return;
-      setResuming(false);
-      setReady(true);
-    }
-
-    async function boot() {
-      try {
-        if (nav!.takeover) {
-          await bootTakeover(nav!.takeover.roomId);
-          return;
-        }
-        // Prefer the mount-time resume blob even when history.state is present
-        // (browser refresh keeps location.state on the history entry).
-        // Skip resume outside Colyseus grace — doomed "seat reservation expired"
-        // attempts previously burned the watchdog before a fresh mint.
-        const shouldResume =
-          resumeHotseat && isResumeWithinGrace(resumeHotseat.savedAt)
-            ? resumeHotseat
-            : null;
-        if (resumeHotseat && !shouldResume) {
-          clearMatchResume();
-          resumeOnMount.current = null;
-          console.warn("[hotseat] resume blob past reconnect grace; starting fresh");
-        }
-        // Lobby / resume may bake localhost; rewrite when the SPA is on a
-        // non-loopback host so mint + matchmake hit this machine's game server.
-        const gsUrl = rewriteLoopbackToPageHost(nav!.serverUrl);
-
-        if (shouldResume) {
-          setResuming(true);
-          const resumeUrl = rewriteLoopbackToPageHost(shouldResume.serverUrl);
-          const c0 = new DuelClient();
-          const c1 = new DuelClient();
-          clients.push(c0, c1);
-          const bag0: SeatBag = {
-            client: c0,
-            seat: 0,
-            view: null,
-            matchOver: null,
-            error: null,
-            connected: false,
-            battleLog: [],
-          };
-          const bag1: SeatBag = {
-            client: c1,
-            seat: 1,
-            view: null,
-            matchOver: null,
-            error: null,
-            connected: false,
-            battleLog: [],
-          };
-          bags.current = [bag0, bag1];
-          wireBag(c0, bag0);
-          wireBag(c1, bag1);
-
-          try {
-            // Brief pause so the server's onDrop → allowReconnection is armed
-            // after a hard refresh (WS drop). Reclaim seats one at a time.
-            await new Promise((r) => setTimeout(r, 150));
-            if (!alive()) return;
-            // Keep resume attempts short so a dead token falls through quickly
-            // to a fresh mint instead of eating the whole boot budget.
-            const w0 = await withTimeout(
-              c0.reconnect({
-                serverUrl: resumeUrl,
-                reconnectionToken: shouldResume.seats[0].reconnectionToken,
-                attempts: 2,
-              }),
-              4000,
-              "Hotseat seat 0 reconnect",
-            );
-            if (!alive()) return;
-            const w1 = await withTimeout(
-              c1.reconnect({
-                serverUrl: resumeUrl,
-                reconnectionToken: shouldResume.seats[1].reconnectionToken,
-                attempts: 2,
-              }),
-              4000,
-              "Hotseat seat 1 reconnect",
-            );
-            if (!alive()) return;
-            if (w0.matchId !== w1.matchId) {
-              throw new Error("Hotseat seats reconnected to different rooms");
-            }
-            setMatchId(w0.matchId);
-            matchIdRef.current = w0.matchId;
-            if (shouldResume.activeSeat === 0 || shouldResume.activeSeat === 1) {
-              setActiveSeat(shouldResume.activeSeat);
-              activeSeatRef.current = shouldResume.activeSeat;
-            }
-            persistResume();
-            if (!(await waitViews(bag0, bag1, 8000))) {
-              if (!alive()) return;
-              throw new Error("Hotseat reconnected but never received board views");
-            }
-            if (!alive()) return;
-            setResuming(false);
-            setReady(true);
-            return;
-          } catch (resumeErr) {
-            // Dead tokens / wrong host: drop resume and create a fresh match
-            // instead of sitting on Starting until the watchdog.
-            if (!alive()) return;
-            for (const c of [c0, c1]) void c.disconnect(true);
-            bags.current = [null, null];
-            clearMatchResume();
-            resumeOnMount.current = null;
-            setResuming(false);
-            console.warn(
-              "[hotseat] resume failed, starting fresh",
-              resumeErr instanceof Error ? resumeErr.message : resumeErr,
-            );
-          }
-        }
-
-        // Fresh match from lobby navigation (or after failed resume).
-        clearMatchResume();
-        const wire = nav!.deckWire;
-        const enemyWire = nav!.enemyDeckWire ?? wire;
-
-        // Wake API + game-server here (visible Starting UI) instead of blocking
-        // the lobby with grayed buttons for up to 20s.
-        setBootPhase("Waking API & game server…");
-        await awaitDuelServicesReady(getApiBaseUrl(), rememberedGameServerUrl() ?? gsUrl, 25000);
-        if (!alive()) return;
-
-        async function auth(suffix: "a" | "b", seatIndex: 0 | 1) {
-          if (!nav!.useToken) {
-            return {
-              serverUrl: gsUrl,
-              devUserId: `${nav!.userKey}-${suffix}`,
-              secret: nav!.secret,
-            };
-          }
-          const pre = nav!.seatTokens?.[seatIndex];
-          if (pre) {
-            return {
-              serverUrl: gsUrl,
-              gameToken: pre,
-              secret: nav!.secret,
-            };
-          }
-          // Guest mint is always available and keeps seat identities stable
-          // across refreshes via the browser guest id / userKey prefix.
-          // Retries + 20s/attempt absorb free-tier API cold starts.
-          const minted = await mintGuestGameToken(hotseatGuestId(nav!.userKey, suffix));
-          return {
-            serverUrl: gameServerUrlFor(minted, gsUrl),
-            gameToken: minted.token,
-            secret: nav!.secret,
-          };
-        }
-
-        // A signed-in account's token rides on both joins so this practice
-        // match can later move to another device (guests have nothing to move).
-        const ownerTokenPromise = mintOwnerToken(nav!.owner, nav!.userKey).catch(() => null);
-        setBootPhase("Minting seat tokens…");
-        // Mint both seats up front (parallel) so seat 1 is not blocked behind
-        // create, and a cold API is only paid once.
-        const [auth0, auth1, ownerToken] = await Promise.all([
-          auth("a", 0),
-          auth("b", 1),
-          ownerTokenPromise,
-        ]);
-        if (!alive()) return;
-
-        setBootPhase("Creating match…");
-        const c0 = new DuelClient();
-        clients.push(c0);
-        const bag0: SeatBag = {
-          client: c0,
-          seat: 0,
-          view: null,
-          matchOver: null,
-          error: null,
-          connected: false,
-          battleLog: [],
-        };
-        if (!alive()) {
-          void c0.disconnect(true);
-          return;
-        }
-        bags.current[0] = bag0;
-        wireBag(c0, bag0);
-
-        // 50s allows up to ~3 seat-reservation retries against a 15s default
-        // GS pin while the Render deploy branch catches up to the 90s setting.
-        const info = await withTimeout(
-          c0.connect({
-            ...auth0,
-            ownerToken: ownerToken ?? undefined,
-            preferredSeat: 0,
-            deck: wire,
-            createOptions: {
-              players: [wire, enemyWire],
-              autoSkipMulligan: false,
-              ranked: false,
-            },
-          }),
-          50000,
-          "Hotseat create",
-        );
-        if (!alive()) return;
-        setMatchId(info.matchId);
-        matchIdRef.current = info.matchId;
-
-        setBootPhase("Joining second seat…");
-        const c1 = new DuelClient();
-        clients.push(c1);
-        const bag1: SeatBag = {
-          client: c1,
-          seat: 1,
-          view: null,
-          matchOver: null,
-          error: null,
-          connected: false,
-          battleLog: [],
-        };
-        bags.current[1] = bag1;
-        wireBag(c1, bag1);
-
-        await withTimeout(
-          c1.connect({
-            ...auth1,
-            // The room lives where seat 0 created it, whatever pool seat 1's token names.
-            serverUrl: c0.serverUrl ?? auth1.serverUrl,
-            ownerToken: ownerToken ?? undefined,
-            roomId: info.matchId,
-            preferredSeat: 1,
-            deck: enemyWire,
-          }),
-          50000,
-          "Hotseat join",
-        );
-        if (!alive()) return;
-
-        setBootPhase(null);
-        persistResume();
-        if (!(await waitViews(bag0, bag1, 10000))) {
-          if (!alive()) return;
-          throw new Error("Hotseat connected but never received board views");
-        }
-        if (!alive()) return;
-        setResuming(false);
-        setReady(true);
-      } catch (e) {
-        if (alive()) {
-          clearMatchResume();
-          setResuming(false);
-          setBootPhase(null);
-          for (const c of clients) void c.disconnect(true);
-          bags.current = [null, null];
-          setBootError(isSeatReservationExpiredError(e) ? seatReservationUserMessage() : e instanceof Error ? e.message : "Hotseat failed");
-        }
-      }
-    }
-
-    // Hard ceiling so a hung mint/matchmake cannot leave the UI on Starting forever.
-    // Covers wake + mint retries + create/join seat-reservation retries.
-    const bootWatchdog = window.setTimeout(() => {
-      if (!alive()) return;
-      clearMatchResume();
-      setResuming(false);
-      setBootPhase(null);
-      for (const c of clients) void c.disconnect(true);
-      bags.current = [null, null];
-      setBootError("Hotseat startup timed out — check the game server and try again");
-    }, 120000);
-
-    // Defer connect past React StrictMode's immediate remount so the first
-    // mount cancels before opening sockets (avoids soft-leave on a <5s room).
-    const bootDelay = window.setTimeout(() => {
-      void boot().finally(() => {
-        window.clearTimeout(bootWatchdog);
-      });
-    }, 75);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(bootDelay);
-      window.clearTimeout(bootWatchdog);
-      // Intentional Leave: tear down immediately and do not re-park / re-resume.
-      if (leavingRef.current) {
-        matchIdRef.current = null;
-        bags.current = [null, null];
-        disposeParked(true);
-        for (const c of clients) void c.disconnect(true);
-        return;
-      }
-      // Park sockets briefly so StrictMode remount can reclaim them without
-      // rotating reconnection tokens. Real navigation/unload tears down after.
-      const [b0, b1] = bags.current;
-      if (b0 && b1 && matchIdRef.current && b0.connected && b1.connected) {
-        parkedHotseat = {
-          bags: [b0, b1],
-          matchId: matchIdRef.current,
-          activeSeat: activeSeatRef.current,
-          timer: setTimeout(() => disposeParked(false), 2000),
-        };
-      } else {
-        // Consented leave frees seats immediately (soft-leave on a brand-new
-        // room fails Colyseus's min-uptime reconnect gate and blocks remount).
-        for (const c of clients) void c.disconnect(true);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, bootKey]);
+    return session.run();
+  }, [navigate, bootKey, session]);
 
   useEffect(() => {
     if (!ready) return;
@@ -794,35 +79,29 @@ export function HotseatPage() {
     setCosmeticsPublisher(null);
     initSeatArtPrefsFromStorage(0);
     initSeatArtPrefsFromStorage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
   useEffect(() => {
     if (!ready) return;
-    persistResume();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSeat, ready]);
+    session.persistResume();
+  }, [activeSeat, ready, session]);
 
   // Same as an online duel: keep the resume blob's clock at "last seen alive"
   // while the phone is in another app, and on return reload into the saved
   // match if either seat's socket died (a Home Screen app has no reload button).
   useEffect(() => {
     if (!ready) return;
-    const bothConnected = () => {
-      const [b0, b1] = bags.current;
-      return Boolean(b0?.connected && b1?.connected);
-    };
     let checking = false;
     async function recoverIfDropped() {
-      if (checking || leavingRef.current || takenOverRef.current) return;
-      const seats = bags.current;
-      if (!seats[0] || !seats[1] || seats.some((b) => b?.matchOver)) return;
+      if (checking || session.leaving || session.takenOver) return;
+      const seats = session.liveSeats();
+      if (!seats) return;
       checking = true;
       try {
         for (const b of seats) {
-          if (!b || b.client.isReconnecting) continue;
+          if (b.client.isReconnecting) continue;
           if (!(await b.client.isAlive())) {
-            if (b.client.isReconnecting || leavingRef.current) return;
+            if (b.client.isReconnecting || session.leaving) return;
             window.location.reload();
             return;
           }
@@ -833,14 +112,14 @@ export function HotseatPage() {
     }
     const onVisibility = () => {
       if (document.visibilityState === "visible") void recoverIfDropped();
-      else if (bothConnected()) touchMatchResume();
+      else if (session.bothConnected()) touchMatchResume();
     };
     const onPageHide = () => {
-      if (bothConnected()) touchMatchResume();
+      if (session.bothConnected()) touchMatchResume();
     };
     const onResume = () => void recoverIfDropped();
     const heartbeat = window.setInterval(() => {
-      if (bothConnected()) touchMatchResume();
+      if (session.bothConnected()) touchMatchResume();
     }, 5000);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
@@ -853,36 +132,11 @@ export function HotseatPage() {
       window.removeEventListener("pageshow", onResume);
       window.removeEventListener("online", onResume);
     };
-  }, [ready]);
-
-  // Auto-pass when the game moment changes (pending choice, block/counter,
-  // mulligan, turn advance). Manual Pass is kept until that moment changes.
-  useEffect(() => {
-    if (!ready) return;
-    const v0 = bags.current[0]?.view ?? null;
-    const v1 = bags.current[1]?.view ?? null;
-    const needed = hotseatControlSeat(v0 ?? v1, v0, v1);
-    const next = applyHotseatAutoPass({
-      needed,
-      activeSeat: activeSeatRef.current,
-      lastNeeded: lastNeededSeatRef.current,
-      manualPass: manualPassRef.current,
-    });
-    lastNeededSeatRef.current = next.lastNeeded;
-    manualPassRef.current = next.manualPass;
-    if (next.activeSeat !== activeSeatRef.current) {
-      setActiveSeat(next.activeSeat);
-    }
-  }, [ready, viewTick]);
-
-  function passDevice(to: Seat) {
-    manualPassRef.current = true;
-    setActiveSeat(to);
-  }
+  }, [ready, session]);
 
   useEffect(() => {
     return () => {
-      if (!parkedHotseat) {
+      if (!hasParkedHotseat()) {
         setCosmeticsPublisher(null);
         resetAllSeatArtPrefs();
       }
@@ -891,7 +145,9 @@ export function HotseatPage() {
 
   if (!nav) return null;
 
-  const bag = bags.current[activeSeat];
+  const bag = session.seats[activeSeat];
+  const state = bag?.store.getSnapshot() ?? null;
+  const seat0State = session.seats[0]?.store.getSnapshot() ?? null;
   const other: Seat = activeSeat === 0 ? 1 : 0;
 
   function sendIntent(intent: Intent) {
@@ -900,11 +156,7 @@ export function HotseatPage() {
 
   /** Take both seats back: re-run the boot as a takeover of this room. */
   function playHere(roomId: string) {
-    navRef.current = { ...nav!, takeover: { roomId } };
-    takenOverRef.current = false;
-    leavingRef.current = false;
-    bags.current = [null, null];
-    disposeParked(true);
+    session.prepareTakeover(roomId);
     setTakenOver(false);
     setReady(false);
     setResuming(false);
@@ -914,16 +166,7 @@ export function HotseatPage() {
   }
 
   async function leave() {
-    leavingRef.current = true;
-    clearMatchResume();
-    matchIdRef.current = null;
-    disposeParked(true);
-    const toClose = bags.current;
-    bags.current = [null, null];
-    // Close both seats in the background; the lobby shouldn't wait on the server.
-    void Promise.allSettled(
-      toClose.map((b) => (b ? b.client.disconnect(true) : Promise.resolve())),
-    );
+    session.leave();
     navigate("/", { replace: true });
   }
 
@@ -938,16 +181,11 @@ export function HotseatPage() {
             type="button"
             className="btn"
             onClick={() => {
-              clearMatchResume();
-              resumeOnMount.current = null;
-              leavingRef.current = false;
-              bags.current = [null, null];
-              disposeParked(true);
+              session.prepareRetry();
               setReady(false);
               setResuming(false);
               setBootPhase(null);
               setMatchId(null);
-              matchIdRef.current = null;
               setBootError(null);
               setBootKey((k) => k + 1);
             }}
@@ -962,7 +200,7 @@ export function HotseatPage() {
     );
   }
 
-  if (!ready || !bag?.view) {
+  if (!ready || !state?.view) {
     // The board is up from the first frame; waking servers / minting happens behind it.
     return (
       <div className="duel-root">
@@ -991,33 +229,33 @@ export function HotseatPage() {
   return (
     <div className="duel-root">
       <DuelBoard
-        view={bag.view}
+        view={state.view}
         seat={activeSeat}
         matchId={matchId}
-        errorBanner={bag.error}
-        matchOver={bag.matchOver}
-        battleLog={bag.battleLog}
-        firstSeatPickedBy={bags.current[0]?.firstSeatPickedBy}
-        matchBrief={{ brief: bags.current[0]?.brief ?? null, ranked: bags.current[0]?.ranked ?? null, ticketSeat: 0 }}
-        hotseatPass={{ otherSeat: other, onPass: () => passDevice(other) }}
+        errorBanner={state.errorBanner}
+        matchOver={state.matchOver}
+        battleLog={state.battleLog}
+        firstSeatPickedBy={seat0State?.firstSeatPickedBy}
+        matchBrief={{ brief: seat0State?.brief ?? null, ranked: seat0State?.ranked ?? null, ticketSeat: 0 }}
+        hotseatPass={{ otherSeat: other, onPass: () => session.passDevice(other) }}
         rematch={{
-          state: bag.rematch ?? null,
+          state: state.rematch,
           autoAccept: true,
           deckOptions: rematchDecks,
           onAction: (action: RematchAction, decks) => {
             // Both seats are this player: agree from both, and let the losing
             // seat's client pick the turn order.
-            const state = bag.rematch;
+            const rematchState = state.rematch;
             const targets =
               action === "request" || action === "decline"
-                ? bags.current
-                : state?.chooser != null
-                  ? [bags.current[state.chooser]]
+                ? session.seats
+                : rematchState?.chooser != null
+                  ? [session.seats[rematchState.chooser]]
                   : [];
             for (const b of targets) {
               try {
                 // Each seat's client carries its own seat's deck pick.
-                const s = bags.current.indexOf(b);
+                const s = session.seats.indexOf(b);
                 b?.client.sendRematch(action, action === "request" && s >= 0 ? decks?.[s] : undefined);
               } catch {
                 /* disconnected */
@@ -1026,11 +264,11 @@ export function HotseatPage() {
           },
         }}
         undo={{
-          state: bag.undo ?? null,
+          state: state.undo,
           autoAccept: true,
           onAction: (action, opts) => {
             try {
-              bag.client.sendUndo(action, opts);
+              bag?.client.sendUndo(action, opts);
             } catch {
               /* disconnected; the board shows the reconnect state */
             }
@@ -1040,8 +278,7 @@ export function HotseatPage() {
         onSendIntent={takenOver ? () => undefined : sendIntent}
         onLeave={() => void leave()}
         onClearError={() => {
-          if (bags.current[activeSeat]) bags.current[activeSeat]!.error = null;
-          bump((n) => n + 1);
+          bag?.store.dispatch({ type: "setError", message: null });
         }}
       />
       {takenOver && matchId ? (

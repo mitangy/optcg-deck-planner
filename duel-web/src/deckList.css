@@ -12,7 +12,7 @@
   margin-left: 0.55rem;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
@@ -61,7 +61,7 @@
   min-height: 44px;
   padding: 0.55rem 0.75rem 0.55rem 2.4rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--arena-mid);
   color: var(--ink);
   font-size: 0.9rem;
@@ -87,7 +87,7 @@
   min-height: 44px;
   padding: 0 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: var(--arena-raised);
   color: var(--ink);
   font-size: 0.85rem;
@@ -131,8 +131,8 @@
   gap: 0.85rem;
 }
 
-.deck-grid > .deck-swipe-slot {
-  border-radius: 12px;
+.deck-grid > .deck-card-slot {
+  border-radius: var(--radius-12);
 }
 
 .deck-list-row.deck-card {
@@ -145,7 +145,7 @@
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   border-color: var(--line);
   background: var(--arena-panel);
   transition: border-color 140ms ease, box-shadow 140ms ease;
@@ -221,7 +221,7 @@
 
 .deck-card-colors {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-raise-1);
   left: 0.75rem;
   bottom: 0.5rem;
   display: flex;
@@ -232,7 +232,7 @@
   display: block;
   width: 0.85rem;
   height: 0.85rem;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   /* A thin light ring keeps the black colour visible on the dark art. */
   border: 1px solid rgb(255 255 255 / 0.4);
   box-shadow: 0 0 0 2px rgb(var(--panel-rgb) / 0.9);
@@ -275,7 +275,7 @@
   margin-top: 0.4rem;
   padding: 0.35rem 0.55rem;
   border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
   color: var(--ink);
   font-size: 0.74rem;
@@ -326,7 +326,7 @@
   display: block;
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--muted-rgb) / 0.25);
 }
 
@@ -345,7 +345,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 2.6rem;
   padding: 0 0.4rem 0 0.8rem;
   border-top: 1px solid var(--line);
@@ -364,7 +364,7 @@
   min-height: 44px;
   padding: 0 0.6rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--chrome-bright);
   font-size: 0.8rem;
@@ -383,7 +383,7 @@
 /* The "…" button sits over the art's top right corner; the list it opens floats in a portal. */
 .deck-card-menu-btn {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-raise-2);
   top: 0.5rem;
   right: 0.5rem;
   display: inline-flex;
@@ -393,7 +393,7 @@
   height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-10);
   background: transparent;
   color: var(--ink);
 }
@@ -404,7 +404,7 @@
   position: absolute;
   inset: 6px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: rgb(var(--deep-rgb) / 0.72);
   backdrop-filter: blur(4px);
   transition: border-color 140ms ease, background-color 140ms ease;
@@ -429,14 +429,14 @@
 /* ——— Menus (deck actions, sort) ——— */
 
 .deck-card-menu {
-  z-index: 70;
+  z-index: var(--z-card-menu);
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 11rem;
   padding: 0.3rem;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-12);
   background: var(--arena-panel);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
   animation: deck-menu-in 140ms ease-out;
@@ -450,13 +450,20 @@
   min-height: 40px;
   padding: 0 0.75rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-8);
   background: transparent;
   color: var(--ink);
   font-size: 0.85rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+}
+
+/* Phones held sideways: the four deck actions fit beside the card instead of scrolling (#1017). */
+@media (max-height: 480px) {
+  .deck-card-menu-item {
+    min-height: 34px;
+  }
 }
 
 /* Headless UI keeps focus on the list and marks the active row [data-focus] (arrow keys and pointer alike). */
@@ -485,11 +492,6 @@
 @media (min-width: 1024px) {
   .deck-list-page {
     max-width: 1400px;
-  }
-
-  /* Your decks take the room; the planner list stays a narrow column to drag from. */
-  .deck-list-columns {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
   }
 }
 

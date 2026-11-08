@@ -1,15 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
+import { Select } from "@optcg/ui/popups";
 import { Tile } from "./charts";
 import {
   type AdminEvent,
+  type AdminEventSummary,
   type EventDrawee,
+  type EventFields,
   commitEventSeed,
+  createAdminEvent,
+  deleteAdminEvent,
   drawEvent,
   eventCsvUrl,
-  fetchLatestAdminEvent,
+  fetchAdminEvent,
+  fetchAdminEvents,
   forfeitEventWinner,
+  updateAdminEvent,
 } from "./adminApi";
-import { ariaSort, canCommitSeed, canDrawEvent, eventFlagInfo, nextSort, type ParticipantSortKey, type SortState, sortParticipants } from "./adminLogic";
+import {
+  ariaSort,
+  canCommitSeed,
+  canDeleteEvent,
+  canDrawEvent,
+  defaultEventId,
+  eventEditBody,
+  eventFlagInfo,
+  eventLocks,
+  eventToForm,
+  eventUsesDraw,
+  newEventForm,
+  nextSort,
+  type ParticipantSortKey,
+  type SortState,
+  sortParticipants,
+} from "./adminLogic";
+import { eventStyleLabel } from "../events/eventLogic";
+import { EventForm } from "./EventForm";
 
 const n = (v: number) => v.toLocaleString("en-US");
 
@@ -129,24 +154,49 @@ function Winners({ event, busy, onForfeit }: { event: AdminEvent; busy: boolean;
   );
 }
 
-/** Admin: the giveaway event's counters, seed commit, participants, draw and forfeits (#794). */
+type Mode = { kind: "view" } | { kind: "edit" } | { kind: "new" };
+
+/** Admin: create, edit and delete events (#1019), and for each the counters, seed commit, participants, draw and forfeits (#794). */
 export function EventTab() {
+  const [events, setEvents] = useState<AdminEventSummary[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [event, setEvent] = useState<AdminEvent | null>(null);
+  const [mode, setMode] = useState<Mode>({ kind: "view" });
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
+  /** Reload the picker, then the chosen event (or the default one when `pick` is not given and nothing is chosen). */
+  const load = useCallback(async (pick?: string | null) => {
     try {
-      setEvent(await fetchLatestAdminEvent());
+      const list = await fetchAdminEvents();
+      setEvents(list);
+      const id = pick && list.some((e) => e.id === pick) ? pick : defaultEventId(list);
+      setSelected(id);
+      setEvent(id ? await fetchAdminEvent(id) : null);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load the event.");
+      setError(e instanceof Error ? e.message : "Could not load the events.");
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function pickEvent(id: string) {
+    setSelected(id);
+    setMode({ kind: "view" });
+    setBusy(true);
+    try {
+      setEvent(await fetchAdminEvent(id));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load the event.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function act(run: () => Promise<AdminEvent>) {
     setBusy(true);
@@ -160,10 +210,40 @@ export function EventTab() {
     }
   }
 
-  if (!event) {
+  async function save(fields: EventFields) {
+    if (!event && mode.kind !== "new") return;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const saved =
+        mode.kind === "new" || !event ? await createAdminEvent(fields) : await updateAdminEvent(event.id, eventEditBody(fields, eventLocks(event).fields));
+      setMode({ kind: "view" });
+      await load(saved.id);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Could not save the event.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(target: AdminEvent) {
+    if (!window.confirm(`Delete ${target.title}? Its entries and any committed seed are removed too. This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await deleteAdminEvent(target.id);
+      await load(null);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete the event.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!events) {
     return error ? (
       <p className="panel-copy adm-error" role="alert">
-        Could not load the event: {error}
+        Could not load the events: {error}
       </p>
     ) : (
       <p className="panel-copy adm-muted" role="status">
@@ -172,24 +252,108 @@ export function EventTab() {
     );
   }
 
+  const startNew = () => {
+    setFormError(null);
+    setMode({ kind: "new" });
+  };
+  const picker = (
+    <div className="adm-evt-picker">
+      <Select<string>
+        aria-label="Event"
+        className="adm-evt-select"
+        value={selected ?? ""}
+        onChange={(id) => void pickEvent(id)}
+        disabled={busy || events.length === 0}
+        options={events.length === 0 ? [{ value: "", label: "No events yet" }] : events.map((e) => ({ value: e.id, label: e.title, sub: `${e.status} · ${when(e.starts_at)}` }))}
+      />
+      <button type="button" className="btn btn-primary btn-sm" disabled={busy || mode.kind === "new"} onClick={startNew}>
+        New event
+      </button>
+    </div>
+  );
+
+  const errorLine = error ? (
+    <p className="adm-error" role="alert">
+      {error}
+    </p>
+  ) : null;
+
+  if (mode.kind === "new") {
+    return (
+      <div className="adm-evt">
+        {picker}
+        <EventForm
+          title="New event"
+          initial={newEventForm(new Date())}
+          locked={new Set()}
+          lockReason={null}
+          busy={busy}
+          error={formError}
+          onSave={(f) => void save(f)}
+          onCancel={() => setMode({ kind: "view" })}
+        />
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="adm-evt">
+        {picker}
+        {errorLine}
+        <p className="panel-copy adm-muted">{events.length === 0 ? "No events yet. Press New event to create one." : "Loading…"}</p>
+      </div>
+    );
+  }
+
   const draw = event.draw;
+  const locks = eventLocks(event);
+  const usesDraw = eventUsesDraw(event);
   return (
     <div className="adm-evt">
+      {picker}
       <div className="adm-evt-head">
         <h2 className="panel-title">
           {event.title} <span className="adm-pill adm-pill-mid">{event.status}</span>
         </h2>
-        <button type="button" className="btn btn-secondary btn-sm adm-refresh" disabled={busy} onClick={() => void load()}>
-          Refresh
-        </button>
+        <div className="adm-evt-actions adm-evt-head-actions">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy || mode.kind === "edit"} onClick={() => { setFormError(null); setMode({ kind: "edit" }); }}>
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm adm-danger"
+            disabled={busy || !canDeleteEvent(event)}
+            title={canDeleteEvent(event) ? undefined : "The draw already ran, so this event is kept"}
+            onClick={() => void remove(event)}
+          >
+            Delete
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm adm-refresh" disabled={busy} onClick={() => void load(event.id)}>
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="adm-note">
-        {when(event.starts_at)} to {when(event.ends_at)} · {event.winners_count} winners · {event.min_games} games, {event.min_opponents} opponents
+        {when(event.starts_at)} to {when(event.ends_at)} · {eventStyleLabel(event)}
       </p>
-      {error ? (
-        <p className="adm-error" role="alert">
-          {error}
-        </p>
+      <p className="adm-note">
+        {event.prize || "No prize listed"} · {usesDraw ? `random draw, ${event.winners_count} winners` : "top finishers, awarded by hand"} · {event.min_games} games, {event.min_opponents} opponents
+      </p>
+      {errorLine}
+
+      {mode.kind === "edit" ? (
+        <EventForm
+          key={event.id}
+          title="Edit event"
+          initial={eventToForm(event)}
+          locked={locks.fields}
+          lockReason={locks.reason}
+          busy={busy}
+          error={formError}
+          onSave={(f) => void save(f)}
+          onCancel={() => setMode({ kind: "view" })}
+        />
       ) : null}
 
       <div className="adm-tiles">
@@ -200,52 +364,61 @@ export function EventTab() {
         <Tile label="Flagged eligible" value={n(event.counters.flagged_eligible)} sub="check these before the draw" />
       </div>
 
-      <section className="panel" aria-label="Seed and draw">
-        <h2 className="panel-title">Seed and draw</h2>
-        {draw ? (
-          <>
-            <p className="adm-sub">Seed hash (public)</p>
-            <code className="adm-evt-hash">{draw.seed_hash}</code>
-            <p className="adm-note">Committed {when(draw.committed_at)}</p>
-          </>
-        ) : (
-          <p className="panel-copy adm-muted">No seed committed yet. Commit one before the event starts so the hash can be published.</p>
-        )}
-        <div className="adm-evt-actions">
-          {canCommitSeed(event) ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm("Commit the secret seed now? Its hash becomes public and this cannot be redone.")) void act(() => commitEventSeed(event.id));
-              }}
-            >
-              Commit seed
-            </button>
-          ) : null}
-          {canDrawEvent(event) ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm("Run the draw now? This reveals the seed and picks the winners.")) void act(() => drawEvent(event.id));
-              }}
-            >
-              Run the draw
-            </button>
-          ) : null}
-        </div>
-      </section>
+      {usesDraw ? (
+        <section className="panel" aria-label="Seed and draw">
+          <h2 className="panel-title">Seed and draw</h2>
+          {draw ? (
+            <>
+              <p className="adm-sub">Seed hash (public)</p>
+              <code className="adm-evt-hash">{draw.seed_hash}</code>
+              <p className="adm-note">Committed {when(draw.committed_at)}</p>
+            </>
+          ) : (
+            <p className="panel-copy adm-muted">No seed committed yet. Commit one before the event starts so the hash can be published.</p>
+          )}
+          <div className="adm-evt-actions">
+            {canCommitSeed(event) ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Commit the secret seed now? Its hash becomes public and this cannot be redone.")) void act(() => commitEventSeed(event.id));
+                }}
+              >
+                Commit seed
+              </button>
+            ) : null}
+            {canDrawEvent(event) ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("Run the draw now? This reveals the seed and picks the winners.")) void act(() => drawEvent(event.id));
+                }}
+              >
+                Run the draw
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+        <section className="panel" aria-label="Prizes">
+          <h2 className="panel-title">Prizes</h2>
+          <p className="panel-copy adm-muted">This event awards prizes to the top finishers, so there is no seed or draw. Hand the prizes out yourself when it ends.</p>
+        </section>
+      )}
 
-      <Winners
-        event={event}
-        busy={busy}
-        onForfeit={(w) => {
-          if (window.confirm(`Forfeit ${w.name}? The next account in the ranking becomes a winner.`)) void act(() => forfeitEventWinner(event.id, w.user_id));
-        }}
-      />
+      {usesDraw ? (
+        <Winners
+          event={event}
+          busy={busy}
+          onForfeit={(w) => {
+            if (window.confirm(`Forfeit ${w.name}? The next account in the ranking becomes a winner.`)) void act(() => forfeitEventWinner(event.id, w.user_id));
+          }}
+        />
+      ) : null}
       <Participants event={event} />
     </div>
   );

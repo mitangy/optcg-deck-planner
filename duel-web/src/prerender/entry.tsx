@@ -1,5 +1,5 @@
 /**
- * Build-time pre-render entry (#914). scripts/seo/prerender-plugin.mjs bundles this for Node after
+ * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
  * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
  *
  * Every page here is a public route. Pages that are safe to render on a server (the how-to-play page,
@@ -21,13 +21,14 @@ import { OptcgSimOnlinePage, OPTCG_SIM_FAQ } from "../pages/OptcgSimOnlinePage";
 import { PlayOnPhonePage, PLAY_ON_PHONE_FAQ } from "../pages/PlayOnPhonePage";
 import { PlayOnlinePage } from "../pages/PlayOnlinePage";
 import { faqPageJsonLd } from "../seo/faqJsonLd";
+import { PATCH_NOTES } from "@optcg/patch-notes/notes";
 import { WhatsNewPage } from "../pages/WhatsNewPage";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { leaderPath } from "../leaders/slug";
 import { EMBEDDED_SNAPSHOT_ID, SnapshotContext } from "../leaders/useMetaView";
 import { sitemapXml, snapshotFor, snapshotPaths, type MetaSnapshot } from "../leaders/snapshot";
 import { loadBuildSnapshot } from "../leaders/snapshotBuild";
-import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "../seo/routeMeta";
+import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "../seo/routeMetaTable";
 import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS } from "../siteFooter";
 import { HomeShell, LeaderboardShell } from "./shells";
 
@@ -61,7 +62,7 @@ function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
     { path: "/play-optcg-on-phone", element: <PlayOnPhonePage />, head: headFor("/play-optcg-on-phone", faqPageJsonLd(PLAY_ON_PHONE_FAQ)) },
     { path: "/decks/meta", element: <MetaDecksPage />, head: headFor("/decks/meta"), embed: null },
     { path: "/leaderboard", element: <LeaderboardShell />, head: headFor("/leaderboard") },
-    { path: "/whats-new", element: <WhatsNewPage />, head: headFor("/whats-new") },
+    { path: "/whats-new", element: <WhatsNewPage notes={PATCH_NOTES} />, head: headFor("/whats-new") },
     legal("terms"),
     legal("privacy"),
     legal("cookies"),

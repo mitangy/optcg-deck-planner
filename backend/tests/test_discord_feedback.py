@@ -10,14 +10,13 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, inspect, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from app import discord_feedback
-from app.config import Settings
-from app.discord_feedback import PollState, poll_once, snowflake_from_datetime
-from app.models import Feedback
+from app.admin import discord_feedback
+from app.core.config import Settings
+from app.admin.discord_feedback import PollState, poll_once, snowflake_from_datetime
+from app.admin.models import Feedback
 from app.routers.feedback import list_feedback
 from tests.db_support import make_test_engine
 
@@ -289,27 +288,8 @@ def test_admin_list_names_the_discord_author_as_reporter_979(db):
     poll(forum_with((t, tid)), db)
     db.add(Feedback(kind="bug", message="anon one", app="duel"))
     db.commit()
-    out = list_feedback(db, Settings(catalog_sync_token="adm"), x_catalog_token="adm", status="all")
+    out = list_feedback(db, status="all")
     assert {o.app: o.reporter for o in out} == {"discord": "Discord · Zoro", "duel": "anonymous"}
-
-
-def test_migration_adds_the_discord_columns_and_unique_index_to_an_old_table_979(monkeypatch: pytest.MonkeyPatch):
-    from app import db as app_db
-
-    old = create_engine("sqlite://")
-    with old.begin() as conn:
-        conn.execute(text("CREATE TABLE feedback (id INTEGER PRIMARY KEY, kind VARCHAR(16), message TEXT, app VARCHAR(16))"))
-        conn.execute(text("INSERT INTO feedback (kind, message, app) VALUES ('bug', 'old row', 'duel')"))
-    monkeypatch.setattr(app_db, "engine", old)
-    app_db.init_db()
-    assert {"discord_message_id", "discord_author", "github_issue"} <= {c["name"] for c in inspect(old).get_columns("feedback")}
-    app_db._ensure_feedback_discord_columns()  # safe to run on every start
-    insert = text("INSERT INTO feedback (kind, message, app, discord_message_id) VALUES ('bug', 'm', 'discord', :m)")
-    with old.begin() as conn:
-        conn.execute(insert, {"m": "1"})
-    with pytest.raises(IntegrityError):
-        with old.begin() as conn:
-            conn.execute(insert, {"m": "1"})
 
 
 def test_new_ticket_opens_one_github_issue_before_the_reply_979(db):
@@ -385,7 +365,7 @@ def test_github_requests_carry_the_token_and_api_version_979():
 
 @pytest.mark.parametrize("token,expect_github", [("", False), ("ghp", True)])
 def test_github_client_is_only_used_with_a_token_979(db, monkeypatch: pytest.MonkeyPatch, token, expect_github):
-    from app import db as app_db
+    from app.core import db as app_db
 
     seen = {}
 

@@ -1,11 +1,12 @@
+import { expandDecklist, isCardId, parseDecklist, type ParsedDeckLine } from "@optcg/card-core";
 import {
-  isOptcgCardId,
   listAtlasIds,
   lookupCard,
   maxCopiesFor,
   registerAtlasStub,
 } from "../cards/atlas";
-import { expandDecklist, parseDecklist, type ParsedDeckLine } from "./parseDecklist";
+import { safeGetItem, safeRemoveItem, safeSetItem } from "../lib/safeStorage";
+import { cardDataReady } from "../cards/cardData";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
 const SELECTED_KEY = "optcg.duel.selectedDeckId.v1";
@@ -69,6 +70,8 @@ function knownIds(): Set<string> {
 }
 
 export function validateImportedList(text: string): DeckValidation {
+  // Without the card data every id would read as unknown and come back as a vanilla stub: fail loudly instead.
+  if (!cardDataReady()) throw new Error("Card data is not loaded yet");
   const errors: string[] = [];
   const warnings: string[] = [];
   let lines: ParsedDeckLine[] = [];
@@ -92,7 +95,7 @@ export function validateImportedList(text: string): DeckValidation {
 
   for (const line of lines) {
     if (!known.has(line.cardId)) {
-      if (!isOptcgCardId(line.cardId)) {
+      if (!isCardId(line.cardId)) {
         errors.push(`${line.cardId} is not a valid OPTCG card id`);
         continue;
       }
@@ -197,8 +200,8 @@ function readAll(): SavedDeck[] {
   }
 }
 
-function writeAll(decks: SavedDeck[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+function writeAll(decks: SavedDeck[]): boolean {
+  return safeSetItem(STORAGE_KEY, JSON.stringify(decks));
 }
 
 export function listSavedDecks(): SavedDeck[] {
@@ -209,7 +212,11 @@ export function getSavedDeck(id: string): SavedDeck | undefined {
   return readAll().find((d) => d.id === id);
 }
 
-export function saveDeck(input: {
+export function saveDeck(input: SaveDeckInput): SavedDeck {
+  return saveDeckResult(input).deck;
+}
+
+type SaveDeckInput = {
   id?: string;
   name: string;
   leaderId: string;
@@ -222,7 +229,14 @@ export function saveDeck(input: {
   plannerDeckId?: number;
   /** Omit to keep the existing value. */
   editedLocally?: boolean;
-}): SavedDeck {
+};
+
+/**
+ * Same as `saveDeck`, but also reports whether the browser kept the write. A full quota or disabled storage
+ * leaves `persisted` false: the deck is still returned and announced (account sync can carry it) but a reload
+ * would lose it, so a caller can tell the player.
+ */
+export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persisted: boolean } {
   const decks = readAll();
   const id = input.id ?? crypto.randomUUID();
   const existing = decks.find((d) => d.id === id);
@@ -249,9 +263,9 @@ export function saveDeck(input: {
   const idx = decks.findIndex((d) => d.id === id);
   if (idx >= 0) decks[idx] = next;
   else decks.push(next);
-  writeAll(decks);
+  const persisted = writeAll(decks);
   emit({ kind: "upsert", deck: next });
-  return next;
+  return { deck: next, persisted };
 }
 
 /** Persist preferred alt art for one card on a saved deck (`null` = standard). */
@@ -299,7 +313,7 @@ export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[]
 
 /** Forget every deck in this browser (sign-out: they belonged to the account). */
 export function clearLocalDecks() {
-  localStorage.removeItem(STORAGE_KEY);
+  safeRemoveItem(STORAGE_KEY);
   setSelectedDeckId(null);
   announceChanged();
 }
@@ -370,9 +384,55 @@ export function plannerLocalId(plannerId: number): string {
 }
 
 /**
+ * Art after taking on the planner's shown art: a card whose art here still equals what the last pull set
+ * takes the planner's art now; one the player changed here (even back to base) keeps their pick (#1003).
+ */
+function followPlannerArt(
+  existing: SavedDeck | undefined,
+  inDeckIds: ReadonlySet<string>,
+  incoming: Record<string, string>,
+): { artPrefs: Record<string, string>; plannerArt: Record<string, string> } {
+  const previous = existing?.plannerArt ?? {};
+  const current = existing?.artPrefs ?? {};
+  const artPrefs: Record<string, string> = {};
+  for (const defId of inDeckIds) {
+    const alt = current[defId] === previous[defId] ? incoming[defId] : current[defId];
+    if (alt) artPrefs[defId] = alt;
+  }
+  const plannerArt = Object.fromEntries(Object.entries(incoming).filter(([defId]) => inDeckIds.has(defId)));
+  return { artPrefs, plannerArt };
+}
+
+/** Take on the art the planner shows for a deck's cards, leaving its name and cards alone. Unchanged art writes nothing. */
+export function applyPlannerArt(deckId: string, incoming: Record<string, string>): SavedDeck | undefined {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return undefined;
+  const next = followPlannerArt(deck, new Set([deck.leaderId, ...deck.cards]), incoming);
+  const same = (a: Record<string, string> | undefined, b: Record<string, string>) => {
+    const x = a ?? {};
+    return Object.keys(x).length === Object.keys(b).length && Object.entries(b).every(([k, v]) => x[k] === v);
+  };
+  if (same(deck.artPrefs, next.artPrefs) && same(deck.plannerArt, next.plannerArt)) return deck;
+  return saveDeck({ id: deck.id, name: deck.name, leaderId: deck.leaderId, cards: deck.cards, ...next });
+}
+
+/** Note the alt arts just sent to the planner, so they are not sent again. */
+export function recordPlannerArt(deckId: string, sent: Record<string, string>): SavedDeck | undefined {
+  const deck = getSavedDeck(deckId);
+  if (!deck) return undefined;
+  return saveDeck({
+    id: deck.id,
+    name: deck.name,
+    leaderId: deck.leaderId,
+    cards: deck.cards,
+    plannerArt: { ...deck.plannerArt, ...sent },
+  });
+}
+
+/**
  * Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck).
- * A deck already linked to this planner id (e.g. one saved to the planner from here) is updated in place
- * under its own id; only an unlinked planner deck gets the `planner-<id>` local id.
+ * A deck already linked to this planner id is updated in place under its own id; only an unlinked
+ * planner deck gets the `planner-<id>` local id (the id the account sync gives its copy too).
  */
 export function upsertPlannerDeck(input: {
   plannerId: number;
@@ -388,17 +448,7 @@ export function upsertPlannerDeck(input: {
   const existing = readAll().find((d) => d.plannerDeckId === input.plannerId);
   const id = existing?.id ?? plannerLocalId(input.plannerId);
   const inDeckIds = new Set([v.leaderId, ...v.cards]);
-  // A card whose art here still equals what the last pull set takes the planner's art now; one the
-  // player changed here (even back to base) keeps their pick (#1003).
-  const incoming = input.plannerArt ?? {};
-  const previous = existing?.plannerArt ?? {};
-  const current = existing?.artPrefs ?? {};
-  const kept: Record<string, string> = {};
-  for (const defId of inDeckIds) {
-    const alt = current[defId] === previous[defId] ? incoming[defId] : current[defId];
-    if (alt) kept[defId] = alt;
-  }
-  const plannerArt = Object.fromEntries(Object.entries(incoming).filter(([defId]) => inDeckIds.has(defId)));
+  const { artPrefs: kept, plannerArt } = followPlannerArt(existing, inDeckIds, input.plannerArt ?? {});
   const deck = saveDeck({
     id,
     name: input.name,
@@ -407,19 +457,17 @@ export function upsertPlannerDeck(input: {
     artPrefs: kept,
     plannerArt,
     plannerDeckId: input.plannerId,
-    // A planner pull replaces local edits on purpose.
-    editedLocally: false,
   });
   return { ok: true, deck, warnings: v.warnings };
 }
 
 export function getSelectedDeckId(): string | null {
-  return localStorage.getItem(SELECTED_KEY);
+  return safeGetItem(SELECTED_KEY);
 }
 
 export function setSelectedDeckId(id: string | null) {
-  if (!id) localStorage.removeItem(SELECTED_KEY);
-  else localStorage.setItem(SELECTED_KEY, id);
+  if (!id) safeRemoveItem(SELECTED_KEY);
+  else safeSetItem(SELECTED_KEY, id);
 }
 
 export function getSelectedDeck(): SavedDeck | null {
@@ -444,7 +492,7 @@ export function setArtPref(cardId: string, altId: string | null) {
   const prefs = getArtPrefs();
   if (!altId) delete prefs[cardId];
   else prefs[cardId] = altId;
-  localStorage.setItem(ART_PREFS_KEY, JSON.stringify(prefs));
+  safeSetItem(ART_PREFS_KEY, JSON.stringify(prefs));
 }
 
 /**

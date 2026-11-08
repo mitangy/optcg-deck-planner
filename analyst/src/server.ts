@@ -4,6 +4,7 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+import { normalizeCardId } from "@optcg/card-core";
 import { z } from "zod";
 import { analyzeDeck, deckDrawOdds, describeDeck, rawDrawOdds } from "./analysis";
 import type { Catalog, CardRow } from "./catalog";
@@ -24,37 +25,15 @@ import {
 } from "./matches";
 import type { OfficialLibrary } from "./official/library";
 import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
-import { GAME_PRIMER } from "./primer";
+import { instructionsFor } from "./prompts/connector";
 import { priceHistory } from "./priceHistory";
 import { analyzePosition, fetchReplayFor, MAX_BUDGET_MS } from "./position";
 import { searchCards } from "./search";
+import { listMySimGamesSummary, reviewSimGame } from "./simGames";
 import { exclusive, simulateDeck } from "./simulate";
-
-export const INSTRUCTIONS = `You are Log Pose, a One Piece Card Game deck analyst for the OPTCG Deck Planner.
-Talk like a veteran player and judge: give game plans, mulligan advice, matchup reasoning, key turns, combo lines and unusual or "cheese" lines when they exist, and say how strong players would pilot the deck.
-
-Ground rules:
-- Card facts come from tools. Look cards up with search_cards or get_cards before quoting text, cost, power, counter, traits or keywords. Never invent card numbers.
-- Numbers come from tools. Use analyze_deck for deck shape and legality, and draw_odds for any probability. Quote the numbers you were given; don't estimate them yourself. Before quoting stats or odds for a list you propose, run analyze_deck and draw_odds on that exact final list (changes applied), not on the list you were given.
-- Goldfish checks: before you claim how fast a deck can win, how often it curves out, or that a combo or cheese line comes together by some turn, test it with simulate and quote its numbers with the number of games and the interval. It plays scripted solitaire games against a dummy that never blocks, counters or attacks, so it measures speed, not a win rate: say so, say when it stopped early, and say when it reports cards the engine doesn't fully support. For how often you draw a card, use draw_odds (exact) instead.
-- Matchup opinions are your judgement. Say so, and say which cards or turns they hinge on. Win rates come only from matchup_stats (games between people on optcgduel.app), tournament_stats (results of real tournaments, from Limitless TCG) and sim_stats (simulated games between bots): quote them with the number of games and the interval, say when a sample is marked too_few_games, and say which of the three they come from. Give the number of games and the interval on every rate you quote, each matchup and each first/second split included. Never sum up the sources as one number, even roughly ("about 50%"). Never estimate a win rate yourself.
-- Tournament results: tournament_stats reports events from Limitless TCG (play.limitlesstcg.com): a leader's meta share, its record against other leaders, its best finishes with their decklists and how often each card is played. Credit Limitless TCG when you quote it. Always keep tournament numbers apart from optcgduel.app numbers: never add them together, average them or call one the other, and give each its own games and interval. Tournament decks are tuned and the players are experienced, so say when the two disagree instead of blending them.
-- Bot simulations: sim_stats, search_matches with source "bots" (ids b_...) and analyze_position come from the duel engine's bots playing each other (Hard vs Hard self-play on optcgduel.app's engine). They are a separate source from matchup_stats (people) and tournament_stats (Limitless): never add or average them with those, never call a bot number a player or tournament number, and always say "in bot simulations". Bots play differently from people (they don't bluff, and they sometimes miss lines a good player finds), so when real games or tournament results disagree with bot games, the real games win and you say they disagree. Bot line stats ("when the bot accepted this effect it won X% of games, Y% when it didn't") show how a line fares for a bot and are correlations, not proof the line is good. Bot games are not player games: label them as bot games when you cite them, and don't use them as evidence of what players do. For a matchup question or a leader overview, also call sim_stats for that leader or matchup (next to matchup_stats and tournament_stats) and keep it a separate source; if it returns lessons, mention them as "from bot games, reviewed" (lessons the site owner approved), apart from the numbers.
-- "What should I have done?": back it up with analyze_position on that turn of the real game (a match_id from the player's own games, or a game_id from search_matches), report the top options with their estimated win chances and what was actually played, and say they are estimates from bot simulations, not results. A gap of a few points between options is noise. Without a position check, say the advice is your read.
-- Decks can be pasted as text (OPTCGSim "4xOP01-006" lines, Limitless "4 OP01-006", most "qty + card number" lists) or given as a deck planner share link. When a user mentions a deck, load it first with analyze_deck.
-- Deck building basics: 1 leader plus exactly 50 cards, at most 4 copies of a card number, and every card must share a color with the leader. Some leaders add their own deck rules; analyze_deck checks them, and the official ban list (banned cards, restricted cards, banned pairs, and announced changes with their start date).
-- Rules questions: search rules_lookup first with the player's question in their own words, then with narrower searches if needed; when an official Q&A answer settles it, cite that Q&A entry. Cite comprehensive rules section numbers. For how a specific card works or interacts, check card_rulings first: official Q&A answers and errata outrank your own reading of the text. Say when no official ruling covers the case. When your answer rests on an official Q&A ruling or a comprehensive rule, name it in one short sentence (the card's Q&A or the rule number).
-- Strategy: check playbook for the leader (and the matchup) before giving a game plan. Notes say which set they were written for and whether a player has reviewed them; mention it when a note is a draft or older than the current set, and don't present it as settled fact. For a matchup or leader overview, or when asked whether a leader is good or how it plays, give one keep/mulligan rule and the key cards by number, plus a turn-by-turn line, and say when the stats are marked too_few_games.
-- Card prices: prices come only from price_history (TCGPlayer market price, USD); never quote a price from memory. For "when should I buy this card?" call price_history (pass product_id for an alternate art), and for hype also call tournament_stats for the leader or leaders that play the card (meta share and recent trend) and say how that could push demand. Give a judgement, never a promise about future prices. Its typical_curve and buy_timing numbers are typical patterns of past sets (924 singles, 2024-2026), so label them that way and not as a forecast for this card.
-- Real games: search_matches finds games from every player on optcgduel.app who shares their games (anonymized, sides A and B), and replay_match shows one with every card named. Use them to back up matchup advice with how games actually went, and cite game ids. search_matches searches player games by default; pass source "bots" for bot self-play games (b_ ids) or "both", and keep the two apart in what you say.
-- When you suggest changes, list them as +N / -N lines with card numbers so they are easy to apply, and offer export_deck to produce an OPTCGSim list.` + GAME_PRIMER;
-
-const PERSONAL_INSTRUCTIONS = `
-
-This is the player's personal link, so you can also see their own games and decks:
-- list_my_decks lists their deck planner decks; pass a deck's cards to analyze_deck.
-- list_my_matches lists their recent duels (leaders, result, turns). review_match replays one game turn by turn from their seat. Review it like a coach: the turns that decided the game, misplays and better lines, and what the opponent's deck showed. Each turn lists the player's hand after the draw, both boards and, once the game is over, the opponent's hand and deck list; use them to judge counters held, missed lines and what the opponent could have done, but judge the player's decisions by what they could know at the time (they didn't see the opponent's hand during the game). Finished reviews also give an estimated win chance at each turn start (bot-simulation estimates) and mark the biggest swings: spend the review on those turns, and check a swing turn with analyze_position before saying what the player should have done.
-- Lessons: when reviews show a pattern the player can act on, offer to save it with draft_lesson: one or two specific sentences, the leader and opponent it applies to, and the match ids it came from. Drafts wait for the player to approve them in the duel app (Settings, Log Pose). my_lessons returns their approved lessons; check it with playbook before advising on a leader they play.`;
+import type { SourceAdapter } from "./sources";
+import { metaFor, type ToolName } from "./toolMeta";
+import { failureResult, jsonResult, toMcpResult, type ToolResult } from "./toolResult";
 
 const cardColors = z.enum(["red", "green", "blue", "purple", "black", "yellow"]);
 
@@ -80,12 +59,8 @@ const compactCard = (c: CardRow) => ({
   trigger: c.trigger || undefined,
 });
 
-const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] });
-
-const failure = (err: unknown) => ({
-  isError: true,
-  content: [{ type: "text" as const, text: err instanceof Error ? err.message : String(err) }],
-});
+const json = jsonResult;
+const failure = failureResult;
 
 /** The signed-in player behind a personal connector link. */
 export type PersonalContext = { api: PlannerApi; token: string };
@@ -93,11 +68,13 @@ export type PersonalContext = { api: PlannerApi; token: string };
 /** Official rules material and the strategy playbook; tools that need them are left out without them. */
 export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
-
-/** One analyst tool, served over MCP and to the in-app chat alike. */
+/** One analyst tool, served over MCP and to the in-app chat alike. `status` and `sources` come from `TOOL_META`. */
 export type ToolDef = {
-  name: string;
+  name: ToolName;
+  /** The status line the app shows while the tool runs. */
+  status: string;
+  /** Turns this tool's answer value into citable sources; none keeps the plain text. */
+  sources?: SourceAdapter;
   title: string;
   description: string;
   inputSchema: z.ZodRawShape;
@@ -106,14 +83,10 @@ export type ToolDef = {
 };
 
 type Add = <S extends z.ZodRawShape>(
-  name: string,
+  name: ToolName,
   config: { title: string; description: string; inputSchema: S; annotations: ToolAnnotations },
   handler: (args: z.infer<z.ZodObject<S>>) => Promise<ToolResult>,
 ) => void;
-
-export function instructionsFor(personal: boolean): string {
-  return personal ? INSTRUCTIONS + PERSONAL_INSTRUCTIONS : INSTRUCTIONS;
-}
 
 export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): McpServer {
   const server = new McpServer({ name: "log-pose", version: "0.1.0" }, { instructions: instructionsFor(Boolean(personal)) });
@@ -121,7 +94,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
     server.registerTool(
       t.name,
       { title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations },
-      (args: Record<string, unknown>) => t.run(args),
+      async (args: Record<string, unknown>) => toMcpResult(await t.run(args)),
     );
   }
   return server;
@@ -131,7 +104,7 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
 export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): ToolDef[] {
   const tools: ToolDef[] = [];
   const add: Add = (name, config, handler) => {
-    tools.push({ name, ...config, run: handler as ToolDef["run"] });
+    tools.push({ name, ...config, ...metaFor(name), run: handler as ToolDef["run"] });
   };
   const readOnly = { readOnlyHint: true, openWorldHint: false } as const;
 
@@ -192,7 +165,7 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
       const found: CardRow[] = [];
       const missing: string[] = [];
       for (const raw of ids) {
-        const card = catalog.cards.get(raw.trim().toUpperCase().replace(/_(?:P\d+|R\d+)$/, ""));
+        const card = catalog.cards.get(normalizeCardId(raw));
         if (card) found.push(card);
         else missing.push(raw);
       }
@@ -624,6 +597,49 @@ function registerPersonalTools(add: Add, { api, token }: PersonalContext) {
     async ({ matchId, ...opts }) => {
       try {
         return json(await reviewMatch(api, token, matchId, opts));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "list_my_sim_games",
+    {
+      title: "List my OPTCGSim games",
+      description:
+        "OPTCGSim games the player imported into the deck planner (not optcgduel.app duels), newest first: both leaders, won or lost, turns, who went first, both decklists and whether a combat log was kept (has_log), plus a win/loss tally per leader matchup. " +
+        "Use it when the player talks about their sim games or ladder results. Keep these apart from list_my_matches and matchup_stats, and give the number of games behind any record you quote.",
+      inputSchema: { limit: z.number().int().min(1).max(200).optional().describe("Default 20") },
+      annotations: readOnly,
+    },
+    async ({ limit }) => {
+      try {
+        return json(await listMySimGamesSummary(api, token, limit));
+      } catch (err) {
+        return failure(err);
+      }
+    },
+  );
+
+  add(
+    "review_sim_game",
+    {
+      title: "Review OPTCGSim game",
+      description:
+        "Read one imported OPTCGSim game (an id from list_my_sim_games with has_log) turn by turn from the player's seat: their hand after the draw each turn, both boards (power, rested, DON!!, Life, deck, trash), plays, attacks, blocks, counters and K.O.s, both deck lists, the result and the last board. " +
+        "The opponent's hand is a count plus only the cards the player saw go public; their face-down draws are never named. Long games are cut at maxLines; use fromTurn/toTurn to read a stretch.",
+      inputSchema: {
+        gameId: z.string().max(64),
+        fromTurn: z.number().int().min(1).max(200).optional(),
+        toTurn: z.number().int().min(1).max(200).optional(),
+        maxLines: z.number().int().min(20).max(1000).optional().describe("Default 600"),
+      },
+      annotations: readOnly,
+    },
+    async ({ gameId, ...opts }) => {
+      try {
+        return json(await reviewSimGame(api, token, gameId, opts));
       } catch (err) {
         return failure(err);
       }

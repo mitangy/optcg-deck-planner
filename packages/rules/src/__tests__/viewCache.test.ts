@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { addModifier } from "../engine/modifiers.js";
 import { setQueryCacheEnabled } from "../engine/queries.js";
 import { getPlayerView, getSpectatorView } from "../engine/views.js";
-import { benchGame } from "../scripts/benchViews.js";
+import { benchGame } from "../cli/benchViews.js";
 import type { MatchState } from "../types.js";
 
 function allViews(state: MatchState): string {

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.auth import create_oauth_state, new_oauth_nonce, verify_oauth_state
-from app.config import Settings
+from app.core.auth import create_oauth_state, new_oauth_nonce, verify_oauth_state
+from app.core.config import Settings
 
 
 def _settings() -> Settings:

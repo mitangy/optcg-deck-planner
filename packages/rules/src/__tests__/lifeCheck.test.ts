@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyIntent, createMatch, getPlayerView, getSpectatorView, listLegalIntents, projectGameEvents, skipMulligans } from "../engine.js";
 import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
-import { describeEvents } from "../describeEvents.js";
-import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../matchReplay.js";
-import { createSeededRng } from "../rng.js";
+import { describeEvents } from "../review/describeEvents.js";
+import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { GameEvent, Intent, Seat } from "../types.js";
 
@@ -99,8 +98,8 @@ describe("every Life hit is a private Life check (#352)", () => {
     expect(describeEvents(projectGameEvents(a.events, opponent))).toEqual(describeEvents(projectGameEvents(b.events, opponent)));
     // Declining looks the same too.
     const decline: Intent = { type: "resolve_pending_choice", accept: false };
-    const ra = applyIntent(a.h.state, decline, { seat: 1, rng: a.h.rng });
-    const rb = applyIntent(b.h.state, decline, { seat: 1, rng: b.h.rng });
+    const ra = applyIntent(a.h.state, decline, { seat: 1 });
+    const rb = applyIntent(b.h.state, decline, { seat: 1 });
     if (!ra.ok || !rb.ok) throw new Error("decline rejected");
     expect(projectGameEvents(ra.events, opponent)).toEqual(projectGameEvents(rb.events, opponent));
     expect(describeEvents(projectGameEvents(ra.events, opponent))).toEqual(describeEvents(projectGameEvents(rb.events, opponent)));
@@ -138,14 +137,13 @@ describe("games started before the Life check keep the legacy flow (#352)", () =
     const players: MatchReplay["players"] = [{ leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }, { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) }];
     const seed = 17;
     const record = (lifeCheckEveryHit: boolean): MatchReplay => {
-      const rng = createSeededRng(seed);
-      let state = skipMulligans(createMatch({ seed, firstSeat: 0, lifeCheckEveryHit, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }), rng);
+      let state = skipMulligans(createMatch({ seed, firstSeat: 0, lifeCheckEveryHit, players: [{ ...players[0], deck: [...players[0].deck] }, { ...players[1], deck: [...players[1].deck] }] }));
       const intents: MatchReplay["intents"] = [];
       for (let i = 0; i < 300; i++) {
         const seat = ([0, 1] as Seat[]).find((s) => listLegalIntents(state, s).length > 0)!;
         const legal = listLegalIntents(state, seat);
         const intent = legal.find((x) => x.type.includes("attack")) ?? legal.find((x) => x.type.startsWith("pass")) ?? legal.find((x) => x.type === "end_turn") ?? legal[legal.length - 1]!;
-        const r = applyIntent(state, intent, { seat, rng });
+        const r = applyIntent(state, intent, { seat });
         if (!r.ok) throw new Error(r.error?.message);
         state = r.state;
         intents.push({ seat, intent });

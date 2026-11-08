@@ -14,25 +14,20 @@
  *   --timeout-s <n>          per-puzzle ceiling, default 180       --variant <name>  output folder under evals/out/puzzles
  *   --post                   send the run to the admin page as the puzzles suite (needs ANALYST_API_URL + ANALYST_SERVICE_SECRET; not in a dry run)
  */
-import Anthropic from "@anthropic-ai/sdk";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { loadCatalog } from "../../src/catalog";
 import { anthropicModel, CHAT_MODEL } from "../../src/chat";
-import { OfficialLibrary } from "../../src/official/library";
 import { loadPlaybook } from "../../src/playbook";
-import type { PlannerOptions, StatsFixtures, TournamentFixtures } from "../planner";
-import { scriptedModel, textReply } from "../scripted";
-import { postEvalRun } from "../post";
+import { anthropicClient, commonOptions, defaultVariant, fakePlanner, libraryFor, metaDecksFile, modelApi, suiteOutDir } from "../shared/cli";
+import { scriptedModel, textReply } from "../qa/scripted";
+import { postEvalRun } from "../shared/post";
 import { generatePuzzles } from "./generate";
 import { askAll, scriptedReply } from "./pipeline";
 import { headline, puzzlesRunPayload, renderReport } from "./report";
 import { PUZZLE_TYPES, type PuzzleType } from "./types";
 
-const here = (rel: string) => fileURLToPath(new URL(rel, import.meta.url));
-const META_DECKS = "/mnt/project-files/self-play-bots/meta-decks-2026-10-18.json";
 
 const { values: f } = parseArgs({
   options: {
@@ -43,39 +38,29 @@ const { values: f } = parseArgs({
     "synth-share": { type: "string", default: "0.5" },
     decks: { type: "string" },
     dump: { type: "boolean", default: false },
-    variant: { type: "string" },
+    ...commonOptions({ maxUsd: "5", concurrency: "3", timeoutS: "180" }),
     model: { type: "string" },
     library: { type: "string", default: "live" },
-    "max-usd": { type: "string", default: "5" },
-    concurrency: { type: "string", default: "3" },
-    "timeout-s": { type: "string", default: "180" },
-    "model-api": { type: "string", default: "anthropic" },
-    post: { type: "boolean", default: false },
   },
 });
 
-const scripted = f["model-api"] === "scripted";
-if (!scripted && f["model-api"] !== "anthropic") throw new Error("--model-api must be anthropic or scripted");
-if (!scripted && !f.dump && !process.env.ANTHROPIC_API_KEY) {
-  console.error("npm run eval:puzzles spends Anthropic API money and needs ANTHROPIC_API_KEY. For a free dry run use --model-api scripted; to only write the puzzles use --dump.");
-  process.exit(2);
-}
+const { scripted } = modelApi(f["model-api"], { script: "eval:puzzles", needsKey: !f.dump, hint: "; to only write the puzzles use --dump" });
 const types = (f.types ? f.types.split(",").map((t) => t.trim()) : [...PUZZLE_TYPES]) as PuzzleType[];
 for (const t of types) if (!PUZZLE_TYPES.includes(t)) throw new Error(`Unknown puzzle type ${t}; use ${PUZZLE_TYPES.join(", ")}.`);
 const n = Number(f.n);
 const seed = Number(f.seed);
 const newShare = Number(f["new-share"]);
 const synthShare = Number(f["synth-share"]);
-const variant = f.variant ?? (f.dump ? "dump" : scripted ? "dry-run" : "baseline");
+const variant = f.dump ? (f.variant ?? "dump") : defaultVariant(f.variant, scripted);
 const model = f.model ?? CHAT_MODEL;
 
 const catalog = loadCatalog();
-const deckFile = f.decks ?? (existsSync(META_DECKS) ? META_DECKS : undefined);
+const deckFile = metaDecksFile(f.decks);
 const decks = deckFile ? JSON.parse(readFileSync(deckFile, "utf8")) : undefined;
 const generated = generatePuzzles({ seed, n, types, newShare, synthShare, decks, catalog });
 const source = `seed ${seed}, ${n} per type, self-play and Harness boards (${Math.round(synthShare * 100)}% Harness), ${Math.round(newShare * 100)}% from OP18 / EB05, decks ${deckFile ?? "random"}`;
 
-const dir = join(here("../out/puzzles"), variant);
+const dir = join(suiteOutDir("puzzles"), variant);
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, "puzzles.jsonl"), generated.puzzles.map((p) => JSON.stringify(p)).join("\n") + "\n");
 const counts = types.map((t) => `${t} ${generated.puzzles.filter((p) => p.type === t).length}`).join(", ");
@@ -83,13 +68,9 @@ console.log(`${generated.puzzles.length} puzzles (${counts}); wrote ${join(dir, 
 if (Object.keys(generated.short).length) console.warn(`Short of ${n} per type: ${JSON.stringify(generated.short)} (positions a generator turned down: ${JSON.stringify(generated.rejected)})`);
 if (f.dump) process.exit(0);
 
-const client = scripted ? null : new Anthropic();
-const library = scripted || f.library === "none" ? undefined : new OfficialLibrary({ baseUrl: process.env.OFFICIAL_SITE_URL || undefined });
-const planner: PlannerOptions = {
-  mode: "fake",
-  stats: JSON.parse(readFileSync(here("../fixtures/stats.json"), "utf8")) as StatsFixtures,
-  tournaments: JSON.parse(readFileSync(here("../fixtures/tournaments.json"), "utf8")) as TournamentFixtures,
-};
+const client = anthropicClient(scripted);
+const library = libraryFor(scripted ? "none" : f.library);
+const planner = fakePlanner();
 const real = client ? anthropicModel(client as never) : null;
 const started = Date.now();
 const result = await askAll(

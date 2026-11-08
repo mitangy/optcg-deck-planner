@@ -17,10 +17,10 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
 import * as ort from "onnxruntime-web";
-import { getCv } from "../src/cardMatch.ts";
-import { detectCardsAsync, quadIoU, setCardModelDetector } from "../src/cardDetect.ts";
-import { loadCardDetector, detectWithModel, releaseCardDetector } from "../src/cardDetectModel.ts";
-import { matchAllCardsWith } from "../src/cardScanMulti.ts";
+import { getCv } from "../src/scanner/match/cardMatch.ts";
+import { detectCardsAsync, quadIoU, setCardModelDetector } from "../src/scanner/detect/cardDetect.ts";
+import { loadCardDetector, detectWithModel, releaseCardDetector } from "../src/scanner/detect/cardDetectModel.ts";
+import { matchAllCardsWith } from "../src/scanner/match/cardScanMulti.ts";
 import { loadMatchAssets } from "./eval-shared.mjs";
 
 const DIR = ".scan-build/real-photos";

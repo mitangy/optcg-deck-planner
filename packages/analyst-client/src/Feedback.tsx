@@ -11,7 +11,7 @@ import {
   type FeedbackTarget,
   type Rating,
   type Vote,
-} from "./feedback";
+} from "./feedbackModel";
 
 /**
  * The player's votes on a thread's answers (or on one game's review) and a way to cast one. Votes load once per

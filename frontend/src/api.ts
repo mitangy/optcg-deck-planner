@@ -1,61 +1,5 @@
 import { readFirstTouch } from "@optcg/ui/firstTouch";
-const configured = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
-// Local: hit uvicorn directly, on whichever host the page itself was loaded
-// from — not a fixed address. A static VITE_API_URL forces every page load to
-// call that one host regardless of how it was reached: opening the app via a
-// LAN IP for phone testing would leave a desktop tab on localhost silently
-// calling out to the LAN IP too, an unnecessary cross-address request that
-// has nothing to do with how that tab was opened. Deriving it from
-// window.location means localhost pairs with localhost and a LAN IP pairs
-// with itself, independent of whatever else is being tested.
-// Production: same-origin /api (Vercel rewrite → Render) so the session
-// cookie is first-party (required on mobile Safari).
-const API_URL =
-  configured ||
-  (import.meta.env.DEV
-    ? // Guarded rather than assumed: this module is imported (transitively,
-      // via other components) by tests running under Vitest's default Node
-      // environment, where `window` does not exist.
-      typeof window !== "undefined"
-      ? `${window.location.protocol}//${window.location.hostname}:8000`
-      : "http://localhost:8000"
-    : "/api");
-
-/** Where the API lives for this page (same-origin /api in production). */
-export function getApiBaseUrl(): string {
-  return API_URL;
-}
-
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: HeadersInit = {
-    ...(init?.headers || {}),
-  };
-  if (init?.body) {
-    (headers as Record<string, string>)["Content-Type"] = "application/json";
-  }
-  const res = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-    ...init,
-    headers,
-  });
-  if (!res.ok) {
-    let detail: unknown = res.statusText;
-    try {
-      const body = await res.json();
-      detail = body.detail ?? body;
-    } catch {
-      /* ignore */
-    }
-    const err = new Error(
-      typeof detail === "string" ? detail : JSON.stringify(detail),
-    ) as Error & { status?: number; detail?: unknown };
-    err.status = res.status;
-    err.detail = detail;
-    throw err;
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
+import { API_URL, LONG_TIMEOUT_MS, request } from "./apiClient";
 
 export type User = {
   id: number;
@@ -109,6 +53,23 @@ export type PrintingView = {
   wanted?: number;
   /** Copies of this alt the user owns. */
   owned?: number;
+  /** Collector copies of this alt the user wants on top of their decks (#1031); 0 when none. */
+  collector?: number;
+};
+
+/** One collector copy line under a Master Shopping card (#1031). */
+export type CollectorLine = {
+  product_id: number;
+  /** The printing's label as the alt tiles show it, e.g. "Gold-stamped". */
+  label: string;
+  image_url: string | null;
+  market_price: number | null;
+  want: number;
+  /** min(owned of this printing, want). */
+  have: number;
+  still_need: number;
+  /** still_need * price; null when unpriced and something is still needed. */
+  remaining_cost: number | null;
 };
 
 export type AlertDirection = "below" | "above";
@@ -213,6 +174,8 @@ export type CardView = {
   alt_arts: PrintingView[];
   /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
+  /** Collector copies wanted on top of this deck's needs, summed over the card's alt printings (#1031). */
+  collector_want?: number;
 };
 
 export type DeckDetail = {
@@ -262,6 +225,8 @@ export type ShoppingItem = {
   extra_qty?: number;
   /** Need from decks alone (`need` also folds in `extra_qty` by max). */
   deck_need?: number;
+  /** Collector copies wanted on top of the decks, one line per printing (#1031). */
+  collector_wants?: CollectorLine[];
 };
 
 /** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
@@ -307,6 +272,8 @@ export type ShoppingResponse = {
   cards_still_needed: number;
   remaining_market: number;
   unique_cards: number;
+  /** Collector copies wanted across all lines (#1031); the totals above already include what is still needed. */
+  collector_copies?: number;
 };
 
 export type OwnedCard = {
@@ -671,6 +638,14 @@ export const api = {
     request<DeckSummary>("/decks", {
       method: "POST",
       body: JSON.stringify({ name, decklist }),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  /** Overwrite a deck's leader and cards with a pasted OPTCGSim deck code (#1016). Name and id stay. */
+  replaceDeckList: (id: number, decklist: string) =>
+    request<DeckDetail>(`/decks/${id}/decklist`, {
+      method: "PUT",
+      body: JSON.stringify({ decklist }),
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   deleteDeck: (id: number) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: "DELETE" }),
@@ -719,6 +694,14 @@ export const api = {
   setAltOwned: (cardId: string, productId: number, qty: number) =>
     request<{ card_id: string; product_id: number; qty: number }>(
       `/owned/${encodeURIComponent(cardId)}/printings/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ qty }),
+      },
+    ),
+  setCollectorWant: (cardId: string, productId: number, qty: number) =>
+    request<{ card_id: string; product_id: number; qty: number }>(
+      `/cards/${encodeURIComponent(cardId)}/collector/${productId}`,
       {
         method: "PUT",
         body: JSON.stringify({ qty }),
@@ -789,12 +772,14 @@ export const api = {
     request<{ items: { card_id: string; owned: number }[] }>("/owned/add", {
       method: "POST",
       body: JSON.stringify({ items }),
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   /** Max 40 items per request; 403 when the user switched sharing off. */
   uploadScanSamples: (items: ScanSampleUpload[]) =>
     request<{ saved: number }>("/scan-samples", {
       method: "POST",
       body: JSON.stringify({ items }),
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   myScanSamples: () => request<{ count: number }>("/scan-samples/mine"),
   deleteMyScanSamples: () => request<{ deleted: number }>("/scan-samples/mine", { method: "DELETE" }),
@@ -869,6 +854,7 @@ export const api = {
     request<GroupBuyReceiptMatchReport>(`/group-buys/${id}/receipt/match`, {
       method: "POST",
       body: JSON.stringify({ receipt_text }),
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   applyGroupBuyReceipt: (
     id: number,
@@ -877,6 +863,7 @@ export const api = {
     request<GroupBuyDetail>(`/group-buys/${id}/receipt/apply`, {
       method: "POST",
       body: JSON.stringify(body),
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   undoGroupBuyReceiptApply: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/receipt/undo`, { method: "POST" }),

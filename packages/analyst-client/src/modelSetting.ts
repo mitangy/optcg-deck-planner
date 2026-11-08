@@ -1,4 +1,5 @@
 /** The model Log Pose runs on: one global setting on the planner API, the same in both apps; only its admin can change it. */
+import { MODELS } from "@optcg/analyst-contract";
 
 export type ModelSetting = { model: string; options: string[]; canEdit: boolean };
 
@@ -13,13 +14,13 @@ export function modelLabel(id: string): string {
 /** What the selected model costs next to the default, Sonnet; the picker's note. */
 export function modelCostHint(id: string): string {
   switch (id) {
-    case "claude-sonnet-5-5":
+    case MODELS.sonnet:
       return "Default.";
-    case "claude-opus-5-5":
+    case MODELS.opus:
       return "Costs about 2x Sonnet.";
-    case "claude-haiku-5-5":
+    case MODELS.haiku:
       return "Costs about 1/20 of Sonnet.";
-    case "claude-haiku-4-5":
+    case MODELS.haiku45:
       return "Costs about half of Sonnet.";
     default:
       return "";

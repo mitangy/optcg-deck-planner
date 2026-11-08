@@ -2,28 +2,32 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import secrets
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
-from sqlalchemy import delete, func, or_, select
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.analyst_stats import matchup_stats
-from app.tournament_stats import tournament_stats
-from app.tournament_sync import sync_status
-from app.auth import get_current_user
-from app.config import Settings, get_settings
-from app.db import get_db
-from app.roles import is_banned
-from app.models import AnalystAccess, AnalystLesson, AnalystPrefs, AnalystSetting, AnalystToken, Deck, DuelMatch, DuelMatchLog, User
-from app.routers.duel import match_history
-from app.schemas import (
-    CARD_ID_PATTERN,
+from app.analyst.stats import matchup_stats
+from app.analyst.tournament_stats import tournament_stats
+from app.analyst.tournament_sync import sync_status
+from app.analyst import access
+from app.analyst.auth import analyst_user, hash_token
+from app.core.security import require_service
+from app.core.auth import get_current_user
+from app.duel.sim_games import MAX_IMPORT_GAMES, clear_games, import_games
+from app.core.config import Settings, get_settings
+from app.core.statuses import LessonStatus
+from app.core.db import get_db
+from app.analyst.models import AnalystLesson, AnalystPrefs, AnalystToken
+from app.core.models import User
+from app.duel.models import DuelMatch, DuelMatchLog, SimGame
+from app.planner.models import Deck
+from app.duel.matches import match_history
+from app.analyst.schemas import (
     AnalystDeckOut,
     AnalystDecksOut,
     AnalystLessonIn,
@@ -34,15 +38,22 @@ from app.schemas import (
     AnalystSharing,
     AnalystTokenCreated,
     AnalystTokenStatus,
+)
+from app.core.schemas import CARD_ID_PATTERN
+from app.duel.schemas import (
     DuelMatchHistoryOut,
+    SimGameDetailOut,
+    SimGameOut,
+    SimGamesClearedOut,
+    SimGamesImportIn,
+    SimGamesImportOut,
+    SimGamesOut,
+    SimMatchupOut,
+    SimMatchupsOut,
 )
 from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _connector_url(settings: Settings, token: str) -> str | None:
@@ -71,7 +82,7 @@ def create_token(
     """Make a new personal connector link. Any earlier link stops working."""
     token = secrets.token_urlsafe(24)
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
-    db.add(AnalystToken(user_id=user.id, token_hash=_hash(token)))
+    db.add(AnalystToken(user_id=user.id, token_hash=hash_token(token)))
     db.commit()
     return AnalystTokenCreated(token=token, connector_url=_connector_url(settings, token))
 
@@ -84,107 +95,6 @@ def revoke_token(
     db.execute(delete(AnalystToken).where(AnalystToken.user_id == user.id))
     db.commit()
     return Response(status_code=204)
-
-
-CHAT_TOKEN_SECONDS = 30 * 60
-
-
-def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
-    return hmac.new(settings.analyst_service_secret.encode(), f"chat.{uid}.{exp}".encode(), hashlib.sha256).hexdigest()
-
-
-def is_chat_owner(settings: Settings, user: User) -> bool:
-    """Owners are everyone on ANALYST_CHAT_EMAILS: they always have the chat and answer access requests."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_chat_email_set
-
-
-def is_model_admin(settings: Settings, user: User) -> bool:
-    """Only ANALYST_MODEL_ADMIN_EMAILS may change the model Log Pose runs on."""
-    return user.role == "admin" or user.email.strip().lower() in settings.analyst_model_admin_email_set
-
-
-# The models the chat may run on; the first is the default.
-CHAT_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5")
-
-
-def chat_model(db: Session) -> str:
-    """The saved chat model, or the default when none is saved (or the saved one is no longer offered)."""
-    value = db.scalar(select(AnalystSetting.value).where(AnalystSetting.key == "chat_model"))
-    return value if value in CHAT_MODELS else CHAT_MODELS[0]
-
-
-def _service_configured(settings: Settings) -> bool:
-    return bool(settings.analyst_service_secret and settings.analyst_public_url)
-
-
-def access_status(db: Session, user: User) -> str | None:
-    row = db.scalar(select(AnalystAccess.status).where(AnalystAccess.user_id == user.id))
-    return row
-
-
-def chat_enabled_for(settings: Settings, user: User, db: Session) -> bool:
-    """The in-app chat panel is on for owners, and for players an owner approved, once the analyst service is configured."""
-    if not _service_configured(settings):
-        return False
-    return is_chat_owner(settings, user) or access_status(db, user) == "approved"
-
-
-def requests_open(settings: Settings) -> bool:
-    """Players can ask for access only when the service is on and someone is there to approve."""
-    return _service_configured(settings) and bool(settings.analyst_chat_email_set)
-
-
-def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
-    """A short-lived token the browser hands the analyst's /chat; signed with the service secret."""
-    exp = now + CHAT_TOKEN_SECONDS
-    return f"chat.{user.id}.{exp}.{_chat_sig(settings, user.id, exp)}", exp
-
-
-def _chat_token_user(db: Session, settings: Settings, token: str) -> User | None:
-    parts = token.split(".")
-    if len(parts) != 4 or not settings.analyst_service_secret:
-        return None
-    _, uid, exp, sig = parts
-    if not (uid.isdigit() and exp.isdigit()):
-        return None
-    if not hmac.compare_digest(sig, _chat_sig(settings, int(uid), int(exp))):
-        return None
-    if int(exp) < int(datetime.now(timezone.utc).timestamp()):
-        return None
-    user = db.get(User, int(uid))
-    return user if user is not None and chat_enabled_for(settings, user, db) else None
-
-
-def analyst_user(
-    db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_analyst_token: Annotated[str | None, Header()] = None,
-) -> User:
-    """The player whose personal connector token (or in-app chat token) is in X-Analyst-Token."""
-    if not x_analyst_token:
-        raise HTTPException(status_code=401, detail="Missing analyst token")
-    if x_analyst_token.startswith("chat."):
-        user = _chat_token_user(db, settings, x_analyst_token)
-        if user is None:
-            raise HTTPException(status_code=401, detail="Expired or invalid chat token")
-        if is_banned(user):
-            raise HTTPException(status_code=403, detail="Account banned")
-        return user
-    row = db.scalar(select(AnalystToken).where(AnalystToken.token_hash == _hash(x_analyst_token)))
-    user = db.get(User, row.user_id) if row else None
-    if user is None:
-        raise HTTPException(status_code=401, detail="Unknown or revoked analyst token")
-    if is_banned(user):
-        raise HTTPException(status_code=403, detail="Account banned")
-    return user
-
-
-def require_service(settings: Settings, given: str | None) -> None:
-    expected = settings.analyst_service_secret
-    if not expected:
-        raise HTTPException(status_code=503, detail="Replays are not enabled")
-    if not given or not hmac.compare_digest(given, expected):
-        raise HTTPException(status_code=403, detail="Analyst service only")
 
 
 @router.get("/me", response_model=AnalystTokenStatus)
@@ -313,9 +223,6 @@ def put_sharing(
     return body
 
 
-MAX_DRAFT_LESSONS = 100
-
-
 def _match_ids(evidence: str | None) -> list[str]:
     """Player lessons keep a JSON list of match ids; bot lessons keep a JSON object with a summary instead."""
     try:
@@ -360,9 +267,9 @@ def draft_lesson(
 ) -> AnalystLessonOut:
     """Claude saves a lesson as a draft for the link owner to review. Evidence must be the owner's own games."""
     waiting = db.scalar(
-        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == "draft")
+        select(func.count()).select_from(AnalystLesson).where(AnalystLesson.user_id == user.id, AnalystLesson.status == LessonStatus.DRAFT)
     )
-    if waiting >= MAX_DRAFT_LESSONS:
+    if waiting >= access.MAX_DRAFT_LESSONS:
         raise HTTPException(status_code=409, detail="Too many lessons are waiting for review")
     match_ids = list(dict.fromkeys(body.match_ids))
     if match_ids:
@@ -379,7 +286,7 @@ def draft_lesson(
             raise HTTPException(status_code=400, detail=f"Not your matches: {', '.join(unknown)}")
     row = AnalystLesson(
         user_id=user.id,
-        status="draft",
+        status=LessonStatus.DRAFT,
         text=body.text.strip(),
         leader_id=body.leader_id,
         opponent_id=body.opponent_id,
@@ -433,7 +340,7 @@ def review_lesson(
         row.text = body.text.strip()
     if body.status is not None and body.status != row.status:
         row.status = body.status
-        row.reviewed_at = None if body.status == "draft" else datetime.now(timezone.utc)
+        row.reviewed_at = None if body.status == LessonStatus.DRAFT else datetime.now(timezone.utc)
     db.commit()
     db.refresh(row)
     return _lesson_out(row)
@@ -448,3 +355,119 @@ def delete_lesson(
     db.delete(_own_lesson(db, user, lesson_id))
     db.commit()
     return Response(status_code=204)
+
+
+# --- Imported OPTCGSim games (#1030) -------------------------------------------------------------
+# Every query filters on user_id: a player only ever reads or deletes their own rows.
+
+
+def sim_games_user(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    x_analyst_token: Annotated[str | None, Header()] = None,
+) -> User:
+    """The Log Pose link owner (X-Analyst-Token) for the analyst, or the signed-in player for duel-web."""
+    if x_analyst_token:
+        return analyst_user(db, settings, x_analyst_token)
+    return get_current_user(request, db, settings)
+
+
+def _sim_out(row: SimGame) -> dict:
+    return {
+        "id": row.id,
+        "played_at": row.played_at.isoformat() if row.played_at else None,
+        "my_leader": row.my_leader,
+        "opp_leader": row.opp_leader,
+        "my_deck": row.my_deck,
+        "opp_deck": row.opp_deck,
+        "result": row.result,
+        "turns": row.turns,
+        "went_first": row.went_first,
+        "has_log": row.has_log,
+        "source": row.source,
+    }
+
+
+@router.post("/sim-games/import", response_model=SimGamesImportOut)
+def import_sim_games(
+    body: SimGamesImportIn,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGamesImportOut:
+    """Store the player's OPTCGSim games. Names are dropped; games already imported are skipped."""
+    if len(body.games) > MAX_IMPORT_GAMES:
+        raise HTTPException(status_code=413, detail=f"At most {MAX_IMPORT_GAMES} games per import")
+    return SimGamesImportOut(**import_games(db, user.id, body.games))
+
+
+@router.get("/sim-games", response_model=SimGamesOut)
+def list_sim_games(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> SimGamesOut:
+    """The player's imported games, newest first, without the combat logs."""
+    rows = db.scalars(
+        select(SimGame)
+        .where(SimGame.user_id == user.id)
+        .order_by(SimGame.played_at.desc(), SimGame.created_at.desc(), SimGame.id)
+        .limit(limit)
+    ).all()
+    total = db.scalar(select(func.count()).select_from(SimGame).where(SimGame.user_id == user.id)) or 0
+    return SimGamesOut(games=[SimGameOut(**_sim_out(r)) for r in rows], total=total)
+
+
+@router.get("/sim-games/matchups", response_model=SimMatchupsOut)
+def sim_game_matchups(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimMatchupsOut:
+    won = func.sum(case((SimGame.result == "Won", 1), else_=0))
+    rows = db.execute(
+        select(SimGame.my_leader, SimGame.opp_leader, func.count(), won)
+        .where(SimGame.user_id == user.id)
+        .group_by(SimGame.my_leader, SimGame.opp_leader)
+        .order_by(func.count().desc(), SimGame.my_leader, SimGame.opp_leader)
+    ).all()
+    return SimMatchupsOut(
+        matchups=[
+            SimMatchupOut(my_leader=m, opp_leader=o, games=n, wins=int(w or 0), losses=n - int(w or 0)) for m, o, n, w in rows
+        ]
+    )
+
+
+@router.get("/sim-games/{game_id}", response_model=SimGameDetailOut)
+def get_sim_game(
+    game_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGameDetailOut:
+    """One imported game with its combat log. Someone else's game is a 404, same as a missing one."""
+    row = db.scalar(select(SimGame).where(SimGame.id == game_id, SimGame.user_id == user.id))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return SimGameDetailOut(**_sim_out(row), combat_log=row.combat_log)
+
+
+@router.delete("/sim-games/{game_id}", status_code=204)
+def delete_sim_game(
+    game_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> Response:
+    row = db.scalar(select(SimGame).where(SimGame.id == game_id, SimGame.user_id == user.id))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    db.delete(row)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/sim-games", response_model=SimGamesClearedOut)
+def clear_sim_games(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(sim_games_user)],
+) -> SimGamesClearedOut:
+    """Remove every game the player imported."""
+    return SimGamesClearedOut(deleted=clear_games(db, user.id))

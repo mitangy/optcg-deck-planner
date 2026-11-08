@@ -1,26 +1,16 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BountyAmount } from "../Bounty";
 import { fetchLeaderboard, type LeaderboardEntry, type RatingMe } from "../net/api";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { pinnedYou } from "./bounties";
 
 const TOP_N = 5;
+const NONE: LeaderboardEntry[] = [];
 
 /** The five highest Bounties, with your own rank pinned under them when you are further down. Hidden when empty or failed. */
 export function TopBounties({ me }: { me: RatingMe | null | undefined }) {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-
-  useEffect(() => {
-    let live = true;
-    fetchLeaderboard(TOP_N)
-      .then((e) => live && setEntries(e))
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  return <TopBountiesCard entries={entries} me={me} />;
+  const res = useAsyncResource(() => fetchLeaderboard(TOP_N), []);
+  return <TopBountiesCard entries={res.status === "ready" ? res.data : NONE} me={me} />;
 }
 
 /** The card itself; hidden when there is nothing to show. */

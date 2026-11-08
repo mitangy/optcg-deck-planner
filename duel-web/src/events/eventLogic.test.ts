@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bannerCta, closedNote, eventPhase, formatCountdown, formatWindow, progressLabel, staffNote, statusLine } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatCountdown, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
 
 const START = "2026-11-22T17:00:00Z";
 const END = "2026-11-22T21:00:00Z";
@@ -66,8 +66,32 @@ describe("Stress Test Sunday banner (#794)", () => {
     const early = at("2026-11-01T00:00:00Z");
     expect(bannerCta(staff, early)).toBe("join");
     expect(staffNote(staff, early)).toBe("You can play, but staff aren't eligible for prizes.");
-    expect(staffNote({ ...staff, opted_in: true }, at("2026-11-22T18:00:00Z"))).toBe("You can play, but staff aren't eligible for prizes.");
+    const optedIn = { ...staff, opted_in: true };
+    expect(staffNote(optedIn, at("2026-11-22T18:00:00Z"))).toBe("You can play, but staff aren't eligible for prizes.");
     expect(staffNote({ ...staff, viewer: "player" }, early)).toBeNull();
     expect(staffNote({ ...staff, status: "drawn" }, early)).toBeNull();
+  });
+});
+
+describe("event style and prizing on the banner (#1019)", () => {
+  it("names the tourney style with the bracket size and match length (#1019)", () => {
+    expect(eventStyleLabel({ format: "single_elim", bracket_size: 8, best_of: 3 })).toBe("Single elimination · 8 players · Bo3");
+    expect(eventStyleLabel({ format: "round_robin", bracket_size: null, best_of: 1 })).toBe("Round robin · Bo1");
+    expect(eventStyleLabel({ format: "swiss", bracket_size: 16, best_of: 3 })).toBe("Swiss · Bo3");
+    expect(eventStyleLabel({ format: "casual", bracket_size: null, best_of: 3 })).toBe("Casual play");
+  });
+
+  it("calls a draw a free giveaway and a placement event a prize for the top finishers (#1019)", () => {
+    expect(prizeLine({ prize: "3 x $20 gift cards", prize_method: "draw" })).toBe("Free giveaway · 3 x $20 gift cards");
+    expect(prizeLine({ prize: "Booster box", prize_method: "placement" })).toBe("Prizes for the top finishers · Booster box");
+    expect(prizeLine({ prize: "", prize_method: "placement" })).toBe("Prizes for the top finishers");
+  });
+
+  it("only draw events have a draw, and a placement event never says winners are drawn (#1019)", () => {
+    expect(usesDraw({ prize_method: "draw" })).toBe(true);
+    expect(usesDraw({ prize_method: "placement" })).toBe(false);
+    const ended = at("2026-11-22T22:00:00Z");
+    expect(statusLine({ ...ev, prize_method: "placement" }, ended)).toBe("Ended");
+    expect(statusLine({ ...ev, prize_method: "draw" }, ended)).toBe("Ended · winners drawn soon");
   });
 });

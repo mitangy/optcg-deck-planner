@@ -1,4 +1,4 @@
-from app.group_buy_merge import MemberNeed, merge_member_needs
+from app.group_buy.merge import MemberNeed, merge_member_needs
 
 
 def test_merge_sums_still_need_across_members():

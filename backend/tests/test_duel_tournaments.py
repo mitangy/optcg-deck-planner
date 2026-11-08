@@ -9,12 +9,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app import duel_tournaments as logic
-from app.auth import SESSION_COOKIE, create_session_token
-from app.config import get_settings
-from app.db import get_db
+from app.duel import tournaments as logic
+from app.core.auth import SESSION_COOKIE, create_session_token
+from app.core.config import get_settings
+from app.core.db import get_db
 from app.main import app
-from app.models import DuelPresence, DuelTournamentMatch, User
+from app.core.models import User
+from app.duel.models import DuelTournamentMatch
+from app.social.models import DuelPresence
 from tests.db_support import make_test_engine
 from tests.friend_support import befriend, request_only
 
@@ -519,7 +521,7 @@ def test_old_finished_tournaments_drop_off_the_list_997(client):
     _as(c, ids[0]).post(f"/tournaments/{code}/matches/{final['id']}/award", json={"winner_id": final["a"]["user_id"]})
     assert len(_as(c, ids[0]).get("/tournaments").json()["tournaments"]) == 1
     with S() as db:
-        from app.models import DuelTournament
+        from app.duel.models import DuelTournament
 
         row = db.query(DuelTournament).one()
         row.finished_at = datetime.now(timezone.utc) - timedelta(days=15)

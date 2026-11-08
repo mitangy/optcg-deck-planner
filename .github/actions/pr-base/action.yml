@@ -1,0 +1,26 @@
+name: Find the base the PR merges into
+description: >-
+  Exports BASE_SHA for later steps. Run actions/checkout with fetch-depth: 0
+  first.
+
+inputs:
+  fallback-sha:
+    description: pull_request.base.sha, used when the checkout is not a merge commit.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        FALLBACK_SHA: ${{ inputs.fallback-sha }}
+      # The checkout is the PR's test merge commit, whose first parent is the
+      # base branch as GitHub merged it. pull_request.base.sha can be older
+      # than that (it isn't updated when the base moves), and diffing against
+      # it re-runs every mutation main gained since.
+      run: |
+        if git rev-parse -q --verify HEAD^2 >/dev/null; then
+          echo "BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+        else
+          echo "BASE_SHA=${FALLBACK_SHA}" >> "$GITHUB_ENV"
+        fi

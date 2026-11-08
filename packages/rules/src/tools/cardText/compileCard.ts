@@ -5,7 +5,7 @@
 import { EFFECT_SCHEMA_VERSION, type Ability, type CardAbilities, type Cond, type Cost, type Effect, type EventTrigger, type Replacement, type Static, type Trigger } from "../../effects/types.js";
 import type { CardDataRow } from "../../cards/cardData.js";
 import { isKeywordTag, normalizeText, protect, restoreNames, segment, sentences, type Placeholders } from "./normalize.js";
-import { clean, parseCondition, parseCosts, parseEffectBody, parseStatement, parseStaticSentence } from "./grammar.js";
+import { clean, parseCondition, parseCosts, parseEffectBody, parseStatement, parseStaticSentence } from "./grammar/index.js";
 import { parseCardPhrase, type Ctx } from "./phrases.js";
 
 const WINDOW_TAGS: Record<string, Trigger> = {

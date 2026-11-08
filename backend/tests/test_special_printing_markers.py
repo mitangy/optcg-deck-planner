@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from app.catalog_sync import refresh_special_flags
-from app.domain import is_special_printing
-from app.models import CatalogCard, CatalogPrinting
-from app.services import _alt_arts_map, _primary_product_ids
+from app.planner.catalog_sync import refresh_special_flags
+from app.planner.domain import is_special_printing
+from app.planner.models import CatalogCard, CatalogPrinting
+from app.planner.catalog_repo import alt_arts_map, primary_product_ids
 
 
 def test_classic_and_expanded_special_markers():
@@ -189,7 +189,7 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
     )
     db.commit()
 
-    alts = _alt_arts_map(db, {"OP01-016", "OP14-029"})
+    alts = alt_arts_map(db, {"OP01-016", "OP14-029"})
     assert [a.product_id for a in alts.get("OP01-016", [])] == [12]
     assert "OP14-029" not in alts or alts["OP14-029"] == []
 
@@ -245,7 +245,7 @@ def test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762(db):
         select(CatalogPrinting).where(CatalogPrinting.product_id == PERONA_ANNIVERSARY_PID)
     )
     assert row is not None and row.is_special == 1
-    alts = _alt_arts_map(db, {"OP12-034"})
+    alts = alt_arts_map(db, {"OP12-034"})
     assert [a.product_id for a in alts.get("OP12-034", [])] == [PERONA_ANNIVERSARY_PID]
 
 
@@ -277,6 +277,6 @@ def test_a_listed_promo_id_never_demotes_the_base_printing_763(db):
     assert flags == {BOA_BASE_PID: 0, BOA_PRERELEASE_PID: 0, PERONA_ANNIVERSARY_PID: 1}
     card = db.get(CatalogCard, "OP02-059")
     assert card.market_price == 0.25 and card.group_name != "Paramount War Pre-Release Cards"
-    assert _primary_product_ids(db, {"OP02-059"}) == {"OP02-059": BOA_BASE_PID}
-    alts = _alt_arts_map(db, {"OP02-059"})
+    assert primary_product_ids(db, {"OP02-059"}) == {"OP02-059": BOA_BASE_PID}
+    alts = alt_arts_map(db, {"OP02-059"})
     assert [a.product_id for a in alts["OP02-059"]] == [PERONA_ANNIVERSARY_PID]

@@ -1,23 +1,24 @@
+import { PageShell } from "../layout/PageShell";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
-import { CardInspect } from "../board/CardInspect";
-import { TONE_ICON } from "../board/BattleLogPanel";
-import type { LogSegment } from "../board/battleLog";
+import { CardInspect } from "../board/preview/CardInspect";
+import { TONE_ICON } from "../board/panels/BattleLogPanel";
+import type { LogSegment } from "../board/match/battleLog";
 import { fetchMatchDetail, type MatchDetail } from "../history/historyApi";
 import { groupHand, matchLogTurns } from "../history/matchLog";
 import { matchRow, outcomeKey } from "../history/matchRow";
-import { useClickCopy } from "../board/clickCopy";
+import { useClickCopy } from "../board/input/clickCopy";
 import { openReport } from "../reports/reportDialog";
 import { historyReportTarget } from "../reports/reportTargets";
 import { ApiError, googleLoginUrl } from "../net/api";
-import { BackLink } from "./BackLink";
+import { errorMessage } from "../lib/errors";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { useLogPose, useLogPosePage } from "@optcg/analyst-client";
 import { matchLogScope } from "../logPoseScopes";
 import { LogPoseReview } from "../history/LogPoseReview";
 import { MATCH_LOG_STARTERS } from "../logPose";
 import "../history/history.css";
-import { NavMenu } from "../nav/NavMenu";
 
 type State =
   | { status: "loading" }
@@ -40,23 +41,14 @@ function CardButton({ defId, name, onInspect }: { defId: string; name: string; o
 
 export function MatchLogPage() {
   const { matchId = "" } = useParams();
-  const [state, setState] = useState<State>({ status: "loading" });
+  const res = useAsyncResource(() => fetchMatchDetail(matchId), [matchId]);
+  const state = useMemo<State>(() => {
+    if (res.status === "ready") return { status: "ready", detail: res.data };
+    if (res.status === "loading") return { status: "loading" };
+    if (res.error instanceof ApiError && res.error.status === 401) return { status: "signed-out" };
+    return { status: "error", message: errorMessage(res.error, "Could not load this match") };
+  }, [res]);
   const [inspect, setInspect] = useState<Inspect | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    setState({ status: "loading" });
-    fetchMatchDetail(matchId)
-      .then((detail) => live && setState({ status: "ready", detail }))
-      .catch((e: unknown) => {
-        if (!live) return;
-        if (e instanceof ApiError && e.status === 401) setState({ status: "signed-out" });
-        else setState({ status: "error", message: e instanceof Error ? e.message : "Could not load this match" });
-      });
-    return () => {
-      live = false;
-    };
-  }, [matchId]);
 
   const detail = state.status === "ready" ? state.detail : null;
 
@@ -161,125 +153,114 @@ export function MatchLogPage() {
   );
 
   return (
-    <div className="app-shell">
-      <div className="page match-log-page">
-        <header className="page-header">
-          <NavMenu />
-          <BackLink to="/history" label="History" ariaLabel="Back to match history" />
-          <h1 className="page-title">Match log</h1>
-        </header>
+    <PageShell pageClass="match-log-page" back={{ to: "/history", label: "History", ariaLabel: "Back to match history" }} title="Match log" outside={inspect ? <CardInspect defId={inspect.defId} open onClose={() => setInspect(null)} ownerSeat={inspect.ownerSeat} viewingSeat={seat} /> : null}>
+      {state.status === "loading" ? <p className="panel-copy history-note">Loading the match…</p> : null}
+      {state.status === "error" ? <p className="panel-copy history-note" role="alert">{state.message}</p> : null}
+      {state.status === "signed-out" ? (
+        <section className="panel">
+          <p className="panel-copy">Sign in to see your match logs.</p>
+          <div className="btn-row">
+            <a className="btn btn-primary" href={googleLoginUrl()}>
+              Sign in with Google
+            </a>
+          </div>
+        </section>
+      ) : null}
 
-        {state.status === "loading" ? <p className="panel-copy history-note">Loading the match…</p> : null}
-        {state.status === "error" ? <p className="panel-copy history-note" role="alert">{state.message}</p> : null}
-        {state.status === "signed-out" ? (
-          <section className="panel">
-            <p className="panel-copy">Sign in to see your match logs.</p>
-            <div className="btn-row">
-              <a className="btn btn-primary" href={googleLoginUrl()}>
-                Sign in with Google
-              </a>
-            </div>
-          </section>
-        ) : null}
-
-        {row ? (
-          <section className="history-row match-summary" data-outcome={outcomeKey(row.outcome)}>
-            <span className="history-outcome">{row.outcome}</span>
-            <div className="history-main">
-              <p className="history-leaders">
-                <span>{row.yourLeader}</span>
-                <span className="history-vs">vs</span>
-                <span>{row.opponentLeader}</span>
-              </p>
-              <p className="history-meta">
-                {[row.opponent, row.how, row.turns, wentFirst == null ? null : wentFirst ? "You went first" : "You went second", row.when]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-            {row.bountyDelta ? <span className="history-bounty" title="Bounty change">{row.bountyDelta}</span> : null}
-          </section>
-        ) : null}
-
-        {reportTarget ? (
-          <p className="match-report-row">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport(reportTarget)}>
-              Report opponent
-            </button>
-          </p>
-        ) : null}
-
-        {playTurns.length ? (
-          <nav className="match-log-jump" aria-label="Jump to turn">
-            {playTurns.map((t) => (
-              <a
-                key={t.turn}
-                href={`#turn-${t.turn}`}
-                className="match-log-jump-chip"
-                data-yours={t.yours ? "true" : undefined}
-                title={`Turn ${t.turn}: ${t.label}`}
-                onClick={(e) => jumpTo(e, t.turn)}
-              >
-                {t.turn}
-              </a>
-            ))}
-          </nav>
-        ) : null}
-
-        {detail && !log ? (
-          <section className="panel">
-            <p className="panel-copy">
-              No turn log was kept for this game.
+      {row ? (
+        <section className="history-row match-summary" data-outcome={outcomeKey(row.outcome)}>
+          <span className="history-outcome">{row.outcome}</span>
+          <div className="history-main">
+            <p className="history-leaders">
+              <span>{row.yourLeader}</span>
+              <span className="history-vs">vs</span>
+              <span>{row.opponentLeader}</span>
             </p>
-          </section>
-        ) : null}
+            <p className="history-meta">
+              {[row.opponent, row.how, row.turns, wentFirst == null ? null : wentFirst ? "You went first" : "You went second", row.when]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          {row.bountyDelta ? <span className="history-bounty" title="Bounty change">{row.bountyDelta}</span> : null}
+        </section>
+      ) : null}
 
-        {detail && detail.match.finished === false ? (
-          <p className="field-hint history-hint" role="status">
-            This game never finished (it was cut off or abandoned), so the log runs up to the last saved turn.
+      {reportTarget ? (
+        <p className="match-report-row">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => openReport(reportTarget)}>
+            Report opponent
+          </button>
+        </p>
+      ) : null}
+
+      {playTurns.length ? (
+        <nav className="match-log-jump" aria-label="Jump to turn">
+          {playTurns.map((t) => (
+            <a
+              key={t.turn}
+              href={`#turn-${t.turn}`}
+              className="match-log-jump-chip"
+              data-yours={t.yours ? "true" : undefined}
+              title={`Turn ${t.turn}: ${t.label}`}
+              onClick={(e) => jumpTo(e, t.turn)}
+            >
+              {t.turn}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
+      {detail && !log ? (
+        <section className="panel">
+          <p className="panel-copy">
+            No turn log was kept for this game.
           </p>
-        ) : null}
+        </section>
+      ) : null}
 
-        {detail ? <LogPoseReview matchId={matchId} finished={detail.match.finished} /> : null}
+      {detail && detail.match.finished === false ? (
+        <p className="field-hint history-hint" role="status">
+          This game never finished (it was cut off or abandoned), so the log runs up to the last saved turn.
+        </p>
+      ) : null}
 
-        {log ? (
-          <div className="match-log">
-            <div className="match-log-openings">
-              <section className="match-log-hand" aria-label="Your opening hand">
-                <h2 className="match-log-turn-title">Your opening hand</h2>
+      {detail ? <LogPoseReview matchId={matchId} finished={detail.match.finished} /> : null}
+
+      {log ? (
+        <div className="match-log">
+          <div className="match-log-openings">
+            <section className="match-log-hand" aria-label="Your opening hand">
+              <h2 className="match-log-turn-title">Your opening hand</h2>
+              <p className="match-log-hand-cards">
+                {handCards(log.openingHand, seat)}
+              </p>
+            </section>
+            {log.opponentOpeningHand ? (
+              <section className="match-log-hand" aria-label="Opponent's opening hand">
+                <h2 className="match-log-turn-title">Opponent's opening hand</h2>
                 <p className="match-log-hand-cards">
-                  {handCards(log.openingHand, seat)}
+                  {handCards(log.opponentOpeningHand, opponentSeat)}
                 </p>
               </section>
-              {log.opponentOpeningHand ? (
-                <section className="match-log-hand" aria-label="Opponent's opening hand">
-                  <h2 className="match-log-turn-title">Opponent's opening hand</h2>
-                  <p className="match-log-hand-cards">
-                    {handCards(log.opponentOpeningHand, opponentSeat)}
-                  </p>
-                </section>
-              ) : null}
-            </div>
-            {intro ? renderTurn(intro) : null}
-            <div className="match-log-turns">
-              {playTurns.map(renderTurn)}
-            </div>
-            {log.diverged ? (
-              <p className="field-hint history-hint">The log stops early: card rules changed after this game was played.</p>
             ) : null}
           </div>
-        ) : null}
-
-        {log ? (
-          <p className="field-hint history-hint">
-            {log.opponentOpeningHand ? "The opponent's hand is shown because the game is over. Their deck and face-down cards stay hidden." : "Only what you could see is shown: the opponent's hand and face-down cards stay hidden."} For a coach's take,
-            ask Log Pose in Claude to review this game (link in <Link to="/settings">Settings</Link>).
-          </p>
-        ) : null}
-      </div>
-      {inspect ? (
-        <CardInspect defId={inspect.defId} open onClose={() => setInspect(null)} ownerSeat={inspect.ownerSeat} viewingSeat={seat} />
+          {intro ? renderTurn(intro) : null}
+          <div className="match-log-turns">
+            {playTurns.map(renderTurn)}
+          </div>
+          {log.diverged ? (
+            <p className="field-hint history-hint">The log stops early: card rules changed after this game was played.</p>
+          ) : null}
+        </div>
       ) : null}
-    </div>
+
+      {log ? (
+        <p className="field-hint history-hint">
+          {log.opponentOpeningHand ? "The opponent's hand is shown because the game is over. Their deck and face-down cards stay hidden." : "Only what you could see is shown: the opponent's hand and face-down cards stay hidden."} For a coach's take,
+          ask Log Pose in Claude to review this game (link in <Link to="/settings">Settings</Link>).
+        </p>
+      ) : null}
+    </PageShell>
   );
 }

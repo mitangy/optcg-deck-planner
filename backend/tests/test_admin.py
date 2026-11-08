@@ -8,12 +8,14 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app import admin_hosting
-from app import db as app_db
-from app.auth import (
+from app.admin import hosting as admin_hosting
+from app.admin import traffic as admin_traffic
+from app.core import db as app_db
+from app.core import seed
+from app.core.auth import (
     OAUTH_NONCE_COOKIE,
     SESSION_COOKIE,
     create_login_ticket,
@@ -21,33 +23,31 @@ from app.auth import (
     create_session_token,
     new_oauth_nonce,
 )
-from app.config import Settings, get_settings
-from app.models import (
+from app.core.config import Settings, get_settings
+from app.analyst.models import (
     AnalystAccess,
     AnalystEvalRun,
     AnalystThread,
     AnalystToken,
     AnalystUsage,
     BotMatch,
-    Deck,
+)
+from app.core.models import User
+from app.duel.models import (
     DuelCosmetic,
-    DuelLobbySeen,
     DuelMatch,
     DuelMatchLog,
     DuelMatchProgress,
     DuelMatchSeat,
-    DuelPresence,
     DuelRating,
     DuelSavedDeck,
     DuelSoloGame,
-    Friendship,
-    Owned,
     PlayerReport,
     PlayerWarning,
-    User,
 )
+from app.planner.models import Deck, Owned
+from app.social.models import DuelLobbySeen, DuelPresence, Friendship
 from app.roles import can_ban, can_delete, can_set_role
-from tests.db_support import make_bare_engine
 from tests.test_duel import client  # noqa: F401  (fixture)
 
 ADMIN_EMAIL = "gamefreakmichaeltang@gmail.com"
@@ -64,8 +64,10 @@ def api(client, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
     admin_hosting.clear_cache()
+    admin_traffic.clear_cache()
     yield client
     admin_hosting.clear_cache()
+    admin_traffic.clear_cache()
     get_settings.cache_clear()
 
 
@@ -145,11 +147,11 @@ def test_analytics_are_admin_only_and_the_user_list_is_staff_only_667(api):
     login(c, S, mod)
     assert c.get("/admin/users").status_code == 200
     assert c.get("/admin/me").json() == {"role": "moderator", "can": {"analytics": False, "set_roles": False, "ban": True, "delete": False}}
-    for path in ("/admin/overview", "/admin/bots", "/admin/hosting"):
+    for path in ("/admin/overview", "/admin/bots", "/admin/hosting", "/admin/traffic"):
         assert c.get(path).status_code == 403, path
     login(c, S, admin)
     assert c.get("/admin/me").json()["can"] == {"analytics": True, "set_roles": True, "ban": True, "delete": True}
-    for path in ("/admin/overview", "/admin/bots", "/admin/hosting"):
+    for path in ("/admin/overview", "/admin/bots", "/admin/hosting", "/admin/traffic"):
         assert c.get(path).status_code == 200, path
 
 
@@ -170,7 +172,7 @@ def test_auth_me_carries_the_role_667(api):
 
 
 def test_the_admin_role_counts_as_chat_owner_and_model_admin_667():
-    from app.routers.analyst import is_chat_owner, is_model_admin
+    from app.analyst.access import is_chat_owner, is_model_admin
 
     settings = Settings(analyst_chat_emails="", analyst_model_admin_emails="")
     assert is_chat_owner(settings, user_obj(1, "admin")) and is_model_admin(settings, user_obj(1, "admin"))
@@ -238,8 +240,8 @@ def test_banned_accounts_get_403_even_with_a_current_cookie_and_unban_restores_t
 
 
 def test_banned_users_log_pose_tokens_are_refused_668(api):
-    from app.models import AnalystAccess
-    from app.routers.analyst import mint_chat_token
+    from app.analyst.models import AnalystAccess
+    from app.analyst.auth import mint_chat_token
 
     c, S = api
     mod, plain = mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
@@ -344,18 +346,6 @@ def test_the_admin_user_list_shows_each_accounts_source_or_null_when_unknown_905
     login(c, S, admin)
     rows = {u["id"]: u["signup_source"] for u in c.get("/admin/users").json()["users"]}
     assert rows[tracked] == {"ref": "google.com"} and rows[direct] == {} and rows[unknown] is None
-
-
-def test_startup_adds_the_signup_source_column_to_an_existing_users_table_905(monkeypatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL)"))
-        conn.execute(text("INSERT INTO users (id, email) VALUES (1, 'a@x.test')"))
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_user_signup_source()
-    app_db._ensure_user_signup_source()
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT signup_source FROM users")).all() == [(None,)]
 
 
 def test_a_banned_google_sign_in_is_sent_back_with_an_error_and_no_ticket_667(api, monkeypatch: pytest.MonkeyPatch):
@@ -641,7 +631,7 @@ def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691
 
 
 def test_overview_counts_planner_decks_and_log_pose_use_667(api):
-    from app.models import AnalystAccess, AnalystUsage
+    from app.analyst.models import AnalystAccess, AnalystUsage
 
     c, S = api
     admin, p = mk(S, ADMIN_EMAIL, "admin"), mk(S, "p@x.test")
@@ -709,8 +699,8 @@ def test_the_two_historic_eval_runs_are_seeded_once_oldest_first_667(api):
     c, S = api
     login(c, S, mk(S, ADMIN_EMAIL, "admin"))
     bind = S.kw["bind"]
-    app_db._seed_eval_runs(bind)
-    app_db._seed_eval_runs(bind)  # a restart must not add them again
+    seed.seed_eval_runs(bind)
+    seed.seed_eval_runs(bind)  # a restart must not add them again
     evals = c.get("/admin/bots").json()["evals"]
     assert [(e["label"], e["correct"], e["total"]) for e in evals] == [("Baseline", 43.5, 50), ("PR #415 prompt + grader", 48.5, 50)]
     assert evals[1]["groups"]["D"] == {"correct": 9, "total": 10}
@@ -920,33 +910,196 @@ def test_hosting_reads_github_and_treats_hidden_traffic_as_null_667(api, monkeyp
     assert gh["ci_runs"][0]["conclusion"] == "success" and gh["bot_runs"][0]["conclusion"] == "failure"
 
 
+# ------------------------------------------------------------------ traffic
+
+def _day(offset: int = 0) -> str:
+    return (datetime.now(timezone.utc).date() - timedelta(days=offset)).isoformat()
+
+
+def _web(request: httpx.Request, *, broken: tuple[str, ...] = ()) -> httpx.Response:
+    path, q = request.url.path, request.url.params
+    if path == "/v9/projects":
+        return httpx.Response(200, json={"projects": [{"id": "prj_1", "name": "optcg-duel-web"}, {"id": "prj_3", "name": "tang-budget"}, {"id": "prj_2", "name": "optcg-deck-planner"}]})
+    assert path.startswith("/v1/query/web-analytics/visits/")
+    if q["projectId"] in broken:
+        return httpx.Response(403, json={"error": {"message": "analytics off, token vtok-secret"}})
+    if path.endswith("/count"):
+        return httpx.Response(200, json={"data": {"pageviews": 90, "visitors": 20}})
+    by = q["by"]
+    if by == "day":
+        # Two active days; the days between have no row at all.
+        return httpx.Response(200, json={"data": [
+            {"timestamp": f"{_day(2)}T00:00:00.000Z", "visitors": 14, "pageviews": 76},
+            {"timestamp": f"{_day(0)}T00:00:00.000Z", "visitors": 9, "pageviews": 14},
+        ]})
+    rows = {
+        "requestPath": [{"requestPath": "/", "visitors": 12, "pageviews": 40}],
+        "referrerHostname": [{"referrerHostname": "", "visitors": 66, "pageviews": 321}, {"referrerHostname": "google.com", "visitors": 23, "pageviews": 31}],
+        "country": [{"country": "US", "visitors": 8, "pageviews": 9}],
+        "deviceType": [{"deviceType": "mobile", "visitors": 5, "pageviews": 6}],
+    }[by]
+    return httpx.Response(200, json={"data": rows})
+
+
+def test_traffic_without_tokens_is_not_configured_and_makes_no_calls_1020(api, monkeypatch):
+    c, S = api
+    seen = _mock(monkeypatch, lambda r: httpx.Response(500))
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    assert c.get("/admin/traffic", params={"days": 7}).json() == {"days": 7, "vercel": {"configured": False}, "render": {"configured": False}}
+    assert seen == []
+
+
+def test_traffic_days_must_be_one_of_the_picker_windows_1020(api):
+    c, S = api
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    assert c.get("/admin/traffic", params={"days": 5}).status_code == 422
+
+
+def test_traffic_reads_vercel_with_zero_filled_days_and_totals_from_the_count_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret", VERCEL_TEAM_ID="team_1")
+    seen = _mock(monkeypatch, _web)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    v = r.json()["vercel"]
+    assert v["configured"] is True and [p["name"] for p in v["projects"]] == ["optcg-duel-web", "optcg-deck-planner"]
+    p = v["projects"][0]
+    assert [d["date"] for d in p["daily"]] == [_day(i) for i in range(6, -1, -1)]
+    assert [(d["visitors"], d["pageviews"]) for d in p["daily"]] == [(0, 0)] * 4 + [(14, 76), (0, 0), (9, 14)]
+    # 14 + 9 would be wrong: a visitor on two days is one visitor.
+    assert p["totals"] == {"visitors": 20, "pageviews": 90}
+    assert p["pages"] == [{"key": "/", "visitors": 12, "pageviews": 40}]
+    assert p["referrers"][0] == {"key": "", "visitors": 66, "pageviews": 321}
+    assert p["countries"][0]["key"] == "US" and p["devices"][0]["key"] == "mobile"
+    queries = [rq.url.params for rq in seen if rq.url.path.startswith("/v1/query")]
+    assert {q["teamId"] for q in queries} == {"team_1"}
+    assert {q["by"] for q in queries if "by" in q} == {"day", "requestPath", "referrerHostname", "country", "deviceType"}
+    assert all(q["since"] < q["until"] for q in queries)
+    assert "vtok-secret" not in r.text
+    assert all(rq.headers["authorization"] == "Bearer vtok-secret" for rq in seen)
+    assert r.json()["render"] == {"configured": False}
+
+
+def test_a_project_whose_analytics_call_fails_is_an_error_row_and_the_other_still_loads_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret")
+    _mock(monkeypatch, lambda r: _web(r, broken=("prj_1",)))
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    v = r.json()["vercel"]
+    assert v["configured"] is True and "error" not in v
+    assert v["projects"][0] == {"name": "optcg-duel-web", "error": "HTTP 403"}
+    assert v["projects"][1]["totals"] == {"visitors": 20, "pageviews": 90}
+    assert "secret" not in r.text
+
+
+def test_traffic_caches_each_window_for_ten_minutes_unless_refreshed_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok")
+    seen = _mock(monkeypatch, _web)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    c.get("/admin/traffic", params={"days": 7})
+    n = len(seen)
+    c.get("/admin/traffic", params={"days": 7})
+    assert len(seen) == n
+    c.get("/admin/traffic", params={"days": 14})
+    assert len(seen) == 2 * n  # the other window is its own cache entry
+    c.get("/admin/traffic", params={"days": 7, "refresh": 1})
+    assert len(seen) == 3 * n
+
+
+def _series(code: str | None, points: list[tuple[str, float]], **extra) -> dict:
+    labels = [{"field": "resource", "value": "srv-1"}] + ([{"field": "statusCode", "value": code}] if code else [])
+    return {"labels": labels, "unit": "unitless", "values": [{"timestamp": t, "value": v} for t, v in points], **extra}
+
+
+def _render_handler(request: httpx.Request) -> httpx.Response:
+    path, q = request.url.path, request.url.params
+    if path == "/v1/services":
+        return httpx.Response(200, json=[
+            {"service": {"id": "srv-1", "name": "optcg-api", "type": "web_service", "suspended": "not_suspended"}},
+            {"service": {"id": "srv-2", "name": "old", "type": "web_service", "suspended": "suspended"}},
+            {"service": {"id": "srv-3", "name": "flaky", "type": "web_service", "suspended": "not_suspended"}},
+        ])
+    if q["resource"] == "srv-3":
+        return httpx.Response(500, json={"message": "rtok-secret"})
+    assert q["resource"] == "srv-1"
+    today, yesterday = f"{_day(0)}T00:00:00Z", f"{_day(1)}T00:00:00Z"
+    if path == "/v1/metrics/http-requests":
+        assert q["aggregateBy"] == "statusCode" and q["resolutionSeconds"] == "86400"
+        return httpx.Response(200, json=[
+            _series("200", [(yesterday, 100), (today, 50)]),
+            _series("404", [(today, 4)]),
+            _series("500", [(yesterday, 2)]),
+            _series("503", [(yesterday, 1), (today, 3)]),
+        ])
+    if path in ("/v1/metrics/cpu", "/v1/metrics/memory"):
+        assert int(q["resolutionSeconds"]) * 100 >= 30 * 86400
+        two = path.endswith("cpu")
+        a, b = (0.25, 0.5) if two else (100.0, 300.0)
+        # Two instances: they add up at each timestamp (0.25 + 0.25, 0.5 + 0.5).
+        return httpx.Response(200, json=[_series(None, [(yesterday, a), (today, b)]), _series(None, [(yesterday, a), (today, b)])])
+    if path == "/v1/metrics/cpu-limit":
+        return httpx.Response(200, json=[_series(None, [(today, 1.0)])])
+    assert path == "/v1/metrics/memory-limit"
+    return httpx.Response(404, json={})
+
+
+def test_traffic_reads_render_summing_instances_counting_5xx_and_clamping_to_30_days_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, RENDER_API_KEY="rtok-secret")
+    seen = _mock(monkeypatch, _render_handler)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 90})
+    rd = r.json()["render"]
+    assert rd["configured"] is True and rd["days"] == 30
+    assert [s["name"] for s in rd["services"]] == ["optcg-api", "flaky"]  # the suspended one is skipped
+    svc = rd["services"][0]
+    assert len(svc["requests_daily"]) == 30
+    assert svc["requests_daily"][0] == {"date": _day(29), "total": 0, "errors_5xx": 0}
+    assert svc["requests_daily"][-2:] == [{"date": _day(1), "total": 103, "errors_5xx": 3}, {"date": _day(0), "total": 57, "errors_5xx": 3}]
+    assert (svc["requests"], svc["errors_5xx"], svc["errors_4xx"]) == (160, 6, 4)
+    assert (svc["cpu_avg"], svc["cpu_peak"], svc["cpu_limit"]) == (0.75, 1.0, 1.0)
+    assert (svc["memory_avg"], svc["memory_peak"], svc["memory_limit"]) == (400, 600, None)  # a missing limit is null, not an error
+    assert rd["services"][1] == {"name": "flaky", "error": "HTTP 500"}
+    starts = {rq.url.params["startTime"] for rq in seen if "startTime" in rq.url.params}
+    assert starts == {f"{_day(29)}T00:00:00Z"}
+    assert "secret" not in r.text
+    assert all(rq.headers["authorization"] == "Bearer rtok-secret" for rq in seen)
+
+
+def test_a_traffic_provider_error_never_carries_the_token_and_is_not_cached_1020(api, monkeypatch):
+    c, S = api
+    _hosting_env(monkeypatch, VERCEL_TOKEN="vtok-secret", RENDER_API_KEY="rtok-secret")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.vercel.com":
+            return httpx.Response(401, json={"error": "bad token vtok-secret"})
+        raise httpx.ConnectTimeout("timed out for rtok-secret", request=request)
+
+    seen = _mock(monkeypatch, handler)
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    r = c.get("/admin/traffic", params={"days": 7})
+    data = r.json()
+    assert data["vercel"]["error"] == "HTTP 401" and "ConnectTimeout" in data["render"]["error"]
+    assert "secret" not in r.text
+    n = len(seen)
+    c.get("/admin/traffic", params={"days": 7})
+    assert len(seen) == 2 * n
+
+
 # ------------------------------------------------------------------ startup
 
-def test_startup_makes_only_the_admin_email_admin_and_adds_the_columns_667(monkeypatch):
-    engine = make_bare_engine()
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                "CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL UNIQUE, name VARCHAR(255), "
-                "google_sub VARCHAR(255) NOT NULL UNIQUE, created_at TIMESTAMP)"
-            )
-        )
-        for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test"]):
+def test_startup_makes_only_the_admin_email_admin_667(startup_engine):
+    app_db.init_db()
+    with startup_engine.begin() as conn:
+        for i, email in enumerate(["GameFreakMichaelTang@gmail.com", "someone@x.test", "other@x.test"]):
             conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (:i, :e, 'n', :s)"), {"i": i + 1, "e": email, "s": f"s{i}"})
-    monkeypatch.setattr(app_db, "engine", engine)
-    app_db._ensure_user_role_columns()
-    with engine.begin() as conn:
         conn.execute(text("UPDATE users SET role = 'admin' WHERE email = 'someone@x.test'"))
-    app_db._ensure_admin_role()
-    with engine.connect() as conn:
+    app_db.init_db()
+    with startup_engine.connect() as conn:
         roles = dict(conn.execute(text("SELECT lower(email), role FROM users")).all())
-        cols = conn.execute(text("SELECT banned_at, ban_reason, banned_by FROM users")).all()
-    assert roles == {"gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user"}
-    assert cols == [(None, None, None)] * 2
-    with engine.connect() as conn:
-        assert conn.execute(text("SELECT lower(email), role FROM users WHERE email = 'someone@x.test'")).one()[1] == "user"
-    assert {"role", "banned_at", "ban_reason", "banned_by"} <= {c["name"] for c in inspect(engine).get_columns("users")}
-    engine.dispose()
+    assert roles == {"gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user", "other@x.test": "user"}
 
 
 def _replay_fixtures(S, p0: int, p1: int) -> None:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, agoText, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -12,7 +12,7 @@ const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = 
 
 describe("admin tabs per role (#667)", () => {
   it("shows the admin all seven tabs, a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "hosting", "event", "reports", "uploads", "users"]);
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
@@ -272,16 +272,6 @@ describe("user detail helpers (#988)", () => {
     expect(resultOf({ mode: "ranked", won: false })).toBe("Lost");
   });
 
-  it("writes how long ago in minutes, hours and days, and the date after a month (#988)", () => {
-    const now = Date.parse("2026-11-05T12:00:00Z");
-    expect(agoText("2026-11-05T11:59:40Z", now)).toBe("just now");
-    expect(agoText("2026-11-05T11:55:00Z", now)).toBe("5 min ago");
-    expect(agoText("2026-11-05T09:00:00Z", now)).toBe("3 h ago");
-    expect(agoText("2026-11-04T11:00:00Z", now)).toBe("1 day ago");
-    expect(agoText("2026-11-02T11:00:00Z", now)).toBe("3 days ago");
-    expect(agoText("2026-09-01T11:00:00Z", now)).toBe("2026-09-01");
-  });
-
   it("says where an online account is, and nothing when offline (#988)", () => {
     expect(presenceText({ now: false, room_role: "player", ranked: true })).toBeNull();
     expect(presenceText({ now: true, room_role: "player", ranked: true })).toBe("In a ranked game");
@@ -294,5 +284,33 @@ describe("user detail helpers (#988)", () => {
     expect(usd(0)).toBe("$0.00");
     expect(usd(0.004)).toBe("$0.004");
     expect(usd(1.256)).toBe("$1.26");
+  });
+});
+
+describe("traffic tab helpers (#1020)", () => {
+  it("writes memory in MB and GB and a missing value as a dash", () => {
+    expect(memoryText(207 * 1024 * 1024)).toBe("207 MB");
+    expect(memoryText(1536 * 1024 * 1024)).toBe("1.5 GB");
+    expect(memoryText(null)).toBe("\u2014");
+  });
+
+  it("puts a value as a percentage of its limit, and only the value when there is no limit", () => {
+    expect(againstLimit(256, 512, String)).toBe("256 \u00B7 50% of 512");
+    expect(againstLimit(256, null, String)).toBe("256");
+    expect(againstLimit(null, 512, String)).toBe("\u2014");
+  });
+
+  it("writes CPU in cores with enough digits for a near-idle service", () => {
+    expect(coresText(0.006)).toBe("0.006 cores");
+    expect(coresText(0.254)).toBe("0.25 cores");
+    expect(coresText(null)).toBe("\u2014");
+  });
+
+  it("names an empty referrer Direct and a country code in English, falling back to the code", () => {
+    expect(referrerLabel("")).toBe("Direct");
+    expect(referrerLabel("google.com")).toBe("google.com");
+    expect(countryName("US")).toBe("United States");
+    expect(countryName("zz9")).toBe("zz9");
+    expect(deviceLabel("mobile")).toBe("Mobile");
   });
 });

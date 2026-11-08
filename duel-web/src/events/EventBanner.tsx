@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
+import { usePolling } from "../lib/usePolling";
 import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
-import { bannerCta, closedNote, eventPhase, formatWindow, progressLabel, staffNote, statusLine } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
 
 /** The current time. Re-armed after every tick: every 15 seconds, every second in the last two minutes before a change, and not at all once the event has ended. */
 function useNow(event: DuelEvent | null): number {
@@ -26,12 +27,8 @@ function useCurrentEvent() {
       .then(setEvent)
       .catch(() => undefined); // the banner is optional: no event, no banner
   }, []);
-  useEffect(() => {
-    load();
-    const onVisible = () => document.visibilityState === "visible" && load();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [load]);
+  // Now, and again whenever the tab comes back (no timer).
+  usePolling(load, null);
   return { event, reload: load };
 }
 
@@ -68,11 +65,17 @@ function JoinDialog({ event, open, onClose, onJoined }: { event: DuelEvent; open
 
   return (
     <Dialog open={open} onClose={() => !busy && onClose()} className="event-overlay" panelClassName="event-dialog">
-      <DialogTitle as="h2">Join the {event.title} giveaway</DialogTitle>
-      <p className="event-dialog-copy">
-        It is free: just play. {event.prize}, sent by email. Play {event.min_games} finished games against at least {event.min_opponents} different signed-in
-        players during the event to be entered.
-      </p>
+      <DialogTitle as="h2">{usesDraw(event) ? `Join the ${event.title} giveaway` : `Join ${event.title}`}</DialogTitle>
+      {usesDraw(event) ? (
+        <p className="event-dialog-copy">
+          It is free: just play. {event.prize}, sent by email. Play {event.min_games} finished games against at least {event.min_opponents} different signed-in
+          players during the event to be entered.
+        </p>
+      ) : (
+        <p className="event-dialog-copy">
+          It is free to join. {eventStyleLabel(event)}. {event.prize ? `Prizes for the top finishers: ${event.prize}.` : "Prizes go to the top finishers."}
+        </p>
+      )}
       {event.viewer === "staff" ? <p className="event-dialog-copy event-staff-note">You can play, but staff aren't eligible for prizes.</p> : null}
       <label className="event-check" htmlFor={boxId}>
         <input id={boxId} type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
@@ -89,7 +92,7 @@ function JoinDialog({ event, open, onClose, onJoined }: { event: DuelEvent; open
       </p>
       <div className="event-dialog-actions">
         <button type="button" className="btn btn-primary" disabled={!agreed || busy} aria-busy={busy} onClick={confirm}>
-          Join the giveaway
+          {usesDraw(event) ? "Join the giveaway" : "Join the event"}
         </button>
         <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
           Cancel
@@ -120,11 +123,12 @@ export function EventBanner() {
         </span>
       </div>
       <p className="event-when">{formatWindow(event.starts_at, event.ends_at)}</p>
-      <p className="event-prize">Free giveaway · {event.prize}</p>
+      <p className="event-style">{eventStyleLabel(event)}</p>
+      <p className="event-prize">{prizeLine(event)}</p>
       <div className="event-action">
         {cta === "join" ? (
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setJoining(true)}>
-            Join the giveaway
+            {usesDraw(event) ? "Join the giveaway" : "Join the event"}
           </button>
         ) : cta === "signin" ? (
           <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
@@ -132,8 +136,8 @@ export function EventBanner() {
           </a>
         ) : cta === "joined" ? (
           <span className="event-progress" data-eligible={progress?.eligible ? "true" : "false"}>
-            <b>{progress?.eligible ? "✓ Eligible" : "Entered"}</b>
-            {progress ? <span>{progressLabel(progress, event)}</span> : null}
+            <b>{usesDraw(event) && progress?.eligible ? "✓ Eligible" : "Entered"}</b>
+            {usesDraw(event) && progress ? <span>{progressLabel(progress, event)}</span> : null}
           </span>
         ) : (
           <span className="event-progress event-muted">{closedNote(event, now)}</span>
