@@ -51,7 +51,7 @@ export function BuySplitEditor({
   card: BuySplitCard;
   busyProductId?: number | null;
   onPick: (productId: number, qty: number) => void;
-  /** Planner pages (#1031): adds the "Want a collector copy too" art picker under the split. */
+  /** Planner pages (#1031): adds the "Want an extra copy too" art picker under the split. */
   onCollectorPick?: (productId: number, qty: number) => void;
 }) {
   const alts = card.alt_arts ?? [];
@@ -141,7 +141,7 @@ export function BuySplitEditor({
 }
 
 /**
- * "★ Want a collector copy too": an alt art wanted on top of the decks (#1031). Picking sets one copy;
+ * "★ Want an extra copy too": an alt art wanted on top of the decks (#1031). Picking sets one copy;
  * the count is edited on the Master Shopping line it creates.
  */
 function CollectorPicker({
@@ -171,7 +171,7 @@ function CollectorPicker({
         <span className="collector-star" aria-hidden="true">
           ★
         </span>
-        <span className="collector-add-text">Want a collector copy too</span>
+        <span className="collector-add-text">Want an extra copy too</span>
         <span className="collector-add-hint">on top of your decks</span>
       </button>
       {open ? (

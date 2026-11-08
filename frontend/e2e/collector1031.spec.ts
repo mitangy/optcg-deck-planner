@@ -24,7 +24,7 @@ test("Master Shopping: a collector line sits under its card with Have 0 of 1 and
   await planner.open("/");
   const line = visibleLine(page);
   await expect(line).toBeVisible();
-  await expect(line).toContainText("★ Collector");
+  await expect(line).toContainText("★ Extra copy");
   await expect(line).toContainText("Have 0 of 1");
   // The phone card drops this line to stay on one row.
   if (testInfo.project.name === "desktop-1200") await expect(line).toContainText("On top of Oden Red/Green");
@@ -42,7 +42,7 @@ test("Master Shopping: a collector line sits under its card with Have 0 of 1 and
   await page.getByRole("button", { name: "Want one more Izo (Gold-stamped) collector copy" }).first().click();
   await expect.poll(() => planner.collectors.get(`${IZO}:202`)).toBe(2);
   await page.getByRole("button", { name: /^Remove Izo \(Gold-stamped\) collector copy of EB01-002$/ }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Removed Izo (Gold-stamped) collector copy" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Removed extra Izo (Gold-stamped)" })).toBeVisible();
   await expect.poll(() => planner.collectors.has(`${IZO}:202`)).toBe(false);
   await expect(page.locator("tr.collector-row:visible, .mobile-card.collector-card:visible")).toHaveCount(0);
   await shot(page, testInfo, "toast");
@@ -79,7 +79,7 @@ test("Deck page: the card shows a +N collector chip and the alt tile a Collector
   planner.addAlt(IZO, GOLD);
   planner.collectors.set(`${IZO}:202`, 1);
   await planner.open("/decks/1");
-  await expect(page.locator(".collector-chip-sm:visible").first()).toHaveText("★ +1 collector");
+  await expect(page.locator(".collector-chip-sm:visible").first()).toHaveText("★ +1 extra");
   // The gold-stamped tile carries the word with the star, never the star alone.
-  await expect(page.getByRole("button", { name: "Remove Izo (Gold-stamped) collector copy" }).locator("visible=true").first()).toHaveText("★ Collector");
+  await expect(page.getByRole("button", { name: "Remove extra Izo (Gold-stamped)" }).locator("visible=true").first()).toHaveText("★ Extra copy");
 });

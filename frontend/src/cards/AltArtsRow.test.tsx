@@ -126,14 +126,14 @@ describe("AltArtsRow Show control (#702)", () => {
 });
 
 describe("AltArtsRow collector toggle (#1035)", () => {
-  function renderCollector(collector: number, onCollectorChange?: (id: number, qty: number) => void) {
+  function renderCollector(collector: number, onCollectorChange?: (id: number, qty: number) => void, wanted = 0) {
     const host = document.createElement("div");
     document.body.append(host);
     act(() => {
       createRoot(host).render(
         <QueryClientProvider client={new QueryClient()}>
           <AltArtsRow
-            alts={[{ ...alt, collector }]}
+            alts={[{ ...alt, collector, wanted }]}
             cardId={CARD_ID}
             base={{ name: "Base", image_url: "b.jpg", market_price: null, product_id: 999999 }}
             onCollectorChange={onCollectorChange}
@@ -144,29 +144,77 @@ describe("AltArtsRow collector toggle (#1035)", () => {
     return host;
   }
 
-  it("Collect on an alt tile asks for one collector copy, and the Base tile has no toggle (#1035)", () => {
+  it("Extra copy on an alt tile asks for one extra copy, and the Base tile has no toggle (#1035)", () => {
     const calls: [number, number][] = [];
     const host = renderCollector(0, (id, qty) => calls.push([id, qty]));
-    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Want Alt art as a collector copy"]`)!;
+    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Want an extra Alt art on top of your decks"]`)!;
     expect(btn.getAttribute("aria-pressed")).toBe("false");
     act(() => btn.click());
     expect(calls).toEqual([[alt.product_id, 1]]);
     expect(host.querySelector(".alt-art-base .alt-collector-btn, .alt-art-base .alt-collector")).toBeNull();
   });
 
-  it("the pressed Collector toggle removes the collector copy (#1035)", () => {
+  it("the pressed Extra copy toggle removes the extra copy (#1035)", () => {
     const calls: [number, number][] = [];
     const host = renderCollector(2, (id, qty) => calls.push([id, qty]));
-    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Remove Alt art collector copy"]`)!;
+    const btn = host.querySelector<HTMLButtonElement>(`button[aria-label="Remove extra Alt art"]`)!;
     expect(btn.getAttribute("aria-pressed")).toBe("true");
-    expect(btn.textContent).toBe("★ Collector ×2");
+    expect(btn.textContent).toBe("★ Extra copy ×2");
     act(() => btn.click());
     expect(calls).toEqual([[alt.product_id, 0]]);
   });
 
-  it("without onCollectorChange the Collector mark stays a read-only label (#1035)", () => {
+  it("without onCollectorChange the Extra copy mark stays a read-only label (#1035)", () => {
     const host = renderCollector(1);
-    expect(host.querySelector(".alt-collector")?.textContent).toBe("★ Collector");
+    expect(host.querySelector(".alt-collector")?.textContent).toBe("★ Extra copy");
     expect(host.querySelector("button.alt-collector-btn")).toBeNull();
+  });
+
+  const press = (label: string | RegExp) => {
+    const btn = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      typeof label === "string" ? b.textContent === label : label.test(b.textContent ?? ""),
+    );
+    if (!btn) throw new Error(`no button ${label}`);
+    act(() => btn.click());
+  };
+
+  it("an extra copy of the art the deck copy already uses asks first, and Cancel never saves it (#1165)", () => {
+    const calls: [number, number][] = [];
+    const host = renderCollector(0, (id, qty) => calls.push([id, qty]), 1);
+    act(() => host.querySelector<HTMLButtonElement>(".alt-collector-btn")!.click());
+    expect(document.body.textContent).toContain("Your deck copy is already this art. Add an extra one on top?");
+    expect(calls).toEqual([]);
+    press("Cancel");
+    expect(calls).toEqual([]);
+  });
+
+  it("Add extra copy saves the extra copy once it is confirmed (#1165)", () => {
+    const calls: [number, number][] = [];
+    const host = renderCollector(0, (id, qty) => calls.push([id, qty]), 1);
+    act(() => host.querySelector<HTMLButtonElement>(".alt-collector-btn")!.click());
+    expect(calls).toEqual([]);
+    press("Add extra copy");
+    expect(calls).toEqual([[alt.product_id, 1]]);
+  });
+
+  it("an alt the deck does not use saves the extra copy at once, without asking (#1165)", () => {
+    const calls: [number, number][] = [];
+    const host = renderCollector(0, (id, qty) => calls.push([id, qty]), 0);
+    act(() => host.querySelector<HTMLButtonElement>(".alt-collector-btn")!.click());
+    expect(calls).toEqual([[alt.product_id, 1]]);
+    expect(document.body.textContent).not.toContain("Add an extra one on top?");
+  });
+
+  it("the tile label reads Buying, so it fits a card with no deck (#1165)", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    act(() => {
+      createRoot(host).render(
+        <QueryClientProvider client={new QueryClient()}>
+          <AltArtsRow alts={[{ ...alt, wanted: 2 }]} cardId={CARD_ID} showBuyPicks />
+        </QueryClientProvider>,
+      );
+    });
+    expect(host.querySelector(".alt-want-label")?.textContent).toBe("Buying ×2");
   });
 });
