@@ -6,7 +6,7 @@ import {
   resetAllSeatArtPrefs,
   setCosmeticsPublisher,
 } from "../decks/seatArtPrefs";
-import { MovedElsewhereOverlay } from "../board/MovedElsewhereOverlay";
+import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
 import { rematchDeckOptions } from "../decks/rematchDecks";
 import { loadMatchResume, touchMatchResume } from "../net/matchResume";
 import type { Intent, RematchAction, Seat } from "../net/protocol";

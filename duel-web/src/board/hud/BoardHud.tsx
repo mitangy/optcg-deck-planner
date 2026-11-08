@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import type { PlayerView, Seat, SeatPlayers } from "../../net/protocol";
-import { ConfirmButton } from "../ConfirmButton";
-import { phaseLabel } from "../phaseLabel";
-import { playerLabel, seatLabel, seatName } from "../playerNames";
-import { RoomChip } from "../RoomShare";
-import type { TabMute } from "../tabMute";
-import type { SeatClocks } from "../TurnStatusPanel";
-import { UndoControl } from "../UndoControl";
-import type { UndoUi } from "../undoHud";
+import { ConfirmButton } from "../prompts/ConfirmButton";
+import { phaseLabel } from "../panels/phaseLabel";
+import { playerLabel, seatLabel, seatName } from "../match/playerNames";
+import { RoomChip } from "../match/RoomShare";
+import type { TabMute } from "../audio/tabMute";
+import type { SeatClocks } from "../panels/TurnStatusPanel";
+import { UndoControl } from "../match/UndoControl";
+import type { UndoUi } from "../match/undoHud";
 
 export type MatchMenuPlacement = "top" | "left" | "anchor";
 

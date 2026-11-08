@@ -295,7 +295,7 @@
   fill: currentColor;
   stroke-width: 1.5;
 }
-/* Status colour by kind (see StatusTone in board/statusIcons.ts). Icons, text
+/* Status colour by kind (see StatusTone in board/panels/statusIcons.ts). Icons, text
    chips, inspect chips and tooltips all read --st-fg / --st-bd, so one status
    is the same colour everywhere. --st-ink is the darker variant for light
    panels (light.css). */
