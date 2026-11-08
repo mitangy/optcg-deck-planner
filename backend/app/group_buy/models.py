@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +85,14 @@ class GroupBuyMember(Base):
     role: Mapped[str] = mapped_column(String(32), default="member")  # host | member
     # JSON list of deck ids for this member's contribution; null/empty = all decks
     deck_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Cards added straight to Master Shopping (in no deck) count toward the contribution (#1177).
+    include_singles: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
+    # Extra copy wants (alt arts on top of the decks) count toward the contribution (#1177).
+    include_extra_copies: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

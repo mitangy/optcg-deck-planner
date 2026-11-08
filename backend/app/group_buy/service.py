@@ -98,6 +98,33 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
     return group
 
 
+def _member_shopping(db: Session, member: GroupBuyMember):
+    """The member's contribution: their Master Shopping list under their group settings (#1177)."""
+    return shopping_svc.shopping_list(
+        db,
+        member.user,
+        deck_ids=_parse_deck_ids(member.deck_ids_json),
+        include_extras=bool(member.include_singles),
+        include_collector=bool(member.include_extra_copies),
+    )
+
+
+def _suggested_qty(item) -> int:
+    """Copies to buy for a card: deck/single still-need plus any Extra copies still missing."""
+    return item.still_need + sum(c.still_need for c in item.collector_wants)
+
+
+def _member_alt_inputs(item) -> list[tuple[int, int, float | None]]:
+    """Alt allocation order: Extra copies first (they are the alts the member asked for), then deck picks."""
+    extra = [
+        (c.product_id, c.still_need, c.market_price)
+        for c in item.collector_wants
+        if c.still_need > 0
+    ]
+    deck = [(a.product_id, a.wanted, a.market_price) for a in item.alt_arts if (a.wanted or 0) > 0]
+    return extra + deck
+
+
 def _require_member(group: GroupBuy, user: User) -> GroupBuyMember:
     for member in group.members:
         if member.user_id == user.id:
@@ -122,9 +149,7 @@ def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
     overrides = _qty_override_map(group)
     needs: list[MemberNeed] = []
     for member in group.members:
-        shopping = shopping_svc.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
-        )
+        shopping = _member_shopping(db, member)
         name = _display_name(member.user)
         shop_by_id = {item.card_id.upper(): item for item in shopping.items}
         card_ids = set(shop_by_id) | {
@@ -132,7 +157,7 @@ def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
         }
         for card_id in sorted(card_ids):
             item = shop_by_id.get(card_id)
-            suggested = item.still_need if item else 0
+            suggested = _suggested_qty(item) if item else 0
             key = (member.user_id, card_id)
             is_custom = key in overrides
             qty = overrides[key] if is_custom else suggested
@@ -205,9 +230,7 @@ def _viewer_zero_customs(
     member = next((m for m in group.members if m.user_id == viewer_user_id), None)
     if member is None:
         return {}
-    shopping = shopping_svc.shopping_list(
-        db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
-    )
+    shopping = _member_shopping(db, member)
     shop_by_id = {item.card_id.upper(): item for item in shopping.items}
     name = _display_name(member.user)
     out: dict[str, MergedMemberQty] = {}
@@ -219,7 +242,7 @@ def _viewer_zero_customs(
             user_id=viewer_user_id,
             display_name=name,
             qty=0,
-            suggested_qty=item.still_need if item else 0,
+            suggested_qty=_suggested_qty(item) if item else 0,
             is_custom=True,
         )
     return out
@@ -274,15 +297,17 @@ def _build_lines(
     viewer_display: dict[str, int | None] = {}
     # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
+    # Same, as allocation inputs: Extra copies first, then deck picks (#1177).
+    member_alt_inputs: dict[int, dict[str, list]] = {}
     # Each member's explicit Show pick per card (#893).
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
-        shop = shopping_svc.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
-        )
+        shop = _member_shopping(db, member)
         by_card: dict[str, list] = {}
+        by_card_inputs: dict[str, list] = {}
         for item in shop.items:
             by_card[item.card_id.upper()] = item.alt_arts
+            by_card_inputs[item.card_id.upper()] = _member_alt_inputs(item)
             if item.display_art is not None:
                 member_display.setdefault(member.user_id, {})[item.card_id.upper()] = item.display_art
             if member.user_id == viewer_user_id:
@@ -293,6 +318,7 @@ def _build_lines(
                 viewer_shop_alts[item.card_id] = item.alt_arts
                 viewer_display[item.card_id] = item.display_art
         member_shop_alts[member.user_id] = by_card
+        member_alt_inputs[member.user_id] = by_card_inputs
 
     catalog, primary_ids, alts, printings = _catalog_bundle(
         db, card_ids, wanted=viewer_wants or None
@@ -345,12 +371,7 @@ def _build_lines(
             if mem.qty <= 0:
                 continue
             any_buy = True
-            mem_alts = member_shop_alts.get(mem.user_id, {}).get(card_id, [])
-            alt_inputs = [
-                (a.product_id, a.wanted, a.market_price)
-                for a in mem_alts
-                if (a.wanted or 0) > 0
-            ]
+            alt_inputs = member_alt_inputs.get(mem.user_id, {}).get(card_id, [])
             buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,
@@ -505,6 +526,8 @@ def _detail_from_group(
                 display_name=_display_name(member.user),
                 role=member.role,
                 deck_ids=_parse_deck_ids(member.deck_ids_json) if not read_only else None,
+                include_singles=bool(member.include_singles),
+                include_extra_copies=bool(member.include_extra_copies),
                 sum_across_leaders=(
                     None
                     if group.status in FROZEN_STATUSES
@@ -708,12 +731,18 @@ def update_contribution(
     user: User,
     group_id: int,
     deck_ids: list[int] | None,
+    include_singles: bool | None = None,
+    include_extra_copies: bool | None = None,
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
         raise Forbidden("Group buy is locked; contributions cannot change")
     member.deck_ids_json = _dump_deck_ids(deck_ids)
+    if include_singles is not None:
+        member.include_singles = include_singles
+    if include_extra_copies is not None:
+        member.include_extra_copies = include_extra_copies
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -764,11 +793,9 @@ def set_member_qty(
     qty = max(0, min(999, int(qty)))
 
     # Default (no override) is shopping still-need. If qty matches that, clear override.
-    shopping = shopping_svc.shopping_list(
-        db, user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
-    )
+    shopping = _member_shopping(db, member)
     suggested = next(
-        (item.still_need for item in shopping.items if item.card_id.upper() == card_id),
+        (_suggested_qty(item) for item in shopping.items if item.card_id.upper() == card_id),
         0,
     )
     existing = db.scalar(
@@ -996,15 +1023,13 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     _require_member(group, user)
     lines, _ = _build_lines(db, group, viewer_user_id=user.id)
 
-    member_shop_alts: dict[int, dict[str, list]] = {}
+    member_alt_inputs: dict[int, dict[str, list]] = {}
     for member in group.members:
-        shop = shopping_svc.shopping_list(
-            db, member.user, deck_ids=_parse_deck_ids(member.deck_ids_json), include_collector=False
-        )
+        shop = _member_shopping(db, member)
         # Uppercase keys — line.card_id is uppercased in merge; mismatched case
         # silently dropped AA wants and fell back to whole-line printing.
-        member_shop_alts[member.user_id] = {
-            item.card_id.upper(): item.alt_arts for item in shop.items
+        member_alt_inputs[member.user_id] = {
+            item.card_id.upper(): _member_alt_inputs(item) for item in shop.items
         }
 
     product_parts: list[str] = []
@@ -1026,12 +1051,7 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
         for mem in line.members:
             if mem.qty <= 0:
                 continue
-            mem_alts = member_shop_alts.get(mem.user_id, {}).get(line.card_id, [])
-            alt_inputs = [
-                (a.product_id, a.wanted, a.market_price)
-                for a in mem_alts
-                if (a.wanted or 0) > 0
-            ]
+            alt_inputs = member_alt_inputs.get(mem.user_id, {}).get(line.card_id, [])
             buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,

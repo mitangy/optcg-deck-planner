@@ -341,6 +341,10 @@ export type GroupBuyMember = {
   display_name: string;
   role: string;
   deck_ids: number[] | null;
+  /** Cards added straight to Master Shopping (in no deck) count (#1177). */
+  include_singles?: boolean;
+  /** Extra copy wants (alt arts) count (#1177). */
+  include_extra_copies?: boolean;
   /** Member's Copies needed mode; null/absent once quantities are frozen. */
   sum_across_leaders?: boolean | null;
   cards_still_needed: number;
@@ -829,10 +833,13 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ title }),
     }),
-  updateGroupBuyContribution: (id: number, deck_ids: number[] | null | undefined) =>
+  updateGroupBuyContribution: (
+    id: number,
+    body: { deck_ids: number[] | null; include_singles?: boolean; include_extra_copies?: boolean },
+  ) =>
     request<GroupBuyDetail>(`/group-buys/${id}/contribution`, {
       method: "PUT",
-      body: JSON.stringify({ deck_ids: deck_ids ?? null }),
+      body: JSON.stringify(body),
     }),
   lockGroupBuy: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/lock`, { method: "POST" }),

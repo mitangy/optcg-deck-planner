@@ -6864,6 +6864,10 @@ export interface components {
         GroupBuyContributionUpdate: {
             /** Deck Ids */
             deck_ids?: number[] | null;
+            /** Include Extra Copies */
+            include_extra_copies?: boolean | null;
+            /** Include Singles */
+            include_singles?: boolean | null;
         };
         /** GroupBuyCreate */
         GroupBuyCreate: {
@@ -7117,6 +7121,16 @@ export interface components {
             deck_ids?: number[] | null;
             /** Display Name */
             display_name: string;
+            /**
+             * Include Extra Copies
+             * @default false
+             */
+            include_extra_copies: boolean;
+            /**
+             * Include Singles
+             * @default true
+             */
+            include_singles: boolean;
             /**
              * Remaining Market
              * @default 0

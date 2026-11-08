@@ -5,6 +5,7 @@ import { GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { shownProductId } from "../../cards/altArt";
 import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from "../../api";
 import { useMe } from "../../auth/useMe";
+import { contributionSummary, contributionUpdate, type ContributionUpdate } from "./contribution";
 import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
@@ -88,12 +89,21 @@ export function GroupBuyDetailPage() {
   const allSelected = !activeDeckIds || (decks.length > 0 && activeDeckIds.length === decks.length);
   const selectedDeckCount = allSelected ? decks.length : (activeDeckIds?.length ?? decks.length);
 
+  const includeSingles = myContribution?.include_singles ?? true;
+  const includeExtraCopies = myContribution?.include_extra_copies ?? false;
+
   const filterSummary = useMemo(() => {
     const extra: string[] = [];
     if (showExcluded) extra.push("Excluded");
-    if (decks.length > 0 && !allSelected) {
-      extra.push(`${selectedDeckCount}/${decks.length} decks`);
-    }
+    extra.push(
+      ...contributionSummary({
+        deckCount: decks.length,
+        selectedDeckCount,
+        allDecksSelected: allSelected,
+        includeSingles,
+        includeExtraCopies,
+      }),
+    );
     return buildFilterSummary({
       sorts: effectiveSorts,
       showAltArts,
@@ -108,6 +118,8 @@ export function GroupBuyDetailPage() {
     decks.length,
     allSelected,
     selectedDeckCount,
+    includeSingles,
+    includeExtraCopies,
   ]);
 
   useEffect(() => {
@@ -222,10 +234,12 @@ export function GroupBuyDetailPage() {
   });
 
   const contribution = useMutation({
-    mutationFn: (deckIds: number[] | null) => api.updateGroupBuyContribution(groupId, deckIds),
+    mutationFn: (body: ContributionUpdate) => api.updateGroupBuyContribution(groupId, body),
     onSuccess: (d) => {
+      // No success banner: it would push the whole page down under the checkbox you just
+      // clicked (#1177). The ticked box and the updated list are the feedback.
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
-      setMsg("Updated your contribution decks.");
+      setMsg(null);
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -484,9 +498,21 @@ export function GroupBuyDetailPage() {
   const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
   const receiptReady = Boolean(receiptDraft?.canApply);
 
+  function updateContribution(patch: Partial<ContributionUpdate>) {
+    contribution.mutate(
+      contributionUpdate(
+        {
+          deck_ids: activeDeckIds ?? null,
+          include_singles: includeSingles,
+          include_extra_copies: includeExtraCopies,
+        },
+        patch,
+      ),
+    );
+  }
+
   function setContributionDecks(next: number[] | null) {
-    if (next && next.length === decks.length) contribution.mutate(null);
-    else contribution.mutate(next);
+    updateContribution({ deck_ids: next && next.length === decks.length ? null : next });
   }
 
   function toggleContributionDeck(deckId: number) {
@@ -849,7 +875,7 @@ export function GroupBuyDetailPage() {
         <div className="group-buy-contribution">
           <h2>Your contribution</h2>
           <p className="muted">
-            Defaults follow your shopping still-need for the decks selected under Filters. Edit{" "}
+            Defaults follow your shopping still-need for the decks, singles and extra copies selected under Filters. Edit{" "}
             <strong>Your buy</strong> on any line before the host locks.
           </p>
           <div className="group-buy-contribution-actions">
@@ -907,18 +933,20 @@ export function GroupBuyDetailPage() {
                   multiple people stay under their earliest member.
                 </p>
               ) : null}
-              {detail.status === "open" && myContribution && decks.length > 0 ? (
+              {detail.status === "open" && myContribution ? (
                 <div className="deck-filter">
                   <div className="deck-filter-head">
-                    <span>Include decks</span>
-                    <button
-                      type="button"
-                      className="ghost"
-                      disabled={contribution.isPending || allSelected}
-                      onClick={() => setContributionDecks(null)}
-                    >
-                      Select all
-                    </button>
+                    <span>Include</span>
+                    {decks.length > 0 ? (
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={contribution.isPending || allSelected}
+                        onClick={() => setContributionDecks(null)}
+                      >
+                        Select all decks
+                      </button>
+                    ) : null}
                   </div>
                   <div className="deck-filter-list">
                     {decks.map((d) => {
@@ -935,9 +963,30 @@ export function GroupBuyDetailPage() {
                         </label>
                       );
                     })}
+                    <label className="deck-chip">
+                      <input
+                        type="checkbox"
+                        checked={includeSingles}
+                        disabled={contribution.isPending}
+                        onChange={(e) => updateContribution({ include_singles: e.target.checked })}
+                      />
+                      Cards not in a deck
+                    </label>
+                    <label className="deck-chip">
+                      <input
+                        type="checkbox"
+                        checked={includeExtraCopies}
+                        disabled={contribution.isPending}
+                        onChange={(e) =>
+                          updateContribution({ include_extra_copies: e.target.checked })
+                        }
+                      />
+                      Extra copies
+                    </label>
                   </div>
                   <p className="muted group-buy-deck-filter-note">
-                    Unselected decks are left out of your group-buy contribution.
+                    Unchecked decks and cards are left out of your contribution. Extra copies adds
+                    the alt arts you marked as Extra copy.
                   </p>
                 </div>
               ) : null}
