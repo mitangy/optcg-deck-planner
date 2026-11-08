@@ -36,7 +36,13 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
     rush,
     keywords,
     statusLabels: statuses,
+    // [Once Per Turn] abilities this card has used this turn (public: the table sees them resolve). Absent when none.
+    ...(usedNow(state, c).length ? { usedThisTurn: usedNow(state, c) } : {}),
   };
+}
+
+function usedNow(state: MatchState, c: CardInstance): string[] {
+  return Object.entries(c.usedAbilities ?? {}).filter(([, turn]) => turn === state.turnNumber).map(([id]) => id);
 }
 
 export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | null): PendingChoice {

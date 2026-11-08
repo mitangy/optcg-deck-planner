@@ -7,13 +7,17 @@ import { useArtFallback } from "../../cards/useArtFallback";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import { isIncompleteDeck } from "../../decks/deckStatus";
 import type { SavedDeck } from "../../decks/storage";
-import { BOT_DECK_RANDOM } from "../../home/botGame";
+import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
+import { BOT_DECK_RANDOM, BOT_DECK_RANDOM_META, metaDeckValue, metaSavedDeck } from "../../home/botGame";
 import { leaderGlow } from "../../home/leaderGlow";
 
 /** The leader's name; a dash until the card data (its own chunk) has loaded, so the line keeps its height. */
 function leaderName(leaderId: string, ready: boolean): string {
   return ready ? lookupCard(leaderId).name : "—";
 }
+
+/** The non-selectable "Your decks" header row of the bot picker. */
+const BOT_YOUR_DECKS_GROUP = "__your-decks__";
 
 function deckLabel(d: SavedDeck, ready: boolean): string {
   return `${d.name} — ${leaderName(d.leaderId, ready)} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
@@ -35,6 +39,7 @@ export function DeckPicker({
   onChange,
   mirror,
   random,
+  botMeta,
 }: {
   id: string;
   label: string;
@@ -45,13 +50,27 @@ export function DeckPicker({
   mirror?: { label: string; deck: SavedDeck | null };
   /** Adds an option (BOT_DECK_RANDOM) that picks a deck when the game starts; `hint` shows while it is chosen. */
   random?: { label: string; hint: string };
+  /**
+   * The bot's deck (#1180): Random meta deck, the top 10 meta decks, then a "Your decks" group. Replaces
+   * `mirror` / `random`.
+   */
+  botMeta?: boolean;
 }) {
   const cardsReady = useCardDataReady();
   const isRandom = random !== undefined && value === BOT_DECK_RANDOM;
   const mirrored = value === "" && mirror !== undefined;
-  const deck = isRandom ? null : (decks.find((d) => d.id === value) ?? (mirrored ? (mirror.deck ?? null) : null));
+  const metaPick = botMeta
+    ? BOT_META_DECKS.find((m) => metaDeckValue(m.leaderId) === value)
+    : undefined;
+  const randomMeta = botMeta === true && value === BOT_DECK_RANDOM_META;
+  const deck =
+    isRandom || randomMeta
+      ? null
+      : metaPick
+        ? metaSavedDeck(metaPick)
+        : (decks.find((d) => d.id === value) ?? (mirrored ? (mirror.deck ?? null) : null));
   // A mirror of a deck that is itself random is just as unknown: the same "?" placeholder.
-  const unknown = isRandom || (mirrored && mirror.deck === null);
+  const unknown = isRandom || randomMeta || (mirrored && mirror.deck === null);
   return (
     <div className="field">
       <label htmlFor={id}>
@@ -69,14 +88,41 @@ export function DeckPicker({
           id={id}
           value={value}
           onChange={onChange}
-          options={[
-            ...(mirror ? [{ value: "", label: mirror.label }] : []),
-            ...(random ? [{ value: BOT_DECK_RANDOM, label: random.label }] : []),
-            ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
-          ]}
+          options={
+            botMeta
+              ? [
+                  { value: BOT_DECK_RANDOM_META, label: "Random meta deck" },
+                  ...BOT_META_DECKS.map((m) => ({
+                    value: metaDeckValue(m.leaderId),
+                    label: m.name,
+                  })),
+                  ...(decks.length > 0
+                    ? [
+                        {
+                          value: BOT_YOUR_DECKS_GROUP,
+                          label: <span className="deck-picker-group">Your decks</span>,
+                          disabled: true,
+                        },
+                        ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
+                      ]
+                    : []),
+                ]
+              : [
+                  ...(mirror ? [{ value: "", label: mirror.label }] : []),
+                  ...(random ? [{ value: BOT_DECK_RANDOM, label: random.label }] : []),
+                  ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
+                ]
+          }
         />
       </div>
-      {isRandom ? <p className="field-hint">{random.hint}</p> : null}
+      {botMeta ? (
+        <p className="field-hint">
+          The meta decks are recent top tournament lists from Limitless TCG, and
+          the bot knows how to play these Leaders.
+        </p>
+      ) : isRandom ? (
+        <p className="field-hint">{random.hint}</p>
+      ) : null}
     </div>
   );
 }

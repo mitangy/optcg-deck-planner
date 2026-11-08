@@ -2,6 +2,7 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { Intent } from "../types.js";
 import type { Rng } from "../rng.js";
+import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotLevel, BotView } from "./types.js";
 import { boardValue, defValue, findBoardCard, type BoardCard } from "./value.js";
 
@@ -55,8 +56,14 @@ function cheapestCounters(options: CounterOption[], need: number, donAvailable: 
   return best;
 }
 
-export function chooseDefense(view: BotView, level: BotLevel, rng: Rng): Intent {
+export function chooseDefense(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
+  // A playbook's defensive call (#1178): only a legal intent is used.
+  const hinted = pb?.defense?.(view);
+  if (hinted) {
+    const key = JSON.stringify(hinted);
+    if (legal.some((i) => JSON.stringify(i) === key)) return hinted;
+  }
   const pass = legal.find((i) => i.type === "pass_block" || i.type === "pass_counter") ?? legal[0]!;
   const battle = view.battle;
   if (!battle) return pass;

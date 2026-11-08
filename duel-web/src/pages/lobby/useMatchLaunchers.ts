@@ -316,9 +316,9 @@ export function useMatchLaunchers(deps: {
       const create = mode === "create";
       const vsBot = mode === "bot";
       // Random in the bot sheet: the deck is drawn now, the saved choice (selectedId) stays as it was.
-      const picked = vsBot && yourRandom ? (pickRandomDeck(savedDecks, null) ?? selectedDeck!) : selectedDeck!;
+      const picked = vsBot && yourRandom ? (pickRandomDeck(savedDecks) ?? selectedDeck!) : selectedDeck!;
       const room = roomId.trim();
-      const botDeck = vsBot ? resolveBotDeck(savedDecks, picked, botDeckId) : null;
+      const botDeck = vsBot ? resolveBotDeck(savedDecks, botDeckId) : null;
       startMatch(
         {
           status:

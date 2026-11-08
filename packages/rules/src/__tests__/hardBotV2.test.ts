@@ -266,7 +266,7 @@ describe("hard bot: opponent model and lookahead (#635)", () => {
     let differs = 0;
     let deeper = 0;
     let searched = 0;
-    for (const { state, seat } of positions(41, 14).slice(0, 8)) {
+    for (const { state, seat } of positions(41, 7).slice(0, 8)) {
       const traces: { normal?: (number | null)[][]; greedy?: (number | null)[][] } = {};
       chooseBotIntentFromState(state, seat, { ...exact, horizonTurns: 2, opponentModel: "normal", rng: rng(), onTrace: (t) => { traces.normal = t.scores; } });
       chooseBotIntentFromState(state, seat, { ...exact, horizonTurns: 2, opponentModel: "greedy", rng: rng(), onTrace: (t) => { traces.greedy = t.scores; } });

@@ -4,7 +4,12 @@
  */
 import type { BotView } from "../types.js";
 import { buggyPlaybook } from "./buggy.js";
+import { enelPlaybook } from "./enel.js";
+import { hancockPlaybook } from "./hancock.js";
 import { kaidoPlaybook } from "./kaido.js";
+import { luffy13Playbook } from "./luffy13.js";
+import { luffy79Playbook } from "./luffy79.js";
+import { luffyAcePlaybook } from "./luffyAce.js";
 import { rocksPlaybook } from "./rocks.js";
 import { rosinantePlaybook } from "./rosinante.js";
 import { saboPlaybook } from "./sabo.js";
@@ -16,7 +21,7 @@ export type PlaybookSetting = boolean | readonly string[];
 
 /** Mutable on purpose: tests register throwaway playbooks. */
 export const PLAYBOOKS: Record<string, LeaderPlaybook> = Object.fromEntries(
-  [rosinantePlaybook, kaidoPlaybook, saboPlaybook, rocksPlaybook, buggyPlaybook].map((p) => [p.leaderId, p]),
+  [rosinantePlaybook, kaidoPlaybook, saboPlaybook, rocksPlaybook, buggyPlaybook, luffy13Playbook, hancockPlaybook, enelPlaybook, luffy79Playbook, luffyAcePlaybook].map((p) => [p.leaderId, p]),
 );
 
 /** The playbook the setting enables for the seat's own Leader, if any. */
