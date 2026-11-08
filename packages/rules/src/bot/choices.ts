@@ -59,8 +59,30 @@ function limitStat(view: BotView, o: ChoiceOption, kind: "cost" | "power"): numb
   } catch { return null; }
 }
 
+/** The attack the bot is defending against, as the id of the card it targets (null: the Leader); undefined when not defending. */
+function attackedId(view: BotView): string | null | undefined {
+  const b = view.battle;
+  if (!b || b.attackerSeat === view.seat) return undefined;
+  return b.target.kind === "leader" ? view.you.leader.id : b.target.instanceId;
+}
+
+/** "Change the target of that attack" (#1169): move it off the card it is on, to a Character that survives if there is one. */
+function redirectTarget(view: BotView, eligible: ChoiceOption[]): ChoiceOption | null {
+  const cur = attackedId(view);
+  const attacker = findBoardCard(view, view.battle!.attackerId)?.card;
+  const others = eligible.filter((o) => o.instanceId !== cur);
+  const chars = others.filter((o) => o.zone === "character");
+  const cheapest = (os: ChoiceOption[]) => [...os].sort((a, b) => optionValue(view, a) - optionValue(view, b))[0];
+  const holds = chars.filter((o) => attacker && (findBoardCard(view, o.instanceId ?? "")?.card.power ?? 0) >= attacker.power);
+  return cheapest(holds) ?? cheapest(chars) ?? cheapest(others) ?? null;
+}
+
 function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceRequest, { type: "select" }>): Intent | null {
   const eligible = r.options.filter((o) => o.eligible);
+  if (r.min === 1 && r.max === 1 && /new attack target/i.test(choice.prompt) && attackedId(view) !== undefined) {
+    const to = redirectTarget(view, eligible);
+    if (to) return { type: "resolve_pending_choice", accept: true, selectedOptionIds: [to.id] };
+  }
   if (eligible.length < r.min) return null;
   if (!eligible.length) return { type: "resolve_pending_choice", accept: true, selectedOptionIds: [] };
   const kind = purpose(view, choice, eligible[0]!);
@@ -128,6 +150,11 @@ export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng): In
   if (level === "easy" && rng.next() < 0.4) return fallback;
   const r = choice.request;
   if (!r || r.type === "confirm") {
+    // Paying to change an attack's target is pointless with no other card to take it (#1169).
+    if (/change the target of (that|the) attack/i.test(choice.prompt) && attackedId(view) === view.you.leader.id && !view.you.characters.length) {
+      const decline = legal.find((i) => i.type === "resolve_pending_choice" && !i.accept);
+      if (decline) return decline;
+    }
     const accept = legal.find((i) => i.type === "resolve_pending_choice" && i.accept);
     return accept ?? fallback;
   }
