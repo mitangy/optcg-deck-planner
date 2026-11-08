@@ -3,8 +3,7 @@
  * Same contract as evaluate(): a finished game is a large win/loss (earlier wins score slightly higher). Units are log odds,
  * not "cards", so margins that were written for the hand-tuned score (search.ts HARD_DEFAULTS.margin) do not carry over.
  */
-import { extractFeatures } from "./features.js";
-import { logitOf, VALUE_WEIGHTS, type ValueWeights } from "./valueModel.js";
+import { learnedLogit, VALUE_WEIGHTS, type ValueModel } from "./valueModel.js";
 import type { MatchState, Seat } from "../types.js";
 
 export const LEARNED = {
@@ -15,11 +14,11 @@ export const LEARNED = {
   clamp: 8,
 } as const;
 
-export function evaluateLearned(state: MatchState, seat: Seat, startTurn = state.turnNumber, w: ValueWeights = VALUE_WEIGHTS): number {
+export function evaluateLearned(state: MatchState, seat: Seat, startTurn = state.turnNumber, w: ValueModel = VALUE_WEIGHTS): number {
   if (state.winner !== null) {
     const spare = Math.max(0, 40 - (state.turnNumber - startTurn)) * LEARNED.winPerSpareTurn;
     return state.winner === seat ? LEARNED.win + spare : -LEARNED.win - spare;
   }
-  const z = logitOf(extractFeatures(state, seat), w);
+  const z = learnedLogit(state, seat, w);
   return Math.max(-LEARNED.clamp, Math.min(LEARNED.clamp, z));
 }

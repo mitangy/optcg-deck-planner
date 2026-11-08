@@ -146,6 +146,13 @@
   visibility: hidden;
 }
 
+/* A phone's replay controls sit in the action footer and stay usable at every step,
+   so the bar rides above them rather than over them (--replay-room, #1095). Desktop
+   and landscape phones keep the controls in the rail, clear of the bar. */
+.arena:not(.arena-wide) .field-bar:not(.field-bar-mid):not(.field-bar-top) {
+  bottom: calc(max(var(--replay-room, 0px), var(--safe-b)) + 0.4rem);
+}
+
 /* Picks in the hand: dock at the top so the hand stays tappable (after the
    landscape-phone and wide rules, which would put it back at the bottom). */
 .arena .field-bar.field-bar-top {

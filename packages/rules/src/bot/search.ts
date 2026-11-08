@@ -18,6 +18,7 @@ import { determinize, type PriorChoice } from "./determinize.js";
 import { DEFAULT_DECK_PRIOR } from "./defaultPrior.js";
 import { evaluate } from "./evaluate.js";
 import { evaluateLearned } from "./learnedEval.js";
+import { VALUE_WEIGHTS, type ValueModel } from "./valueModel.js";
 import { chooseSimMulligan } from "./mulligan.js";
 import { chooseBotIntent, MAX_INTENTS_PER_TURN, memoryFor, peekNormalIntent, recordMainPick, seedTurnMemory } from "./policy.js";
 import type { TurnMemory } from "./main.js";
@@ -34,11 +35,13 @@ export const HARD_DEFAULTS = {
   /** The same, in log odds, when the learned score is used (#635). */
   marginLearned: 0.1,
   /**
-   * Defaults of the #635 options (see BotOptions). The learned score stays off: in a paired batch of 160 games (equal evaluations per decision)
-   * Hard with the learned score won 48% (95% CI 41-56%) against Hard with the hand-tuned score, so it was not kept as the default; it still
-   * produces the win probabilities of position analysis.
+   * Defaults of the #635 options (see BotOptions). The learned score is the default since the v2 MLP (feature set v2 dense features, one
+   * 32-unit hidden layer, no card bag; held-out log-loss 0.445 / accuracy 78.1% on 4200 games against 0.580 / 67.0% for the linear v1 model):
+   * in paired self-play (equal evaluations per decision, 1000 games) Hard with the learned score won 54.6% (95% CI 52-58%) against Hard with the
+   * hand-tuned score, confirmed at 54.7% (52-58%) on fresh deals. The earlier linear v1 model only reached 48.1% (45-51%), so the score stayed
+   * hand-tuned until then (#1095). The same model produces the win probabilities of position analysis.
    */
-  evalMode: "hand" as "learned" | "hand",
+  evalMode: "learned" as "learned" | "hand",
   opponentModel: "normal" as "normal" | "greedy",
   mulligan: "sim" as "sim" | "rule",
   /** How many candidates are re-checked on the other copies. */
@@ -148,19 +151,20 @@ interface Knobs {
   prior: PriorChoice;
   opponentModel: "normal" | "greedy";
   margin: number;
+  valueWeights: ValueModel;
 }
 
 /** The learned score of a position for `seat`, as a win probability (a finished game is exactly 0 or 1). */
-function winProb(state: MatchState, seat: Seat): number {
+function winProb(state: MatchState, seat: Seat, w: ValueModel): number {
   if (state.winner !== null) return state.winner === seat ? 1 : 0;
-  return 1 / (1 + Math.exp(-evaluateLearned(state, seat)));
+  return 1 / (1 + Math.exp(-evaluateLearned(state, seat, state.turnNumber, w)));
 }
 
 /**
  * The opponent in a rollout when it is modelled as "greedy": normal's main-phase candidates are tried one move ahead and
  * scored with the learned model from the opponent's own side; normal's pick is kept unless another beats it by a margin.
  */
-function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng): Intent | null {
+function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w: ValueModel): Intent | null {
   const memory = memoryFor(rng, view);
   const base = peekNormalIntent(view, rng);
   if (!base) return null;
@@ -173,7 +177,7 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng): 
       cands.forEach((c, i) => {
         const r = applyIntent(s, c, { seat: actor });
         if (!r.ok) return;
-        const v = evaluateLearned(r.state, actor);
+        const v = evaluateLearned(r.state, actor, r.state.turnNumber, w);
         if (i === 0) baseScore = v;
         if (v > best) { best = v; pick = c; }
       });
@@ -186,7 +190,7 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng): 
 }
 
 /** Play `state` forward until the turn counter reaches `endTurn`, someone wins, or the step cap. I play normal; the opponent plays normal or greedy. */
-function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, memory: TurnMemory | null, opponentModel: "normal" | "greedy"): MatchState {
+function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, memory: TurnMemory | null, opponentModel: "normal" | "greedy", weights: ValueModel = VALUE_WEIGHTS): MatchState {
   const rngs = [createSeededRng(seed), createSeededRng(seed + 1)] as const;
   let s = state;
   let seeded = memory === null;
@@ -197,7 +201,7 @@ function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, mem
     // The real turn's record (abilities already used, intents so far) carries on into the rollout.
     if (!seeded && actor === me && view.phase === "main" && view.pendingChoices.length === 0) { seedTurnMemory(rngs[me], view, memory!); seeded = true; }
     const greedy = opponentModel === "greedy" && actor !== me && view.phase === "main" && view.pendingChoices.length === 0;
-    const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor]) : chooseBotIntent(view, { level: "normal", rng: rngs[actor] });
+    const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor], weights) : chooseBotIntent(view, { level: "normal", rng: rngs[actor] });
     if (!intent) break;
     let r = applyIntent(s, intent, { seat: actor });
     if (!r.ok) r = applyIntent(s, view.legalIntents[0]!, { seat: actor });
@@ -213,10 +217,10 @@ function scoreCandidate(det: MatchState, seat: Seat, cand: Candidate, endTurn: n
   try {
     const applied = applyIntent(det, cand, { seat });
     if (!applied.ok) return null;
-    const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel);
+    const end = rollout(applied.state, seat, endTurn, seed, memory, knobs.opponentModel, knobs.valueWeights);
     return knobs.evalMode === "learned"
-      ? { score: evaluateLearned(end, seat, det.turnNumber), prob: winProb(end, seat) }
-      : { score: evaluate(end, seat, det.turnNumber), prob: winProb(end, seat) };
+      ? { score: evaluateLearned(end, seat, det.turnNumber, knobs.valueWeights), prob: winProb(end, seat, knobs.valueWeights) }
+      : { score: evaluate(end, seat, det.turnNumber), prob: winProb(end, seat, knobs.valueWeights) };
   } catch {
     return null;
   }
@@ -246,6 +250,7 @@ function knobsFrom(opts: BotOptions): Knobs {
     prior: opts.prior ?? DEFAULT_DECK_PRIOR,
     opponentModel: opts.opponentModel ?? HARD_DEFAULTS.opponentModel,
     margin: evalMode === "learned" ? HARD_DEFAULTS.marginLearned : HARD_DEFAULTS.margin,
+    valueWeights: opts.valueWeights ?? VALUE_WEIGHTS,
   };
 }
 

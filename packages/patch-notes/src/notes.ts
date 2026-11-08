@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
+  { date: "2026-11-08", app: "duel", pr: 1095, title: "Hard bots play stronger", text: "Hard bots now judge positions with a new learned evaluator instead of the old hand-tuned one. In 2,000 test games it won about 55% against the old Hard bot. Log Pose's win chances in position analysis and game review come from the same new model." },
   { date: "2026-11-08", app: "both", pr: 1157, title: "A new Nami alt art", text: "The Heroines Battle Vol.2 printing of Nami (EB03-006) is now available as an alt art." },
   // 2026-11-07
   { date: "2026-11-07", app: "planner", pr: 1035, title: "Mark a collector copy right on the alt art", text: "You can now tap Collect on any alt art tile in your decks, Master Shopping and Collection to want it as a collector copy on top of your decks, and tap the gold Collector button to remove it. It is the same collector copy everywhere, so a change on one page shows on the others. The price popover on a deck page offers Want a collector copy too as well." },
