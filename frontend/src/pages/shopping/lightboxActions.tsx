@@ -7,6 +7,7 @@ import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { LightboxPriceAlertControl } from "../../prices/PriceAlerts";
 import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
+import { LightboxPanelProvider } from "../../prices/lightboxPanel";
 import { qk } from "../../cache/queryKeys";
 
 /** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
@@ -168,12 +169,12 @@ export const renderCardPageActions = (cardId: string, productId: number) => (
 );
 
 export const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
-  <>
+  <LightboxPanelProvider>
     <Link className="btn secondary lightbox-card-link" to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`} onClick={close}>
       Card page
     </Link>
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
     <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
-  </>
+  </LightboxPanelProvider>
 );
