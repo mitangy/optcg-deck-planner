@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-08
+  { date: "2026-11-08", app: "duel", pr: 1175, title: "Bots value [On K.O.] Characters", text: "When Easy and Normal bots have to pick one of their own Characters to be K.O.'d, they now count its [On K.O.] effect as a plus, so they give up a Character that pays them back before one that doesn't." },
   { date: "2026-11-08", app: "duel", pr: 1174, title: "Hard bots try every target", text: "When a Hard bot picks a card, such as where to redirect an attack, what to K.O. or what to search for, it now tries each possible target and plays out what follows before choosing, instead of only comparing its first idea with the default." },
   { date: "2026-11-08", app: "planner", pr: 1167, title: "The price beside a card says what it does", text: "The price beside a card now has a button look and says \"Choose arts\" (or which arts you picked, plus any extra copies), so it's clear you can tap it to pick which alt arts to buy. Extra copies you still need to buy now count in that card's price left too." },
   { date: "2026-11-08", app: "duel", pr: 1170, title: "Bots redirect attacks properly", text: "When a bot pays to change an attack's target, such as with the Marshall.D.Teach Leader, it now moves the attack to one of its Characters instead of keeping it on the Leader." },
