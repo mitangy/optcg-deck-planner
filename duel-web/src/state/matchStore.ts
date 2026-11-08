@@ -12,7 +12,7 @@ import {
   rewindBattleLog,
   type BattleLogEntry,
   type InstanceIndex,
-} from "../board/battleLog";
+} from "../board/match/battleLog";
 import { isSeatReservationExpiredError } from "../net/matchResume";
 import type {
   BriefTicketWire,

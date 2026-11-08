@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, Select } from "@optcg/ui/popups";
-import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/useMediaQuery";
-import { isTyping } from "../board/useBoardHotkeys";
+import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../board/layout/useMediaQuery";
+import { isTyping } from "../board/input/useBoardHotkeys";
 import { PLAY_SPEEDS, type PlaySpeed } from "./replayCursor";
 import type { ReplayControlsActions, ReplayControlsState } from "./useReplay";
 import { moveStatus, reviewTicks, turnMarks } from "./reviewModel";

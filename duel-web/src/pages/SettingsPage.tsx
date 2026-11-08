@@ -14,7 +14,7 @@ import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
 import { googleLoginUrl, logoutSession } from "../net/api";
 import { PLAYMAT_ASPECT, usePlaymatUrl } from "../playmat";
-import { GameplaySettingsFields } from "../board/GameplaySettings";
+import { GameplaySettingsFields } from "../board/settings/GameplaySettings";
 import {
   devKeyAllowed,
   updateSettings,

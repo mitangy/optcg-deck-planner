@@ -1,6 +1,6 @@
 import { stubCard } from "./stubCard";
 import type { CardView, ChatLine, Intent, PlayerView, RematchState, Seat, UndoState } from "../../net/protocol";
-import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../battleLog";
+import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../match/battleLog";
 import { lookupCard } from "../../cards/atlas";
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { MatchHistoryEntry } from "../../history/historyApi";
