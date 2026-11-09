@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
+  { date: "2026-11-09", app: "planner", pr: 1204, title: "Group buy decks are grouped by Leader", text: "In a group buy's Filters, Include now groups your decks by Leader like Master Shopping does, and ticking a Leader ticks or unticks all its decks. Cards not in a deck and Extra copies sit under Other." },
   { date: "2026-11-09", app: "planner", pr: 1187, title: "Each price shows once on Master Shopping", text: "The price beside a card now only counts the copies your decks still need. Extra copies keep their own price on their own row under the card, so the same money no longer shows twice." },
   { date: "2026-11-09", app: "planner", pr: 1185, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
   { date: "2026-11-09", app: "planner", pr: 1183, title: "See where Master Shopping's Est. cost goes", text: "Est. cost on Master Shopping now shows how much is for your decks, cards you added and Extra copies. Extra copies now only count when their card is in the decks you include, so picking some decks no longer adds the cost of Extra copies for other cards." },

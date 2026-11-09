@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { DeckSummary } from "../../api";
+import type { DeckSummary } from "../api";
 import {
   groupDecksByLeader,
   groupState,
   otherChipSummary,
   showExtraCopiesChip,
   toggleGroupDecks,
-} from "./shoppingDeckGroups";
+} from "./deckGroups";
 
 const deck = (id: number, sort_order: number, leader: string | null, name?: string | null) =>
   ({ id, name: `D${id}`, sort_order, leader_card_id: leader, leader_name: name }) as DeckSummary;
