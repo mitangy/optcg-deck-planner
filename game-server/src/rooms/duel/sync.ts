@@ -13,7 +13,7 @@ export class SyncSender {
   constructor(
     private readonly core: Pick<
       DuelCore,
-      "game" | "io" | "clocks" | "undo" | "chat" | "rematch" | "spectators" | "cosmetics" | "seats"
+      "game" | "io" | "clocks" | "undo" | "chat" | "rematch" | "spectators" | "cosmetics" | "seats" | "dice"
     >,
   ) {}
 
@@ -65,6 +65,7 @@ export class SyncSender {
       ranked: game.ranked,
       firstSeatPickedBy: game.firstSeatPickedBy,
       brief: this.briefFor(seat),
+      dice: game.dice,
       ...this.botInfo(),
     };
     io.send(client, "welcome", welcome);
@@ -84,7 +85,7 @@ export class SyncSender {
     }
     const seat = seats.seatForClient(client);
     if (seat === null || !game.match) {
-      io.sendError(client, "match_not_ready", "Match not started");
+      this.sendNoMatch(client);
       return;
     }
     this.sendPlayerStart(client, seat);
@@ -96,10 +97,16 @@ export class SyncSender {
     }
   }
 
+  /** No game yet: during the opening dice roll (#1190) the client is shown that, else it is told to wait. */
+  private sendNoMatch(client: Client) {
+    if (this.core.dice.sendState(client)) return;
+    this.core.io.sendError(client, "match_not_ready", "Match not started");
+  }
+
   sendSpectatorSync(client: Client, cameraSeat: Seat) {
     const { game, io, spectators, cosmetics, chat } = this.core;
     if (!game.match) {
-      io.sendError(client, "match_not_ready", "Match not started");
+      this.sendNoMatch(client);
       return;
     }
     const view = spectators.spectatorView(game.match, cameraSeat);
@@ -107,6 +114,7 @@ export class SyncSender {
       matchId: game.matchId,
       seat: cameraSeat,
       ...this.botInfo(),
+      dice: game.dice,
       role: "spectator",
       view,
       players: this.playersInfo(),

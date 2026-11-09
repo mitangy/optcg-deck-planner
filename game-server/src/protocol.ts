@@ -28,6 +28,8 @@ export function parseCreateOptions(raw: unknown): {
   /** Seat that goes first in the room's first game. */
   firstSeat: Seat;
   autoSkipMulligan: boolean;
+  /** Ask for the opening dice roll (#1190); deployed servers roll regardless. */
+  diceRoll: boolean;
   ranked: boolean;
   seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
@@ -46,6 +48,7 @@ export function parseCreateOptions(raw: unknown): {
   }
   const firstSeat = gameFirstSeat(o.firstSeat as Seat | undefined);
   const autoSkipMulligan = o.autoSkipMulligan !== false;
+  const diceRoll = o.diceRoll === true;
   // A browser can create a public `duel` room directly. DuelRoom decides
   // whether this request is actually ranked after verifying its attestation.
   let bot: BotRoomOptions | undefined;
@@ -113,6 +116,7 @@ export function parseCreateOptions(raw: unknown): {
     seed,
     firstSeat,
     autoSkipMulligan,
+    diceRoll,
     ranked,
     seatUserIds: bot ? undefined : seatUserIds,
     players,

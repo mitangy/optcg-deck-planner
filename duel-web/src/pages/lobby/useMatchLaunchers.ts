@@ -220,7 +220,7 @@ export function useMatchLaunchers(deps: {
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
-    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false }, (gen) =>
+    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false, friends: friendsEnabled }, (gen) =>
       connectSpectator(roomId, gen, undefined, friend.server_url),
     );
   }
@@ -231,7 +231,7 @@ export function useMatchLaunchers(deps: {
     if (!watch.roomId || !authChecked || watchStarted.current) return;
     watchStarted.current = true;
     runFriendAction(
-      { status: "Connecting to the match…", leaderId: null, invite: false },
+      { status: "Connecting to the match…", leaderId: null, invite: false, friends: friendsEnabled },
       (gen) => connectSpectator(watch.roomId!, gen, watch.seat),
       { replace: true },
     );

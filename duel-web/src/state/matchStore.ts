@@ -17,6 +17,8 @@ import { isSeatReservationExpiredError } from "../net/matchResume";
 import type {
   BriefTicketWire,
   ChatLine,
+  DiceResult,
+  DiceStateMessage,
   ErrorMessage,
   MatchOverMessage,
   PlayerView,
@@ -52,6 +54,10 @@ export type MatchState = {
   ranked: boolean | null;
   /** null = coin flip, a seat = who chose; undefined from an older server. */
   firstSeatPickedBy: Seat | null | undefined;
+  /** The dice roll that decided this game's order (a room's first game, #1190), else null. */
+  firstSeatDice: DiceResult | null;
+  /** The opening dice roll in progress, before any game exists (#1190); null once the game starts or it is cancelled. */
+  dice: DiceStateMessage | null;
   brief: BriefTicketWire | null;
   vsBot: boolean;
   battleLog: BattleLogEntry[];
@@ -76,6 +82,7 @@ export type WelcomeInfo = {
   players?: SeatPlayers;
   ranked?: boolean;
   firstSeatPickedBy?: Seat | null;
+  dice?: DiceResult | null;
   brief?: BriefTicketWire;
 };
 
@@ -125,6 +132,7 @@ export type MatchAction =
   | { type: "undoState"; state: UndoState }
   | { type: "presence"; awayUntil: [number | null, number | null] }
   | { type: "rematchState"; state: RematchState }
+  | { type: "diceState"; state: DiceStateMessage }
   | { type: "undoApplied"; info: UndoApplied }
   | { type: "takenOver" }
   | { type: "disconnect" }
@@ -174,6 +182,8 @@ export function createInitialMatchState(mode: MatchMode = "online", overrides: P
     players: null,
     ranked: null,
     firstSeatPickedBy: undefined,
+    firstSeatDice: null,
+    dice: null,
     brief: null,
     vsBot: false,
     battleLog: [],
@@ -213,6 +223,9 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         ...s,
         players: info.players ?? null,
         firstSeatPickedBy: info.firstSeatPickedBy,
+        firstSeatDice: info.dice ?? null,
+        // The roll is over: the game it decided has begun.
+        dice: null,
         ranked: typeof info.ranked === "boolean" ? info.ranked : null,
         brief: info.role === "player" ? (info.brief ?? null) : null,
         matchId: info.matchId,
@@ -277,6 +290,9 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       return { ...s, awayUntil: a.awayUntil };
     case "rematchState":
       return { ...s, rematch: a.state };
+    case "diceState":
+      // A cancelled roll (a seat left) sends everyone back to waiting for an opponent.
+      return { ...s, dice: a.state.step === "cancelled" ? null : a.state };
     case "undoApplied": {
       const { toTurn, toStep, by, action, scope } = a.info;
       return {
@@ -316,6 +332,8 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         view: null,
         ranked: null,
         firstSeatPickedBy: undefined,
+        firstSeatDice: null,
+        dice: null,
         brief: null,
         vsBot: a.vsBot,
         queueing: false,
@@ -389,6 +407,8 @@ function resetMatchState(s: MatchState): MatchState {
     players: null,
     ranked: null,
     firstSeatPickedBy: undefined,
+    firstSeatDice: null,
+    dice: null,
     brief: null,
     vsBot: false,
     matchOver: null,

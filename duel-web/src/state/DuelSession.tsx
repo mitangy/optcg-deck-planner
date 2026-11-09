@@ -29,6 +29,9 @@ import type {
   Seat,
   SeatPlayers,
   TimerMessage,
+  DiceAction,
+  DiceResult,
+  DiceStateMessage,
   RematchAction,
   RematchState,
   SeatSkin,
@@ -124,6 +127,11 @@ type DuelSession = {
   ranked: boolean | null;
   /** How the turn order was decided, from the welcome: null = coin flip, a seat = who chose; undefined from an older server. */
   firstSeatPickedBy: Seat | null | undefined;
+  /** The dice roll that decided this game's order, when it was one (#1190). */
+  firstSeatDice: DiceResult | null;
+  /** The opening dice roll in progress (no game yet); null otherwise. */
+  dice: DiceStateMessage | null;
+  sendDice: (action: DiceAction) => void;
   /** The key to a Log Pose matchup brief (players of unranked rooms only). */
   brief: BriefTicketWire | null;
   /** Play vs Bot: the other seat is the server's bot, which cannot be reported. */
@@ -181,6 +189,7 @@ type SessionActions = Pick<
   | "sendChat"
   | "sendHandOrder"
   | "sendRematch"
+  | "sendDice"
   | "sendUndo"
   | "setRating"
   | "connect"
@@ -293,6 +302,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onUndoState: (state) => dispatch({ type: "undoState", state }),
         onPresence: (awayUntil) => dispatch({ type: "presence", awayUntil }),
         onRematchState: (state) => dispatch({ type: "rematchState", state }),
+        onDiceState: (state) => dispatch({ type: "diceState", state }),
         onUndoApplied: (info) => dispatch({ type: "undoApplied", info }),
         onTakenOver: () => {
           // The seat is theirs now: keep the last board on screen, stop every
@@ -374,6 +384,13 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           client.sendRematch(action, deck);
         } catch (e) {
           dispatch({ type: "setError", message: e instanceof Error ? e.message : "Rematch failed" });
+        }
+      },
+      sendDice(action) {
+        try {
+          client.sendDice(action);
+        } catch (e) {
+          dispatch({ type: "setError", message: e instanceof Error ? e.message : "Dice roll failed" });
         }
       },
       sendUndo(action, opts) {
@@ -563,6 +580,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       players: match.players,
       ranked: match.ranked,
       firstSeatPickedBy: match.firstSeatPickedBy,
+      firstSeatDice: match.firstSeatDice,
+      dice: match.dice,
       brief: match.brief,
       vsBot: match.vsBot,
       battleLog: match.battleLog,

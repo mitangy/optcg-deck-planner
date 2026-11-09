@@ -27,7 +27,8 @@
     "upload-bot-games": "tsx scripts/upload-bot-games.ts",
     "bot-lessons": "tsx scripts/bot-lessons.ts",
     "feedback-cases": "tsx scripts/feedback-cases.ts",
-    "meta-decks": "tsx scripts/meta-decks.ts"
+    "meta-decks": "tsx scripts/meta-decks.ts",
+    "human-bot-games": "tsx scripts/human-bot-games.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

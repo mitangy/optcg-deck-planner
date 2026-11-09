@@ -104,11 +104,36 @@
   content: none;
 }
 
+/* The slot is only ~140px wide and one button tall (#1193): a smaller dot, gap and padding, a title sized from the
+   slot so "Opponent's turn" stays on one line, a one-line subtitle, and nothing may paint outside the pill. */
+.primary-dock-inline .primary-dock-main {
+  container-type: inline-size;
+}
+
 .primary-dock-inline .waiting-opp {
   height: 100%;
   min-height: 0;
-  padding: 0.2rem 0.6rem;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem;
   font-size: 0.78rem;
+  overflow: hidden;
+}
+
+.primary-dock-inline .waiting-opp-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.primary-dock-inline .waiting-opp-text {
+  line-height: 1.15;
+}
+
+.primary-dock-inline .waiting-opp-text strong {
+  font-size: min(0.85rem, 9cqi);
+}
+
+.primary-dock-inline .waiting-opp-text span {
+  font-size: min(0.72rem, 7cqi);
 }
 
 /* Under the primary, within the gutter's width. It stops at the bottom of the board

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { CardView } from "../net/protocol";
 import { stubCard } from "./fixtures/stubCard";
 import { FriendInvites } from "../friends/FriendsPanel";
@@ -34,6 +35,8 @@ export type BoardWaiting = {
 
 type Props = {
   waiting: BoardWaiting;
+  /** The opening dice roll (#1190): shown over the mat in place of the invite while it runs. */
+  dice?: ReactNode;
   errorBanner: string | null;
   leaveLabel: string;
   onLeave: () => void;
@@ -65,7 +68,7 @@ function emptySide(id: string, leaderId: string | null | undefined) {
  * requested so queueing / connecting happens on the board instead of on a
  * loading screen. Nothing here is interactive except Cancel.
  */
-export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClearError }: Props) {
+export function PendingBoard({ waiting, dice, errorBanner, leaveLabel, onLeave, onClearError }: Props) {
   const prefs = useDuelSettings();
   const wide = useMediaQuery(WIDE_BOARD_QUERY);
   const portraitMat = useMediaQuery(PORTRAIT_MAT_QUERY);
@@ -127,7 +130,8 @@ export function PendingBoard({ waiting, errorBanner, leaveLabel, onLeave, onClea
               data={emptySide("pending-you-leader", waiting.youLeaderId)}
             />
           </div>
-          {invite || waiting.friendInvites ? (
+          {dice ? <div className="pending-dice">{dice}</div> : null}
+          {!dice && (invite || waiting.friendInvites) ? (
             <div className="pending-invite">
               <div className="pending-invite-stack">
                 {waiting.friendInvites ? (

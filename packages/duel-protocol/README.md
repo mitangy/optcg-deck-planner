@@ -5,8 +5,8 @@ The duel wire protocol (protocolVersion 5) in one place, used by `game-server/` 
 - `src/constants.ts`: `PROTOCOL_VERSION`, the close code, size caps, and the `CLIENT_MESSAGE` / `SERVER_MESSAGE` name tables.
 - `src/errors.ts`: `ErrorCode`, `ProtocolError`, `errorCodeOf`, and the `expectBody` / `expectEnvelope` checks the server parsers start with.
 - `src/types.ts`: payload types for every message. `PlayerView`, `Intent`, `GameEvent` and `Seat` come from `@optcg/rules`.
-- `src/clientMessages.ts`: parsers the **server** runs on what a client sends (join options, skin, cosmetics, chat, hand order, rematch, undo). They throw `ProtocolError`.
-- `src/serverMessages.ts`: parsers the **client** runs on what the room sends (welcome, view, error, match over, timer, chat, undo, rematch, presence, cosmetics, skin), including the privacy checks that refuse a view leaking a hidden hand.
+- `src/clientMessages.ts`: parsers the **server** runs on what a client sends (join options, skin, cosmetics, chat, hand order, rematch, dice, undo). They throw `ProtocolError`.
+- `src/serverMessages.ts`: parsers the **client** runs on what the room sends (welcome, view, error, match over, timer, chat, undo, rematch, dice, presence, cosmetics, skin), including the privacy checks that refuse a view leaking a hidden hand.
 
 ## Rules for this package
 
