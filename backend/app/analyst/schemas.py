@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, field_validator
@@ -449,6 +450,21 @@ class BotReplayOut(BaseModel):
     rules_version: str
     sides: BotSideSeats
     replay: dict[str, Any]
+
+
+class HumanBotGameOut(BaseModel):
+    """One Play vs Bot game for training: no player identifiers, only the bot's level and the replay."""
+
+    id: int
+    created_at: datetime
+    bot_level: str | None
+    replay: dict[str, Any]
+
+
+class HumanBotGamesOut(BaseModel):
+    games: list[HumanBotGameOut]
+    # Pass as after_id for the next page; unchanged (the given after_id) when nothing is left.
+    next_after_id: int
 
 
 class BotSimStatsOut(BaseModel):

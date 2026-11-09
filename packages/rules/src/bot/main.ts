@@ -114,11 +114,19 @@ function chooseAttack(view: BotView, rng: Rng): Attack | undefined {
   const oppLife = view.opponent.lifeCount;
   const leaderPower = view.opponent.leader.power;
   const scored: { a: Attack; score: number; power: number }[] = [];
+  // Lethal on board (#1192): more attackers that reach the Leader than Life + 1 + active Blockers can each be stopped once, so go face with all of them.
+  const reaching = new Set<string>();
+  for (const a of attacksOf(view)) {
+    const atk = myCard(view, a.attackerId);
+    if (a.target.kind === "leader" && atk && atk.power >= leaderPower) reaching.add(atk.id);
+  }
+  const activeBlockers = view.opponent.characters.filter((c) => isBlocker(c) && !c.rested).length;
+  const lethalBoard = reaching.size >= oppLife + 1 + activeBlockers;
   for (const a of attacksOf(view)) {
     const atk = myCard(view, a.attackerId);
     if (!atk) continue;
     // Keep Blockers home when my Life is low, unless this attack wins the game.
-    const lethal = a.target.kind === "leader" && oppLife === 0 && atk.power >= leaderPower;
+    const lethal = a.target.kind === "leader" && (oppLife === 0 || lethalBoard) && atk.power >= leaderPower;
     if (!lethal && atk.id !== view.you.leader.id && isBlocker(atk) && view.you.lifeCount <= 2) continue;
     if (a.target.kind === "leader") {
       if (atk.power < leaderPower) continue;

@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
+  { date: "2026-11-09", app: "duel", pr: 1200, title: "Play vs Bot games help the bots learn", text: "Your Play vs Bot games are now saved, without your name, so the bots can learn from them. You can leave yours out under Settings, Log Pose. See the Privacy policy." },
+  { date: "2026-11-09", app: "duel", pr: 1200, title: "Bots go for the win", text: "Bots now attack your Leader with everything when they have enough attackers to finish you, instead of K.O.ing your rested Characters, for example after Shanks rests your board." },
   { date: "2026-11-09", app: "planner", pr: 1196, title: "Adding an alt art in Shopping keeps your deck picks", text: "Adding or removing an alt art from Master Shopping's Add cards no longer changes the alt arts you picked inside your decks." },
   { date: "2026-11-09", app: "duel", pr: 1198, title: "Opponent’s turn fits beside the board", text: "With the buttons beside the board, the Opponent's turn and Waiting for opponent boxes now keep their words inside the box instead of spilling past its bottom edge." },
   { date: "2026-11-09", app: "planner", pr: 1187, title: "Each price shows once on Master Shopping", text: "The price beside a card now only counts the copies your decks still need. Extra copies keep their own price on their own row under the card, so the same money no longer shows twice." },

@@ -75,6 +75,8 @@ export class MatchPersistence {
       opponent_leader_id: game.replay?.players[1 - humanSeat].leaderId,
       turns,
       reason,
+      // Bot games keep their replay so they can be investigated and trained on (#1202); practice keeps nothing.
+      ...(game.bot && game.replay ? { replay: { ...game.replay, intents: [...game.replay.intents], end: { winner, reason } } } : {}),
     };
   }
 
@@ -100,7 +102,7 @@ export class MatchPersistence {
 
   async writebackResult(winner: Seat, reason: string) {
     const { game, io, time } = this.core;
-    // Bot and practice games are not matches: they are counted for the admin page and nothing else.
+    // Bot and practice games are not matches: they are counted for the admin page, and a bot game's replay is kept for training (#1202).
     const solo = this.soloGamePayload(winner, reason);
     if (solo) {
       void this.reportSoloGame(solo); // never awaited: match_over does not wait on the API

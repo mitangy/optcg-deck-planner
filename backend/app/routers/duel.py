@@ -725,6 +725,8 @@ def ingest_solo_game(
             won=body.won if body.mode == "bot" else None,
             turns=body.turns,
             reason=body.reason,
+            # Only bot games keep their replay (#1202); practice never does.
+            replay=_capped_json(body.replay, "replay", body.game_id) if body.mode == "bot" else None,
         )
     )
     try:
