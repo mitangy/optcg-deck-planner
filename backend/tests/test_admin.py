@@ -1102,6 +1102,18 @@ def test_startup_makes_only_the_admin_email_admin_667(startup_engine):
     assert roles == {"optcgduel@gmail.com": "admin", "someone@x.test": "user", "other@x.test": "user"}
 
 
+def test_startup_makes_both_owner_emails_admin_1209(startup_engine):
+    app_db.init_db()
+    with startup_engine.begin() as conn:
+        for i, email in enumerate(["optcgduel@gmail.com", "GamefreakMichaelTang@gmail.com", "someone@x.test"]):
+            conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (:i, :e, 'n', :s)"), {"i": i + 1, "e": email, "s": f"s{i}"})
+        conn.execute(text("UPDATE users SET role = 'admin' WHERE email = 'someone@x.test'"))
+    app_db.init_db()
+    with startup_engine.connect() as conn:
+        roles = dict(conn.execute(text("SELECT lower(email), role FROM users")).all())
+    assert roles == {"optcgduel@gmail.com": "admin", "gamefreakmichaeltang@gmail.com": "admin", "someone@x.test": "user"}
+
+
 def _replay_fixtures(S, p0: int, p1: int) -> None:
     with S() as db:
         db.add(

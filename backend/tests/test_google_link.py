@@ -47,3 +47,13 @@ def test_a_first_google_sign_in_with_admin_email_is_admin_straight_away_another_
     other = resolve_google_user(db, email="other@example.com", sub="sub-other", name="Other")
     assert boss.role == "admin"
     assert other.role == "user"
+
+
+def test_a_first_google_sign_in_with_any_listed_admin_email_is_admin_1209(db, monkeypatch):
+    monkeypatch.setattr(
+        "app.core.auth.get_settings", lambda: Settings(admin_email="boss@example.com, second@example.com")
+    )
+    second = resolve_google_user(db, email="Second@Example.com", sub="sub-second", name="Second")
+    other = resolve_google_user(db, email="other@example.com", sub="sub-other", name="Other")
+    assert second.role == "admin"
+    assert other.role == "user"

@@ -1,6 +1,6 @@
 """Account roles (#667): who may change roles, ban and delete. Pure helpers, no database.
 
-user < moderator < admin. Only one admin exists (settings.admin_email, set on startup); nobody
+user < moderator < admin. Admins are the settings.admin_email accounts, set on startup; nobody
 can grant it. Moderators may ban and unban plain users and have no delete powers.
 """
 
