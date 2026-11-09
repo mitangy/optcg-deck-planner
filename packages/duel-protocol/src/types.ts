@@ -55,6 +55,11 @@ export type DuelCreateOptions = {
   autoSkipMulligan?: boolean;
   /** Who goes first in the first game. Honored only on local/dev servers; deployed servers flip a coin (#549). */
   firstSeat?: 0 | 1;
+  /**
+   * Decide the first game's turn order with a dice roll instead of a coin flip (#1190). Always on for deployed
+   * servers (they ignore this); local/dev servers only roll when asked. Practice (hotseat) rooms never roll.
+   */
+  diceRoll?: boolean;
   /** False for private / hotseat; ranked queue sets true (forces a 15 minute chess clock per player). */
   ranked?: boolean;
   players?: [PlayerDeckWire, PlayerDeckWire];
@@ -113,6 +118,8 @@ export type WelcomeMessage = {
    * chose (a rematch's loser). Absent from older servers.
    */
   firstSeatPickedBy?: Seat | null;
+  /** The dice roll that decided a room's first game (#1190): null / absent for a coin flip and for rematches. */
+  dice?: DiceResult | null;
   /** Players of unranked rooms only: the key to a Log Pose matchup brief. */
   brief?: BriefTicketWire;
   /** Present in a "Play vs Bot" room: seat 1 is the server's bot (#631). */
@@ -327,4 +334,46 @@ export type RematchStateMessage = {
   declinedBy: Seat | null;
   /** Set once both agreed: the loser, who picks first / second. */
   chooser: Seat | null;
+};
+
+/**
+ * The opening dice roll of a room's first game (#1190): the server picks a roller, the other seat calls
+ * High (4-6) or Low (1-3), and the winner picks first or second. "call" and "roll" are the two players' turns,
+ * "choose" is the winner's pick, "done" means the game has started, and "cancelled" means a seat left and the
+ * room is back to waiting for an opponent.
+ */
+export type DiceCall = "high" | "low";
+export type DiceStep = "call" | "roll" | "choose" | "done" | "cancelled";
+export type DiceAction =
+  | { action: "call"; call: DiceCall }
+  | { action: "roll" }
+  | { action: "first" }
+  | { action: "second" };
+
+/** The finished roll, as the welcome of the game it decided carries it. */
+export type DiceResult = {
+  roller: Seat;
+  caller: Seat;
+  call: DiceCall;
+  roll: number;
+  winner: Seat;
+};
+
+export type DiceStateMessage = {
+  protocolVersion: ProtocolVersion;
+  roller: Seat;
+  caller: Seat;
+  step: DiceStep;
+  call: DiceCall | null;
+  /** 1-6 once rolled. */
+  roll: number | null;
+  /** The seat that won the roll (set from "choose" on). */
+  winner: Seat | null;
+  /** Epoch ms the current step times out and the server acts for the seat, else null. */
+  deadline: number | null;
+  /** The receiving client's seat (a spectator's camera seat). */
+  seat: Seat;
+  role: "player" | "spectator";
+  /** There is no welcome yet, so the names come with the state. */
+  players?: SeatPlayers;
 };

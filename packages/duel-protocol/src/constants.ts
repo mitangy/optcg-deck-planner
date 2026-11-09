@@ -22,6 +22,9 @@ export const HAND_ORDER_MAX_IDS = 100;
 /** Longest card instance id a hand_order message may carry. */
 export const HAND_ORDER_MAX_ID_LENGTH = 64;
 
+/** How long each step of the opening dice roll (call, roll, choose) waits before the server acts for the seat (#1190). */
+export const DICE_STEP_SECONDS = 20;
+
 /** Messages a client sends to a duel room. */
 export const CLIENT_MESSAGE = {
   intent: "intent",
@@ -34,6 +37,7 @@ export const CLIENT_MESSAGE = {
   hand_order: "hand_order",
   undo: "undo",
   rematch: "rematch",
+  dice: "dice",
 } as const;
 export type ClientMessageType = (typeof CLIENT_MESSAGE)[keyof typeof CLIENT_MESSAGE];
 
@@ -50,6 +54,7 @@ export const SERVER_MESSAGE = {
   chat: "chat",
   chat_history: "chat_history",
   rematch_state: "rematch_state",
+  dice_state: "dice_state",
   presence: "presence",
   undo_state: "undo_state",
   undo_applied: "undo_applied",
