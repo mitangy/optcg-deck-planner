@@ -112,10 +112,12 @@ test("Master Shopping: the last ticked deck can be unticked, leaving only the Ot
   planner.collectors.set(`${IZO}:201`, 1);
   await planner.open("/");
   await openFilters(page);
-  const boxes = deckBoxes(page);
-  await boxes.nth(0).uncheck();
-  await boxes.nth(1).uncheck();
-  for (const box of await boxes.all()) await expect(box).not.toBeChecked();
+  // The deck chips themselves, not their Leader's checkbox.
+  const chips = page.locator(".deck-filter-group").filter({ hasNotText: "Other" }).locator(".deck-chip input");
+  await expect(chips).toHaveCount(2);
+  await chips.nth(0).uncheck();
+  await chips.nth(1).uncheck();
+  for (const box of await deckBoxes(page).all()) await expect(box).not.toBeChecked();
   await expect(page.getByLabel("Extra copies")).toBeChecked();
   await expect(page.getByText("Kid & Killer")).toHaveCount(0);
 });
