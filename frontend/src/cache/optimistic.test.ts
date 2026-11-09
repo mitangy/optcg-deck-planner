@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { PrintingView, ShoppingItem, ShoppingResponse } from "../api";
-import { applyAltOwnedOptimistic, applyOwnedOptimistic, applyWantOptimistic } from "./optimistic";
+import { applyAltOwnedOptimistic, applyCollectorOptimistic, applyOwnedOptimistic, applyWantOptimistic } from "./optimistic";
 import { qk } from "./queryKeys";
 
 const item = (card_id: string, over: Partial<ShoppingItem> = {}): ShoppingItem => ({
@@ -83,5 +83,17 @@ describe("cached shopping list patches (refactor 3.3)", () => {
     expect(read().items.map((i) => i.card_id)).toEqual(["OP01-002"]);
     expect(read().cards_still_needed).toBe(1);
     expect(read().remaining_market).toBe(2);
+  });
+});
+
+describe("Extra copy edits skip lists fetched with Extra copies off (#1184)", () => {
+  it("adds the line to the list with Extra copies on and leaves the hidden one without it", () => {
+    const qc = new QueryClient();
+    const base = { items: [item("OP01-001", { alt_arts: [alt(7)] })], cards_still_needed: 3, remaining_market: 6, unique_cards: 1 };
+    qc.setQueryData<ShoppingResponse>(qk.shopping.list([1], true, true), base);
+    qc.setQueryData<ShoppingResponse>(qk.shopping.list([1], true, false), base);
+    applyCollectorOptimistic(qc, "OP01-001", 7, 2);
+    expect(qc.getQueryData<ShoppingResponse>(qk.shopping.list([1], true, true))!.items[0].collector_wants).toHaveLength(1);
+    expect(qc.getQueryData<ShoppingResponse>(qk.shopping.list([1], true, false))).toEqual(base);
   });
 });

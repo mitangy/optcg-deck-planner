@@ -259,3 +259,57 @@ def test_extra_copies_of_a_card_added_directly_count_when_a_deck_filter_is_on_11
 
     assert sorted(i.card_id for i in res.items) == [NAMI, ZORO]
     assert res.remaining_market == 4 * 1.0 + 30.0 + 2.0 + 100.0
+
+
+def test_extra_copies_off_drops_the_line_and_its_cost_but_keeps_the_owned_reserve_1184(db):
+    user = _seed(db)
+    add_deck_with_cards(db, user, "A", {NAMI: 4})
+    owned_svc.set_alt_owned(db, user, NAMI, GOLD, 1)
+    owned_svc.set_collector_want(db, user, NAMI, GOLD, 1)
+    owned_svc.set_collector_want(db, user, NAMI, ALT, 2)
+
+    on = shopping_svc.shopping_list(db, user)
+    off = shopping_svc.shopping_list(db, user, show_collector=False)
+
+    item = off.items[0]
+    assert item.collector_wants == []
+    assert (item.alts_owned, item.still_need) == (0, 4)  # the owned gold stays held back
+    assert (item.alts_owned, item.still_need) == (on.items[0].alts_owned, on.items[0].still_need)
+    assert off.collector_copies == 0
+    assert off.cards_still_needed == 4
+    assert off.remaining_market == 4 * 1.0  # no alt cost, no gold cost
+    assert on.remaining_market == 4 * 1.0 + 2 * 20.0
+
+
+def test_extra_copies_off_drops_a_card_listed_only_for_its_extra_copy_1184(db):
+    user, deck_a, _deck_b = _seed_two_decks(db)
+    add_catalog(db, "OP01-001", name="Sanji", product_id=3, market=5.0)
+    add_catalog(db, "OP01-001", name="Sanji Gold", product_id=300, market=40.0, special=True)
+    owned_svc.set_collector_want(db, user, "OP01-001", 300, 1)
+
+    on = shopping_svc.shopping_list(db, user)
+    off = shopping_svc.shopping_list(db, user, show_collector=False)
+
+    assert "OP01-001" in [i.card_id for i in on.items]
+    assert sorted(i.card_id for i in off.items) == [NAMI, ZORO]
+    assert off.remaining_market == 4 * 1.0 + 3 * 2.0
+
+
+def test_shopping_http_collector_false_hides_extra_copies_but_keeps_the_reserve_1184(db):
+    user = _seed(db)
+    add_deck_with_cards(db, user, "A", {NAMI: 4})
+    owned_svc.set_alt_owned(db, user, NAMI, GOLD, 1)
+    owned_svc.set_collector_want(db, user, NAMI, GOLD, 1)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        client = TestClient(app)
+        shown = client.get("/shopping").json()
+        hidden = client.get("/shopping", params={"collector": "false"}).json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert len(shown["items"][0]["collector_wants"]) == 1
+    assert hidden["items"][0]["collector_wants"] == []
+    assert hidden["items"][0]["still_need"] == 4
+    assert hidden["collector_copies"] == 0

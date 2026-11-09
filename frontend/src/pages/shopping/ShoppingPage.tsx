@@ -30,6 +30,13 @@ import { busyKeyFor } from "../../cache/busyKey";
 import { AltArtsRow } from "../../cards/MarketPrice";
 import { ShoppingListSkeleton } from "../../ui/Skeleton";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
+import {
+  groupDecksByLeader,
+  groupState,
+  otherChipSummary,
+  showExtraCopiesChip,
+  toggleGroupDecks,
+} from "./shoppingDeckGroups";
 import { useFullShoppingById, ShoppingScanHitAction } from "./lightboxActions";
 import { invalidateAltWantViews, invalidateCollectorViews } from "../../cache/invalidate";
 import {
@@ -46,6 +53,7 @@ import { ShoppingAddPanel } from "./ShoppingAddPanel";
 import {
   COLSORT_SHOPPING_KEY,
   SHOPPING_EXTRAS_KEY,
+  SHOPPING_COLLECTOR_KEY,
   SHOPPING_ONLY_NEED_KEY,
   SHOPPING_SELECTED_KEY,
   SHOW_SHOPPING_DONS_KEY,
@@ -88,10 +96,15 @@ export function ShoppingPage() {
   );
 
   const [includeExtras, setIncludeExtras] = usePersistedOpen(SHOPPING_EXTRAS_KEY, true);
+  // Extra copies (#1184): off hides their lines and cost but keeps owned alt copies held back.
+  const [includeCollector, setIncludeCollector] = usePersistedOpen(SHOPPING_COLLECTOR_KEY, true);
   const { data, isLoading, error } = useQuery({
-    queryKey: qk.shopping.list(shoppingKey, includeExtras),
+    queryKey: qk.shopping.list(shoppingKey, includeExtras, includeCollector),
     queryFn: () =>
-      api.shopping(shoppingKey.length ? shoppingKey : undefined, { extras: includeExtras }),
+      api.shopping(shoppingKey.length ? shoppingKey : undefined, {
+        extras: includeExtras,
+        collector: includeCollector,
+      }),
     // Runs with zero decks too: cards added directly make a list on their own.
     enabled: filterReady,
   });
@@ -101,6 +114,11 @@ export function ShoppingPage() {
     () => [...fullShoppingById.values()].some((i) => (i.extra_qty ?? 0) > 0),
     [fullShoppingById],
   );
+  const hasCollectorWants = useMemo(
+    () => [...fullShoppingById.values()].some((i) => (i.collector_wants?.length ?? 0) > 0),
+    [fullShoppingById],
+  );
+  const deckGroups = useMemo(() => groupDecksByLeader(decksQ.data ?? []), [decksQ.data]);
   const removeExtra = useMutation({
     mutationFn: (cardId: string) => api.setShoppingExtra(cardId, 0),
     onSuccess: () => invalidateOwnedViews(qc),
@@ -419,7 +437,7 @@ export function ShoppingPage() {
     if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
       parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
     }
-    if (!includeExtras) parts.push("No added cards");
+    parts.push(...otherChipSummary(includeExtras, includeCollector));
     return parts.join(" · ");
   }, [
     onlyNeed,
@@ -431,6 +449,7 @@ export function ShoppingPage() {
     activeDeckIds.length,
     allDeckIds.length,
     includeExtras,
+    includeCollector,
   ]);
 
   const createShare = useMutation({
@@ -511,6 +530,11 @@ export function ShoppingPage() {
   function selectAllDecks() {
     setSelectedDeckIds(allDeckIds);
     setIncludeExtras(true);
+    setIncludeCollector(true);
+  }
+
+  function toggleLeaderGroup(ids: number[]) {
+    setSelectedDeckIds((prev) => toggleGroupDecks(prev ?? allDeckIds, ids));
   }
 
   function toggleCard(cardId: string) {
@@ -761,26 +785,64 @@ export function ShoppingPage() {
                 Select all
               </button>
             </div>
-            <div className="deck-filter-list">
-              {(decksQ.data ?? []).map((d) => (
-                <label key={d.id} className="deck-chip">
-                  <input
-                    type="checkbox"
-                    checked={activeDeckIds.includes(d.id)}
-                    onChange={() => toggleDeck(d.id)}
-                  />
-                  {d.name}
-                </label>
-              ))}
-              {(hasExtras || !includeExtras) && (
-                <label className="deck-chip">
-                  <input
-                    type="checkbox"
-                    checked={includeExtras}
-                    onChange={(e) => setIncludeExtras(e.target.checked)}
-                  />
-                  Added directly
-                </label>
+            <div className="deck-filter-groups">
+              {deckGroups.map((g) => {
+                const ids = g.decks.map((d) => d.id);
+                const state = groupState(ids, activeDeckIds);
+                return (
+                  <div key={g.key || "none"} className="deck-filter-group">
+                    <label className="deck-filter-group-head">
+                      <input
+                        type="checkbox"
+                        checked={state === "all"}
+                        ref={(el) => {
+                          if (el) el.indeterminate = state === "some";
+                        }}
+                        onChange={() => toggleLeaderGroup(ids)}
+                      />
+                      <span className="deck-filter-group-name">{g.label}</span>
+                    </label>
+                    <div className="deck-filter-list">
+                      {g.decks.map((d) => (
+                        <label key={d.id} className="deck-chip">
+                          <input
+                            type="checkbox"
+                            checked={activeDeckIds.includes(d.id)}
+                            onChange={() => toggleDeck(d.id)}
+                          />
+                          <span className="deck-chip-name">{d.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {(hasExtras || showExtraCopiesChip(hasCollectorWants, includeCollector) || !includeExtras) && (
+                <div className="deck-filter-group">
+                  <span className="deck-filter-group-head deck-filter-group-name">Other</span>
+                  <div className="deck-filter-list">
+                    {(hasExtras || !includeExtras) && (
+                      <label className="deck-chip">
+                        <input
+                          type="checkbox"
+                          checked={includeExtras}
+                          onChange={(e) => setIncludeExtras(e.target.checked)}
+                        />
+                        Added directly
+                      </label>
+                    )}
+                    {showExtraCopiesChip(hasCollectorWants, includeCollector) && (
+                      <label className="deck-chip">
+                        <input
+                          type="checkbox"
+                          checked={includeCollector}
+                          onChange={(e) => setIncludeCollector(e.target.checked)}
+                        />
+                        Extra copies
+                      </label>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

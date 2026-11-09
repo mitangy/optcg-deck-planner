@@ -264,7 +264,7 @@ export const test = base.extend<{ planner: Planner }>({
           const still = a.collector - have;
           return { product_id: a.product_id, label: a.name, image_url: a.image_url, market_price: a.market_price, want: a.collector, have, still_need: still, remaining_cost: Math.round(still * a.market_price * 100) / 100 };
         });
-    const shopping = (withExtras = true) => {
+    const shopping = (withExtras = true, withCollector = true) => {
       // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
       const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
       const fromDecks = deckCards.map((c) => {
@@ -302,11 +302,11 @@ export const test = base.extend<{ planner: Planner }>({
           })
         : [];
       // A card with only a collector want still gets a row, so the line has a parent (#1031).
-      const onlyCollector = CARDS.filter((c) => !deckCards.includes(c) && !onlyExtras.some((i) => i.card_id === c.card_id) && collectorLines(cardView(c)).length > 0).map((c) => {
+      const onlyCollector = CARDS.filter((c) => withCollector && !deckCards.includes(c) && !onlyExtras.some((i) => i.card_id === c.card_id) && collectorLines(cardView(c)).length > 0).map((c) => {
         const v = cardView(c);
         return { ...v, need: 0, still_need: 0, remaining_cost: 0, used_in: [] as string[], primary_leader_card_id: null, primary_leader_name: null, leader_count: 1, deck_sort_key: "9999-9999-9999", extra_qty: 0, deck_need: 0 };
       });
-      const items = [...fromDecks, ...onlyExtras, ...onlyCollector].map((i) => ({ ...i, collector_wants: collectorLines(i as ReturnType<typeof cardView>) }));
+      const items = [...fromDecks, ...onlyExtras, ...onlyCollector].map((i) => ({ ...i, collector_wants: withCollector ? collectorLines(i as ReturnType<typeof cardView>) : [] }));
       const lines = items.flatMap((i) => i.collector_wants);
       return {
         items,
@@ -458,7 +458,11 @@ export const test = base.extend<{ planner: Planner }>({
         }
         return json(deckDetail());
       }
-      if (path === "/shopping") return json(shopping(new URL(req.url()).searchParams.get("extras") !== "false"));
+      if (path === "/shopping") {
+        const q = new URL(req.url()).searchParams;
+        // Extra copies off (#1184) drops their lines and rows, like the backend.
+        return json(shopping(q.get("extras") !== "false", q.get("collector") !== "false"));
+      }
       if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;

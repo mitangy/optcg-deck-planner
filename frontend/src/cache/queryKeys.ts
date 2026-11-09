@@ -19,7 +19,9 @@ export const qk = {
 
   shopping: {
     all: () => ["shopping"] as const,
-    list: (deckIds: number[], includeExtras: boolean) => ["shopping", deckIds, includeExtras] as const,
+    /** The last slot is the Extra copies checkbox (#1184); optimistic Extra copy edits skip lists fetched with it off. */
+    list: (deckIds: number[], includeExtras: boolean, showCollector = true) =>
+      ["shopping", deckIds, includeExtras, showCollector] as const,
     /** Every card on the list, for the lightbox. */
     full: (deckIds?: number[]) => (deckIds ? (["shopping", "all", deckIds] as const) : (["shopping", "all"] as const)),
     leaderArtFallback: () => ["shopping", "leader-art-fallback"] as const,
