@@ -103,6 +103,8 @@ export class Rematch {
     const { game, io } = this.core;
     const firstSeat: Seat = action === "first" ? chooser : ((1 - chooser) as Seat);
     game.seed = gameSeed();
+    // Only game 1 rolls the dice; this game's order is the loser's choice.
+    game.dice = null;
     io.log("info", "rematch_start", {
       matchId: game.matchId,
       game: game.gameNumber + 1,

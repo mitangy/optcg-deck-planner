@@ -23,6 +23,7 @@ from app.analyst.bots import (
     shared_bot_lessons,
     sim_stats,
 )
+from app.analyst.corpus import HUMAN_BOT_MAX_LIMIT, human_bot_games
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.security import require_service
@@ -33,6 +34,7 @@ from app.analyst.schemas import (
     BotLessonSavedOut,
     BotReplayOut,
     BotSimStatsOut,
+    HumanBotGamesOut,
 )
 from app.core.schemas import CARD_ID_PATTERN
 
@@ -89,6 +91,17 @@ def search_bot_games_route(
         db, leader=leader, opponent=opponent, card=card, result=result, went_first=went_first,
         levels=levels, min_turns=min_turns, max_turns=max_turns, limit=limit, offset=offset,
     )
+
+
+@router.get("/human-bot-games", response_model=HumanBotGamesOut)
+def human_bot_games_route(
+    _: Service,
+    db: Annotated[Session, Depends(get_db)],
+    after_id: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=HUMAN_BOT_MAX_LIMIT)] = 200,
+) -> dict:
+    """Play vs Bot replays for the weekly value-model refit (#1202): paged by id, no player identifiers, opted-out players left out."""
+    return human_bot_games(db, after_id, limit)
 
 
 @router.get("/bot-games/{game_id}/replay", response_model=BotReplayOut)

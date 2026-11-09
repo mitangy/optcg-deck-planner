@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import type { ChatLine, Intent, MatchOverMessage, PlayerView, Seat, SeatPlayers, SeatSkin, TimerMessage } from "../net/protocol";
+import type { ChatLine, DiceAction, DiceResult, DiceStateMessage, Intent, MatchOverMessage, PlayerView, Seat, SeatPlayers, SeatSkin, TimerMessage } from "../net/protocol";
 import { BattleLogPanel } from "./panels/BattleLogPanel";
 import { CardPreviewPanel } from "./preview/CardPreviewPanel";
 import { CardPreviewPopup } from "./preview/CardPreviewPopup";
@@ -71,6 +71,7 @@ import { useBoardHotkeys, useConfirmButtonKey } from "./input/useBoardHotkeys";
 import { buzz } from "./audio/haptics";
 import { RotateHint } from "./layout/RotateHint";
 import { handCardOutOfReach, needsDonHint } from "./hand/handAffordance";
+import { DicePhase } from "./match/DicePhase";
 import { firstSeatLine } from "./match/firstSeatLine";
 import { playerLabel, seatLabel, seatName } from "./match/playerNames";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
@@ -174,6 +175,10 @@ type Props = {
   };
   /** How the turn order was decided (the welcome's firstSeatPickedBy): null = coin flip, a seat = who chose; undefined = unknown. */
   firstSeatPickedBy?: Seat | null;
+  /** The dice roll that decided this game's order (#1190), for the mulligan banner. */
+  firstSeatDice?: DiceResult | null;
+  /** The opening dice roll in progress (no game yet): shown over the waiting board. */
+  dicePhase?: { state: DiceStateMessage; onAction: (action: DiceAction) => void };
   /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
   /** Before the first view: what the empty board says (queueing, connecting, starting). */
@@ -215,6 +220,8 @@ export function DuelBoard({
   replay,
   matchBrief,
   firstSeatPickedBy,
+  firstSeatDice,
+  dicePhase,
   floatingPrompts = true,
   waiting,
   onSendIntent: sendIntent,
@@ -919,6 +926,7 @@ export function DuelBoard({
             invite: { roomId: matchId, autoCopy: seat === 0 && !spectating },
           }
         }
+        dice={dicePhase ? <DicePhase state={dicePhase.state} onAction={dicePhase.onAction} /> : undefined}
         errorBanner={errorBanner}
         leaveLabel={leaveLabel}
         onLeave={onLeave}
@@ -1508,6 +1516,7 @@ export function DuelBoard({
               youFirst,
               boardSeat,
               pickedBy: firstSeatPickedBy,
+              dice: firstSeatDice,
               opponentName: seatName(players, oppSeat) ?? undefined,
             })}
           </strong>{" "}

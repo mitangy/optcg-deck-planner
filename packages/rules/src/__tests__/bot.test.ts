@@ -306,3 +306,35 @@ describe("self-play recorder (#631)", () => {
     }
   }, 60_000);
 });
+
+describe("bot goes for lethal on board (#1192)", () => {
+  const KAWAMATSU = "OP12-023"; // 6000
+  const ZORO = "OP01-025"; // 5000
+  const NEWGATE = "ST30-003"; // cost 8, 6000: worth more than a Leader hit (11 vs 10) once rested
+  const JOZU = "OP16-007"; // 8000 [Blocker]
+  /** Seat 0 (Leader 5000 + `mine`) attacks seat 1, which has 2 Life, a rested Newgate and `theirs` besides. */
+  function board(mine: string[], theirs: string[]) {
+    const h = new Harness({ leaders: [L, L] });
+    h.clearHands();
+    h.don(0, 0);
+    h.field(0, ...mine);
+    h.life(1, FILLER, FILLER);
+    const [rested] = h.field(1, NEWGATE, ...theirs);
+    rested!.rested = true;
+    return h;
+  }
+  const target = (h: Harness) => {
+    const move = chooseBotIntent(h.view(0), { level: "normal", rng: createSeededRng(1) });
+    return move?.type === "declare_attack" ? move.target.kind : move?.type;
+  };
+
+  it("Normal attacks the Leader when its attackers outnumber the opponent's Life and active Blockers, instead of K.O.ing rested Characters (#1192)", () => {
+    expect(target(board([KAWAMATSU, ZORO], []))).toBe("leader"); // Leader + 2 Characters vs 2 Life
+    expect(target(board([KAWAMATSU, ZORO, ZORO], [JOZU]))).toBe("leader"); // 4 attackers vs 2 Life + 1 active Blocker
+  });
+
+  it("Normal still K.O.s the rested Character when one attacker is short of lethal or a Blocker stops the count (#1192)", () => {
+    expect(target(board([KAWAMATSU], []))).toBe("character"); // 2 attackers vs 2 Life
+    expect(target(board([KAWAMATSU, ZORO], [JOZU]))).toBe("character"); // 3 attackers vs 2 Life + 1 active Blocker
+  });
+});

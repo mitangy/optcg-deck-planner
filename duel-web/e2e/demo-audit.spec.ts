@@ -18,6 +18,8 @@ const SCREENS = [
   "?undo=blocked",
   "?faceup=2",
   "?counter=block",
+  // The opening dice roll (#1190) at each step, for the caller, the roller and a spectator.
+  ...["?dice=call", "?dice=roll", "?dice=roll&diceroller=0", "?dice=choose", "?dice=choose&dicecall=low&diceroll=5", "?dice=choose&spectate"],
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
   // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),

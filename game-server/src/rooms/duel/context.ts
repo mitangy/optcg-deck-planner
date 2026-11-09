@@ -1,10 +1,11 @@
 import type { Client } from "colyseus";
 import type { BotLevel, Intent, MatchReplay, MatchState, Rng, Seat } from "@optcg/rules";
-import type { ErrorCode, PlayerDeckWire } from "../../protocol.js";
+import type { DiceResult, ErrorCode, PlayerDeckWire } from "../../protocol.js";
 import type { LogLevel } from "../../log.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../../writeback.js";
 import type { BotDriver } from "./bots.js";
 import type { MatchClocks } from "./clocks.js";
+import type { FirstSeatDice } from "./dice.js";
 import type { RoomChat } from "./chat.js";
 import type { RoomConfig } from "./config.js";
 import type { SeatCosmetics } from "./cosmetics.js";
@@ -63,6 +64,8 @@ export class DuelGame {
   gameNumber = 0;
   /** How the current game's order was decided: null = coin flip (game 1), else the rematch chooser. */
   firstSeatPickedBy: Seat | null = null;
+  /** The dice roll that decided game 1's turn order (#1190); null for a coin flip and for every rematch. */
+  dice: DiceResult | null = null;
   /** Set in a "Play vs Bot" room: seat 1 is played by the server (#631). */
   bot: BotSeatConfig | null = null;
 
@@ -109,6 +112,7 @@ export interface DuelCore {
   readonly undo: UndoHistory;
   readonly chat: RoomChat;
   readonly rematch: Rematch;
+  readonly dice: FirstSeatDice;
   readonly spectators: Spectators;
   readonly sync: SyncSender;
   readonly cosmetics: SeatCosmetics;

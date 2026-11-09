@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PROTOCOL_VERSION, type PlayerView, type RematchState } from "../net/protocol";
+import { PROTOCOL_VERSION, type DiceResult, type DiceStateMessage, type PlayerView, type RematchState, type Seat } from "../net/protocol";
 import { createMatchStore } from "../state/matchStore";
 import { useMatchStore } from "../state/useMatch";
 import { DuelBoard } from "../board/DuelBoard";
@@ -18,14 +18,14 @@ import {
 } from "../board/fixtures/demoViews";
 import { DEMO_MATCH_ID } from "../board/audio/tabMute";
 import { motionDemoSteps } from "./motionDemo";
-import { buildDemoView, demoPickedBy } from "./demo/demoParams";
+import { buildDemoView, demoDiceNext, demoDiceStart, demoPickedBy } from "./demo/demoParams";
 
 /**
  * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
  * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
  * (shared playmat), `?oppart` the opponent's custom playmat and card back (`&spectate` for both seats), `?chat` match chat with sample lines, `?undo` private-room
  * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
- * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen,
+ * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen, `?dice=call|roll|choose` the opening dice roll (`&diceroller=0` you roll, `&dicecall=low`, `&diceroll=N`; the buttons play it on, then the mulligan banner names the result),
  * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?blocked` your main phase after an effect stopped you playing Characters (Character hand cards say "Can't play"), `?clock` per-player clocks, `?away` a
  * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
  * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
@@ -48,7 +48,12 @@ function demoRematch(params: URLSearchParams): RematchState {
 
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
-  const view = buildDemoView(params);
+  // `?dice=...`: the opening dice roll, played on locally; after the winner's pick the mulligan view shows the result.
+  const [dice, setDice] = useState<DiceStateMessage | null>(() => demoDiceStart(params));
+  const [diceResult, setDiceResult] = useState<{ result: DiceResult; firstSeat: Seat } | null>(null);
+  const view = buildDemoView(
+    diceResult ? new URLSearchParams([...params, ["turn0", ""], ["first", String(diceResult.firstSeat)]]) : params,
+  );
   // `?counter=haki`: after the event is played it waits on its optional DON!! rest.
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
   // `?counter=block`: the block step until No block (or a Counter drag) passes it.
@@ -121,13 +126,31 @@ export function DemoPage() {
       ) : null}
       <DuelBoard
         key={motionRun}
-        view={params.has("waiting") ? null : (motionSteps?.[motionStep]?.view ?? shown)}
+        view={params.has("waiting") || dice ? null : (motionSteps?.[motionStep]?.view ?? shown)}
         seat={0}
         matchId={DEMO_MATCH_ID}
         spectator={params.has("spectate")}
         seatSkins={params.has("oppart") ? [params.has("spectate") ? DEMO_OPP_SKIN : null, DEMO_OPP_SKIN] : undefined}
         players={params.has("oppart") ? [{ name: "Luffy" }, { name: "Zoro" }] : null}
-        firstSeatPickedBy={demoPickedBy(params.get("pickedby"))}
+        firstSeatPickedBy={diceResult ? diceResult.result.winner : demoPickedBy(params.get("pickedby"))}
+        firstSeatDice={diceResult?.result ?? null}
+        dicePhase={
+          dice
+            ? {
+                state: dice,
+                onAction: (action) => {
+                  const next = demoDiceNext(dice, action, params);
+                  if ("state" in next) {
+                    setDice(next.state);
+                    return;
+                  }
+                  setDice(null);
+                  setDiceResult({ result: next.done, firstSeat: next.firstSeat });
+                },
+              }
+            : undefined
+        }
+        waiting={dice ? { status: "Rolling for turn order…", invite: null } : undefined}
         errorBanner={null}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
         loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}

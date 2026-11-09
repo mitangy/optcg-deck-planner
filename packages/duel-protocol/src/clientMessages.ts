@@ -15,6 +15,7 @@ import {
 import { ProtocolError, bad, expectEnvelope } from "./errors.js";
 import type {
   ArtPrefsMap,
+  DiceAction,
   DuelJoinOptions,
   PlayerDeckWire,
   RematchAction,
@@ -204,4 +205,15 @@ export function parseUndoMessage(raw: unknown): UndoRequestBody {
     force: o.force === true,
     ...(o.id === undefined ? {} : { id: o.id }),
   };
+}
+
+/** Validates an inbound dice message (#1190). */
+export function parseDiceMessage(raw: unknown): DiceAction {
+  const o = expectEnvelope(raw, "dice message");
+  if (o.action === "call") {
+    if (o.call !== "high" && o.call !== "low") throw bad("dice call must be high|low");
+    return { action: "call", call: o.call };
+  }
+  if (o.action === "roll" || o.action === "first" || o.action === "second") return { action: o.action };
+  throw bad("dice action must be call|roll|first|second");
 }

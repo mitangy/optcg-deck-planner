@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
 import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
 import { BountyAmount } from "../Bounty";
-import { useFriends } from "../friends/FriendsPanel";
-import { pollsInvitesWhileWaiting, type FriendInvite } from "../friends/friendsApi";
+import { FriendInvites, useFriends } from "../friends/FriendsPanel";
+import { pollsInvitesInMatch, type FriendInvite } from "../friends/friendsApi";
 import { rematchDeckOptions } from "../decks/rematchDecks";
 import { setSelectedDeckId } from "../decks/storage";
 import { fetchMatchDetail } from "../history/historyApi";
@@ -41,6 +42,9 @@ export function DuelPage() {
     role,
     ranked,
     firstSeatPickedBy,
+    firstSeatDice,
+    dice,
+    sendDice,
     brief,
     vsBot,
     battleLog,
@@ -71,8 +75,8 @@ export function DuelPage() {
     }
   }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
 
-  // Alone in your own room: a friend's invite must still reach you here.
-  const friends = useFriends(pollsInvitesWhileWaiting({ launch, role, view, matchId }));
+  // Alone in your own room, or watching: a friend's invite must still reach you here.
+  const friends = useFriends(pollsInvitesInMatch({ launch, role, view, matchId }));
   function joinFriendRoom(invite: FriendInvite) {
     // Leave this room first; the lobby takes the seat in theirs (it has the
     // deck and sign-in) and must not bounce back here with no note.
@@ -88,17 +92,19 @@ export function DuelPage() {
       ? { status: queueing ? "Searching for an opponent…" : launch.status, youLeaderId: launch.leaderId }
       : resuming
         ? { status: "Reconnecting to match…" }
-        : {
-            status: role === "spectator" ? "Waiting for the match to start…" : "Waiting for opponent…",
-            youLeaderId: launch?.leaderId,
-            invite:
-              launch?.invite !== false && role === "player"
-                ? { roomId: matchId, autoCopy: seat === 0 }
+        : dice
+          ? { status: "Rolling for turn order…", youLeaderId: launch?.leaderId, invite: null }
+          : {
+              status: role === "spectator" ? "Waiting for the match to start…" : "Waiting for opponent…",
+              youLeaderId: launch?.leaderId,
+              invite:
+                launch?.invite !== false && role === "player"
+                  ? { roomId: matchId, autoCopy: seat === 0 }
+                  : null,
+              friendInvites: friends.state?.invites.length
+                ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
                 : null,
-            friendInvites: friends.state?.invites.length
-              ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
-              : null,
-          };
+            };
   return (
     <div className="duel-root">
       {!connected && canReconnect && view ? (
@@ -134,6 +140,8 @@ export function DuelPage() {
         matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         firstSeatPickedBy={firstSeatPickedBy}
+        firstSeatDice={firstSeatDice}
+        dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
         vsHuman
         canReport={!vsBot}
         chat={{ lines: chat, onSend: sendChat }}
@@ -167,6 +175,19 @@ export function DuelPage() {
         }}
         onClearError={clearError}
       />
+      {role === "spectator" && view && friends.state?.invites.length ? createPortal(
+        // On <body>: .duel-root is position:fixed (its own stacking layer), so inside it the card motion layer would paint over the invite.
+        <div className="spectator-invites">
+          <FriendInvites
+            invites={friends.state.invites}
+            busy={false}
+            onJoin={joinFriendRoom}
+            onDismissed={() => void friends.refresh()}
+            hint="Leaves this game · your selected deck"
+          />
+        </div>,
+        document.body,
+      ) : null}
       {takenOver && matchId && (seat === 0 || seat === 1) ? (
         <MovedElsewhereOverlay
           onPlayHere={() => takeOver(matchId, seat)}

@@ -16,6 +16,7 @@ import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
+import { diceRoomTests } from "./diceRoom.js";
 import { withFakeTime } from "./fakeTime.js";
 import { withRoomEnv } from "./roomEnv.js";
 import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
@@ -2150,6 +2151,13 @@ describe("DuelRoom", () => {
       assert.deepEqual(matches, []);
     });
 
+    it("a practice game's solo report carries no replay (#1202)", async () => {
+      const { solo } = await played([831, 832], 830);
+      assert.equal(solo.length, 1);
+      assert.equal(solo[0]!.mode, "practice");
+      assert.equal(solo[0]!.replay, undefined);
+    });
+
     it("a game between two different accounts is a match, never a solo game (#988)", async () => {
       const { solo, matches } = await played([821, 822]);
       assert.deepEqual(solo, []);
@@ -2497,4 +2505,5 @@ describe("DuelRoom", () => {
 
   deviceHandoffTests(() => colyseus);
   botRoomTests(() => colyseus);
+  diceRoomTests(() => colyseus);
 });

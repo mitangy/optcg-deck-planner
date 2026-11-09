@@ -164,7 +164,8 @@ class DuelMatchSeat(Base):
 class DuelSoloGame(Base):
     """A finished game with no human opponent: against the server bot or hotseat practice (#988).
 
-    Only the admin user page reads it (games per mode, recent games); ratings, the leaderboard,
+    The admin user page reads the summary columns (games per mode, recent games), and the training export
+    (``/analyst/human-bot-games``) reads the replay of bot games (#1202); ratings, the leaderboard,
     matchup stats and match history never see these rows. Idempotent on ``game_id`` (the room's key).
     """
 
@@ -181,6 +182,8 @@ class DuelSoloGame(Base):
     won: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     turns: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reason: Mapped[str] = mapped_column(String(64), default="unknown")
+    # Bot games only: the full MatchReplay as JSON text (seed, decks, intents, result), null for practice (#1202).
+    replay: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
