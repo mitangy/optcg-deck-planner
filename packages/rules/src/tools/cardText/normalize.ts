@@ -93,6 +93,10 @@ export function normalizeText(input: string): string {
   text = text.replace(/\s+/g, " ").trim();
   // Some choose-one lists use " - " instead of "•" bullets.
   text = text.replace(/(chooses? one:|choose one:)((?: - [^•]+?)+)(?=$| \[)/gi, (_m, head: string, list: string) => head + list.replace(/ - (?=[A-Z])/g, " • "));
+  // "Apply each of the following effects based on this Character's power: • If it has 5000 power or more, ...": one conditional sentence per bullet.
+  text = text.replace(/Apply each of the following effects based on this Character's power:((?: • If it has \d+ power or more, [^•]+?)+)$/i, (_m, list: string) =>
+    list.replace(/ • If it has /g, " If this Character has ").trim(),
+  );
   // A leading ":" is left behind when a cost symbol (➀) precedes it.
   text = text.replace(/\] : /g, "] ").replace(/\] :/g, "] ");
   return text;

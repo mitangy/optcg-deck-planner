@@ -266,6 +266,12 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
       const other: Filter = { types: [m[3]!.toLowerCase() as "event"], ...(m[2] ? { colors: [m[2].toLowerCase()] } : {}) };
       filter.any = [{ names }, other]; text = "cards " + text.slice(m[0].length); continue;
     }
+    // "Stage cards or {A} type cards": either alternative qualifies (a Stage of any type, or any card of the type).
+    if ((m = /^(event|stage|character) cards? or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type (cards?|characters?|character cards?)(?=$| )/i.exec(text))) {
+      const traits = traitList(m[2]!, ctx); if (!traits) return null;
+      filter.any = [{ types: [m[1]!.toLowerCase() as "event"] }, { traits, ...(/character/i.test(m[3]!) ? { types: ["character" as const] } : {}) }];
+      text = "cards" + text.slice(m[0].length); continue;
+    }
     if ((m = /^(§N\d+§(?:(?:, | or )§N\d+§)*) or (§T\d+§(?:(?:, | or |, or )§T\d+§)*) type /.exec(text))) {
       const names = nameList(m[1]!, ctx); const traits = traitList(m[2]!, ctx); if (!names || !traits) return null;
       filter.any = [{ names }, { traits }]; text = text.slice(m[0].length); continue;

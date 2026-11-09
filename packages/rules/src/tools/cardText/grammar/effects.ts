@@ -401,6 +401,8 @@ const EFFECT_RULES: EffectRule[] = [
     position: "top",
   })),
   rule(/^you take (\d+) damage$/i, (m) => ({ do: "damage", player: "you", count: num(m[1]!) })),
+  // Both players' Characters: "trash all Characters" names no owner.
+  rule(/^trash all characters$/i, () => ({ do: "to_trash", target: { ref: "all", selector: sel("any", "character") } })),
   rule(/^trash all cards from your hand$/i, () => ({ do: "to_trash", target: { ref: "all", selector: sel("you", "hand") } })),
   rule(/^trash cards from your hand until you have (\d+) cards in your hand$/i, (m) => ({
     do: "discard",
@@ -600,6 +602,11 @@ const EFFECT_RULES: EffectRule[] = [
   rule(/^give up to (\d+) rested DON!! cards? to each of (.+)$/i, (m, ctx) => {
     const p = parseCardPhrase("all " + m[2]!, ctx);
     return p ? { do: "give_don", target: { ref: "all", selector: p.selector }, count: num(m[1]!), donState: "rested" } : null;
+  }),
+  // "Give up to a total of 4 of your Leader or Characters 1 rested DON!! card each": one pick among the Leader and Characters together.
+  rule(/^give up to a total of (\d+) of your leader or (characters) (\d+) rested DON!! cards? each$/i, (m, ctx) => {
+    const p = parseCardPhrase(`up to ${m[1]} of your leader or ${m[2]}`, ctx);
+    return p ? { do: "give_don", target: toTarget(p), count: num(m[3]!), donState: "rested" } : null;
   }),
   rule(/^give (up to \d+ of .+?) up to (\d+) rested DON!! cards? each$/i, (m, ctx) => {
     const p = parseCardPhrase(m[1]!, ctx);
@@ -1048,9 +1055,9 @@ const EFFECT_RULES: EffectRule[] = [
     target: { ref: "self" },
     ...(m[1] ? { rested: true } : {}),
   })),
-  rule(/^play (.+?) from your (hand|trash|hand or trash)( rested)?$/i, (m, ctx) => {
+  rule(/^play (.+?) from your (hand|trash|hand or trash|deck or trash)( rested)?$/i, (m, ctx) => {
     const zone = m[2]!.toLowerCase();
-    const z = zone === "hand or trash" ? "hand_or_trash" : (zone as "hand" | "trash");
+    const z = zone === "hand or trash" ? "hand_or_trash" : zone === "deck or trash" ? "deck_or_trash" : (zone as "hand" | "trash");
     const target = zoneTarget(m[1]!, z, ctx);
     return target ? { do: "play", target, ...(m[3] ? { rested: true } : {}) } : null;
   }),
@@ -1085,6 +1092,12 @@ const EFFECT_RULES: EffectRule[] = [
     const target = fieldTarget(m[1]!, ctx);
     const d = parseDuration(m[3]);
     return target && d ? { do: "cost", target, amount: signed(m[2]!), duration: d } : null;
+  }),
+  // "The base power of your Leader with a type including "X" becomes N during this turn": only applies while the Leader's type matches.
+  rule(new RegExp(`^the base power of your leader with a type including (§Q\\d+§) becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => {
+    const q = quote(m[1]!, ctx);
+    const d = parseDuration(m[3]);
+    return q && d ? when({ c: "leader_trait_includes", text: q }, { do: "base_power", target: leaderOf("you"), value: num(m[2]!), duration: d }) : null;
   }),
   rule(new RegExp(`^(.+?)'s? base power becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => {
     const target = fieldTarget(m[1]!, ctx);
@@ -1285,6 +1298,18 @@ const EFFECT_RULES: EffectRule[] = [
     const target = fieldTarget(m[1]!, ctx);
     const d = parseDuration(m[2]);
     return target && d ? { do: "negate", target, duration: d } : null;
+  }),
+  // "Up to 1 of X and up to 1 of Y cannot attack ...": two separate picks, and the second cannot be the card the first took.
+  rule(new RegExp(`^(up to \\d+ .+?) and (up to \\d+ .+?) cannot attack ${DUR}$`, "i"), (m, ctx) => {
+    const first = parseCardPhrase(m[1]!, ctx);
+    const second = parseCardPhrase(m[2]!, ctx);
+    const d = parseDuration(m[3]);
+    if (!first || !second || !d || first.selector.zone === "leader" || second.selector.zone === "leader") return null;
+    second.selector = { ...second.selector, filter: { ...(second.selector.filter ?? {}), excludeVar: "_a" } };
+    return seq(
+      { do: "restrict", target: toTarget(first, "_a"), restriction: "cannot_attack", duration: d },
+      { do: "restrict", target: toTarget(second, "_b"), restriction: "cannot_attack", duration: d },
+    );
   }),
   rule(new RegExp(`^(.+?) cannot attack ${DUR}$`, "i"), (m, ctx) => {
     const target = fieldTarget(m[1]!, ctx);

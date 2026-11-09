@@ -183,7 +183,7 @@ def resolve_google_user(
     if user is None:
         user = User(email=email, name=name, google_sub=sub)
         # The admin may sign in for the first time after startup already ran sync_admin_role.
-        if email.strip().lower() == get_settings().admin_email.strip().lower():
+        if email.strip().lower() in get_settings().admin_email_set:
             user.role = Role.ADMIN
         db.add(user)
     else:

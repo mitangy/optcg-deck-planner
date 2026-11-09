@@ -3,12 +3,17 @@
  * generic give logic only attaches DON!! to reach the opposing Leader's power, so the Leader often stays at 0 attached DON!!
  * and the whole team misses its +1000. With a cost-8+ Character out (the cost the view shows, `fieldCost`, includes cost
  * buffs) and something able to attack, one DON!! goes on the Leader first.
+ * Hint 4 (#1204, optcgwebsim.com/learn/sabo-eb05-guide): hold back ST01-011, and OP17-095 / OP17-086 once 4+ DON!! are active.
  */
 import type { Intent } from "../../types.js";
 import type { BotView } from "../types.js";
 import type { LeaderPlaybook } from "./types.js";
 
 const BIG_COST = 8;
+/** Hint 4: play penalty for ST01-011, and for OP17-095 / OP17-086 with at least `SABO_HOLD_DON` active DON!!. */
+export const SABO_HOLD_PENALTY = 3;
+export const SABO_HOLD_PENALTY_LATE = 2;
+export const SABO_HOLD_DON = 4;
 
 export const saboPlaybook: LeaderPlaybook = {
   leaderId: "OP13-004",
@@ -18,5 +23,11 @@ export const saboPlaybook: LeaderPlaybook = {
     if (!view.you.characters.some((c) => c.fieldCost >= BIG_COST)) return undefined;
     if (!view.legalIntents.some((i) => i.type === "declare_attack")) return undefined;
     return view.legalIntents.find((i): i is Extract<Intent, { type: "give_don" }> => i.type === "give_don" && i.targetId === view.you.leader.id);
+  },
+  playBonus(view: BotView, defId: string): number {
+    let b = 0;
+    if (defId === "ST01-011") b -= SABO_HOLD_PENALTY;
+    if ((defId === "OP17-095" || defId === "OP17-086") && view.you.activeDonCount >= SABO_HOLD_DON) b -= SABO_HOLD_PENALTY_LATE;
+    return b;
   },
 };

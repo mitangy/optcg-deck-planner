@@ -56,8 +56,8 @@ class Settings(BaseSettings):
     analyst_free_spots: int = 50
     # Who may change the model Log Pose runs on (comma-separated emails); everyone with the chat sees the choice.
     analyst_model_admin_emails: str = "optcgduel@gmail.com"
-    # The one admin account (#667): made admin on startup; any other admin row is demoted.
-    admin_email: str = "optcgduel@gmail.com"
+    # The admin accounts (comma-separated; #667, #1209): made admin on startup; any other admin row is demoted.
+    admin_email: str = "optcgduel@gmail.com,gamefreakmichaeltang@gmail.com"
     # Vercel /api rewrite sends this in X-Optcg-Proxy-Secret; unset keeps trusting X-Forwarded-For.
     proxy_shared_secret: str = ""
     # Admin page Hosting tab: read-only tokens, each tab card shows "not connected" while unset.
@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     @property
     def analyst_model_admin_email_set(self) -> set[str]:
         return {e.strip().lower() for e in self.analyst_model_admin_emails.split(",") if e.strip()}
+
+    @property
+    def admin_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_email.split(",") if e.strip()}
 
     @property
     def analyst_chat_email_set(self) -> set[str]:

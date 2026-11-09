@@ -1,6 +1,6 @@
 /** Static (continuous) text grammar → `Static` + enabling conditions. */
 import type { Cond, Static, StaticTarget } from "../../../effects/types.js";
-import { eq, sel } from "../../../effects/builders.js";
+import { eq, ge, sel } from "../../../effects/builders.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, type Ctx } from "../phrases.js";
 import { clean, firstMatch, keywordOf, rule, signed, type Rule } from "./shared.js";
 import { parseCondition } from "./conditions.js";
@@ -23,6 +23,10 @@ const STATIC_RULES: Rule<(Static & { when?: Cond[] })[]>[] = [
   rule(/^all (.+?) in your hand without a counter have a \+(\d+) counter$/i, (m, ctx) => {
     const p = parseCardPhrase("all " + m[1]!, ctx);
     return p ? [{ s: "counter", filter: p.selector.filter ?? {}, mode: "set", value: num(m[2]!), onlyWithoutCounter: true }] : null;
+  }),
+  rule(/^the base power of your active (§N\d+§) leader with (\d+) or more DON!! cards given becomes (\d+)$/i, (m, ctx) => {
+    const n = nameList(m[1]!, ctx);
+    return n ? [{ s: "base_power", target: { all: sel("you", "leader", { names: n, rested: false, donGiven: ge(num(m[2]!)) }) }, value: num(m[3]!) }] : null;
   }),
   rule(/^the base power of all of your (.+?) becomes (\d+)$/i, (m, ctx) => {
     const p = parseCardPhrase("all your " + m[1]!, ctx);

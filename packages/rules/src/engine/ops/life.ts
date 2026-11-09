@@ -24,7 +24,7 @@ export const lifeOps: OpTable<"damage" | "deck_to_life" | "life_to_hand" | "tras
     }
     return "next";
   },
-  life_to_hand(effect, { sim, state, frame }) {
+  life_to_hand(effect, { sim, state, frame, ctx }) {
     const seat = seatOf(frame, effect.player);
     if (effect.position === "top_or_bottom" && state.players[seat].life.length > 1 && frame.bindings[B.lifeEnd] === undefined) {
       pushChoice(sim, frame, { seat: frame.seat, kind: "effect", optional: false, prompt: `${promptPrefix(frame)} — take from the top or bottom of Life?`, request: { type: "mode", options: [{ id: "m0", label: "Top", eligible: true }, { id: "m1", label: "Bottom", eligible: true }] }, bindings: { [CB.bind]: B.lifeEnd, [CB.repeat]: "1" } });
@@ -33,7 +33,8 @@ export const lifeOps: OpTable<"damage" | "deck_to_life" | "life_to_hand" | "tras
     const bottom = frame.bindings[B.lifeEnd] === 1 || effect.position === "bottom";
     delete frame.bindings[B.lifeEnd];
     if (seat === frame.seat && playerRestricted(state, seat, "cannot_add_life_to_hand_by_effect")) return "next";
-    for (let i = 0; i < effect.count; i += 1) if (!takeLifeToHand(sim, seat, bottom)) break;
+    const n = evalValue(state, ctx, effect.count);
+    for (let i = 0; i < n; i += 1) if (!takeLifeToHand(sim, seat, bottom)) break;
     return "next";
   },
   trash_life(effect, { sim, state, frame, ctx }) {

@@ -1,7 +1,7 @@
 """Reference data written at startup, after the schema is at head.
 
 Schema changes belong to Alembic migrations; this is data the app expects to
-find: the one admin account, the two historic eval runs and the first event.
+find: the admin accounts, the two historic eval runs and the first event.
 Every step is idempotent, so running it on each boot (in each worker, under
 ``app.core.db.startup_lock``) changes nothing on a seeded database.
 """
@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import Engine, func, select, text
+from sqlalchemy import Engine, bindparam, func, select, text
 from sqlalchemy.orm import Session
 
 from app.analyst.models import AnalystEvalRun
@@ -19,16 +19,20 @@ from app.core.config import get_settings
 
 
 def sync_admin_role(bind: Engine) -> None:
-    """Exactly one admin: settings.admin_email. Any other admin row goes back to user (#667)."""
-    admin = get_settings().admin_email.strip().lower()
+    """Admins are exactly settings.admin_email's accounts. Any other admin row goes back to user (#667, #1209)."""
+    admins = sorted(get_settings().admin_email_set)
     with bind.begin() as conn:
         conn.execute(
-            text("UPDATE users SET role = 'user' WHERE role = 'admin' AND lower(email) <> :email"),
-            {"email": admin},
+            text("UPDATE users SET role = 'user' WHERE role = 'admin' AND lower(email) NOT IN :emails").bindparams(
+                bindparam("emails", expanding=True)
+            ),
+            {"emails": admins},
         )
         conn.execute(
-            text("UPDATE users SET role = 'admin' WHERE lower(email) = :email AND role <> 'admin'"),
-            {"email": admin},
+            text("UPDATE users SET role = 'admin' WHERE lower(email) IN :emails AND role <> 'admin'").bindparams(
+                bindparam("emails", expanding=True)
+            ),
+            {"emails": admins},
         )
 
 
