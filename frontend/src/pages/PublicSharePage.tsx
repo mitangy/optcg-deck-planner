@@ -8,7 +8,17 @@ import { DUEL_URL } from "../app/duelLink";
 import { UpdateNotice } from "../app/UpdateNotice";
 import { useMe } from "../auth/useMe";
 import { CardLayoutToggle, useCardLayout } from "../ui/CardLayout";
-import { CardSearchInput, compareCardOrder, matchesCardSearch, usePersistedOpen } from "../ui/cardListControls";
+import {
+  buildFilterSummary,
+  CardSearchInput,
+  CollapsibleFilters,
+  compareCardOrder,
+  matchesCardSearch,
+  SortMenu,
+  useCardSorts,
+  usePersistedOpen,
+  type SortKey,
+} from "../ui/cardListControls";
 import { BuildTag } from "@optcg/ui/appShell";
 import { DeckStatsDock } from "./decks/DeckStats";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -29,6 +39,9 @@ export function PublicSharePage() {
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
+  // A share link carries no per-deck or per-member order, so those two sorts are off.
+  const unavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
+  const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, unavailableSorts);
   const meQ = useMe();
   const me = meQ.data ?? null;
   const qc = useQueryClient();
@@ -61,9 +74,9 @@ export function PublicSharePage() {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter((i) => i.still_need > 0);
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
-    list = [...list].sort((a, b) => compareCardOrder(a, b, ["color", "set"]));
+    list = [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
     return list;
-  }, [data, onlyNeed, search]);
+  }, [data, onlyNeed, search, effectiveSorts]);
   const { sort, onSort } = useColumnSort(COLSORT_SHARE_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
 
@@ -131,16 +144,25 @@ export function PublicSharePage() {
                 <CardSearchInput value={search} onChange={setSearch} />
                 <CardLayoutToggle layout={layout} onChange={setLayout} />
               </div>
-              <div className="filters">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={onlyNeed}
-                    onChange={(e) => setOnlyNeed(e.target.checked)}
+              <CollapsibleFilters summary={buildFilterSummary({ onlyNeed, sorts: effectiveSorts, layout })}>
+                <div className="filters">
+                  <SortMenu
+                    sorts={sorts}
+                    onChange={setSorts}
+                    onlyNeed={onlyNeed}
+                    unavailableKeys={unavailableSorts}
+                    columnSortKey={COLSORT_SHARE_KEY}
                   />
-                  Still need only
-                </label>
-              </div>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={onlyNeed}
+                      onChange={(e) => setOnlyNeed(e.target.checked)}
+                    />
+                    Still need only
+                  </label>
+                </div>
+              </CollapsibleFilters>
             </div>
 
             {layout === "grid" ? (
