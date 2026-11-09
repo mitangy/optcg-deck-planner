@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { CollectorLine, ShoppingItem } from "../../api";
-import { shoppingLeftCost } from "../collection/collectorLines";
+import { shoppingLeftCost, shoppingRowAmount } from "../collection/collectorLines";
 import { shoppingMenuPrice } from "./deckCost";
 import { ShoppingItemsView, shoppingColumnValue } from "./ShoppingItemsView";
 
@@ -122,14 +122,30 @@ describe("Master Shopping main row price leaves out Extra copies (#1187)", () =>
     expect(sorted.map((i) => i.card_id)).toEqual(["EB05-055", "EB01-003", "EB01-004"]);
   });
 
-  it("the table price shows only the deck part, and a covered card shows $0.00 with the Extra copy hint (#1187)", () => {
+  it("a card with a deck part and an Extra copy still shows only the deck part (#1187)", () => {
     const host = view([item()]);
     const trigger = host.querySelector("tr.need td button[data-buy-split]")!;
     expect(trigger.querySelector(".buy-split-amount")?.textContent).toContain("$2.50");
     expect(trigger.querySelector(".buy-split-amount")?.textContent).not.toContain("32.50");
-    const covered = view([item({ card_id: "EB01-003", still_need: 0, remaining_cost: 0 })]);
+  });
+
+  it("a covered card with an Extra copy to buy shows the Extra copy total on its main row (#1214)", () => {
+    expect(shoppingRowAmount(item({ still_need: 0, remaining_cost: 0, collector_wants: [line({ remaining_cost: 1000 }), line({ product_id: 203, remaining_cost: 530 })] }))).toBe(1530);
+    const covered = view([item({ card_id: "EB05-055", still_need: 0, remaining_cost: 0, collector_wants: [line({ remaining_cost: 1530 })] })]);
     const btn = covered.querySelector("button[data-buy-split]")!;
-    expect(btn.querySelector(".buy-split-amount")?.textContent).not.toContain("$30");
+    expect(btn.querySelector(".buy-split-amount")?.textContent).toContain("$1530.00");
     expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Extra copy");
+  });
+
+  it("a card with a deck part above zero never adds its Extra copies to the main row (#1214)", () => {
+    expect(shoppingRowAmount(item())).toBe(2.5);
+    expect(shoppingRowAmount(item({ still_need: 1, remaining_cost: 1.25, collector_wants: [line({ remaining_cost: 1530 })] }))).toBe(1.25);
+  });
+
+  it("a covered card whose Extra copy is already owned shows $0.00 (#1214)", () => {
+    const owned = line({ have: 1, still_need: 0, remaining_cost: 0 });
+    expect(shoppingRowAmount(item({ still_need: 0, remaining_cost: 0, collector_wants: [owned] }))).toBe(0);
+    const host = view([item({ card_id: "EB01-003", still_need: 0, remaining_cost: 0, collector_wants: [owned] })]);
+    expect(host.querySelector("button[data-buy-split] .buy-split-amount")?.textContent).toContain("$0.00");
   });
 });
