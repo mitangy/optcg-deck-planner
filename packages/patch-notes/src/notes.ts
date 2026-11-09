@@ -12,6 +12,7 @@ import type { PatchNote } from "./types";
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
   { date: "2026-11-09", app: "duel", pr: 1201, title: "Invite a friend who is watching a game", text: "You can now invite a friend who is watching a match. They see your invite over the board, and Join leaves the game they are watching and takes them to your room." },
+  { date: "2026-11-09", app: "planner", pr: 1196, title: "Adding an alt art in Shopping keeps your deck picks", text: "Adding or removing an alt art from Master Shopping's Add cards no longer changes the alt arts you picked inside your decks." },
   { date: "2026-11-09", app: "duel", pr: 1198, title: "Opponent’s turn fits beside the board", text: "With the buttons beside the board, the Opponent's turn and Waiting for opponent boxes now keep their words inside the box instead of spilling past its bottom edge." },
   { date: "2026-11-09", app: "planner", pr: 1187, title: "Each price shows once on Master Shopping", text: "The price beside a card now only counts the copies your decks still need. Extra copies keep their own price on their own row under the card, so the same money no longer shows twice." },
   { date: "2026-11-09", app: "planner", pr: 1185, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
