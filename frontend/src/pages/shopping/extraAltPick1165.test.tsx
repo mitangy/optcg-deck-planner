@@ -9,7 +9,7 @@ import { nextAltPick, ShoppingExtraControl } from "./lightboxActions";
 const h = vi.hoisted(() => ({
   setShoppingExtra: vi.fn(async () => ({ card_id: "OP01-001", qty: 0 })),
   setDisplayArt: vi.fn(async () => ({})),
-  setCardPrinting: vi.fn(async () => ({})),
+  setCardPrinting: vi.fn(async (..._args: unknown[]) => ({})),
 }));
 
 vi.mock("../../api", async (orig) => ({
