@@ -21,14 +21,14 @@ describe("hidden-info cost prompts with a mixed public/hidden cost list (H1)", (
   // The costs are "rest this Stage" (public: whether the Stage is rested is visible) and "trash 1 Event or Stage card from your hand" (hidden: depends on the hand).
   const EVENT_IN_HAND = "OP01-029"; // Radical Beam!!, an Event: pays the hand cost
 
-  it("a public cost that cannot be paid skips the prompt even when the hidden cost could be paid, so the opponent learns nothing (#PRNUM)", () => {
+  it("a public cost that cannot be paid skips the prompt even when the hidden cost could be paid, so the opponent learns nothing (#1197)", () => {
     const withEvent = attackedWithStage({ stageRested: true, hand: [EVENT_IN_HAND] });
     const withoutEvent = attackedWithStage({ stageRested: true, hand: [FILLER] });
     expect(withEvent.choice).toBeUndefined();
     expect(withoutEvent.choice).toBeUndefined();
   });
 
-  it("an unpayable hidden cost is still asked when the public cost can be paid, and only declining is legal (#PRNUM)", () => {
+  it("an unpayable hidden cost is still asked when the public cost can be paid, and only declining is legal (#1197)", () => {
     const h = attackedWithStage({ stageRested: false, hand: [FILLER] });
     expect(h.choice).toBeDefined();
     expect(getPlayerView(h.state, 1).pendingChoices[0]!.unpayable).toBe(true);
@@ -37,7 +37,7 @@ describe("hidden-info cost prompts with a mixed public/hidden cost list (H1)", (
 });
 
 describe("extra turn (R4)", () => {
-  it("OP05-119 Kaido's extra turn keeps the same player active for the next turn (#PRNUM)", () => {
+  it("OP05-119 Kaido's extra turn keeps the same player active for the next turn (#1197)", () => {
     // OP05-119: "[On Play] DON!! -10: ... Then, take an extra turn after this one."
     const h = new Harness();
     h.hand(0, "OP05-119");
@@ -70,7 +70,7 @@ describe("change the attack target (R5)", () => {
     return { h, monet: monet! };
   }
 
-  it("redirecting an attack on a Character to the defender's Leader makes the Leader the target (#PRNUM)", () => {
+  it("redirecting an attack on a Character to the defender's Leader makes the Leader the target (#1197)", () => {
     const { h } = redirect(false);
     h.accept();
     h.pick("Active DON!!");
@@ -78,7 +78,7 @@ describe("change the attack target (R5)", () => {
     expect(h.state.battle!.target).toEqual({ kind: "leader" });
   });
 
-  it("redirecting an attack on the Leader to a Character makes that Character the target (#PRNUM)", () => {
+  it("redirecting an attack on the Leader to a Character makes that Character the target (#1197)", () => {
     const { h, monet } = redirect(true);
     h.accept();
     h.pick("Active DON!!");
@@ -90,7 +90,7 @@ describe("change the attack target (R5)", () => {
 describe("Life effects (R7)", () => {
   const LIFE = ["ST01-004", "ST01-005", "ST01-006"]; // top, middle, bottom: three different cards
 
-  it("OP09-104 Sabo takes the bottom Life card when Bottom is chosen, and the top one when Top is chosen (#PRNUM)", () => {
+  it("OP09-104 Sabo takes the bottom Life card when Bottom is chosen, and the top one when Top is chosen (#1197)", () => {
     // OP09-104: "... if you have 2 or more Life cards, add 1 card from the top or bottom of your Life cards to your hand."
     for (const [label, taken, left] of [["Bottom", "ST01-006", ["ST01-004", "ST01-005"]], ["Top", "ST01-004", ["ST01-005", "ST01-006"]]] as const) {
       const h = new Harness();
@@ -106,7 +106,7 @@ describe("Life effects (R7)", () => {
     }
   });
 
-  it("EB02-053 Myskina Olga asks whose Life to look at and shows the chosen player's top Life card (#PRNUM)", () => {
+  it("EB02-053 Myskina Olga asks whose Life to look at and shows the chosen player's top Life card (#1197)", () => {
     // EB02-053: "Look at up to 1 card from the top of your or your opponent's Life cards and place it at the top or bottom of the Life cards."
     for (const [label, expected] of [["Your Life", "ST01-004"], ["Opponent's Life", "ST01-009"]] as const) {
       const h = new Harness();
@@ -125,7 +125,7 @@ describe("Life effects (R7)", () => {
 });
 
 describe("moving given DON!! (R6)", () => {
-  it("OP07-001 Dragon moves given DON!! from several cards onto one Character, taking them off the sources (#PRNUM)", () => {
+  it("OP07-001 Dragon moves given DON!! from several cards onto one Character, taking them off the sources (#1197)", () => {
     // OP07-001: "[Activate: Main] [Once Per Turn] Give up to 2 total of your currently given DON!! cards to 1 of your Characters."
     const h = new Harness({ leaders: ["OP07-001", "ST01-001"] });
     const [a, b, c] = h.field(0, "ST01-003", "ST01-003", "ST01-003");
@@ -145,7 +145,7 @@ describe("moving given DON!! (R6)", () => {
 });
 
 describe("set DON!! active and rest DON!! (R8)", () => {
-  it("OP13-028 Shanks readies the rested DON!! its own cost just rested (#PRNUM)", () => {
+  it("OP13-028 Shanks readies the rested DON!! its own cost just rested (#1197)", () => {
     // OP13-028 (cost 10): "[On Play] Set all of your DON!! cards as active."
     const h = new Harness();
     h.hand(0, "OP13-028");
@@ -156,7 +156,7 @@ describe("set DON!! active and rest DON!! (R8)", () => {
     expect(h.state.players[0].costArea).toHaveLength(10);
   });
 
-  it("OP06-035 Hody Jones rests exactly the DON!! and the Character picked, not other DON!! (#PRNUM)", () => {
+  it("OP06-035 Hody Jones rests exactly the DON!! and the Character picked, not other DON!! (#1197)", () => {
     // OP06-035: "[On Play] Rest up to a total of 2 of your opponent's Characters or DON!! cards."
     const h = new Harness({ leaders: ["ST01-001", "ST01-001"] });
     h.hand(0, "OP06-035");
@@ -187,7 +187,7 @@ describe("replacement limited to a source type (R10)", () => {
     return h;
   }
 
-  it("PRB02-006 asks to rest another Character instead when an opposing Character's effect would rest it (#PRNUM)", () => {
+  it("PRB02-006 asks to rest another Character instead when an opposing Character's effect would rest it (#1197)", () => {
     // OP01-033 (Character, 3 cost): "[On Play] Rest up to 1 of your opponent's Characters with a cost of 4 or less."
     const h = restZoroWith("OP01-033");
     expect(h.choice?.seat).toBe(1);
@@ -195,7 +195,7 @@ describe("replacement limited to a source type (R10)", () => {
     expect(h.state.players[1].characters[0]!.rested).toBe(false);
   });
 
-  it("PRB02-006 is rested normally by an Event's effect, which is not a Character's effect (#PRNUM)", () => {
+  it("PRB02-006 is rested normally by an Event's effect, which is not a Character's effect (#1197)", () => {
     // OP02-047 (Event, 1 cost): "[Main] Rest up to 1 of your opponent's Characters with a cost of 4 or less."
     const h = restZoroWith("OP02-047");
     expect(h.choice).toBeUndefined();
@@ -204,7 +204,7 @@ describe("replacement limited to a source type (R10)", () => {
 });
 
 describe("place at the top or bottom of the deck (R9)", () => {
-  it("OP08-049 puts the revealed card back at the end that was chosen (#PRNUM)", () => {
+  it("OP08-049 puts the revealed card back at the end that was chosen (#1197)", () => {
     // OP08-049 (cost 4): "[On Play] Reveal 1 card from the top of your deck and place it at the top or bottom of your deck."
     for (const [label, edge] of [["Top", "top"], ["Bottom", "bottom"]] as const) {
       const h = new Harness();
@@ -240,14 +240,14 @@ describe("total power selection limit (R11)", () => {
     return { h, ids };
   }
 
-  it("accepts two Characters whose total power is exactly the limit (#PRNUM)", () => {
+  it("accepts two Characters whose total power is exactly the limit (#1197)", () => {
     const { h, ids } = koPick(GAIMON, DOMA);
     const r = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
     expect(r.ok).toBe(true);
     expect(r.state.players[1].characters).toHaveLength(0);
   });
 
-  it("rejects two Characters whose total power is one step over the limit (#PRNUM)", () => {
+  it("rejects two Characters whose total power is one step over the limit (#1197)", () => {
     const { h, ids } = koPick(GAIMON, SAI);
     const r = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
     expect(r.ok).toBe(false);
@@ -267,7 +267,7 @@ describe("negated Characters on the field (R1)", () => {
     return h;
   }
 
-  it("a negated Character's [When Attacking] ability does not trigger, while an un-negated one does (#PRNUM)", () => {
+  it("a negated Character's [When Attacking] ability does not trigger, while an un-negated one does (#1197)", () => {
     const free = attackWithOp03014(false);
     free.pick(FILLER);
     expect(free.state.players[0].characters.map((c) => c.defId)).toEqual(["OP03-014", FILLER]);
@@ -289,7 +289,7 @@ describe("negated Character K.O.'d (R2)", () => {
     return h;
   }
 
-  it("a negated Character's [On K.O.] does not draw, while an un-negated one draws (#PRNUM)", () => {
+  it("a negated Character's [On K.O.] does not draw, while an un-negated one draws (#1197)", () => {
     const free = koOp01080(false);
     expect(free.state.players[1].characters).toHaveLength(0);
     expect(free.state.players[1].hand).toHaveLength(1);
@@ -299,7 +299,7 @@ describe("negated Character K.O.'d (R2)", () => {
     expect(negated.state.players[1].hand).toHaveLength(0);
   });
 
-  it("a negated Character's \"when this is K.O.'d\" ability does not trigger, while an un-negated one does (#PRNUM)", () => {
+  it("a negated Character's \"when this is K.O.'d\" ability does not trigger, while an un-negated one does (#1197)", () => {
     // OP03-015 (2000 power): "[Opponent's Turn] When this Character is KO'd, give up to 1 of your opponent's Leader or Character cards -2000 power ..."
     const run = (negated: boolean) => {
       const h = new Harness();
@@ -319,7 +319,7 @@ describe("negated Character K.O.'d (R2)", () => {
 });
 
 describe("end-of-battle delayed effects (R3)", () => {
-  it("OP02-064's end-of-battle effect is cleared with the battle and an end-of-turn effect queued earlier survives it (#PRNUM)", () => {
+  it("OP02-064's end-of-battle effect is cleared with the battle and an end-of-turn effect queued earlier survives it (#1197)", () => {
     // OP14-031 (cost 4): "[On Play] ... set up to 5 of your DON!! cards as active at the end of this turn."
     // OP02-064 Bentham: "[DON!! x1] [When Attacking] You may trash 1 card from your hand: ... at the end of this battle, place this Character at the bottom of the owner's deck."
     const h = new Harness();
