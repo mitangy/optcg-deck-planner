@@ -7,7 +7,7 @@ import {
   collectorHaveText,
   collectorOnTopOf,
   collectorSelectKey,
-  shoppingLeftCost,
+  shoppingRowAmount,
   shoppingSortCost,
   visibleCollectorLines,
 } from "../collection/collectorLines";
@@ -206,7 +206,7 @@ export function ShoppingItemsView({
   const buySplit = (item: ShoppingItem, prefix = "") => (
     <BuySplit
       card={item}
-      amount={money(shoppingLeftCost(item))}
+      amount={money(shoppingRowAmount(item))}
       prefix={prefix}
       onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
       busyProductId={busyProductFor(buyBusyKey, item.card_id)}

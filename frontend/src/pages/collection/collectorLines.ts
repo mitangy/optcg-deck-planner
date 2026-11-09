@@ -74,6 +74,19 @@ export function shoppingSortCost(item: ExtraCostItem): number | null {
   return Math.round((deck + extra) * 100) / 100;
 }
 
+/**
+ * The amount on a card's main row on Master Shopping (#1214): the deck part (#1187), except when the card has nothing
+ * left to buy itself and only Extra copies are missing. Then the row shows those Extra copies' price, next to its
+ * "★ Extra copy" hint, instead of a bare $0.00. A deck part above zero never adds them, so no dollar shows twice.
+ */
+export function shoppingRowAmount(item: ExtraCostItem): number | null {
+  if (item.still_need === 0 && hasExtraCopiesToBuy(item)) {
+    const extra = (item.collector_wants ?? []).reduce((n, l) => n + (l.still_need > 0 ? (l.remaining_cost ?? 0) : 0), 0);
+    return Math.round(extra * 100) / 100;
+  }
+  return shoppingLeftCost({ still_need: item.still_need, remaining_cost: item.remaining_cost });
+}
+
 /** Copies of an alt art that count toward decks: owned minus the ones held back as collector copies. */
 export function deckOwnedOfAlt(alt: Pick<PrintingView, "owned" | "collector">): number {
   const owned = alt.owned ?? 0;
