@@ -52,6 +52,28 @@ export function shoppingLeftCost(
   return item.remaining_cost ?? 0;
 }
 
+type ExtraCostItem = Pick<ShoppingItem, "still_need" | "remaining_cost"> & {
+  collector_wants?: Pick<CollectorLine, "still_need" | "remaining_cost">[] | null;
+};
+
+/** Extra copies still to buy on a card (#1211). */
+export function hasExtraCopiesToBuy(item: Pick<ExtraCostItem, "collector_wants">): boolean {
+  return (item.collector_wants ?? []).some((l) => l.still_need > 0);
+}
+
+/**
+ * What a card (its row plus the Extra copy rows grouped under it) still costs to buy, for sorting (#1211):
+ * the deck part plus every Extra copy line still to buy. The price shown on the main row stays deck part only.
+ * Null when the deck part is unpriced while copies are needed.
+ */
+export function shoppingSortCost(item: ExtraCostItem): number | null {
+  const deck = shoppingLeftCost({ still_need: item.still_need, remaining_cost: item.remaining_cost });
+  if (deck == null) return null;
+  // A line with nothing left to buy already has remaining_cost 0.
+  const extra = (item.collector_wants ?? []).reduce((n, l) => n + (l.remaining_cost ?? 0), 0);
+  return Math.round((deck + extra) * 100) / 100;
+}
+
 /** Copies of an alt art that count toward decks: owned minus the ones held back as collector copies. */
 export function deckOwnedOfAlt(alt: Pick<PrintingView, "owned" | "collector">): number {
   const owned = alt.owned ?? 0;

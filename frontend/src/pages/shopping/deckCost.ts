@@ -1,5 +1,5 @@
 import { shownMarket } from "../../cards/altArt";
-import { deckOwnedOfAlt } from "../collection/collectorLines";
+import { deckOwnedOfAlt, hasExtraCopiesToBuy, shoppingSortCost } from "../collection/collectorLines";
 
 type CostAlt = {
   product_id?: number;
@@ -74,6 +74,18 @@ export function splitStillNeed(card: CostCard): BuySplit {
  */
 export function shoppingShownPrice(card: CostCard): number | null {
   return card.still_need > 0 ? splitStillNeed(card).cost : (shownMarket(card).price ?? null);
+}
+
+/**
+ * Price the Sort menu's Price orders Master Shopping by (#1211): the deck part plus the Extra copies still to
+ * buy, so a covered card with a pricey Extra copy sorts high. With no Extra copy to buy it is `shoppingShownPrice`.
+ */
+export function shoppingMenuPrice(
+  card: CostCard & { remaining_cost?: number | null; collector_wants?: { still_need: number; remaining_cost: number | null }[] | null },
+): number | null {
+  return hasExtraCopiesToBuy(card)
+    ? shoppingSortCost({ still_need: card.still_need, remaining_cost: card.remaining_cost ?? splitStillNeed(card).cost, collector_wants: card.collector_wants })
+    : shoppingShownPrice(card);
 }
 
 /**
