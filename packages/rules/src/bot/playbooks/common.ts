@@ -6,3 +6,9 @@ export function giveLeaderFirstDon(view: BotView): Intent | undefined {
   if (view.you.leader.attachedDonCount > 0) return undefined;
   return view.legalIntents.find((i) => i.type === "give_don" && i.targetId === view.you.leader.id);
 }
+
+/** The `defId`s of the cards in my hand, in hand order. */
+export const handDefIds = (view: BotView): string[] => view.you.hand.map((c) => c.defId);
+
+/** DON!! in my cost area (active and rested), not counting attached DON!!. */
+export const costAreaDon = (view: BotView): number => view.you.costArea.length;
