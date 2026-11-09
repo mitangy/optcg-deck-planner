@@ -1,4 +1,4 @@
-import type { PlayerView, Seat } from "../../net/protocol";
+import type { DiceAction, DiceCall, DiceResult, DiceStateMessage, PlayerView, Seat } from "../../net/protocol";
 import {
   DEMO_PROMPT_VIEWS,
   DEMO_VIEW,
@@ -161,4 +161,64 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
       }
     : withTurn;
   return view;
+}
+
+/** The opening dice roll's step a `/demo?dice=` flag starts at (the buttons then play it on locally). */
+const DEMO_DICE_STEPS = ["call", "roll", "choose"] as const;
+
+function winnerOf(call: DiceCall, roll: number, caller: Seat, roller: Seat): Seat {
+  return (call === "high" ? roll >= 4 : roll <= 3) ? caller : roller;
+}
+
+/**
+ * `?dice=call|roll|choose`: the opening dice roll (#1190) at that step, with you on seat 0 (`&diceroller=0` rolls
+ * yourself, the default is the opponent rolling so you call; `&spectate` watches). `&dicecall=low` and `&diceroll=N`
+ * set the call and the roll for the later steps. Null when the flag is absent or unknown.
+ */
+export function demoDiceStart(params: URLSearchParams, now: number = Date.now()): DiceStateMessage | null {
+  const step = DEMO_DICE_STEPS.find((s) => s === params.get("dice"));
+  if (!step) return null;
+  const roller: Seat = params.get("diceroller") === "0" ? 0 : 1;
+  const caller = (1 - roller) as Seat;
+  const call: DiceCall = params.get("dicecall") === "low" ? "low" : "high";
+  const roll = Math.min(6, Math.max(1, intParam(params, "diceroll") ?? 5));
+  return {
+    protocolVersion: 5,
+    roller,
+    caller,
+    step,
+    call: step === "call" ? null : call,
+    roll: step === "choose" ? roll : null,
+    winner: step === "choose" ? winnerOf(call, roll, caller, roller) : null,
+    deadline: now + 20_000,
+    seat: 0,
+    role: params.has("spectate") ? "spectator" : "player",
+    players: [{ name: "Luffy" }, { name: "Zoro" }],
+  };
+}
+
+/**
+ * What the demo's buttons do to `state`: a call moves to the roll, a roll draws `diceroll` (or a random face) and
+ * moves to the choice, and first / second end the roll with its result. Returns the next state or the finished result.
+ */
+export function demoDiceNext(
+  state: DiceStateMessage,
+  action: DiceAction,
+  params: URLSearchParams,
+  now: number = Date.now(),
+): { state: DiceStateMessage } | { done: DiceResult; firstSeat: Seat } {
+  const deadline = now + 20_000;
+  if (action.action === "call") return { state: { ...state, step: "roll", call: action.call, deadline } };
+  if (action.action === "roll") {
+    const roll = Math.min(6, Math.max(1, intParam(params, "diceroll") ?? 1 + Math.floor(Math.random() * 6)));
+    const call = state.call ?? "high";
+    const winner = winnerOf(call, roll, state.caller, state.roller);
+    return { state: { ...state, step: "choose", roll, winner, deadline } };
+  }
+  const winner = state.winner ?? state.caller;
+  const firstSeat: Seat = action.action === "first" ? winner : ((1 - winner) as Seat);
+  return {
+    done: { roller: state.roller, caller: state.caller, call: state.call ?? "high", roll: state.roll ?? 1, winner },
+    firstSeat,
+  };
 }

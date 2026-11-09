@@ -46,6 +46,7 @@ import { buildRoomConfig, type RoomConfig } from "./duel/config.js";
 import { DuelGame, type ApplyResult, type DuelCore, type RoomIO } from "./duel/context.js";
 import { SeatCosmetics } from "./duel/cosmetics.js";
 import { MatchPersistence } from "./duel/persistence.js";
+import { FirstSeatDice } from "./duel/dice.js";
 import { Rematch } from "./duel/rematch.js";
 import { SeatRegistry } from "./duel/seats.js";
 import { MAX_SPECTATORS, Spectators } from "./duel/spectators.js";
@@ -93,6 +94,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   readonly undo: UndoHistory = new UndoHistory(this);
   readonly chat: RoomChat = new RoomChat(this);
   readonly rematch: Rematch = new Rematch(this);
+  readonly dice: FirstSeatDice = new FirstSeatDice(this);
   readonly spectators: Spectators = new Spectators(this);
   readonly sync: SyncSender = new SyncSender(this);
   readonly cosmetics: SeatCosmetics = new SeatCosmetics(this);
@@ -219,6 +221,11 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       if (seat !== null) this.rematch.handle(client, seat, message);
     });
 
+    this.onMessage(CLIENT_MESSAGE.dice, (client, message) => {
+      const seat = this.requireSeat(client, "Spectators cannot roll the dice");
+      if (seat !== null) this.dice.handle(client, seat, message);
+    });
+
     presence.register(this);
     this.stopTakedowns = presence.onTakedowns((list) => this.cosmetics.applyTakedowns(list));
     this.log("info", "room_created", {
@@ -233,6 +240,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   async onDispose() {
     this.game.disposed = true;
     this.bots.clearTimer();
+    this.dice.clearTimers();
     releaseCreatorRoom(this.creatorUid);
     this.creatorUid = null;
     presence.unregister(this);
@@ -270,7 +278,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   /** Ranked: the paired opponent never claimed their seat, so close the room. */
   private expireNoShow() {
     const { game } = this;
-    if (game.matchStarted) return;
+    if (game.matchStarted || this.dice.active) return;
     this.log("warn", "opponent_no_show", {
       matchId: game.matchId,
       seats: [this.seats.slot(0)?.userId ?? null, this.seats.slot(1)?.userId ?? null],
@@ -351,7 +359,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       }
       if (game.matchStarted && game.match) {
         this.sync.sendSpectatorSync(client, cameraSeat);
-      } else {
+      } else if (!this.dice.sendState(client)) {
         this.sendError(client, "match_not_ready", "Waiting for duel to start");
       }
       return;
@@ -361,7 +369,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // reclaimed through allowReconnection (handled above), never by a new join.
     // Otherwise anyone with the room id could take over after a Leave, read
     // the leaver's hand and cancel the forfeit.
-    if (game.matchStarted) {
+    if (game.matchStarted || this.dice.active) {
       this.rejectJoin(client, "room_full", "Match already in progress");
       return;
     }
@@ -413,7 +421,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     });
 
     if (this.seats.bothFilled() && !game.matchStarted) {
-      this.startMatch(this.config.firstSeat, null);
+      // Game 1's order is a dice roll when the room asks for one, else the coin flip made at create.
+      if (!this.dice.begin()) this.startMatch(this.config.firstSeat, null);
     } else if (game.matchStarted && game.match) {
       this.sendSync(client);
     }
@@ -469,6 +478,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       oldSessionId,
       sessionId: client.sessionId,
     });
+    if (this.dice.active) this.sendSync(client);
     if (game.matchStarted && game.match) this.sendSync(client);
     this.refreshMetadata();
   }
@@ -632,6 +642,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   }
 
   private clearSeat(sessionId: string) {
+    // A seat gone for good ends an opening dice roll; the one left waits for an opponent again.
+    this.dice.cancel();
     for (const seat of this.seats.release(sessionId)) {
       this.log("info", "player_left", {
         matchId: this.game.matchId,

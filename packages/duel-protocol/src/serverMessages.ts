@@ -11,6 +11,10 @@ import type {
   BriefTicketWire,
   ChatLine,
   CosmeticsMessage,
+  DiceCall,
+  DiceResult,
+  DiceStateMessage,
+  DiceStep,
 
   MatchOverMessage,
   PlayerView,
@@ -122,6 +126,47 @@ export function assertSpectatorPrivacy(view: PlayerView): void {
   }
 }
 
+const seatOf = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
+const callOf = (v: unknown): DiceCall | null => (v === "high" || v === "low" ? v : null);
+
+/** The finished dice roll of a welcome, or undefined unless every part is the right shape (lenient: it is only shown). */
+export function parseDiceResult(raw: unknown): DiceResult | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  const roller = seatOf(o.roller);
+  const caller = seatOf(o.caller);
+  const winner = seatOf(o.winner);
+  const call = callOf(o.call);
+  const roll = o.roll;
+  if (roller === null || caller === null || winner === null || call === null) return undefined;
+  if (typeof roll !== "number" || !Number.isInteger(roll) || roll < 1 || roll > 6) return undefined;
+  return { roller, caller, call, roll, winner };
+}
+
+export function parseDiceState(raw: unknown): DiceStateMessage {
+  const o = versionedBody(raw, "dice_state");
+  const roller = seatOf(o.roller);
+  const caller = seatOf(o.caller);
+  const seat = seatOf(o.seat);
+  if (roller === null || caller === null || seat === null) throw new Error("dice_state seats required");
+  const steps: DiceStep[] = ["call", "roll", "choose", "done", "cancelled"];
+  if (!steps.includes(o.step as DiceStep)) throw new Error("dice_state.step invalid");
+  const roll = typeof o.roll === "number" && Number.isInteger(o.roll) && o.roll >= 1 && o.roll <= 6 ? o.roll : null;
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    roller,
+    caller,
+    step: o.step as DiceStep,
+    call: callOf(o.call),
+    roll,
+    winner: seatOf(o.winner),
+    deadline: typeof o.deadline === "number" && Number.isFinite(o.deadline) ? o.deadline : null,
+    seat,
+    role: o.role === "spectator" ? "spectator" : "player",
+    players: parseSeatPlayers(o.players),
+  };
+}
+
 export function parseWelcome(raw: unknown): WelcomeMessage {
   const o = versionedBody(raw, "welcome");
   if (typeof o.matchId !== "string") throw new Error("matchId required");
@@ -145,6 +190,7 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
     firstSeatPickedBy:
       o.firstSeatPickedBy === null ? null : o.firstSeatPickedBy === 0 || o.firstSeatPickedBy === 1 ? o.firstSeatPickedBy : undefined,
+    dice: o.dice === null ? null : parseDiceResult(o.dice),
     // A spectator is never offered a brief, whatever the server sent.
     brief: role === "spectator" || view.spectator ? undefined : parseBriefTicket(o.brief),
   };

@@ -3,6 +3,7 @@ import {
   parseChat,
   parseChatHistory,
   parseCosmetics,
+  parseDiceState,
   parseSkin,
   parseError,
   parseMatchOver,
@@ -16,6 +17,9 @@ import {
   type ArtPrefsMap,
   type ChatLine,
   type CosmeticsMessage,
+  type DiceAction,
+  type DiceResult,
+  type DiceStateMessage,
   type SeatSkin,
   type SkinMessage,
   type DuelCreateOptions,
@@ -54,6 +58,7 @@ export type DuelClientHandlers = {
     players?: SeatPlayers;
     ranked?: boolean;
     firstSeatPickedBy?: Seat | null;
+    dice?: DiceResult | null;
     brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
@@ -76,6 +81,8 @@ export type DuelClientHandlers = {
   onPresence?: (awayUntil: [number | null, number | null]) => void;
   /** Rematch vote after the match ends. */
   onRematchState?: (state: RematchState) => void;
+  /** The opening dice roll (before the first game exists): every step, and a cancel when a seat leaves. */
+  onDiceState?: (state: DiceStateMessage) => void;
   /** Another device took this seat over: stop sending, never reconnect on our own. */
   onTakenOver?: () => void;
   onDisconnect?: (code: number) => void;
@@ -412,6 +419,12 @@ export class DuelClient {
     this.room.send(CLIENT_MESSAGE.hand_order, { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
+  /** Opening dice roll (#1190): the caller's High / Low, the roller's Roll, the winner's first / second. */
+  sendDice(action: DiceAction) {
+    if (!this.room) throw new Error("Not connected");
+    this.room.send(CLIENT_MESSAGE.dice, { protocolVersion: PROTOCOL_VERSION, ...action });
+  }
+
   /** `deck` (a "request" only) swaps this seat's deck for the next game. */
   sendRematch(action: RematchAction, deck?: PlayerDeckWire) {
     if (!this.room) throw new Error("Not connected");
@@ -592,6 +605,7 @@ export class DuelClient {
             players: msg.players,
             ranked: msg.ranked,
             firstSeatPickedBy: msg.firstSeatPickedBy,
+            dice: msg.dice,
             brief: msg.brief,
           });
           this.endTurnSentOn = null;
@@ -657,6 +671,11 @@ export class DuelClient {
         type: SERVER_MESSAGE.rematch_state,
         onBad: ignoreBad,
         handle: (raw) => this.handlers.onRematchState?.(parseRematchState(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.dice_state,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onDiceState?.(parseDiceState(raw)),
       },
       {
         type: SERVER_MESSAGE.presence,

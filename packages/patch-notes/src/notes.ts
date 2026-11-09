@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
+  { date: "2026-11-09", app: "duel", pr: 1206, title: "A dice roll decides who goes first", text: "A dice roll now decides who goes first in your first game against someone: one player rolls, the other calls High or Low, and the winner picks first or second. Rematches still let the loser choose." },
   { date: "2026-11-09", app: "duel", pr: 1201, title: "Invite a friend who is watching a game", text: "You can now invite a friend who is watching a match. They see your invite over the board, and Join leaves the game they are watching and takes them to your room." },
   { date: "2026-11-09", app: "duel", pr: 1200, title: "Play vs Bot games help the bots learn", text: "Your Play vs Bot games are now saved, without your name, so the bots can learn from them. You can leave yours out under Settings, Log Pose. See the Privacy policy." },
   { date: "2026-11-09", app: "duel", pr: 1200, title: "Bots go for the win", text: "Bots now attack your Leader with everything when they have enough attackers to finish you, instead of K.O.ing your rested Characters, for example after Shanks rests your board." },

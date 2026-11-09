@@ -15,6 +15,7 @@
 @import "./board/styles/turn.css";
 @import "./board/styles/hud.css";
 @import "./board/styles/roomStates.css";
+@import "./board/styles/dice.css";
 @import "./board/styles/compactHud.css";
 @import "./board/styles/intentBar.css";
 @import "./board/styles/phoneBoard.css";
