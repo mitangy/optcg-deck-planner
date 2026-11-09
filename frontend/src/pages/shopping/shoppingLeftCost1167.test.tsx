@@ -91,34 +91,30 @@ function view(items: ShoppingItem[]) {
   return host;
 }
 
-describe("Master Shopping price left counts collector copies (#1167)", () => {
-  it("the left price adds the collector lines still to buy to the decks' remaining cost (#1167)", () => {
-    expect(shoppingLeftCost(item())).toBe(32.5);
-    expect(shoppingLeftCost(item({ collector_wants: [line(), line({ product_id: 203, remaining_cost: 12.34 })] }))).toBe(44.84);
+describe("Master Shopping main row price leaves out Extra copies (#1185)", () => {
+  it("Master Shopping main row price leaves out Extra copies shown on their own rows (#1185)", () => {
+    expect(shoppingLeftCost(item())).toBe(2.5);
+    expect(shoppingLeftCost(item({ collector_wants: [line(), line({ product_id: 203, remaining_cost: 12.34 })] }))).toBe(2.5);
+    expect(shoppingLeftCost(item({ still_need: 0, remaining_cost: 0 }))).toBe(0);
   });
 
-  it("a collector line that is already covered adds nothing (#1167)", () => {
-    const covered = line({ have: 1, still_need: 0, remaining_cost: 0 });
-    expect(shoppingLeftCost(item({ collector_wants: [covered] }))).toBe(2.5);
-    expect(shoppingLeftCost(item({ collector_wants: undefined }))).toBe(2.5);
-  });
-
-  it("an unpriced deck part is null while copies are needed, and 0 once the decks are covered (#1167)", () => {
+  it("an unpriced deck part is null while copies are needed, and 0 once the decks are covered (#1185)", () => {
     expect(shoppingLeftCost(item({ remaining_cost: null }))).toBeNull();
-    expect(shoppingLeftCost(item({ remaining_cost: null, still_need: 0 }))).toBe(30);
+    expect(shoppingLeftCost(item({ remaining_cost: null, still_need: 0 }))).toBe(0);
   });
 
-  it("the Remaining column sorts by the same number the price shows (#1167)", () => {
-    expect(shoppingColumnValue(item(), "remaining")).toBe(32.5);
+  it("the Remaining column sorts by the deck part only (#1185)", () => {
+    expect(shoppingColumnValue(item(), "remaining")).toBe(2.5);
   });
 
-  it("the table price shows deck plus collector, and a covered card still shows the collector amount on a button (#1167)", () => {
+  it("the table price shows only the deck part, and a covered card shows $0.00 with the Extra copy hint (#1185)", () => {
     const host = view([item()]);
     const trigger = host.querySelector("tr.need td button[data-buy-split]")!;
-    expect(trigger.querySelector(".buy-split-amount")?.textContent).toContain("$32.50");
+    expect(trigger.querySelector(".buy-split-amount")?.textContent).toContain("$2.50");
+    expect(trigger.querySelector(".buy-split-amount")?.textContent).not.toContain("32.50");
     const covered = view([item({ card_id: "EB01-003", still_need: 0, remaining_cost: 0 })]);
     const btn = covered.querySelector("button[data-buy-split]")!;
-    expect(btn.querySelector(".buy-split-amount")?.textContent).toContain("$30.00");
+    expect(btn.querySelector(".buy-split-amount")?.textContent).not.toContain("$30");
     expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Extra copy");
   });
 });
