@@ -13,6 +13,8 @@ from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owne
 NAMI = "OP01-016"
 ALT = 100
 GOLD = 101
+ZORO = "OP01-025"
+ZORO_GOLD = 200
 
 
 def _seed(db):
@@ -190,3 +192,70 @@ def test_collector_copies_are_not_tradeable_spares_for_friends_1032(db):
     held, _ = friend_view.holdings(db, user)
 
     assert held[NAMI].spare == 0
+
+
+def _seed_two_decks(db):
+    """Deck A holds Nami, deck B holds Zoro; each card has a gold collector want."""
+    user = _seed(db)
+    add_catalog(db, ZORO, name="Zoro", product_id=2, market=2.0)
+    add_catalog(db, ZORO, name="Zoro Gold", product_id=ZORO_GOLD, market=50.0, special=True)
+    deck_a = add_deck_with_cards(db, user, "A", {NAMI: 4})
+    deck_b = add_deck_with_cards(db, user, "B", {ZORO: 3})
+    owned_svc.set_collector_want(db, user, NAMI, GOLD, 1)
+    owned_svc.set_collector_want(db, user, ZORO, ZORO_GOLD, 2)
+    return user, deck_a, deck_b
+
+
+def test_deck_filter_leaves_out_extra_copies_of_cards_not_in_the_selected_decks_1182(db):
+    user, deck_a, _deck_b = _seed_two_decks(db)
+
+    res = shopping_svc.shopping_list(db, user, deck_ids=[deck_a.id])
+
+    assert [i.card_id for i in res.items] == [NAMI]
+    assert res.collector_copies == 1
+    assert res.remaining_market == 4 * 1.0 + 30.0  # Zoro's 2 x $50 gold is not counted
+
+
+def test_deck_filter_still_counts_extra_copies_of_cards_in_the_selected_decks_1182(db):
+    user, _deck_a, deck_b = _seed_two_decks(db)
+
+    res = shopping_svc.shopping_list(db, user, deck_ids=[deck_b.id])
+
+    item = res.items[0]
+    assert [i.card_id for i in res.items] == [ZORO]
+    assert [(w.product_id, w.still_need) for w in item.collector_wants] == [(ZORO_GOLD, 2)]
+    assert res.remaining_market == 3 * 2.0 + 100.0
+
+
+def test_unfiltered_list_counts_every_extra_copy_1182(db):
+    user, _a, _b = _seed_two_decks(db)
+
+    res = shopping_svc.shopping_list(db, user)
+
+    assert sorted(i.card_id for i in res.items) == [NAMI, ZORO]
+    assert res.remaining_market == 4 * 1.0 + 30.0 + 3 * 2.0 + 100.0
+
+
+def test_hiding_added_cards_leaves_out_collector_only_cards_1182(db):
+    user, _a, _b = _seed_two_decks(db)
+    add_catalog(db, "OP01-001", name="Sanji", product_id=3, market=5.0)
+    add_catalog(db, "OP01-001", name="Sanji Gold", product_id=300, market=40.0, special=True)
+    shopping_svc.set_shopping_extra(db, user, "OP01-001", 1)
+    owned_svc.set_collector_want(db, user, "OP01-001", 300, 1)
+
+    shown = shopping_svc.shopping_list(db, user)
+    hidden = shopping_svc.shopping_list(db, user, include_extras=False)
+
+    assert "OP01-001" in [i.card_id for i in shown.items]
+    assert sorted(i.card_id for i in hidden.items) == [NAMI, ZORO]
+    assert hidden.remaining_market == shown.remaining_market - 5.0 - 40.0
+
+
+def test_extra_copies_of_a_card_added_directly_count_when_a_deck_filter_is_on_1182(db):
+    user, deck_a, _b = _seed_two_decks(db)
+    shopping_svc.set_shopping_extra(db, user, ZORO, 1)
+
+    res = shopping_svc.shopping_list(db, user, deck_ids=[deck_a.id])
+
+    assert sorted(i.card_id for i in res.items) == [NAMI, ZORO]
+    assert res.remaining_market == 4 * 1.0 + 30.0 + 2.0 + 100.0

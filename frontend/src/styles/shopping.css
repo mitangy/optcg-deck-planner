@@ -545,6 +545,17 @@ button.ghost.danger:not(:disabled):hover {
   color: var(--gold-ink);
 }
 
+/* Est. cost split (#1182): wraps between parts, never inside one, and stays narrow on phones. */
+.stat-note.stat-split {
+  max-width: 13rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stat-note.stat-split > span {
+  white-space: nowrap;
+}
+
 .page-head-actions {
   display: flex;
   flex-wrap: wrap;
