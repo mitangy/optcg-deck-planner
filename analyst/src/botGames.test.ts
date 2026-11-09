@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardsOfLine, compareLines, evidenceSummary, leadersWithGames, lessonText, lessonsForLeader, linesOf, postBotLesson, realLineStats, tallyReplay, toBatches, topCandidates, uploadBotGames, type BotGameUpload, type LineRow } from "./botGames";
+import { cardsOfLine, compareLines, fetchHumanBotGames, evidenceSummary, leadersWithGames, lessonText, lessonsForLeader, linesOf, postBotLesson, realLineStats, tallyReplay, toBatches, topCandidates, uploadBotGames, type BotGameUpload, type LineRow } from "./botGames";
 import { botGame } from "./testFixtures";
 
 const SEEDS = [1, 2, 3, 4];
@@ -69,6 +69,43 @@ describe("uploading bot games (#635)", () => {
     expect(calls.map((c) => c.body.games[0]!.index)).toEqual([0, 1, 2]);
     expect(calls[1]!.body.games[0]!.levels).toBe("normal/hard");
     expect(r).toEqual({ accepted: 0, duplicates: 3, rejected: [{ index: 0, reason: "bad" }, { index: 1, reason: "bad" }, { index: 2, reason: "bad" }] });
+  });
+});
+
+describe("downloading Play vs Bot games (#1202)", () => {
+  const entry = (id: number) => ({ id, created_at: "2026-11-09T00:00:00Z", bot_level: "hard", replay: game(id).replay });
+  it("pages with the last next_after_id using the service secret until a page comes back empty (#1202)", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const pages: Record<string, unknown> = {
+      "0": { games: [entry(3), entry(5)], next_after_id: 5 },
+      "5": { games: [entry(9)], next_after_id: 9 },
+      "9": { games: [], next_after_id: 9 },
+    };
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, headers: init.headers as Record<string, string> });
+      return new Response(JSON.stringify(pages[new URL(url).searchParams.get("after_id")!]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const seen: number[][] = [];
+    const total = await fetchHumanBotGames({ baseUrl: "https://api.test/", serviceSecret: "svc", fetchImpl }, (g) => void seen.push(g.map((x) => x.id)), { pageSize: 2 });
+    expect(seen).toEqual([[3, 5], [9]]);
+    expect(total).toBe(3);
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.test/analyst/human-bot-games?after_id=0&limit=2",
+      "https://api.test/analyst/human-bot-games?after_id=5&limit=2",
+      "https://api.test/analyst/human-bot-games?after_id=9&limit=2",
+    ]);
+    expect(calls.every((c) => c.headers["X-Analyst-Service"] === "svc")).toBe(true);
+  });
+
+  it("stops instead of looping when the API does not move forward (#1202)", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls > 3) throw new Error("kept asking");
+      return new Response(JSON.stringify({ games: [entry(1)], next_after_id: 0 }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const total = await fetchHumanBotGames({ baseUrl: "https://api.test", serviceSecret: "svc", fetchImpl }, () => {});
+    expect([calls, total]).toEqual([1, 1]);
   });
 });
 

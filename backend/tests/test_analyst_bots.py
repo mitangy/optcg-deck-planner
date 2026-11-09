@@ -373,3 +373,72 @@ def test_a_bot_lesson_the_admin_edited_is_still_skipped_when_posted_again_916(an
     assert _post_lesson(c).json() == {"skipped": True}
     assert _post_lesson(c, text="Second rewrite.").json() == {"skipped": True}
     assert len(c.get("/analyst/lessons/review").json()["lessons"]) == 1
+
+
+# ——— Play vs Bot games for training (#1202) ———
+
+
+def _human_bot(c, game_id: str, user_id: int, level: str = "hard", **extra):
+    r = c.post(
+        "/duel/solo-games",
+        json={"game_id": game_id, "user_id": user_id, "mode": "bot", "bot_level": level, "replay": _replay(winner=1), **extra},
+        headers={"X-Duel-Ingest-Token": "test-ingest"},
+    )
+    assert r.status_code == 200, r.text
+
+
+def _export(c, headers=SERVICE, **params):
+    return c.get("/analyst/human-bot-games", params=params, headers=headers)
+
+
+def test_human_bot_export_needs_the_service_secret_1202(analyst):  # noqa: F811
+    c, _ = analyst
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    _human_bot(c, "g1", uid)
+    assert _export(c, headers={}).status_code == 403
+    assert _export(c, headers={"X-Analyst-Service": "nope"}).status_code == 403
+    assert _export(c).status_code == 200
+
+
+def test_human_bot_export_has_replays_and_no_player_identifiers_1202(analyst):  # noqa: F811
+    c, _ = analyst
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    _human_bot(c, "secret-game-key", uid, level="normal")
+    # Not exported: a practice game, and a bot game saved without a replay.
+    c.post("/duel/solo-games", json={"game_id": "p1", "user_id": uid, "mode": "practice", "replay": _replay()}, headers={"X-Duel-Ingest-Token": "test-ingest"})
+    c.post("/duel/solo-games", json={"game_id": "old", "user_id": uid, "mode": "bot"}, headers={"X-Duel-Ingest-Token": "test-ingest"})
+    body = _export(c).json()
+    assert len(body["games"]) == 1
+    game = body["games"][0]
+    assert set(game) == {"id", "created_at", "bot_level", "replay"}
+    assert (game["bot_level"], game["replay"]) == ("normal", _replay(winner=1))
+    assert game["replay"]["end"] == {"winner": 1, "reason": "leader_battle_at_zero_life"}
+    text = _export(c).text
+    assert "secret-game-key" not in text and "user_id" not in text and "@" not in text
+
+
+def test_human_bot_export_leaves_out_players_who_turned_sharing_off_1202(analyst):  # noqa: F811
+    c, _ = analyst
+    me = c.post("/auth/dev-login").json()
+    other = c.post("/duel/dev-token", json={"user_key": "other"}).json()["user_id"]
+    _human_bot(c, "mine", me["id"])
+    _human_bot(c, "theirs", other, level="easy")
+    assert len(_export(c).json()["games"]) == 2
+    assert c.put("/analyst/sharing", json={"share_matches": False}).status_code == 200
+    games = _export(c).json()["games"]
+    assert [g["bot_level"] for g in games] == ["easy"]
+
+
+def test_human_bot_export_pages_by_id_1202(analyst):  # noqa: F811
+    c, _ = analyst
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    for i in range(5):
+        _human_bot(c, f"g{i}", uid)
+    first = _export(c, limit=2).json()
+    second = _export(c, limit=2, after_id=first["next_after_id"]).json()
+    last = _export(c, limit=2, after_id=second["next_after_id"]).json()
+    ids = [g["id"] for page in (first, second, last) for g in page["games"]]
+    assert [len(first["games"]), len(second["games"]), len(last["games"])] == [2, 2, 1]
+    assert ids == sorted(set(ids)) and len(ids) == 5
+    done = _export(c, limit=2, after_id=last["next_after_id"]).json()
+    assert done == {"games": [], "next_after_id": last["next_after_id"]}

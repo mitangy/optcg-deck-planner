@@ -106,6 +106,27 @@ export async function uploadBotGames(api: PlannerApi, batchId: string, levels: s
   return total;
 }
 
+/** Play vs Bot games from GET /analyst/human-bot-games (#1202): the replay and the bot's level, nothing about the player. */
+export type HumanBotGame = { id: number; created_at: string; bot_level: string | null; replay: MatchReplay };
+
+/**
+ * Page through every saved Play vs Bot game, oldest first, handing each page's replays to `onPage` (so a large
+ * export is never held in memory at once). Stops on an empty page, or if the API does not move `next_after_id` forward.
+ * Returns how many games it read.
+ */
+export async function fetchHumanBotGames(api: PlannerApi, onPage: (games: HumanBotGame[]) => void | Promise<void>, opts: { pageSize?: number } = {}): Promise<number> {
+  let afterId = 0;
+  let total = 0;
+  for (;;) {
+    const page = await plannerCall<{ games: HumanBotGame[]; next_after_id: number }>(api, null, `/analyst/human-bot-games?after_id=${afterId}&limit=${opts.pageSize ?? 200}`, true);
+    if (!page.games.length) return total;
+    await onPage(page.games);
+    total += page.games.length;
+    if (page.next_after_id <= afterId) return total;
+    afterId = page.next_after_id;
+  }
+}
+
 // ——— lessons both sources agree on ———
 
 export type Rec = { games: number; wins: number | null; win_rate: number | null; too_few_games?: boolean };

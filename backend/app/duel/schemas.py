@@ -72,6 +72,9 @@ class DuelSoloGameIngest(BaseModel):
     won: bool | None = None
     turns: int | None = Field(default=None, ge=0, le=10_000)
     reason: str = Field(default="unknown", max_length=64)
+    # Bot games: seed, decks and accepted intents (see game-server MatchReplay), kept for investigation and
+    # training the bots (#1202). Server-side only; dropped when over MAX_REPLAY_BYTES; never kept for practice.
+    replay: dict | None = None
 
 
 class DuelMatchProgressIngest(BaseModel):
