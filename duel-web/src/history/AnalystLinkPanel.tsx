@@ -142,11 +142,12 @@ export function AnalystLinkPanel() {
             disabled={busy || sharing === null}
             onChange={(e) => void toggleSharing(e.target.checked)}
           />
-          <span>Use my games in Log Pose stats and game reviews</span>
+          <span>Use my games in Log Pose stats, game reviews and bot training</span>
         </label>
         <p className="field-hint">
-          Log Pose can study games from every player to back up its advice. It sees them without names, ratings or
-          match ids. Turn this off and your games are left out of everyone's stats and reviews.
+          Log Pose can study games from every player to back up its advice, and the bots learn from Play vs Bot games. Both
+          see them without names, ratings or match ids. Turn this off and your games are left out of everyone's stats and
+          reviews and out of bot training.
         </p>
       </div>
       <SimImportPanel />
