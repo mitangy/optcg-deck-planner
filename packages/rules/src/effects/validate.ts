@@ -44,7 +44,7 @@ const keyword = oneOf("blocker", "rush", "rush_character", "double_attack", "ban
 const duration = oneOf("battle", "turn", "until_start_of_your_next_turn", "until_end_of_opponent_next_turn", "until_end_of_your_next_turn", "permanent");
 const restriction = oneOf("cannot_attack", "cannot_attack_leader", "cannot_block", "cannot_be_ko", "cannot_be_ko_by_effect", "cannot_be_ko_by_opponent_effect", "cannot_be_ko_in_battle", "cannot_be_removed_by_opponent_effect", "cannot_be_rested_by_opponent_effect", "cannot_be_rested", "cannot_be_ko_in_battle_by_attribute", "cannot_be_returned_by_opponent_effect", "no_refresh", "can_attack_active", "cannot_be_blocked_by_power_or_less", "cannot_be_blocked_by_cost_or_less", "cannot_be_blocked_by_power_or_more", "cannot_activate_blocker", "cannot_be_ko_by_effect_from", "cannot_be_ko_by_opponent_effect_from", "cannot_be_rested_by_opponent_effect_from", "cannot_be_ko_in_battle_by", "cannot_attack_matching", "attack_requires_discard");
 const playerRestriction = oneOf("cannot_play_characters", "cannot_play_cards_from_hand", "cannot_play_events", "cannot_add_life_to_hand_by_effect", "cannot_attack_leader", "cannot_draw_by_effect", "cannot_set_don_active", "cannot_set_don_active_by_character_effects", "attack_only_matching", "characters_played_rested", "on_play_negated");
-const zone = oneOf("leader", "character", "leader_or_character", "stage", "field", "hand", "trash", "hand_or_trash", "deck", "life", "deck_top", "don", "don_field", "resolving");
+const zone = oneOf("leader", "character", "leader_or_character", "stage", "field", "hand", "trash", "hand_or_trash", "deck_or_trash", "deck", "life", "deck_top", "don", "don_field", "resolving");
 const cardType = oneOf("leader", "character", "event", "stage");
 const strings = arr(str, 1);
 
@@ -143,6 +143,8 @@ const cost: V = tagged("k", {
   trash_to_deck_bottom: variant("k", "trash_to_deck_bottom", { count: int(1) }, { filter }),
   life_to_hand: variant("k", "life_to_hand", { count: int(1), position: oneOf("top", "top_or_bottom") }),
   trash_life: variant("k", "trash_life", { count: int(1) }, { position: oneOf("top", "top_or_bottom") }),
+  life_to_hand_all: variant("k", "life_to_hand_all"),
+  trash_life_all: variant("k", "trash_life_all"),
   return_active_don: variant("k", "return_active_don", { count: int(1) }),
   ko_cards: variant("k", "ko_cards", { selector, count: int(1) }),
   give_don: variant("k", "give_don", { count: int(1), selector }),
@@ -206,7 +208,7 @@ const effect: V = tagged("do", {
   hand_to_deck: variant("do", "hand_to_deck", { player: rel, count: int(1), position: oneOf("top", "bottom", "top_or_bottom") }, { chooser: rel, filter, min: int(0) }),
   hand_to_life: variant("do", "hand_to_life", { count: int(1), position: oneOf("top", "bottom", "top_or_bottom"), faceUp: bool }, { filter, min: int(0), reveal: bool }),
   deck_to_life: variant("do", "deck_to_life", { player: rel, count: int(1) }, { faceUp: bool }),
-  life_to_hand: variant("do", "life_to_hand", { player: rel, count: int(1), position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
+  life_to_hand: variant("do", "life_to_hand", { player: rel, count: value, position: oneOf("top", "top_or_bottom", "bottom") }, { min: int(0) }),
   trash_life: variant("do", "trash_life", { player: rel, count: value }, { position: oneOf("top", "top_or_bottom") }),
   life_face: variant("do", "life_face", { player: rel, count: int(1), faceUp: bool }, { min: int(0), position: oneOf("top", "top_or_bottom", "any") }),
   mill: variant("do", "mill", { player: rel, count: value }, { bind: str }),

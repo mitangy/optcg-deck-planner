@@ -42643,6 +42643,25 @@
     "attribute": "Wisdom",
     "abilitySupport": "unverified"
   },
+  "OP18-004": {
+    "id": "OP18-004",
+    "name": "Karoo",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-004.png",
+    "effectText": "If this Character has 5000 power or more, this Character gains [Rush]. If this Character has 6000 power or more, this Character gains [Banish]. If this Character has 7000 power or more, this Character gains [Unblockable].",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-010": {
     "id": "OP18-010",
     "name": "Tony Tony.Chopper",
@@ -42661,6 +42680,24 @@
       "Straw Hat Crew"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-011": {
+    "id": "OP18-011",
+    "name": "Nefeltari Vivi",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-011.png",
+    "effectText": "All of your Characters with both the {Animal} and {Alabasta} types gain +1000 power. [Opponent's Turn] This Character gains [Blocker] and +6000 power.",
+    "traits": [
+      "Alabasta"
+    ],
+    "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
   "OP18-013": {
@@ -42754,6 +42791,21 @@
     "hasTrigger": true,
     "abilitySupport": "ok"
   },
+  "OP18-020": {
+    "id": "OP18-020",
+    "name": "Stop Fighting!!!",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-020.png",
+    "effectText": "[Counter] You may add all of your Life cards to your hand: If your Leader is [Nefeltari Vivi], give your opponent's Leader and all of their Characters −5000 power during this turn.",
+    "traits": [
+      "Alabasta"
+    ],
+    "abilitySupport": "ok"
+  },
   "OP18-021": {
     "id": "OP18-021",
     "name": "Franky",
@@ -42831,6 +42883,25 @@
       "Water Seven"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-027": {
+    "id": "OP18-027",
+    "name": "Zoro & Sogeking",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "imageUrl": "/cards/OP18-027.png",
+    "effectText": "[Opponent's Turn] The base power of your active [Monkey.D.Luffy] Leader with 3 or more DON!! cards given becomes 7000. [On Play] Set up to 2 of your DON!! cards as active. Then, up to 1 of your opponent's Characters with a cost of 6 or less cannot be rested until the end of your opponent's next End Phase.",
+    "traits": [
+      "Sniper Island",
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Slash/Ranged",
     "abilitySupport": "ok"
   },
   "OP18-028": {
@@ -42915,6 +42986,25 @@
       "East Blue"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-034": {
+    "id": "OP18-034",
+    "name": "Franky",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 6,
+    "power": 7000,
+    "imageUrl": "/cards/OP18-034.png",
+    "effectText": "[On Play] Play up to 1 {The Franky Family} or {Straw Hat Crew} type card with a cost of 5 or less from your hand. Then, if you have a Stage with a cost of 5 or more, rest up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "traits": [
+      "Water Seven",
+      "The Franky Family",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-036": {
@@ -43170,6 +43260,25 @@
     "attribute": "Special",
     "abilitySupport": "ok"
   },
+  "OP18-061": {
+    "id": "OP18-061",
+    "name": "Iceburg",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-061.png",
+    "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal a total of up to 2 Stage cards or {Water Seven} type cards and add them to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "traits": [
+      "Water Seven",
+      "Galley-La Company"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-063": {
     "id": "OP18-063",
     "name": "Kiwi & Mozu",
@@ -43187,6 +43296,44 @@
       "The Franky Family"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-064": {
+    "id": "OP18-064",
+    "name": "Saint Kiringam",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-064.png",
+    "effectText": "[Your Turn] [On Play] DON!! −1: Up to 1 of your opponent's Characters with 7000 base power or less and up to 1 of your opponent's Characters with 5000 base power or less cannot attack until the end of your opponent's next End Phase. [On K.O.] DON!! −1: Play this Character card from your trash.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "OP18-065": {
+    "id": "OP18-065",
+    "name": "Saint Gunko",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 10,
+    "power": 11000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-065.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] DON!! −1: Play up to 1 {Celestial Dragons} type Character card with 6000 power or less from your trash.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP18-066": {
@@ -43292,6 +43439,21 @@
     ],
     "abilitySupport": "ok"
   },
+  "OP18-078": {
+    "id": "OP18-078",
+    "name": "Mini-Merry",
+    "type": "stage",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "imageUrl": "/cards/OP18-078.png",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate: Main] You may rest this Stage: Give up to 1 rested DON!! card each to a total of up to 4 of your Leader and Characters.",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "abilitySupport": "ok"
+  },
   "OP18-079": {
     "id": "OP18-079",
     "name": "Spandam",
@@ -43309,6 +43471,43 @@
       "CP9"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-083": {
+    "id": "OP18-083",
+    "name": "Saint Kiringam",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-083.png",
+    "effectText": "[Your Turn] [On Play] Play up to 1 [MMA] from your trash. [On K.O.] You may trash 2 cards from your hand: Play this Character card from your trash.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "OP18-084": {
+    "id": "OP18-084",
+    "name": "Saint Gunko",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "imageUrl": "/cards/OP18-084.png",
+    "effectText": "[On Play] Look at 4 cards from the top of your deck; reveal up to 1 {Holy Knights of God} type card and add it to your hand. Then, trash the rest. [Activate: Main] You may rest 4 of your DON!! cards: Play up to 1 {Holy Knights of God} type Character card with a cost of 6 or less from your trash.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP18-085": {
@@ -43347,6 +43546,25 @@
       "Elbaph"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-088": {
+    "id": "OP18-088",
+    "name": "Saint Somers",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 6,
+    "power": 6000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-088.png",
+    "effectText": "[Your Turn] [On Play] If you have 6 or more DON!! cards on your field, K.O. up to 1 of your opponent's Characters with a base cost of 4 or less. [On K.O.] You may trash 2 cards from your hand: Play this Character card from your trash.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP18-089": {
@@ -43440,6 +43658,25 @@
       "Celestial Dragons",
       "Holy Knights of God"
     ],
+    "abilitySupport": "ok"
+  },
+  "OP18-100": {
+    "id": "OP18-100",
+    "name": "Kalifa",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 6,
+    "power": 7000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-100.png",
+    "effectText": "[On Play] Draw 1 card and add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and rest up to 1 of your opponent's Leader or Characters.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP18-101": {
@@ -43536,6 +43773,44 @@
     "attribute": "Slash",
     "abilitySupport": "keywords"
   },
+  "OP18-112": {
+    "id": "OP18-112",
+    "name": "Yamakaji",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 7000,
+    "counter": 2000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-112.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
+    "traits": [
+      "Vice Admiral",
+      "Navy"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "keywords"
+  },
+  "OP18-113": {
+    "id": "OP18-113",
+    "name": "Rob Lucci",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 8,
+    "power": 10000,
+    "imageUrl": "/cards/OP18-113.png",
+    "effectText": "[On Play] / [On K.O.] Trash up to 1 card from the top of your opponent's Life cards.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 8 or less at the bottom of the owner's deck.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-116": {
     "id": "OP18-116",
     "name": "Iron Body Empty Tree",
@@ -43550,6 +43825,22 @@
       "CP9"
     ],
     "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
+  "OP18-117": {
+    "id": "OP18-117",
+    "name": "Buster Call",
+    "type": "event",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 10,
+    "imageUrl": "/cards/OP18-117.png",
+    "effectText": "[Main] You may trash all of your Life cards: If your Leader is [Spandam], trash all Characters and play up to a total of 5 {Vice Admiral} type Character cards with different card names from your deck or trash. Then, shuffle your deck.",
+    "traits": [
+      "Navy",
+      "CP9"
+    ],
     "abilitySupport": "ok"
   },
   "OP18-119": {

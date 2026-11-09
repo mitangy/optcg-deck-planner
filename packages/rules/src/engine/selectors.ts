@@ -23,6 +23,7 @@ const ZONES: Record<string, ZoneName[]> = {
   hand: ["hand"],
   trash: ["trash"],
   hand_or_trash: ["hand", "trash"],
+  deck_or_trash: ["deck", "trash"],
   deck: ["deck"],
   deck_top: ["deck"],
   life: ["life"],

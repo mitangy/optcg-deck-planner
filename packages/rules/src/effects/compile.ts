@@ -179,6 +179,8 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
     case "cards_to_deck_bottom": select(cost.selector, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "trash_to_deck_bottom": select({ player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }, cost.count, "place at the bottom of the deck (cost)"); out.push({ op: "act", effect: { do: "to_deck", target: costVar, position: "bottom" } }); return;
     case "life_to_hand": out.push({ op: "act", effect: { do: "life_to_hand", player: "you", count: cost.count, position: cost.position } }); return;
+    case "life_to_hand_all": out.push({ op: "act", effect: { do: "life_to_hand", player: "you", count: { count: { of: "life", player: "you" } }, position: "top" } }); return;
+    case "trash_life_all": out.push({ op: "act", effect: { do: "trash_life", player: "you", count: { count: { of: "life", player: "you" } } } }); return;
     case "trash_life": out.push({ op: "act", effect: { do: "trash_life", player: who, count: cost.count, ...(cost.position ? { position: cost.position } : {}) } }); return;
     case "return_active_don": out.push({ op: "act", effect: { do: "return_don", player: who, count: cost.count, activeOnly: true } }); return;
     case "ko_cards": select(cost.selector, cost.count, "K.O. (cost)"); out.push({ op: "act", effect: { do: "ko", target: costVar } }); return;

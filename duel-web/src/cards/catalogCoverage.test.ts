@@ -13,8 +13,24 @@ const rows = catalog as Record<string, CatalogRow>;
  */
 const NO_TCGPLAYER_PRODUCT_YET: string[] = [
   // OP18 cards added from the Japanese card pages (#1189) before TCGPlayer listed them.
+  "OP18-004",
+  "OP18-011",
+  "OP18-020",
+  "OP18-027",
+  "OP18-034",
   "OP18-046",
   "OP18-048",
+  "OP18-061",
+  "OP18-064",
+  "OP18-065",
+  "OP18-078",
+  "OP18-083",
+  "OP18-084",
+  "OP18-088",
+  "OP18-100",
+  "OP18-112",
+  "OP18-113",
+  "OP18-117",
 ];
 
 function hasTcgplayerArt(id: string): boolean {

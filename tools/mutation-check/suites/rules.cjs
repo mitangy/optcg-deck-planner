@@ -13,6 +13,10 @@ const GRAMMAR_DIR = "packages/rules/src/tools/cardText/grammar";
 const GRAMMAR_CONDITIONS = `${GRAMMAR_DIR}/conditions.ts`;
 const GRAMMAR_COSTS = `${GRAMMAR_DIR}/costs.ts`;
 const GRAMMAR_EFFECTS = `${GRAMMAR_DIR}/effects.ts`;
+const T = "src/__tests__/scenarios/op18Cards1189.test.ts";
+const D = "src/__tests__/definitions.test.ts";
+/** An OP18 (#1189) scenario row mutation: runs only that test file. */
+const scn1189 = (id, card, patch, kills) => ({ ...scn(id, card, patch, kills), args: T });
 const LINT = "packages/rules/src/tools/cardText/programLint.ts";
 const LINT_REGISTRY = "no compiled program reads an unbound variable or pays off an ungated may";
 /** Scenario rows (src/__tests__/scenarios): alter one card's generated abilities; `kills` are row-name fragments. */
@@ -1300,5 +1304,49 @@ module.exports = {
     {"id": "playbook-defense-hint-unchecked", "args": "src/__tests__/playbooksMeta.test.ts", "file": "packages/rules/src/bot/defense.ts", "from": "    if (legal.some((i) => JSON.stringify(i) === key)) return hinted;", "to": "    return hinted;", "kills": ["a defense hint is used when legal"]},
     {"id": "playbook-defense-not-wired", "args": "src/__tests__/playbooksMeta.test.ts", "file": "packages/rules/src/bot/policy.ts", "from": "return chooseDefense(view, level, rng, pb);", "to": "return chooseDefense(view, level, rng);", "kills": ["passes at 1 Life, takes the hit", "a defense hint is used when legal", "hard's baseline pick gets the defense and playBonus hooks too"]},
     {"id": "playbook-play-bonus-ignored", "args": "src/__tests__/playbooksMeta.test.ts", "file": "packages/rules/src/bot/main.ts", "from": "(pb?.playBonus?.(view, card.defId) ?? 0)", "to": "0", "kills": ["plays Saul (cost 4, 12+ on the field) ahead of", "holds back a 7000+ Character", "hard's baseline pick gets the defense and playBonus hooks too"]},
+
+    // OP18 cards added from the Japanese card pages (#1189). Scenario rows: src/__tests__/scenarios/op18Cards1189.test.ts.
+    {"id": "op18-1189-life-all-cost-needs-a-card", "args": T, "file": "packages/rules/src/engine/costs.ts", "from": "case \"life_to_hand_all\": case \"trash_life_all\": return true;", "to": "case \"life_to_hand_all\": case \"trash_life_all\": return p.life.length > 0;", "kills": ["can be paid with no Life cards left"]},
+    {"id": "op18-1189-life-all-to-hand-takes-one", "args": T, "file": "packages/rules/src/effects/compile.ts", "from": "do: \"life_to_hand\", player: \"you\", count: { count: { of: \"life\", player: \"you\" } }, position: \"top\" }", "to": "do: \"life_to_hand\", player: \"you\", count: 1, position: \"top\" }", "kills": ["adds all your Life cards to your hand and gives"]},
+    {"id": "op18-1189-life-all-trash-takes-one", "args": T, "file": "packages/rules/src/effects/compile.ts", "from": "do: \"trash_life\", player: \"you\", count: { count: { of: \"life\", player: \"you\" } } }", "to": "do: \"trash_life\", player: \"you\", count: 1 }", "kills": ["Buster Call trashes all Characters and plays differently named"]},
+    {"id": "op18-1189-life-to-hand-count-ignored", "args": T, "file": "packages/rules/src/engine/ops/life.ts", "from": "const n = evalValue(state, ctx, effect.count);\n    for (let i = 0; i < n; i += 1) if (!takeLifeToHand", "to": "const n = 1;\n    for (let i = 0; i < n; i += 1) if (!takeLifeToHand", "kills": ["adds all your Life cards to your hand and gives"]},
+    scn1189("op18-1189-020-ignores-leader-name", "OP18-020", (a) => { a[0].effect = a[0].effect.then; }, ["still takes the Life when your Leader is not [Nefeltari Vivi]"]),
+    scn1189("op18-1189-020-skips-characters", "OP18-020", (a) => { a[0].effect.then.steps.pop(); }, ["adds all your Life cards to your hand and gives"]),
+    scn1189("op18-1189-020-skips-leader", "OP18-020", (a) => { a[0].effect.then.steps.shift(); }, ["adds all your Life cards to your hand and gives"]),
+    scn1189("op18-1189-020-hits-own-side", "OP18-020", (a) => { a[0].effect.then.steps[1].target.selector.player = "you"; }, ["adds all your Life cards to your hand and gives"]),
+    scn1189("op18-1189-027-any-turn", "OP18-027", (a) => { a[0].conditions = []; }, ["does nothing on its owner's own turn"]),
+    scn1189("op18-1189-027-rested-leader", "OP18-027", (a) => { delete a[0].statics[0].target.all.filter.rested; }, ["does nothing while the Leader is rested"]),
+    scn1189("op18-1189-027-two-don", "OP18-027", (a) => { a[0].statics[0].target.all.filter.donGiven.value = 2; }, ["does nothing with only 2 DON!! given"]),
+    scn1189("op18-1189-027-any-leader", "OP18-027", (a) => { delete a[0].statics[0].target.all.filter.names; }, ["does nothing for a Leader that is not [Monkey.D.Luffy]"]),
+    scn1189("op18-1189-027-wrong-power", "OP18-027", (a) => { a[0].statics[0].value = 6000; }, ["sets a [Monkey.D.Luffy] Leader with 3 DON!! given to 7000 base power"]),
+    scn1189("op18-1189-061-no-stages", "OP18-061", (a) => { a[0].effect.picks[0].filter.any.shift(); }, ["offers a Stage of any type and any {Water Seven} card"]),
+    scn1189("op18-1189-061-no-water-seven", "OP18-061", (a) => { a[0].effect.picks[0].filter.any.pop(); }, ["offers a Stage of any type and any {Water Seven} card"]),
+    scn1189("op18-1189-061-takes-three", "OP18-061", (a) => { a[0].effect.picks[0].max = 3; }, ["does not let a third card be taken"]),
+    scn1189("op18-1189-061-rest-on-top", "OP18-061", (a) => { a[0].effect.rest = "deck_top"; }, ["puts the other three at the bottom of the deck"]),
+    scn1189("op18-1189-064-same-card-twice", "OP18-064", (a) => { delete a[0].effect.steps[1].target.selector.filter.excludeVar; }, ["the second pick cannot be the first one"]),
+    scn1189("op18-1189-064-first-pick-5000", "OP18-064", (a) => { a[0].effect.steps[0].target.selector.filter.basePower.value = 5000; }, ["offers 7000-or-less base power Characters first"]),
+    scn1189("op18-1189-064-second-pick-7000", "OP18-064", (a) => { a[0].effect.steps[1].target.selector.filter.basePower.value = 7000; }, ["takes two different Characters"]),
+    scn1189("op18-1189-064-power-not-base", "OP18-064", (a) => { for (const st of a[0].effect.steps) { st.target.selector.filter.power = st.target.selector.filter.basePower; delete st.target.selector.filter.basePower; } }, ["offers 7000-or-less base power Characters first"]),
+    scn1189("op18-1189-064-first-pick-only", "OP18-064", (a) => { a[0].effect.steps.pop(); }, ["takes two different Characters"]),
+    scn1189("op18-1189-078-fifth-target", "OP18-078", (a) => { a[1].effect.target.max = 5; }, ["rejects a fifth target for the rested DON!!"]),
+    scn1189("op18-1189-078-two-don-each", "OP18-078", (a) => { a[1].effect.count = 2; }, ["gives 1 rested DON!! each to 4 chosen Leader or Characters"]),
+    scn1189("op18-1189-078-skips-leader", "OP18-078", (a) => { a[1].effect.target.selector.zone = "character"; }, ["gives 1 rested DON!! each to 4 chosen Leader or Characters"]),
+    scn1189("op18-1189-117-ignores-leader-name", "OP18-117", (a) => { a[0].effect = a[0].effect.then; }, ["pays the Life cost but does nothing else when your Leader is not [Spandam]"]),
+    scn1189("op18-1189-117-only-own-characters", "OP18-117", (a) => { a[0].effect.then.steps[0].target.selector.player = "you"; }, ["trashes all Characters and plays differently named"]),
+    scn1189("op18-1189-117-same-name-twice", "OP18-117", (a) => { delete a[0].effect.then.steps[1].target.distinctNames; }, ["refuses two Vice Admirals with the same card name"]),
+    scn1189("op18-1189-117-no-shuffle", "OP18-117", (a) => { a[0].effect.then.steps.pop(); }, ["shuffles the deck after playing"]),
+    scn1189("op18-1189-117-trash-only", "OP18-117", (a) => { a[0].effect.then.steps[1].target.selector.zone = "trash"; }, ["trashes all Characters and plays differently named"]),
+    {"id": "op18-1189-deck-or-trash-trash-only", "args": T, "file": "packages/rules/src/engine/selectors.ts", "from": "deck_or_trash: [\"deck\", \"trash\"],", "to": "deck_or_trash: [\"trash\"],", "kills": ["trashes all Characters and plays differently named"]},
+    {"id": "op18-1189-deck-or-trash-deck-only", "args": T, "file": "packages/rules/src/engine/selectors.ts", "from": "deck_or_trash: [\"deck\", \"trash\"],", "to": "deck_or_trash: [\"deck\"],", "kills": ["trashes all Characters and plays differently named"]},
+    // The grammar rules behind the generated abilities: dropping one changes the regenerated file.
+    {"id": "op18-1189-grammar-life-all-cost", "args": D, "file": GRAMMAR_COSTS, "from": "rule(/^add all of your life cards to your hand$/i,", "to": "rule(/^add all of your life cards to your handX$/i,", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-trash-all-life-cost", "args": D, "file": GRAMMAR_COSTS, "from": "rule(/^trash all of your life cards$/i,", "to": "rule(/^trash all of your life cardsX$/i,", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-luffy-leader-static", "args": D, "file": `${GRAMMAR_DIR}/statics.ts`, "from": "rule(/^the base power of your active (§N", "to": "rule(/^the base power of your active X(§N", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-stage-or-type-picks", "args": D, "file": "packages/rules/src/tools/cardText/phrases.ts", "from": "if ((m = /^(event|stage|character) cards? or (§T", "to": "if ((m = /^(event|stage|character) cards? or X(§T", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-two-picks-cannot-attack", "args": D, "file": GRAMMAR_EFFECTS, "from": "rule(new RegExp(`^(up to \\\\d+ .+?) and (up to \\\\d+ .+?) cannot attack ${DUR}$`, \"i\"),", "to": "rule(new RegExp(`^(up to \\\\d+ .+?) and (up to \\\\d+ .+?) cannot attackX ${DUR}$`, \"i\"),", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-second-pick-excludes-first", "args": D, "file": GRAMMAR_EFFECTS, "from": "filter: { ...(second.selector.filter ?? {}), excludeVar: \"_a\" } }", "to": "filter: { ...(second.selector.filter ?? {}) } }", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-give-don-each-total", "args": D, "file": GRAMMAR_EFFECTS, "from": "rule(/^give up to (\\d+) rested DON!! cards? each to (?:a total of )?(up to", "to": "rule(/^give up to (\\d+) rested DON!! cards? each to X(?:a total of )?(up to", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-trash-all-characters", "args": D, "file": GRAMMAR_EFFECTS, "from": "rule(/^trash all characters$/i,", "to": "rule(/^trash all charactersX$/i,", "kills": ["matches deterministic regeneration"]},
+    {"id": "op18-1189-grammar-play-from-deck-or-trash", "args": D, "file": GRAMMAR_EFFECTS, "from": "(hand|trash|hand or trash|deck or trash)( rested)?$/i", "to": "(hand|trash|hand or trash)( rested)?$/i", "kills": ["matches deterministic regeneration"]},
   ],
 };
