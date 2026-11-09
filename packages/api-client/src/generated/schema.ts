@@ -1138,6 +1138,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analyst/human-bot-games": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Human Bot Games Route
+         * @description Play vs Bot replays for the weekly value-model refit (#1202): paged by id, no player identifiers, opted-out players left out.
+         */
+        get: operations["human_bot_games_route_analyst_human_bot_games_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analyst/lessons": {
         parameters: {
             query?: never;
@@ -6064,6 +6084,10 @@ export interface components {
              * @default unknown
              */
             reason: string;
+            /** Replay */
+            replay?: {
+                [key: string]: unknown;
+            } | null;
             /** Turns */
             turns?: number | null;
             /** User Id */
@@ -7348,6 +7372,32 @@ export interface components {
             vercel: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * HumanBotGameOut
+         * @description One Play vs Bot game for training: no player identifiers, only the bot's level and the replay.
+         */
+        HumanBotGameOut: {
+            /** Bot Level */
+            bot_level: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Replay */
+            replay: {
+                [key: string]: unknown;
+            };
+        };
+        /** HumanBotGamesOut */
+        HumanBotGamesOut: {
+            /** Games */
+            games: components["schemas"]["HumanBotGameOut"][];
+            /** Next After Id */
+            next_after_id: number;
         };
         /** InviteIn */
         InviteIn: {
@@ -11475,6 +11525,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackVote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    human_bot_games_route_analyst_human_bot_games_get: {
+        parameters: {
+            query?: {
+                after_id?: number;
+                limit?: number;
+            };
+            header?: {
+                "x-analyst-service"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanBotGamesOut"];
                 };
             };
             /** @description Validation Error */

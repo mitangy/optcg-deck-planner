@@ -1018,6 +1018,42 @@ def test_practice_solo_game_never_records_a_winner_988(client):
         assert (row.mode, row.won, row.bot_level) == ("practice", None, None)
 
 
+_REPLAY = {"schema": 1, "seed": 7, "players": [{"leaderId": "OP01-001", "deck": ["OP01-016"]}, {"leaderId": "OP02-001", "deck": ["OP01-006"]}], "intents": [{"seat": 0, "intent": {"type": "end_turn"}}], "end": {"winner": 1, "reason": "concede"}}
+
+
+def test_a_bot_game_keeps_its_replay_and_a_practice_game_does_not_1202(client):
+    import json
+
+    from app.duel.models import DuelSoloGame
+
+    c, S = client
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    assert _solo(c, "b1", uid, replay=_REPLAY).status_code == 200
+    practice = c.post(
+        "/duel/solo-games",
+        json={"game_id": "p1", "user_id": uid, "mode": "practice", "replay": _REPLAY},
+        headers={"X-Duel-Ingest-Token": "test-ingest"},
+    )
+    assert practice.status_code == 200
+    with S() as db:
+        rows = {r.game_id: r.replay for r in db.query(DuelSoloGame).all()}
+    assert json.loads(rows["b1"]) == _REPLAY
+    assert rows["p1"] is None
+
+
+def test_a_bot_game_with_an_oversized_replay_is_still_counted_without_it_1202(client):
+    from app.duel.models import DuelSoloGame
+
+    c, S = client
+    uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
+    huge = {**_REPLAY, "pad": "x" * 1_500_000}
+    r = _solo(c, "big", uid, won=True, replay=huge)
+    assert (r.status_code, r.json()["created"]) == (200, True)
+    with S() as db:
+        row = db.query(DuelSoloGame).one()
+        assert (row.won, row.replay) == (True, None)
+
+
 def test_solo_games_do_not_touch_ratings_or_match_history_988(client):
     c, _ = client
     me = c.post("/auth/dev-login").json()

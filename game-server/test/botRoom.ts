@@ -215,7 +215,8 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
     it("a bot game the human loses is reported as a solo loss with the bot's level and both leaders (#988)", async () => {
       const { room, solo, matches } = await soloGameOf(humanConcedes, { level: "hard", botLeader: "OP01-001" });
       await waitUntil(() => solo.length > 0);
-      assert.deepEqual(solo[0], {
+      const { replay: _replay, ...summary } = solo[0]!;
+      assert.deepEqual(summary, {
         game_id: room.roomId,
         user_id: 777,
         mode: "bot",
@@ -228,6 +229,17 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       });
       assert.equal(solo.length, 1);
       assert.deepEqual(matches, [], "a bot game is not a match");
+    });
+
+    it("a bot game's solo report carries the whole replay with its intents and how it ended (#1202)", async () => {
+      const { room, solo } = await soloGameOf(humanConcedes, { level: "hard", botLeader: "OP01-001" });
+      await waitUntil(() => solo.length > 0);
+      const replay = solo[0]!.replay!;
+      assert.ok(replay, "the report has a replay");
+      assert.deepEqual(replay.end, { winner: 1, reason: "concede" });
+      assert.equal(replay.players[1].leaderId, "OP01-001");
+      assert.ok(replay.intents.length >= 1, "the human's end_turn is in it");
+      assert.equal(replay.intents.length, internals(room).replay!.intents.length);
     });
 
     it("a bot game the human wins is reported as a solo win (#988)", async () => {
