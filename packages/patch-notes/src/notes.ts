@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
-  { date: "2026-11-09", app: "planner", pr: 0, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
+  { date: "2026-11-09", app: "planner", pr: 1185, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
   { date: "2026-11-09", app: "planner", pr: 1183, title: "See where Master Shopping's Est. cost goes", text: "Est. cost on Master Shopping now shows how much is for your decks, cards you added and Extra copies. Extra copies now only count when their card is in the decks you include, so picking some decks no longer adds the cost of Extra copies for other cards." },
   // 2026-11-08
   { date: "2026-11-08", app: "duel", pr: 1181, title: "Bots play every top 10 Leader smarter", text: "Normal and Hard bots now also have a plan for Monkey.D.Luffy (OP13-001 and OP17-079), Luffy & Ace, Enel and Boa Hancock, so every top 10 meta Leader is covered. For example Luffy rests only as many DON!! as a block needs, and Enel lets a hit through when its Leader will refill its Life." },
