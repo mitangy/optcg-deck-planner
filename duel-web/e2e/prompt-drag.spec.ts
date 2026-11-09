@@ -11,7 +11,18 @@ const touch = () => test.info().project.name === "phone-375";
 async function open(page: Page) {
   await page.goto("/demo?prompt=confirm");
   await expect(page.locator(".choice-confirm")).toBeVisible();
-  return (await page.locator(PROMPT).boundingBox())!;
+  // The board can still be settling (phone layout, fonts) right after the prompt shows, which
+  // re-centres the prompt a few px. Measure once two reads in a row agree.
+  let box = (await page.locator(PROMPT).boundingBox())!;
+  await expect
+    .poll(async () => {
+      const prev = box;
+      await page.waitForTimeout(100);
+      box = (await page.locator(PROMPT).boundingBox())!;
+      return box.x === prev.x && box.y === prev.y && box.height === prev.height;
+    })
+    .toBe(true);
+  return box;
 }
 
 /** Drag the header by (dx, dy): mouse on desktop, a finger on phones. */
