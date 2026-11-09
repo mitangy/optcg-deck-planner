@@ -2,7 +2,8 @@
  * "Include decks" can be emptied (#1208): Clear all unticks every deck but not the Other chips, an empty
  * selection lists only added cards and Extra copies (not every deck), and Select all brings the decks back.
  */
-import { expect, test, type Page } from "./fixtures";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 const SHOTS = process.env.PR_SHOTS_DIR;
 const IZO = "EB01-002"; // alt 201
