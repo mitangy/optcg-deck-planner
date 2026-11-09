@@ -746,11 +746,13 @@ export const api = {
     const qs = params.toString();
     return request<CatalogCardResult[]>(`/catalog/cards${qs ? `?${qs}` : ""}`);
   },
-  shopping: (deckIds?: number[], opts?: { extras?: boolean }) => {
+  shopping: (deckIds?: number[], opts?: { extras?: boolean; collector?: boolean }) => {
     const params = new URLSearchParams();
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));
     // Directly added cards are on by default; only the off state needs sending.
     if (opts?.extras === false) params.set("extras", "false");
+    // Extra copies are on by default; off keeps the owned-copy reserve but lists none (#1184).
+    if (opts?.collector === false) params.set("collector", "false");
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
   },

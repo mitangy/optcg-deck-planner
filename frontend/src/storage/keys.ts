@@ -20,6 +20,8 @@ export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 export const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 export const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
 export const SHOPPING_EXTRAS_KEY = "optcg_shopping_include_extras";
+/** Master Shopping "Extra copies" checkbox (#1184). */
+export const SHOPPING_COLLECTOR_KEY = "optcg_shopping_show_collector";
 export const SHOPPING_ONLY_NEED_KEY = "optcg_shopping_only_need";
 export const SHOPPING_ADD_OPEN_KEY = "optcg_shopping_add_open";
 

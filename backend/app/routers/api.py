@@ -232,13 +232,17 @@ def get_shopping(
     db: Annotated[Session, Depends(get_db)],
     deck_ids: Annotated[list[int] | None, Query()] = None,
     extras: Annotated[bool, Query()] = True,
+    collector: Annotated[bool, Query()] = True,
 ):
     """Optional deck_ids filters Need/Still Need to only the selected decks.
 
     Cards added directly (no deck) are included whatever deck_ids selects;
-    pass extras=false to leave them out.
+    pass extras=false to leave them out. collector=false hides Extra copies
+    (alt printings) but keeps owned alt copies held back for them (#1184).
     """
-    return shopping_svc.shopping_list(db, user, deck_ids=deck_ids, include_extras=extras)
+    return shopping_svc.shopping_list(
+        db, user, deck_ids=deck_ids, include_extras=extras, show_collector=collector
+    )
 
 
 @router.put("/shopping/extras/{card_id}")

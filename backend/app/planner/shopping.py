@@ -221,6 +221,7 @@ def shopping_list(
     deck_ids: list[int] | None = None,
     include_extras: bool = True,
     include_collector: bool = True,
+    show_collector: bool = True,
 ) -> ShoppingResponse:
     """Master shopping list for a user.
 
@@ -239,6 +240,8 @@ def shopping_list(
     They only count for cards already in the list (#1182): a card with a collector want
     and nothing else gets a row only on the full list (no deck filter, added cards shown).
     Owned alt copies stay held back by all of the user's collector wants either way.
+    ``show_collector`` False (#1184) hides Extra copies from the list and totals but,
+    unlike ``include_collector``, keeps that reserve, so the decks' Still need is unchanged.
     """
     decks = _selected_decks(db, user, deck_ids)
     sum_leaders = bool(getattr(user, "sum_across_leaders", False))
@@ -256,7 +259,7 @@ def shopping_list(
         for card_id, qty in extras.items():
             need[card_id] = max(need.get(card_id, 0), qty)
     collector = _collector_map(db, user.id) if include_collector else {}
-    if deck_ids is None and include_extras:
+    if show_collector and deck_ids is None and include_extras:
         # The full list: a card with only a collector want still needs a parent row (need 0).
         for card_id in collector:
             need.setdefault(card_id, 0)
@@ -324,7 +327,7 @@ def shopping_list(
             remaining += line
 
         collector_lines: list[CollectorLine] = []
-        for pid, want in sorted(collector.get(card_id, {}).items()):
+        for pid, want in sorted(collector.get(card_id, {}).items() if show_collector else []):
             printing = collector_printings.get(pid)
             price = printing.market_price if printing else None
             have = min(alt_owned.get(card_id, {}).get(pid, 0), want)

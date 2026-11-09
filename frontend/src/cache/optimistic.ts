@@ -129,6 +129,11 @@ export function applyAltBuyOptimistic(
   );
 }
 
+/** A cached list fetched with Extra copies off (#1184): it must never gain Extra copy lines. */
+export function isCollectorHiddenList(key: readonly unknown[]): boolean {
+  return Array.isArray(key[1]) && key[3] === false;
+}
+
 /** Sets one collector want in the cached shopping lists, deck pages and Collection (#1031, #1035). */
 export function applyCollectorOptimistic(
   qc: ReturnType<typeof useQueryClient>,
@@ -137,8 +142,9 @@ export function applyCollectorOptimistic(
   qty: number,
 ) {
   const id = cardId.toUpperCase();
-  qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) =>
-    old ? applyCollectorToShopping(old, id, productId, qty) : old,
+  qc.setQueriesData<ShoppingResponse>(
+    { queryKey: qk.shopping.all(), predicate: (q) => !isCollectorHiddenList(q.queryKey) },
+    (old) => (old ? applyCollectorToShopping(old, id, productId, qty) : old),
   );
   qc.setQueriesData<DeckDetail>({ queryKey: qk.deck.all() }, (old) =>
     old
