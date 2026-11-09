@@ -75,9 +75,9 @@ export function dismissInvite(inviteId: number): Promise<unknown> {
 /** Which actions a friend row offers. */
 export function friendActions(friend: Friend): { invite: boolean; spectate: boolean } {
   return {
-    // Someone free: in the lobby, or alone in their own private room, where the
-    // waiting board shows incoming invites too.
-    invite: friend.status === "online" || friend.status === "waiting",
+    // Anyone not playing: in the lobby, alone in their own private room, or
+    // watching a game (the invite shows over their spectator board).
+    invite: friend.status === "online" || friend.status === "waiting" || friend.status === "spectating",
     spectate: friend.room_id !== null && (friend.status === "in_game" || friend.status === "spectating"),
   };
 }
@@ -88,16 +88,19 @@ export function inviteFrom(friend: Friend, invites: FriendInvite[]): FriendInvit
 }
 
 /**
- * The waiting board polls friends only while you sit alone in your own private
- * room (signed in): otherwise an invite sent to you there would never show.
+ * The match page polls friends (signed in) only where an invite can reach you:
+ * a spectator, in a started match or not, or a player sitting alone in their own
+ * private room. A player whose match has started is busy and is not polled.
  */
-export function pollsInvitesWhileWaiting(s: {
+export function pollsInvitesInMatch(s: {
   launch: MatchLaunch | null;
   role: "player" | "spectator";
   view: unknown;
   matchId: string | null;
 }): boolean {
-  return Boolean(s.launch?.invite && s.launch.friends) && s.role === "player" && !s.view && s.matchId !== null;
+  if (!s.launch?.friends || s.matchId === null) return false;
+  if (s.role === "spectator") return true;
+  return Boolean(s.launch.invite) && !s.view;
 }
 
 export function statusLabel(friend: Friend): string {
