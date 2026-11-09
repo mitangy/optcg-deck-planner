@@ -67,12 +67,15 @@ describe("DicePhase (#1190)", () => {
 
   it("tumbles a die that arrives, then shows the roll and opens the winner's choice", () => {
     vi.useFakeTimers();
+    // Tumble faces are random: pin them to 1 so the final face can only be 6 if the roll is drawn.
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
     const { buttons, render, face } = mount(state({ step: "roll", call: "high" }));
     expect(face()).toBe("");
     render(state({ step: "choose", call: "high", roll: 6, winner: 0 }));
     expect(host!.querySelector(".dice-die")!.className).toContain("is-tumbling");
     expect(buttons().every((b) => b.disabled)).toBe(true);
     act(() => void vi.advanceTimersByTime(DICE_TUMBLE_MS + 10));
+    random.mockRestore();
     expect(face()).toBe("6");
     expect(host!.querySelector(".dice-die")!.className).not.toContain("is-tumbling");
     expect(buttons().map(label)).toEqual(["Go first", "Go second"]);
