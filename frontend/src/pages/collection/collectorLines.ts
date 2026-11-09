@@ -41,7 +41,7 @@ export function collectorCostTotal(items: { collector_wants?: CollectorLine[] | 
 }
 
 /**
- * What is left to spend on one card's main row on Master Shopping: the decks' part only (#1185). Extra copies
+ * What is left to spend on one card's main row on Master Shopping: the decks' part only (#1187). Extra copies
  * (collector lines) show their own price on their own rows, so adding them here would count the same dollars twice.
  * Null only when the deck part is unpriced while copies are still needed.
  */

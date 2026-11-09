@@ -91,23 +91,23 @@ function view(items: ShoppingItem[]) {
   return host;
 }
 
-describe("Master Shopping main row price leaves out Extra copies (#1185)", () => {
-  it("Master Shopping main row price leaves out Extra copies shown on their own rows (#1185)", () => {
+describe("Master Shopping main row price leaves out Extra copies (#1187)", () => {
+  it("Master Shopping main row price leaves out Extra copies shown on their own rows (#1187)", () => {
     expect(shoppingLeftCost(item())).toBe(2.5);
     expect(shoppingLeftCost(item({ collector_wants: [line(), line({ product_id: 203, remaining_cost: 12.34 })] }))).toBe(2.5);
     expect(shoppingLeftCost(item({ still_need: 0, remaining_cost: 0 }))).toBe(0);
   });
 
-  it("an unpriced deck part is null while copies are needed, and 0 once the decks are covered (#1185)", () => {
+  it("an unpriced deck part is null while copies are needed, and 0 once the decks are covered (#1187)", () => {
     expect(shoppingLeftCost(item({ remaining_cost: null }))).toBeNull();
     expect(shoppingLeftCost(item({ remaining_cost: null, still_need: 0 }))).toBe(0);
   });
 
-  it("the Remaining column sorts by the deck part only (#1185)", () => {
+  it("the Remaining column sorts by the deck part only (#1187)", () => {
     expect(shoppingColumnValue(item(), "remaining")).toBe(2.5);
   });
 
-  it("the table price shows only the deck part, and a covered card shows $0.00 with the Extra copy hint (#1185)", () => {
+  it("the table price shows only the deck part, and a covered card shows $0.00 with the Extra copy hint (#1187)", () => {
     const host = view([item()]);
     const trigger = host.querySelector("tr.need td button[data-buy-split]")!;
     expect(trigger.querySelector(".buy-split-amount")?.textContent).toContain("$2.50");
