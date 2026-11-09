@@ -8,6 +8,7 @@ import {
   collectorOnTopOf,
   collectorSelectKey,
   shoppingLeftCost,
+  shoppingSortCost,
   visibleCollectorLines,
 } from "../collection/collectorLines";
 import { type CardLayout } from "../../ui/CardLayout";
@@ -80,7 +81,7 @@ export function shoppingColumnValue(item: ShoppingItem, key: string) {
     case "market":
       return shownMarket(item).price;
     case "remaining":
-      return shoppingLeftCost(item);
+      return shoppingSortCost(item);
     case "cost":
       return costSortValue(item.cost);
     case "used":

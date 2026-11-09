@@ -50,8 +50,8 @@ describe("Include decks grouped by leader (#1184)", () => {
     expect(toggleGroupDecks([1, 2, 5], [1, 2])).toEqual([5]);
   });
 
-  it("keeps at least one deck ticked", () => {
-    expect(toggleGroupDecks([1, 2], [1, 2])).toEqual([1, 2]);
+  it("lets the last ticked leader be unticked, leaving no deck selected (#1208)", () => {
+    expect(toggleGroupDecks([1, 2], [1, 2])).toEqual([]);
   });
 });
 

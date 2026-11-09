@@ -3707,6 +3707,9 @@ export interface paths {
          * Get Shopping
          * @description Optional deck_ids filters Need/Still Need to only the selected decks.
          *
+         *     no_decks=true selects no decks at all (#1208): only added cards and Extra copies,
+         *     whatever deck_ids says (a missing deck_ids still means every deck).
+         *
          *     Cards added directly (no deck) are included whatever deck_ids selects;
          *     pass extras=false to leave them out. collector=false hides Extra copies
          *     (alt printings) but keeps owned alt copies held back for them (#1184).
@@ -16448,6 +16451,7 @@ export interface operations {
                 deck_ids?: number[] | null;
                 extras?: boolean;
                 collector?: boolean;
+                no_decks?: boolean;
             };
             header?: never;
             path?: never;

@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { CollectorLine, ShoppingItem } from "../../api";
 import { shoppingLeftCost } from "../collection/collectorLines";
+import { shoppingMenuPrice } from "./deckCost";
 import { ShoppingItemsView, shoppingColumnValue } from "./ShoppingItemsView";
 
 beforeAll(() => {
@@ -103,8 +104,22 @@ describe("Master Shopping main row price leaves out Extra copies (#1187)", () =>
     expect(shoppingLeftCost(item({ remaining_cost: null, still_need: 0 }))).toBe(0);
   });
 
-  it("the Remaining column sorts by the deck part only (#1187)", () => {
-    expect(shoppingColumnValue(item(), "remaining")).toBe(2.5);
+  it("the Remaining column sorts by the deck part plus Extra copies still to buy (#1211)", () => {
+    expect(shoppingColumnValue(item({ collector_wants: [] }), "remaining")).toBe(2.5);
+    expect(shoppingColumnValue(item({ collector_wants: [line()] }), "remaining")).toBe(32.5);
+    expect(shoppingColumnValue(item({ still_need: 0, remaining_cost: 0, collector_wants: [line()] }), "remaining")).toBe(30);
+    expect(shoppingColumnValue(item({ collector_wants: [line({ still_need: 0, have: 1, remaining_cost: 0 })] }), "remaining")).toBe(2.5);
+  });
+
+  it("the Sort menu's Price puts a covered card with a pricey Extra copy first (#1211)", () => {
+    const gold = item({ card_id: "EB05-055", still_need: 0, remaining_cost: 0, market_price: 4, collector_wants: [line({ remaining_cost: 1530 })] });
+    const plain = item({ card_id: "EB01-003", still_need: 2, remaining_cost: 20, market_price: 10, collector_wants: [] });
+    const covered = item({ card_id: "EB01-004", still_need: 0, remaining_cost: 0, market_price: 7, collector_wants: [] });
+    expect(shoppingMenuPrice(gold)).toBe(1530);
+    expect(shoppingMenuPrice(plain)).toBe(20);
+    expect(shoppingMenuPrice(covered)).toBe(7); // nothing left to buy: the shown market price, as before
+    const sorted = [plain, covered, gold].sort((a, b) => (shoppingMenuPrice(b) ?? 0) - (shoppingMenuPrice(a) ?? 0));
+    expect(sorted.map((i) => i.card_id)).toEqual(["EB05-055", "EB01-003", "EB01-004"]);
   });
 
   it("the table price shows only the deck part, and a covered card shows $0.00 with the Extra copy hint (#1187)", () => {

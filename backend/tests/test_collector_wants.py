@@ -206,25 +206,28 @@ def _seed_two_decks(db):
     return user, deck_a, deck_b
 
 
-def test_deck_filter_leaves_out_extra_copies_of_cards_not_in_the_selected_decks_1182(db):
+def test_deck_filter_still_lists_extra_copies_of_cards_not_in_the_selected_decks_1208(db):
     user, deck_a, _deck_b = _seed_two_decks(db)
 
     res = shopping_svc.shopping_list(db, user, deck_ids=[deck_a.id])
 
-    assert [i.card_id for i in res.items] == [NAMI]
-    assert res.collector_copies == 1
-    assert res.remaining_market == 4 * 1.0 + 30.0  # Zoro's 2 x $50 gold is not counted
+    zoro = next(i for i in res.items if i.card_id == ZORO)
+    assert sorted(i.card_id for i in res.items) == [NAMI, ZORO]
+    assert (zoro.need, zoro.still_need) == (0, 0)  # Zoro's deck is not ticked: only his gold is listed
+    assert [(w.product_id, w.still_need) for w in zoro.collector_wants] == [(ZORO_GOLD, 2)]
+    assert res.collector_copies == 3
+    assert res.remaining_market == 4 * 1.0 + 30.0 + 2 * 50.0
 
 
-def test_deck_filter_still_counts_extra_copies_of_cards_in_the_selected_decks_1182(db):
+def test_deck_filter_counts_extra_copies_of_selected_and_unselected_decks_alike_1208(db):
     user, _deck_a, deck_b = _seed_two_decks(db)
 
     res = shopping_svc.shopping_list(db, user, deck_ids=[deck_b.id])
 
-    item = res.items[0]
-    assert [i.card_id for i in res.items] == [ZORO]
-    assert [(w.product_id, w.still_need) for w in item.collector_wants] == [(ZORO_GOLD, 2)]
-    assert res.remaining_market == 3 * 2.0 + 100.0
+    zoro = next(i for i in res.items if i.card_id == ZORO)
+    assert [i.card_id for i in res.items] == [NAMI, ZORO]
+    assert [(w.product_id, w.still_need) for w in zoro.collector_wants] == [(ZORO_GOLD, 2)]
+    assert res.remaining_market == 3 * 2.0 + 100.0 + 30.0  # Nami's deck is off, her gold is not
 
 
 def test_unfiltered_list_counts_every_extra_copy_1182(db):
@@ -236,19 +239,67 @@ def test_unfiltered_list_counts_every_extra_copy_1182(db):
     assert res.remaining_market == 4 * 1.0 + 30.0 + 3 * 2.0 + 100.0
 
 
-def test_hiding_added_cards_leaves_out_collector_only_cards_1182(db):
+def test_hiding_added_cards_still_lists_collector_only_cards_1208(db):
     user, _a, _b = _seed_two_decks(db)
     add_catalog(db, "OP01-001", name="Sanji", product_id=3, market=5.0)
     add_catalog(db, "OP01-001", name="Sanji Gold", product_id=300, market=40.0, special=True)
     shopping_svc.set_shopping_extra(db, user, "OP01-001", 1)
     owned_svc.set_collector_want(db, user, "OP01-001", 300, 1)
 
-    shown = shopping_svc.shopping_list(db, user)
     hidden = shopping_svc.shopping_list(db, user, include_extras=False)
 
-    assert "OP01-001" in [i.card_id for i in shown.items]
-    assert sorted(i.card_id for i in hidden.items) == [NAMI, ZORO]
-    assert hidden.remaining_market == shown.remaining_market - 5.0 - 40.0
+    sanji = next(i for i in hidden.items if i.card_id == "OP01-001")
+    assert sorted(i.card_id for i in hidden.items) == ["OP01-001", NAMI, ZORO]
+    assert (sanji.need, sanji.still_need, sanji.extra_qty) == (0, 0, 0)  # the added Sanji is hidden
+    assert [w.product_id for w in sanji.collector_wants] == [300]
+    assert hidden.remaining_market == 4 * 1.0 + 30.0 + 3 * 2.0 + 100.0 + 40.0  # his gold, not the $5 single
+
+
+def test_extra_copies_are_the_only_switch_for_collector_only_cards_1208(db):
+    user, deck_a, _b = _seed_two_decks(db)
+
+    off = shopping_svc.shopping_list(
+        db, user, deck_ids=[deck_a.id], include_extras=False, show_collector=False
+    )
+
+    assert [i.card_id for i in off.items] == [NAMI]
+    assert off.collector_copies == 0
+    assert off.remaining_market == 4 * 1.0
+
+
+def test_no_decks_lists_only_extra_copies_and_added_cards_1208(db):
+    user, _a, _b = _seed_two_decks(db)
+    add_catalog(db, "OP01-001", name="Sanji", product_id=3, market=5.0)
+    shopping_svc.set_shopping_extra(db, user, "OP01-001", 2)
+
+    res = shopping_svc.shopping_list(db, user, deck_ids=[])
+
+    assert sorted(i.card_id for i in res.items) == ["OP01-001", NAMI, ZORO]
+    assert [i.need for i in res.items if i.card_id in (NAMI, ZORO)] == [0, 0]
+    assert res.remaining_market == 2 * 5.0 + 30.0 + 2 * 50.0
+
+
+def test_shopping_http_no_decks_is_not_the_same_as_every_deck_1208(db):
+    user, deck_a, _b = _seed_two_decks(db)
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: user
+    try:
+        client = TestClient(app)
+        every = client.get("/shopping").json()
+        none = client.get("/shopping", params={"no_decks": "true"}).json()
+        some = client.get("/shopping", params={"deck_ids": [deck_a.id]}).json()
+        none_without_extra_copies = client.get(
+            "/shopping", params={"no_decks": "true", "collector": "false"}
+        ).json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert sorted(i["card_id"] for i in every["items"]) == [NAMI, ZORO]
+    assert [i["need"] for i in every["items"]] == [4, 3]
+    assert [i["need"] for i in none["items"]] == [0, 0]
+    assert none["remaining_market"] == 30.0 + 100.0
+    assert [i["need"] for i in some["items"] if i["card_id"] == NAMI] == [4]
+    assert none_without_extra_copies["items"] == []
 
 
 def test_extra_copies_of_a_card_added_directly_count_when_a_deck_filter_is_on_1182(db):

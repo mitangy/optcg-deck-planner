@@ -264,9 +264,9 @@ export const test = base.extend<{ planner: Planner }>({
           const still = a.collector - have;
           return { product_id: a.product_id, label: a.name, image_url: a.image_url, market_price: a.market_price, want: a.collector, have, still_need: still, remaining_cost: Math.round(still * a.market_price * 100) / 100 };
         });
-    const shopping = (withExtras = true, withCollector = true) => {
+    const shopping = (withExtras = true, withCollector = true, noDecks = false) => {
       // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
-      const deckCards = hasDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
+      const deckCards = hasDecks && !noDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
       const fromDecks = deckCards.map((c) => {
         const v = cardView(c);
         const extra = withExtras ? (extras.get(c.card_id) ?? 0) : 0;
@@ -301,7 +301,8 @@ export const test = base.extend<{ planner: Planner }>({
             };
           })
         : [];
-      // A card with only a collector want still gets a row, so the line has a parent (#1031).
+      // A card with only a collector want still gets a row, so the line has a parent (#1031), whatever
+      // decks or added cards are on (#1208): only the Extra copies checkbox decides.
       const onlyCollector = CARDS.filter((c) => withCollector && !deckCards.includes(c) && !onlyExtras.some((i) => i.card_id === c.card_id) && collectorLines(cardView(c)).length > 0).map((c) => {
         const v = cardView(c);
         return { ...v, need: 0, still_need: 0, remaining_cost: 0, used_in: [] as string[], primary_leader_card_id: null, primary_leader_name: null, leader_count: 1, deck_sort_key: "9999-9999-9999", extra_qty: 0, deck_need: 0 };
@@ -461,7 +462,8 @@ export const test = base.extend<{ planner: Planner }>({
       if (path === "/shopping") {
         const q = new URL(req.url()).searchParams;
         // Extra copies off (#1184) drops their lines and rows, like the backend.
-        return json(shopping(q.get("extras") !== "false", q.get("collector") !== "false"));
+        // no_decks (#1208) is every deck unticked: only added cards and Extra copies remain.
+        return json(shopping(q.get("extras") !== "false", q.get("collector") !== "false", q.get("no_decks") === "true"));
       }
       if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!);

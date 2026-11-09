@@ -354,3 +354,12 @@ def test_alt_pick_for_a_card_in_no_deck_and_no_extra_is_refused_872(db):
 
     with pytest.raises(LookupError):
         owned_svc.set_user_card_printing(db, user, "OP01-002", 2009, 1, deck_ids=[deck.id])
+
+
+def test_share_made_with_no_decks_ticked_lists_only_added_cards_1208(db):
+    user = _share_setup(db)
+
+    info = share_svc.create_or_update_share(db, user, "shopping", deck_ids=[])
+
+    assert info.deck_ids == []
+    assert _public_ids(db, info.token) == ["OP01-002"]
