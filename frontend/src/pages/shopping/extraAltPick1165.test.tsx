@@ -52,7 +52,23 @@ describe("Add cards drawer puts an alt row's copy on that alt (#1165)", () => {
   it("adding from an alt row buys that copy as the alt (#1165)", async () => {
     await press("Add OP01-001 alt art to shopping list", 555);
     expect(h.setShoppingExtra).toHaveBeenCalledWith("OP01-001", 1);
-    expect(h.setCardPrinting).toHaveBeenCalledWith("OP01-001", 555, 1);
+    expect(h.setCardPrinting).toHaveBeenCalledWith("OP01-001", 555, 1, []);
+  });
+
+  it("the alt pick is written for the direct add only, never into the decks' alt picks (#1165)", async () => {
+    await press("Add OP01-001 alt art to shopping list", 555);
+    expect(h.setCardPrinting.mock.calls[0]?.[3]).toEqual([]);
+  });
+
+  it("stepping the added copies down to 0 writes no alt pick, the extra row already cleared it (#1165)", async () => {
+    await press("Buy fewer OP01-001 alt art", 555, {
+      still_need: 1,
+      extra_qty: 1,
+      deck_need: 0,
+      alt_arts: [{ product_id: 555, wanted: 1 }],
+    } as unknown as Partial<ShoppingItem>);
+    expect(h.setShoppingExtra).toHaveBeenCalledWith("OP01-001", 0);
+    expect(h.setCardPrinting).not.toHaveBeenCalled();
   });
 
   it("adding from a base row writes no alt pick (#1165)", async () => {
