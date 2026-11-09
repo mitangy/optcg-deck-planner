@@ -718,3 +718,46 @@ def test_public_group_buy_includes_art_wants_891(db):
 
     line = _line(group_buy.public_group_buy_view(db, created.invite_token))
     assert (wanter.id, 1009, 2) in _art_wants(line)
+
+
+def test_an_empty_deck_pick_means_no_decks_not_all_decks_1208(db, two_players):
+    host, _friend = two_players
+    owned_svc.set_collector_want(db, host, "OP01-001", 1009, 1)
+    created = group_buy.create_group_buy(db, host, "Nothing but extras", deck_ids=None)
+    group_buy.update_contribution(db, host, created.id, deck_ids=[], include_extra_copies=True)
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    member = next(m for m in detail.members if m.user_id == host.id)
+
+    assert member.deck_ids == []
+    assert {line.card_id for line in detail.lines} == {"OP01-001"}  # the Extra copy only, no Zoro
+
+    group_buy.update_contribution(db, host, created.id, deck_ids=None)
+    reset = group_buy.get_group_buy(db, host, created.id)
+    assert next(m for m in reset.members if m.user_id == host.id).deck_ids is None
+    assert {"OP01-001", "OP01-002"} <= {line.card_id for line in reset.lines}
+
+
+def test_import_deck_leaves_an_empty_deck_pick_empty_1208(db, two_players):
+    host, _friend = two_players
+    add_catalog(db, "OP01-097", name="Fresh", product_id=1097, market=2.0)
+    created = group_buy.create_group_buy(db, host, "Extras only", deck_ids=[])
+
+    deck_svc.create_deck(db, host, "Imported", "2 OP01-097")
+    detail = group_buy.get_group_buy(db, host, created.id)
+
+    assert next(m for m in detail.members if m.user_id == host.id).deck_ids == []
+    assert "OP01-097" not in {line.card_id for line in detail.lines}
+
+
+def test_extra_copies_count_in_a_group_buy_whatever_decks_are_ticked_1208(db, two_players):
+    host, _friend = two_players
+    owned_svc.set_collector_want(db, host, "OP01-001", 1009, 2)
+    deck_b = add_deck_with_cards(db, host, "Only Zoro", {"OP01-002": 4})
+    created = group_buy.create_group_buy(db, host, "Filtered", deck_ids=[deck_b.id])
+    group_buy.update_contribution(db, host, created.id, [deck_b.id], include_extra_copies=True)
+
+    detail = group_buy.get_group_buy(db, host, created.id)
+    luffy = next(line for line in detail.lines if line.card_id == "OP01-001")
+
+    assert [m.qty for m in luffy.members if m.user_id == host.id] == [2]  # Luffy's deck is not ticked

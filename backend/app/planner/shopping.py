@@ -237,9 +237,11 @@ def shopping_list(
     claim owned copies of that printing first (only the rest cover deck Need),
     never count toward Need, and add their own still-needed copies and cost to
     the totals. ``include_collector`` False ignores them entirely (public views).
-    They only count for cards already in the list (#1182): a card with a collector want
-    and nothing else gets a row only on the full list (no deck filter, added cards shown).
+    While shown they count for every card that has one (#1208), whatever ``deck_ids``
+    and ``include_extras`` select: a card with a collector want and nothing else gets
+    its own row (need 0), so only the Extra copies checkbox controls them.
     Owned alt copies stay held back by all of the user's collector wants either way.
+    ``deck_ids=[]`` means no decks (#1208): the list is only added cards and Extra copies.
     ``show_collector`` False (#1184) hides Extra copies from the list and totals but,
     unlike ``include_collector``, keeps that reserve, so the decks' Still need is unchanged.
     """
@@ -259,8 +261,9 @@ def shopping_list(
         for card_id, qty in extras.items():
             need[card_id] = max(need.get(card_id, 0), qty)
     collector = _collector_map(db, user.id) if include_collector else {}
-    if show_collector and deck_ids is None and include_extras:
-        # The full list: a card with only a collector want still needs a parent row (need 0).
+    if show_collector:
+        # Extra copies show whatever the deck filter or "Added directly" says (#1208): a card
+        # with only a collector want still needs a parent row (need 0).
         for card_id in collector:
             need.setdefault(card_id, 0)
     leader_group_rank, leader_deck_indexes = _leader_group_order(decks)

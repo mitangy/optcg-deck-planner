@@ -64,8 +64,10 @@ def _parse_deck_ids(raw: str | None) -> list[int] | None:
         data = json.loads(raw)
     except json.JSONDecodeError:
         return None
-    if not isinstance(data, list) or not data:
+    if not isinstance(data, list):
         return None
+    if not data:
+        return []  # an explicit empty pick: no decks (#1208)
     out: list[int] = []
     for item in data:
         try:
@@ -76,7 +78,8 @@ def _parse_deck_ids(raw: str | None) -> list[int] | None:
 
 
 def _dump_deck_ids(deck_ids: list[int] | None) -> str | None:
-    if not deck_ids:
+    """None = all decks; [] is kept as "[]" = no decks, only added cards / Extra copies (#1208)."""
+    if deck_ids is None:
         return None
     return json.dumps(sorted(set(int(x) for x in deck_ids)))
 
@@ -751,7 +754,8 @@ def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> No
     """Include a newly imported deck in every open group-buy contribution.
 
     ``deck_ids_json is None`` already means all decks (new decks count automatically).
-    Explicit contribution lists get ``deck_id`` appended so imports are not left out.
+    Explicit contribution lists get ``deck_id`` appended so imports are not left out,
+    except an explicit empty pick (no decks, #1208), which stays empty.
     Locked / ordered / completed pools are left unchanged.
     """
     members = db.scalars(
@@ -765,6 +769,8 @@ def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> No
     changed = False
     for member in members:
         current = _parse_deck_ids(member.deck_ids_json)
+        if current == []:
+            continue  # an explicit empty pick stays empty (#1208)
         if current is None:
             continue
         if deck_id in current:

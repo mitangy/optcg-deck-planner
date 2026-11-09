@@ -39,13 +39,12 @@ export function groupState(groupIds: number[], selected: number[]): GroupState {
 }
 
 /**
- * Ticks every deck of a leader, or unticks them when all are ticked. At least one deck in total
- * stays selected, so unticking the last ticked group changes nothing.
+ * Ticks every deck of a leader, or unticks them when all are ticked. Unticking the last ticked
+ * group leaves no deck selected (#1208).
  */
 export function toggleGroupDecks(current: number[], groupIds: number[]): number[] {
   if (groupState(groupIds, current) === "all") {
-    const next = current.filter((id) => !groupIds.includes(id));
-    return next.length ? next : current;
+    return current.filter((id) => !groupIds.includes(id));
   }
   return [...current, ...groupIds.filter((id) => !current.includes(id))];
 }

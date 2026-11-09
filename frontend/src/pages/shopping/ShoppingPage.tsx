@@ -96,7 +96,8 @@ export function ShoppingPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: qk.shopping.list(shoppingKey, includeExtras, includeCollector),
     queryFn: () =>
-      api.shopping(shoppingKey.length ? shoppingKey : undefined, {
+      // [] asks for no decks at all (#1208), only added cards and Extra copies.
+      api.shopping(shoppingKey, {
         extras: includeExtras,
         collector: includeCollector,
       }),
