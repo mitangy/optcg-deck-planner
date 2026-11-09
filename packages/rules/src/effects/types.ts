@@ -61,6 +61,8 @@ export type Zone =
   | "hand"
   | "trash"
   | "hand_or_trash"
+  /** Your deck and trash together (BUSTER CALL: "from your deck or trash"). */
+  | "deck_or_trash"
   | "deck"
   | "life"
   | "deck_top"
@@ -273,6 +275,9 @@ export type Cost =
   | { k: "trash_to_deck_bottom"; count: number; filter?: Filter }
   | { k: "life_to_hand"; count: number; position: "top" | "top_or_bottom" }
   | { k: "trash_life"; count: number; position?: "top" | "top_or_bottom" }
+  /** "Add all of your Life cards to your hand" / "trash all of your Life cards": payable with any number of Life, including none. */
+  | { k: "life_to_hand_all" }
+  | { k: "trash_life_all" }
   | { k: "return_active_don"; count: number }
   | { k: "ko_cards"; selector: Selector; count: number }
   /** Give your own active DON!! to one of your cards (as a cost). */
@@ -364,7 +369,7 @@ export type Effect =
   /** `reveal`: "Reveal up to 1 ... from your hand and add it to your Life cards" shows the card to the opponent first. */
   | { do: "hand_to_life"; count: number; position: "top" | "bottom" | "top_or_bottom"; faceUp: boolean; filter?: Filter; min?: number; reveal?: boolean }
   | { do: "deck_to_life"; player: Rel; count: number; faceUp?: boolean }
-  | { do: "life_to_hand"; player: Rel; count: number; position: "top" | "top_or_bottom" | "bottom"; min?: number }
+  | { do: "life_to_hand"; player: Rel; count: Value; position: "top" | "top_or_bottom" | "bottom"; min?: number }
   | { do: "trash_life"; player: Rel; count: Value; position?: "top" | "top_or_bottom" }
   | { do: "life_face"; player: Rel; count: number; faceUp: boolean; min?: number; position?: LifeFacePosition }
   /** `bind`: the trashed card(s), for "the trashed card" (#515). */

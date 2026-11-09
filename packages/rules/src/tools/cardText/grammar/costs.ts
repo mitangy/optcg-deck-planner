@@ -53,6 +53,8 @@ const COST_RULES: Rule<Cost>[] = [
   }),
   rule(/^return (\d+) of your active DON!! cards? to your DON!! deck$/i, (m) => ({ k: "return_active_don", count: num(m[1]!) })),
   rule(/^return (\d+) DON!! cards? from your field to your DON!! deck$/i, (m) => ({ k: "return_don", count: num(m[1]!) })),
+  rule(/^add all of your life cards to your hand$/i, () => ({ k: "life_to_hand_all" })),
+  rule(/^trash all of your life cards$/i, () => ({ k: "trash_life_all" })),
   rule(/^add (\d+) cards? from your life area to your hand$/i, (m) => ({ k: "life_to_hand", count: num(m[1]!), position: "top" })),
   rule(/^place this (?:card|character) and (\d+) cards? from your hand at the bottom of your deck(?: in any order)?$/i, () => null),
   rule(/^DON!! -(\d+)$/i, (m) => ({ k: "return_don", count: num(m[1]!) })),

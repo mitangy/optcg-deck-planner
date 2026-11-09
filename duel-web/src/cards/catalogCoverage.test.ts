@@ -11,7 +11,29 @@ const rows = catalog as Record<string, CatalogRow>;
  * add its id here with the reason, and remove it once the product exists and the row is added
  * (the second assertion fails on a stale entry).
  */
-const NO_TCGPLAYER_PRODUCT_YET: string[] = [];
+const NO_TCGPLAYER_PRODUCT_YET: string[] = [
+  // OP18 cards added from the Japanese card pages (#1189) before TCGPlayer listed them.
+  "OP18-004",
+  "OP18-011",
+  "OP18-020",
+  "OP18-027",
+  "OP18-034",
+  "OP18-046",
+  "OP18-048",
+  "OP18-061",
+  "OP18-064",
+  "OP18-065",
+  "OP18-078",
+  "OP18-083",
+  "OP18-084",
+  "OP18-088",
+  "OP18-093",
+  "OP18-100",
+  "OP18-103",
+  "OP18-112",
+  "OP18-113",
+  "OP18-117",
+];
 
 function hasTcgplayerArt(id: string): boolean {
   const row = rows[id];

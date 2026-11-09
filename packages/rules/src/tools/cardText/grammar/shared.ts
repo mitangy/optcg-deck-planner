@@ -99,7 +99,7 @@ export function fieldTarget(text: string, ctx: Ctx, bind = "_last"): Target | nu
 
 export function zoneTarget(
   text: string,
-  zone: "hand" | "trash" | "deck" | "life" | "hand_or_trash",
+  zone: "hand" | "trash" | "deck" | "life" | "hand_or_trash" | "deck_or_trash",
   ctx: Ctx,
   bind = "_last",
 ): Target | null {
