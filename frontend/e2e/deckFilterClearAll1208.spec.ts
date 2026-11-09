@@ -24,7 +24,10 @@ test("Master Shopping: Clear all unticks the decks only, and the list keeps just
   const selectAll = page.getByRole("button", { name: "Select all" });
   await expect(clear).toBeEnabled();
   const total = await page.locator(".deck-filter-list .deck-chip").count();
-  const y = () => clear.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+  // Position inside the Include decks block: the stats above the filters can change height when the
+  // list reloads for the new pick, which is not a shift caused by the button itself.
+  const y = () =>
+    clear.evaluate((el) => el.getBoundingClientRect().top - el.closest(".deck-filter")!.getBoundingClientRect().top);
   const before = await y();
 
   await clear.click();
