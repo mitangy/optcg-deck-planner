@@ -3688,7 +3688,8 @@ export interface paths {
          * @description Optional deck_ids filters Need/Still Need to only the selected decks.
          *
          *     Cards added directly (no deck) are included whatever deck_ids selects;
-         *     pass extras=false to leave them out.
+         *     pass extras=false to leave them out. collector=false hides Extra copies
+         *     (alt printings) but keeps owned alt copies held back for them (#1184).
          */
         get: operations["get_shopping_shopping_get"];
         put?: never;
@@ -16362,6 +16363,7 @@ export interface operations {
             query?: {
                 deck_ids?: number[] | null;
                 extras?: boolean;
+                collector?: boolean;
             };
             header?: never;
             path?: never;
