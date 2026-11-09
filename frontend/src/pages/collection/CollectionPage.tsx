@@ -17,6 +17,7 @@ import {
   useShowAltArts,
   type SortKey,
 } from "../../ui/cardListControls";
+import { CardWorkspace } from "../../ui/CardWorkspace";
 import {
   CollectionFilterMenu,
   CollectionStatCards,
@@ -160,6 +161,8 @@ export function CollectionPage() {
         </p>
       ) : (
         <>
+          <CardWorkspace
+            rail={
           <div className="list-toolbar collection-toolbar">
             <div className="collection-toolbar-row">
               <CardSearchInput value={search} onChange={setSearch} icon placeholder="Search name, ID, color…" />
@@ -196,6 +199,8 @@ export function CollectionPage() {
               </div>
             </div>
           </div>
+            }
+          >
 
           {altArt.error && <p className="error">{altArt.error}</p>}
           {/* Always present, so narrowing the list never shifts the cards below it. */}
@@ -215,6 +220,7 @@ export function CollectionPage() {
               altRow={altRow}
             />
           )}
+          </CardWorkspace>
         </>
       )}
       {pageDragging && !scanOpen && (

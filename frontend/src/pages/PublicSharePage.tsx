@@ -19,6 +19,7 @@ import {
   usePersistedOpen,
   type SortKey,
 } from "../ui/cardListControls";
+import { CardWorkspace } from "../ui/CardWorkspace";
 import { BuildTag } from "@optcg/ui/appShell";
 import { DeckStatsDock } from "./decks/DeckStats";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -139,6 +140,9 @@ export function PublicSharePage() {
             </div>
             {copyDeck.error && <p className="error">{(copyDeck.error as Error).message}</p>}
 
+            <CardWorkspace
+              wider={data.kind === "deck"}
+              rail={
             <div className="list-toolbar">
               <div className="list-toolbar-row">
                 <CardSearchInput value={search} onChange={setSearch} />
@@ -164,6 +168,8 @@ export function PublicSharePage() {
                 </div>
               </CollapsibleFilters>
             </div>
+              }
+            >
 
             {layout === "grid" ? (
               <div className="card-grid">
@@ -278,6 +284,7 @@ export function PublicSharePage() {
                 </div>
               </>
             )}
+            </CardWorkspace>
           </section>
           {data.kind === "deck" && (
             <DeckStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />

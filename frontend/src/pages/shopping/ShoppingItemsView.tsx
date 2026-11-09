@@ -274,13 +274,15 @@ export function ShoppingItemsView({
                   <div className="grid-card-price" onClick={stopCardSelectBubble}>
                     <ShownMarketPrice item={item} />
                   </div>
-                  <div className="grid-card-owned" onClick={stopCardSelectBubble}>
-                    <span>Owned</span>
-                    {ownedCell(item)}
-                  </div>
-                  <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
-                    <span>Want</span>
-                    {wantCell(item)}
+                  <div className="grid-card-steppers">
+                    <div className="grid-card-owned" onClick={stopCardSelectBubble}>
+                      <span>Owned</span>
+                      {ownedCell(item)}
+                    </div>
+                    <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
+                      <span>Want</span>
+                      {wantCell(item)}
+                    </div>
                   </div>
                   {item.tcgplayer_url && (
                     <a

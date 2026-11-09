@@ -162,6 +162,7 @@ export function CardTable({
               <div className="grid-card-price">
                 <MarketPrice price={c.market_price} productId={c.product_id} />
               </div>
+              <div className="grid-card-steppers">
               {editing && onNeededChange ? (
                 <div className="grid-card-owned">
                   <span>In deck</span>
@@ -176,6 +177,7 @@ export function CardTable({
               <div className="grid-card-owned">
                 <span>Owned</span>
                 {ownedCell(c)}
+              </div>
               </div>
               <OwnedClaimNote card={c} />
               {c.tcgplayer_url && (

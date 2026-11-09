@@ -7,6 +7,7 @@ import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from ".
 import { useMe } from "../../auth/useMe";
 import { contributionSummary, contributionUpdate, type ContributionUpdate } from "./contribution";
 import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
+import { CardWorkspace } from "../../ui/CardWorkspace";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
 import { altIncBlocked, myArtSplit } from "./groupBuyArt";
@@ -884,6 +885,8 @@ export function GroupBuyDetailPage() {
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
       ) : (
         <>
+          <CardWorkspace
+            rail={
           <div className="list-toolbar group-buy-merged-toolbar">
             <div className="list-toolbar-row">
               <CardSearchInput value={search} onChange={setSearch} />
@@ -956,6 +959,8 @@ export function GroupBuyDetailPage() {
               ) : null}
             </CollapsibleFilters>
           </div>
+            }
+          >
 
           {search.trim() ? (
             <p className="search-result-note muted">
@@ -994,6 +999,7 @@ export function GroupBuyDetailPage() {
               renderAltRow={showAltArts ? groupBuyAltRow : undefined}
             />
           )}
+          </CardWorkspace>
         </>
       )}
       {detail.status === "open" ? (

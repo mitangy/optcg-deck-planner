@@ -1358,3 +1358,58 @@ span.deck-filter-group-head {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Desktop grid (#1212): the select checkbox is an overlay in the tile's corner, not its own column,
+   and Owned + Want / In deck sit side by side. Phones (tap-to-select, <=800px) keep the stacked layout. */
+@media (min-width: 801px) {
+  .grid-card-wrap {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grid-card-select {
+    position: absolute;
+    top: 0.55rem;
+    left: 0.55rem;
+    z-index: var(--z-raise-2);
+    width: auto;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    padding: 0.3rem;
+    align-items: center;
+    background: rgba(10, 20, 26, 0.7);
+    border-radius: var(--radius-8);
+    line-height: 0;
+  }
+
+  .grid-card-steppers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.4rem;
+    align-items: start;
+  }
+
+  .grid-card-steppers > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Two steppers fit one tile: slightly smaller buttons, and a column wide enough for both. */
+  .grid-card-steppers .owned-btn {
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 1rem;
+  }
+
+  .grid-card-steppers .owned,
+  .grid-card-steppers .want-qty {
+    width: 2rem;
+  }
+
+  .grid-card-steppers .want-qty {
+    height: 1.7rem;
+  }
+
+  .card-grid:has(.grid-card-steppers) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}

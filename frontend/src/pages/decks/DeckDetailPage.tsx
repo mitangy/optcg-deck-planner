@@ -25,6 +25,7 @@ import {
   useShowAltArts,
   type SortKey,
 } from "../../ui/cardListControls";
+import { CardWorkspace } from "../../ui/CardWorkspace";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { useMediaQuery } from "@optcg/ui/hooks";
@@ -584,6 +585,9 @@ export function DeckDetailPage() {
 
       <DeckProgressSummary cards={progressCards} />
 
+      <CardWorkspace
+        wider
+        rail={
       <div className="list-toolbar deck-toolbar">
         <div className="list-toolbar-row">
           <CardSearchInput value={search} onChange={setSearch} />
@@ -613,6 +617,8 @@ export function DeckDetailPage() {
           </div>
         </CollapsibleFilters>
       </div>
+        }
+      >
 
       {search.trim() && (
         <p className="search-result-note muted">
@@ -696,6 +702,7 @@ export function DeckDetailPage() {
           collectorBusyKey={collectorBusyKey}
         />
       )}
+      </CardWorkspace>
     </section>
     {sideEdit && (
       <aside className="deck-editor-side" aria-label="Add cards">
