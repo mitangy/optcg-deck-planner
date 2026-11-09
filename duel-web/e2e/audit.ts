@@ -65,6 +65,8 @@ const DEFAULT_OVERLAYS = [
   ".attack-overlay",
   // Undo request pops up over the board and waits for an answer.
   ".undo-request",
+  // The opening dice roll card floats over the empty waiting mat (#1190).
+  ".pending-dice",
   // The undo choice menu hangs over the board under its button.
   ".undo-menu",
   // On-board target picks: the slim instruction bar sits over the bottom of

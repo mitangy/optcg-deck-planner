@@ -41,6 +41,9 @@ export function DuelPage() {
     role,
     ranked,
     firstSeatPickedBy,
+    firstSeatDice,
+    dice,
+    sendDice,
     brief,
     vsBot,
     battleLog,
@@ -88,17 +91,19 @@ export function DuelPage() {
       ? { status: queueing ? "Searching for an opponent…" : launch.status, youLeaderId: launch.leaderId }
       : resuming
         ? { status: "Reconnecting to match…" }
-        : {
-            status: role === "spectator" ? "Waiting for the match to start…" : "Waiting for opponent…",
-            youLeaderId: launch?.leaderId,
-            invite:
-              launch?.invite !== false && role === "player"
-                ? { roomId: matchId, autoCopy: seat === 0 }
+        : dice
+          ? { status: "Rolling for turn order…", youLeaderId: launch?.leaderId, invite: null }
+          : {
+              status: role === "spectator" ? "Waiting for the match to start…" : "Waiting for opponent…",
+              youLeaderId: launch?.leaderId,
+              invite:
+                launch?.invite !== false && role === "player"
+                  ? { roomId: matchId, autoCopy: seat === 0 }
+                  : null,
+              friendInvites: friends.state?.invites.length
+                ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
                 : null,
-            friendInvites: friends.state?.invites.length
-              ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
-              : null,
-          };
+            };
   return (
     <div className="duel-root">
       {!connected && canReconnect && view ? (
@@ -134,6 +139,8 @@ export function DuelPage() {
         matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         firstSeatPickedBy={firstSeatPickedBy}
+        firstSeatDice={firstSeatDice}
+        dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
         vsHuman
         canReport={!vsBot}
         chat={{ lines: chat, onSend: sendChat }}
