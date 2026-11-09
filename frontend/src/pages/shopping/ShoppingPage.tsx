@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, CollectorLine, money, needBreakdownLabel, ShoppingItem, User } from "../../api";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
-import { shoppingShownPrice } from "./deckCost";
+import { shoppingMenuPrice } from "./deckCost";
 import { UndoToast } from "../collection/CollectorLine";
 import { collectorSelectKey, itemNeedsCopies } from "../collection/collectorLines";
 import { useMe } from "../../auth/useMe";
@@ -97,7 +97,8 @@ export function ShoppingPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: qk.shopping.list(shoppingKey, includeExtras, includeCollector),
     queryFn: () =>
-      api.shopping(shoppingKey.length ? shoppingKey : undefined, {
+      // [] asks for no decks at all (#1208), only added cards and Extra copies.
+      api.shopping(shoppingKey, {
         extras: includeExtras,
         collector: includeCollector,
       }),
@@ -238,7 +239,7 @@ export function ShoppingPage() {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter(itemNeedsCopies);
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
-    list = [...list].sort((a, b) => compareCardOrder({ ...a, market_price: shoppingShownPrice(a) }, { ...b, market_price: shoppingShownPrice(b) }, effectiveSorts));
+    list = [...list].sort((a, b) => compareCardOrder({ ...a, market_price: shoppingMenuPrice(a) }, { ...b, market_price: shoppingMenuPrice(b) }, effectiveSorts));
     return list;
   }, [data, onlyNeed, effectiveSorts, search]);
 
@@ -710,7 +711,7 @@ export function ShoppingPage() {
               onlyNeed={onlyNeed}
               unavailableKeys={shoppingUnavailableSorts}
               columnSortKey={COLSORT_SHOPPING_KEY}
-              priceHint="Price is what you still pay for each card, highest first, with picked alt arts at their own price."
+              priceHint="Price is what you still pay for each card, highest first, with picked alt arts at their own price and Extra copies still to buy added."
             />
             <label>
               <input

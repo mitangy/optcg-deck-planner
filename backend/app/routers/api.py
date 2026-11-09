@@ -233,15 +233,23 @@ def get_shopping(
     deck_ids: Annotated[list[int] | None, Query()] = None,
     extras: Annotated[bool, Query()] = True,
     collector: Annotated[bool, Query()] = True,
+    no_decks: Annotated[bool, Query()] = False,
 ):
     """Optional deck_ids filters Need/Still Need to only the selected decks.
+
+    no_decks=true selects no decks at all (#1208): only added cards and Extra copies,
+    whatever deck_ids says (a missing deck_ids still means every deck).
 
     Cards added directly (no deck) are included whatever deck_ids selects;
     pass extras=false to leave them out. collector=false hides Extra copies
     (alt printings) but keeps owned alt copies held back for them (#1184).
     """
     return shopping_svc.shopping_list(
-        db, user, deck_ids=deck_ids, include_extras=extras, show_collector=collector
+        db,
+        user,
+        deck_ids=[] if no_decks else deck_ids,
+        include_extras=extras,
+        show_collector=collector,
     )
 
 

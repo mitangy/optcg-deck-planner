@@ -152,6 +152,22 @@ html[data-lp-layer="left"] .lightbox-close {
   font-size: 0.92rem;
 }
 
+.deck-filter-head > span:first-child {
+  min-width: 0;
+}
+
+.deck-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+}
+
+.deck-filter-actions button {
+  white-space: nowrap;
+}
+
 .deck-filter-list {
   display: flex;
   flex-wrap: wrap;

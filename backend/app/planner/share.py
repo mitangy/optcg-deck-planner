@@ -40,6 +40,8 @@ def _share_deck_ids(link: ShareLink) -> list[int] | None:
         return None
     if not isinstance(parsed, list):
         return None
+    if not parsed:
+        return []  # no decks ticked: only added cards (#1208)
     out: list[int] = []
     for x in parsed:
         try:
@@ -108,7 +110,7 @@ def create_or_update_share(
             ShareLink.revoked_at.is_(None),
         )
     )
-    deck_ids_json = json.dumps(sorted(set(deck_ids))) if deck_ids else None
+    deck_ids_json = json.dumps(sorted(set(deck_ids))) if deck_ids is not None else None
     if existing:
         existing.deck_ids_json = deck_ids_json
         if include_extras is not None:

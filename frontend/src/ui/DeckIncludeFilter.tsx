@@ -12,7 +12,8 @@ export type DeckIncludeChip = {
 /**
  * "Include decks" filter shared by Master Shopping and group buys (#1203): decks grouped by leader
  * (ticking a leader ticks all its decks), plus an "Other" group for chips that aren't decks.
- * `onChange` gets the next full list of ticked deck ids; at least one deck always stays ticked.
+ * `onChange` gets the next full list of ticked deck ids; it may be empty (only the Other chips count),
+ * and "Clear all" unticks every deck without touching the Other chips (#1208).
  */
 export function DeckIncludeFilter({
   heading,
@@ -42,9 +43,9 @@ export function DeckIncludeFilter({
   const groups = useMemo(() => groupDecksByLeader(decks), [decks]);
 
   function toggleDeck(id: number) {
-    if (!selectedIds.includes(id)) return onChange([...selectedIds, id]);
-    const next = selectedIds.filter((x) => x !== id);
-    if (next.length) onChange(next);
+    onChange(
+      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id],
+    );
   }
 
   return (
@@ -52,14 +53,24 @@ export function DeckIncludeFilter({
       <div className="deck-filter-head">
         <span>{heading}</span>
         {showSelectAll ? (
-          <button
-            type="button"
-            className="ghost"
-            disabled={disabled || selectAllDisabled}
-            onClick={onSelectAll}
-          >
-            {selectAllLabel}
-          </button>
+          <span className="deck-filter-actions">
+            <button
+              type="button"
+              className="ghost"
+              disabled={disabled || selectAllDisabled}
+              onClick={onSelectAll}
+            >
+              {selectAllLabel}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              disabled={disabled || selectedIds.length === 0}
+              onClick={() => onChange([])}
+            >
+              Clear all
+            </button>
+          </span>
         ) : null}
       </div>
       <div className="deck-filter-groups">

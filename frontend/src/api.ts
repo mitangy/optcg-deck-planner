@@ -749,6 +749,8 @@ export const api = {
   shopping: (deckIds?: number[], opts?: { extras?: boolean; collector?: boolean }) => {
     const params = new URLSearchParams();
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));
+    // undefined = every deck; [] = none (#1208), which a missing deck_ids can't say.
+    if (deckIds && deckIds.length === 0) params.set("no_decks", "true");
     // Directly added cards are on by default; only the off state needs sending.
     if (opts?.extras === false) params.set("extras", "false");
     // Extra copies are on by default; off keeps the owned-copy reserve but lists none (#1184).
