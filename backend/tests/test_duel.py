@@ -1051,7 +1051,8 @@ def test_a_bot_game_with_an_oversized_replay_is_still_counted_without_it_1202(cl
     assert (r.status_code, r.json()["created"]) == (200, True)
     with S() as db:
         row = db.query(DuelSoloGame).one()
-        assert (row.won, row.replay) == (True, None)
+        # Compare sizes, not the text: a failure printing a 1.5 MB string overflows the mutation runner's output.
+        assert (row.won, len(row.replay or "")) == (True, 0)
 
 
 def test_solo_games_do_not_touch_ratings_or_match_history_988(client):
