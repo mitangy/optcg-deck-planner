@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
+  { date: "2026-11-09", app: "duel", pr: 1192, title: "Bots go for the win", text: "Bots now attack your Leader with everything when they have enough attackers to finish you, instead of K.O.ing your rested Characters, for example after Shanks rests your board." },
   { date: "2026-11-09", app: "planner", pr: 1185, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
   { date: "2026-11-09", app: "planner", pr: 1183, title: "See where Master Shopping's Est. cost goes", text: "Est. cost on Master Shopping now shows how much is for your decks, cards you added and Extra copies. Extra copies now only count when their card is in the decks you include, so picking some decks no longer adds the cost of Extra copies for other cards." },
   // 2026-11-08
