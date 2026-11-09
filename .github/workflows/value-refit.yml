@@ -1,7 +1,9 @@
 name: Value model refit
 
 # Weekly (#915): refit the learned win-chance model (packages/rules/src/bot/valueWeights.json) on the last week of
-# Hard vs Hard self-play games (the `selfplay-games` artifact of bot-selfplay.yml) and open a PR when the new model
+# Hard vs Hard self-play games (the `selfplay-games` artifact of bot-selfplay.yml) plus every Play vs Bot game players
+# have played (#1202, downloaded from the API when ANALYST_API_URL and ANALYST_SERVICE_SECRET are set; players who turned
+# off sharing with Log Pose are left out) and open a PR when the new model
 # beats the committed one on held-out games (fitValue.ts --gate) AND plays at least as strong: the candidate then plays
 # the committed weights in a paired Hard-vs-Hard batch (versus.ts) and must win >= 50% of the finished games. The refit makes
 # the same kind of model as the committed file (--like-compare: v2 MLP without the card bag, same hyperparameters).
@@ -27,6 +29,8 @@ jobs:
     timeout-minutes: 150
     env:
       GH_TOKEN: ${{ github.token }}
+      ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
+      ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-deps
@@ -37,6 +41,14 @@ jobs:
             gh run download "$ID" -n selfplay-games -D "games/$ID" || echo "run $ID has no selfplay-games artifact (expired or empty); skipping"
           done
           echo "Downloaded $(find games -name '*.jsonl' | wc -l) game files."
+      - name: Download Play vs Bot games
+        run: |
+          if [ -z "$ANALYST_API_URL" ] || [ -z "$ANALYST_SERVICE_SECRET" ]; then
+            echo "Skipping the Play vs Bot games: set the ANALYST_API_URL variable and the ANALYST_SERVICE_SECRET secret to train on them too." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            npm run human-bot-games -w @optcg/analyst -- --out "$PWD/games/human-bot/games.jsonl"
+            echo "Downloaded $(wc -l < games/human-bot/games.jsonl) Play vs Bot games." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Refit and compare
         id: fit
         run: |

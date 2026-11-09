@@ -2151,6 +2151,13 @@ describe("DuelRoom", () => {
       assert.deepEqual(matches, []);
     });
 
+    it("a practice game's solo report carries no replay (#1202)", async () => {
+      const { solo } = await played([831, 832], 830);
+      assert.equal(solo.length, 1);
+      assert.equal(solo[0]!.mode, "practice");
+      assert.equal(solo[0]!.replay, undefined);
+    });
+
     it("a game between two different accounts is a match, never a solo game (#988)", async () => {
       const { solo, matches } = await played([821, 822]);
       assert.deepEqual(solo, []);

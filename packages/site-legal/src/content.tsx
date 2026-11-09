@@ -209,6 +209,10 @@ const privacy: ReactNode = (
       </li>
       <li>Ranked match results (who played, who won, why) and your Bounty rating.</li>
       <li>
+        Play vs Bot games (both decks and every move) are saved without your name and used to
+        train the bots. You can leave yours out under Settings, Log Pose.
+      </li>
+      <li>
         Friends, game invites, and while you are in a match, which room you are in, so friends can
         join or watch.
       </li>
