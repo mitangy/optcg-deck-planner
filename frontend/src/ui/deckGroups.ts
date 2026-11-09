@@ -1,4 +1,4 @@
-import type { DeckSummary } from "../../api";
+import type { DeckSummary } from "../api";
 
 export type DeckGroup = { key: string; label: string; decks: DeckSummary[] };
 
