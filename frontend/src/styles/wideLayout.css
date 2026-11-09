@@ -1,0 +1,116 @@
+/* Wide monitors (#1212). Below 1600px nothing here applies, so laptops, tablets
+   and phones look exactly as they did. The sidebar breakpoints (1600px, and
+   1900px on deck pages that already have a stats dock) are mirrored in
+   ui/CardWorkspace.tsx, which keeps the Filters drawer open while it is a sidebar. */
+
+:root {
+  --wide-max: 2400px;
+  --rail-w: clamp(18rem, 15vw, 22rem);
+}
+
+.card-workspace-rail,
+.card-workspace-main {
+  min-width: 0;
+}
+
+@media (min-width: 1600px) {
+  .app-main,
+  .app-main:has(.group-buy-detail),
+  .app-main:has(.deck-layout),
+  .topbar-inner {
+    max-width: min(var(--wide-max), 100%);
+  }
+}
+
+/* Sidebar + list columns. */
+@media (min-width: 1600px) {
+  .card-workspace:not(.card-workspace-wider):has(.card-workspace-rail > *) {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    column-gap: 1.5rem;
+    align-items: start;
+  }
+}
+
+@media (min-width: 1900px) {
+  .card-workspace.card-workspace-wider:has(.card-workspace-rail > *) {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    column-gap: 1.5rem;
+    align-items: start;
+  }
+}
+
+/* Rail contents: sticky, search full width, then Scan + toggle; filters stack. */
+@media (min-width: 1600px) {
+  .card-workspace:not(.card-workspace-wider) > .card-workspace-rail {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .card-workspace:not(.card-workspace-wider) .list-toolbar {
+    margin-bottom: 0;
+  }
+  .card-workspace:not(.card-workspace-wider) .list-toolbar-row .card-search {
+    flex: 1 1 100%;
+  }
+  .card-workspace:not(.card-workspace-wider) .filters {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .card-workspace:not(.card-workspace-wider) .deck-filter-list {
+    max-height: 40dvh;
+    overflow: auto;
+  }
+}
+
+@media (min-width: 1900px) {
+  .card-workspace.card-workspace-wider > .card-workspace-rail {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .card-workspace.card-workspace-wider .list-toolbar {
+    margin-bottom: 0;
+  }
+  .card-workspace.card-workspace-wider .list-toolbar-row .card-search {
+    flex: 1 1 100%;
+  }
+  .card-workspace.card-workspace-wider .filters {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .card-workspace.card-workspace-wider .deck-filter-list {
+    max-height: 40dvh;
+    overflow: auto;
+  }
+}
+
+/* Filters are always open in the sidebar: no toggle to press. */
+.filter-drawer-static {
+  cursor: default;
+}
+
+.filter-drawer-static:hover {
+  background: transparent;
+}
+
+/* List view in the wide main column: smaller art and row hover, so a wide row stays easy to follow. */
+@media (min-width: 1600px) {
+  .card-workspace-main .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
+    max-width: 120px;
+  }
+  .card-workspace-main .data-table tbody tr:hover > td {
+    background: color-mix(in srgb, var(--gold-soft) 45%, transparent);
+  }
+}

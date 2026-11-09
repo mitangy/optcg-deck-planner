@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useId, useMemo, useState } from "react";
+import { useRailPinned } from "./CardWorkspace";
 import { clearColumnSort } from "./columnSort";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
@@ -329,6 +330,7 @@ export function CollapsibleDrawer({
   badge,
   badgeLabel,
   headerExtra,
+  pinnedOpen = false,
   children,
 }: {
   label: string;
@@ -340,10 +342,25 @@ export function CollapsibleDrawer({
   badgeLabel?: string;
   /** Always-visible row directly under the toggle (open or closed). */
   headerExtra?: ReactNode;
+  /** Render open with no toggle (the wide-screen sidebar). */
+  pinnedOpen?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = usePersistedOpen(storageKey, defaultOpen);
   const panelId = useId();
+
+  if (pinnedOpen) {
+    // Wide-screen sidebar: the filters are always shown, so there is nothing to collapse.
+    return (
+      <div className="filter-drawer open pinned">
+        <div className="filter-drawer-toggle filter-drawer-static">
+          <span className="filter-drawer-label">{label}</span>
+        </div>
+        {headerExtra}
+        <div className="filter-drawer-body">{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={`filter-drawer${open ? " open" : ""}`}>
@@ -394,8 +411,10 @@ export function CollapsibleFilters({
   badgeLabel?: string;
   children: ReactNode;
 }) {
+  const pinned = useRailPinned();
   return (
     <CollapsibleDrawer
+      pinnedOpen={pinned}
       label="Filters"
       summary={summary}
       storageKey={FILTERS_OPEN_KEY}

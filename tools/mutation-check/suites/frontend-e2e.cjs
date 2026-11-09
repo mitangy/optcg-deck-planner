@@ -19,6 +19,9 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Wide screens put the toolbar in a left sidebar (#1212)
+    { id: "e2e-wide1212-rail-not-beside-cards", args: "wideLayout1212 --project=desktop-1200", file: "frontend/src/styles/wideLayout.css", from: "  .card-workspace:not(.card-workspace-wider):has(.card-workspace-rail > *) {\n    display: grid;", to: "  .card-workspace:not(.card-workspace-wider):has(.card-workspace-rail > *) {\n    display: block;", kills: ["wideLayout1212.spec.ts > /shopping: on a 1920px screen the toolbar is a left sidebar beside the cards (#1212) [desktop-1200]", "wideLayout1212.spec.ts > /collection: on a 1920px screen the toolbar is a left sidebar beside the cards (#1212) [desktop-1200]"] },
+    { id: "e2e-wide1212-app-main-always-wide", args: "wideLayout1212 --project=desktop-1200", file: "frontend/src/styles/base.css", from: "  max-width: 1200px;\n  margin: 0 auto;\n  padding: 1rem 1.25rem 2rem;", to: "  max-width: 2400px;\n  margin: 0 auto;\n  padding: 1rem 1.25rem 2rem;", kills: ["wideLayout1212.spec.ts > /shopping: on a 1400px screen the toolbar stays above the cards and the page keeps its cap (#1212) [desktop-1200]", "wideLayout1212.spec.ts > /collection: on a 1400px screen the toolbar stays above the cards and the page keeps its cap (#1212) [desktop-1200]"] },
     // Lightbox action controls share one width (#1034)
     { id: "e2e-lightbox1034-shopping-control-narrower", args: "lightboxButtonWidths1034 --project=desktop-1200", file: "frontend/src/styles/lightbox.css", from: ".lightbox-action > .shopping-extra-control,\n", to: "", kills: ["lightboxButtonWidths1034.spec.ts > the enlarged card's four action controls are the same width, before and after Add (#1034) [desktop-1200]"] },
     // Lightbox price alert follows the main art (#896)

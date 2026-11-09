@@ -20,6 +20,7 @@ import {
   useShowAltArts,
   type SortKey,
 } from "../../ui/cardListControls";
+import { CardWorkspace } from "../../ui/CardWorkspace";
 import { loadShoppingDeckFilter, saveShoppingDeckFilter } from "./shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { CardScanner } from "../../app/lazyPages";
@@ -683,6 +684,8 @@ export function ShoppingPage() {
         />
       ) : null}
 
+      <CardWorkspace
+        rail={
       <div className="list-toolbar">
         <div className="list-toolbar-row">
           <CardSearchInput value={search} onChange={setSearch} />
@@ -775,6 +778,8 @@ export function ShoppingPage() {
           />
         </CollapsibleFilters>
       </div>
+        }
+      >
 
       {search.trim() && (
         <p className="search-result-note muted">
@@ -828,6 +833,7 @@ export function ShoppingPage() {
           )}
         </div>
       )}
+      </CardWorkspace>
         </>
       )}
       {/* Confirms the page is receiving the drag, so a failure is legible as
