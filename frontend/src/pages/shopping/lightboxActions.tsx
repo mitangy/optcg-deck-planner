@@ -57,9 +57,11 @@ export function ShoppingExtraControl({
       // Adding from an alt-art row also shows that art for the card.
       if (adding && altProductId > 0) await api.setDisplayArt(cardId, altProductId);
       // An alt-art row also buys that copy as the alt (#1165), never more of them than the added copies.
-      if (altProductId > 0) {
+      // deck_ids [] writes only this direct-add pick, never the alt picks inside the decks; target 0 already
+      // cleared it with the extra row, and a write with no extra row would 404.
+      if (altProductId > 0 && target > 0) {
         const altQty = nextAltPick(altPicked, target, adding);
-        if (altQty !== altPicked) await api.setCardPrinting(cardId, altProductId, altQty);
+        if (altQty !== altPicked) await api.setCardPrinting(cardId, altProductId, altQty, []);
       }
       return res;
     },
