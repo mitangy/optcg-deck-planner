@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-09
+  { date: "2026-11-09", app: "planner", pr: 1183, title: "See where Master Shopping's Est. cost goes", text: "Est. cost on Master Shopping now shows how much is for your decks, cards you added and Extra copies. Extra copies now only count when their card is in the decks you include, so picking some decks no longer adds the cost of Extra copies for other cards." },
   // 2026-11-08
   { date: "2026-11-08", app: "duel", pr: 1181, title: "Bots play every top 10 Leader smarter", text: "Normal and Hard bots now also have a plan for Monkey.D.Luffy (OP13-001 and OP17-079), Luffy & Ace, Enel and Boa Hancock, so every top 10 meta Leader is covered. For example Luffy rests only as many DON!! as a block needs, and Enel lets a hit through when its Leader will refill its Life." },
   { date: "2026-11-08", app: "duel", pr: 1181, title: "Play the bot with a meta deck", text: "In Play vs Bot, Bot's deck now offers the top 10 meta Leaders, each with a recent tournament list, or a random one of them (the new default). You can still pick one of your own decks for it to play." },
