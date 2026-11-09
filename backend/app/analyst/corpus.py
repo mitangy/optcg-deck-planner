@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.analyst.models import AnalystCorpusId, AnalystPrefs
-from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchSeat
+from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchSeat, DuelSoloGame
 
 MAX_GAMES = 50
 
@@ -150,4 +150,34 @@ def game_replay(db: Session, game_id: str) -> dict | None:
         "sides": {"A": 0, "B": 1},
         "rating_bands": {"A": rating_band(match.seat0_rating_before), "B": rating_band(match.seat1_rating_before)},
         "replay": json.loads(log.replay),
+    }
+
+
+HUMAN_BOT_MAX_LIMIT = 200
+
+
+def human_bot_games(db: Session, after_id: int, limit: int) -> dict:
+    """Play vs Bot games with a saved replay, oldest first after ``after_id`` (#1202), for training the bots.
+
+    Only bot games ever store a replay, so "has a replay" is also "is a bot game".
+
+    Games of players who turned sharing off are left out (same switch as the corpus above). No user id,
+    game id or name is returned: a row is its own id, the bot's level and the replay.
+    """
+    opted_out = select(AnalystPrefs.user_id).where(AnalystPrefs.share_matches.is_(False))
+    rows = db.scalars(
+        select(DuelSoloGame)
+        .where(
+            DuelSoloGame.id > after_id,
+            DuelSoloGame.replay.is_not(None),
+            DuelSoloGame.user_id.not_in(opted_out),
+        )
+        .order_by(DuelSoloGame.id)
+        .limit(min(limit, HUMAN_BOT_MAX_LIMIT))
+    ).all()
+    return {
+        "games": [
+            {"id": r.id, "created_at": r.created_at, "bot_level": r.bot_level, "replay": json.loads(r.replay)} for r in rows
+        ],
+        "next_after_id": rows[-1].id if rows else after_id,
     }

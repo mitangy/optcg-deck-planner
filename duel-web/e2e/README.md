@@ -25,6 +25,7 @@ npx playwright show-report               # traces and screenshots of failures
 | `replay.spec.ts` | History's Watch button opens a finished game on the board (#476): step, next turn and play, What I saw vs Reveal all, flip, the unavailable and still-being-played pages, and the controls fitting an 812x375 phone. The API is faked; the recording is a golden game re-run in the browser. | ~40s |
 | `tabs719.spec.ts` | The Admin sections and the lobby's Create / Join row on the shared Headless UI Tabs (#719): arrows, Home / End, the panel that follows, no focus ring on a mouse click. The admin is a fake account behind a faked API. | ~10s |
 | `sim-import.spec.ts` | Settings > Log Pose > Import OPTCGSim games (#1030): an export file and a pasted combat log (which player you were, and the result) import through a faked API, the result says what was skipped and why, Clear removes them all, and the controls keep their place with no sideways scroll on desktop, portrait and landscape phone. | ~15s |
+| `dice-roll.spec.ts` | The opening dice roll (#1190): a Play vs Bot room that opted in with `diceRoll` is clicked through call or roll, the winner's choice and the mulligan banner naming the roll, and the dice card keeps its size and button slot through every step at 1280x720, 1440x900, 375x812 and 812x375. | ~30s |
 | `demo-audit.spec.ts` | The UI audit on every `/demo` fixture screen (prompts, full board, statuses, match over) at each size. | ~1 min |
 
 Each runs at `desktop-1280` and `phone-375` (the rules scenario on desktop only).

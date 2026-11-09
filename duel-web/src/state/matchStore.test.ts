@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ChatLine, PlayerView, RematchState } from "../net/protocol";
+import type { ChatLine, DiceStateMessage, PlayerView, RematchState } from "../net/protocol";
 import {
   CHAT_KEEP,
   classifyServerError,
@@ -159,6 +159,37 @@ describe("welcome", () => {
     expect(
       matchReducer(createInitialMatchState(), { type: "welcome", info: welcomeOf(0, { brief, role: "spectator" }) }).brief,
     ).toBeNull();
+  });
+});
+
+describe("opening dice roll (#1190)", () => {
+  const dice = {
+    protocolVersion: 5,
+    roller: 1,
+    caller: 0,
+    step: "roll",
+    call: "high",
+    roll: null,
+    winner: null,
+    deadline: 1,
+    seat: 0,
+    role: "player",
+  } as unknown as DiceStateMessage;
+
+  it("keeps the roll in progress until the game's welcome arrives, which keeps its result for the banner", () => {
+    const rolling = matchReducer(createInitialMatchState(), { type: "diceState", state: dice });
+    expect(rolling.dice).toBe(dice);
+    const result = { roller: 1, caller: 0, call: "high", roll: 5, winner: 0 } as const;
+    const started = matchReducer(rolling, { type: "welcome", info: welcomeOf(0, { dice: result }) });
+    expect(started.dice).toBeNull();
+    expect(started.firstSeatDice).toEqual(result);
+    // A rematch's welcome carries none, and clears the last game's.
+    expect(matchReducer(started, { type: "welcome", info: welcomeOf(0, { dice: null }) }).firstSeatDice).toBeNull();
+  });
+
+  it("a cancelled roll (a seat left) sends the board back to waiting", () => {
+    const rolling = matchReducer(createInitialMatchState(), { type: "diceState", state: dice });
+    expect(matchReducer(rolling, { type: "diceState", state: { ...dice, step: "cancelled" } }).dice).toBeNull();
   });
 });
 

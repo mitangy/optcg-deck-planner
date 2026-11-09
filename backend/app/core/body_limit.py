@@ -16,6 +16,8 @@ DEFAULT_MAX_BODY_BYTES = 1024 * 1024
 ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/duel/cosmetics/", 5 * 1024 * 1024),
     ("/duel/matches", 8 * 1024 * 1024),
+    # A bot game's report carries its replay (#1202).
+    ("/duel/solo-games", 8 * 1024 * 1024),
     # A report may carry the image the reporter saw as a data URL.
     ("/duel/reports", 1536 * 1024),
     # Up to 40 base64 crops of at most 64 KB each (#852).

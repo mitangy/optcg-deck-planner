@@ -31,6 +31,8 @@ export type RoomConfig = EnvConfig & {
   /** Seat that goes first in the room's first game (a coin flip on deployed servers, #549). */
   firstSeat: Seat;
   autoSkipMulligan: boolean;
+  /** The first game's turn order is decided by a dice roll (#1190): every deployed server, else only when the create asked. Practice rooms never roll. */
+  diceRoll: boolean;
   /** Elo and rated rules: only true when the in-process matchmaker attested the create. */
   ranked: boolean;
   /** The create request's own `ranked` flag, before the attestation check. */
@@ -66,12 +68,13 @@ export const roomEnvSource: { override: Partial<EnvConfig> | null } = { override
 export function buildRoomConfig(options: unknown, parsed: ReturnType<typeof parseCreateOptions>): RoomConfig {
   const attestation =
     options && typeof options === "object" ? (options as { rankedAttestation?: unknown }).rankedAttestation : undefined;
+  const env = { ...readEnvConfig(), ...roomEnvSource.override };
   return {
-    ...readEnvConfig(),
-    ...roomEnvSource.override,
+    ...env,
     seed: parsed.seed,
     firstSeat: parsed.firstSeat,
     autoSkipMulligan: parsed.autoSkipMulligan,
+    diceRoll: env.requireGameToken || parsed.diceRoll,
     ranked: parsed.ranked && isRankedMatchCreateAttested(attestation),
     requestedRanked: parsed.ranked,
     timer: parsed.timer,

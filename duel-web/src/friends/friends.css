@@ -161,3 +161,30 @@
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+/* Invite over a spectated match: fixed, below the HUD, so the board never shifts. */
+.spectator-invites {
+  position: fixed;
+  top: calc(var(--safe-t, 0px) + 3.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-topbar);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--safe-t, 0px) - 4rem);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.spectator-invites .notice {
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  background:
+    linear-gradient(90deg, rgb(var(--chrome-rgb) / 0.12), transparent 70%),
+    rgb(var(--deep-rgb) / 0.97);
+}

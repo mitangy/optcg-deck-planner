@@ -39,6 +39,8 @@ export type SoloGamePayload = {
   won?: boolean;
   turns?: number;
   reason: string;
+  /** Bot games only: the full replay (seed, decks, intents, result), kept for investigating bot games and training the bots (#1202). */
+  replay?: NonNullable<MatchResultPayload["replay"]>;
 };
 
 export interface OutboxDatabase {
@@ -291,13 +293,13 @@ export async function postMatchProgress(matchId: string, payload: MatchProgressP
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-/** Report a finished bot or practice game. One attempt; the room retries a few times and never waits on it. */
+/** Report a finished bot or practice game. One attempt; the room retries a few times and never waits on it. A bot game carries its replay (tens of KB), so the timeout matches the progress post's. */
 export async function postSoloGame(payload: SoloGamePayload): Promise<void> {
   const res = await fetch(`${getApiBaseUrl()}/duel/solo-games`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Duel-Ingest-Token": getDuelIngestSecret() },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   await res.body?.cancel();
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
