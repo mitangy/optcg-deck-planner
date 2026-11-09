@@ -26,6 +26,7 @@ import { ArtWantChips } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
+import { DeckIncludeFilter } from "../../ui/DeckIncludeFilter";
 import { qk } from "../../cache/queryKeys";
 
 export function GroupBuyDetailPage() {
@@ -515,19 +516,6 @@ export function GroupBuyDetailPage() {
     updateContribution({ deck_ids: next && next.length === decks.length ? null : next });
   }
 
-  function toggleContributionDeck(deckId: number) {
-    const current = activeDeckIds ?? decks.map((d) => d.id);
-    let next: number[];
-    if (current.includes(deckId)) {
-      next = current.filter((x) => x !== deckId);
-      // Keep at least one deck — empty dumps to "all" on the backend.
-      if (!next.length) next = current;
-    } else {
-      next = [...current, deckId];
-    }
-    setContributionDecks(next);
-  }
-
   function orderBodyFromForm(): GroupBuyOrderUpdate {
     const parsedShip = Number(shippingCost);
     const parsedTax = Number(taxCost);
@@ -934,61 +922,37 @@ export function GroupBuyDetailPage() {
                 </p>
               ) : null}
               {detail.status === "open" && myContribution ? (
-                <div className="deck-filter">
-                  <div className="deck-filter-head">
-                    <span>Include</span>
-                    {decks.length > 0 ? (
-                      <button
-                        type="button"
-                        className="ghost"
-                        disabled={contribution.isPending || allSelected}
-                        onClick={() => setContributionDecks(null)}
-                      >
-                        Select all decks
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="deck-filter-list">
-                    {decks.map((d) => {
-                      const checked = allSelected || (activeDeckIds?.includes(d.id) ?? false);
-                      return (
-                        <label key={d.id} className="deck-chip">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={contribution.isPending}
-                            onChange={() => toggleContributionDeck(d.id)}
-                          />
-                          {d.name}
-                        </label>
-                      );
-                    })}
-                    <label className="deck-chip">
-                      <input
-                        type="checkbox"
-                        checked={includeSingles}
-                        disabled={contribution.isPending}
-                        onChange={(e) => updateContribution({ include_singles: e.target.checked })}
-                      />
-                      Cards not in a deck
-                    </label>
-                    <label className="deck-chip">
-                      <input
-                        type="checkbox"
-                        checked={includeExtraCopies}
-                        disabled={contribution.isPending}
-                        onChange={(e) =>
-                          updateContribution({ include_extra_copies: e.target.checked })
-                        }
-                      />
-                      Extra copies
-                    </label>
-                  </div>
-                  <p className="muted group-buy-deck-filter-note">
-                    Unchecked decks and cards are left out of your contribution. Extra copies adds
-                    the alt arts you marked as Extra copy.
-                  </p>
-                </div>
+                <DeckIncludeFilter
+                  heading="Include"
+                  decks={decks}
+                  selectedIds={allSelected ? decks.map((d) => d.id) : (activeDeckIds ?? [])}
+                  onChange={setContributionDecks}
+                  onSelectAll={() => setContributionDecks(null)}
+                  selectAllLabel="Select all decks"
+                  selectAllDisabled={allSelected}
+                  showSelectAll={decks.length > 0}
+                  disabled={contribution.isPending}
+                  otherChips={[
+                    {
+                      key: "singles",
+                      label: "Cards not in a deck",
+                      checked: includeSingles,
+                      onChange: (v) => updateContribution({ include_singles: v }),
+                    },
+                    {
+                      key: "extra-copies",
+                      label: "Extra copies",
+                      checked: includeExtraCopies,
+                      onChange: (v) => updateContribution({ include_extra_copies: v }),
+                    },
+                  ]}
+                  note={
+                    <p className="muted group-buy-deck-filter-note">
+                      Unchecked decks and cards are left out of your contribution. Extra copies adds
+                      the alt arts you marked as Extra copy.
+                    </p>
+                  }
+                />
               ) : null}
             </CollapsibleFilters>
           </div>

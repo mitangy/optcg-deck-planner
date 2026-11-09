@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
+  { date: "2026-11-09", app: "planner", pr: 1205, title: "Group buy decks are grouped by Leader", text: "In a group buy's Filters, Include now groups your decks by Leader like Master Shopping does, and ticking a Leader ticks or unticks all its decks. Cards not in a deck and Extra copies sit under Other. Public share links also get Filters with a Sort menu now." },
   { date: "2026-11-09", app: "duel", pr: 1206, title: "A dice roll decides who goes first", text: "A dice roll now decides who goes first in your first game against someone: one player rolls, the other calls High or Low, and the winner picks first or second. Rematches still let the loser choose." },
   { date: "2026-11-09", app: "duel", pr: 1201, title: "Invite a friend who is watching a game", text: "You can now invite a friend who is watching a match. They see your invite over the board, and Join leaves the game they are watching and takes them to your room." },
   { date: "2026-11-09", app: "duel", pr: 1200, title: "Play vs Bot games help the bots learn", text: "Your Play vs Bot games are now saved, without your name, so the bots can learn from them. You can leave yours out under Settings, Log Pose. See the Privacy policy." },
