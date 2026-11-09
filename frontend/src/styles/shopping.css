@@ -1371,7 +1371,7 @@ span.deck-filter-group-head {
     position: absolute;
     top: 0.55rem;
     left: 0.55rem;
-    z-index: 2;
+    z-index: var(--z-raise-2);
     width: auto;
     min-width: 1.75rem;
     min-height: 1.75rem;
