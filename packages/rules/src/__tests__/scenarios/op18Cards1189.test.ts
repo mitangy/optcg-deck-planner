@@ -168,7 +168,7 @@ describe("OP18-061 Iceburg", () => {
   });
 });
 
-describe("OP18-064 Saint Kiringam", () => {
+describe("OP18-064 Saint Killingham", () => {
   // [Your Turn] [On Play] DON!! −1: Up to 1 of your opponent's Characters with 7000 base power or less and up to 1 of your
   // opponent's Characters with 5000 base power or less cannot attack until the end of your opponent's next End Phase.
   // The opponent's Leader OP18-001 gives {Animal}{Alabasta} Characters +1000, so KAROO_7000 has 8000 power but 7000 base power.

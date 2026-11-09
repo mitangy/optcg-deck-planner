@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-09
-  { date: "2026-11-09", app: "duel", pr: 1191, title: "18 new OP18 cards", text: "18 OP18 cards are now in the duel app, including Buster Call, Stop Fighting!!!, Mini-Merry, Zoro & Sogeking, both Saint Kiringams and both Saint Gunkos, Mr.0 & Ms. All Sunday and Mr.1 & Miss Doublefinger. Their text is translated from the Japanese cards until the English text is out." },
+  { date: "2026-11-09", app: "duel", pr: 1191, title: "20 new OP18 cards", text: "20 OP18 cards are now in the duel app, including Buster Call, Stop Fighting!!!, Mini-Merry, Zoro & Sogeking, Sleeptids, Jabra, both Saint Killinghams and both Saint Gunkos, Mr.0 & Ms. All Sunday and Mr.1 & Miss Doublefinger." },
   { date: "2026-11-09", app: "planner", pr: 1185, title: "Hide Extra copies on Master Shopping", text: "Master Shopping's Include decks now has an Extra copies checkbox, so you can hide your Extra copies and their cost. Owned alt arts you keep for Extra copies still don't count toward your decks. Decks are also grouped by Leader, and ticking a Leader ticks or unticks all its decks." },
   { date: "2026-11-09", app: "planner", pr: 1183, title: "See where Master Shopping's Est. cost goes", text: "Est. cost on Master Shopping now shows how much is for your decks, cards you added and Extra copies. Extra copies now only count when their card is in the decks you include, so picking some decks no longer adds the cost of Extra copies for other cards." },
   // 2026-11-08

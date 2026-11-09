@@ -603,10 +603,10 @@ const EFFECT_RULES: EffectRule[] = [
     const p = parseCardPhrase("all " + m[2]!, ctx);
     return p ? { do: "give_don", target: { ref: "all", selector: p.selector }, count: num(m[1]!), donState: "rested" } : null;
   }),
-  // "to a total of up to 4 of your Leader and Characters": one pick among the Leader and Characters together.
-  rule(/^give up to (\d+) rested DON!! cards? each to (?:a total of )?(up to \d+ of your) leader and (characters)$/i, (m, ctx) => {
-    const p = parseCardPhrase(`${m[2]} leader or ${m[3]}`, ctx);
-    return p ? { do: "give_don", target: toTarget(p), count: num(m[1]!), donState: "rested" } : null;
+  // "Give up to a total of 4 of your Leader or Characters 1 rested DON!! card each": one pick among the Leader and Characters together.
+  rule(/^give up to a total of (\d+) of your leader or (characters) (\d+) rested DON!! cards? each$/i, (m, ctx) => {
+    const p = parseCardPhrase(`up to ${m[1]} of your leader or ${m[2]}`, ctx);
+    return p ? { do: "give_don", target: toTarget(p), count: num(m[3]!), donState: "rested" } : null;
   }),
   rule(/^give (up to \d+ of .+?) up to (\d+) rested DON!! cards? each$/i, (m, ctx) => {
     const p = parseCardPhrase(m[1]!, ctx);
@@ -1092,6 +1092,12 @@ const EFFECT_RULES: EffectRule[] = [
     const target = fieldTarget(m[1]!, ctx);
     const d = parseDuration(m[3]);
     return target && d ? { do: "cost", target, amount: signed(m[2]!), duration: d } : null;
+  }),
+  // "The base power of your Leader with a type including "X" becomes N during this turn": only applies while the Leader's type matches.
+  rule(new RegExp(`^the base power of your leader with a type including (§Q\\d+§) becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => {
+    const q = quote(m[1]!, ctx);
+    const d = parseDuration(m[3]);
+    return q && d ? when({ c: "leader_trait_includes", text: q }, { do: "base_power", target: leaderOf("you"), value: num(m[2]!), duration: d }) : null;
   }),
   rule(new RegExp(`^(.+?)'s? base power becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => {
     const target = fieldTarget(m[1]!, ctx);

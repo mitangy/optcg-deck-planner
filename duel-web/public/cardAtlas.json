@@ -42654,7 +42654,7 @@
     "power": 4000,
     "counter": 1000,
     "imageUrl": "/cards/OP18-004.png",
-    "effectText": "If this Character has 5000 power or more, this Character gains [Rush]. If this Character has 6000 power or more, this Character gains [Banish]. If this Character has 7000 power or more, this Character gains [Unblockable].",
+    "effectText": "Apply each of the following effects based on this Character's power: • If it has 5000 power or more, this Character gains [Rush]. • If it has 6000 power or more, this Character gains [Banish]. • If it has 7000 power or more, this Character gains [Unblockable].",
     "traits": [
       "Animal",
       "Alabasta"
@@ -43089,7 +43089,7 @@
     "cost": 9,
     "power": 10000,
     "imageUrl": "/cards/OP18-046.png",
-    "effectText": "[On Play] Draw 2 cards and give your Leader and all of your Characters up to 2 rested DON!! cards each. [On Your Opponent's Attack] You may trash 1 card from your hand: If your Leader's type includes \"Baroque Works\", your Leader's base power becomes 7000 during this turn.",
+    "effectText": "[On Play] Draw 2 cards and give your Leader and all of your Characters up to 2 rested DON!! cards each. [On Your Opponent's Attack] You may trash 1 card from your hand: The base power of your Leader with a type including \"Baroque Works\" becomes 7000 during this turn.",
     "traits": [
       "The Seven Warlords of the Sea",
       "Baroque Works"
@@ -43271,7 +43271,7 @@
     "power": 0,
     "counter": 1000,
     "imageUrl": "/cards/OP18-061.png",
-    "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal a total of up to 2 Stage cards or {Water Seven} type cards and add them to your hand. Then, place the rest at the bottom of your deck in any order.",
+    "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal up to a total of 2 Stage cards or {Water Seven} type cards and add them to your hand. Then, place the rest at the bottom of your deck in any order.",
     "traits": [
       "Water Seven",
       "Galley-La Company"
@@ -43300,7 +43300,7 @@
   },
   "OP18-064": {
     "id": "OP18-064",
-    "name": "Saint Kiringam",
+    "name": "Saint Killingham",
     "type": "character",
     "colors": [
       "purple"
@@ -43328,12 +43328,12 @@
     "power": 11000,
     "blocker": true,
     "imageUrl": "/cards/OP18-065.png",
-    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] DON!! −1: Play up to 1 {Celestial Dragons} type Character card with 6000 power or less from your trash.",
+    "effectText": "[Blocker] [On Play] DON!! −1: Play up to 1 {Celestial Dragons} type Character card with 6000 power or less from your trash.",
     "traits": [
       "Celestial Dragons",
       "Holy Knights of God"
     ],
-    "attribute": "Special",
+    "attribute": "?",
     "abilitySupport": "ok"
   },
   "OP18-066": {
@@ -43448,7 +43448,7 @@
     ],
     "cost": 5,
     "imageUrl": "/cards/OP18-078.png",
-    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate: Main] You may rest this Stage: Give up to 1 rested DON!! card each to a total of up to 4 of your Leader and Characters.",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate: Main] You may rest this Stage: Give up to a total of 4 of your Leader or Characters 1 rested DON!! Card each.",
     "traits": [
       "Straw Hat Crew"
     ],
@@ -43475,7 +43475,7 @@
   },
   "OP18-083": {
     "id": "OP18-083",
-    "name": "Saint Kiringam",
+    "name": "Saint Killingham",
     "type": "character",
     "colors": [
       "black"
@@ -43484,7 +43484,7 @@
     "power": 6000,
     "counter": 1000,
     "imageUrl": "/cards/OP18-083.png",
-    "effectText": "[Your Turn] [On Play] Play up to 1 [MMA] from your trash. [On K.O.] You may trash 2 cards from your hand: Play this Character card from your trash.",
+    "effectText": "[Your Turn] [On Play] Play up to 1 [Sleeptids] from your trash. [On K.O.] You may trash 2 cards from your hand: Play this Character card from your trash.",
     "traits": [
       "Celestial Dragons",
       "Holy Knights of God"
@@ -43550,7 +43550,7 @@
   },
   "OP18-088": {
     "id": "OP18-088",
-    "name": "Saint Somers",
+    "name": "Saint Sommers",
     "type": "character",
     "colors": [
       "black"
@@ -43626,6 +43626,28 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-093": {
+    "id": "OP18-093",
+    "name": "Sleeptids",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 9,
+    "power": 3000,
+    "counter": 2000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-093.png",
+    "effectText": "Under the rules of this game, you may have any number of this card in your deck. [Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
+    "traits": [
+      "Elbaph"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok",
+    "deckRules": [
+      "any_number"
+    ]
+  },
   "OP18-094": {
     "id": "OP18-094",
     "name": "Hee Hee Hee!! I Smell Adventure!!",
@@ -43671,7 +43693,7 @@
     "power": 7000,
     "counter": 1000,
     "imageUrl": "/cards/OP18-100.png",
-    "effectText": "[On Play] Draw 1 card and add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and rest up to 1 of your opponent's Leader or Characters.",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and rest up to 1 of your opponent's Leader or Characters.",
     "traits": [
       "CP9"
     ],
@@ -43690,6 +43712,24 @@
     "power": 6000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723531_400w.jpg",
     "effectText": "[On K.O.] Add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", K.O. or rest up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-103": {
+    "id": "OP18-103",
+    "name": "Jabra",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 6,
+    "power": 8000,
+    "imageUrl": "/cards/OP18-103.png",
+    "effectText": "[On K.O.] Add up to 1 card from the top of your deck to the top of your Life cards. Then, trash up to 1 card from the top of your opponent's Life cards.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 8 or less at the bottom of the owner's deck.",
     "traits": [
       "CP9"
     ],
@@ -43803,7 +43843,7 @@
     "cost": 8,
     "power": 10000,
     "imageUrl": "/cards/OP18-113.png",
-    "effectText": "[On Play] / [On K.O.] Trash up to 1 card from the top of your opponent's Life cards.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 8 or less at the bottom of the owner's deck.",
+    "effectText": "[On Play]/[On K.O.] Trash up to 1 card from the top of your opponent's Life cards.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 8 or less at the bottom of the owner's deck.",
     "traits": [
       "CP9"
     ],
