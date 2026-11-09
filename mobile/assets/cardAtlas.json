@@ -42989,6 +42989,24 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-046": {
+    "id": "OP18-046",
+    "name": "Mr.0 & Ms. All Sunday",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 9,
+    "power": 10000,
+    "imageUrl": "/cards/OP18-046.png",
+    "effectText": "[On Play] Draw 2 cards and give your Leader and all of your Characters up to 2 rested DON!! cards each. [On Your Opponent's Attack] You may trash 1 card from your hand: If your Leader's type includes \"Baroque Works\", your Leader's base power becomes 7000 during this turn.",
+    "traits": [
+      "The Seven Warlords of the Sea",
+      "Baroque Works"
+    ],
+    "attribute": "Special/Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-047": {
     "id": "OP18-047",
     "name": "Mr.1 (Daz.Bonez)",
@@ -43004,6 +43022,24 @@
     "traits": [
       "Former Baroque Works",
       "Cross Guild"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-048": {
+    "id": "OP18-048",
+    "name": "Mr.1 & Miss Doublefinger",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "power": 6000,
+    "rush": true,
+    "imageUrl": "/cards/OP18-048.png",
+    "effectText": "[Rush] (This card can attack on the turn in which it is played.) [On Play] Play up to 1 Character card with a type including \"Baroque Works\" and a cost of 5 or less from your hand.",
+    "traits": [
+      "Baroque Works"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
