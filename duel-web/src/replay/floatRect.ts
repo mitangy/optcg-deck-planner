@@ -1,3 +1,4 @@
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 /**
  * Where the desktop Game review panel floats (#986): a box the viewer drags by its header and resizes from its
  * edges, remembered between sessions. Pure helpers, so clamping and remembering are tested without a browser.
@@ -121,7 +122,7 @@ function parseRect(raw: string | null): Rect | null {
 
 export function readRect(): Rect | null {
   try {
-    return parseRect(globalThis.localStorage?.getItem(REVIEW_RECT_KEY) ?? null);
+    return parseRect(readStored(REVIEW_RECT_KEY));
   } catch {
     return null;
   }
@@ -129,10 +130,7 @@ export function readRect(): Rect | null {
 
 /** Remembers the box; null forgets it (back to the docked default). */
 export function writeRect(rect: Rect | null): void {
-  try {
-    if (rect) globalThis.localStorage?.setItem(REVIEW_RECT_KEY, JSON.stringify(rect));
-    else globalThis.localStorage?.removeItem(REVIEW_RECT_KEY);
-  } catch {
-    /* storage blocked: the box just isn't remembered */
-  }
+  // Storage blocked: the box just isn't remembered.
+  if (rect) writeStored(REVIEW_RECT_KEY, JSON.stringify(rect));
+  else removeStored(REVIEW_RECT_KEY);
 }

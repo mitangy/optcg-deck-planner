@@ -6,4 +6,5 @@ export * from "./firstTouch";
 export * from "./appShell";
 export * from "./classNames";
 export * from "./hooks";
+export * from "./storage";
 export * from "./username";

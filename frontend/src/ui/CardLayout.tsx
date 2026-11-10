@@ -1,5 +1,5 @@
 import { CARD_LAYOUT_KEY } from "../storage/keys";
-import { choiceCodec, usePersistedState } from "../storage/persisted";
+import { choiceCodec, usePersistedState } from "@optcg/ui/storage";
 
 export type CardLayout = "list" | "grid";
 

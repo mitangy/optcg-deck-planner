@@ -9,12 +9,24 @@ export function readStored(key: string): string | null {
   }
 }
 
-/** localStorage write that never throws: the value still applies for this visit. */
-export function writeStored(key: string, value: string): void {
+/** localStorage write that never throws: the value still applies for this visit. False when the browser refused (quota, disabled storage). */
+export function writeStored(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch {
     /* private mode / blocked storage */
+    return false;
+  }
+}
+
+/** localStorage remove that never throws. False when storage is unavailable. */
+export function removeStored(key: string): boolean {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
   }
 }
 

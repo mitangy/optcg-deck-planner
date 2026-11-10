@@ -8,6 +8,7 @@
  * `VITE_GAME_SERVER_URL` is used, as before.
  */
 import { getGameServerUrl, rewriteLoopbackToPageHost } from "../config";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 
 /** The part of a token mint response that assigns a game server. */
 export type GameServerAssignment = { game_server_url?: string | null };
@@ -60,20 +61,13 @@ const LAST_POOL_KEY = "optcg.duel.gameServer.v1";
 
 /** Remember the latest token's pool so the lobby warms that server before the next mint. */
 export function rememberAssignedGameServer(token: GameServerAssignment | null | undefined): void {
-  try {
-    const url = assignedUrl(token);
-    if (url) localStorage.setItem(LAST_POOL_KEY, url);
-    else localStorage.removeItem(LAST_POOL_KEY);
-  } catch {
-    /* storage disabled: warm-up falls back to the build-time URL */
-  }
+  // Storage disabled: warm-up falls back to the build-time URL.
+  const url = assignedUrl(token);
+  if (url) writeStored(LAST_POOL_KEY, url);
+  else removeStored(LAST_POOL_KEY);
 }
 
 /** Pool the last token was assigned (null when none, or the API does not assign pools). Warm-up only. */
 export function rememberedGameServerUrl(): string | null {
-  try {
-    return assignedUrl({ game_server_url: localStorage.getItem(LAST_POOL_KEY) });
-  } catch {
-    return null;
-  }
+  return assignedUrl({ game_server_url: readStored(LAST_POOL_KEY) });
 }

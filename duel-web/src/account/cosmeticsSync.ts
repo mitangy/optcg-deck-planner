@@ -22,6 +22,7 @@ import {
 import { SKIN_PUBLIC_PATH } from "../net/protocol";
 import { playmatSlot } from "../playmat";
 import { planCosmeticSync } from "./syncPlan";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 
 const SLOTS: Record<CosmeticKind, ImageSlot> = { playmat: playmatSlot, cardBack: cardBackSlot };
 const KINDS: readonly CosmeticKind[] = ["playmat", "cardBack"];
@@ -54,21 +55,14 @@ function accountIdKey(kind: CosmeticKind) {
 }
 
 function localAccountId(kind: CosmeticKind): number | null {
-  try {
-    const raw = localStorage.getItem(accountIdKey(kind));
-    return raw ? Number(raw) || null : null;
-  } catch {
-    return null;
-  }
+  const raw = readStored(accountIdKey(kind));
+  return raw ? Number(raw) || null : null;
 }
 
 function setLocalAccountId(kind: CosmeticKind, id: number | null) {
-  try {
-    if (id === null) localStorage.removeItem(accountIdKey(kind));
-    else localStorage.setItem(accountIdKey(kind), String(id));
-  } catch {
-    // Storage disabled: the next sync just downloads again.
-  }
+  // Storage disabled: the next sync just downloads again.
+  if (id === null) removeStored(accountIdKey(kind));
+  else writeStored(accountIdKey(kind), String(id));
 }
 
 async function applyChoice(kind: CosmeticKind, id: number | null) {

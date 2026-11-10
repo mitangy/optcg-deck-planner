@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { ScreenOrientationPref } from "../../settings";
+import { readStored, writeStored } from "@optcg/ui/storage";
 
 /** The lock to ask the browser for, or null (follow the phone / nothing to lock with). */
 export function orientationLockTarget(
@@ -105,17 +106,10 @@ export function useLockNote(setting: ScreenOrientationPref): boolean {
 const SEEN_KEY = "optcg-duel:rotate-hint-seen";
 
 export function rotateHintSeen(): boolean {
-  try {
-    return localStorage.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return readStored(SEEN_KEY) === "1";
 }
 
 export function markRotateHintSeen(): void {
-  try {
-    localStorage.setItem(SEEN_KEY, "1");
-  } catch {
-    // Private mode: the hint may show again next visit.
-  }
+  // Private mode: the hint may show again next visit.
+  writeStored(SEEN_KEY, "1");
 }

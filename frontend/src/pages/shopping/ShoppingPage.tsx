@@ -54,7 +54,7 @@ import {
   SHOPPING_SELECTED_KEY,
   SHOW_SHOPPING_DONS_KEY,
 } from "../../storage/keys";
-import { jsonSetCodec, usePersistedState } from "../../storage/persisted";
+import { jsonSetCodec, usePersistedState } from "@optcg/ui/storage";
 import { qk } from "../../cache/queryKeys";
 
 const isString = (x: unknown): x is string => typeof x === "string";

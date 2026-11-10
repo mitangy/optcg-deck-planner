@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 
 export type SortDir = "asc" | "desc";
 export type ColumnSort = { key: string; dir: SortDir } | null;
@@ -51,7 +52,7 @@ export function sortByColumn<T>(rows: T[], sort: ColumnSort, getValue: (row: T, 
 
 function loadColumnSort(storageKey: string): ColumnSort {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = readStored(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { key?: unknown; dir?: unknown } | null;
     if (parsed && typeof parsed.key === "string" && (parsed.dir === "asc" || parsed.dir === "desc")) {
@@ -82,12 +83,8 @@ function subscribe(listener: () => void) {
 
 function writeColumnSort(storageKey: string, next: ColumnSort) {
   stores.set(storageKey, next);
-  try {
-    if (next) localStorage.setItem(storageKey, JSON.stringify(next));
-    else localStorage.removeItem(storageKey);
-  } catch {
-    /* ignore */
-  }
+  if (next) writeStored(storageKey, JSON.stringify(next));
+  else removeStored(storageKey);
   listeners.forEach((l) => l());
 }
 
