@@ -31,6 +31,7 @@ from app.planner.printings import (
     _leader_group_id,
     _printing_wants_for_decks,
     clamp_alt_want_map,
+    deck_alt_buy_inputs,
 )
 
 
@@ -312,15 +313,7 @@ def shopping_list(
         # the pick too (#908): an owned picked copy is not bought, nor priced, again.
         buys = allocate_still_need_buys(
             still,
-            [
-                (
-                    a.product_id,
-                    a.wanted - deck_alt_owned.get(card_id, {}).get(a.product_id, 0),
-                    a.market_price,
-                )
-                for a in card_alts
-                if a.wanted - deck_alt_owned.get(card_id, {}).get(a.product_id, 0) > 0
-            ],
+            deck_alt_buy_inputs(card_alts, deck_alt_owned.get(card_id, {})),
             standard_product_id=product_ids.get(card_id),
             standard_price=market,
         )
