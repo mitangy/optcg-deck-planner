@@ -44,6 +44,14 @@ export const HINT_LIMITS = { id: 80, title: 200, detail: 600, cards: 20 };
 /** The longest card id in a hint's `cardIds`. */
 export const HINT_CARD_ID_MAX = 20;
 
+/**
+ * The longest id a turn-plan step may carry (a card, a target...): the analyst's schema caps each at this, and the
+ * client drops a plan whose step id is longer instead of cutting it to a different id.
+ */
+export const PLAN_STEP_ID_MAX = 40;
+/** The longest `abilityId` of an `activate` step. */
+export const PLAN_ABILITY_ID_MAX = 60;
+
 /** The `done` event: what the answer cost and the player's credit and limits afterwards. */
 export type DonePayload = {
   thread_id?: number;

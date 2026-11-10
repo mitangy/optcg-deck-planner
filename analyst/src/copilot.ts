@@ -4,6 +4,7 @@
  * checks the ticket with the planner, turns the board into a <game> block for the model, and offers the
  * propose_turn_plan tool, which checks a whole turn against the snapshot and writes nothing.
  */
+import { PLAN_ABILITY_ID_MAX, PLAN_STEP_ID_MAX } from "@optcg/analyst-contract";
 import { z } from "zod";
 import type { Catalog, CardRow } from "./catalog";
 import { PlannerApiError, plannerCall, type PlannerApi } from "./matches";
@@ -336,13 +337,13 @@ function describeLegal(a: LegalAction, named: (id: string) => string, powerOf: (
 
 const planStep = z.object({
   action: z.enum(["play", "give_don", "activate", "attack", "end_turn"]),
-  card: z.string().max(40).optional(),
-  trash: z.string().max(40).optional(),
-  target: z.string().max(40).optional(),
+  card: z.string().max(PLAN_STEP_ID_MAX).optional(),
+  trash: z.string().max(PLAN_STEP_ID_MAX).optional(),
+  target: z.string().max(PLAN_STEP_ID_MAX).optional(),
   count: z.number().int().min(1).max(10).optional(),
-  source: z.string().max(40).optional(),
-  abilityId: z.string().max(60).optional(),
-  attacker: z.string().max(40).optional(),
+  source: z.string().max(PLAN_STEP_ID_MAX).optional(),
+  abilityId: z.string().max(PLAN_ABILITY_ID_MAX).optional(),
+  attacker: z.string().max(PLAN_STEP_ID_MAX).optional(),
   why: z.string().trim().max(200).optional(),
   boost: z.string().trim().max(120).optional(),
 });

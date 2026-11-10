@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-import time
+import threading
 from typing import Any
 
 import httpx
+from cachetools import TTLCache
 
 from app.core.errors import Invalid
 from app.planner.schemas import RecentSale
 
 TCGPLAYER_SALES_URL = "https://mpapi.tcgplayer.com/v2/product/{product_id}/latestsales"
 CACHE_TTL_S = 30 * 60
-_CACHE: dict[int, tuple[float, list[RecentSale]]] = {}
+# product_id -> (limit the upstream call asked for, sales). A later request for more rows
+# than were fetched is a miss; one for fewer is sliced from the entry.
+_CACHE: TTLCache[int, tuple[int, list[RecentSale]]] = TTLCache(maxsize=2048, ttl=CACHE_TTL_S)
+_CACHE_LOCK = threading.Lock()
 
 _HEADERS = {
     "User-Agent": (
@@ -50,9 +54,12 @@ def _parse_sale(row: dict[str, Any]) -> RecentSale | None:
     )
 
 
-def is_cached(product_id: int) -> bool:
-    cached = _CACHE.get(product_id)
-    return cached is not None and time.time() - cached[0] < CACHE_TTL_S
+def is_cached(product_id: int, limit: int = 1) -> bool:
+    """True when a live cache entry already covers `limit` sales for the product."""
+    limit = max(1, min(limit, 10))
+    with _CACHE_LOCK:
+        cached = _CACHE.get(product_id)
+    return cached is not None and cached[0] >= limit
 
 
 def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
@@ -61,9 +68,9 @@ def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
         raise Invalid("Invalid product id")
     limit = max(1, min(limit, 10))
 
-    now = time.time()
-    cached = _CACHE.get(product_id)
-    if cached and now - cached[0] < CACHE_TTL_S:
+    with _CACHE_LOCK:
+        cached = _CACHE.get(product_id)
+    if cached is not None and cached[0] >= limit:
         return cached[1][:limit]
 
     url = TCGPLAYER_SALES_URL.format(product_id=product_id)
@@ -88,5 +95,6 @@ def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
         if len(sales) >= 10:
             break
 
-    _CACHE[product_id] = (now, sales)
+    with _CACHE_LOCK:
+        _CACHE[product_id] = (limit, sales)
     return sales[:limit]

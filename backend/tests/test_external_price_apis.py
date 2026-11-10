@@ -56,6 +56,39 @@ def test_recent_sales_are_cached_per_product():
     assert [s.price for s in narrower] == [4.25]
 
 
+def test_a_wider_limit_after_a_narrow_one_is_not_served_the_narrow_cache_1218(monkeypatch):
+    calls: list[int] = []
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def post(self, url, *, params, **kwargs):
+            calls.append(params["limit"])
+            rows = [{"purchasePrice": 10.0 - i, "orderDate": f"d{i}"} for i in range(params["limit"])]
+            return httpx.Response(200, json={"data": rows}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(recent_sales.httpx, "Client", FakeClient)
+
+    assert len(recent_sales.fetch_recent_sales(555010, limit=3)) == 3
+    assert len(recent_sales.fetch_recent_sales(555010, limit=10)) == 10
+    # The wide fetch now covers narrower asks without another upstream call.
+    assert len(recent_sales.fetch_recent_sales(555010, limit=3)) == 3
+    assert calls == [3, 10]
+
+
+def test_a_cache_entry_fetched_with_a_narrow_limit_does_not_count_as_cached_for_a_wider_one_1218():
+    recent_sales._CACHE[555011] = (3, [])
+    assert recent_sales.is_cached(555011, limit=3)
+    assert not recent_sales.is_cached(555011, limit=10)
+
+
 @pytest.mark.vcr
 def test_recent_sales_limit_is_capped_at_ten():
     sales = recent_sales.fetch_recent_sales(555003, limit=50)
@@ -81,9 +114,11 @@ def test_recent_sales_empty_when_no_data():
     assert recent_sales.fetch_recent_sales(555005, limit=3) == []
 
 
-@pytest.mark.vcr
+# The cassette holds one 500 for group 1002; the sync retries it, so playback repeats.
+@pytest.mark.vcr(allow_playback_repeats=True)
 def test_sync_catalog_over_http(db, monkeypatch):
     monkeypatch.setattr(catalog_sync.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(catalog_sync, "_retry_wait", lambda *_: 0)
 
     result = catalog_sync.sync_catalog(db)
 

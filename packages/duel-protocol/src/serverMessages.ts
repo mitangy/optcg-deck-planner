@@ -4,7 +4,7 @@
  * or leak hidden information. Parsers throw a plain `Error` (the client reports or ignores it, see
  * duel-web/src/net/duelClient.ts); the labels are for the error text.
  */
-import { CHAT_MAX_LENGTH, PROTOCOL_VERSION, type ProtocolVersion, SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS, isProtocolVersion } from "./constants.js";
+import { CHAT_MAX_LENGTH, PROTOCOL_VERSION, type ProtocolVersion, SKIN_DATA_URL, SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS, SKIN_PUBLIC_PATH, isProtocolVersion } from "./constants.js";
 import type { ErrorCode } from "./errors.js";
 import { asDonArtId } from "./clientMessages.js";
 import type {
@@ -64,10 +64,6 @@ function parseSeatPlayers(raw: unknown): SeatPlayers | undefined {
   };
   return [one(raw[0]), one(raw[1])];
 }
-
-const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
-/** Public path of an account upload; the game server accepts the same shape. */
-export const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d+\/public\/[A-Za-z0-9_-]{16,128}$/;
 
 function asSkinImage(raw: unknown, maxChars: number, resolvePublicPath: (path: string) => string): string | null {
   // Only image data URLs and API upload URLs are ever put in CSS `url(...)`;

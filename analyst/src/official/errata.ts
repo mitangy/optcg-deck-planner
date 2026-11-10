@@ -2,16 +2,7 @@
 
 export type Erratum = { cardId: string; name: string; date: string | null; before: string; after: string };
 
-const plain = (html: string) =>
-  html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\s*\n\s*/g, "\n")
-    .trim();
+import { plain } from "./html";
 
 export function parseErrata(html: string): Erratum[] {
   const out: Erratum[] = [];
