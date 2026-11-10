@@ -8,8 +8,10 @@ import {
   CHAT_MAX_LENGTH,
   HAND_ORDER_MAX_ID_LENGTH,
   HAND_ORDER_MAX_IDS,
+  SKIN_DATA_URL,
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
+  SKIN_PUBLIC_PATH,
   PROTOCOL_VERSION,
 } from "./constants.js";
 import { ProtocolError, bad, expectEnvelope } from "./errors.js";
@@ -23,14 +25,6 @@ import type {
   SeatSkin,
   UndoRequestBody,
 } from "./types.js";
-
-const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
-/**
- * A signed link to an uploaded cosmetic, relative to the API base. Players
- * fetch the image from the API (cached by the browser) instead of the game
- * server relaying up to 450 KB of base64 to every seat and spectator.
- */
-const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d{1,12}\/public\/[A-Za-z0-9_-]{16,128}$/;
 
 /** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
 export function asDonArtId(raw: unknown): number | null {

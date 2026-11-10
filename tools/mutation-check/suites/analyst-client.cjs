@@ -14,6 +14,11 @@ module.exports = {
   cwd: "packages/analyst-client",
   runner: "vitest",
   mutations: [
+    // Plan step ids are rejected past the analyst's limit, not truncated (#1229)
+    { id: "plan1229-step-ids-truncated", file: client, from: "if (tooLong(o[key], PLAN_LIMITS.id)) return null;", to: "{}", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-optional-step-id-truncated", file: client, from: "[\"card\", \"trash\", \"target\", \"source\", \"attacker\"]", to: "[\"card\", \"target\", \"source\", \"attacker\"]", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-ability-id-truncated", file: client, from: "  if (tooLong(o.abilityId, PLAN_LIMITS.abilityId)) return null;\n", to: "", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-ability-id-capped-at-step-id-limit", file: client, from: "const abilityId = str(o.abilityId, PLAN_LIMITS.abilityId);", to: "const abilityId = id(o.abilityId);", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
     // rating Log Pose answers (#679)
     {"id": "fb-key-index-shifted", "file": "packages/analyst-client/src/feedbackModel.ts", "from": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}`", "to": "`chat:${t.threadId}:${t.index + 1}` : `review:${t.matchId}`", "kills": ["keys a chat answer by thread and position and a review by game, as the server does (#679)"]},
     {"id": "fb-key-review-differs", "file": "packages/analyst-client/src/feedbackModel.ts", "from": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}`", "to": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}x`", "kills": ["keys a chat answer by thread and position and a review by game, as the server does (#679)"]},
@@ -117,6 +122,9 @@ module.exports = {
     { id: "md-no-tables", file: md, from: "    if (isTableStart(lines, i)) {\n      const head", to: "    if (false) {\n      const head", kills: ["parses a pipe table with its header and rows"] },
     { id: "md-ol-start-ignored", file: md, from: "{ t: \"ol\", start: Number(numbered![1]), items: parsed }", to: "{ t: \"ol\", start: 1, items: parsed }", kills: ["keeping the numbered list's start"] },
     { id: "md-list-continuation-dropped", file: md, from: "          items[items.length - 1]!.push(l);\n", to: "", kills: ["parses bullet and numbered lists"] },
+    { id: "md-heading-backtracking-regex", file: md, from: "const HEADING = /^\\s{0,3}(#{1,6})\\s+([\\s\\S]*)$/;", to: "const HEADING = /^\\s{0,3}(#{1,6})\\s+(.*?)\\s*#*\\s*$/;", kills: ["heading with a long run of spaces parses quickly (#1219)"] },
+    { id: "md-heading-closing-hashes-kept", file: md, from: "  while (end > 0 && raw[end - 1] === \"#\") end--;\n", to: "", kills: ["heading drops its closing hashes and blanks, and a lone # is not a heading (#1219)"] },
+    { id: "md-link-url-overlapping-alternatives", file: md, from: "([^()\\s]+(?:\\([^()\\s]*\\)[^()\\s]*)?)", to: "([^()\\s]+(?:\\([^()\\s]*\\))?[^()\\s]*)", kills: ["an unclosed link with a long URL parses quickly and a closed one still links (#1219)"] },
     { id: "md-fence-parsed", file: md, from: "    const fence = FENCE.exec(line);", to: "    const fence = null as RegExpExecArray | null;", kills: ["keeps a fenced code block verbatim"] },
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },

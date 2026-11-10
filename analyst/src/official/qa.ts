@@ -2,6 +2,7 @@
  * Official Q&A from Bandai's FAQ PDFs: one table per set ("Card No. | Card Name | Question | Answer")
  * and a general rules table ("Category | Question | Answer"), parsed from text positions.
  */
+import { decodeEntities } from "./html";
 import { queryTerms } from "./rules";
 import { joinRuns, type PdfItem, type PdfPage } from "./pdf";
 
@@ -130,7 +131,7 @@ function setsFromFile(name: string): string[] {
 export function parseFaqIndex(html: string, baseUrl: string): FaqFile[] {
   const files = new Map<string, FaqFile>();
   for (const m of html.matchAll(/href="([^"]*\/pdf\/((?:qa|faq)_[^"]+?\.pdf)[^"]*)"/gi)) {
-    const url = new URL(m[1]!, baseUrl).toString();
+    const url = new URL(decodeEntities(m[1]!), baseUrl).toString();
     const name = m[2]!.toLowerCase();
     if (files.has(name)) continue;
     const general = name.startsWith("qa_rules");
