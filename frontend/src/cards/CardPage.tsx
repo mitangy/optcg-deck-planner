@@ -1,11 +1,11 @@
 import { Select } from "@optcg/ui/popups";
 import { usePageMeta } from "@optcg/ui/seo";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, money, type CardPageFinish, type CardPageLeader, type CardPageResponse } from "../api";
 import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPageModel";
-import { loadCardRules, type CardRules } from "./cardRules";
+import { loadCardRules } from "./cardRules";
 import { CardArtImg, CardLightbox, useCardArt } from "../ui/CardThumb";
 import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } from "../meta/meta";
 import { PriceHistory } from "../prices/PriceHistory";
@@ -18,15 +18,11 @@ const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed
 
 /** The card's printed text, loaded on demand (its own chunk). Its box keeps one height class while loading. */
 function RulesText({ cardId }: { cardId: string }) {
-  const [rules, setRules] = useState<CardRules | null | undefined>(undefined);
-  useEffect(() => {
-    let live = true;
-    setRules(undefined);
-    void loadCardRules(cardId).then((r) => live && setRules(r));
-    return () => {
-      live = false;
-    };
-  }, [cardId]);
+  const { data: rules } = useQuery({
+    queryKey: qk.cardRules(cardId),
+    queryFn: () => loadCardRules(cardId),
+    staleTime: Infinity,
+  });
 
   if (rules === undefined) {
     return (

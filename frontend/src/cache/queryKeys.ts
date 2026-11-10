@@ -53,6 +53,7 @@ export const qk = {
 
   priceAlerts: () => ["price-alerts"] as const,
   notifications: () => ["notifications"] as const,
+  cardRules: (cardId: string) => ["cardRules", cardId] as const,
   cardPrintings: (cardId: string) => ["card-printings", cardId] as const,
   recentSales: (productId: number) => ["recent-sales", productId] as const,
   priceHistory: (cardId: string, productId: number) => ["price-history", cardId, productId] as const,

@@ -1,23 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useMediaQuery } from "@optcg/ui/hooks";
+import { createContext, useContext, type ReactNode } from "react";
 
 /** True while the rail is a side column (wide screens), so its Filters drawer can stay open. */
 const RailPinnedContext = createContext(false);
 export const useRailPinned = () => useContext(RailPinnedContext);
-
-function useMinWidth(px: number): boolean {
-  const query = `(min-width: ${px}px)`;
-  const get = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(query).matches;
-  const [match, setMatch] = useState(get);
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return match;
-}
 
 /**
  * Card-list toolbar + the list it controls. Below the wide breakpoint this is a
@@ -36,7 +22,7 @@ export function CardWorkspace({
   wider?: boolean;
 }) {
   // Keep these breakpoints in step with wideLayout.css.
-  const pinned = useMinWidth(wider ? 1900 : 1600);
+  const pinned = useMediaQuery(`(min-width: ${wider ? 1900 : 1600}px)`);
   return (
     <div className={`card-workspace${wider ? " card-workspace-wider" : ""}`}>
       <div className="card-workspace-rail">
