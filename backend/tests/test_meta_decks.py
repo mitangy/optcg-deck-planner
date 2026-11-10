@@ -244,7 +244,7 @@ def test_meta_endpoints_need_no_login_443(client):
     assert c.get("/meta/decks", params={"leader": "nope"}).status_code == 422
 
 
-def test_responses_are_cacheable_and_reused_for_ten_minutes_443(client):
+def test_responses_are_cacheable_and_reused_for_ten_minutes_443(client, monkeypatch: pytest.MonkeyPatch):
     c, SessionLocal = client
     r = c.get("/meta/leaders")
     assert r.headers["cache-control"] == "public, max-age=600"
@@ -256,8 +256,8 @@ def test_responses_are_cacheable_and_reused_for_ten_minutes_443(client):
     assert c.get("/meta/leaders").json()["total_decks"] == 0  # served from the cache
     assert c.get("/meta/leaders", params={"days": 29}).json()["total_decks"] == 1  # other params, other entry
     # Past the TTL it is rebuilt.
-    for key, (stamp, value) in list(meta_router._cache.items()):
-        meta_router._cache[key] = (stamp - meta_router.CACHE_TTL_S - 1, value)
+    started = meta_router._now()
+    monkeypatch.setattr(meta_router, "_now", lambda: started + meta_router.CACHE_TTL_S + 1)
     assert c.get("/meta/leaders").json()["total_decks"] == 1
 
 
