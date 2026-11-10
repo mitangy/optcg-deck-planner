@@ -2,6 +2,7 @@
  * The official banned / restricted / banned-pair list, parsed from Bandai's news page. The page shows
  * the list in force plus announced changes with their start date; changes apply once that date passes.
  */
+import { plain as htmlText } from "./html";
 
 export type BanList = {
   banned: string[];
@@ -16,7 +17,7 @@ export type BanList = {
 
 const CARD_ID = /\b(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})\b/g;
 const ids = (html: string) => [...new Set(html.match(CARD_ID) ?? [])];
-const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const plain = (html: string) => htmlText(html, " ").replace(/\s+/g, " ");
 
 type Block = { tag: "h3" | "h4" | "h5" | "ul"; html: string };
 
