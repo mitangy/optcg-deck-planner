@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-10
-  { date: "2026-11-10", app: "planner", pr: 1216, title: "Group buy totals match Master Shopping", text: "When you already own an alt art you picked in a deck, a group buy no longer prices it again, so its total matches Master Shopping. Unticking Extra copies in a group buy also keeps the alt arts you own for them from counting toward your decks, like Master Shopping." },
+  { date: "2026-11-10", app: "planner", pr: 1217, title: "Group buy totals match Master Shopping", text: "When you already own an alt art you picked in a deck, a group buy no longer prices it again, so its total matches Master Shopping. Unticking Extra copies in a group buy also keeps the alt arts you own for them from counting toward your decks, like Master Shopping." },
   // 2026-11-09
   { date: "2026-11-09", app: "planner", pr: 1213, title: "The planner uses wide screens", text: "On wide screens the planner now uses the full width: search and filters sit in a sidebar and cards fill the rest. In the Grid view on desktop, the select checkbox sits on the card and Owned and Want share one row, so cards are less tall." },
   { date: "2026-11-09", app: "planner", pr: 1215, title: "Extra copy price on the card row", text: "On Master Shopping, a card whose decks are covered but still has an Extra copy to buy now shows the Extra copy price on its main row instead of $0.00." },
