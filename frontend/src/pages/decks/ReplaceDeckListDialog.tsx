@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { api, type DeckDetail } from "../../api";
+import { readClipboardText } from "@optcg/ui/clipboard";
 
 /**
  * Overwrite a deck's leader and cards with a pasted OPTCGSim deck code (#1016).
@@ -38,17 +39,17 @@ export function ReplaceDeckListDialog({
   });
 
   async function pasteFromClipboard() {
-    try {
-      const clip = await navigator.clipboard.readText();
-      if (!clip.trim()) {
-        setErr("Clipboard is empty.");
-        return;
-      }
-      setText(clip.trim());
-      setErr(null);
-    } catch {
+    const clip = await readClipboardText();
+    if (clip === null) {
       setErr("Could not read clipboard — paste into the box with Ctrl+V.");
+      return;
     }
+    if (!clip.trim()) {
+      setErr("Clipboard is empty.");
+      return;
+    }
+    setText(clip.trim());
+    setErr(null);
   }
 
   const empty = !text.trim();

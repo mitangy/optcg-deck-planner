@@ -29,6 +29,7 @@ import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
 import { DeckIncludeFilter } from "../../ui/DeckIncludeFilter";
 import { qk } from "../../cache/queryKeys";
+import { copyText } from "@optcg/ui/clipboard";
 
 export function GroupBuyDetailPage() {
   const { id } = useParams();
@@ -439,12 +440,7 @@ export function GroupBuyDetailPage() {
 
   async function copyInvite(path: string) {
     const url = `${window.location.origin}${path}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setInviteMsg("Invite link copied");
-    } catch {
-      setInviteMsg(url);
-    }
+    setInviteMsg((await copyText(url)) ? "Invite link copied" : url);
   }
 
   async function exportMassEntry(d: GroupBuyDetail) {
@@ -458,13 +454,8 @@ export function GroupBuyDetailPage() {
         setMsg("Nothing to export — no copies in this group buy.");
         return;
       }
-      let copied = false;
-      try {
-        await navigator.clipboard.writeText(paste);
-        copied = true;
-      } catch {
-        /* clipboard may be blocked; still open Mass Entry when we have a URL */
-      }
+      // Clipboard may be blocked; still open Mass Entry when we have a URL.
+      const copied = await copyText(paste);
       const copies = exported.copy_count;
       const cards = exported.included_count;
       if (exported.url) {
