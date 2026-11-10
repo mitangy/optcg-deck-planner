@@ -14,6 +14,15 @@ export const TAKEN_OVER_CLOSE_CODE = 4451;
 export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
 export const SKIN_MAX_CARD_BACK_CHARS = 90_000;
 
+/** An uploaded skin sent inline as an image data URL. */
+export const SKIN_DATA_URL = /^data:image\/(?:jpeg|webp|png);base64,[A-Za-z0-9+/]+={0,2}$/;
+/**
+ * A signed link to an uploaded cosmetic, relative to the API base (`/duel/cosmetics/<id>/public/<sig>`; the
+ * backend builds it from a database id and a 32-char signature). Players fetch the image from the API (cached
+ * by the browser) instead of the game server relaying up to 450 KB of base64 to every seat and spectator.
+ */
+export const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d{1,12}\/public\/[A-Za-z0-9_-]{16,128}$/;
+
 /** Max characters per chat line (after trimming / control-char stripping). */
 export const CHAT_MAX_LENGTH = 200;
 

@@ -62,4 +62,41 @@ describe("settings sync while the account settings load", () => {
     vi.advanceTimersByTime(5000);
     expect(api.putAccountSettings).not.toHaveBeenCalled();
   });
+
+  it("leaving the page inside the debounce window saves the last edit once, with keepalive (#1229)", async () => {
+    vi.useFakeTimers();
+    const win = new EventTarget();
+    const doc = Object.assign(new EventTarget(), { visibilityState: "visible" });
+    vi.stubGlobal("window", win);
+    vi.stubGlobal("document", doc);
+    const resolve = slowLoad();
+    const sync = syncSettings();
+    resolve({ settings: { endTurnConfirm: "always", turnSplash: true } });
+    await sync;
+    api.putAccountSettings.mockClear();
+
+    updateSettings({ endTurnConfirm: "never" });
+    expect(api.putAccountSettings).not.toHaveBeenCalled();
+    win.dispatchEvent(new Event("pagehide"));
+    expect(api.putAccountSettings).toHaveBeenCalledTimes(1);
+    expect(api.putAccountSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ endTurnConfirm: "never" }),
+      { keepalive: true },
+    );
+    // The debounce timer was cancelled: nothing is sent a second time.
+    vi.advanceTimersByTime(5000);
+    expect(api.putAccountSettings).toHaveBeenCalledTimes(1);
+
+    // Hiding the tab flushes too, but a visibility change that is not "hidden" does not.
+    updateSettings({ endTurnConfirm: "actions" });
+    doc.dispatchEvent(new Event("visibilitychange"));
+    expect(api.putAccountSettings).toHaveBeenCalledTimes(1);
+    doc.visibilityState = "hidden";
+    doc.dispatchEvent(new Event("visibilitychange"));
+    expect(api.putAccountSettings).toHaveBeenCalledTimes(2);
+    expect(api.putAccountSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({ endTurnConfirm: "actions" }),
+      { keepalive: true },
+    );
+  });
 });

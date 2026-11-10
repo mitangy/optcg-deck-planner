@@ -91,7 +91,7 @@ export function parseInline(s: string): Inline[] {
       }
     }
     if (ch === "[") {
-      const m = /^\[([^\]]+)\]\(([^()\s]+(?:\([^()\s]*\))?[^()\s]*)(?:\s+"[^"]*")?\)/.exec(rest);
+      const m = /^\[([^\]]+)\]\(([^()\s]+(?:\([^()\s]*\)[^()\s]*)?)(?:\s+"[^"]*")?\)/.exec(rest);
       if (m) {
         const href = safeHref(m[2]!);
         const label = parseInline(m[1]!);
@@ -130,10 +130,25 @@ function inlineLines(lines: string[]): Inline[] {
 }
 
 const FENCE = /^\s*(```|~~~)\s*([\w+-]*)\s*$/;
-const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+// Linear on purpose (#1219): the closing `#`s and trailing blanks are stripped by matchHeading, not by a lazy `(.*?)\s*#*\s*$`, which backtracks cubically on a long run of spaces.
+const HEADING = /^\s{0,3}(#{1,6})\s+([\s\S]*)$/;
 const RULE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const BULLET = /^\s*[-*+]\s+(.*)$/;
 const NUMBERED = /^\s*(\d{1,9})[.)]\s+(.*)$/;
+
+/** An ATX heading line, or null. Closing `#`s and the blanks around them are not part of the text. */
+function matchHeading(line: string): { level: number; text: string } | null {
+  const m = HEADING.exec(line);
+  if (!m) return null;
+  const raw = m[2]!;
+  let end = raw.trimEnd().length;
+  while (end > 0 && raw[end - 1] === "#") end--;
+  const text = raw.slice(0, end).trimEnd();
+  // A line separator inside the text never counted as part of a heading line (the old `.`).
+  if (/[\u2028\u2029]/.test(text)) return null;
+  return { level: m[1]!.length, text };
+}
+
 const TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/;
 
 function splitRow(line: string): string[] {
@@ -169,7 +184,7 @@ function isTableStart(lines: string[], i: number): boolean {
 
 function startsBlock(lines: string[], i: number): boolean {
   const l = lines[i]!;
-  return FENCE.test(l) || HEADING.test(l) || RULE.test(l) || BULLET.test(l) || NUMBERED.test(l) || isTableStart(lines, i);
+  return FENCE.test(l) || matchHeading(l) !== null || RULE.test(l) || BULLET.test(l) || NUMBERED.test(l) || isTableStart(lines, i);
 }
 
 export function parseMarkdown(text: string): Block[] {
@@ -191,9 +206,9 @@ export function parseMarkdown(text: string): Block[] {
       blocks.push({ t: "code", lang: fence[2] ?? "", v: body.join("\n") });
       continue;
     }
-    const heading = HEADING.exec(line);
+    const heading = matchHeading(line);
     if (heading) {
-      blocks.push({ t: "h", level: heading[1]!.length, c: parseInline(heading[2]!) });
+      blocks.push({ t: "h", level: heading.level, c: parseInline(heading.text) });
       i++;
       continue;
     }

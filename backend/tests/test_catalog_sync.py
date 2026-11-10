@@ -5,6 +5,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+import pytest
+
 from app.planner import catalog_sync
 from app.planner.models import CatalogCard, CatalogPrinting
 
@@ -188,3 +191,75 @@ def test_sync_keeps_listed_base_printing_primary_763(db, monkeypatch):
     }
     assert flags == {base: 0, prerelease: 0, listed_alt: 1}
     assert db.get(CatalogCard, "OP02-059").market_price == 0.25
+
+
+def test_failed_group_keeps_its_existing_printings_1218(db, monkeypatch):
+    groups = [{"groupId": 1, "name": "OP01"}, {"groupId": 2, "name": "OP02"}]
+    op02 = {
+        **_luffy_product(product_id=222),
+        "extendedData": [
+            {"name": "Number", "value": "OP02-001"},
+            {"name": "Rarity", "value": "L"},
+            {"name": "CardType", "value": "Leader"},
+        ],
+    }
+    data = {
+        **_group_urls(1, {"results": [_luffy_product()]}, _prices()),
+        **_group_urls(2, {"results": [op02]}, _prices(222)),
+    }
+    _install_fake_tcgcsv(monkeypatch, groups, data)
+    catalog_sync.sync_catalog(db)
+    assert db.query(CatalogPrinting).count() == 2
+
+    # Second pull: TCGCSV errors on group 2 only.
+    ok = catalog_sync._get_json
+
+    def flaky(client, url):
+        if url.startswith(f"{catalog_sync.TCGCSV_BASE}/2/"):
+            raise httpx.ConnectError("boom")
+        return ok(client, url)
+
+    monkeypatch.setattr(catalog_sync, "_get_json", flaky)
+    catalog_sync.sync_catalog(db)
+
+    assert {r.product_id for r in db.query(CatalogPrinting).all()} == {111, 222}
+
+
+def _response(status: int) -> httpx.Response:
+    return httpx.Response(status, json={"results": []}, request=httpx.Request("GET", "https://x.test/a"))
+
+
+class _SeqClient:
+    def __init__(self, outcomes):
+        self.outcomes = list(outcomes)
+        self.calls = 0
+
+    def get(self, url, **kwargs):  # noqa: ARG002
+        self.calls += 1
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+def test_get_json_retries_503_then_succeeds_1218(monkeypatch):
+    monkeypatch.setattr(catalog_sync, "_retry_wait", lambda *_: 0)
+    client = _SeqClient([_response(503), _response(200)])
+    assert catalog_sync._get_json(client, "https://x.test/a") == {"results": []}
+    assert client.calls == 2
+
+
+def test_get_json_does_not_retry_404_1218(monkeypatch):
+    monkeypatch.setattr(catalog_sync, "_retry_wait", lambda *_: 0)
+    client = _SeqClient([_response(404), _response(200)])
+    with pytest.raises(httpx.HTTPStatusError):
+        catalog_sync._get_json(client, "https://x.test/a")
+    assert client.calls == 1
+
+
+def test_get_json_gives_up_after_three_attempts_1218(monkeypatch):
+    monkeypatch.setattr(catalog_sync, "_retry_wait", lambda *_: 0)
+    client = _SeqClient([httpx.ConnectError("a"), httpx.ReadTimeout("b"), httpx.ConnectError("c"), _response(200)])
+    with pytest.raises(httpx.ConnectError):
+        catalog_sync._get_json(client, "https://x.test/a")
+    assert client.calls == 3

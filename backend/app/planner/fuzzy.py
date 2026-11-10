@@ -1,9 +1,11 @@
-"""Small typo-tolerant text matching for catalog search (no dependencies)."""
+"""Small typo-tolerant text matching for catalog search (rapidfuzz for the edit distance)."""
 
 from __future__ import annotations
 
 import re
 import unicodedata
+
+from rapidfuzz.distance import OSA
 
 _NON_WORD = re.compile(r"[^a-z0-9]+")
 
@@ -21,19 +23,7 @@ def tokens(text: str | None) -> list[str]:
 
 def edit_distance(a: str, b: str, cap: int) -> int:
     """Damerau (adjacent swap) edit distance, or cap + 1 once it exceeds cap."""
-    if abs(len(a) - len(b)) > cap:
-        return cap + 1
-    prev2: list[int] | None = None
-    prev = list(range(len(b) + 1))
-    for i in range(1, len(a) + 1):
-        cur = [i] + [0] * len(b)
-        for j in range(1, len(b) + 1):
-            cost = 0 if a[i - 1] == b[j - 1] else 1
-            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
-            if prev2 is not None and i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
-                cur[j] = min(cur[j], prev2[j - 2] + 1)
-        prev2, prev = prev, cur
-    return min(prev[-1], cap + 1)
+    return OSA.distance(a, b, score_cutoff=cap)
 
 
 def max_typos(token: str) -> int:

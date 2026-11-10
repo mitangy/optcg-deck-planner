@@ -46,9 +46,14 @@ function TrayRowView({
     const id = text.trim();
     if (!id || busy) return;
     setBusy(true);
-    const err = await onFix(id);
-    setBusy(false);
-    if (err) setError(err);
+    try {
+      const err = await onFix(id);
+      if (err) setError(err);
+    } catch {
+      setError("Could not check that number. Try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

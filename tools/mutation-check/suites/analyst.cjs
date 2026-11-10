@@ -9,6 +9,7 @@ const rules = "analyst/src/official/rules.ts";
 const qa = "analyst/src/official/qa.ts";
 const banlist = "analyst/src/official/banlist.ts";
 const errata = "analyst/src/official/errata.ts";
+const html = "analyst/src/official/html.ts";
 const library = "analyst/src/official/library.ts";
 const knowledge = "analyst/src/knowledge.ts";
 const playbook = "analyst/src/playbook.ts";
@@ -272,6 +273,7 @@ module.exports = {
     { id: "ban-restricted-one-copy-flagged", file: banlist, from: "if ((copies.get(id) ?? 0) > 1) problems.push", to: "if ((copies.get(id) ?? 0) >= 1) problems.push", kills: ["flags banned cards, a second restricted copy"] },
     { id: "ban-pair-one-half-flagged", file: banlist, from: "if (copies.has(a) && copies.has(b)) problems.push", to: "if (copies.has(a) || copies.has(b)) problems.push", kills: ["flags banned cards, a second restricted copy"] },
     { id: "errata-heading-date-ignored", file: errata, from: "date: ownDate ?? date,", to: "date,", kills: ["takes the date from the card heading"] },
+    { id: "html-partial-entity-decoder", file: html, from: "decodeHTML(text).replace(/\\u00a0/g, \" \")", to: "text.replace(/&amp;/g, \"&\").replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\")", kills: ["errata text decodes nbsp", "ban list headings with a non-breaking space", "FAQ PDF links decode numeric entities"] },
     { id: "errata-alt-art-repeats", file: errata, from: "if (!after || out.some((e) => e.cardId === id[1] && e.after === after)) continue;", to: "if (!after) continue;", kills: ["skips alt-art repeats"] },
     { id: "library-no-stale-fallback", file: library, from: "          if (slot.value !== undefined) return slot.value;\n", to: "", kills: ["serves the last good copy when a refresh fails"] },
     { id: "library-never-refreshes", file: library, from: "const fresh = slot.value !== undefined && this.now().getTime() - slot.at < this.ttlMs;", to: "const fresh = slot.value !== undefined;", kills: ["serves the last good copy when a refresh fails"] },

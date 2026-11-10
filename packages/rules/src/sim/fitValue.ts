@@ -30,6 +30,7 @@ import { join } from "node:path";
 import { evaluate } from "../bot/evaluate.js";
 import { BAG_SLOTS, cardBag, denseFeaturesV2, extractFeatures, FEATURE_NAMES, FEATURE_NAMES_V2 } from "../bot/features.js";
 import { featureSetOf, logitOf, logitOfParts, sigmoid, type FeatureSet, type MlpModel, type ValueModel, type ValueWeights } from "../bot/valueModel.js";
+import { createSeededRng } from "../rng.js";
 import { replayMatch, type MatchReplay } from "../replay/matchReplay.js";
 import { parseSimExport, samplesFromSimGame, type SimMatchRecord } from "./optcgsim/index.js";
 import type { Seat } from "../types.js";
@@ -193,17 +194,6 @@ export function buildVocab(samples: Sample[], table: CardTable, minCount: number
   return table.ids.map((id, i) => ({ id, n: counts[i]! })).filter((c) => c.n >= minCount).sort((a, b) => b.n - a.n || a.id.localeCompare(b.id)).map((c) => c.id);
 }
 
-function seededRandom(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /**
  * Seeded mini-batch Adam on log-loss for a linear or one-hidden-layer ReLU model over the dense features (standardised on
  * `train`) plus the sparse card bag (not standardised: it would stop being sparse). The bag is dotted sparsely both ways.
@@ -261,7 +251,7 @@ export function fitBatched(train: Sample[], table: CardTable | undefined, o: Bat
   reg.fill(o.l2, oW2, oB);
   if (!mlp) { const free = FEATURE_NAMES.indexOf("hand_eval"); if (free >= 0) reg[oW + free] = 0; }
 
-  const rand = seededRandom(o.seed);
+  const rand = createSeededRng(o.seed).next;
   const gauss = (): number => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
   if (mlp) {
     for (let i = 0; i < nW; i += 1) W[i] = gauss() * Math.sqrt(2 / dd);
