@@ -1,4 +1,5 @@
 /** Duel-web ↔ FastAPI tournaments (single elimination and round robin among friends). */
+import type { components } from "@optcg/api-client";
 import { apiCall } from "../api/http";
 import type { TimerPreset } from "../home/timerPreset";
 
@@ -7,7 +8,7 @@ export type TournamentStatus = "open" | "running" | "finished" | "cancelled";
 export type TournamentRole = "organizer" | "joined" | "invited";
 export type MatchStatus = "waiting" | "ready" | "done";
 
-export type Person = { user_id: number; username: string };
+export type Person = components["schemas"]["PersonOut"];
 
 export type TournamentSummary = {
   id: number;
@@ -37,7 +38,7 @@ export type TournamentMatch = {
   result_match_id: string | null;
 };
 
-export type StandingRow = Person & { wins: number; losses: number; played: number; rank: number };
+export type StandingRow = components["schemas"]["StandingOut"];
 
 export type Tournament = {
   id: number;

@@ -53,4 +53,29 @@ describe("duel-web API calls (refactor 2.1b)", () => {
     const other = new ApiError(500, "no");
     expect(withTimeoutWording(other, 15_000)).toBe(other);
   });
+
+  it("times out a call that brings its own signal, and still stops when that signal aborts (#1224)", async () => {
+    vi.useFakeTimers();
+    try {
+      let seen: AbortSignal | undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_url: string, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+              seen = init?.signal ?? undefined;
+              seen?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+            }),
+        ),
+      );
+      const caller = new AbortController();
+      const pending = apiCall("/x", { signal: caller.signal, timeoutMs: 1000 }).catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(seen?.aborted).toBe(true);
+      expect(caller.signal.aborted).toBe(false);
+      expect(await pending).toMatchObject({ code: "timeout" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
