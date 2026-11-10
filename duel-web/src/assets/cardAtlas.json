@@ -42897,11 +42897,11 @@
     "imageUrl": "/cards/OP18-027.png",
     "effectText": "[Opponent's Turn] The base power of your active [Monkey.D.Luffy] Leader with 3 or more DON!! cards given becomes 7000. [On Play] Set up to 2 of your DON!! cards as active. Then, up to 1 of your opponent's Characters with a cost of 6 or less cannot be rested until the end of your opponent's next End Phase.",
     "traits": [
-      "Sniper Island",
+      "Straw Hat Crew",
       "Water Seven",
-      "Straw Hat Crew"
+      "Sniper Island"
     ],
-    "attribute": "Slash/Ranged",
+    "attribute": "Ranged/Slash",
     "abilitySupport": "ok"
   },
   "OP18-028": {
@@ -43024,6 +43024,23 @@
       "Water Seven"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-038": {
+    "id": "OP18-038",
+    "name": "Shoot Down That Flag.",
+    "type": "event",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/731759_400w.jpg",
+    "effectText": "[Main] Look at 5 cards from the top of your deck; reveal up to 1 [Sogeking] or {Straw Hat Crew} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Draw 1 card.",
+    "traits": [
+      "Straw Hat Crew",
+      "Water Seven"
+    ],
+    "hasTrigger": true,
     "abilitySupport": "ok"
   },
   "OP18-040": {
