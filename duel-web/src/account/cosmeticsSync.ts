@@ -6,7 +6,7 @@
  * holds every upload and which one is chosen, so another device (or this one,
  * after storage is cleared) picks the same art up on the next sync.
  */
-import { useSyncExternalStore } from "react";
+import { createStore } from "../lib/createStore";
 import { cardBackSlot } from "../cardBack";
 import type { ImageSlot } from "../cosmetics/imageSlot";
 import {
@@ -33,16 +33,14 @@ export type AccountCosmeticsState = {
   active: Record<CosmeticKind, number | null>;
 };
 
-let state: AccountCosmeticsState = {
+const store = createStore<AccountCosmeticsState>({
   signedIn: false,
   items: [],
   active: { playmat: null, cardBack: null },
-};
-const listeners = new Set<() => void>();
+});
 
 function setState(patch: Partial<AccountCosmeticsState>) {
-  state = { ...state, ...patch };
-  for (const l of listeners) l();
+  store.set((prev) => ({ ...prev, ...patch }));
 }
 
 function adopt(res: AccountCosmetics) {
@@ -79,10 +77,10 @@ async function applyChoice(kind: CosmeticKind, id: number | null) {
  * upload the API can serve to the opponent (null: share it as a data URL).
  */
 export function activePublicPath(kind: CosmeticKind): string | null {
-  if (!state.signedIn) return null;
+  if (!store.get().signedIn) return null;
   const id = localAccountId(kind);
   if (id === null) return null;
-  const path = state.items.find((i) => i.id === id)?.public_path;
+  const path = store.get().items.find((i) => i.id === id)?.public_path;
   return typeof path === "string" && SKIN_PUBLIC_PATH.test(path) ? path : null;
 }
 
@@ -120,7 +118,7 @@ export function stopCosmeticsSync(): void {
 export async function saveCosmetic(kind: CosmeticKind, file: Blob): Promise<void> {
   const blob = await SLOTS[kind].save(file);
   setLocalAccountId(kind, null);
-  if (!state.signedIn) return;
+  if (!store.get().signedIn) return;
   try {
     const res = await uploadAccountCosmetic(kind, blob);
     adopt(res);
@@ -133,7 +131,7 @@ export async function saveCosmetic(kind: CosmeticKind, file: Blob): Promise<void
 
 /** Switch to an earlier upload, or back to the default (null). */
 export async function chooseCosmetic(kind: CosmeticKind, id: number | null): Promise<void> {
-  if (state.signedIn) adopt(await selectAccountCosmetic(kind, id));
+  if (store.get().signedIn) adopt(await selectAccountCosmetic(kind, id));
   await applyChoice(kind, id);
 }
 
@@ -143,11 +141,6 @@ export async function deleteCosmetic(kind: CosmeticKind, id: number): Promise<vo
   if (localAccountId(kind) === id) await applyChoice(kind, null);
 }
 
-function subscribe(l: () => void) {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
-
 export function useAccountCosmetics(): AccountCosmeticsState {
-  return useSyncExternalStore(subscribe, () => state, () => state);
+  return store.use();
 }

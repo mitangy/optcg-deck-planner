@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { createStore } from "../../lib/createStore";
 import type { ScreenOrientationPref } from "../../settings";
 import { readStored, writeStored } from "@optcg/ui/storage";
 
@@ -50,18 +50,10 @@ export function lockApiAvailable(): boolean {
   return lockable() != null;
 }
 
-let lockFailed = false;
-const listeners = new Set<() => void>();
+const lockFailed = createStore(false);
 
 function setLockFailed(v: boolean) {
-  if (lockFailed === v) return;
-  lockFailed = v;
-  for (const l of listeners) l();
-}
-
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
+  lockFailed.set(v);
 }
 
 /** Free the orientation (leaving the match, or back to "follow my phone"). */
@@ -95,11 +87,7 @@ export async function syncOrientationLock(setting: ScreenOrientationPref): Promi
 
 /** True when the settings should tell the player the lock is unavailable. */
 export function useLockNote(setting: ScreenOrientationPref): boolean {
-  const failed = useSyncExternalStore(
-    subscribe,
-    () => lockFailed,
-    () => false,
-  );
+  const failed = lockFailed.use();
   return lockNoteVisible(setting, lockApiAvailable(), failed);
 }
 
