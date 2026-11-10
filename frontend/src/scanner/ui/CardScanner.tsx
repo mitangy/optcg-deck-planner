@@ -43,6 +43,7 @@ import {
   subscribeScanLog,
 } from "../runtime/scanLog";
 import { qk } from "../../cache/queryKeys";
+import { copyText } from "@optcg/ui/clipboard";
 
 type Phase =
   | { kind: "idle" }
@@ -616,13 +617,10 @@ function ScanDiagnostics() {
             type="button"
             className="ghost"
             onClick={() => {
-              void navigator.clipboard?.writeText(formatScanLog()).then(
-                () => {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                },
-                () => setCopied(false),
-              );
+              void copyText(formatScanLog()).then((ok) => {
+                setCopied(ok);
+                if (ok) setTimeout(() => setCopied(false), 1500);
+              });
             }}
           >
             {copied ? "Copied" : "Copy log"}

@@ -49,6 +49,7 @@ import { CardTable } from "./CardTable";
 import { AvailableDonSection } from "./AvailableDonSection";
 import { COLSORT_DECK_KEY, DECK_ONLY_NEED_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
+import { copyText } from "@optcg/ui/clipboard";
 
 function filterCards(
   cards: CardView[],
@@ -132,12 +133,7 @@ export function DeckDetailPage() {
     mutationFn: () => api.createShare({ kind: "deck", deck_id: deckId }),
     onSuccess: async (info) => {
       const url = `${window.location.origin}${info.path}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareMsg("Public link copied");
-      } catch {
-        setShareMsg(url);
-      }
+      setShareMsg((await copyText(url)) ? "Public link copied" : url);
     },
     onError: (e: Error) => setShareMsg(e.message),
   });
@@ -155,14 +151,11 @@ export function DeckDetailPage() {
       setExportMsg("Nothing to export — add main-deck cards first.");
       return;
     }
-    try {
-      await navigator.clipboard.writeText(optcgSimExport.pasteText);
-      setExportMsg(
-        `Copied ${optcgSimExport.lineCount} line${optcgSimExport.lineCount === 1 ? "" : "s"} for OPTCGSim`,
-      );
-    } catch {
-      setExportMsg("Could not copy — try Download .txt instead.");
-    }
+    setExportMsg(
+      (await copyText(optcgSimExport.pasteText))
+        ? `Copied ${optcgSimExport.lineCount} line${optcgSimExport.lineCount === 1 ? "" : "s"} for OPTCGSim`
+        : "Could not copy — try Download .txt instead.",
+    );
   };
 
   const downloadOptcgSimList = () => {

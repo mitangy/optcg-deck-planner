@@ -1,42 +1,13 @@
+import type { components } from "@optcg/api-client";
 import { ApiError, apiCall } from "../api/http";
 
-export type EventStatus = "upcoming" | "live" | "ended" | "drawn";
-
-export type EventProgress = { games: number; opponents: number; eligible: boolean };
-
-export type EventFormat = "casual" | "single_elim" | "round_robin" | "swiss";
-
-export type DuelEvent = {
-  id: string;
-  title: string;
-  starts_at: string;
-  ends_at: string;
-  /** Short prize summary. */
-  prize: string;
-  description: string;
-  prize_details: string;
-  /** draw: a seeded giveaway among eligible players. placement: top finishers, awarded by hand. */
-  prize_method: "draw" | "placement";
-  format: EventFormat;
-  bracket_size: number | null;
-  best_of: 1 | 3;
-  winners: number;
-  rules_version: string;
-  min_games: number;
-  min_opponents: number;
-  min_turns: number;
-  status: EventStatus;
-  /** Published before the event starts, so the draw can be checked afterwards. */
-  seed_hash: string | null;
-  /** Revealed with the draw. */
-  seed: string | null;
-  eligible_user_ids: number[] | null;
-  viewer: "anonymous" | "guest" | "player" | "staff";
-  can_join: boolean;
-  cant_join_reason: string | null;
-  opted_in: boolean;
-  progress: EventProgress | null;
-};
+// The event shape is generated from the backend's OpenAPI schema (refactor 2.1c). Notes on fields: `seed_hash` is
+// published before the event starts so the draw can be checked afterwards, `seed` is revealed with the draw, and
+// `prize_method` "draw" is a seeded giveaway among eligible players while "placement" is awarded by hand.
+export type DuelEvent = components["schemas"]["EventPublic"];
+export type EventStatus = DuelEvent["status"];
+export type EventProgress = components["schemas"]["EventProgress"];
+export type EventFormat = DuelEvent["format"];
 
 /** GET /duel/events/current (public): the event to show, or null when there is none. Throws when the call fails. */
 export async function fetchCurrentEvent(): Promise<DuelEvent | null> {

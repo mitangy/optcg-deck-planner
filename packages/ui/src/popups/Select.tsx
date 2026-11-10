@@ -1,5 +1,6 @@
 import { Label, type ListboxOptionsProps } from "@headlessui/react";
 import type { ReactNode } from "react";
+import { cx } from "../classNames";
 import { Listbox, ListboxButton, ListboxList, ListboxOption } from "./Listbox";
 
 export type SelectOption<T extends string | number> = {
@@ -55,7 +56,6 @@ export function Select<T extends string | number>({
   title,
 }: SelectProps<T>) {
   const picked = options.find((o) => o.value === value);
-  const cls = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(" ");
   const body = (
     <>
       <ListboxButton
@@ -63,14 +63,14 @@ export function Select<T extends string | number>({
         type="button"
         title={title}
         aria-label={label ? undefined : ariaLabel}
-        className={cls("ui-select-button", label ? undefined : className, buttonClassName)}
+        className={cx("ui-select-button", label ? undefined : className, buttonClassName)}
       >
         <span className="ui-select-value">{picked ? (picked.buttonLabel ?? picked.label) : null}</span>
         <span className="ui-select-chevron" aria-hidden>
           ▾
         </span>
       </ListboxButton>
-      <ListboxList anchor={anchor} className={cls("ui-select-list", listClassName)}>
+      <ListboxList anchor={anchor} className={cx("ui-select-list", listClassName)}>
         {options.map((o) => (
           <ListboxOption key={o.value} value={o.value} disabled={o.disabled} className="ui-select-option">
             {({ selected }) => (
@@ -92,7 +92,7 @@ export function Select<T extends string | number>({
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled} name={name}>
       {label ? (
-        <div className={cls("ui-select", className)}>
+        <div className={cx("ui-select", className)}>
           <Label className="ui-select-field-label">{label}</Label>
           {body}
         </div>

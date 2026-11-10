@@ -56,6 +56,7 @@ import {
 } from "../../storage/keys";
 import { jsonSetCodec, usePersistedState } from "@optcg/ui/storage";
 import { qk } from "../../cache/queryKeys";
+import { copyText } from "@optcg/ui/clipboard";
 
 const isString = (x: unknown): x is string => typeof x === "string";
 const selectedCardsCodec = jsonSetCodec(isString);
@@ -315,13 +316,9 @@ export function ShoppingPage() {
       setExportMsg("Nothing to export — selected cards need copies.");
       return false;
     }
-    try {
-      await navigator.clipboard.writeText(massEntry.pasteText);
-      return true;
-    } catch {
-      setExportMsg(massEntry.pasteText);
-      return false;
-    }
+    if (await copyText(massEntry.pasteText)) return true;
+    setExportMsg(massEntry.pasteText);
+    return false;
   }
 
   async function onCopyMassEntry() {
@@ -458,12 +455,7 @@ export function ShoppingPage() {
     onSuccess: async (info) => {
       await qc.invalidateQueries({ queryKey: qk.share.shopping() });
       const url = `${window.location.origin}${info.path}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setShareMsg("Public link copied");
-      } catch {
-        setShareMsg(url);
-      }
+      setShareMsg((await copyText(url)) ? "Public link copied" : url);
     },
     onError: (e: Error) => setShareMsg(e.message),
   });
@@ -569,12 +561,7 @@ export function ShoppingPage() {
             revoking={revokeShare.isPending}
             onCopy={async () => {
               if (!shareUrl) return;
-              try {
-                await navigator.clipboard.writeText(shareUrl);
-                setShareMsg("Public link copied");
-              } catch {
-                setShareMsg(shareUrl);
-              }
+              setShareMsg((await copyText(shareUrl)) ? "Public link copied" : shareUrl);
             }}
             onCreateOrUpdate={() => createShare.mutate()}
             onRevoke={() => {

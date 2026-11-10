@@ -5,6 +5,7 @@ export * from "./seo";
 export * from "./firstTouch";
 export * from "./appShell";
 export * from "./classNames";
+export * from "./clipboard";
 export * from "./hooks";
 export * from "./storage";
 export * from "./username";
