@@ -1,5 +1,5 @@
 import { Select, type SelectOption } from "@optcg/ui/popups";
-import { useMemo, useState, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./preview/CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./layout/useMediaQuery";
@@ -251,10 +251,13 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
     rush,
   ]);
 
-  const browsing = hasActiveCardSearch(searchFilters);
+  // Filtering and rendering the matches is the slow part; the deferred copy lets the input and
+  // filter controls update first and the list catch up without blocking typing (#1227).
+  const deferredFilters = useDeferredValue(searchFilters);
+  const browsing = hasActiveCardSearch(deferredFilters);
   const results = useMemo(
-    () => (browsing ? searchAtlas(searchFilters) : []),
-    [browsing, searchFilters],
+    () => (browsing ? searchAtlas(deferredFilters) : []),
+    [browsing, deferredFilters],
   );
 
   const currentDeck = deck;
@@ -468,7 +471,7 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
                           aria-label={`View details for ${entry.name}`}
                         >
                           <div className="deck-search-thumb">
-                            <CardArt src={imageUrl} defId={entry.id} fallback={<span>{entry.id}</span>} />
+                            <CardArt src={imageUrl} defId={entry.id} fallback={<span>{entry.id}</span>} loading="lazy" />
                           </div>
                           <div className="deck-search-meta">
                             <div className="deck-stack-name">{entry.name}</div>

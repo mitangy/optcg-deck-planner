@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.planner import decks as deck_svc
+from app.planner import recent_sales
 from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.body_limit import DEFAULT_MAX_BODY_BYTES
 from app.core.config import get_settings
@@ -101,6 +102,21 @@ def test_sales_proxy_caps_uncached_upstream_calls_in_total_318(client, monkeypat
     monkeypatch.setattr(api_router, "_sales_upstream_limiter", RateLimiter(max_calls=0, period_s=60))
     res = c.get("/catalog/sales/555123", headers={"X-Forwarded-For": "192.0.2.50"})
     assert res.status_code == 429
+
+
+def test_sales_proxy_counts_a_wider_request_than_the_cached_one_as_upstream_1218(client, monkeypatch: pytest.MonkeyPatch):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_catalog(db, "OP01-016", name="Nami", product_id=555124, market=1.0)
+    recent_sales._CACHE.clear()
+    recent_sales._CACHE[555124] = (3, [])
+    monkeypatch.setattr(api_router, "_sales_upstream_limiter", RateLimiter(max_calls=0, period_s=60))
+    headers = {"X-Forwarded-For": "192.0.2.51"}
+    try:
+        assert c.get("/catalog/sales/555124", params={"limit": 3}, headers=headers).status_code == 200
+        assert c.get("/catalog/sales/555124", params={"limit": 10}, headers=headers).status_code == 429
+    finally:
+        recent_sales._CACHE.clear()
 
 
 def test_deck_with_too_many_different_cards_is_refused_318(client):

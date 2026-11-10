@@ -475,7 +475,7 @@ def catalog_recent_sales(
     # and a cache entry that is never reused.
     if db.scalar(select(CatalogPrinting.id).where(CatalogPrinting.product_id == product_id).limit(1)) is None:
         raise HTTPException(status_code=404, detail="Unknown product")
-    if not is_cached(product_id) and not _sales_upstream_limiter.allow("sales-upstream"):
+    if not is_cached(product_id, limit) and not _sales_upstream_limiter.allow("sales-upstream"):
         raise HTTPException(status_code=429, detail="Too many sales requests")
     try:
         sales = fetch_recent_sales(product_id, limit=limit)

@@ -1,6 +1,6 @@
 /** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
-import { isLimitCode, type DonePayload, type ErrorCode, type HintContext, type LimitCode } from "@optcg/analyst-contract";
+import { PLAN_ABILITY_ID_MAX, PLAN_STEP_ID_MAX, isLimitCode, type DonePayload, type ErrorCode, type HintContext, type LimitCode } from "@optcg/analyst-contract";
 import { parseDraft, type NewDeckDraft } from "./drafts";
 import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
@@ -169,7 +169,7 @@ export function stampPlan(plan: TurnPlan, context: ChatContext | undefined): Tur
   return ticket ? { ...plan, gameKey: ticketGameKey(ticket) } : plan;
 }
 
-export const PLAN_LIMITS = { summary: 300, label: 200, why: 400, id: 40, steps: 15, count: 10 };
+export const PLAN_LIMITS = { summary: 300, label: 200, why: 400, id: PLAN_STEP_ID_MAX, abilityId: PLAN_ABILITY_ID_MAX, steps: 15, count: 10 };
 
 const str = (v: unknown, max: number): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 const optStr = (v: unknown, max: number): string | undefined => str(v, max) ?? undefined;
@@ -180,6 +180,11 @@ function parseStep(raw: unknown): PlanStep | null {
   const label = str(o.label, PLAN_LIMITS.label);
   if (!label) return null;
   const base = { label, ...(optStr(o.why, PLAN_LIMITS.why) ? { why: optStr(o.why, PLAN_LIMITS.why) } : {}) };
+  // An id cut short names a different card or ability, so a step whose id is over the limit is invalid (the
+  // plan is dropped), never shortened. A missing optional id is still just absent.
+  const tooLong = (v: unknown, max: number) => typeof v === "string" && v.trim().length > max;
+  for (const key of ["card", "trash", "target", "source", "attacker"]) if (tooLong(o[key], PLAN_LIMITS.id)) return null;
+  if (tooLong(o.abilityId, PLAN_LIMITS.abilityId)) return null;
   const id = (v: unknown) => str(v, PLAN_LIMITS.id);
   switch (o.action) {
     case "play": {
@@ -195,7 +200,7 @@ function parseStep(raw: unknown): PlanStep | null {
     }
     case "activate": {
       const source = id(o.source);
-      const abilityId = id(o.abilityId);
+      const abilityId = str(o.abilityId, PLAN_LIMITS.abilityId);
       const target = id(o.target);
       return source ? { ...base, action: "activate", source, ...(abilityId ? { abilityId } : {}), ...(target ? { target } : {}) } : null;
     }

@@ -25,14 +25,20 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { execFileSync, spawnSync } = require("child_process");
+const { parseArgs } = require("node:util");
 
 const REPO = path.resolve(__dirname, "../..");
 const SUITES_DIR = path.join(__dirname, "suites");
 
-const args = process.argv.slice(2);
-const listOnly = args.includes("--list");
-const matrixOnly = args.includes("--matrix");
-const baseArg = args.find((a) => !a.startsWith("--"));
+const { values: flags, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: { list: { type: "boolean" }, matrix: { type: "boolean" } },
+  allowPositionals: true,
+  strict: false,
+});
+const listOnly = flags.list === true;
+const matrixOnly = flags.matrix === true;
+const baseArg = positionals[0];
 if (!baseArg) { console.error("usage: changed.cjs <base-ref> [--list | --matrix]"); process.exit(2); }
 
 const git = (...a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });

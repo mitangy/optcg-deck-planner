@@ -12,6 +12,8 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Scan tray Fix row frees its button when the lookup rejects (#1229)
+    { id: "scantray1229-busy-stuck-on-reject", file: "frontend/src/scanner/ui/ScanTray.tsx", from: "    } finally {\n      setBusy(false);\n    }\n", to: "    }\n", kills: ["a Fix lookup that fails frees the Use button again (#1229)"], args: "src/scanner/ui/scanTrayFix1229" },
     // Signed-in browsers see the app, not a hidden pre-render (#921)
     { id: "prerender921-main-keeps-mark", file: "frontend/src/main.tsx", from: "releasePrerenderedRoot(rootEl);\n", to: "", kills: ["a signed-in browser's app is not hidden by the pre-render rule, and never shows the logged-out page (#921)", "a visitor keeps the pre-rendered landing on screen while the app mounts (#921)"], args: "src/app/prerenderRelease921" },
     { id: "prerender921-attr-kept", file: "frontend/src/app/prerendered.ts", from: "  root.removeAttribute(\"data-prerendered\");\n", to: "", kills: ["a signed-in browser's app is not hidden by the pre-render rule, and never shows the logged-out page (#921)"], args: "src/app/prerenderRelease921" },

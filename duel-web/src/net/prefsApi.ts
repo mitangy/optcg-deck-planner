@@ -31,8 +31,16 @@ export function fetchAccountSettings(): Promise<{ settings: Record<string, unkno
   return call("/duel/settings");
 }
 
-export function putAccountSettings(settings: Record<string, string | number | boolean>): Promise<unknown> {
-  return call("/duel/settings", { method: "PUT", ...json({ settings }) }, "Could not save settings");
+/** `keepalive` lets the save finish after the page is closed or hidden (the body is far under its 64 KB cap). */
+export function putAccountSettings(
+  settings: Record<string, string | number | boolean>,
+  opts: { keepalive?: boolean } = {},
+): Promise<unknown> {
+  return call(
+    "/duel/settings",
+    { method: "PUT", ...json({ settings }), ...(opts.keepalive ? { keepalive: true } : {}) },
+    "Could not save settings",
+  );
 }
 
 export function fetchAccountCosmetics(): Promise<AccountCosmetics> {

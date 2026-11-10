@@ -17,10 +17,6 @@ export type BriefTicketClaims = {
   deck: string[];
 };
 
-function b64url(buf: Buffer): string {
-  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
 /**
  * Sign a matchup-brief ticket: `mb1.<b64url(json)>.<b64url(hmac)>`. The key is the
  * game-token secret with a salt, so a game token never verifies as a ticket.
@@ -41,9 +37,7 @@ export function mintBriefTicket(
     deck: claims.deck,
     exp: nowSec + BRIEF_TICKET_TTL_SEC,
   };
-  const body = b64url(Buffer.from(JSON.stringify(payload), "utf8"));
-  const sig = b64url(
-    createHmac("sha256", "match-brief:" + getGameTokenSecret()).update(body).digest(),
-  );
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = createHmac("sha256", "match-brief:" + getGameTokenSecret()).update(body).digest("base64url");
   return `mb1.${body}.${sig}`;
 }
