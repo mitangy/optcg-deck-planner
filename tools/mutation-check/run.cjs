@@ -23,6 +23,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
+const { parseArgs } = require("node:util");
 const { applyAnchor } = require("./anchors.cjs");
 
 const REPO = path.resolve(__dirname, "../..");
@@ -61,18 +62,29 @@ const SUITES = {
   ci: require("./suites/ci.cjs"),
 };
 
-const args = process.argv.slice(2);
-const onlyIndex = args.indexOf("--only");
-const only = onlyIndex >= 0 ? new RegExp(args[onlyIndex + 1]) : null;
-const scopeIndex = args.indexOf("--locate-scope");
-const locateScope = scopeIndex >= 0 ? args[scopeIndex + 1] : null;
-const suiteNames = args.filter((a, i) => !a.startsWith("--") && !(onlyIndex >= 0 && i === onlyIndex + 1) && !(scopeIndex >= 0 && i === scopeIndex + 1));
+// Unknown flags are tolerated (strict: false), as before; positionals are the suite names.
+const { values: flags, positionals: suiteNames } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    only: { type: "string" },
+    "locate-scope": { type: "string" },
+    "check-anchors": { type: "boolean" },
+    "locate-stale": { type: "boolean" },
+  },
+  allowPositionals: true,
+  strict: false,
+});
+for (const name of ["only", "locate-scope"]) {
+  if (flags[name] !== undefined && typeof flags[name] !== "string") { console.error(`--${name} needs a value`); process.exit(2); }
+}
+const only = flags.only !== undefined ? new RegExp(flags.only) : null;
+const locateScope = flags["locate-scope"] ?? null;
 const selected = suiteNames.length ? suiteNames : Object.keys(SUITES);
 
 // --check-anchors: verify every mutation still applies (each anchor matches
 // exactly once, json patches run) without running any tests. Read-only, so it
 // needs neither the lock nor the restore journal.
-if (args.includes("--check-anchors")) {
+if (flags["check-anchors"]) {
   for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
   let stale = 0;
   let checked = 0;
@@ -96,7 +108,7 @@ if (args.includes("--check-anchors")) {
 
 // --locate-stale: for every stale anchor, find the tracked file it moved to.
 // Read-only, like --check-anchors.
-if (args.includes("--locate-stale")) {
+if (flags["locate-stale"]) {
   for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
   const { locateStale } = require("./locate.cjs");
   const result = locateStale({ repo: REPO, suites: Object.fromEntries(selected.map((n) => [n, SUITES[n]])), only, scope: locateScope });
