@@ -117,6 +117,9 @@ module.exports = {
     { id: "md-no-tables", file: md, from: "    if (isTableStart(lines, i)) {\n      const head", to: "    if (false) {\n      const head", kills: ["parses a pipe table with its header and rows"] },
     { id: "md-ol-start-ignored", file: md, from: "{ t: \"ol\", start: Number(numbered![1]), items: parsed }", to: "{ t: \"ol\", start: 1, items: parsed }", kills: ["keeping the numbered list's start"] },
     { id: "md-list-continuation-dropped", file: md, from: "          items[items.length - 1]!.push(l);\n", to: "", kills: ["parses bullet and numbered lists"] },
+    { id: "md-heading-backtracking-regex", file: md, from: "const HEADING = /^\\s{0,3}(#{1,6})\\s+([\\s\\S]*)$/;", to: "const HEADING = /^\\s{0,3}(#{1,6})\\s+(.*?)\\s*#*\\s*$/;", kills: ["heading with a long run of spaces parses quickly (#1219)"] },
+    { id: "md-heading-closing-hashes-kept", file: md, from: "  while (end > 0 && raw[end - 1] === \"#\") end--;\n", to: "", kills: ["heading drops its closing hashes and blanks, and a lone # is not a heading (#1219)"] },
+    { id: "md-link-url-overlapping-alternatives", file: md, from: "([^()\\s]+(?:\\([^()\\s]*\\)[^()\\s]*)?)", to: "([^()\\s]+(?:\\([^()\\s]*\\))?[^()\\s]*)", kills: ["an unclosed link with a long URL parses quickly and a closed one still links (#1219)"] },
     { id: "md-fence-parsed", file: md, from: "    const fence = FENCE.exec(line);", to: "    const fence = null as RegExpExecArray | null;", kills: ["keeps a fenced code block verbatim"] },
     // sources, citations and panel size (#390)
     { id: "cit-any-prefix-is-a-kind", file: cit, from: "  if (!KINDS.includes(head)) return", to: "  if (false) return", kills: ["reads the kind, id and part of every source"] },
