@@ -60,4 +60,32 @@ describe("Log Pose markdown (#377)", () => {
     expect(blocks[0]).toEqual({ t: "code", lang: "", v: "4xOP01-006\n**not bold**" });
     expect(blocks[1]!.t).toBe("p");
   });
+
+  it("heading with a long run of spaces parses quickly (#1219)", () => {
+    const line = "# a" + " ".repeat(3000) + "x";
+    const t0 = performance.now();
+    const blocks = parseMarkdown(line);
+    // Also the paragraph path, which asks startsBlock about every following line.
+    const para = parseMarkdown("intro\n" + line + "\nafter");
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(200);
+    expect(blocks).toEqual([{ t: "h", level: 1, c: [{ t: "text", v: "a" + " ".repeat(3000) + "x" }] }]);
+    expect(para.map((b) => b.t)).toEqual(["p", "h", "p"]);
+  });
+
+  it("heading drops its closing hashes and blanks, and a lone # is not a heading (#1219)", () => {
+    expect(parseMarkdown("## Deck plan ##  ")).toEqual([{ t: "h", level: 2, c: [{ t: "text", v: "Deck plan" }] }]);
+    expect(parseMarkdown("# a #\t#")).toEqual([{ t: "h", level: 1, c: [{ t: "text", v: "a #" }] }]);
+    expect(parseMarkdown("#")[0]!.t).toBe("p");
+    expect(parseMarkdown("####### seven")[0]!.t).toBe("p");
+  });
+
+  it("an unclosed link with a long URL parses quickly and a closed one still links (#1219)", () => {
+    const t0 = performance.now();
+    const open = parseInline("[a](http://" + "a".repeat(40000));
+    const ms = performance.now() - t0;
+    expect(ms).toBeLessThan(200);
+    expect(open[0]).toEqual({ t: "text", v: "[a](" });
+    expect(parseInline("[a](https://x.io/w_(1)_b)")[0]).toMatchObject({ t: "a", href: "https://x.io/w_(1)_b" });
+  });
 });

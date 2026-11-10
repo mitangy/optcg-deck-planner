@@ -105,8 +105,27 @@ export function getMatchOutboxDatabaseUrl(): string | undefined {
   return value || undefined;
 }
 
+const DEV_DUEL_INGEST_SECRET = "dev-duel-ingest";
+
 export function getDuelIngestSecret(): string {
-  return process.env.DUEL_INGEST_SECRET?.trim() || "dev-duel-ingest";
+  return process.env.DUEL_INGEST_SECRET?.trim() || DEV_DUEL_INGEST_SECRET;
+}
+
+/**
+ * Production still starts with the public dev ingest secret (the environment is managed outside this repo), but
+ * says so loudly: anyone who knows the default can post match results and presence to the API. Returns whether
+ * it warned.
+ */
+export function warnIfDefaultIngestSecretInProduction(
+  env: NodeJS.ProcessEnv = process.env,
+  log: (message: string) => void = console.error,
+): boolean {
+  if (env.NODE_ENV !== "production") return false;
+  if (env.DUEL_INGEST_SECRET?.trim()) return false;
+  log(
+    `[SECURITY] DUEL_INGEST_SECRET is not set in production: the public default "${DEV_DUEL_INGEST_SECRET}" authenticates match-result and presence calls to the API. Set DUEL_INGEST_SECRET (the same value on the API).`,
+  );
+  return true;
 }
 
 /** Disconnect grace before seat is freed (seconds). */

@@ -23,16 +23,37 @@ export async function syncSettings(): Promise<void> {
   if (gen !== syncGen) return;
 
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: ReturnType<typeof syncedSettings> | null = null;
   const unsubscribe = onLocalSettingsChange((s) => {
     if (timer) clearTimeout(timer);
+    pending = syncedSettings(s);
     timer = setTimeout(() => {
       timer = null;
-      void putAccountSettings(syncedSettings(s)).catch(() => undefined);
+      const body = pending;
+      pending = null;
+      if (body) void putAccountSettings(body).catch(() => undefined);
     }, PUSH_DELAY_MS);
   });
+  // A tab closed or hidden inside the debounce window would lose its last edit (and the account's older copy
+  // would then overwrite it on the next load): push it now, with a request that outlives the page.
+  const flush = () => {
+    if (!timer || !pending) return;
+    clearTimeout(timer);
+    timer = null;
+    const body = pending;
+    pending = null;
+    void putAccountSettings(body, { keepalive: true }).catch(() => undefined);
+  };
+  const onVisibility = () => {
+    if (document.visibilityState === "hidden") flush();
+  };
+  if (typeof window !== "undefined") window.addEventListener("pagehide", flush);
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
   stop = () => {
     unsubscribe();
     if (timer) clearTimeout(timer);
+    if (typeof window !== "undefined") window.removeEventListener("pagehide", flush);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
   };
 
   const local = syncedSettings(currentSettings());

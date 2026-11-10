@@ -289,6 +289,17 @@ describe("turn plans (#416)", () => {
     for (const step of bad) expect(parseTurnPlan({ ...plan, steps: [plan.steps[0], step, plan.steps[4]] })).toBeNull();
   });
 
+  it("drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)", () => {
+    const withStep = (step: Record<string, unknown>) => parseTurnPlan({ ...plan, steps: [plan.steps[0], step, plan.steps[4]] });
+    const ability60 = "a".repeat(60);
+    const id40 = "c".repeat(40);
+    expect(withStep({ action: "activate", source: id40, abilityId: ability60, label: "x" })?.steps[1]).toMatchObject({ source: id40, abilityId: ability60 });
+    expect(withStep({ action: "activate", source: "c3", abilityId: "a".repeat(61), label: "x" })).toBeNull();
+    expect(withStep({ action: "activate", source: "c".repeat(41), label: "x" })).toBeNull();
+    expect(withStep({ action: "play", card: "c12", trash: "t".repeat(41), label: "x" })).toBeNull();
+    expect(withStep({ action: "attack", attacker: "leader1", target: "t".repeat(41), label: "x" })).toBeNull();
+  });
+
   it("needs an id, a summary, a turn and 1 to 15 steps (#416)", () => {
     const one = plan.steps[4];
     expect(parseTurnPlan({ ...plan, steps: [] })).toBeNull();

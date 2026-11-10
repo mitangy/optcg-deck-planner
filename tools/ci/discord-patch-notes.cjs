@@ -12,6 +12,7 @@ const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const util = require("node:util");
 
 const NOTES_PATH = "packages/patch-notes/src/notes.ts";
 const ZERO_SHA = /^0+$/;
@@ -155,21 +156,22 @@ async function postOne(url, body, { maxRetries = 4 } = {}) {
   }
 }
 
-function parseArgs(argv) {
-  const o = { dryRun: false };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "--dry-run") o.dryRun = true;
-    else if (a === "--before") o.before = argv[++i];
-    else if (a === "--after") o.after = argv[++i];
-    else if (a === "--latest") o.latest = argv[++i];
-    else throw new Error(`unknown argument ${a}`);
-  }
-  return o;
+function parseCliArgs(argv) {
+  const { values } = util.parseArgs({
+    args: argv,
+    options: {
+      "dry-run": { type: "boolean", default: false },
+      before: { type: "string" },
+      after: { type: "string" },
+      latest: { type: "string" },
+    },
+    allowPositionals: false,
+  });
+  return { dryRun: values["dry-run"], before: values.before, after: values.after, latest: values.latest };
 }
 
 async function main(argv) {
-  const o = parseArgs(argv);
+  const o = parseCliArgs(argv);
   let notes;
   if (o.latest !== undefined) {
     const n = Number.parseInt(o.latest, 10);

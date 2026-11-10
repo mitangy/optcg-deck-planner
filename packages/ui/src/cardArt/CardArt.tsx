@@ -38,6 +38,7 @@ export function CardArt({
   className,
   fallback,
   draggable,
+  loading,
 }: {
   src: string | null | undefined;
   defId: string;
@@ -45,8 +46,21 @@ export function CardArt({
   fallback: ReactNode;
   /** Passed to the `<img>`; leave unset for the browser default. */
   draggable?: boolean;
+  /** "lazy" for long lists and grids (also decodes off the main thread); unset keeps the eager default for board art. */
+  loading?: "lazy";
 }) {
   const art = useArtFallback(src, defId);
   if (!art.src) return <>{fallback}</>;
-  return <img src={art.src} alt="" className={className} draggable={draggable} onLoad={art.onLoad} onError={art.fail} />;
+  return (
+    <img
+      src={art.src}
+      alt=""
+      className={className}
+      draggable={draggable}
+      loading={loading}
+      decoding={loading === "lazy" ? "async" : undefined}
+      onLoad={art.onLoad}
+      onError={art.fail}
+    />
+  );
 }

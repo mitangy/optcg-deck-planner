@@ -6,6 +6,7 @@ import threading
 import time
 from typing import Annotated, Any, Callable
 
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
@@ -19,9 +20,11 @@ router = APIRouter(prefix="/meta", tags=["meta"])
 
 CACHE_TTL_S = 600
 _rate_limiter = RateLimiter(max_calls=60, period_s=60, name="meta_rate_limiter")
-_cache: dict[tuple, tuple[float, Any]] = {}
-_cache_lock = threading.Lock()
 _CACHE_MAX = 500
+_now = time.monotonic  # tests move this to age entries past the TTL
+_cache: TTLCache[tuple, Any] = TTLCache(maxsize=_CACHE_MAX, ttl=CACHE_TTL_S, timer=lambda: _now())
+_cache_lock = threading.Lock()
+_MISS = object()
 
 
 def reset_cache() -> None:
@@ -30,17 +33,13 @@ def reset_cache() -> None:
 
 
 def _cached(key: tuple, build: Callable[[], Any]) -> Any:
-    now = time.monotonic()
     with _cache_lock:
-        hit = _cache.get(key)
-        if hit and now - hit[0] < CACHE_TTL_S:
-            return hit[1]
+        hit = _cache.get(key, _MISS)
+    if hit is not _MISS:
+        return hit
     value = build()
     with _cache_lock:
-        if len(_cache) >= _CACHE_MAX:
-            for k in [k for k, (t, _) in _cache.items() if now - t >= CACHE_TTL_S] or [next(iter(_cache))]:
-                _cache.pop(k, None)
-        _cache[key] = (now, value)
+        _cache[key] = value
     return value
 
 

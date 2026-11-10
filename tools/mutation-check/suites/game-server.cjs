@@ -23,6 +23,10 @@ module.exports = {
   cwd: "game-server",
   runner: "mocha",
   mutations: [
+    // Production warns about the default ingest secret (#1229)
+    { id: "ingest1229-no-warning", file: "game-server/src/env.ts", from: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  log(", to: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  if (env.NODE_ENV === \"production\") return true;\n  log(", kills: ["production without DUEL_INGEST_SECRET logs a loud warning and still starts (#1229)"], args: "test/ingestSecretWarning.test.ts" },
+    { id: "ingest1229-warns-outside-production", file: "game-server/src/env.ts", from: "  if (env.NODE_ENV !== \"production\") return false;\n  if (env.DUEL_INGEST_SECRET", to: "  if (env.DUEL_INGEST_SECRET", kills: ["stays quiet in production when the secret is set, and outside production (#1229)"], args: "test/ingestSecretWarning.test.ts" },
+    { id: "ingest1229-warns-when-set", file: "game-server/src/env.ts", from: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  log(", to: "  log(", kills: ["stays quiet in production when the secret is set, and outside production (#1229)"], args: "test/ingestSecretWarning.test.ts" },
     // protocol parsers
     { id: "join-drops-secret", file: "packages/duel-protocol/src/clientMessages.ts", from: "    secret: typeof o.secret === \"string\" ? o.secret : undefined,", to: "    secret: undefined,", kills: ["parses join options"] },
     { id: "join-drops-seat", file: "packages/duel-protocol/src/clientMessages.ts", from: "    preferredSeat: preferredSeat as Seat | undefined,", to: "    preferredSeat: undefined,", kills: ["parses join options"] },
@@ -111,7 +115,7 @@ module.exports = {
     { id: "undo-label-end-turn", file: "game-server/src/undoLabel.ts", from: "      return \"end turn\";", to: "      return \"pass\";", kills: ["undo: request/accept takes back the last action in unranked rooms (#497)"] },
     { id: "undo-label-give-don-target", file: "game-server/src/undoLabel.ts", from: "      return n ? `give DON!! to ${n}` : \"give DON!!\";", to: "      return \"give DON!!\";", kills: ["one undo takes back one action, not the whole turn, and repeats step further back (#497)"] },
     { id: "skin-not-relayed", file: duelCosmetics, from: "    this.core.io.broadcast(\"skin\", payload);\n  }\n\n  /** A m", to: "    client.send(\"skin\", payload);\n  }\n\n  /** A m", kills: ["relays a seat's playmat / card back skin"] },
-    { id: "skin-any-mime", file: "packages/duel-protocol/src/clientMessages.ts", from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
+    { id: "skin-any-mime", file: "packages/duel-protocol/src/constants.ts", from: "^data:image\\/(?:jpeg|webp|png);base64,", to: "^data:[a-z]+\\/[a-z]+;base64,", kills: ["relays a seat's playmat / card back skin"] },
     { id: "skin-ws-default-max-payload", file: appConfig, from: "  transport: new WebSocketTransport({ maxPayload: WS_MAX_PAYLOAD_BYTES, perMessageDeflate: wsCompression() }),\n", to: "", kills: ["relays a cap-sized playmat and card back in one skin message"] },
     { id: "presence-room-unregistered", file: room, from: "    presence.register(this);\n", to: "", kills: ["friends presence: reports seats as waiting"] },
     { id: "presence-waiting-as-playing", file: room, from: "    const phase: PresenceEntry[\"phase\"] = !game.matchStarted\n      ? \"waiting\"", to: "    const phase: PresenceEntry[\"phase\"] = !game.matchStarted\n      ? \"playing\"", kills: ["friends presence: reports seats as waiting"] },

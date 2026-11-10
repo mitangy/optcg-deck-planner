@@ -9,28 +9,12 @@ export type GameTokenPayload = {
   name?: string;
 };
 
-function b64url(buf: Buffer): string {
-  return buf
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-function b64urlDecode(s: string): Buffer {
-  const pad = "=".repeat((4 - (s.length % 4)) % 4);
-  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + pad;
-  return Buffer.from(b64, "base64");
-}
-
 /** Verify FastAPI HMAC game token (`body.sig`). */
 export function verifyGameToken(token: string): GameTokenPayload | null {
   if (!token || !token.includes(".")) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
-  const expected = b64url(
-    createHmac("sha256", getGameTokenSecret()).update(body).digest(),
-  );
+  const expected = createHmac("sha256", getGameTokenSecret()).update(body).digest("base64url");
   try {
     const a = Buffer.from(expected);
     const b = Buffer.from(sig);
@@ -40,7 +24,7 @@ export function verifyGameToken(token: string): GameTokenPayload | null {
   }
   let payload: Record<string, unknown>;
   try {
-    payload = JSON.parse(b64urlDecode(body).toString("utf8")) as Record<
+    payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Record<
       string,
       unknown
     >;
