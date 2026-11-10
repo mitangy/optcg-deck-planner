@@ -14,6 +14,11 @@ module.exports = {
   cwd: "packages/analyst-client",
   runner: "vitest",
   mutations: [
+    // Plan step ids are rejected past the analyst's limit, not truncated (#1229)
+    { id: "plan1229-step-ids-truncated", file: client, from: "if (tooLong(o[key], PLAN_LIMITS.id)) return null;", to: "{}", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-optional-step-id-truncated", file: client, from: "[\"card\", \"trash\", \"target\", \"source\", \"attacker\"]", to: "[\"card\", \"target\", \"source\", \"attacker\"]", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-ability-id-truncated", file: client, from: "  if (tooLong(o.abilityId, PLAN_LIMITS.abilityId)) return null;\n", to: "", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
+    { id: "plan1229-ability-id-capped-at-step-id-limit", file: client, from: "const abilityId = str(o.abilityId, PLAN_LIMITS.abilityId);", to: "const abilityId = id(o.abilityId);", kills: ["drops a plan whose step id is longer than the analyst allows instead of cutting it short (#1229)"] },
     // rating Log Pose answers (#679)
     {"id": "fb-key-index-shifted", "file": "packages/analyst-client/src/feedbackModel.ts", "from": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}`", "to": "`chat:${t.threadId}:${t.index + 1}` : `review:${t.matchId}`", "kills": ["keys a chat answer by thread and position and a review by game, as the server does (#679)"]},
     {"id": "fb-key-review-differs", "file": "packages/analyst-client/src/feedbackModel.ts", "from": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}`", "to": "`chat:${t.threadId}:${t.index}` : `review:${t.matchId}x`", "kills": ["keys a chat answer by thread and position and a review by game, as the server does (#679)"]},
