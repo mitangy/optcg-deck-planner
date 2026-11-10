@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-10
-  { date: "2026-11-10", app: "duel", pr: 1227, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },
+  { date: "2026-11-10", app: "duel", pr: 1232, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },
   { date: "2026-11-10", app: "planner", pr: 1217, title: "Group buy totals match Master Shopping", text: "When you already own an alt art you picked in a deck, a group buy no longer prices it again, so its total matches Master Shopping. Unticking Extra copies in a group buy also keeps the alt arts you own for them from counting toward your decks, like Master Shopping." },
   // 2026-11-09
   { date: "2026-11-09", app: "planner", pr: 1213, title: "The planner uses wide screens", text: "On wide screens the planner now uses the full width: search and filters sit in a sidebar and cards fill the rest. In the Grid view on desktop, the select checkbox sits on the card and Owned and Want share one row, so cards are less tall." },
