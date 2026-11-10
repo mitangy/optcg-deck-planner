@@ -23,6 +23,10 @@ module.exports = {
   cwd: "game-server",
   runner: "mocha",
   mutations: [
+    // Production warns about the default ingest secret (#1229)
+    { id: "ingest1229-no-warning", file: "game-server/src/env.ts", from: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  log(", to: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  if (env.NODE_ENV === \"production\") return true;\n  log(", kills: ["production without DUEL_INGEST_SECRET logs a loud warning and still starts (#1229)"], args: "test/ingestSecretWarning.test.ts" },
+    { id: "ingest1229-warns-outside-production", file: "game-server/src/env.ts", from: "  if (env.NODE_ENV !== \"production\") return false;\n  if (env.DUEL_INGEST_SECRET", to: "  if (env.DUEL_INGEST_SECRET", kills: ["stays quiet in production when the secret is set, and outside production (#1229)"], args: "test/ingestSecretWarning.test.ts" },
+    { id: "ingest1229-warns-when-set", file: "game-server/src/env.ts", from: "  if (env.DUEL_INGEST_SECRET?.trim()) return false;\n  log(", to: "  log(", kills: ["stays quiet in production when the secret is set, and outside production (#1229)"], args: "test/ingestSecretWarning.test.ts" },
     // protocol parsers
     { id: "join-drops-secret", file: "packages/duel-protocol/src/clientMessages.ts", from: "    secret: typeof o.secret === \"string\" ? o.secret : undefined,", to: "    secret: undefined,", kills: ["parses join options"] },
     { id: "join-drops-seat", file: "packages/duel-protocol/src/clientMessages.ts", from: "    preferredSeat: preferredSeat as Seat | undefined,", to: "    preferredSeat: undefined,", kills: ["parses join options"] },
