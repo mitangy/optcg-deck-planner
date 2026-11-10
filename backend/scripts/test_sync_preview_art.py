@@ -19,12 +19,14 @@ from sync_preview_art import (  # noqa: E402
     alt_should_prune,
     capped_size,
     guide_variant,
+    limitless_en_url,
     map_files_to_ids,
     match_alt_previews,
     pair_topdecks_alts,
     parse_topdecks_gallery_alts,
     parse_variant_paths,
     should_prune,
+    should_replace_with_english,
     should_upgrade,
     topdecks_type_ok,
     topdecks_url,
@@ -189,6 +191,20 @@ class TopDecksTests(unittest.TestCase):
         )
         self.assertEqual(urls[0], topdecks_url("OP18-119"))
         self.assertFalse(any("_p2" in u for u in urls))
+
+    def test_limitless_english_url_uses_the_set_folder_and_en_suffix_1238(self) -> None:
+        self.assertEqual(
+            limitless_en_url("OP18-046"),
+            "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP18/OP18-046_EN.webp",
+        )
+        self.assertTrue(limitless_en_url("EB05-001").endswith("/EB05/EB05-001_EN.webp"))
+
+    def test_a_kept_preview_is_replaced_only_by_a_different_english_scan_1238(self) -> None:
+        jp, en = _vp8(600, 838), _vp8(601, 838)
+        self.assertTrue(should_replace_with_english(jp, en))
+        self.assertTrue(should_replace_with_english(None, en))
+        self.assertFalse(should_replace_with_english(en, en))
+        self.assertFalse(should_replace_with_english(jp, None))
 
     def test_only_jpeg_and_png_bodies_are_accepted(self) -> None:
         self.assertTrue(topdecks_type_ok("image/jpeg"))
