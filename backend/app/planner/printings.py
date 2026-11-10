@@ -117,6 +117,22 @@ def _deck_alt_owned_map(
     return out
 
 
+def deck_alt_buy_inputs(
+    alts, deck_alt_owned: dict[int, int]
+) -> list[tuple[int, int, float | None]]:
+    """Picked alts as (product_id, copies still to buy, price) for allocate_still_need_buys.
+
+    Each pick shrinks by the copies of it the deck can use from what the user owns (#908),
+    so Master Shopping and group buys price an owned picked alt the same way (#1216).
+    """
+    out: list[tuple[int, int, float | None]] = []
+    for a in alts:
+        left = a.wanted - deck_alt_owned.get(a.product_id, 0)
+        if left > 0:
+            out.append((a.product_id, left, a.market_price))
+    return out
+
+
 def _display_choice_map(db: Session, user_id: int) -> dict[str, int]:
     """card_id -> chosen display art (0 = base, >0 = product id)."""
     rows = db.scalars(

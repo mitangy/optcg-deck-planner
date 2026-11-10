@@ -42,6 +42,7 @@ from app.planner.schemas import GroupBuyArtWantOut
 from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
+from app.planner.printings import deck_alt_buy_inputs
 
 FROZEN_STATUSES = frozenset({GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED})
 
@@ -108,7 +109,9 @@ def _member_shopping(db: Session, member: GroupBuyMember):
         member.user,
         deck_ids=_parse_deck_ids(member.deck_ids_json),
         include_extras=bool(member.include_singles),
-        include_collector=bool(member.include_extra_copies),
+        # Keep the owned-alt reserve like Master Shopping; unticked only hides them (#1216).
+        include_collector=True,
+        show_collector=bool(member.include_extra_copies),
     )
 
 
@@ -124,8 +127,9 @@ def _member_alt_inputs(item) -> list[tuple[int, int, float | None]]:
         for c in item.collector_wants
         if c.still_need > 0
     ]
-    deck = [(a.product_id, a.wanted, a.market_price) for a in item.alt_arts if (a.wanted or 0) > 0]
-    return extra + deck
+    # Owned copies a collector want does not claim already cover the deck (#1216).
+    usable = {a.product_id: a.owned - min(a.owned, a.collector) for a in item.alt_arts}
+    return extra + deck_alt_buy_inputs(item.alt_arts, usable)
 
 
 def _require_member(group: GroupBuy, user: User) -> GroupBuyMember:
