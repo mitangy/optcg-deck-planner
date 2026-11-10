@@ -1,4 +1,5 @@
 /** Duel-web ↔ FastAPI friends list, presence status, and private-room invites. */
+import type { components } from "@optcg/api-client";
 import { apiCall } from "../api/http";
 import type { MatchLaunch } from "../state/DuelSession";
 
@@ -15,18 +16,12 @@ export type Friend = {
   ranked: boolean;
 };
 
-export type FriendRequest = { user_id: number; username: string };
+// FriendRequest and FriendInvite are generated from the backend's OpenAPI schema (refactor 2.1c). Friend is not: the
+// schema types `status` as a plain string and `room_id` as optional, where the list below relies on the narrower shape.
+export type FriendRequest = components["schemas"]["FriendRequestOut"];
 
-export type FriendInvite = {
-  id: number;
-  from_user_id: number;
-  from_username: string;
-  room_id: string;
-  /** Game server the room was opened on; absent on older invites. */
-  server_url?: string | null;
-  /** Epoch seconds. */
-  expires_at: number;
-};
+/** `server_url`: the game server the room was opened on; absent on older invites. `expires_at`: epoch seconds. */
+export type FriendInvite = components["schemas"]["DuelInviteOut"];
 
 export type FriendsState = {
   friends: Friend[];

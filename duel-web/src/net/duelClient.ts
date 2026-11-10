@@ -46,6 +46,7 @@ import {
   type ServerMessageType,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
+import { retry } from "../lib/retry";
 import { isSeatReservationExpiredError } from "./matchResume";
 import { noteMatchGameToken, noteMatchRoom } from "../matchContext";
 
@@ -158,14 +159,8 @@ export class DuelClient {
     const seq = ++this.connectSeq;
     this.takenOverFlag = false;
     const url = params.serverUrl ?? getGameServerUrl();
-    const attempts = 3;
-    let lastErr: unknown;
-
-    for (let i = 0; i < attempts; i++) {
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, 400 * i));
-      }
-      try {
+    return retry(
+      async () => {
         await this.disconnect();
         this.client = new Client(url);
         this.matchServerUrl = url;
@@ -203,19 +198,22 @@ export class DuelClient {
         // Resolve as soon as the Colyseus room exists so the lobby can show the
         // room id while waiting for the second seat (welcome arrives via handlers).
         return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
-      } catch (e) {
-        lastErr = e;
+      },
+      {
+        attempts: 3,
+        delayMs: (i) => 400 * i,
         // Free-tier cold starts: matchmake HTTP can succeed then WS consume
         // loses the 15–90s seat reservation race → retry a fresh create/join.
-        if (!isSeatReservationExpiredError(e) || i === attempts - 1) throw e;
-        try {
-          await this.disconnect(true);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+        shouldRetry: isSeatReservationExpiredError,
+        onRetry: async () => {
+          try {
+            await this.disconnect(true);
+          } catch {
+            /* ignore */
+          }
+        },
+      },
+    );
   }
 
   /** Join ranked_queue until matched, then join the duel room. */
@@ -335,13 +333,8 @@ export class DuelClient {
     if (!token) throw new Error("No reconnection token");
     // Back to the server the match lives on, never whichever pool a newer token names.
     const url = opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();
-    const attempts = opts?.attempts ?? 5;
-    let lastErr: unknown;
-    for (let i = 0; i < attempts; i++) {
-      if (i > 0) {
-        await new Promise((r) => setTimeout(r, 100 * i));
-      }
-      try {
+    return retry(
+      async () => {
         this.abandonRoom();
         this.client = new Client(url);
         this.matchServerUrl = url;
@@ -352,22 +345,23 @@ export class DuelClient {
         this.wireDuel(room);
         room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
         return await this.waitWelcome(room);
-      } catch (e) {
-        lastErr = e;
-        const msg = e instanceof Error ? e.message : String(e);
+      },
+      {
+        attempts: opts?.attempts ?? 5,
+        delayMs: (i) => 100 * i,
         // Only retry the narrow race where reload beats allowReconnection setup.
         // Broad /reconnection/i matching caused 5×12s hangs on dead tokens and
         // tripped the Hotseat 25s startup watchdog with a generic timeout.
-        const retryable = isSeatReservationExpiredError(msg);
-        if (!retryable || i === attempts - 1) throw e;
-        try {
-          await this.disconnect(false);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+        shouldRetry: isSeatReservationExpiredError,
+        onRetry: async () => {
+          try {
+            await this.disconnect(false);
+          } catch {
+            /* ignore */
+          }
+        },
+      },
+    );
   }
 
   sendIntent(intent: Intent) {

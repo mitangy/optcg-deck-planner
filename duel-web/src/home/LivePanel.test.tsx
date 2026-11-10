@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 async function mount(counts: { online: number; matches: number }, disabled = false): Promise<HTMLElement> {
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => counts })));
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(counts))));
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
