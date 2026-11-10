@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readClipboardText } from "@optcg/ui/clipboard";
 
 type Props = {
   importText: string;
@@ -33,16 +34,16 @@ export function DeckImportPanel({
 
   async function pasteFromClipboard() {
     setClipErr(null);
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
-        setClipErr("Clipboard is empty.");
-        return;
-      }
-      onImportTextChange(text.trim());
-    } catch {
+    const text = await readClipboardText();
+    if (text === null) {
       setClipErr("Could not read clipboard — paste with Ctrl+V.");
+      return;
     }
+    if (!text.trim()) {
+      setClipErr("Clipboard is empty.");
+      return;
+    }
+    onImportTextChange(text.trim());
   }
 
   const body = (

@@ -6,6 +6,7 @@ import { DUEL_URL } from "../app/duelLink";
 import { useLogPoseDraft } from "./decks/logPose";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { qk } from "../cache/queryKeys";
+import { readClipboardText } from "@optcg/ui/clipboard";
 
 export function ImportPage() {
   const navigate = useNavigate();
@@ -53,18 +54,18 @@ export function ImportPage() {
   }
 
   async function pasteFromClipboard() {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
-        setErr("Clipboard is empty.");
-        return;
-      }
-      setDecklist(text.trim());
-      setErr(null);
-      setMode("paste");
-    } catch {
+    const text = await readClipboardText();
+    if (text === null) {
       setErr("Could not read clipboard — paste into the box with Ctrl+V.");
+      return;
     }
+    if (!text.trim()) {
+      setErr("Clipboard is empty.");
+      return;
+    }
+    setDecklist(text.trim());
+    setErr(null);
+    setMode("paste");
   }
 
   return (

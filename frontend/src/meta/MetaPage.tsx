@@ -15,6 +15,7 @@ import {
   META_DEFAULT_DAYS,
 } from "./meta";
 import { qk } from "../cache/queryKeys";
+import { copyText } from "@optcg/ui/clipboard";
 
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
 const META_STALE_MS = 5 * 60_000;
@@ -84,7 +85,7 @@ function LeaderStats({ leader }: { leader: MetaLeader }) {
   );
 }
 
-function MetaDeckRow({
+export function MetaDeckRow({
   deck,
   leader,
   user,
@@ -127,11 +128,10 @@ function MetaDeckRow({
   }
 
   async function onCopy() {
-    try {
-      await navigator.clipboard.writeText(deck.text);
+    if (await copyText(deck.text)) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
-    } catch {
+    } else {
       setErr("Could not copy. Select the list and copy it manually.");
     }
   }

@@ -7,6 +7,11 @@ module.exports = {
   cwd: "packages/ui",
   runner: "vitest",
   mutations: [
+    // clipboard helpers shared by both apps (#1226)
+    { id: "clipboard-no-textarea-fallback", file: "packages/ui/src/clipboard/clipboard.ts", from: "const ok = document.execCommand(\"copy\");", to: "const ok = false;", kills: ["falls back to the textarea copy when navigator.clipboard is missing (#1226)", "falls back to the textarea copy when the async API rejects (#1226)"] },
+    { id: "clipboard-copy-async-reject-no-fallback", file: "packages/ui/src/clipboard/clipboard.ts", from: "    /* permission / focus: try the legacy path */", to: "    return false;", kills: ["falls back to the textarea copy when the async API rejects (#1226)"] },
+    { id: "clipboard-copy-success-on-failed-exec", file: "packages/ui/src/clipboard/clipboard.ts", from: "    return ok;", to: "    return true;", kills: ["reports failure when both paths fail (#1226)"] },
+    { id: "clipboard-read-denied-not-null", file: "packages/ui/src/clipboard/clipboard.ts", from: "  } catch {\n    return null;\n  }\n}", to: "  } catch {\n    return \"\";\n  }\n}", kills: ["returns null when permission is denied"] },
     // stale lazy-route chunk after a deploy (#1074)
     { id: "stale-chunk-no-reload", file: "packages/ui/src/appShell/reloadOnStaleChunk.ts", from: "    window.location.reload();", to: "", kills: ["a vite:preloadError reloads the page once and keeps the error from surfacing (#1074)", "reloads again once the guard window has passed (#1074)"] },
     { id: "stale-chunk-reload-loops", file: "packages/ui/src/appShell/reloadOnStaleChunk.ts", from: "      if (last && now - last < GUARD_MS) return;\n", to: "", kills: ["a second vite:preloadError within the guard window does not reload again (#1074)"] },

@@ -7,6 +7,7 @@ import {
   type MenuItemsProps,
 } from "@headlessui/react";
 import { useRef, type KeyboardEvent, type MouseEvent } from "react";
+import { cx } from "../classNames";
 import "./ui.css";
 
 export { Menu, MenuButton };
@@ -54,7 +55,7 @@ export function MenuList({ anchor = "bottom start", className, onKeyDownCapture,
   return (
     <MenuItems
       anchor={anchor}
-      className={`ui-menu-items ${extra}`.trim()}
+      className={cx("ui-menu-items", extra)}
       onKeyDownCapture={(e: KeyboardEvent<HTMLDivElement>) => {
         onKeyDownCapture?.(e);
         if (e.defaultPrevented) return;
