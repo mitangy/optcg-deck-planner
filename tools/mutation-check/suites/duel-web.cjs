@@ -2543,5 +2543,7 @@ module.exports = {
     {"id": "dice1190-cancel-keeps-roll", "args": "src/state/matchStore.test.ts", "file": "duel-web/src/state/matchStore.ts", "from": "a.state.step === \"cancelled\" ? null : a.state", "to": "a.state", "kills": ["a cancelled roll (a seat left) sends the board back to waiting"]},
     {"id": "dice1190-welcome-keeps-roll", "args": "src/state/matchStore.test.ts", "file": "duel-web/src/state/matchStore.ts", "from": "        // The roll is over: the game it decided has begun.\n        dice: null,\n", "to": "", "kills": ["keeps the roll in progress until the game's welcome arrives, which keeps its result for the banner"]},
     {"id": "dice1190-welcome-drops-result", "args": "src/state/matchStore.test.ts", "file": "duel-web/src/state/matchStore.ts", "from": "firstSeatDice: info.dice ?? null,", "to": "firstSeatDice: null,", "kills": ["keeps the roll in progress until the game's welcome arrives, which keeps its result for the banner"]},
+    {"id": "money1223-admin-usd-no-separator", "file": "duel-web/src/admin/adminLogic.ts", "from": "  return formatMoney(v);\n}", "to": "  return `$${v.toFixed(2)}`;\n}", "kills": ["groups thousands in dollar amounts and counts (#1223)"], "args": "src/admin/adminLogic"},
+    {"id": "money1223-admin-count-no-separator", "file": "duel-web/src/admin/adminLogic.ts", "from": "return COUNT.format(v);", "to": "return String(v);", "kills": ["groups thousands in dollar amounts and counts (#1223)"], "args": "src/admin/adminLogic"},
   ],
 };

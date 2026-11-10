@@ -19,6 +19,7 @@
     "@headlessui/react": "^2.2.10",
     "@optcg/analyst-client": "*",
     "@optcg/api-client": "*",
+    "@optcg/card-core": "*",
     "@optcg/deck-analytics": "*",
     "@optcg/patch-notes": "*",
     "@optcg/price-timing": "*",
