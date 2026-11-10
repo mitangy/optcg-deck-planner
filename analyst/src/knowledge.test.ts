@@ -219,6 +219,34 @@ describe("ban list", () => {
   });
 });
 
+describe("HTML entities in scraped Bandai pages", () => {
+  it("errata text decodes nbsp, curly apostrophes, angle brackets and ellipses (#1220)", () => {
+    const html =
+      "<h4>May&nbsp;1, 2030</h4>" +
+      "<h5>ZZ01-003 Sample&nbsp;Captain</h5><dl><dt>Before:</dt><dd>[On Play]&nbsp;Draw 1 card&hellip;</dd>" +
+      "<dt>After:</dt><dd>Your opponent&#8217;s Characters with cost &lt;= 3 &amp; &lt;Straw Hat Crew&gt; get +1000&hellip;<br>Then&nbsp;&nbsp;add 1 Life.</dd></dl>";
+    expect(parseErrata(html)).toEqual([
+      {
+        cardId: "ZZ01-003",
+        name: "Sample Captain",
+        date: "May 1, 2030",
+        before: "[On Play] Draw 1 card…",
+        after: "Your opponent’s Characters with cost <= 3 & <Straw Hat Crew> get +1000…\nThen add 1 Life.",
+      },
+    ]);
+  });
+
+  it("ban list headings with a non-breaking space still scope the list (#1220)", () => {
+    const html = "<h3>Cards with Active&nbsp;Restrictions</h3><h4>Banned&nbsp;Cards</h4><ul><li><a>ZZ01-005 Old Ban</a></li></ul>";
+    expect(parseBanList(html, "2031-01-01", "u").banned).toEqual(["ZZ01-005"]);
+  });
+
+  it("FAQ PDF links decode numeric entities in their query string (#1220)", () => {
+    const files = parseFaqIndex('<a href="/pdf/qa_st-01-st-04.pdf?a=1&#038;b=2">x</a>', "https://example.test/rules/faq/");
+    expect(files[0]!.url).toBe("https://example.test/pdf/qa_st-01-st-04.pdf?a=1&b=2");
+  });
+});
+
 describe("errata", () => {
   it("takes the date from the card heading when an entry carries its own, and skips alt-art repeats (#246)", () => {
     const entry = (heading: string, after: string) =>
