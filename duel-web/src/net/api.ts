@@ -1,25 +1,19 @@
 /** Duel-web ↔ FastAPI helpers (tokens + light auth). */
+import type { components } from "@optcg/api-client";
 import { readFirstTouch } from "@optcg/ui/firstTouch";
-import { ApiError, apiError } from "../api/http";
+import { ApiError, apiCall, apiError, request } from "../api/http";
 import { getApiBaseUrl } from "../config";
+import { retry } from "../lib/retry";
 import { devKeyAllowed, loadSettings } from "../settings";
 import { rememberAssignedGameServer } from "./gameServer";
 
-export type DuelTokenResponse = {
-  token: string;
-  expires_at: number;
-  user_id: number;
-  email: string;
-  /** Name other players see (username, else account name). */
-  display_name?: string;
-  rating: number;
-  games_played: number;
-  /**
-   * Game server pool for matches started with this token. Null / absent:
-   * use the build-time VITE_GAME_SERVER_URL (see net/gameServer.ts).
-   */
-  game_server_url?: string | null;
-};
+// Response shapes come from the backend's OpenAPI schema (node tools/ci/openapi-types.cjs); the aliases keep the names
+// callers use. Not generated: AuthUser (the backend sends `role` as a plain string and has two more required fields) and RatingMe
+// (the schema leaves `rank` and `username` optional where callers rely on null).
+type Schemas = components["schemas"];
+
+/** A game token (`token`) plus who it is for. `game_server_url` null / absent: use the build-time VITE_GAME_SERVER_URL (see net/gameServer.ts). */
+export type DuelTokenResponse = Schemas["DuelTokenOut"];
 
 export type AuthUser = {
   id: number;
@@ -36,81 +30,48 @@ export { ApiError, apiError };
 
 /** PATCH /auth/me/username — returns the updated user. */
 export async function updateUsername(username: string): Promise<AuthUser> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/me/username`, {
-    method: "PATCH",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: username.trim() }),
-  });
-  if (!res.ok) {
-    throw await apiError(
-      res,
-      res.status === 409
-        ? "That username is already taken."
-        : res.status === 422
-          ? "That username isn't allowed."
-          : `Could not save username (${res.status})`,
+  try {
+    return await apiCall<AuthUser>(
+      "/auth/me/username",
+      { method: "PATCH", json: { username: username.trim() } },
+      "Could not save username",
     );
+  } catch (e) {
+    // The server's own sentence still wins; only when it sent none do 409 / 422 get a plainer one than "(409)".
+    if (e instanceof ApiError && e.message === `Could not save username (${e.status})`) {
+      if (e.status === 409) throw new ApiError(e.status, "That username is already taken.");
+      if (e.status === 422) throw new ApiError(e.status, "That username isn't allowed.");
+    }
+    throw e;
   }
-  return (await res.json()) as AuthUser;
 }
 
 /** GET /auth/me/username-suggestion — an available default derived from the account name. */
 export async function fetchUsernameSuggestion(): Promise<string | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/auth/me/username-suggestion`, {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { username?: string };
-    return body.username ?? null;
+    const body = await apiCall<{ username?: string }>("/auth/me/username-suggestion");
+    return body?.username ?? null;
   } catch {
     return null;
   }
 }
 
-async function readToken(res: Response): Promise<DuelTokenResponse> {
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Token mint failed (${res.status}): ${text.slice(0, 160)}`);
-  }
-  return (await res.json()) as DuelTokenResponse;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-/** True for transient failures worth retrying (cold start, race, rate limit). */
+/**
+ * True for transient failures worth retrying (cold start, race, rate limit): anything but a 4xx that is not a 429.
+ * Decided on the status the API sent, never on the wording of its message.
+ */
 function isRetryableMintError(err: unknown): boolean {
-  if (!(err instanceof Error)) return true;
-  const msg = err.message;
-  if (/Token mint failed \((429|503|502|504)\)/.test(msg)) return true;
-  if (/Token mint failed \((4\d\d)\)/.test(msg)) return false;
-  // Network / abort-from-timeout — retry (free-tier Render cold starts).
-  return true;
+  if (!(err instanceof ApiError)) return true;
+  return !(err.status >= 400 && err.status < 500 && err.status !== 429);
 }
 
-export async function fetchWithTimeout(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<Response> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: init.signal ?? ctrl.signal,
-    });
-  } catch (e) {
-    if (ctrl.signal.aborted && !(init.signal && init.signal.aborted)) {
-      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
-    }
-    throw e;
-  } finally {
-    clearTimeout(timer);
+/** What went wrong, worded as a mint failure always was ("Token mint failed (503): ..."). */
+function mintErrorDetail(e: unknown, timeoutMs: number): string {
+  if (e instanceof ApiError) {
+    if (e.code === "timeout") return `Request timed out after ${Math.round(timeoutMs / 1000)}s`;
+    if (e.status > 0) return e.message.startsWith("Token mint failed (") ? e.message : `Token mint failed (${e.status}): ${e.message}`;
   }
+  return e instanceof Error ? e.message : String(e);
 }
 
 /**
@@ -128,35 +89,27 @@ async function mintWithRetry(
     label?: string;
   },
 ): Promise<DuelTokenResponse> {
-  const attempts = opts?.attempts ?? 3;
   const timeoutMs = opts?.timeoutMs ?? 20000;
   const label = opts?.label ?? "Token mint";
-  let lastErr: unknown;
-  for (let i = 0; i < attempts; i++) {
-    if (i > 0) await sleep(400 * i);
-    try {
-      const res = await fetchWithTimeout(
-        `${getApiBaseUrl()}${path}`,
-        {
+  try {
+    return await retry(
+      async () => {
+        const token = await request<DuelTokenResponse>(path, {
           method: "POST",
-          headers: body ? { "Content-Type": "application/json" } : undefined,
-          body: body ? JSON.stringify(body) : undefined,
-          credentials: opts?.credentials,
-        },
-        timeoutMs,
-      );
-      const token = await readToken(res);
-      rememberAssignedGameServer(token);
-      return token;
-    } catch (e) {
-      lastErr = e;
-      if (!isRetryableMintError(e) || i === attempts - 1) {
-        const detail = e instanceof Error ? e.message : String(e);
-        throw new Error(`${label} failed: ${detail}`);
-      }
-    }
+          json: body ?? undefined,
+          // The browser default (same-origin) unless the caller asks for the session cookie.
+          credentials: opts?.credentials ?? "same-origin",
+          timeoutMs,
+          fallback: "Token mint failed",
+        });
+        rememberAssignedGameServer(token);
+        return token;
+      },
+      { attempts: opts?.attempts ?? 3, delayMs: (i) => 400 * i, shouldRetry: isRetryableMintError },
+    );
+  } catch (e) {
+    throw new Error(`${label} failed: ${mintErrorDetail(e, timeoutMs)}`, { cause: e });
   }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 /** Cookie-free token mint (ENABLE_DEV_LOGIN or ENABLE_DUEL_DEV_TOKEN). */
@@ -230,21 +183,29 @@ export async function awaitDuelServicesReady(
   const api = apiBase.replace(/\/$/, "");
   const gs = gameServerUrl.replace(/\/$/, "");
   const deadline = Date.now() + budgetMs;
-  let delay = 400;
-  while (Date.now() < deadline) {
-    try {
-      const [a, g] = await Promise.all([
-        fetch(`${api}/health`).then((r) => r.ok),
-        fetch(`${gs}/health`).then((r) => r.ok),
-      ]);
-      if (a && g) return true;
-    } catch {
-      /* still cold */
-    }
-    await new Promise((r) => setTimeout(r, delay));
-    delay = Math.min(delay * 1.5, 2500);
+  try {
+    return await retry(
+      async () => {
+        // The wait before this try ran past the budget.
+        if (Date.now() >= deadline) return false;
+        const [a, g] = await Promise.all([
+          fetch(`${api}/health`).then((r) => r.ok),
+          fetch(`${gs}/health`).then((r) => r.ok),
+        ]);
+        // Still cold.
+        if (!(a && g)) throw new Error("Services not ready");
+        return true;
+      },
+      {
+        attempts: Infinity,
+        // 400ms, 600, 900, 1350, 2025, then 2500 between polls.
+        delayMs: (i) => Math.min(400 * 1.5 ** (i - 1), 2500),
+        shouldRetry: () => Date.now() < deadline,
+      },
+    );
+  } catch {
+    return false;
   }
-  return false;
 }
 
 /**
@@ -259,35 +220,33 @@ export function hotseatGuestId(userKey: string, suffix: "a" | "b"): string {
   return id.slice(0, 64);
 }
 
+/** True when the API answered with an HTTP error (as opposed to a timeout or a network failure). */
+function isHttpError(e: unknown): e is ApiError {
+  return e instanceof ApiError && e.status > 0;
+}
+
 export async function fetchAuthMe(): Promise<AuthUser | null> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/me`, { credentials: "include" });
-  // 401/403 is a real "not signed in". Any other failure (a 502 during a cold start) is not an answer: throw so the
-  // session store treats it as a failed check instead of caching it as signed out.
-  if (res.status === 401 || res.status === 403) return null;
-  if (!res.ok) throw new ApiError(res.status, `Auth check failed (${res.status})`);
-  const body = (await res.json()) as AuthUser | null;
-  return body;
-}
-
-export async function claimLoginTicket(ticket: string): Promise<AuthUser> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/claim`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticket, source: readFirstTouch() }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new ApiError(res.status, `Claim failed (${res.status}): ${text.slice(0, 160)}`);
+  try {
+    return await apiCall<AuthUser | null>("/auth/me", undefined, "Auth check failed");
+  } catch (e) {
+    // 401/403 is a real "not signed in". Any other failure (a 502 during a cold start) is not an answer: throw so the
+    // session store treats it as a failed check instead of caching it as signed out.
+    if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return null;
+    throw e;
   }
-  return (await res.json()) as AuthUser;
 }
 
+export function claimLoginTicket(ticket: string): Promise<AuthUser> {
+  return apiCall<AuthUser>("/auth/claim", { method: "POST", json: { ticket, source: readFirstTouch() } }, "Claim failed");
+}
+
+/** Ends the session. An HTTP error is ignored (the page leaves the signed-in state either way); a timeout or lost connection throws. */
 export async function logoutSession(): Promise<void> {
-  await fetch(`${getApiBaseUrl()}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
+  try {
+    await apiCall<unknown>("/auth/logout", { method: "POST" });
+  } catch (e) {
+    if (!isHttpError(e)) throw e;
+  }
 }
 
 /** Start Google OAuth; `returnTo` must be an allowlisted duel-web origin. */
@@ -298,20 +257,17 @@ export function googleLoginUrl(returnTo: string = window.location.origin): strin
   return u.toString();
 }
 
-export type LeaderboardEntry = {
-  user_id: number;
-  name: string;
-  username?: string | null;
-  rating: number;
-  games_played: number;
-};
+export type LeaderboardEntry = Schemas["DuelLeaderboardEntryOut"];
 
 /** The top players by Bounty; players with no games are left out by the server. */
 export async function fetchLeaderboard(limit = 5): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${getApiBaseUrl()}/duel/leaderboard?limit=${limit}`);
-  if (!res.ok) return [];
-  const body = (await res.json()) as { entries?: LeaderboardEntry[] };
-  return body.entries ?? [];
+  try {
+    const body = await apiCall<Partial<Schemas["DuelLeaderboardOut"]> | null>(`/duel/leaderboard?limit=${limit}`);
+    return body?.entries ?? [];
+  } catch (e) {
+    if (isHttpError(e)) return [];
+    throw e;
+  }
 }
 
 /** Your Bounty, record and rank (`rank` is null until you have a ranked game). */
@@ -329,17 +285,23 @@ export type RatingMe = {
 
 /** GET /duel/rating/me; null when signed out or the call fails. */
 export async function fetchRatingMe(): Promise<RatingMe | null> {
-  const res = await fetch(`${getApiBaseUrl()}/duel/rating/me`, { credentials: "include" });
-  if (!res.ok) return null;
-  return (await res.json()) as RatingMe;
+  try {
+    return await apiCall<RatingMe>("/duel/rating/me");
+  } catch (e) {
+    if (isHttpError(e)) return null;
+    throw e;
+  }
 }
 
-export type LiveCounts = { online: number; matches: number };
+export type LiveCounts = Schemas["DuelLiveOut"];
 
 /** GET /duel/live (public): players online and matches in progress; null when the call fails. */
 export async function fetchLive(): Promise<LiveCounts | null> {
-  const res = await fetch(`${getApiBaseUrl()}/duel/live`);
-  if (!res.ok) return null;
-  const j = (await res.json()) as Partial<LiveCounts>;
-  return typeof j.online === "number" && typeof j.matches === "number" ? { online: j.online, matches: j.matches } : null;
+  try {
+    const j = await apiCall<Partial<LiveCounts> | null>("/duel/live");
+    return typeof j?.online === "number" && typeof j.matches === "number" ? { online: j.online, matches: j.matches } : null;
+  } catch (e) {
+    if (isHttpError(e)) return null;
+    throw e;
+  }
 }
