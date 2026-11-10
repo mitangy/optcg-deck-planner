@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from collections import defaultdict
@@ -11,6 +12,7 @@ from typing import Any, Callable
 import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.planner.domain import is_don_product, is_special_printing, synthetic_don_card_id
 from app.planner.models import CatalogCard, CatalogGroup, CatalogMeta, CatalogPrinting
@@ -19,6 +21,8 @@ CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"
 TCGCSV_BASE = f"https://tcgcsv.com/tcgplayer/{CATEGORY_ID}"
 REQUEST_PAUSE_S = 0.12
+
+log = logging.getLogger("uvicorn.error")
 
 # A full TCGCSV pull walks every set (many HTTP round-trips + throttle sleeps),
 # so it must never run inside a request handler — on Render free that blocks the
@@ -119,6 +123,23 @@ def run_catalog_sync_job(
         _sync_lock.release()
 
 
+def _is_transient(exc: BaseException) -> bool:
+    """Timeouts, connect/transport errors and 5xx/429 responses are worth retrying; 4xx are not."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return status == 429 or status >= 500
+    return isinstance(exc, httpx.TransportError)
+
+
+_retry_wait = wait_exponential(multiplier=0.5, max=4)
+
+
+@retry(
+    retry=retry_if_exception(_is_transient),
+    stop=stop_after_attempt(3),
+    wait=lambda state: _retry_wait(state),  # looked up per call so tests can patch it
+    reraise=True,
+)
 def _get_json(client: httpx.Client, url: str) -> dict[str, Any]:
     resp = client.get(url, headers={"User-Agent": USER_AGENT}, timeout=60.0)
     resp.raise_for_status()
@@ -294,20 +315,23 @@ def store_groups(db: Session, groups: list[dict[str, Any]]) -> None:
 def sync_catalog(db: Session) -> dict[str, Any]:
     """Full TCGCSV pull; stores all printings and a preferred CatalogCard per number."""
     by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    # Groups whose fetch failed this run: their printings were not seen, not removed upstream.
+    skipped_groups: set[str] = set()
 
     with httpx.Client() as client:
         groups = _get_json(client, f"{TCGCSV_BASE}/groups")["results"]
         for i, group in enumerate(groups, start=1):
             group_id = group["groupId"]
             group_name = group["name"]
-            print(f"  [{i}/{len(groups)}] {group_name}", flush=True)
+            log.info("catalog sync [%d/%d] %s", i, len(groups), group_name)
             try:
                 products = _get_json(client, f"{TCGCSV_BASE}/{group_id}/products")["results"]
                 time.sleep(REQUEST_PAUSE_S)
                 prices_raw = _get_json(client, f"{TCGCSV_BASE}/{group_id}/prices")["results"]
                 time.sleep(REQUEST_PAUSE_S)
             except httpx.HTTPError as exc:
-                print(f"    skip ({exc})")
+                log.warning("catalog sync: skipping group %s (%s): %s", group_id, group_name, exc)
+                skipped_groups.add(group_name)
                 continue
 
             prices_by_id: dict[int, list[dict[str, Any]]] = {}
@@ -412,7 +436,11 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                 for key, value in printing_payload.items():
                     setattr(printing_row, key, value)
 
-    stale_keys = set(existing_printings) - seen_keys
+    stale_keys = {
+        key
+        for key in set(existing_printings) - seen_keys
+        if existing_printings[key].group_name not in skipped_groups
+    }
     if stale_keys:
         stale_ids = [existing_printings[k].id for k in stale_keys]
         db.execute(delete(CatalogPrinting).where(CatalogPrinting.id.in_(stale_ids)))

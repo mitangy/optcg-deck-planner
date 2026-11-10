@@ -20,3 +20,9 @@ itsdangerous>=2.2.0,<3
 python-multipart>=0.0.33,<0.1
 # Optional shared state (rate limits, presence, live-game progress) when REDIS_URL is set.
 redis>=8.1.0,<9
+# Retries for flaky upstream HTTP (TCGCSV catalog sync).
+tenacity>=9.1.2,<10
+# C++ edit-distance for fuzzy card-name search.
+rapidfuzz>=3.14.0,<4
+# TTL caches (meta decks, recent sales).
+cachetools>=8.0.0,<9

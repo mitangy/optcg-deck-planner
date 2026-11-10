@@ -1881,5 +1881,10 @@ module.exports = {
     {"id": "solo1202-export-page-repeats", "file": "backend/app/analyst/corpus.py", "from": "\"next_after_id\": rows[-1].id if rows else after_id,", "to": "\"next_after_id\": after_id,", "kills": ["test_human_bot_export_pages_by_id_1202"], "args": "tests/test_analyst_bots.py"},
     {"id": "solo1202-export-page-includes-cursor", "file": "backend/app/analyst/corpus.py", "from": "DuelSoloGame.id > after_id,", "to": "DuelSoloGame.id >= after_id,", "kills": ["test_human_bot_export_pages_by_id_1202"], "args": "tests/test_analyst_bots.py"},
     {"id": "solo1202-migration-adds-no-column", "file": "backend/migrations/versions/0004_solo_game_replay.py", "from": "        op.add_column(_TABLE, sa.Column(\"replay\", sa.Text(), nullable=True))", "to": "        pass", "kills": ["test_alembic_head_builds_the_schema_the_models_declare"], "args": "tests/test_alembic_baseline.py"},
+    // Catalog sync: a failed group must not delete its printings; TCGCSV fetches retry (#1218)
+    { id: "sync1218-skipped-group-printings-deleted", file: "backend/app/planner/catalog_sync.py", from: "        if existing_printings[key].group_name not in skipped_groups\n", to: "", kills: ["test_failed_group_keeps_its_existing_printings_1218"], args: "tests/test_catalog_sync.py" },
+    { id: "sync1218-no-retry", file: "backend/app/planner/catalog_sync.py", from: "    stop=stop_after_attempt(3),", to: "    stop=stop_after_attempt(1),", kills: ["test_get_json_retries_503_then_succeeds_1218"], args: "tests/test_catalog_sync.py" },
+    { id: "sync1218-retries-every-status", file: "backend/app/planner/catalog_sync.py", from: "        return status == 429 or status >= 500", to: "        return True", kills: ["test_get_json_does_not_retry_404_1218"], args: "tests/test_catalog_sync.py" },
+    { id: "sync1218-retries-too-long", file: "backend/app/planner/catalog_sync.py", from: "    stop=stop_after_attempt(3),", to: "    stop=stop_after_attempt(4),", kills: ["test_get_json_gives_up_after_three_attempts_1218"], args: "tests/test_catalog_sync.py" },
   ],
 };

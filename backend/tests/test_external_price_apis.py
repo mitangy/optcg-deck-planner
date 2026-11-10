@@ -81,9 +81,11 @@ def test_recent_sales_empty_when_no_data():
     assert recent_sales.fetch_recent_sales(555005, limit=3) == []
 
 
-@pytest.mark.vcr
+# The cassette holds one 500 for group 1002; the sync retries it, so playback repeats.
+@pytest.mark.vcr(allow_playback_repeats=True)
 def test_sync_catalog_over_http(db, monkeypatch):
     monkeypatch.setattr(catalog_sync.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(catalog_sync, "_retry_wait", lambda *_: 0)
 
     result = catalog_sync.sync_catalog(db)
 
