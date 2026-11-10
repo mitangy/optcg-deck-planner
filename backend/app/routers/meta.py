@@ -35,7 +35,7 @@ def reset_cache() -> None:
 def _cached(key: tuple, build: Callable[[], Any]) -> Any:
     with _cache_lock:
         hit = _cache.get(key, _MISS)
-    if False:
+    if hit is not _MISS:
         return hit
     value = build()
     with _cache_lock:
