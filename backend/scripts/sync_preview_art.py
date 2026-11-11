@@ -10,7 +10,14 @@ lists the id in `packages/ui/src/cardArt/previewArt.json`. duel-web only falls b
 to a preview when the real art fails to load, so real art wins as soon as it
 is posted.
 
-Base cards prefer onepiecetopdecks.com (Top Decks), which hosts the same scans
+Base cards prefer Bandai's official English reveal scans as hosted by Limitless
+TCG (`<SET>/<ID>_EN.webp`, WebP, accepted as-is). Top Decks and opdeckguide often
+post Japanese or French reveal scans first, so on every non-dry run a kept
+preview is also compared with the Limitless English scan and replaced when the
+bytes differ (#1238); once replaced the bytes match and later runs write nothing.
+Alt previews are never touched by this.
+
+Otherwise base cards use onepiecetopdecks.com (Top Decks), which hosts the same scans
 at about 2x resolution as JPEG; they are converted to WebP with Pillow (native
 size, height capped at 900). When Top Decks has no image, or Pillow is not
 installed, the card falls back to opdeckguide.com (small WebP, as before). Kept
@@ -62,6 +69,7 @@ UA = "Mozilla/5.0"
 GUIDE_BASE = "https://opdeckguide.com"
 TOPDECKS_BASE = "https://onepiecetopdecks.com"
 TOPDECKS_GALLERY = TOPDECKS_BASE + "/wp-content/gallery"
+LIMITLESS_EN_BASE = "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece"
 TCGCSV = "https://tcgcsv.com/tcgplayer/68"
 CDN = "https://tcgplayer-cdn.tcgplayer.com/product"
 MAX_GROUPS = 15
@@ -119,6 +127,16 @@ def should_prune(card_id: str, atlas_ids: set[str], has_art: dict[str, bool | No
 def topdecks_url(card_id: str) -> str:
     """Top Decks gallery URL of a card: .../gallery/eb05/EB05-001.jpg."""
     return f"{TOPDECKS_GALLERY}/{set_prefix(card_id).lower()}/{card_id}.jpg"
+
+
+def limitless_en_url(card_id: str) -> str:
+    """Limitless TCG English reveal scan: .../one-piece/OP18/OP18-046_EN.webp (#1238)."""
+    return f"{LIMITLESS_EN_BASE}/{set_prefix(card_id)}/{card_id}_EN.webp"
+
+
+def should_replace_with_english(current: bytes | None, english: bytes | None) -> bool:
+    """Swap a kept preview for the English scan when one exists and differs (#1238)."""
+    return english is not None and english != current
 
 
 def topdecks_urls(card_id: str) -> list[str]:
@@ -521,6 +539,28 @@ def download_scan(Image, url: str, referer: str | None = None) -> tuple[bytes | 
     return jpeg_to_webp(Image, data)
 
 
+def download_limitless_en(Image, card_id: str) -> tuple[bytes | None, str]:
+    """A card's Limitless English scan (WebP, kept as-is), or (None, why)."""
+    try:
+        data, ctype = fetch(limitless_en_url(card_id), timeout=30)
+    except urllib.error.HTTPError as e:
+        return None, f"HTTP {e.code}"
+    except Exception as e:  # noqa: BLE001
+        return None, f"download failed: {e}"
+    if not ctype.lower().startswith("image/webp"):
+        return None, f"not image/webp ({ctype or 'no content-type'})"
+    size = webp_size(data)
+    if size is None or len(data) < MIN_BYTES:
+        return None, "unreadable or tiny WebP"
+    if size[0] >= size[1]:
+        return None, f"not portrait ({size[0]}x{size[1]})"
+    if size[1] > MAX_PREVIEW_HEIGHT and Image is not None:
+        resized, _ = jpeg_to_webp(Image, data)
+        if resized is not None:
+            return resized, ""
+    return data, ""
+
+
 def download_topdecks_url(Image, url: str) -> tuple[bytes | None, str]:
     return download_scan(Image, url, referer=TOPDECKS_BASE + "/")
 
@@ -767,9 +807,22 @@ def main() -> int:
     if Image is None:
         print("  Pillow not installed: skipping Top Decks, using opdeckguide only", file=sys.stderr)
 
-    # Top Decks first (not probed in a dry run); the rest falls back to opdeckguide.
+    # Limitless English first, then Top Decks (neither probed in a dry run); the
+    # rest falls back to opdeckguide.
+    if not args.dry_run:
+        for cid in list(needs):
+            data, why = download_limitless_en(Image, cid)
+            if data is None:
+                print(f"  {cid}: limitless en: {why}", file=sys.stderr)
+                continue
+            new_files[cid] = data
+            added.append(cid)
+            still_missing.remove(cid)
+
     if Image is not None and not args.dry_run:
         for cid in list(needs):
+            if cid in added:
+                continue
             data, why = download_topdecks(Image, cid)
             if data is None:
                 print(f"  {cid}: top decks: {why}", file=sys.stderr)
@@ -778,9 +831,22 @@ def main() -> int:
             added.append(cid)
             still_missing.remove(cid)
 
+    # Kept previews: swap in the English scan once it exists and differs (#1238).
+    english: list[str] = []
+    if not args.dry_run:
+        for cid in sorted(keep):
+            data, why = download_limitless_en(Image, cid)
+            if data is None:
+                continue
+            path = PREVIEW_DIR / f"{cid}.webp"
+            current = path.read_bytes() if path.is_file() else None
+            if should_replace_with_english(current, data):
+                new_files[cid] = data
+                english.append(cid)
+
     # Kept low-resolution previews: replace with a taller Top Decks scan.
     upgraded: list[str] = []
-    upgrade_candidates = sorted(i for i in keep if should_upgrade(preview_height(i)))
+    upgrade_candidates = sorted(i for i in keep if i not in english and should_upgrade(preview_height(i)))
     for cid in upgrade_candidates:
         if args.dry_run:
             upgraded.append(cid)
@@ -836,6 +902,7 @@ def main() -> int:
     print(f"  kept:    {len(keep)}")
     print(f"  added:   {len(added)} {added}")
     note = "  (candidates, not downloaded)" if args.dry_run else ""
+    print(f"  english: {len(english)} {english}")
     print(f"  upgraded: {len(upgraded)} {upgraded}{note}")
     print(f"  pruned:  {len(pruned)} {pruned}")
     print(f"  missing: {len(still_missing)} {still_missing}  (no preview found)")
