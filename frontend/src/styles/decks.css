@@ -1125,15 +1125,6 @@
     margin: 0.35rem 0 0;
   }
 
-  .mobile-card .alt-art {
-    padding: 0.2rem 0.3rem;
-  }
-
-  .mobile-card .alt-art .thumb {
-    width: 52px;
-    height: 72px;
-  }
-
   .btn.primary,
   .btn.secondary {
     min-height: 2.75rem;
