@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { useLogPoseAsk } from "@optcg/analyst-client";
 import { bestTimeToBuy, buyTiming, type BestBuy, type BuyTiming } from "@optcg/price-timing";
+import { formatMoney, formatMoneyWhole } from "@optcg/card-core";
 import { api, money, type PriceHistoryResponse } from "../api";
 import {
   buyQuestion,
@@ -40,7 +41,7 @@ function tone(value: number | null): string {
 }
 
 function axisLabel(t: number): string {
-  return `$${t >= 100 ? Math.round(t) : t.toFixed(t % 1 ? 2 : 0)}`;
+  return t >= 100 || !(t % 1) ? formatMoneyWhole(t) : formatMoney(t);
 }
 
 function Stat({ label, value, sub, toneClass = "" }: { label: string; value: string; sub?: string; toneClass?: string }) {
@@ -57,7 +58,7 @@ function Stat({ label, value, sub, toneClass = "" }: { label: string; value: str
 function bestEstimate(best: BestBuy): string {
   if (best.estLow == null || best.estHigh == null) return "";
   const whole = Math.min(best.estLow, best.estHigh) >= 10;
-  const fmt = (x: number) => (whole ? `$${Math.round(x)}` : `$${x.toFixed(2)}`);
+  const fmt = (x: number) => (whole ? formatMoneyWhole(x) : formatMoney(x));
   const lo = fmt(best.estLow);
   const hi = fmt(best.estHigh);
   return lo === hi ? ` · est. ~${lo}` : ` · est. ${lo}–${hi}`;

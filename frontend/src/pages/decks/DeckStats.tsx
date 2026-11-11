@@ -3,7 +3,7 @@ import { useMediaQuery } from "@optcg/ui/hooks";
 import { Dialog } from "@optcg/ui/popups";
 import type { DeckStatsCard } from "@optcg/deck-analytics";
 import { DECK_STATS_COLLAPSED_KEY } from "../../storage/keys";
-import { bool01, usePersistedState } from "../../storage/persisted";
+import { bool01, usePersistedState } from "@optcg/ui/storage";
 import { DeckStatsPanel, type HintsState } from "@optcg/deck-analytics/ui";
 
 /** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */

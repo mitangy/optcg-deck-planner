@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createStore } from "../../lib/createStore";
 
 /**
  * Per-tab sound control (#934). Spectating one game while dueling in another
@@ -58,27 +59,20 @@ function readOverride(): TabMuteOverride {
   }
 }
 
-let override: TabMuteOverride = readOverride();
-const overrideListeners = new Set<() => void>();
+const overrideStore = createStore<TabMuteOverride>(readOverride());
 
 export function getTabMuteOverride(): TabMuteOverride {
-  return override;
+  return overrideStore.get();
 }
 
 export function setTabMuteOverride(next: TabMuteOverride): void {
-  override = next;
   try {
     if (next) sessionStorage.setItem(OVERRIDE_KEY, next);
     else sessionStorage.removeItem(OVERRIDE_KEY);
   } catch {
     // Storage blocked: the choice lasts until the page is reloaded.
   }
-  overrideListeners.forEach((l) => l());
-}
-
-function subscribeOverride(listener: () => void): () => void {
-  overrideListeners.add(listener);
-  return () => void overrideListeners.delete(listener);
+  overrideStore.set(next);
 }
 
 // —— The gate the audio code reads ——
@@ -174,7 +168,7 @@ export type TabMute = {
 
 /** The manual override, as a store. */
 export function useTabMuteOverride(): TabMuteOverride {
-  return useSyncExternalStore(subscribeOverride, getTabMuteOverride, getTabMuteOverride);
+  return overrideStore.use();
 }
 
 /**
