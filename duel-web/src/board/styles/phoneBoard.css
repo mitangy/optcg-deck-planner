@@ -305,6 +305,13 @@
     padding-right: var(--safe-r);
   }
 
+  /* Hand fanned off the board (sideways tablets, foldables): the column's free
+     space sits above the actions, so End turn stays at the bottom. */
+  .arena.arena-lp .lp-rail-fill {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
   /* Width handles (right column, log / chat overlay): a touch-sized strip on the
      edge with a small always-visible grip. Absolute, so it never moves layout. */
   .phone-resize {
