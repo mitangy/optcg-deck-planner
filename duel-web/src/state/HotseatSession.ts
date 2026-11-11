@@ -775,6 +775,22 @@ export class HotseatSession {
         }
       },
       onRematchState: (state) => store.dispatch({ type: "rematchState", state }),
+      // A first game between two different guest tokens opens with the dice roll (#1206); both seats are
+      // this player, so each seat's client answers its own turn at once instead of waiting for a dialog.
+      onDiceState: (state) => {
+        if (!alive() || state.role !== "player") return;
+        try {
+          if (state.step === "call" && state.caller === s.seat) {
+            client.sendDice({ action: "call", call: Math.random() < 0.5 ? "high" : "low" });
+          } else if (state.step === "roll" && state.roller === s.seat) {
+            client.sendDice({ action: "roll" });
+          } else if (state.step === "choose" && state.winner === s.seat) {
+            client.sendDice({ action: "first" });
+          }
+        } catch {
+          /* socket gone; the server times the step out and acts for the seat */
+        }
+      },
       onUndoApplied: (info) => store.dispatch({ type: "undoApplied", info }),
       onTakenOver: () => {
         store.dispatch({ type: "takenOver" });
