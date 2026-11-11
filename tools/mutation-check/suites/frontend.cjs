@@ -12,6 +12,10 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Deck page draws a stack of layers by the copies in the deck (#1272)
+    {"id": "deckstack1272-copies-off-by-one", "file": "frontend/src/pages/decks/CardTable.tsx", "from": ": c.needed;\n}", "to": ": c.needed + 1;\n}", "kills": ["grid, table and phone list draw one layer per extra copy in the deck, and none for DON!! (#1272)"], "args": "src/pages/decks/deckStacks1272"},
+    {"id": "deckstack1272-don-stacked", "file": "frontend/src/pages/decks/CardTable.tsx", "from": "c.section === \"don\" || isDonCardType(c.card_type) ? undefined : c.needed", "to": "c.needed", "kills": ["grid, table and phone list draw one layer per extra copy in the deck, and none for DON!! (#1272)"], "args": "src/pages/decks/deckStacks1272"},
+    {"id": "deckstack1272-table-unstacked", "file": "frontend/src/pages/decks/CardTable.tsx", "from": "<StackedThumb copies={stackCopies(c)} src={mainImageUrl(c)}", "to": "<StackedThumb src={mainImageUrl(c)}", "kills": ["grid, table and phone list draw one layer per extra copy in the deck, and none for DON!! (#1272)"], "args": "src/pages/decks/deckStacks1272"},
     // Scan tray Fix row frees its button when the lookup rejects (#1229)
     { id: "scantray1229-busy-stuck-on-reject", file: "frontend/src/scanner/ui/ScanTray.tsx", from: "    } finally {\n      setBusy(false);\n    }\n", to: "    }\n", kills: ["a Fix lookup that fails frees the Use button again (#1229)"], args: "src/scanner/ui/scanTrayFix1229" },
     // Signed-in browsers see the app, not a hidden pre-render (#921)
@@ -22,7 +26,7 @@ module.exports = {
     // Lightbox alert editor and Price history share one panel (#1163)
     { id: "lightbox1163-panels-ignore-provider", file: "frontend/src/prices/lightboxPanel.tsx", from: "const open = shared ? shared.open === name : local;", to: "const open = local;", kills: ["Edit on the alert chip opens the editor and closes Price history (#1163)", "opening Price history closes the open alert editor (#1163)"], args: "src/prices/PriceAlerts855" },
     // Lightbox price alert follows the main art (#896)
-    { id: "main-art-alert855-grid-drops-product-id", file: "frontend/src/ui/PlannerCard.tsx", from: "<CardThumb src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />", to: "<CardThumb src={imageSrc} cardId={cardId} alt={name} />", kills: ["a grid card showing an alt art opens its lightbox for that alt's product id (#896)"] },
+    { id: "main-art-alert855-grid-drops-product-id", file: "frontend/src/ui/PlannerCard.tsx", from: "<StackedThumb copies={copies} src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />", to: "<StackedThumb copies={copies} src={imageSrc} cardId={cardId} alt={name} />", kills: ["a grid card showing an alt art opens its lightbox for that alt's product id (#896)"] },
     { id: "main-art-alert855-mobile-drops-product-id", edits: [
       { file: "frontend/src/ui/PlannerCard.tsx", from: "<MobileCardMedia src={imageSrc} productId={imageProductId} ", to: "<MobileCardMedia src={imageSrc} " },
       { file: "frontend/src/ui/CardThumb.tsx", from: "<CardThumb src={src} cardId={cardId} alt={alt} productId={productId} />", to: "<CardThumb src={src} cardId={cardId} alt={alt} />" },

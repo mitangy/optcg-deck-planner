@@ -1,5 +1,6 @@
+import { CardStack } from "@optcg/ui/cardStack";
 import { Select, type SelectOption } from "@optcg/ui/popups";
-import { useDeferredValue, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./preview/CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./layout/useMediaQuery";
@@ -22,7 +23,7 @@ import {
   type DeckDraft,
 } from "../decks/editDeck";
 import { DeckStatsSection } from "../decks/DeckStatsSection";
-import { groupDeckStacks, stackLayerCount } from "../decks/groupStacks";
+import { groupDeckStacks } from "../decks/groupStacks";
 import { type SavedDeck } from "../decks/storage";
 import { useDuelSettings } from "../settings";
 
@@ -85,22 +86,19 @@ function StackCard({
         aria-pressed={selected}
         aria-label={`View details for ${entry.name}`}
       >
-        <div className="deck-stack-pile">
-          {Array.from({ length: stackLayerCount(count) }, (_, i) => (
-            <div
-              key={i}
-              className="deck-stack-copy"
-              aria-hidden="true"
-              style={{ "--layer": i + 1 } as CSSProperties}
-            >
-              <CardArt
-                src={imageUrl}
-                defId={defId}
-                className="deck-stack-img"
-                fallback={<div className="deck-stack-fallback">{defId}</div>}
-              />
-            </div>
-          ))}
+        <CardStack
+          className="deck-stack-pile"
+          count={count}
+          reserve
+          copy={
+            <CardArt
+              src={imageUrl}
+              defId={defId}
+              className="deck-stack-img"
+              fallback={<div className="deck-stack-fallback">{defId}</div>}
+            />
+          }
+        >
           <div className="deck-stack-art">
             <CardArt
               src={imageUrl}
@@ -112,7 +110,7 @@ function StackCard({
               ×{count}
             </span>
           </div>
-        </div>
+        </CardStack>
       </button>
       <div className="deck-stack-meta">
         <button type="button" className="deck-stack-name-btn" onClick={onSelect}>

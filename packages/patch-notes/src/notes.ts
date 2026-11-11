@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "planner", pr: 1272, title: "Deck page shows copies as a stack", text: "On a deck page, a card you run more than once now shows as a pile of cards, up to four deep, in the grid, the list and on phones. The In deck count still gives the exact number." },
   { date: "2026-11-11", app: "planner", pr: 1271, title: "Skip an Extra copy in one group buy", text: "On a group buy card, untick an Extra copy to leave it out of that group buy only; it stays on your Shopping list. Lowering Your buy now drops Extra copies before your deck copies." },
   { date: "2026-11-11", app: "duel", pr: 1272, title: "Deck lists show copies as a stack", text: "In the deck editor, a card you run more than once now shows as a pile of cards, up to four deep, instead of a single card. The x2, x3 or x4 badge still gives the exact count." },
   { date: "2026-11-11", app: "duel", pr: 1268, title: "Fanned hand on tablets and foldables held sideways", text: "On a tablet, foldable or other big screen held sideways, picking Fan in Hand layout now fans your hand under the board like on a computer. Automatic and Grid keep it in the right column, and smaller phones held sideways are unchanged. Keep hand open now shows on those screens too, grayed out when it does nothing." },

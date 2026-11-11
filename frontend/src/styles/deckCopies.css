@@ -1,0 +1,53 @@
+/* Deck page: copies of a card drawn as a stack (@optcg/ui/cardStack). The space is always reserved,
+   so tiles in a row stay aligned. Layers share the thumb's radius and backdrop. */
+.card-stack.deck-copies {
+  --card-stack-radius: var(--radius-10);
+  --card-stack-bg: var(--thumb-bg);
+}
+
+.deck-copies .card-stack-front > .thumb-btn {
+  display: block;
+}
+
+/* Grid: art stays 156px wide; the stack is that plus the reserve. */
+.grid-card-media .card-stack.deck-copies {
+  --card-stack-step-x: 5px;
+  --card-stack-step-y: 8px;
+}
+
+/* Phone list: small art, tight steps; the media column grows by the reserve (3 x 3px). */
+.mobile-card-media .card-stack.deck-copies {
+  --card-stack-step-x: 3px;
+  --card-stack-step-y: 3px;
+}
+
+.mobile-card-media:has(> .card-stack.deck-copies) {
+  width: 105px;
+}
+
+/* Desktop table: the stack takes the place of the art; art keeps its 220px cap. */
+.data-table .card-cell-inner > .card-stack.deck-copies {
+  --card-stack-step-x: 4px;
+  --card-stack-step-y: 6px;
+  width: 100%;
+  max-width: calc(220px + var(--card-stack-reserve-x));
+}
+
+.data-table .card-cell-inner > .card-stack.deck-copies .card-stack-front > :is(.thumb-btn, .thumb) {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+.data-table .card-cell-inner > .card-stack.deck-copies .card-stack-front > .thumb-btn > .thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (min-width: 1600px) {
+  .card-workspace-main .data-table .card-cell-inner > .card-stack.deck-copies {
+    max-width: calc(120px + var(--card-stack-reserve-x));
+  }
+}
