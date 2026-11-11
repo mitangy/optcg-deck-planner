@@ -93,7 +93,7 @@ type Props = {
 };
 
 /**
- * Right-rail game state: a big whose-turn banner, then both players with
+ * Right-rail game state: a turn card (a big whose-turn heading for spectators only), then both players with
  * turn order, Life, hand, deck and DON!!. Opponent on top, you below — the
  * same order as the mats.
  */
@@ -154,6 +154,10 @@ export function TurnStatusPanel({
     sub = `${oppName} · ${view.phase} phase`;
   }
 
+  // Players see whose turn it is on the action button (End turn, the "Opponent's turn" pill, Counter, Keep), so the
+  // card does not repeat it as a big heading (#1247). Spectators have no button, and a finished match has no turn.
+  const showTitle = spectating || over;
+
   const you = view.you;
   const opp = view.opponent;
 
@@ -165,7 +169,7 @@ export function TurnStatusPanel({
           {turnClock ? <span className="turn-banner-clock"> · {turnClock}</span> : null}
           {matchClock ? <span className="turn-banner-clock"> · Match {matchClock}</span> : null}
         </span>
-        <strong className="turn-banner-title">{title}</strong>
+        {showTitle ? <strong className="turn-banner-title">{title}</strong> : null}
         {sub ? <span className="turn-banner-sub">{sub}</span> : null}
       </div>
       {compact ? (

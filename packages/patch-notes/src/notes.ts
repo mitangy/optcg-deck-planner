@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1258, title: "One turn indicator, not two", text: "Whose turn it is now shows on the button beside the board (End turn, or Opponent's turn while you wait), so the Turn card in the side column no longer repeats it in big letters. The card still shows the turn number, the phase and the clocks. Spectators still see the big heading." },
   { date: "2026-11-11", app: "duel", pr: 1250, title: "5 more OP18 Baroque Works cards", text: "Mr.2.Bon.Kurei(Bentham), Mr.3 & Miss.Goldenweek, Mr.7 & Miss.Father'sDay, Mr.8 & Ms. Monday and Atomic Dicer are now playable in the duel app. Negating Mr.0 & Ms. All Sunday with a [When Attacking] effect now also stops its [On Your Opponent's Attack]." },
   // 2026-11-10
   { date: "2026-11-10", app: "planner", pr: 1231, title: "Prices show thousands separators", text: "Prices of a thousand dollars or more now read $1,234.56 instead of $1234.56, and the short totals under Est. cost read $2K instead of $2.0k." },
