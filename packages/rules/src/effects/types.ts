@@ -349,6 +349,8 @@ export type Effect =
   | { do: "damage"; player: Rel; count: number }
   /** Activate the [Main] effect of an Event (from hand or trash) without paying its cost. */
   | { do: "activate_event"; target: Target }
+  /** Activate the [Trigger] effect of a card in hand (revealed by Spandam OP18-105); the card stays in the hand. */
+  | { do: "activate_trigger"; target: Target }
   | { do: "keyword"; target: Target; keyword: Keyword; duration: Duration }
   | { do: "restrict"; target: Target; restriction: Restriction; duration: Duration; value?: number; attribute?: string; filter?: Filter }
   | { do: "player_restrict"; player: Rel; restriction: PlayerRestriction; duration: Duration; filter?: Filter }
